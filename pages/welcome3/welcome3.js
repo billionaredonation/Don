@@ -5,7 +5,7 @@ import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib
 
 const MAP_IMG = './UkraineMap.png?v=13';
 const REGIONS_SVG = './ua.svg?v=9';
-const CITY_MAP_VERSION = '34';
+const CITY_MAP_VERSION = '35';
 const FALLBACK_MAP_SRC = './UkraineMap.png';
 const REGIONS_VIEW_BOX = '0 0 1000 669';
 const MAX_ZOOM = 3.4;
@@ -67,6 +67,19 @@ const CITY_MAPS = {
   chernivtsi: './ChernivtsiMap.png'
 };
 
+const CITY_MAP_FALLBACKS = {
+  cherkasy: [
+    './CherkasyMap.png',
+    './Cherkasy.png',
+    './CherkassyMap.png',
+    './Cherkassy.png',
+    './CherkasiMap.png',
+    './Cherkasi.png',
+    './Cherkasy-map.png',
+    './UkraineMap.png'
+  ]
+};
+
 const CITY_ID_ALIASES = {
   odessa: 'odesa',
   kiev: 'kyiv',
@@ -82,7 +95,10 @@ const CITY_ID_ALIASES = {
   nikolaev: 'mykolaiv',
   chernigov: 'chernihiv',
   khmelnitskiy: 'khmelnytskyi',
-  zutomyr: 'zhytomyr'
+  zutomyr: 'zhytomyr',
+  cherkassy: 'cherkasy',
+  cherkasyMap: 'cherkasy',
+  cherkasi: 'cherkasy'
 };
 
 const CITY_META = {
@@ -118,14 +134,45 @@ function normalizeCityId(cityId) {
   return CITY_ID_ALIASES[cityId] || cityId;
 }
 
-function cityMapSrc(cityId) {
-  const normalizedCityId = normalizeCityId(cityId);
-  return (CITY_MAPS[normalizedCityId] || FALLBACK_MAP_SRC) + '?v=' + CITY_MAP_VERSION;
+function versionedAsset(src, version = CITY_MAP_VERSION) {
+  if (!src) {
+    return FALLBACK_MAP_SRC + '?v=' + version;
+  }
+
+  return src.includes('?') ? src : src + '?v=' + version;
 }
 
-function setFallbackImage(img) {
+function cityMapCandidates(cityId) {
+  const normalizedCityId = normalizeCityId(cityId);
+  const fallbackList = CITY_MAP_FALLBACKS[normalizedCityId];
+
+  if (fallbackList && fallbackList.length) {
+    return fallbackList;
+  }
+
+  return [
+    CITY_MAPS[normalizedCityId] || FALLBACK_MAP_SRC,
+    FALLBACK_MAP_SRC
+  ];
+}
+
+function cityMapSrc(cityId) {
+  const candidates = cityMapCandidates(cityId);
+  return versionedAsset(candidates[0]);
+}
+
+function setFallbackImage(img, cityId) {
+  const candidates = cityMapCandidates(cityId);
+  const nextIndex = Number(img.dataset.fallbackIndex || '0') + 1;
+
+  if (nextIndex < candidates.length) {
+    img.dataset.fallbackIndex = String(nextIndex);
+    img.src = versionedAsset(candidates[nextIndex]);
+    return;
+  }
+
   img.onerror = null;
-  img.src = FALLBACK_MAP_SRC + '?v=' + CITY_MAP_VERSION;
+  img.src = versionedAsset(FALLBACK_MAP_SRC);
 }
 
 function fitPreviewThumb(img) {
@@ -276,6 +323,7 @@ register('welcome3', (root) => {
   let svgTextCache = '';
   let selectedRegion = null;
   let pendingRegion = null;
+  let compactRegionElements = [];
   let fullRegionElements = [];
   let visualFrame = null;
   let transformFrame = null;
@@ -319,7 +367,10 @@ register('welcome3', (root) => {
   }
 
   function getAllRegions() {
-    return fullRegionElements;
+    return [
+      ...compactRegionElements,
+      ...fullRegionElements
+    ];
   }
 
   function setMainText(text) {
@@ -338,8 +389,9 @@ register('welcome3', (root) => {
       return;
     }
 
+    const cityId = normalizeCityId(regionInfo.cityId);
     const meta = getCityMeta(regionInfo);
-    const imageSrc = meta.image || cityMapSrc(regionInfo.cityId);
+    const imageSrc = meta.image || cityMapSrc(cityId);
 
     cityPreviewCard.innerHTML = `
       <div class="city-preview-top">
@@ -400,8 +452,9 @@ register('welcome3', (root) => {
     const mapImg = cityPreviewCard.querySelector('.city-preview-map-img');
 
     if (thumbImg) {
+      thumbImg.dataset.fallbackIndex = '0';
       thumbImg.addEventListener('load', () => fitPreviewThumb(thumbImg), { once: true });
-      thumbImg.addEventListener('error', () => setFallbackImage(thumbImg), { once: true });
+      thumbImg.addEventListener('error', () => setFallbackImage(thumbImg, cityId));
 
       if (thumbImg.complete && thumbImg.naturalWidth) {
         fitPreviewThumb(thumbImg);
@@ -409,7 +462,8 @@ register('welcome3', (root) => {
     }
 
     if (mapImg) {
-      mapImg.addEventListener('error', () => setFallbackImage(mapImg), { once: true });
+      mapImg.dataset.fallbackIndex = '0';
+      mapImg.addEventListener('error', () => setFallbackImage(mapImg, cityId));
     }
 
     requestAnimationFrame(() => {
@@ -418,15 +472,20 @@ register('welcome3', (root) => {
   }
 
   async function preloadAssets() {
-    const svgResponse = await fetch(REGIONS_SVG);
-
-    await preloadImage(MAP_IMG);
+    const [svgResponse] = await Promise.all([
+      fetch(REGIONS_SVG, { cache: 'no-cache' }),
+      preloadImage(MAP_IMG)
+    ]);
 
     if (!svgResponse.ok) {
       throw new Error('SVG load error: ' + svgResponse.status);
     }
 
     svgTextCache = await svgResponse.text();
+
+    if (!svgTextCache || !svgTextCache.includes('<svg')) {
+      throw new Error('SVG body is empty or invalid');
+    }
   }
 
   function animateRegionChoice(regionInfo) {
@@ -770,7 +829,7 @@ register('welcome3', (root) => {
     path.setAttribute('role', 'button');
     path.setAttribute('aria-label', regionInfo.cityName);
 
-    if (state.regionId === regionInfo.regionId || state.city === regionInfo.cityId) {
+    if (state.regionId === regionInfo.regionId || normalizeCityId(state.city) === normalizeCityId(regionInfo.cityId)) {
       selectedRegion = regionInfo;
     }
 
@@ -808,7 +867,6 @@ register('welcome3', (root) => {
         path.blur();
 
         if (!gesture.moved) {
-          path.blur();
           choosePendingRegion(regionInfo);
         }
       });
@@ -823,83 +881,6 @@ register('welcome3', (root) => {
 
     storage.push(path);
   }
-
-  function loadSvgInto(layer, storage, mode) {
-    layer.textContent = '';
-    storage.length = 0;
-
-    const svg = createCleanSvg(mode);
-    layer.appendChild(svg);
-
-    prepareSvg(svg, mode).forEach((path) => {
-      setupRegion(path, storage, mode);
-    });
-  }
-
-  function openMap(regionInfo) {
-    mapModal.classList.remove('hidden');
-    pendingRegion = null;
-    pointers.clear();
-    gesture.mode = 'none';
-    gesture.moved = false;
-
-    renderCityPreview(null);
-    resetTransform();
-
-    if (regionInfo) {
-      choosePendingRegion(regionInfo);
-    } else {
-      updateVisualState();
-    }
-  }
-
-  async function initRegions() {
-    try {
-      await preloadAssets();
-
-      compactRegionsLayer.innerHTML = '';
-      loadSvgInto(fullRegionsLayer, fullRegionElements, 'full');
-      updateVisualState();
-
-      loader.classList.add('is-hidden');
-
-      window.setTimeout(() => {
-        loader.remove();
-      }, 280);
-    } catch (error) {
-      console.error(error);
-      loader.classList.add('is-hidden');
-
-      compactRegionsLayer.innerHTML = '<div class="map-error">Ошибка загрузки SVG</div>';
-      fullRegionsLayer.innerHTML = '<div class="map-error">Ошибка загрузки SVG</div>';
-      setMainText('Ошибка загрузки карты областей');
-    }
-  }
-
-  openMapBtn.addEventListener('click', () => openMap());
-  compactMap.addEventListener('click', () => openMap());
-
-  closeMapBtn.addEventListener('click', () => {
-    mapModal.classList.add('hidden');
-    pendingRegion = null;
-    pointers.clear();
-    gesture.mode = 'none';
-    gesture.moved = false;
-    renderCityPreview(null);
-    updateVisualState();
-  });
-
-  nextBtn.addEventListener('click', () => {
-    if (!selectedRegion) {
-      alert('Сначала выбери город на карте');
-      return;
-    }
-
-    show('preload', {
-      next: 'home',
-      mode: 'first-start',
-    });
-  });
 
   function createCleanSvg(mode) {
     const parser = new DOMParser();
@@ -938,8 +919,89 @@ register('welcome3', (root) => {
       cleanSvg.appendChild(region);
     });
 
+    cleanSvg.dataset.mode = mode;
+
     return cleanSvg;
   }
+
+  function loadSvgInto(layer, storage, mode) {
+    layer.textContent = '';
+    storage.length = 0;
+
+    const svg = createCleanSvg(mode);
+    layer.appendChild(svg);
+
+    prepareSvg(svg, mode).forEach((path) => {
+      setupRegion(path, storage, mode);
+    });
+  }
+
+  function openMap(regionInfo) {
+    mapModal.classList.remove('hidden');
+    pendingRegion = null;
+    pointers.clear();
+    gesture.mode = 'none';
+    gesture.moved = false;
+
+    renderCityPreview(null);
+    resetTransform();
+
+    if (regionInfo) {
+      choosePendingRegion(regionInfo);
+    } else {
+      updateVisualState();
+    }
+  }
+
+  async function initRegions() {
+    try {
+      await preloadAssets();
+
+      loadSvgInto(compactRegionsLayer, compactRegionElements, 'compact');
+      loadSvgInto(fullRegionsLayer, fullRegionElements, 'full');
+      updateVisualState();
+
+      loader.classList.add('is-hidden');
+
+      window.setTimeout(() => {
+        loader.remove();
+      }, 280);
+    } catch (error) {
+      console.error(error);
+      loader.classList.add('is-hidden');
+
+      compactRegionsLayer.innerHTML = '<div class="map-error">Ошибка загрузки SVG</div>';
+      fullRegionsLayer.innerHTML = '<div class="map-error">Ошибка загрузки SVG</div>';
+      setMainText('Ошибка загрузки карты областей');
+    }
+  }
+
+  openMapBtn.addEventListener('click', () => openMap());
+  compactMap.addEventListener('click', () => openMap());
+
+  closeMapBtn.addEventListener('click', () => {
+    mapModal.classList.add('hidden');
+    pendingRegion = null;
+    pointers.clear();
+    gesture.mode = 'none';
+    gesture.moved = false;
+    renderCityPreview(null);
+    updateVisualState();
+  });
+
+  confirmCityBtn.addEventListener('click', confirmRegion);
+
+  nextBtn.addEventListener('click', () => {
+    if (!selectedRegion) {
+      alert('Сначала выбери город на карте');
+      return;
+    }
+
+    show('preload', {
+      next: 'home',
+      mode: 'first-start',
+    });
+  });
 
   fullMapViewport.addEventListener('contextmenu', (event) => {
     event.preventDefault();
