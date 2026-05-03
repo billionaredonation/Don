@@ -4,7 +4,14 @@ import { citiesBase } from '../../src/data/citiesBase.js';
 import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib/economy.js';
 
 const MAP_IMG = './UkraineMap.png?v=13';
-const REGIONS_SVG = './ua.svg?v=9';
+const REGIONS_SVG_CANDIDATES = [
+  './ua.svg',
+  './ua.SVG',
+  './UA.svg',
+  './UA.SVG',
+  './ukraine.svg',
+  './Ukraine.svg'
+];
 const CITY_MAP_VERSION = '35';
 const FALLBACK_MAP_SRC = './UkraineMap.png';
 const REGIONS_VIEW_BOX = '0 0 1000 669';
@@ -75,7 +82,12 @@ const CITY_MAP_FALLBACKS = {
     './Cherkassy.png',
     './CherkasiMap.png',
     './Cherkasi.png',
-    './Cherkasy-map.png',
+    './cherkasymap.png',
+    './cherkasy.png',
+    './cherkassyMap.png',
+    './cherkassy.png',
+    './cherkasiMap.png',
+    './cherkasi.png',
     './UkraineMap.png'
   ]
 };
@@ -221,6 +233,37 @@ function preloadImage(src) {
     img.onerror = reject;
     img.src = src;
   });
+}
+
+async function fetchFirstSvg() {
+  const errors = [];
+
+  for (const svgSrc of REGIONS_SVG_CANDIDATES) {
+    const url = versionedAsset(svgSrc, CITY_MAP_VERSION);
+
+    try {
+      const response = await fetch(url, { cache: 'no-cache' });
+
+      if (!response.ok) {
+        errors.push(`${url}: ${response.status}`);
+        continue;
+      }
+
+      const text = await response.text();
+
+      if (!text || !text.includes('<svg')) {
+        errors.push(`${url}: invalid svg body`);
+        continue;
+      }
+
+      console.log('[welcome3] SVG loaded:', url);
+      return text;
+    } catch (error) {
+      errors.push(`${url}: ${error?.message || error}`);
+    }
+  }
+
+  throw new Error('SVG load failed. Tried: ' + errors.join(' | '));
 }
 
 register('welcome3', (root) => {
@@ -472,20 +515,12 @@ register('welcome3', (root) => {
   }
 
   async function preloadAssets() {
-    const [svgResponse] = await Promise.all([
-      fetch(REGIONS_SVG, { cache: 'no-cache' }),
+    const [loadedSvgText] = await Promise.all([
+      fetchFirstSvg(),
       preloadImage(MAP_IMG)
     ]);
 
-    if (!svgResponse.ok) {
-      throw new Error('SVG load error: ' + svgResponse.status);
-    }
-
-    svgTextCache = await svgResponse.text();
-
-    if (!svgTextCache || !svgTextCache.includes('<svg')) {
-      throw new Error('SVG body is empty or invalid');
-    }
+    svgTextCache = loadedSvgText;
   }
 
   function animateRegionChoice(regionInfo) {
