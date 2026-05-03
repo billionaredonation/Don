@@ -824,17 +824,17 @@ register('welcome3', (root) => {
     storage.push(path);
   }
 
-function loadSvgInto(layer, storage, mode) {
-  layer.textContent = '';
-  storage.length = 0;
+  function loadSvgInto(layer, storage, mode) {
+    layer.textContent = '';
+    storage.length = 0;
 
-  const svg = createCleanSvg(mode);
-  layer.appendChild(svg);
+    const svg = createCleanSvg(mode);
+    layer.appendChild(svg);
 
-  prepareSvg(svg, mode).forEach((path) => {
-    setupRegion(path, storage, mode);
-  });
-}
+    prepareSvg(svg, mode).forEach((path) => {
+      setupRegion(path, storage, mode);
+    });
+  }
 
   function openMap(regionInfo) {
     mapModal.classList.remove('hidden');
@@ -901,7 +901,7 @@ function loadSvgInto(layer, storage, mode) {
     });
   });
 
- function createCleanSvg(mode) {
+  function createCleanSvg(mode) {
     const parser = new DOMParser();
     const sourceDoc = parser.parseFromString(svgTextCache, 'image/svg+xml');
     const sourceSvg = sourceDoc.querySelector('svg');
@@ -911,7 +911,7 @@ function loadSvgInto(layer, storage, mode) {
       throw new Error('SVG tag not found');
     }
 
- const rawViewBox =
+    const rawViewBox =
       sourceSvg.getAttribute('viewBox') ||
       sourceSvg.getAttribute('viewbox') ||
       REGIONS_VIEW_BOX;
@@ -941,20 +941,6 @@ function loadSvgInto(layer, storage, mode) {
     return cleanSvg;
   }
 
-    const region = sourceRegion.cloneNode(true);
-
-    region.removeAttribute('fill');
-    region.removeAttribute('stroke');
-    region.removeAttribute('stroke-width');
-    region.removeAttribute('style');
-
-    cleanSvg.appendChild(region);
-  });
-
-  return cleanSvg;
-}
-
-  
   fullMapViewport.addEventListener('contextmenu', (event) => {
     event.preventDefault();
   });
