@@ -3,13 +3,13 @@ import { register, show } from '../../src/router.js';
 import { getState } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 
-const PRELOAD_VERSION = '1';
+const PRELOAD_VERSION = '2';
 const CITY_MAP_VERSION = '34';
 
 const MIN_LOADING_TIME = 4200;
 const SLIDE_TIME = 1400;
 
-const ROOT_LOADING_IMAGES = [
+const LOADING_IMAGES = [
   './loading-1.png',
   './loading-2.png',
   './loading-3.png',
@@ -19,8 +19,8 @@ const ROOT_LOADING_IMAGES = [
 const TIPS = [
   'Деньги любят скорость, но город любит тех, кто помнит район.',
   'Работа в регионе зависит от экономики города и стартовых условий.',
-  'Чем стабильнее город, тем предсказуемее доход. Чем хаотичнее — тем выше шанс сорвать куш.',
-  'Некоторые решения выглядят мелкими, пока не начинают стоить тебе недели прогресса.',
+  'Стабильный город даёт предсказуемость. Хаотичный — шанс сорвать куш.',
+  'Некоторые решения выглядят мелкими, пока не начинают стоить недели прогресса.',
 ];
 
 function withVersion(src, version = PRELOAD_VERSION) {
@@ -28,10 +28,14 @@ function withVersion(src, version = PRELOAD_VERSION) {
   return src.includes('?') ? src : `${src}?v=${version}`;
 }
 
-function preloadImage(src, timeout = 7000) {
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function preloadImage(src, timeout = 5000) {
   return new Promise((resolve) => {
     if (!src) {
-      resolve({ src, ok: false });
+      resolve(false);
       return;
     }
 
@@ -41,7 +45,7 @@ function preloadImage(src, timeout = 7000) {
     const finish = (ok) => {
       if (done) return;
       done = true;
-      resolve({ src, ok });
+      resolve(ok);
     };
 
     const timer = window.setTimeout(() => finish(false), timeout);
@@ -60,24 +64,49 @@ function preloadImage(src, timeout = 7000) {
   });
 }
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
+function setImageWithFallback(img, primarySrc, fallbackSrc) {
+  img.onerror = () => {
+    img.onerror = null;
+    img.src = fallbackSrc;
+  };
+
+  img.src = primarySrc || fallbackSrc;
 }
 
-function createSlides(city) {
-  return ROOT_LOADING_IMAGES.map((src, index) => ({
-    src: withVersion(src),
-    eyebrow: index === 0 ? 'Новый город' : 'Загрузка района',
-    title: index === 0
-      ? city.name
-      : ['Улицы ждут', 'Экономика просыпается', 'Главное меню почти готово'][index - 1] || city.name,
-    text: [
-      `${city.region}. ${city.tagline}`,
-      'Проверяем карту, районные данные и стартовые условия.',
-      'Собираем маршруты, работы и экономику региона.',
-      'Последние приготовления перед выходом в город.',
-    ][index] || city.tagline,
-  }));
+function makeSlides(city) {
+  const cityMap = withVersion(city.map || './UkraineMap.png', CITY_MAP_VERSION);
+  const ukraineMap = withVersion('./UkraineMap.png', CITY_MAP_VERSION);
+
+  return [
+    {
+      src: withVersion(LOADING_IMAGES[0]),
+      fallback: cityMap,
+      eyebrow: 'Новый город',
+      title: city.name,
+      text: `${city.region}. ${city.tagline}`,
+    },
+    {
+      src: withVersion(LOADING_IMAGES[1]),
+      fallback: cityMap,
+      eyebrow: 'Загружаем район',
+      title: 'Улицы ждут',
+      text: 'Проверяем карту, районные данные и стартовые условия.',
+    },
+    {
+      src: withVersion(LOADING_IMAGES[2]),
+      fallback: ukraineMap,
+      eyebrow: 'Экономика',
+      title: 'Деньги в движении',
+      text: 'Собираем маршруты, работы и экономику региона.',
+    },
+    {
+      src: withVersion(LOADING_IMAGES[3]),
+      fallback: cityMap,
+      eyebrow: 'Почти готово',
+      title: 'Выход в город',
+      text: 'Последние приготовления перед главным меню.',
+    },
+  ];
 }
 
 register('preload', (root, props = {}) => {
@@ -88,12 +117,12 @@ register('preload', (root, props = {}) => {
   const cityId = normalizeCityId(currentState.city || currentState.player?.city);
   const city = getCityConfig(cityId);
 
-  const slides = createSlides(city);
+  const slides = makeSlides(city);
+
   const assetsToLoad = [
-    ...slides.map((slide) => slide.src),
-    withVersion(city.map, CITY_MAP_VERSION),
+    ...slides.flatMap((slide) => [slide.src, slide.fallback]),
     withVersion('./UkraineMap.png', CITY_MAP_VERSION),
-  ];
+  ].filter(Boolean);
 
   let currentSlideIndex = 0;
   let loadedAssets = 0;
@@ -112,7 +141,6 @@ register('preload', (root, props = {}) => {
         <img
           class="preload-art is-active"
           id="preloadArt"
-          src="${slides[0].src}"
           alt=""
         />
       </div>
@@ -158,6 +186,8 @@ register('preload', (root, props = {}) => {
   const bar = root.querySelector('#preloadBar');
   const statusText = root.querySelector('#preloadStatusText');
 
+  setImageWithFallback(art, slides[0].src, slides[0].fallback);
+
   function setProgress(value) {
     const safeValue = clamp(Math.round(value), 0, 100);
 
@@ -185,7 +215,8 @@ register('preload', (root, props = {}) => {
     window.setTimeout(() => {
       if (finished || !root.isConnected) return;
 
-      art.src = slide.src;
+      setImageWithFallback(art, slide.src, slide.fallback);
+
       eyebrow.textContent = slide.eyebrow;
       title.textContent = slide.title;
       text.textContent = slide.text;
@@ -237,9 +268,8 @@ register('preload', (root, props = {}) => {
 
   Promise.all(
     assetsToLoad.map(async (src) => {
-      const result = await preloadImage(src);
+      await preloadImage(src);
       loadedAssets += 1;
-      return result;
     })
   ).then(async () => {
     const elapsed = Date.now() - startedAt;
