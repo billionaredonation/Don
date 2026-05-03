@@ -33,21 +33,53 @@ jobs:
       - name: Install deps
         run: npm install
 
-      - name: Build
+      - name: Build Vite app
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
 
-      - name: Copy runtime static assets
+      - name: Copy required runtime images
+        shell: bash
         run: |
+          set -euo pipefail
+
+          echo "Copying required image assets into dist..."
+
           mkdir -p dist
 
-          echo "Copying root PNG/SVG assets into dist..."
-          find . -maxdepth 1 -type f \( -iname "*.png" -o -iname "*.svg" \) -exec cp -f {} dist/ \;
+          # Копируем все картинки из корня репозитория.
+          # У тебя карты лежат именно в корне:
+          # UkraineMap.png, KiyvMap.png, DneprMap.png, ua.svg и т.д.
+          find . -maxdepth 1 -type f \
+            \( \
+              -iname "*.png"  -o \
+              -iname "*.svg"  -o \
+              -iname "*.jpg"  -o \
+              -iname "*.jpeg" -o \
+              -iname "*.webp" -o \
+              -iname "*.gif"  -o \
+              -iname "*.ico" \
+            \) \
+            -exec cp -f {} dist/ \;
 
-          echo "Files in dist root:"
-          find dist -maxdepth 1 -type f | sort
+          echo "Checking required map files..."
+
+          test -f dist/ua.svg
+          test -f dist/UkraineMap.png
+
+          echo "Images copied:"
+          find dist -maxdepth 1 -type f \
+            \( \
+              -iname "*.png"  -o \
+              -iname "*.svg"  -o \
+              -iname "*.jpg"  -o \
+              -iname "*.jpeg" -o \
+              -iname "*.webp" -o \
+              -iname "*.gif"  -o \
+              -iname "*.ico" \
+            \) \
+            | sort
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -64,6 +96,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy
+      - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
