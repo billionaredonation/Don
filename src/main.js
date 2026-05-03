@@ -6,6 +6,7 @@ import { initRuntime, getState, loadRemote } from './state.js';
 import '../pages/welcome1/welcome1.js';
 import '../pages/welcome2/welcome2.js';
 import '../pages/welcome3/welcome3.js';
+import '../pages/preload/preload.js';
 import '../pages/home/home-screen.js';
 
 function renderBootError(error) {
@@ -39,17 +40,7 @@ async function boot() {
     window.Telegram?.WebApp?.ready?.();
     window.Telegram?.WebApp?.expand?.();
 
-    /*
-      Важно:
-      сначала ждём Supabase,
-      потом решаем, какой экран показывать.
-    */
     await loadRemote();
-
-    /*
-      Если remote state пустой — создаём runtime локально
-      и сохраняем его уже под auth.uid().
-    */
     initRuntime();
 
     const currentState = getState();
@@ -72,7 +63,10 @@ async function boot() {
       return;
     }
 
-    show('home');
+    show('preload', {
+      next: 'home',
+      mode: 'return',
+    });
   } catch (error) {
     renderBootError(error);
   }
