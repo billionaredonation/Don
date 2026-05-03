@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "=== Copying image assets into dist ==="
+          echo "=== Copying static assets into dist ==="
 
           mkdir -p dist
 
@@ -57,7 +57,8 @@ jobs:
               -iname "*.jpeg" -o \
               -iname "*.webp" -o \
               -iname "*.gif"  -o \
-              -iname "*.ico" \
+              -iname "*.ico"  -o \
+              -iname "*.avif" \
             \) \
             ! -path "./node_modules/*" \
             ! -path "./dist/*" \
@@ -72,20 +73,30 @@ jobs:
 
               mkdir -p "dist/$dir"
 
-              # Копия с сохранением исходного пути.
+              # Копия с сохранением пути.
               cp -f "$file" "dist/$rel"
 
               # Копия в корень dist.
-              # Это нужно для путей вида './UkraineMap.png' и './ua.svg'.
+              # Нужна для путей вида './loading-kyiv-1.png', './ua.svg', './UkraineMap.png'.
               cp -f "$file" "dist/$base"
             done
 
           echo ""
-          echo "=== dist root files ==="
-          find dist -maxdepth 1 -type f | sort
+          echo "=== dist root image files ==="
+          find dist -maxdepth 1 -type f \
+            \( \
+              -iname "*.png"  -o \
+              -iname "*.svg"  -o \
+              -iname "*.jpg"  -o \
+              -iname "*.jpeg" -o \
+              -iname "*.webp" -o \
+              -iname "*.gif"  -o \
+              -iname "*.ico"  -o \
+              -iname "*.avif" \
+            \) | sort
 
           echo ""
-          echo "=== Checking required files ==="
+          echo "=== Checking required base files ==="
 
           if [ ! -s "dist/ua.svg" ]; then
             echo "ERROR: dist/ua.svg was not copied"
@@ -97,7 +108,37 @@ jobs:
             exit 1
           fi
 
-          echo "OK: required map files exist"
+          echo ""
+          echo "=== Checking loading images ==="
+
+          loading_count="$(
+            find dist -maxdepth 1 -type f \
+              \( \
+                -iname "loading-*.png"  -o \
+                -iname "loading-*.jpg"  -o \
+                -iname "loading-*.jpeg" -o \
+                -iname "loading-*.webp" -o \
+                -iname "loading-*.avif" \
+              \) | wc -l | tr -d ' '
+          )"
+
+          echo "Found loading images in dist root: $loading_count"
+
+          find dist -maxdepth 1 -type f \
+            \( \
+              -iname "loading-*.png"  -o \
+              -iname "loading-*.jpg"  -o \
+              -iname "loading-*.jpeg" -o \
+              -iname "loading-*.webp" -o \
+              -iname "loading-*.avif" \
+            \) | sort
+
+          if [ "$loading_count" -lt 1 ]; then
+            echo "ERROR: no loading-* images were copied to dist root"
+            exit 1
+          fi
+
+          echo "OK: required assets exist"
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
