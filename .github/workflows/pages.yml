@@ -39,10 +39,15 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
 
-      - name: Copy static map assets
+      - name: Copy runtime static assets
         run: |
-          cp ua.svg dist/
-          cp *.png dist/
+          mkdir -p dist
+
+          echo "Copying root PNG/SVG assets into dist..."
+          find . -maxdepth 1 -type f \( -iname "*.png" -o -iname "*.svg" \) -exec cp -f {} dist/ \;
+
+          echo "Files in dist root:"
+          find dist -maxdepth 1 -type f | sort
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
