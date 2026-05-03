@@ -3,45 +3,44 @@ import { register, show } from '../../src/router.js';
 import { getState } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 
-const PRELOAD_VERSION = '4';
+const PRELOAD_VERSION = '10';
 const CITY_MAP_VERSION = '35';
 
 const MIN_LOADING_TIME = 4200;
 const SLIDE_TIME = 1400;
 
-/*
-  ВАЖНО:
-  сюда добавлены разные варианты регистра, потому что GitHub Pages
-  чувствителен к имени файла.
+const ALL_CITY_IDS = [
+  'vinnytsia',
+  'lutsk',
+  'luhansk',
+  'dnipro',
+  'donetsk',
+  'zhytomyr',
+  'uzhhorod',
+  'zaporizhzhia',
+  'ivano-frankivsk',
+  'kyiv',
+  'kropyvnytskyi',
+  'crimea',
+  'lviv',
+  'mykolaiv',
+  'odesa',
+  'poltava',
+  'rivne',
+  'sumy',
+  'ternopil',
+  'kharkiv',
+  'kherson',
+  'khmelnytskyi',
+  'cherkasy',
+  'chernihiv',
+  'chernivtsi',
+];
 
-  Если файл называется loading-1.PNG, а код просит loading-1.png —
-  на GitHub Pages будет 404.
-*/
-const LOADING_IMAGE_CANDIDATES = [
-  [
-    './loading-1.png',
-    './loading-1.PNG',
-    './Loading-1.png',
-    './Loading-1.PNG',
-    './loading1.png',
-    './loading1.PNG',
-  ],
-  [
-    './loading-2.png',
-    './loading-2.PNG',
-    './Loading-2.png',
-    './Loading-2.PNG',
-    './loading2.png',
-    './loading2.PNG',
-  ],
-  [
-    './loading-3.png',
-    './loading-3.PNG',
-    './Loading-3.png',
-    './Loading-3.PNG',
-    './loading3.png',
-    './loading3.PNG',
-  ],
+const DEFAULT_LOADING_IMAGES = [
+  './loading-1.png',
+  './loading-2.png',
+  './loading-3.png',
 ];
 
 const TIPS = [
@@ -56,15 +55,11 @@ function withVersion(src, version = PRELOAD_VERSION) {
   return src.includes('?') ? src : `${src}?v=${version}`;
 }
 
-function withoutVersion(src) {
-  return String(src || '').split('?')[0];
-}
-
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function preloadImage(src, timeout = 4500) {
+function preloadImage(src, timeout = 3500) {
   return new Promise((resolve) => {
     if (!src) {
       resolve(false);
@@ -96,53 +91,58 @@ function preloadImage(src, timeout = 4500) {
   });
 }
 
-async function firstWorkingImage(candidates) {
-  for (const candidate of candidates) {
-    const versioned = withVersion(candidate);
-    const ok = await preloadImage(versioned, 2500);
+function makeCityLoadingCandidates(cityId) {
+  const normalizedCityId = normalizeCityId(cityId);
 
-    if (ok) {
-      console.log('[Preload] image found:', versioned);
-      return versioned;
-    }
-
-    console.warn('[Preload] image missing:', versioned);
-  }
-
-  return '';
+  return [
+    `./loading-${normalizedCityId}-1.png`,
+    `./loading-${normalizedCityId}-2.png`,
+    `./loading-${normalizedCityId}-3.png`,
+  ];
 }
 
-async function resolveLoadingImages(city) {
+async function collectExistingImages(candidates) {
+  const existing = [];
+
+  for (const src of candidates) {
+    const versioned = withVersion(src);
+    const ok = await preloadImage(versioned);
+
+    if (ok) {
+      existing.push(versioned);
+      console.log('[Preload] image found:', versioned);
+    } else {
+      console.warn('[Preload] image missing:', versioned);
+    }
+  }
+
+  return existing;
+}
+
+async function resolveLoadingImages(cityId, city) {
   const cityMap = withVersion(city.map || './UkraineMap.png', CITY_MAP_VERSION);
   const ukraineMap = withVersion('./UkraineMap.png', CITY_MAP_VERSION);
 
-  const resolved = [];
+  const cityCandidates = makeCityLoadingCandidates(cityId);
+  let images = await collectExistingImages(cityCandidates);
 
-  for (const candidates of LOADING_IMAGE_CANDIDATES) {
-    const image = await firstWorkingImage(candidates);
-
-    if (image) {
-      resolved.push(image);
-    }
+  if (!images.length) {
+    images = await collectExistingImages(DEFAULT_LOADING_IMAGES);
   }
 
-  /*
-    Если loading-фото не найдены или их меньше трёх,
-    добиваем список рабочими картами.
-  */
-  if (!resolved.length) {
-    resolved.push(cityMap);
+  if (!images.length) {
+    images.push(cityMap);
   }
 
-  if (resolved.length < 2) {
-    resolved.push(ukraineMap);
+  if (images.length < 2) {
+    images.push(ukraineMap);
   }
 
-  if (resolved.length < 3) {
-    resolved.push(cityMap);
+  if (images.length < 3) {
+    images.push(cityMap);
   }
 
-  return resolved;
+  return images;
 }
 
 function makeSlides(city, images) {
@@ -190,17 +190,11 @@ function setImageWithFallback(img, primarySrc, fallbackSrc) {
 
   window.setTimeout(() => {
     img.onerror = () => {
-      console.warn('[Preload] primary image failed, using fallback:', {
-        primarySrc,
-        safeFallback,
-      });
-
       img.onerror = null;
       img.src = safeFallback;
     };
 
     img.onload = () => {
-      console.log('[Preload] displayed image:', img.currentSrc || img.src);
       img.classList.add('is-active');
     };
 
@@ -208,12 +202,30 @@ function setImageWithFallback(img, primarySrc, fallbackSrc) {
   }, 80);
 }
 
+function resolveSelectedCityId() {
+  const currentState = getState();
+
+  const rawCityId =
+    currentState.city ||
+    currentState.player?.city ||
+    currentState.cityId ||
+    currentState.player?.cityId ||
+    'kyiv';
+
+  const normalizedCityId = normalizeCityId(rawCityId);
+
+  if (ALL_CITY_IDS.includes(normalizedCityId)) {
+    return normalizedCityId;
+  }
+
+  return normalizedCityId || 'kyiv';
+}
+
 register('preload', async (root, props = {}) => {
   const nextScreen = props.next || 'home';
   const mode = props.mode || 'default';
 
-  const currentState = getState();
-  const cityId = normalizeCityId(currentState.city || currentState.player?.city);
+  const cityId = resolveSelectedCityId();
   const city = getCityConfig(cityId);
 
   root.className = 'page preload-page';
@@ -277,7 +289,6 @@ register('preload', async (root, props = {}) => {
   let finished = false;
   let slideTimer = null;
   let progressTimer = null;
-  let slides = [];
 
   function setProgress(value) {
     const safeValue = clamp(Math.round(value), 0, 100);
@@ -296,19 +307,6 @@ register('preload', async (root, props = {}) => {
         ? 'Подготавливаем первый вход'
         : 'Загружаем главное меню';
     }
-  }
-
-  function setSlide(index) {
-    if (!slides.length) return;
-
-    const slide = slides[index % slides.length];
-
-    setImageWithFallback(art, slide.src, slide.fallback);
-
-    eyebrow.textContent = slide.eyebrow;
-    title.textContent = slide.title;
-    text.textContent = slide.text;
-    tip.textContent = TIPS[index % TIPS.length];
   }
 
   function goNext() {
@@ -344,10 +342,19 @@ register('preload', async (root, props = {}) => {
     setProgress(visualProgress);
   }, 90);
 
-  const images = await resolveLoadingImages(city);
-  slides = makeSlides(city, images);
+  const images = await resolveLoadingImages(cityId, city);
+  const slides = makeSlides(city, images);
 
-  console.log('[Preload] final images:', images.map(withoutVersion));
+  function setSlide(index) {
+    const slide = slides[index % slides.length];
+
+    setImageWithFallback(art, slide.src, slide.fallback);
+
+    eyebrow.textContent = slide.eyebrow;
+    title.textContent = slide.title;
+    text.textContent = slide.text;
+    tip.textContent = TIPS[index % TIPS.length];
+  }
 
   setSlide(0);
 
