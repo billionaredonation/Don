@@ -889,15 +889,18 @@ function loadSvgInto(layer, storage, mode) {
     updateVisualState();
   });
 
-  confirmCityBtn.addEventListener('click', confirmRegion);
-
   nextBtn.addEventListener('click', () => {
     if (!selectedRegion) {
       alert('Сначала выбери город на карте');
       return;
     }
 
-    show('home');
+    show('preload', {
+      next: 'home',
+      mode: 'first-start',
+    });
+  });
+      show('home');
   });
 
   function createCleanSvg(mode) {
