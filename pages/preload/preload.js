@@ -13,7 +13,6 @@ const LOADING_IMAGES = [
   './loading-1.png',
   './loading-2.png',
   './loading-3.png',
-  './loading-4.png',
 ];
 
 const TIPS = [
@@ -77,36 +76,38 @@ function makeSlides(city) {
   const cityMap = withVersion(city.map || './UkraineMap.png', CITY_MAP_VERSION);
   const ukraineMap = withVersion('./UkraineMap.png', CITY_MAP_VERSION);
 
-  return [
+  const texts = [
     {
-      src: withVersion(LOADING_IMAGES[0]),
-      fallback: cityMap,
       eyebrow: 'Новый город',
       title: city.name,
       text: `${city.region}. ${city.tagline}`,
+      fallback: cityMap,
     },
     {
-      src: withVersion(LOADING_IMAGES[1]),
-      fallback: cityMap,
       eyebrow: 'Загружаем район',
       title: 'Улицы ждут',
       text: 'Проверяем карту, районные данные и стартовые условия.',
+      fallback: cityMap,
     },
     {
-      src: withVersion(LOADING_IMAGES[2]),
-      fallback: ukraineMap,
       eyebrow: 'Экономика',
       title: 'Деньги в движении',
       text: 'Собираем маршруты, работы и экономику региона.',
-    },
-    {
-      src: withVersion(LOADING_IMAGES[3]),
-      fallback: cityMap,
-      eyebrow: 'Почти готово',
-      title: 'Выход в город',
-      text: 'Последние приготовления перед главным меню.',
+      fallback: ukraineMap,
     },
   ];
+
+  return LOADING_IMAGES.map((src, index) => {
+    const copy = texts[index] || texts[index % texts.length];
+
+    return {
+      src: withVersion(src),
+      fallback: copy.fallback,
+      eyebrow: copy.eyebrow,
+      title: copy.title,
+      text: copy.text,
+    };
+  });
 }
 
 register('preload', (root, props = {}) => {
