@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050505" />
+
+  <title>Mn-game</title>
+
+  <link rel="stylesheet" href="./styles/base.css?v=102" />
+  <link rel="stylesheet" href="./pages/welcome1/welcome1.css?v=102" />
+  <link rel="stylesheet" href="./pages/welcome2/welcome2.css?v=102" />
+  <link rel="stylesheet" href="./pages/welcome3/welcome3.css?v=112" />
+  <link rel="stylesheet" href="./pages/home/home.css?v=102" />
+  <link rel="stylesheet" href="./styles/map-lights.css?v102" />
+=
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    function showFatalError(error) {
+      const root = document.getElementById('app');
+      if (!root) return;
+
+      const message = String(error?.stack || error?.message || error);
+      root.innerHTML =
+        '<div style="min-height:100vh;background:#050505;color:#fff;padding:20px;font-family:Arial,sans-serif;white-space:pre-wrap;line-height:1.45;">' +
+        'Ошибка загрузки:\\n\\n' + message +
+        '</div>';
+    }
+
+    window.addEventListener('error', (event) => showFatalError(event.error || event.message));
+    window.addEventListener('unhandledrejection', (event) => showFatalError(event.reason));
+  </script>
+</head>
+
+<body>
+  <div id="app">
+    <div class="app-loading">
+      Загрузка...
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js?v=109"></script>
+</body>
+</html>
+
+
+
