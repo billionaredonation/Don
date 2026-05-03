@@ -2,19 +2,20 @@
 import { citiesBase } from './data/citiesBase.js';
 import { supabase } from './supabaseClient.js';
 
-/* ---------- 1. ключи локального хранилища ---------- */
+/* ---------- 1. localStorage ---------- */
 
 const LS_KEY = 'mn-game-state';
 
 /*
-  deviceId больше НЕ используем как защиту.
+  ВАЖНО:
+  deviceId больше не используем для БД.
 
-  Почему:
-  - localStorage можно изменить руками;
-  - deviceId можно подставить;
-  - база не может доказать, что этот deviceId принадлежит игроку.
+  Причина:
+  - localStorage можно подделать;
+  - deviceId можно поменять руками;
+  - RLS не может проверить владельца deviceId.
 
-  Теперь владелец строки определяется только через Supabase Auth:
+  Теперь владелец строки определяется только через:
   auth.uid() === game_state.user_id
 */
 
@@ -44,6 +45,11 @@ function normalizeLoadedState(loaded) {
   loaded.cityName = loaded.cityName || loaded.player.cityName || null;
   loaded.regionId = loaded.regionId || loaded.player.regionId || null;
 
+  loaded.player.nickname = loaded.nickname;
+  loaded.player.city = loaded.city;
+  loaded.player.cityName = loaded.cityName;
+  loaded.player.regionId = loaded.regionId;
+
   return loaded;
 }
 
@@ -60,7 +66,7 @@ function loadLocal() {
 
     return normalizeLoadedState(loaded);
   } catch (error) {
-    console.warn('Unable to load local state', error);
+    console.warn('[State] Unable to load local state', error);
     return clone(defaultState);
   }
 }
@@ -87,18 +93,35 @@ async function getUserId() {
 }
 
 async function resolveUserId() {
-  const { data: currentUserData, error: currentUserError } =
-    await supabase.auth.getUser();
+  console.log('[Supabase] resolveUserId started');
 
-  if (currentUserError) {
-    console.warn('Unable to get current Supabase user', currentUserError);
+  const { data: sessionData, error: sessionError } =
+    await supabase.auth.getSession();
+
+  console.log('[Supabase] getSession result:', {
+    hasSession: Boolean(sessionData?.session),
+    userId: sessionData?.session?.user?.id || null,
+    error: sessionError,
+  });
+
+  if (sessionError) {
+    console.warn('[Supabase] getSession error', sessionError);
   }
 
-  if (currentUserData?.user?.id) {
-    return currentUserData.user.id;
+  if (sessionData?.session?.user?.id) {
+    console.log('[Supabase] existing user:', sessionData.session.user.id);
+    return sessionData.session.user.id;
   }
+
+  console.log('[Supabase] no session, signing in anonymously');
 
   const { data, error } = await supabase.auth.signInAnonymously();
+
+  console.log('[Supabase] signInAnonymously result:', {
+    userId: data?.user?.id || null,
+    hasSession: Boolean(data?.session),
+    error,
+  });
 
   if (error) {
     userIdPromise = null;
@@ -116,21 +139,33 @@ async function resolveUserId() {
 /* ---------- 7. удалённая загрузка ---------- */
 
 export async function loadRemote() {
+  console.log('[Supabase] loadRemote started');
+
   try {
     const userId = await getUserId();
 
-    const { data, error } = await supabase
+    console.log('[Supabase] loading game_state for user:', userId);
+
+    const { data, error, status, statusText } = await supabase
       .from('game_state')
       .select('data')
       .eq('user_id', userId)
       .maybeSingle();
 
+    console.log('[Supabase] loadRemote result:', {
+      data,
+      error,
+      status,
+      statusText,
+    });
+
     if (error) {
-      console.warn('Supabase load failed. Local state used.', error);
+      console.warn('[Supabase] load failed. Local state used.', error);
       return;
     }
 
     if (!data?.data) {
+      console.log('[Supabase] no remote state found, creating first row');
       await saveRemote();
       return;
     }
@@ -154,8 +189,10 @@ export async function loadRemote() {
 
     state = normalizeLoadedState(merged);
     saveLocal();
+
+    console.log('[Supabase] remote state applied:', state);
   } catch (error) {
-    console.warn('Remote load crashed. Local state used.', error);
+    console.warn('[Supabase] Remote load crashed. Local state used.', error);
   }
 }
 
@@ -167,36 +204,48 @@ export function save() {
 }
 
 function saveLocal() {
-  state.player = state.player || {};
-  state.player.nickname = state.nickname || null;
-  state.player.city = state.city || null;
-  state.player.cityName = state.cityName || null;
-  state.player.regionId = state.regionId || null;
+  state = normalizeLoadedState(state);
 
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(state));
   } catch (error) {
-    console.warn('Unable to save game state locally', error);
+    console.warn('[State] Unable to save game state locally', error);
   }
 }
 
 async function saveRemote() {
+  console.log('[Supabase] saveRemote started');
+
   try {
     const userId = await getUserId();
 
-    const { error } = await supabase
+    const payload = {
+      user_id: userId,
+      data: normalizeLoadedState(state),
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log('[Supabase] saveRemote payload:', payload);
+
+    const { data, error, status, statusText } = await supabase
       .from('game_state')
-      .upsert({
-        user_id: userId,
-        data: state,
-        updated_at: new Date().toISOString(),
-      });
+      .upsert(payload, {
+        onConflict: 'user_id',
+      })
+      .select();
+
+    console.log('[Supabase] saveRemote result:', {
+      data,
+      error,
+      status,
+      statusText,
+    });
 
     if (error) {
-      console.warn('Supabase save failed', error);
+      console.warn('[Supabase] save failed', error);
     }
   } catch (error) {
-    console.warn('Remote save crashed', error);
+    console.warn('[Supabase] Remote save crashed', error);
   }
 }
 
@@ -207,11 +256,15 @@ export function setState(path, value) {
   let obj = state;
 
   keys.slice(0, -1).forEach((key) => {
-    if (!obj[key]) obj[key] = {};
+    if (!obj[key]) {
+      obj[key] = {};
+    }
+
     obj = obj[key];
   });
 
   obj[keys[keys.length - 1]] = value;
+
   save();
 }
 
@@ -241,5 +294,6 @@ export function initRuntime() {
   }
 
   state.citiesRuntime = blank;
+
   save();
 }
