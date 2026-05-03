@@ -3,16 +3,45 @@ import { register, show } from '../../src/router.js';
 import { getState } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 
-const PRELOAD_VERSION = '2';
-const CITY_MAP_VERSION = '34';
+const PRELOAD_VERSION = '4';
+const CITY_MAP_VERSION = '35';
 
 const MIN_LOADING_TIME = 4200;
 const SLIDE_TIME = 1400;
 
-const LOADING_IMAGES = [
-  './loading-1.png',
-  './loading-2.png',
-  './loading-3.png',
+/*
+  ВАЖНО:
+  сюда добавлены разные варианты регистра, потому что GitHub Pages
+  чувствителен к имени файла.
+
+  Если файл называется loading-1.PNG, а код просит loading-1.png —
+  на GitHub Pages будет 404.
+*/
+const LOADING_IMAGE_CANDIDATES = [
+  [
+    './loading-1.png',
+    './loading-1.PNG',
+    './Loading-1.png',
+    './Loading-1.PNG',
+    './loading1.png',
+    './loading1.PNG',
+  ],
+  [
+    './loading-2.png',
+    './loading-2.PNG',
+    './Loading-2.png',
+    './Loading-2.PNG',
+    './loading2.png',
+    './loading2.PNG',
+  ],
+  [
+    './loading-3.png',
+    './loading-3.PNG',
+    './Loading-3.png',
+    './Loading-3.PNG',
+    './loading3.png',
+    './loading3.PNG',
+  ],
 ];
 
 const TIPS = [
@@ -27,11 +56,15 @@ function withVersion(src, version = PRELOAD_VERSION) {
   return src.includes('?') ? src : `${src}?v=${version}`;
 }
 
+function withoutVersion(src) {
+  return String(src || '').split('?')[0];
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function preloadImage(src, timeout = 5000) {
+function preloadImage(src, timeout = 4500) {
   return new Promise((resolve) => {
     if (!src) {
       resolve(false);
@@ -63,20 +96,60 @@ function preloadImage(src, timeout = 5000) {
   });
 }
 
-function setImageWithFallback(img, primarySrc, fallbackSrc) {
-  img.onerror = () => {
-    img.onerror = null;
-    img.src = fallbackSrc;
-  };
+async function firstWorkingImage(candidates) {
+  for (const candidate of candidates) {
+    const versioned = withVersion(candidate);
+    const ok = await preloadImage(versioned, 2500);
 
-  img.src = primarySrc || fallbackSrc;
+    if (ok) {
+      console.log('[Preload] image found:', versioned);
+      return versioned;
+    }
+
+    console.warn('[Preload] image missing:', versioned);
+  }
+
+  return '';
 }
 
-function makeSlides(city) {
+async function resolveLoadingImages(city) {
   const cityMap = withVersion(city.map || './UkraineMap.png', CITY_MAP_VERSION);
   const ukraineMap = withVersion('./UkraineMap.png', CITY_MAP_VERSION);
 
-  const texts = [
+  const resolved = [];
+
+  for (const candidates of LOADING_IMAGE_CANDIDATES) {
+    const image = await firstWorkingImage(candidates);
+
+    if (image) {
+      resolved.push(image);
+    }
+  }
+
+  /*
+    Если loading-фото не найдены или их меньше трёх,
+    добиваем список рабочими картами.
+  */
+  if (!resolved.length) {
+    resolved.push(cityMap);
+  }
+
+  if (resolved.length < 2) {
+    resolved.push(ukraineMap);
+  }
+
+  if (resolved.length < 3) {
+    resolved.push(cityMap);
+  }
+
+  return resolved;
+}
+
+function makeSlides(city, images) {
+  const cityMap = withVersion(city.map || './UkraineMap.png', CITY_MAP_VERSION);
+  const ukraineMap = withVersion('./UkraineMap.png', CITY_MAP_VERSION);
+
+  const copy = [
     {
       eyebrow: 'Новый город',
       title: city.name,
@@ -97,39 +170,51 @@ function makeSlides(city) {
     },
   ];
 
-  return LOADING_IMAGES.map((src, index) => {
-    const copy = texts[index] || texts[index % texts.length];
+  return images.map((src, index) => {
+    const item = copy[index] || copy[index % copy.length];
 
     return {
-      src: withVersion(src),
-      fallback: copy.fallback,
-      eyebrow: copy.eyebrow,
-      title: copy.title,
-      text: copy.text,
+      src,
+      fallback: item.fallback,
+      eyebrow: item.eyebrow,
+      title: item.title,
+      text: item.text,
     };
   });
 }
 
-register('preload', (root, props = {}) => {
+function setImageWithFallback(img, primarySrc, fallbackSrc) {
+  const safeFallback = fallbackSrc || withVersion('./UkraineMap.png', CITY_MAP_VERSION);
+
+  img.classList.remove('is-active');
+
+  window.setTimeout(() => {
+    img.onerror = () => {
+      console.warn('[Preload] primary image failed, using fallback:', {
+        primarySrc,
+        safeFallback,
+      });
+
+      img.onerror = null;
+      img.src = safeFallback;
+    };
+
+    img.onload = () => {
+      console.log('[Preload] displayed image:', img.currentSrc || img.src);
+      img.classList.add('is-active');
+    };
+
+    img.src = primarySrc || safeFallback;
+  }, 80);
+}
+
+register('preload', async (root, props = {}) => {
   const nextScreen = props.next || 'home';
   const mode = props.mode || 'default';
 
   const currentState = getState();
   const cityId = normalizeCityId(currentState.city || currentState.player?.city);
   const city = getCityConfig(cityId);
-
-  const slides = makeSlides(city);
-
-  const assetsToLoad = [
-    ...slides.flatMap((slide) => [slide.src, slide.fallback]),
-    withVersion('./UkraineMap.png', CITY_MAP_VERSION),
-  ].filter(Boolean);
-
-  let currentSlideIndex = 0;
-  let loadedAssets = 0;
-  let finished = false;
-  let slideTimer = null;
-  let progressTimer = null;
 
   root.className = 'page preload-page';
 
@@ -140,7 +225,7 @@ register('preload', (root, props = {}) => {
 
       <div class="preload-art-stage">
         <img
-          class="preload-art is-active"
+          class="preload-art"
           id="preloadArt"
           alt=""
         />
@@ -151,9 +236,9 @@ register('preload', (root, props = {}) => {
       </div>
 
       <div class="preload-city-card">
-        <p class="preload-eyebrow" id="preloadEyebrow">${slides[0].eyebrow}</p>
-        <h1 id="preloadTitle">${slides[0].title}</h1>
-        <p id="preloadText">${slides[0].text}</p>
+        <p class="preload-eyebrow" id="preloadEyebrow">Новый город</p>
+        <h1 id="preloadTitle">${city.name}</h1>
+        <p id="preloadText">${city.region}. ${city.tagline}</p>
       </div>
 
       <div class="preload-bottom">
@@ -187,7 +272,12 @@ register('preload', (root, props = {}) => {
   const bar = root.querySelector('#preloadBar');
   const statusText = root.querySelector('#preloadStatusText');
 
-  setImageWithFallback(art, slides[0].src, slides[0].fallback);
+  let currentSlideIndex = 0;
+  let loadedAssets = 0;
+  let finished = false;
+  let slideTimer = null;
+  let progressTimer = null;
+  let slides = [];
 
   function setProgress(value) {
     const safeValue = clamp(Math.round(value), 0, 100);
@@ -209,22 +299,16 @@ register('preload', (root, props = {}) => {
   }
 
   function setSlide(index) {
+    if (!slides.length) return;
+
     const slide = slides[index % slides.length];
 
-    art.classList.remove('is-active');
+    setImageWithFallback(art, slide.src, slide.fallback);
 
-    window.setTimeout(() => {
-      if (finished || !root.isConnected) return;
-
-      setImageWithFallback(art, slide.src, slide.fallback);
-
-      eyebrow.textContent = slide.eyebrow;
-      title.textContent = slide.title;
-      text.textContent = slide.text;
-      tip.textContent = TIPS[index % TIPS.length];
-
-      art.classList.add('is-active');
-    }, 180);
+    eyebrow.textContent = slide.eyebrow;
+    title.textContent = slide.title;
+    text.textContent = slide.text;
+    tip.textContent = TIPS[index % TIPS.length];
   }
 
   function goNext() {
@@ -249,26 +333,31 @@ register('preload', (root, props = {}) => {
     }, 520);
   }
 
-  slideTimer = window.setInterval(() => {
-    currentSlideIndex += 1;
-    setSlide(currentSlideIndex);
-  }, SLIDE_TIME);
-
   const startedAt = Date.now();
   let visualProgress = 0;
 
   progressTimer = window.setInterval(() => {
     const timePart = clamp(((Date.now() - startedAt) / MIN_LOADING_TIME) * 80, 0, 80);
-    const assetPart = assetsToLoad.length
-      ? (loadedAssets / assetsToLoad.length) * 20
-      : 20;
+    const assetPart = loadedAssets > 0 ? 20 : 0;
 
     visualProgress = Math.max(visualProgress, timePart + assetPart);
     setProgress(visualProgress);
   }, 90);
 
+  const images = await resolveLoadingImages(city);
+  slides = makeSlides(city, images);
+
+  console.log('[Preload] final images:', images.map(withoutVersion));
+
+  setSlide(0);
+
+  slideTimer = window.setInterval(() => {
+    currentSlideIndex += 1;
+    setSlide(currentSlideIndex);
+  }, SLIDE_TIME);
+
   Promise.all(
-    assetsToLoad.map(async (src) => {
+    images.map(async (src) => {
       await preloadImage(src);
       loadedAssets += 1;
     })
