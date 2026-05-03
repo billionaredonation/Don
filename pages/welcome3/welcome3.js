@@ -900,33 +900,46 @@ function loadSvgInto(layer, storage, mode) {
       mode: 'first-start',
     });
   });
-      show('home');
-  });
 
-  function createCleanSvg(mode) {
-  const parser = new DOMParser();
-  const sourceDoc = parser.parseFromString(svgTextCache, 'image/svg+xml');
-  const sourceSvg = sourceDoc.querySelector('svg');
-  const cleanSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+ function createCleanSvg(mode) {
+    const parser = new DOMParser();
+    const sourceDoc = parser.parseFromString(svgTextCache, 'image/svg+xml');
+    const sourceSvg = sourceDoc.querySelector('svg');
+    const cleanSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 
-  if (!sourceSvg) {
-    throw new Error('SVG tag not found');
-  }
-
-
-  const rawViewBox = sourceSvg.getAttribute('viewBox') || sourceSvg.getAttribute('viewbox') || REGIONS_VIEW_BOX;
-
-  cleanSvg.setAttribute('viewBox', rawViewBox);
-  cleanSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  cleanSvg.setAttribute('focusable', 'false');
-  cleanSvg.setAttribute('aria-hidden', 'true');
-
-  Object.keys(REGION_DATA).forEach((regionId) => {
-    const sourceRegion = sourceDoc.getElementById(regionId);
-
-    if (!sourceRegion) {
-      return;
+    if (!sourceSvg) {
+      throw new Error('SVG tag not found');
     }
+
+ const rawViewBox =
+      sourceSvg.getAttribute('viewBox') ||
+      sourceSvg.getAttribute('viewbox') ||
+      REGIONS_VIEW_BOX;
+
+    cleanSvg.setAttribute('viewBox', rawViewBox);
+    cleanSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    cleanSvg.setAttribute('focusable', 'false');
+    cleanSvg.setAttribute('aria-hidden', 'true');
+
+    Object.keys(REGION_DATA).forEach((regionId) => {
+      const sourceRegion = sourceDoc.getElementById(regionId);
+
+      if (!sourceRegion) {
+        return;
+      }
+
+      const region = sourceRegion.cloneNode(true);
+
+      region.removeAttribute('fill');
+      region.removeAttribute('stroke');
+      region.removeAttribute('stroke-width');
+      region.removeAttribute('style');
+
+      cleanSvg.appendChild(region);
+    });
+
+    return cleanSvg;
+  }
 
     const region = sourceRegion.cloneNode(true);
 
