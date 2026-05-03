@@ -1,16 +1,21 @@
+// src/main.js
 import { show } from './router.js';
-import { initRuntime, getState } from './state.js';
+import { initRuntime, getState, loadRemote } from './state.js';
 
-import '../pages/welcome1/welcome1.js?v=102';
-import '../pages/welcome2/welcome2.js?v=102';
-import '../pages/welcome3/welcome3.js?v=108';
-import '../pages/home/home.js?v=101';
+// статические страницы
+import '../pages/welcome1/welcome1.js';
+import '../pages/welcome2/welcome2.js';
+import '../pages/welcome3/welcome3.js';
+import '../pages/home/home-screen.js';
 
 function renderBootError(error) {
   console.error(error);
 
   const root = document.getElementById('app');
-  if (!root) return;
+
+  if (!root) {
+    return;
+  }
 
   root.innerHTML = `
     <div style="
@@ -34,12 +39,28 @@ async function boot() {
     window.Telegram?.WebApp?.ready?.();
     window.Telegram?.WebApp?.expand?.();
 
+    /*
+      Важно:
+      сначала ждём Supabase,
+      потом решаем, какой экран показывать.
+    */
+    await loadRemote();
+
+    /*
+      Если remote state пустой — создаём runtime локально
+      и сохраняем его уже под auth.uid().
+    */
     initRuntime();
 
-    const state = getState();
+    const currentState = getState();
 
-    const nickname = state.nickname || state.player?.nickname;
-    const city = state.city || state.player?.city;
+    const nickname =
+      currentState.nickname ||
+      currentState.player?.nickname;
+
+    const city =
+      currentState.city ||
+      currentState.player?.city;
 
     if (!nickname) {
       show('welcome1');
