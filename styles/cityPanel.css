@@ -1,0 +1,12 @@
+#city-info{
+  border:1px solid #444;
+  padding:12px 16px;
+  margin-top:12px;
+  max-width:280px;
+  border-radius:4px;
+  background:#1b1b1b;
+  color:#eee;
+  transition:opacity .2s;
+}
+.city-btn{margin:4px;cursor:pointer;}
+.city-btn:hover{outline:2px solid #fff5;}

@@ -1,0 +1,20 @@
+/* базовый вид всех контуров */
+.region{
+  fill:transparent;           /* внутри прозрачна */
+  stroke:#bbb;                /* тонкие серые границы */
+  stroke-width:1.4;
+  transition:fill .25s ease,  /* плавное появление заливки */
+             filter .25s ease;
+}
+
+/* лёгкий «свет» при наведении */
+.region:hover{
+  fill:rgba(255,255,255,.08); /* молочный оттенок */
+  filter:drop-shadow(0 0 4px rgba(255,255,255,.4));
+}
+
+/* оставляем подсветку после клика (класс active ставит JS) */
+.region.active{
+  fill:rgba(255,255,255,.15);
+  filter:drop-shadow(0 0 6px rgba(255,255,255,.5));
+}
