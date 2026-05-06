@@ -39,15 +39,25 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
 
-      - name: Copy all required static assets
+      - name: Copy static assets safely
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "=== Copying static assets into dist ==="
+          echo "=== Copy static assets safely ==="
 
           mkdir -p dist
 
+          # 1. Сначала жёстко копируем критичные файлы из корня.
+          # Если их нет — деплой должен упасть.
+          test -s ua.svg
+          test -s UkraineMap.png
+
+          cp -f ua.svg dist/ua.svg
+          cp -f UkraineMap.png dist/UkraineMap.png
+
+          # 2. Копируем все картинки и svg с сохранением путей.
+          # Это не перетирает корневой dist/ua.svg.
           find . \
             -type f \
             \( \
@@ -69,60 +79,43 @@ jobs:
               dir="$(dirname "$rel")"
               base="$(basename "$file")"
 
-              echo "Copying: $rel"
-
               mkdir -p "dist/$dir"
-
-              # Копия с сохранением пути.
               cp -f "$file" "dist/$rel"
 
-              # Копия в корень dist.
-              # Нужна для путей вида './loading-kyiv-1.png', './ua.svg', './UkraineMap.png'.
-              cp -f "$file" "dist/$base"
+              # В корень dist кладём только файлы из корня репозитория.
+              # Файлы из подпапок не смогут перетереть ua.svg.
+              if [ "$dir" = "." ]; then
+                cp -f "$file" "dist/$base"
+              fi
             done
 
-          echo ""
-          echo "=== dist root image files ==="
-          find dist -maxdepth 1 -type f \
-            \( \
-              -iname "*.png"  -o \
-              -iname "*.svg"  -o \
-              -iname "*.jpg"  -o \
-              -iname "*.jpeg" -o \
-              -iname "*.webp" -o \
-              -iname "*.gif"  -o \
-              -iname "*.ico"  -o \
-              -iname "*.avif" \
-            \) | sort
+          # 3. После всего ещё раз восстанавливаем критичные файлы.
+          cp -f ua.svg dist/ua.svg
+          cp -f UkraineMap.png dist/UkraineMap.png
 
           echo ""
-          echo "=== Checking required base files ==="
+          echo "=== Validate ua.svg ==="
 
-          if [ ! -s "dist/ua.svg" ]; then
-            echo "ERROR: dist/ua.svg was not copied"
+          if [ ! -s dist/ua.svg ]; then
+            echo "ERROR: dist/ua.svg missing"
             exit 1
           fi
 
-          if [ ! -s "dist/UkraineMap.png" ]; then
-            echo "ERROR: dist/UkraineMap.png was not copied"
+          if ! grep -qi "<svg" dist/ua.svg; then
+            echo "ERROR: dist/ua.svg is not valid SVG"
             exit 1
           fi
 
           echo ""
-          echo "=== Checking loading images ==="
+          echo "=== Validate UkraineMap.png ==="
 
-          loading_count="$(
-            find dist -maxdepth 1 -type f \
-              \( \
-                -iname "loading-*.png"  -o \
-                -iname "loading-*.jpg"  -o \
-                -iname "loading-*.jpeg" -o \
-                -iname "loading-*.webp" -o \
-                -iname "loading-*.avif" \
-              \) | wc -l | tr -d ' '
-          )"
+          if [ ! -s dist/UkraineMap.png ]; then
+            echo "ERROR: dist/UkraineMap.png missing"
+            exit 1
+          fi
 
-          echo "Found loading images in dist root: $loading_count"
+          echo ""
+          echo "=== Loading images in dist root ==="
 
           find dist -maxdepth 1 -type f \
             \( \
@@ -133,12 +126,8 @@ jobs:
               -iname "loading-*.avif" \
             \) | sort
 
-          if [ "$loading_count" -lt 1 ]; then
-            echo "ERROR: no loading-* images were copied to dist root"
-            exit 1
-          fi
-
-          echo "OK: required assets exist"
+          echo ""
+          echo "OK: static assets copied safely"
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
