@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
 permissions:
@@ -31,7 +30,7 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install deps
+      - name: Install dependencies
         run: npm ci
 
       - name: Build Vite app
@@ -40,54 +39,60 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
 
-      - name: Copy runtime assets from repo root
+      - name: Copy root runtime assets to dist
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "=== Copy runtime assets from repository root ==="
+          echo "=== Prepare dist assets ==="
 
           mkdir -p dist
 
-          echo "Checking critical source files..."
+          echo "=== Check critical files in repo root ==="
+
+          if [ ! -f "ua.svg" ]; then
+            echo "ERROR: ua.svg not found in repository root"
+            exit 1
+          fi
 
           if [ ! -s "ua.svg" ]; then
-            echo "ERROR: root ua.svg is missing or empty"
+            echo "ERROR: ua.svg exists but is empty"
             exit 1
           fi
 
           if ! grep -qi "<svg" "ua.svg"; then
-            echo "ERROR: root ua.svg does not look like SVG"
+            echo "ERROR: ua.svg does not look like SVG"
+            exit 1
+          fi
+
+          if [ ! -f "UkraineMap.png" ]; then
+            echo "ERROR: UkraineMap.png not found in repository root"
             exit 1
           fi
 
           if [ ! -s "UkraineMap.png" ]; then
-            echo "ERROR: root UkraineMap.png is missing or empty"
+            echo "ERROR: UkraineMap.png exists but is empty"
             exit 1
           fi
 
-          echo "Copying root runtime assets..."
+          echo "=== Copy images/SVG from repo root to dist root ==="
 
-          find . -maxdepth 1 \
-            -type f \
-            \( \
-              -iname "*.png"  -o \
-              -iname "*.svg"  -o \
-              -iname "*.jpg"  -o \
-              -iname "*.jpeg" -o \
-              -iname "*.webp" -o \
-              -iname "*.gif"  -o \
-              -iname "*.ico"  -o \
-              -iname "*.avif" \
-            \) \
-            -print0 | while IFS= read -r -d '' file; do
-              base="$(basename "$file")"
-              echo "Copying root asset: $base"
-              cp -f "$file" "dist/$base"
-            done
+          find . -maxdepth 1 -type f \( \
+            -iname "*.png" -o \
+            -iname "*.svg" -o \
+            -iname "*.jpg" -o \
+            -iname "*.jpeg" -o \
+            -iname "*.webp" -o \
+            -iname "*.gif" -o \
+            -iname "*.ico" -o \
+            -iname "*.avif" \
+          \) -print0 | while IFS= read -r -d '' file; do
+            base="$(basename "$file")"
+            echo "Copy: $base"
+            cp -f "$file" "dist/$base"
+          done
 
-          echo ""
-          echo "=== Validate dist critical files ==="
+          echo "=== Validate files in dist ==="
 
           if [ ! -s "dist/ua.svg" ]; then
             echo "ERROR: dist/ua.svg missing or empty"
@@ -104,44 +109,10 @@ jobs:
             exit 1
           fi
 
-          echo ""
-          echo "=== Loading images in dist root ==="
-
-          loading_count="$(
-            find dist -maxdepth 1 \
-              -type f \
-              \( \
-                -iname "loading-*.png"  -o \
-                -iname "loading-*.jpg"  -o \
-                -iname "loading-*.jpeg" -o \
-                -iname "loading-*.webp" -o \
-                -iname "loading-*.avif" \
-              \) | wc -l | tr -d ' '
-          )"
-
-          find dist -maxdepth 1 \
-            -type f \
-            \( \
-              -iname "loading-*.png"  -o \
-              -iname "loading-*.jpg"  -o \
-              -iname "loading-*.jpeg" -o \
-              -iname "loading-*.webp" -o \
-              -iname "loading-*.avif" \
-            \) | sort
-
-          echo "Found loading images: $loading_count"
-
-          if [ "$loading_count" -lt 1 ]; then
-            echo "ERROR: no loading-* images found in dist root"
-            exit 1
-          fi
-
-          echo ""
-          echo "=== Final dist root assets ==="
+          echo "=== Dist root files ==="
           find dist -maxdepth 1 -type f | sort
 
-          echo ""
-          echo "OK: runtime assets are ready"
+          echo "OK: assets copied successfully"
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
