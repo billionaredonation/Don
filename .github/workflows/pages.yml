@@ -28,10 +28,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build Vite app
         env:
@@ -44,38 +43,22 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "=== Prepare dist assets ==="
-
           mkdir -p dist
 
-          echo "=== Check critical files in repo root ==="
-
-          if [ ! -f "ua.svg" ]; then
-            echo "ERROR: ua.svg not found in repository root"
-            exit 1
-          fi
-
           if [ ! -s "ua.svg" ]; then
-            echo "ERROR: ua.svg exists but is empty"
+            echo "ERROR: ua.svg missing or empty in repo root"
             exit 1
           fi
 
           if ! grep -qi "<svg" "ua.svg"; then
-            echo "ERROR: ua.svg does not look like SVG"
-            exit 1
-          fi
-
-          if [ ! -f "UkraineMap.png" ]; then
-            echo "ERROR: UkraineMap.png not found in repository root"
+            echo "ERROR: ua.svg is not valid SVG"
             exit 1
           fi
 
           if [ ! -s "UkraineMap.png" ]; then
-            echo "ERROR: UkraineMap.png exists but is empty"
+            echo "ERROR: UkraineMap.png missing or empty in repo root"
             exit 1
           fi
-
-          echo "=== Copy images/SVG from repo root to dist root ==="
 
           find . -maxdepth 1 -type f \( \
             -iname "*.png" -o \
@@ -88,19 +71,12 @@ jobs:
             -iname "*.avif" \
           \) -print0 | while IFS= read -r -d '' file; do
             base="$(basename "$file")"
-            echo "Copy: $base"
+            echo "Copy root asset: $base"
             cp -f "$file" "dist/$base"
           done
 
-          echo "=== Validate files in dist ==="
-
           if [ ! -s "dist/ua.svg" ]; then
             echo "ERROR: dist/ua.svg missing or empty"
-            exit 1
-          fi
-
-          if ! grep -qi "<svg" "dist/ua.svg"; then
-            echo "ERROR: dist/ua.svg is not valid SVG"
             exit 1
           fi
 
@@ -109,10 +85,8 @@ jobs:
             exit 1
           fi
 
-          echo "=== Dist root files ==="
+          echo "OK: root assets copied to dist"
           find dist -maxdepth 1 -type f | sort
-
-          echo "OK: assets copied successfully"
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
