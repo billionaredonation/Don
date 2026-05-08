@@ -48,10 +48,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "=== Ensure dist exists ==="
           mkdir -p dist
 
-          echo "=== Copy root image assets ==="
+          echo "=== Copy all root image assets ==="
+
           find . -maxdepth 1 -type f \( \
             -iname "*.png" -o \
             -iname "*.svg" -o \
@@ -63,31 +63,83 @@ jobs:
             -iname "*.avif" \
           \) -print0 | while IFS= read -r -d '' file; do
             base="$(basename "$file")"
-            echo "Copy root asset: $base"
+            echo "Copy: $base"
             cp -f "$file" "dist/$base"
           done
 
-          echo "=== Validate critical runtime files ==="
+          echo "=== Normalize Ukraine SVG aliases ==="
+
+          SVG_SOURCE=""
+
+          for candidate in "ua.svg" "UA.svg" "ua.SVG" "UA.SVG" "ukraine.svg" "Ukraine.svg"; do
+            if [ -s "$candidate" ]; then
+              SVG_SOURCE="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$SVG_SOURCE" ]; then
+            echo "ERROR: no Ukraine SVG found in repo root"
+            echo "Expected one of: ua.svg, UA.svg, ua.SVG, UA.SVG, ukraine.svg, Ukraine.svg"
+            exit 1
+          fi
+
+          if ! grep -qi "<svg" "$SVG_SOURCE"; then
+            echo "ERROR: $SVG_SOURCE does not look like SVG"
+            exit 1
+          fi
+
+          echo "Using SVG source: $SVG_SOURCE"
+
+          cp -f "$SVG_SOURCE" "dist/ua.svg"
+          cp -f "$SVG_SOURCE" "dist/UA.svg"
+          cp -f "$SVG_SOURCE" "dist/ua.SVG"
+          cp -f "$SVG_SOURCE" "dist/UA.SVG"
+          cp -f "$SVG_SOURCE" "dist/ukraine.svg"
+          cp -f "$SVG_SOURCE" "dist/Ukraine.svg"
+
+          echo "=== Normalize Ukraine map aliases ==="
+
+          MAP_SOURCE=""
+
+          for candidate in "UkraineMap.png" "ukrainemap.png" "UkraineMap.PNG" "map.png"; do
+            if [ -s "$candidate" ]; then
+              MAP_SOURCE="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$MAP_SOURCE" ]; then
+            echo "ERROR: UkraineMap.png not found in repo root"
+            exit 1
+          fi
+
+          echo "Using map source: $MAP_SOURCE"
+
+          cp -f "$MAP_SOURCE" "dist/UkraineMap.png"
+          cp -f "$MAP_SOURCE" "dist/ukrainemap.png"
+
+          echo "=== Final validation ==="
 
           if [ ! -s "dist/ua.svg" ]; then
-            echo "ERROR: dist/ua.svg missing or empty"
+            echo "ERROR: dist/ua.svg missing"
             exit 1
           fi
 
           if ! grep -qi "<svg" "dist/ua.svg"; then
-            echo "ERROR: dist/ua.svg is not valid SVG"
+            echo "ERROR: dist/ua.svg invalid"
             exit 1
           fi
 
           if [ ! -s "dist/UkraineMap.png" ]; then
-            echo "ERROR: dist/UkraineMap.png missing or empty"
+            echo "ERROR: dist/UkraineMap.png missing"
             exit 1
           fi
 
           echo "=== Dist root files ==="
           find dist -maxdepth 1 -type f | sort
 
-          echo "OK: deploy assets ready"
+          echo "OK: runtime assets ready"
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
