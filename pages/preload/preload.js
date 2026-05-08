@@ -3,11 +3,13 @@ import { register, show } from '../../src/router.js';
 import { getState } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 
-const PRELOAD_VERSION = '11';
-const CITY_MAP_VERSION = '35';
+const PRELOAD_VERSION = '12';
+const CITY_MAP_VERSION = '36';
 
-const MIN_LOADING_TIME = 4200;
-const SLIDE_TIME = 1400;
+const BASE_PATH = import.meta.env.BASE_URL || './';
+
+const MIN_LOADING_TIME = 2600;
+const SLIDE_TIME = 1200;
 
 const ALL_CITY_IDS = [
   'vinnytsia',
@@ -37,26 +39,71 @@ const ALL_CITY_IDS = [
   'chernivtsi',
 ];
 
+const CITY_MAP_FILES = {
+  vinnytsia: 'Vinnytsia.png',
+  lutsk: 'Lutsk.png',
+  luhansk: 'Luhansk.png',
+  dnipro: 'Dnipro.png',
+  donetsk: 'Donetsk.png',
+  zhytomyr: 'Zhytomyr.png',
+  uzhhorod: 'Uzhhorod.png',
+  zaporizhzhia: 'Zaporizhzhia.png',
+  'ivano-frankivsk': 'IvanoFrankovsk.png',
+  kyiv: 'Kyiv.png',
+  kropyvnytskyi: 'Kropivnitsky.png',
+  crimea: 'Crimea.png',
+  lviv: 'Lviv.png',
+  mykolaiv: 'Nikolaev.png',
+  odesa: 'Odessa.png',
+  poltava: 'Poltava.png',
+  rivne: 'Rovno.png',
+  sumy: 'Sumy.png',
+  ternopil: 'Ternopil.png',
+  kharkiv: 'Kharkiv.png',
+  kherson: 'Kherson.png',
+  khmelnytskyi: 'Khmelnitskiy.png',
+  cherkasy: 'Cherkasy.png',
+  chernihiv: 'Chernihiv.png',
+  chernivtsi: 'Chernivtsi.png',
+};
+
 const DEFAULT_LOADING_IMAGES = [
   './loading-1.png',
   './loading-2.png',
   './loading-3.png',
 ];
 
-/*
-  Картинки под конкретный город называй так:
+function assetUrl(src) {
+  if (!src) return '';
 
-  loading-kyiv-1.png
-  loading-kyiv-2.png
-  loading-kyiv-3.png
+  if (src.startsWith('http')) return src;
+  if (src.startsWith(BASE_PATH)) return src;
+  if (src.startsWith('./')) return `${BASE_PATH}${src.slice(2)}`;
+  if (src.startsWith('/')) return `${BASE_PATH}${src.slice(1)}`;
 
-  loading-odesa-1.png
-  loading-odesa-2.png
-  loading-odesa-3.png
+  return `${BASE_PATH}${src}`;
+}
 
-  Если для города нет своих картинок,
-  будет использован общий набор loading-1/2/3.png.
-*/
+function withVersion(src, version = PRELOAD_VERSION) {
+  if (!src) return '';
+
+  const url = assetUrl(src);
+
+  return url.includes('?') ? url : `${url}?v=${version}`;
+}
+
+function getCityMapSrc(cityId, city) {
+  const normalizedCityId = normalizeCityId(cityId);
+
+  return (
+    city?.map ||
+    city?.image ||
+    city?.background ||
+    CITY_MAP_FILES[normalizedCityId] ||
+    'UkraineMap.png'
+  );
+}
+
 function makeCityLoadingCandidates(cityId) {
   const normalizedCityId = normalizeCityId(cityId);
 
@@ -67,10 +114,6 @@ function makeCityLoadingCandidates(cityId) {
   ];
 }
 
-/*
-  Общий fallback для текстов.
-  Используется, если для города нет своего блока в CITY_PRELOAD_TEXTS.
-*/
 const DEFAULT_PRELOAD_TEXTS = [
   {
     eyebrow: 'Новый город',
@@ -89,15 +132,6 @@ const DEFAULT_PRELOAD_TEXTS = [
   },
 ];
 
-/*
-  Уникальные тексты под города.
-  Можешь спокойно переписывать под стиль игры.
-
-  Доступные плейсхолдеры:
-  {city}
-  {region}
-  {tagline}
-*/
 const CITY_PRELOAD_TEXTS = {
   vinnytsia: [
     {
@@ -550,10 +584,6 @@ const CITY_PRELOAD_TEXTS = {
   ],
 };
 
-/*
-  Советы отдельно от текстов.
-  Потом можешь менять под реальные механики.
-*/
 const DEFAULT_TIPS = [
   'Не держи все деньги в одном решении.',
   'Первые действия важнее, чем кажется.',
@@ -616,16 +646,11 @@ function getCityTips(cityId) {
   return CITY_PRELOAD_TIPS[normalizedCityId] || DEFAULT_TIPS;
 }
 
-function withVersion(src, version = PRELOAD_VERSION) {
-  if (!src) return '';
-  return src.includes('?') ? src : `${src}?v=${version}`;
-}
-
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function preloadImage(src, timeout = 3500) {
+function preloadImage(src, timeout = 3200) {
   return new Promise((resolve) => {
     if (!src) {
       resolve(false);
@@ -676,34 +701,59 @@ async function collectExistingImages(candidates) {
 }
 
 async function resolveLoadingImages(cityId, city) {
-  const cityMap = withVersion(city.map || './UkraineMap.png', CITY_MAP_VERSION);
-  const ukraineMap = withVersion('./UkraineMap.png', CITY_MAP_VERSION);
+  const normalizedCityId = normalizeCityId(cityId);
 
-  const cityCandidates = makeCityLoadingCandidates(cityId);
-  let images = await collectExistingImages(cityCandidates);
+  const cityMap = withVersion(getCityMapSrc(normalizedCityId, city), CITY_MAP_VERSION);
+  const ukraineMap = withVersion('UkraineMap.png', CITY_MAP_VERSION);
 
-  if (!images.length) {
-    images = await collectExistingImages(DEFAULT_LOADING_IMAGES);
-  }
+  const images = [];
 
-  if (!images.length) {
+  const cityMapOk = await preloadImage(cityMap, 4500);
+
+  if (cityMapOk) {
     images.push(cityMap);
+  } else {
+    console.warn('[Preload] city map missing:', cityMap);
   }
 
-  if (images.length < 2) {
-    images.push(ukraineMap);
+  const cityLoadingImages = await collectExistingImages(
+    makeCityLoadingCandidates(normalizedCityId)
+  );
+
+  for (const img of cityLoadingImages) {
+    if (!images.includes(img)) {
+      images.push(img);
+    }
   }
 
   if (images.length < 3) {
-    images.push(cityMap);
+    const defaultImages = await collectExistingImages(DEFAULT_LOADING_IMAGES);
+
+    for (const img of defaultImages) {
+      if (!images.includes(img)) {
+        images.push(img);
+      }
+
+      if (images.length >= 3) break;
+    }
   }
+
+  if (!images.length) {
+    images.push(ukraineMap);
+  }
+
+  while (images.length < 3) {
+    images.push(images[0] || ukraineMap);
+  }
+
+  console.log('[Preload] resolved images for city:', normalizedCityId, images);
 
   return images;
 }
 
 function makeSlides(cityId, city, images) {
-  const cityMap = withVersion(city.map || './UkraineMap.png', CITY_MAP_VERSION);
-  const ukraineMap = withVersion('./UkraineMap.png', CITY_MAP_VERSION);
+  const cityMap = withVersion(getCityMapSrc(cityId, city), CITY_MAP_VERSION);
+  const ukraineMap = withVersion('UkraineMap.png', CITY_MAP_VERSION);
   const texts = getCityTexts(cityId, city);
 
   return images.map((src, index) => {
@@ -711,7 +761,7 @@ function makeSlides(cityId, city, images) {
 
     return {
       src,
-      fallback: index === 1 ? cityMap : ukraineMap,
+      fallback: cityMap || ukraineMap,
       eyebrow: textItem.eyebrow,
       title: textItem.title,
       text: textItem.text,
@@ -720,7 +770,7 @@ function makeSlides(cityId, city, images) {
 }
 
 function setImageWithFallback(img, primarySrc, fallbackSrc) {
-  const safeFallback = fallbackSrc || withVersion('./UkraineMap.png', CITY_MAP_VERSION);
+  const safeFallback = fallbackSrc || withVersion('UkraineMap.png', CITY_MAP_VERSION);
 
   img.classList.remove('is-active');
 
@@ -865,19 +915,19 @@ register('preload', async (root, props = {}) => {
 
     window.setTimeout(() => {
       show(nextScreen);
-    }, 520);
+    }, 420);
   }
 
   const startedAt = Date.now();
   let visualProgress = 0;
 
   progressTimer = window.setInterval(() => {
-    const timePart = clamp(((Date.now() - startedAt) / MIN_LOADING_TIME) * 80, 0, 80);
-    const assetPart = loadedAssets > 0 ? 20 : 0;
+    const timePart = clamp(((Date.now() - startedAt) / MIN_LOADING_TIME) * 75, 0, 75);
+    const assetPart = loadedAssets > 0 ? 25 : 0;
 
     visualProgress = Math.max(visualProgress, timePart + assetPart);
     setProgress(visualProgress);
-  }, 90);
+  }, 80);
 
   const images = await resolveLoadingImages(cityId, city);
   const slides = makeSlides(cityId, city, images);
@@ -900,12 +950,16 @@ register('preload', async (root, props = {}) => {
     setSlide(currentSlideIndex);
   }, SLIDE_TIME);
 
-  Promise.all(
-    images.map(async (src) => {
-      await preloadImage(src);
+  Promise.allSettled([
+    ...images.map(async (src) => {
+      await preloadImage(src, 4500);
       loadedAssets += 1;
-    })
-  ).then(async () => {
+    }),
+
+    import('../home/home.js').catch((error) => {
+      console.warn('[Preload] home module preload failed:', error);
+    }),
+  ]).then(async () => {
     const elapsed = Date.now() - startedAt;
     const rest = Math.max(0, MIN_LOADING_TIME - elapsed);
 
