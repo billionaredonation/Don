@@ -703,22 +703,24 @@ async function collectExistingImages(candidates) {
 async function resolveLoadingImages(cityId, city) {
   const normalizedCityId = normalizeCityId(cityId);
 
-  const cityMap = withVersion(getCityMapSrc(normalizedCityId, city), CITY_MAP_VERSION);
-  const ukraineMap = withVersion('UkraineMap.png', CITY_MAP_VERSION);
+  const cityMap = withVersion(city.map || './UkraineMap.png', CITY_MAP_VERSION);
+  const ukraineMap = withVersion('./UkraineMap.png', CITY_MAP_VERSION);
 
   const images = [];
 
+  // 1. Сначала грузим реальную карту выбранного города из city.map
   const cityMapOk = await preloadImage(cityMap, 4500);
 
   if (cityMapOk) {
     images.push(cityMap);
+    console.log('[Preload] city map loaded:', normalizedCityId, cityMap);
   } else {
-    console.warn('[Preload] city map missing:', cityMap);
+    console.warn('[Preload] city map failed:', normalizedCityId, cityMap);
   }
 
-  const cityLoadingImages = await collectExistingImages(
-    makeCityLoadingCandidates(normalizedCityId)
-  );
+  // 2. Потом пробуем городские loading-картинки
+  const cityCandidates = makeCityLoadingCandidates(normalizedCityId);
+  const cityLoadingImages = await collectExistingImages(cityCandidates);
 
   for (const img of cityLoadingImages) {
     if (!images.includes(img)) {
@@ -726,6 +728,7 @@ async function resolveLoadingImages(cityId, city) {
     }
   }
 
+  // 3. Если мало — общие loading
   if (images.length < 3) {
     const defaultImages = await collectExistingImages(DEFAULT_LOADING_IMAGES);
 
@@ -738,15 +741,16 @@ async function resolveLoadingImages(cityId, city) {
     }
   }
 
+  // 4. Последний fallback
   if (!images.length) {
-    images.push(ukraineMap);
+    images.push(cityMap || ukraineMap);
   }
 
   while (images.length < 3) {
     images.push(images[0] || ukraineMap);
   }
 
-  console.log('[Preload] resolved images for city:', normalizedCityId, images);
+  console.log('[Preload] final images:', normalizedCityId, images);
 
   return images;
 }
