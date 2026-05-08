@@ -2,15 +2,23 @@ import { register, show } from '../../src/router.js';
 import { state, save, getState } from '../../src/state.js';
 import { citiesBase } from '../../src/data/citiesBase.js';
 import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib/economy.js';
+const BASE_PATH = import.meta.env.BASE_URL || './';
 
-const MAP_IMG = './UkraineMap.png?v=13';
+const MAP_IMG = `${BASE_PATH}UkraineMap.png?v=122`;
 const REGIONS_SVG_CANDIDATES = [
+  `${BASE_PATH}ua.svg`,
+  `${BASE_PATH}ua.SVG`,
+  `${BASE_PATH}UA.svg`,
+  `${BASE_PATH}UA.SVG`,
+  `${BASE_PATH}ukraine.svg`,
+  `${BASE_PATH}Ukraine.svg`,
+
   './ua.svg',
   './ua.SVG',
   './UA.svg',
   './UA.SVG',
   './ukraine.svg',
-  './Ukraine.svg'
+  './Ukraine.svg',
 ];
 const CITY_MAP_VERSION = '35';
 const FALLBACK_MAP_SRC = './UkraineMap.png';
@@ -242,7 +250,9 @@ async function fetchFirstSvg() {
     const url = versionedAsset(svgSrc, CITY_MAP_VERSION);
 
     try {
-      const response = await fetch(url, { cache: 'no-cache' });
+      const response = await fetch(url, {
+        cache: 'no-store',
+      });
 
       if (!response.ok) {
         errors.push(`${url}: ${response.status}`);
@@ -263,8 +273,10 @@ async function fetchFirstSvg() {
     }
   }
 
-  throw new Error('SVG load failed. Tried: ' + errors.join(' | '));
+  throw new Error(`Не удалось загрузить SVG карту. Проверенные пути: ${errors.join(' | ')}`);
 }
+
+
 
 register('welcome3', (root) => {
   root.className = 'page welcome-page welcome3';
