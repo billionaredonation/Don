@@ -944,7 +944,7 @@ function createSvgLayer(target, mode) {
       return;
     }
 
-    show('game');
+    show('home-screen');
   });
 
   compactMap.addEventListener('click', () => {
