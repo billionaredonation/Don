@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: github-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -33,34 +33,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
+      - name: Build app
         run: npm run build
 
-      - name: Copy root assets to dist
+      - name: Copy static root assets
         shell: bash
         run: |
-          set -euo pipefail
-
           mkdir -p dist
 
-          cp -f ./*.png dist/ 2>/dev/null || true
-          cp -f ./*.jpg dist/ 2>/dev/null || true
-          cp -f ./*.jpeg dist/ 2>/dev/null || true
-          cp -f ./*.webp dist/ 2>/dev/null || true
-          cp -f ./*.svg dist/ 2>/dev/null || true
-          cp -f ./*.ico dist/ 2>/dev/null || true
+          cp -f UkraineMap.png dist/UkraineMap.png
+          cp -f ua.svg dist/ua.svg
 
-          echo "DIST files:"
+          find . -maxdepth 1 -type f \( \
+            -iname "*.png" -o \
+            -iname "*.jpg" -o \
+            -iname "*.jpeg" -o \
+            -iname "*.webp" -o \
+            -iname "*.svg" \
+          \) -exec cp -f {} dist/ \;
+
+          echo "CHECK DIST:"
           ls -la dist
-
-          echo "Check required files:"
-          ls -la dist/ua.svg
-          ls -la dist/UkraineMap.png
+          echo "CHECK SVG:"
+          head -n 5 dist/ua.svg
+          echo "CHECK MAP:"
+          ls -lh dist/UkraineMap.png
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
@@ -75,6 +77,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy
+      - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
