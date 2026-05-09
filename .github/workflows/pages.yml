@@ -28,10 +28,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Build
         run: npm run build
@@ -58,7 +62,7 @@ jobs:
           test -f dist/UkraineMap.png
 
           echo "Assets in dist:"
-          ls -la dist | sed -n '1,160p'
+          ls -la dist | sed -n '1,180p'
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
