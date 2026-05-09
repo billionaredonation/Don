@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: github-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -28,26 +28,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Show repo files before build
+      - name: Debug root files
         run: |
-          echo "ROOT FILES:"
+          pwd
           ls -la
-          echo "PNG/SVG FILES:"
-          find . -maxdepth 1 -type f \( -iname "*.png" -o -iname "*.svg" \) -print
-
-      - name: Check Supabase env
-        run: |
-          if [ -z "$VITE_SUPABASE_URL" ]; then
-            echo "ERROR: VITE_SUPABASE_URL is empty"
-            exit 1
-          fi
-
-          if [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "ERROR: VITE_SUPABASE_PUBLISHABLE_KEY is empty"
-            exit 1
-          fi
-
-          echo "Supabase env exists"
+          find . -maxdepth 1 -type f | sort
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -55,23 +40,19 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
+        run: npm install
+
+      - name: Check env
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+          test -n "$VITE_SUPABASE_URL"
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
+          echo "Supabase env OK"
 
       - name: Build
         run: npm run build
 
-      - name: Copy root assets to dist
-        shell: bash
+      - name: Copy static assets into dist
         run: |
-          set -e
-
-          mkdir -p dist
-
           cp -f ./*.png dist/ 2>/dev/null || true
           cp -f ./*.svg dist/ 2>/dev/null || true
           cp -f ./*.jpg dist/ 2>/dev/null || true
@@ -81,23 +62,19 @@ jobs:
           cp -f ./*.ico dist/ 2>/dev/null || true
           cp -f ./*.avif dist/ 2>/dev/null || true
 
-          echo "DIST FILES AFTER COPY:"
+          echo "DIST:"
           ls -la dist
 
-          if [ ! -f dist/ua.svg ]; then
-            echo "ERROR: dist/ua.svg not found"
-            exit 1
-          fi
+          test -f dist/ua.svg
+          test -f dist/UkraineMap.png
 
-          if [ ! -f dist/UkraineMap.png ]; then
-            echo "ERROR: dist/UkraineMap.png not found"
-            exit 1
-          fi
+      - name: Disable Jekyll
+        run: touch dist/.nojekyll
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
