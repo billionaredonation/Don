@@ -160,10 +160,14 @@ function normalizeCityId(cityId) {
 
 function versionedAsset(src, version = CITY_MAP_VERSION) {
   if (!src) {
-    return FALLBACK_MAP_SRC + '?v=' + version;
+    return assetUrl(FALLBACK_MAP_SRC, version);
   }
 
-  return src.includes('?') ? src : src + '?v=' + version;
+  if (String(src).includes('?')) {
+    return assetUrl(src);
+  }
+
+  return assetUrl(src, version);
 }
 
 function cityMapCandidates(cityId) {
