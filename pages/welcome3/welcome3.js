@@ -985,6 +985,21 @@ function createSvgLayer(target, mode) {
   }, 350);
 }
 
+function hideLoader() {
+  if (!loader) {
+    return;
+  }
+
+  loader.classList.add('hidden');
+  loader.style.opacity = '0';
+  loader.style.pointerEvents = 'none';
+  loader.style.visibility = 'hidden';
+
+  window.setTimeout(() => {
+    loader.style.display = 'none';
+  }, 350);
+}
+
 preloadAssets()
   .then(() => {
     renderLayers();
@@ -1003,3 +1018,4 @@ preloadAssets()
 window.setTimeout(hideLoader, 3500);
 
 updateVisualState();
+});
