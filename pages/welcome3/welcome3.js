@@ -5,18 +5,19 @@ import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib
 
 
 
-const ASSET_BASE = import.meta.env.BASE_URL || './';
+const ASSET_BASE =
+  import.meta.env.BASE_URL && import.meta.env.BASE_URL !== './'
+    ? new URL(import.meta.env.BASE_URL, window.location.origin).href
+    : new URL('/Don/', window.location.origin).href;
 
 function assetUrl(src, version = '') {
   const cleanSrc = String(src || '').replace(/^\.\//, '').replace(/^\//, '');
-  const base = ASSET_BASE.startsWith('http')
-    ? ASSET_BASE
-    : new URL(ASSET_BASE, window.location.origin).href;
-  const url = new URL(cleanSrc, base).href;
+  const url = new URL(cleanSrc, ASSET_BASE).href;
   return version ? `${url}?v=${version}` : url;
 }
 
 const MAP_IMG = assetUrl('UkraineMap.png', '122');
+
 
 const REGIONS_SVG_CANDIDATES = [
   'ua.svg',
