@@ -669,3 +669,35 @@
     transform: none;
   }
 }
+
+.regions-svg .map-region {
+  fill: transparent !important;
+  stroke: rgba(255, 255, 255, 0.72) !important;
+  stroke-width: 1.4px !important;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+  outline: none !important;
+}
+
+.regions-svg .map-region:hover {
+  fill: rgba(255, 255, 255, 0.10) !important;
+  stroke: rgba(255, 255, 255, 0.95) !important;
+}
+
+.regions-svg .map-region.is-pending,
+.regions-svg .map-region.is-selected {
+  fill: rgba(255, 255, 255, 0.16) !important;
+  stroke: #ffffff !important;
+  stroke-width: 2px !important;
+  outline: none !important;
+}
+
+.regions-svg .map-region:focus,
+.regions-svg .map-region:focus-visible {
+  outline: none !important;
+}
+
+.regions-svg rect,
+.regions-svg image {
+  pointer-events: none;
+}
