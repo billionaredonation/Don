@@ -1,41 +1,31 @@
-# pages.yml — CI + Deploy на GitHub Pages
-# Проверяет каждый push/PR и автоматически публикует main-ветку.
-
-################################################################################
-# 📅 Триггеры
-################################################################################
-name: CI & Deploy to GitHub Pages     # внутреннее «видимое» имя job-а
+name: Deploy GitHub Pages
 
 on:
-  push:               # проверяем каждый push во все ветки
-  pull_request:       # и каждый PR
-  workflow_dispatch:  # ручной запуск
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
-################################################################################
-# 🚦 Параллельные запуски
-################################################################################
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-################################################################################
-# 🔐 Права
-################################################################################
 permissions:
   contents: read
   pages: write
   id-token: write
 
-################################################################################
-# 🛠 Job: Build
-################################################################################
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
 jobs:
   build:
+    name: Build Vite app
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -43,54 +33,44 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Optional lint & test
-        run: |
-          set -e
-          npm run lint --if-present
-          npm run test --if-present
+      - name: Build
+        run: npm run build
 
-      - name: Build (auto-detect)
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || '' }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || '' }}
-        shell: bash
-        run: |
-          set -e
-          if npm run -q build --if-present; then
-            npm run build
-          elif npm run -q build:prod --if-present; then
-            npm run build:prod
-          else
-            npx vite build
-          fi
-          echo "BUILD_OUT=dist" >> "$GITHUB_ENV"
-
-      - name: Copy loose root assets to dist/
+      - name: Copy loose root assets to dist
         shell: bash
         run: |
           set -euo pipefail
-          out="$BUILD_OUT"
+
+          out="dist"
           mkdir -p "$out"
-          find . -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \
-            -o -iname '*.svg' -o -iname '*.webp' -o -iname '*.gif' \
-            -o -iname '*.ico' -o -iname '*.avif' \) -print0 |
-            while IFS= read -r -d '' f; do cp -f "$f" "$out/$(basename "$f")"; done
-          echo "Loose assets copied:"; ls -1 "$out" || true
 
-      - uses: actions/upload-pages-artifact@v3
+          find "$GITHUB_WORKSPACE" -maxdepth 1 -type f \
+            \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.svg' -o -iname '*.webp' -o -iname '*.gif' -o -iname '*.ico' -o -iname '*.avif' \) \
+            -exec cp -f {} "$out/" \;
+
+          test -f "$out/ua.svg"
+          test -f "$out/UkraineMap.png"
+
+          echo "Loose assets copied:"
+          ls -1 "$out" | sed -n '1,120p'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ env.BUILD_OUT }}
+          path: dist
 
-################################################################################
-# 🚀 Job: Deploy (только main)
-################################################################################
   deploy:
+    name: Deploy to GitHub Pages
     needs: build
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - id: deploy
+      - name: Deploy
+        id: deployment
         uses: actions/deploy-pages@v4
