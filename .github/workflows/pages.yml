@@ -1,9 +1,11 @@
-name: Deploy GitHub Pages
+name: Deploy to GitHub Pages
 
 on:
   push:
     branches:
       - main
+      - master
+
   workflow_dispatch:
 
 permissions:
@@ -12,12 +14,11 @@ permissions:
   id-token: write
 
 concurrency:
-  group: github-pages
+  group: pages
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Build Vite app
     runs-on: ubuntu-latest
 
     steps:
@@ -28,36 +29,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build app
         run: npm run build
 
       - name: Copy static root assets
-        shell: bash
         run: |
-          mkdir -p dist
-
-          cp -f UkraineMap.png dist/UkraineMap.png
-          cp -f ua.svg dist/ua.svg
-
-          find . -maxdepth 1 -type f \( \
-            -iname "*.png" -o \
-            -iname "*.jpg" -o \
-            -iname "*.jpeg" -o \
-            -iname "*.webp" -o \
-            -iname "*.svg" \
-          \) -exec cp -f {} dist/ \;
-
-          echo "CHECK DIST:"
-          ls -la dist
-          echo "CHECK SVG:"
-          head -n 5 dist/ua.svg
-          echo "CHECK MAP:"
-          ls -lh dist/UkraineMap.png
+          cp -f ua.svg dist/ua.svg || true
+          cp -f UkraineMap.png dist/UkraineMap.png || true
+          find . -maxdepth 1 -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.svg" -o -iname "*.webp" \) -exec cp -f {} dist/ \;
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -67,16 +50,5 @@ jobs:
         with:
           path: dist
 
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy Pages
-        id: deployment
+      - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
