@@ -3,25 +3,27 @@ import { state, save, getState } from '../../src/state.js';
 import { citiesBase } from '../../src/data/citiesBase.js';
 import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib/economy.js';
 
-const BASE_PATH = import.meta.env.BASE_URL || './';
 
-const MAP_IMG = `${BASE_PATH}UkraineMap.png?v=122`;
+
+const ASSET_BASE = new URL('./', window.location.href).href;
+
+function assetUrl(src, version = '') {
+  const cleanSrc = String(src || '').replace(/^\.\//, '').replace(/^\//, '');
+  const url = new URL(cleanSrc, ASSET_BASE).href;
+  return version ? `${url}?v=${version}` : url;
+}
+
+const MAP_IMG = assetUrl('UkraineMap.png', '122');
 
 const REGIONS_SVG_CANDIDATES = [
-  `${BASE_PATH}ua.svg`,
-  `${BASE_PATH}ua.SVG`,
-  `${BASE_PATH}UA.svg`,
-  `${BASE_PATH}UA.SVG`,
-  `${BASE_PATH}ukraine.svg`,
-  `${BASE_PATH}Ukraine.svg`,
-
-  './ua.svg',
-  './ua.SVG',
-  './UA.svg',
-  './UA.SVG',
-  './ukraine.svg',
-  './Ukraine.svg',
+  'ua.svg',
+  'ua.SVG',
+  'UA.svg',
+  'UA.SVG',
+  'ukraine.svg',
+  'Ukraine.svg',
 ];
+
 const CITY_MAP_VERSION = '35';
 const FALLBACK_MAP_SRC = './UkraineMap.png';
 const REGIONS_VIEW_BOX = '0 0 1000 669';
