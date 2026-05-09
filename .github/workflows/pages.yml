@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build Vite app
+    name: Build Vite App
     runs-on: ubuntu-latest
 
     env:
@@ -25,14 +25,8 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Show root files
-        run: |
-          pwd
-          ls -la
-          find . -maxdepth 1 -type f -print
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -42,16 +36,16 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Check Supabase env
+      - name: Verify env
         run: |
           test -n "$VITE_SUPABASE_URL"
           test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
           echo "Supabase env OK"
 
-      - name: Build
+      - name: Build app
         run: npm run build
 
-      - name: Copy assets to dist
+      - name: Copy static assets
         run: |
           mkdir -p dist
 
@@ -65,16 +59,18 @@ jobs:
           cp -f ./*.webp dist/ 2>/dev/null || true
           cp -f ./*.gif dist/ 2>/dev/null || true
           cp -f ./*.ico dist/ 2>/dev/null || true
+          cp -f ./*.avif dist/ 2>/dev/null || true
 
           touch dist/.nojekyll
+
+          test -f dist/index.html
+          test -f dist/ua.svg
+          test -f dist/UkraineMap.png
 
           echo "FINAL DIST:"
           ls -la dist
 
-          test -f dist/ua.svg
-          test -f dist/UkraineMap.png
-
-      - name: Setup Pages
+      - name: Configure Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
