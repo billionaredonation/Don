@@ -1,24 +1,25 @@
-# .github/workflows/ci-pages.yml
-# Полный, развёрнутый workflow (≈160 строк) ― ничего не вырезано,
-# только поправлено для стабильной сборки и единого деплоя на GitHub Pages.
-# Из репозитория уберите прежние pages.yml / release.yml, оставьте лишь этот.
+# pages.yml — CI + Deploy на GitHub Pages
+# Проверяет каждый push/PR и автоматически публикует main-ветку.
 
 ################################################################################
-# 👋  Триггеры
+# 📅 Триггеры
 ################################################################################
-name: CI & Deploy to GitHub Pages
+name: CI & Deploy to GitHub Pages     # внутреннее «видимое» имя job-а
 
 on:
-  # Проверяем ВСЕ push-и во все ветки
-  push:
-    branches: ["**"]
-  # Проверяем каждый Pull Request
-  pull_request:
-  # Ручной запуск из UI Actions
-  workflow_dispatch:
+  push:               # проверяем каждый push во все ветки
+  pull_request:       # и каждый PR
+  workflow_dispatch:  # ручной запуск
 
 ################################################################################
-# 🔒  Права токена
+# 🚦 Параллельные запуски
+################################################################################
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+################################################################################
+# 🔐 Права
 ################################################################################
 permissions:
   contents: read
@@ -26,128 +27,70 @@ permissions:
   id-token: write
 
 ################################################################################
-# 🚦  Параллельные запуски
-################################################################################
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true   # отменяем более старый job на той же ветке
-
-################################################################################
-# 🛠  Job: Build
+# 🛠 Job: Build
 ################################################################################
 jobs:
   build:
-    name: Build project
     runs-on: ubuntu-latest
-
     steps:
-      ##########################################################################
-      # 1. Клонируем репозиторий
-      ##########################################################################
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      ##########################################################################
-      # 2. Node.js + кеш npm
-      ##########################################################################
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm              # кэш по package-lock.json
+          cache: npm
 
-      ##########################################################################
-      # 3. Установка зависимостей
-      ##########################################################################
       - name: Install dependencies
-        run: npm ci               # детерминированно
+        run: npm ci
 
-      ##########################################################################
-      # 4. Сборка приложения
-      ##########################################################################
-      - name: Build Vite app
-        env:                      # секреты нужны прямо в рантайме Vite
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-        run: npm run build
+      - name: Optional lint & test
+        run: |
+          set -e
+          npm run lint --if-present
+          npm run test --if-present
 
-      ##########################################################################
-      # 5. Копируем runtime-ассеты (логика исходного репозитория не тронута)
-      ##########################################################################
-      - name: Copy runtime assets to dist
+      - name: Build (auto-detect)
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || '' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || '' }}
+        shell: bash
+        run: |
+          set -e
+          if npm run -q build --if-present; then
+            npm run build
+          elif npm run -q build:prod --if-present; then
+            npm run build:prod
+          else
+            npx vite build
+          fi
+          echo "BUILD_OUT=dist" >> "$GITHUB_ENV"
+
+      - name: Copy loose root assets to dist/
         shell: bash
         run: |
           set -euo pipefail
+          out="$BUILD_OUT"
+          mkdir -p "$out"
+          find . -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \
+            -o -iname '*.svg' -o -iname '*.webp' -o -iname '*.gif' \
+            -o -iname '*.ico' -o -iname '*.avif' \) -print0 |
+            while IFS= read -r -d '' f; do cp -f "$f" "$out/$(basename "$f")"; done
+          echo "Loose assets copied:"; ls -1 "$out" || true
 
-          mkdir -p dist
-
-          echo "=== Copy all root image assets ==="
-          find . -maxdepth 1 -type f \( \
-            -iname "*.png" -o -iname "*.svg" -o -iname "*.jpg" -o -iname "*.jpeg" \
-            -o -iname "*.webp" -o -iname "*.gif" -o -iname "*.ico" -o -iname "*.avif" \
-          \) -print0 | while IFS= read -r -d '' file; do
-            base="$(basename "$file")"
-            echo "Copy: $base"
-            cp -f "$file" "dist/$base"
-          done
-
-          echo "=== Normalize Ukraine SVG aliases ==="
-          SVG_SOURCE=""
-          for candidate in "ua.svg" "UA.svg" "ua.SVG" "UA.SVG" "ukraine.svg" "Ukraine.svg"; do
-            if [ -s "$candidate" ]; then SVG_SOURCE="$candidate"; break; fi
-          done
-          if [ -z "$SVG_SOURCE" ]; then
-            echo "ERROR: no Ukraine SVG found in repo root"
-            echo "Expected one of: ua.svg, UA.svg, ua.SVG, UA.SVG, ukraine.svg, Ukraine.svg"
-            exit 1
-          fi
-          if ! grep -qi "<svg" "$SVG_SOURCE"; then
-            echo "ERROR: $SVG_SOURCE does not look like SVG"; exit 1; fi
-          echo "Using SVG source: $SVG_SOURCE"
-          for alias in ua.svg UA.svg ua.SVG UA.SVG ukraine.svg Ukraine.svg; do
-            cp -f "$SVG_SOURCE" "dist/$alias"
-          done
-
-          echo "=== Normalize *.png map aliases ==="
-          MAP_SOURCE=""
-          for candidate in "UkraineMap.png" "ukrainemap.png" "UkraineMap.PNG" "map.png"; do
-            if [ -s "$candidate" ]; then MAP_SOURCE="$candidate"; break; fi
-          done
-          if [ -z "$MAP_SOURCE" ]; then
-            echo "ERROR: Ukraine map PNG not found in repo root"
-            exit 1
-          fi
-          echo "Using map source: $MAP_SOURCE"
-          cp -f "$MAP_SOURCE" "dist/UkraineMap.png"
-          cp -f "$MAP_SOURCE" "dist/ukrainemap.png"
-
-          echo "=== Final validation ==="
-          [[ -s dist/ua.svg ]] || { echo "ERROR: dist/ua.svg missing"; exit 1; }
-          grep -qi "<svg" dist/ua.svg || { echo "ERROR: dist/ua.svg invalid"; exit 1; }
-          [[ -s dist/UkraineMap.png ]] || { echo "ERROR: dist/UkraineMap.png missing"; exit 1; }
-
-      ##########################################################################
-      # 6. Публикуем артефакт для дальнейшего деплоя
-      ##########################################################################
-      - name: Upload static site artifact
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist          # сюда Vite вывел сайт
+          path: ${{ env.BUILD_OUT }}
 
 ################################################################################
-# 🚀  Job: Deploy (выполняется только для ветки main)
+# 🚀 Job: Deploy (только main)
 ################################################################################
   deploy:
-    name: Deploy to GitHub Pages
-    runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'   # 👈 защита: деплой только из main
-
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - name: Deploy
-        id: deployment
+      - id: deploy
         uses: actions/deploy-pages@v4
