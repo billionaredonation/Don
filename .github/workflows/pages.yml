@@ -36,23 +36,26 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Copy loose root assets to dist
+      - name: Copy root assets to dist
         shell: bash
         run: |
           set -euo pipefail
 
-          out="dist"
-          mkdir -p "$out"
+          mkdir -p dist
 
-          find "$GITHUB_WORKSPACE" -maxdepth 1 -type f \
-            \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.svg' -o -iname '*.webp' -o -iname '*.gif' -o -iname '*.ico' -o -iname '*.avif' \) \
-            -exec cp -f {} "$out/" \;
+          cp -f ./*.png dist/ 2>/dev/null || true
+          cp -f ./*.jpg dist/ 2>/dev/null || true
+          cp -f ./*.jpeg dist/ 2>/dev/null || true
+          cp -f ./*.webp dist/ 2>/dev/null || true
+          cp -f ./*.svg dist/ 2>/dev/null || true
+          cp -f ./*.ico dist/ 2>/dev/null || true
 
-          test -f "$out/ua.svg"
-          test -f "$out/UkraineMap.png"
+          echo "DIST files:"
+          ls -la dist
 
-          echo "Loose assets copied:"
-          ls -1 "$out" | sed -n '1,120p'
+          echo "Check required files:"
+          ls -la dist/ua.svg
+          ls -la dist/UkraineMap.png
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -66,6 +69,7 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
