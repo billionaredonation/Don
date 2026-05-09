@@ -970,21 +970,36 @@ function createSvgLayer(target, mode) {
     }
   }
 
-  preloadAssets()
-    .then(() => {
-      renderLayers();
-    })
-    .catch((error) => {
-      console.error(error);
+ function hideLoader() {
+  if (!loader) {
+    return;
+  }
 
-      compactRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
-      fullRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки карты областей</div>`;
-    })
-    .finally(() => {
-      window.setTimeout(() => {
-        loader.classList.add('hidden');
-      }, 450);
-    });
+  loader.classList.add('hidden');
+  loader.style.opacity = '0';
+  loader.style.pointerEvents = 'none';
+  loader.style.visibility = 'hidden';
 
-  updateVisualState();
-});
+  window.setTimeout(() => {
+    loader.style.display = 'none';
+  }, 350);
+}
+
+preloadAssets()
+  .then(() => {
+    renderLayers();
+    updateVisualState();
+  })
+  .catch((error) => {
+    console.error(error);
+
+    compactRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
+    fullRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки карты областей</div>`;
+  })
+  .finally(() => {
+    window.setTimeout(hideLoader, 450);
+  });
+
+window.setTimeout(hideLoader, 3500);
+
+updateVisualState();
