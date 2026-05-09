@@ -644,55 +644,109 @@ register('welcome3', (root) => {
     updateVisualState();
   }
 
-  function createSvgLayer(target, mode) {
-    if (!svgTextCache) {
-      target.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
-      return [];
-    }
-
-    target.innerHTML = svgTextCache;
-
-    const svg = target.querySelector('svg');
-
-    if (!svg) {
-      target.innerHTML = `<div class="map-error">Ошибка чтения SVG</div>`;
-      return [];
-    }
-
-    svg.setAttribute('viewBox', svg.getAttribute('viewBox') || REGIONS_VIEW_BOX);
-    svg.removeAttribute('width');
-    svg.removeAttribute('height');
-    svg.classList.add('regions-svg', mode === 'compact' ? 'compact-svg' : 'full-svg');
-
-    const regions = Array.from(svg.querySelectorAll('path[id], polygon[id], polyline[id]'))
-      .filter((el) => REGION_DATA[el.id]);
-
-    regions.forEach((regionEl) => {
-      const info = makeRegionInfo(regionEl.id);
-
-      regionEl.classList.add('map-region');
-      regionEl.setAttribute('role', 'button');
-      regionEl.setAttribute('tabindex', '0');
-      regionEl.setAttribute('aria-label', info.cityName);
-      regionEl.dataset.cityId = info.cityId;
-      regionEl.dataset.cityName = info.cityName;
-
-      regionEl.addEventListener('click', (event) => {
-        event.stopPropagation();
-        pickRegion(regionEl.id, { animate: true });
-      });
-
-      regionEl.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          pickRegion(regionEl.id, { animate: true });
-        }
-      });
-    });
-
-    return regions;
+function createSvgLayer(target, mode) {
+  if (!svgTextCache) {
+    target.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
+    return [];
   }
 
+  target.innerHTML = '';
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgTextCache, 'image/svg+xml');
+
+  const svg = doc.querySelector('svg');
+
+  if (!svg) {
+    target.innerHTML = `<div class="map-error">Ошибка чтения SVG</div>`;
+    return [];
+  }
+
+  svg.setAttribute(
+    'viewBox',
+    svg.getAttribute('viewBox') || REGIONS_VIEW_BOX
+  );
+
+  svg.removeAttribute('width');
+  svg.removeAttribute('height');
+
+  svg.classList.add(
+    'regions-svg',
+    mode === 'compact' ? 'compact-svg' : 'full-svg'
+  );
+
+  const validRegions = [];
+
+  Object.keys(REGION_DATA).forEach((regionId) => {
+    const regionEl = svg.querySelector(`#${regionId}`);
+
+    if (!regionEl) {
+      return;
+    }
+
+    const tag = regionEl.tagName.toLowerCase();
+
+    if (
+      tag !== 'path' &&
+      tag !== 'polygon' &&
+      tag !== 'polyline'
+    ) {
+      return;
+    }
+
+    if (tag === 'path') {
+      const d = regionEl.getAttribute('d') || '';
+
+      const normalized = d.trim();
+
+      const isBroken =
+        !normalized ||
+        normalized.length < 8 ||
+        !/^[Mm]/.test(normalized) ||
+        !/\d/.test(normalized);
+
+      if (isBroken) {
+        console.warn('[welcome3] broken path skipped:', regionId);
+        return;
+      }
+    }
+
+    validRegions.push(regionEl);
+  });
+
+  validRegions.forEach((regionEl) => {
+    const info = makeRegionInfo(regionEl.id);
+
+    if (!info) {
+      return;
+    }
+
+    regionEl.classList.add('map-region');
+
+    regionEl.setAttribute('role', 'button');
+    regionEl.setAttribute('tabindex', '0');
+    regionEl.setAttribute('aria-label', info.cityName);
+
+    regionEl.dataset.cityId = info.cityId;
+    regionEl.dataset.cityName = info.cityName;
+
+    regionEl.addEventListener('click', (event) => {
+      event.stopPropagation();
+      pickRegion(regionEl.id, { animate: true });
+    });
+
+    regionEl.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        pickRegion(regionEl.id, { animate: true });
+      }
+    });
+  });
+
+  target.appendChild(svg);
+
+  return validRegions;
+}
   function renderLayers() {
     compactRegionElements = createSvgLayer(compactRegionsLayer, 'compact');
     fullRegionElements = createSvgLayer(fullRegionsLayer, 'full');
