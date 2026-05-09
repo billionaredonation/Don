@@ -6,14 +6,15 @@ import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib
 const BASE_PATH = import.meta.env.BASE_URL || './';
 
 const MAP_IMG = `${BASE_PATH}UkraineMap.png?v=122`;
+
 const REGIONS_SVG_CANDIDATES = [
-  `${BASE_PATH}maps/ua-regions.svg`,
   `${BASE_PATH}ua.svg`,
   `${BASE_PATH}ua.SVG`,
   `${BASE_PATH}UA.svg`,
   `${BASE_PATH}UA.SVG`,
   `${BASE_PATH}ukraine.svg`,
   `${BASE_PATH}Ukraine.svg`,
+
   './ua.svg',
   './ua.SVG',
   './UA.svg',
