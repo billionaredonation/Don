@@ -17,7 +17,6 @@ concurrency:
 
 jobs:
   build:
-    name: Build Vite app
     runs-on: ubuntu-latest
 
     env:
@@ -25,34 +24,32 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Debug root files
+      - name: Show root files
         run: |
-          pwd
           ls -la
-          find . -maxdepth 1 -type f | sort
+          find . -maxdepth 1 -type f -print
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install dependencies
+      - name: Install
         run: npm install
-
-      - name: Check env
-        run: |
-          test -n "$VITE_SUPABASE_URL"
-          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
-          echo "Supabase env OK"
 
       - name: Build
         run: npm run build
 
-      - name: Copy static assets into dist
+      - name: Force copy map assets
         run: |
+          mkdir -p dist
+
+          cp -f "./ua.svg" "./dist/ua.svg"
+          cp -f "./UkraineMap.png" "./dist/UkraineMap.png"
+
           cp -f ./*.png dist/ 2>/dev/null || true
           cp -f ./*.svg dist/ 2>/dev/null || true
           cp -f ./*.jpg dist/ 2>/dev/null || true
@@ -60,27 +57,21 @@ jobs:
           cp -f ./*.webp dist/ 2>/dev/null || true
           cp -f ./*.gif dist/ 2>/dev/null || true
           cp -f ./*.ico dist/ 2>/dev/null || true
-          cp -f ./*.avif dist/ 2>/dev/null || true
 
-          echo "DIST:"
+          touch dist/.nojekyll
+
+          echo "FINAL DIST:"
           ls -la dist
 
           test -f dist/ua.svg
           test -f dist/UkraineMap.png
 
-      - name: Disable Jekyll
-        run: touch dist/.nojekyll
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
-    name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
 
