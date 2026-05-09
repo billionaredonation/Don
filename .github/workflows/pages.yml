@@ -1,11 +1,9 @@
-name: Deploy to GitHub Pages
+name: Deploy GitHub Pages
 
 on:
   push:
     branches:
       - main
-      - master
-
   workflow_dispatch:
 
 permissions:
@@ -14,11 +12,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: github-pages
+  cancel-in-progress: false
 
 jobs:
   build:
+    name: Build Vite app
     runs-on: ubuntu-latest
 
     steps:
@@ -29,26 +28,56 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build app
+      - name: Build
         run: npm run build
 
-      - name: Copy static root assets
+      - name: Copy root assets to dist
+        shell: bash
         run: |
-          cp -f ua.svg dist/ua.svg || true
-          cp -f UkraineMap.png dist/UkraineMap.png || true
-          find . -maxdepth 1 -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.svg" -o -iname "*.webp" \) -exec cp -f {} dist/ \;
+          set -euo pipefail
+
+          mkdir -p dist
+
+          find . -maxdepth 1 -type f \( \
+            -iname "*.png" -o \
+            -iname "*.jpg" -o \
+            -iname "*.jpeg" -o \
+            -iname "*.svg" -o \
+            -iname "*.webp" -o \
+            -iname "*.gif" -o \
+            -iname "*.ico" -o \
+            -iname "*.avif" \
+          \) -exec cp -f {} dist/ \;
+
+          test -f dist/ua.svg
+          test -f dist/UkraineMap.png
+
+          echo "Assets in dist:"
+          ls -la dist | sed -n '1,160p'
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Pages artifact
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-      - name: Deploy to GitHub Pages
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy
+        id: deployment
         uses: actions/deploy-pages@v4
