@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build Vite app
+    name: Build Vite App
     runs-on: ubuntu-latest
 
     env:
@@ -25,14 +26,17 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Show root files
+      - name: Debug root files
         run: |
+          echo "ROOT:"
           pwd
           ls -la
-          find . -maxdepth 1 -type f -print
+
+          echo "SVG + PNG:"
+          find . -maxdepth 1 -type f \( -iname "*.svg" -o -iname "*.png" \)
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -42,21 +46,25 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Check Supabase env
+      - name: Verify env
         run: |
           test -n "$VITE_SUPABASE_URL"
           test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
-          echo "Supabase env OK"
 
-      - name: Build
+      - name: Build app
         run: npm run build
 
-      - name: Copy assets to dist
+      - name: Prepare dist assets
         run: |
           mkdir -p dist
 
-          cp -f ./ua.svg ./dist/ua.svg
-          cp -f ./UkraineMap.png ./dist/UkraineMap.png
+          if [ -f "./ua.svg" ]; then
+            cp "./ua.svg" "./dist/ua.svg"
+          fi
+
+          if [ -f "./UkraineMap.png" ]; then
+            cp "./UkraineMap.png" "./dist/UkraineMap.png"
+          fi
 
           cp -f ./*.png dist/ 2>/dev/null || true
           cp -f ./*.svg dist/ 2>/dev/null || true
@@ -65,10 +73,11 @@ jobs:
           cp -f ./*.webp dist/ 2>/dev/null || true
           cp -f ./*.gif dist/ 2>/dev/null || true
           cp -f ./*.ico dist/ 2>/dev/null || true
+          cp -f ./*.avif dist/ 2>/dev/null || true
 
           touch dist/.nojekyll
 
-          echo "FINAL DIST:"
+          echo "DIST:"
           ls -la dist
 
           test -f dist/ua.svg
@@ -77,13 +86,13 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Pages artifact
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
-    name: Deploy GitHub Pages
+    name: Deploy
     needs: build
     runs-on: ubuntu-latest
 
@@ -92,6 +101,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
