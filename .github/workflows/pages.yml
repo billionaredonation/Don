@@ -24,6 +24,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Show repo files before build
+        run: |
+          echo "ROOT FILES:"
+          ls -la
+          echo "PNG/SVG FILES:"
+          find . -maxdepth 1 -type f \( -iname "*.png" -o -iname "*.svg" \) -print
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -43,26 +50,31 @@ jobs:
       - name: Copy root assets to dist
         shell: bash
         run: |
-          set -euo pipefail
+          set -e
 
           mkdir -p dist
 
-          find . -maxdepth 1 -type f \( \
-            -iname "*.png" -o \
-            -iname "*.jpg" -o \
-            -iname "*.jpeg" -o \
-            -iname "*.svg" -o \
-            -iname "*.webp" -o \
-            -iname "*.gif" -o \
-            -iname "*.ico" -o \
-            -iname "*.avif" \
-          \) -exec cp -f {} dist/ \;
+          cp -f ./*.png dist/ 2>/dev/null || true
+          cp -f ./*.svg dist/ 2>/dev/null || true
+          cp -f ./*.jpg dist/ 2>/dev/null || true
+          cp -f ./*.jpeg dist/ 2>/dev/null || true
+          cp -f ./*.webp dist/ 2>/dev/null || true
+          cp -f ./*.gif dist/ 2>/dev/null || true
+          cp -f ./*.ico dist/ 2>/dev/null || true
+          cp -f ./*.avif dist/ 2>/dev/null || true
 
-          test -f dist/ua.svg
-          test -f dist/UkraineMap.png
+          echo "DIST FILES AFTER COPY:"
+          ls -la dist
 
-          echo "Assets in dist:"
-          ls -la dist | sed -n '1,180p'
+          if [ ! -f dist/ua.svg ]; then
+            echo "ERROR: dist/ua.svg not found"
+            exit 1
+          fi
+
+          if [ ! -f dist/UkraineMap.png ]; then
+            echo "ERROR: dist/UkraineMap.png not found"
+            exit 1
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
