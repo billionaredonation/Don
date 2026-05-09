@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   build:
+    name: Build Vite app
     runs-on: ubuntu-latest
 
     env:
@@ -24,11 +25,12 @@ jobs:
       VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Show root files
         run: |
+          pwd
           ls -la
           find . -maxdepth 1 -type f -print
 
@@ -37,18 +39,24 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install
+      - name: Install dependencies
         run: npm install
+
+      - name: Check Supabase env
+        run: |
+          test -n "$VITE_SUPABASE_URL"
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
+          echo "Supabase env OK"
 
       - name: Build
         run: npm run build
 
-      - name: Force copy map assets
+      - name: Copy assets to dist
         run: |
           mkdir -p dist
 
-          cp -f "./ua.svg" "./dist/ua.svg"
-          cp -f "./UkraineMap.png" "./dist/UkraineMap.png"
+          cp -f ./ua.svg ./dist/ua.svg
+          cp -f ./UkraineMap.png ./dist/UkraineMap.png
 
           cp -f ./*.png dist/ 2>/dev/null || true
           cp -f ./*.svg dist/ 2>/dev/null || true
@@ -66,12 +74,16 @@ jobs:
           test -f dist/ua.svg
           test -f dist/UkraineMap.png
 
-      - name: Upload artifact
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
+    name: Deploy GitHub Pages
     needs: build
     runs-on: ubuntu-latest
 
