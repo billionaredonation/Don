@@ -109,42 +109,36 @@
   transform-origin: center center;
 }
 
-.ukraine-regions-svg * {
+.regions-svg .map-region {
   fill: transparent !important;
-  stroke: transparent !important;
-  filter: none !important;
-  outline: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.ukraine-region {
-  fill: transparent;
-  stroke: transparent;
-  stroke-width: 0;
+  stroke: rgba(255, 255, 255, 0.72) !important;
+  stroke-width: 1.4px !important;
   vector-effect: non-scaling-stroke;
-  transition:
-    fill 0.14s ease,
-    opacity 0.14s ease;
-}
-
-.ukraine-region.is-selectable {
   cursor: pointer;
+  outline: none !important;
 }
 
-.full .ukraine-region.is-pending,
-.compact .ukraine-region.is-pending {
-  fill: rgba(255,255,255,0.12) !important;
-  stroke: rgba(255,255,255,0.92) !important;
-  stroke-width: 1.4 !important;
-  filter: none !important;
+.regions-svg .map-region:hover {
+  fill: rgba(255, 255, 255, 0.10) !important;
+  stroke: rgba(255, 255, 255, 0.95) !important;
 }
 
-.ukraine-region.is-selected {
-  fill: rgba(255,255,255,0.16) !important;
-  stroke: #fff !important;
-  stroke-width: 1.7 !important;
-  filter: none !important;
-  animation: none !important;
+.regions-svg .map-region.is-pending,
+.regions-svg .map-region.is-selected {
+  fill: rgba(255, 255, 255, 0.16) !important;
+  stroke: #ffffff !important;
+  stroke-width: 2px !important;
+  outline: none !important;
+}
+
+.regions-svg .map-region:focus,
+.regions-svg .map-region:focus-visible {
+  outline: none !important;
+}
+
+.regions-svg rect,
+.regions-svg image {
+  pointer-events: none;
 }
 
 .ukraine-region.is-click-burst {
