@@ -5,11 +5,14 @@ import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib
 
 
 
-const ASSET_BASE = new URL('./', window.location.href).href;
+const ASSET_BASE = import.meta.env.BASE_URL || './';
 
 function assetUrl(src, version = '') {
   const cleanSrc = String(src || '').replace(/^\.\//, '').replace(/^\//, '');
-  const url = new URL(cleanSrc, ASSET_BASE).href;
+  const base = ASSET_BASE.startsWith('http')
+    ? ASSET_BASE
+    : new URL(ASSET_BASE, window.location.origin).href;
+  const url = new URL(cleanSrc, base).href;
   return version ? `${url}?v=${version}` : url;
 }
 
@@ -295,7 +298,7 @@ register('welcome3', (root) => {
     <div class="welcome3-loader" id="welcome3Loader">
       <div class="loader-logo">MN</div>
       <div class="loader-title">Загрузка карты</div>
-      <div class="loader-text">Подготавливаем области Украины...</div>
+            <div class="loader-text">Подготавливаем области Украины...</div>
       <div class="loader-bar"><span></span></div>
     </div>
 
@@ -535,12 +538,12 @@ register('welcome3', (root) => {
   }
 
   async function preloadAssets() {
-    const [loadedSvgText] = await Promise.all([
-      fetchFirstSvg(),
-      preloadImage(MAP_IMG)
-    ]);
-
+    const loadedSvgText = await fetchFirstSvg();
     svgTextCache = loadedSvgText;
+
+    preloadImage(MAP_IMG).catch((error) => {
+      console.warn('UkraineMap.png не загрузился, SVG карта всё равно будет работать', error);
+    });
   }
 
   function animateRegionChoice(regionInfo) {
@@ -595,151 +598,194 @@ register('welcome3', (root) => {
       } else {
         nextBtn.disabled = true;
         nextBtn.classList.remove('active');
-        setMainText('Город пока не выбран');
+                setMainText('Город пока не выбран');
       }
 
-      confirmCityBtn.disabled = !pendingRegion;
-      confirmCityBtn.classList.toggle('active', Boolean(pendingRegion));
-
-      visualFrame = null;
+      if (pendingRegion) {
+        confirmCityBtn.disabled = false;
+        confirmCityBtn.classList.add('active');
+      } else {
+        confirmCityBtn.disabled = true;
+        confirmCityBtn.classList.remove('active');
+      }
     });
   }
 
-  function previewRegion(regionInfo) {
-    if (!regionInfo || isTouchDevice) {
-      return;
-    }
+  function pickRegion(regionId, options = {}) {
+    const regionInfo = makeRegionInfo(regionId);
 
-    renderCityPreview(regionInfo);
-  }
-
-  function resetPreview() {
-    renderCityPreview(pendingRegion || null);
-  }
-
-  function choosePendingRegion(regionInfo) {
     if (!regionInfo) {
       return;
     }
 
     pendingRegion = regionInfo;
-    animateRegionChoice(regionInfo);
-    renderCityPreview(regionInfo);
+    renderCityPreview(pendingRegion);
     updateVisualState();
+
+    if (options.animate) {
+      animateRegionChoice(regionInfo);
+    }
   }
 
-  function confirmRegion() {
+  function confirmCity() {
     if (!pendingRegion) {
       return;
     }
 
     selectedRegion = pendingRegion;
-    pendingRegion = null;
 
-    state.city = normalizeCityId(selectedRegion.cityId);
+    state.cityId = normalizeCityId(selectedRegion.cityId);
     state.cityName = selectedRegion.cityName;
     state.regionId = selectedRegion.regionId;
-
     save();
 
     mapModal.classList.add('hidden');
-    renderCityPreview(null);
     updateVisualState();
   }
 
-  function applyTransform() {
+  function createSvgLayer(target, mode) {
+    if (!svgTextCache) {
+      target.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
+      return [];
+    }
+
+    target.innerHTML = svgTextCache;
+
+    const svg = target.querySelector('svg');
+
+    if (!svg) {
+      target.innerHTML = `<div class="map-error">Ошибка чтения SVG</div>`;
+      return [];
+    }
+
+    svg.setAttribute('viewBox', svg.getAttribute('viewBox') || REGIONS_VIEW_BOX);
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.classList.add('regions-svg', mode === 'compact' ? 'compact-svg' : 'full-svg');
+
+    const regions = Array.from(svg.querySelectorAll('path[id], polygon[id], polyline[id]'))
+      .filter((el) => REGION_DATA[el.id]);
+
+    regions.forEach((regionEl) => {
+      const info = makeRegionInfo(regionEl.id);
+
+      regionEl.classList.add('map-region');
+      regionEl.setAttribute('role', 'button');
+      regionEl.setAttribute('tabindex', '0');
+      regionEl.setAttribute('aria-label', info.cityName);
+      regionEl.dataset.cityId = info.cityId;
+      regionEl.dataset.cityName = info.cityName;
+
+      regionEl.addEventListener('click', (event) => {
+        event.stopPropagation();
+        pickRegion(regionEl.id, { animate: true });
+      });
+
+      regionEl.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          pickRegion(regionEl.id, { animate: true });
+        }
+      });
+    });
+
+    return regions;
+  }
+
+  function renderLayers() {
+    compactRegionElements = createSvgLayer(compactRegionsLayer, 'compact');
+    fullRegionElements = createSvgLayer(fullRegionsLayer, 'full');
+    updateVisualState();
+  }
+
+  function scheduleTransform() {
     if (transformFrame) {
-      return;
+      cancelAnimationFrame(transformFrame);
     }
 
     transformFrame = requestAnimationFrame(() => {
-      fullMapContent.style.transform =
-        'translate(calc(-50% + ' + view.x + 'px), calc(-50% + ' + view.y + 'px)) scale(' + view.scale + ')';
-
-      transformFrame = null;
+      fullMapContent.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`;
     });
-  }
-
-  function resetTransform() {
-    view.x = 0;
-    view.y = 0;
-    view.scale = isTouchDevice ? 1.42 : 1.55;
-    applyTransform();
   }
 
   function clampView() {
-    view.scale = Math.max(1, Math.min(MAX_ZOOM, view.scale));
+    const viewportRect = fullMapViewport.getBoundingClientRect();
+    const contentWidth = viewportRect.width;
+    const contentHeight = viewportRect.width * 0.669;
 
-    const maxOffset = 460 * view.scale;
+    const scaledWidth = contentWidth * view.scale;
+    const scaledHeight = contentHeight * view.scale;
 
-    view.x = Math.max(-maxOffset, Math.min(maxOffset, view.x));
-    view.y = Math.max(-maxOffset, Math.min(maxOffset, view.y));
+    const minX = Math.min(0, viewportRect.width - scaledWidth);
+    const minY = Math.min(0, viewportRect.height - scaledHeight);
+
+    view.x = Math.max(minX - 80, Math.min(80, view.x));
+    view.y = Math.max(minY - 80, Math.min(80, view.y));
   }
 
-  function distance(a, b) {
-    return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+  function setScaleAroundPoint(nextScale, clientX, clientY) {
+    const viewportRect = fullMapViewport.getBoundingClientRect();
+    const px = clientX - viewportRect.left;
+    const py = clientY - viewportRect.top;
+
+    const oldScale = view.scale;
+    const clampedScale = Math.max(1, Math.min(MAX_ZOOM, nextScale));
+
+    const mapX = (px - view.x) / oldScale;
+    const mapY = (py - view.y) / oldScale;
+
+    view.scale = clampedScale;
+    view.x = px - mapX * clampedScale;
+    view.y = py - mapY * clampedScale;
+
+    clampView();
+    scheduleTransform();
   }
 
-  function startPan(pointer) {
-    gesture.mode = 'pan';
-    gesture.moved = false;
-    gesture.startX = pointer.clientX;
-    gesture.startY = pointer.clientY;
-    gesture.baseX = view.x;
-    gesture.baseY = view.y;
+  function resetView() {
+    const viewportRect = fullMapViewport.getBoundingClientRect();
+
+    view.scale = isTouchDevice ? 1.42 : 1.55;
+    view.x = viewportRect.width * -0.18;
+    view.y = viewportRect.height * -0.03;
+
+    clampView();
+    scheduleTransform();
   }
 
-  function startPinch() {
-    const pts = Array.from(pointers.values());
+  function getDistance(a, b) {
+    const dx = a.clientX - b.clientX;
+    const dy = a.clientY - b.clientY;
 
-    if (pts.length < 2) {
-      return;
-    }
-
-    gesture.mode = 'pinch';
-    gesture.moved = false;
-    gesture.startDistance = distance(pts[0], pts[1]);
-    gesture.baseScale = view.scale;
-    gesture.baseX = view.x;
-    gesture.baseY = view.y;
-    gesture.startX = (pts[0].clientX + pts[1].clientX) / 2;
-    gesture.startY = (pts[0].clientY + pts[1].clientY) / 2;
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
   function onPointerDown(event) {
-    const isMouse = event.pointerType === 'mouse';
-    const isTouch = event.pointerType === 'touch' || event.pointerType === 'pen';
-
-    if (isMouse && event.button !== 2) {
+    if (!event.isPrimary && event.pointerType !== 'touch') {
       return;
     }
 
-    if (isMouse) {
-      event.preventDefault();
+    fullMapViewport.setPointerCapture(event.pointerId);
+    pointers.set(event.pointerId, event);
+
+    if (pointers.size === 1) {
+      gesture.mode = 'pan';
+      gesture.moved = false;
+      gesture.startX = event.clientX;
+      gesture.startY = event.clientY;
+      gesture.baseX = view.x;
+      gesture.baseY = view.y;
     }
 
-    pointers.set(event.pointerId, {
-      clientX: event.clientX,
-      clientY: event.clientY,
-      pointerType: event.pointerType
-    });
+    if (pointers.size === 2) {
+      const activePointers = Array.from(pointers.values());
 
-    if (fullMapViewport.setPointerCapture) {
-      fullMapViewport.setPointerCapture(event.pointerId);
-    }
-
-    if (isTouch && pointers.size === 1) {
-      startPan(event);
-      return;
-    }
-
-    if (isTouch && pointers.size === 2) {
-      startPinch();
-      return;
-    }
-
-    if (isMouse) {
-      startPan(event);
+      gesture.mode = 'pinch';
+      gesture.moved = true;
+      gesture.startDistance = getDistance(activePointers[0], activePointers[1]);
+      gesture.baseScale = view.scale;
+      gesture.baseX = view.x;
+      gesture.baseY = view.y;
     }
   }
 
@@ -748,17 +794,13 @@ register('welcome3', (root) => {
       return;
     }
 
-    pointers.set(event.pointerId, {
-      clientX: event.clientX,
-      clientY: event.clientY,
-      pointerType: event.pointerType
-    });
+    pointers.set(event.pointerId, event);
 
     if (gesture.mode === 'pan' && pointers.size === 1) {
       const dx = event.clientX - gesture.startX;
       const dy = event.clientY - gesture.startY;
 
-      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
         gesture.moved = true;
       }
 
@@ -766,307 +808,128 @@ register('welcome3', (root) => {
       view.y = gesture.baseY + dy;
 
       clampView();
-      applyTransform();
+      scheduleTransform();
       return;
     }
 
     if (gesture.mode === 'pinch' && pointers.size >= 2) {
-      const pts = Array.from(pointers.values());
-      const currentDistance = distance(pts[0], pts[1]);
-      const scaleRatio = currentDistance / gesture.startDistance;
-      const midX = (pts[0].clientX + pts[1].clientX) / 2;
-      const midY = (pts[0].clientY + pts[1].clientY) / 2;
+      const activePointers = Array.from(pointers.values());
+      const distance = getDistance(activePointers[0], activePointers[1]);
+      const centerX = (activePointers[0].clientX + activePointers[1].clientX) / 2;
+      const centerY = (activePointers[0].clientY + activePointers[1].clientY) / 2;
 
-      view.scale = gesture.baseScale * scaleRatio;
-      view.x = gesture.baseX + (midX - gesture.startX);
-      view.y = gesture.baseY + (midY - gesture.startY);
-      gesture.moved = true;
-
-      clampView();
-      applyTransform();
+      if (gesture.startDistance > 0) {
+                const nextScale = gesture.baseScale * (distance / gesture.startDistance);
+        setScaleAroundPoint(nextScale, centerX, centerY);
+      }
     }
   }
 
   function onPointerUp(event) {
     pointers.delete(event.pointerId);
 
-    if (fullMapViewport.releasePointerCapture) {
-      fullMapViewport.releasePointerCapture(event.pointerId);
+    if (pointers.size === 0) {
+      gesture.mode = 'none';
     }
 
     if (pointers.size === 1) {
       const remainingPointer = Array.from(pointers.values())[0];
 
-      startPan({
-        clientX: remainingPointer.clientX,
-        clientY: remainingPointer.clientY,
-        pointerType: remainingPointer.pointerType
-      });
-
-      return;
-    }
-
-    if (pointers.size === 0) {
-      gesture.mode = 'none';
+      gesture.mode = 'pan';
+      gesture.startX = remainingPointer.clientX;
+      gesture.startY = remainingPointer.clientY;
+      gesture.baseX = view.x;
+      gesture.baseY = view.y;
     }
   }
 
-  function onWheel(event) {
-    event.preventDefault();
+  function bindMapControls() {
+    fullMapViewport.addEventListener('pointerdown', onPointerDown);
+    fullMapViewport.addEventListener('pointermove', onPointerMove);
+    fullMapViewport.addEventListener('pointerup', onPointerUp);
+    fullMapViewport.addEventListener('pointercancel', onPointerUp);
+    fullMapViewport.addEventListener('lostpointercapture', onPointerUp);
 
-    view.scale += event.deltaY > 0 ? -0.12 : 0.12;
+    fullMapViewport.addEventListener('wheel', (event) => {
+      event.preventDefault();
 
-    clampView();
-    applyTransform();
+      const direction = event.deltaY > 0 ? -1 : 1;
+      const factor = direction > 0 ? 1.12 : 0.88;
+
+      setScaleAroundPoint(view.scale * factor, event.clientX, event.clientY);
+    }, { passive: false });
   }
 
-  function prepareSvg(svg, mode) {
-    svg.classList.add('ukraine-regions-svg', mode);
-    svg.removeAttribute('width');
-    svg.removeAttribute('height');
-    svg.removeAttribute('fill');
-    svg.removeAttribute('stroke');
-    svg.removeAttribute('stroke-width');
-    svg.style.fill = 'none';
-    svg.style.stroke = 'none';
-
-    const rawViewBox = svg.getAttribute('viewBox') || svg.getAttribute('viewbox') || REGIONS_VIEW_BOX;
-
-    svg.removeAttribute('viewbox');
-    svg.setAttribute('viewBox', rawViewBox);
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    svg.setAttribute('focusable', 'false');
-    svg.setAttribute('aria-hidden', 'true');
-
-    svg.querySelectorAll('*').forEach((el) => {
-      el.style.pointerEvents = 'none';
-    });
-
-    svg.querySelectorAll('text, circle, rect, line, polyline, ellipse, #points, #label_points').forEach((el) => {
-      el.style.display = 'none';
-    });
-
-    const regions = Array.from(svg.querySelectorAll('path, polygon'));
-
-    regions.forEach((region) => {
-      const isKnownRegion = Boolean(region.id && REGION_DATA[region.id]);
-
-      region.style.display = isKnownRegion ? '' : 'none';
-      region.style.pointerEvents = isKnownRegion ? 'all' : 'none';
-
-      if (isKnownRegion) {
-        region.removeAttribute('fill');
-        region.removeAttribute('stroke');
-        region.removeAttribute('stroke-width');
-        region.style.fill = '';
-        region.style.stroke = '';
-      }
-    });
-
-    return regions.filter((region) => REGION_DATA[region.id]);
-  }
-
-  function setupRegion(path, storage, mode) {
-    const regionInfo = makeRegionInfo(path.id);
-
-    path.classList.add('ukraine-region');
-
-    if (!regionInfo) {
-      path.classList.add('is-disabled');
-      return;
-    }
-
-    path.classList.add('is-selectable');
-    path.dataset.cityId = regionInfo.cityId;
-    path.dataset.cityName = regionInfo.cityName;
-    path.style.pointerEvents = 'all';
-    path.setAttribute('tabindex', '0');
-    path.setAttribute('role', 'button');
-    path.setAttribute('aria-label', regionInfo.cityName);
-
-    if (state.regionId === regionInfo.regionId || normalizeCityId(state.city) === normalizeCityId(regionInfo.cityId)) {
-      selectedRegion = regionInfo;
-    }
-
-    if (mode === 'full') {
-      if (!isTouchDevice) {
-        path.addEventListener('mouseenter', () => previewRegion(regionInfo));
-        path.addEventListener('mouseleave', resetPreview);
-        path.addEventListener('focus', () => previewRegion(regionInfo));
-        path.addEventListener('blur', resetPreview);
-      }
-
-      path.addEventListener('pointerdown', (event) => {
-        if (event.pointerType === 'mouse' && event.button === 0) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-      });
-
-      path.addEventListener('pointerup', (event) => {
-        const isMouseLeft = event.pointerType === 'mouse' && event.button === 0;
-        const isTouchTap = event.pointerType !== 'mouse' && !gesture.moved;
-
-        if (!isMouseLeft && !isTouchTap) {
-          return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-        choosePendingRegion(regionInfo);
-      });
-
-      path.addEventListener('click', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        path.blur();
-
-        if (!gesture.moved) {
-          choosePendingRegion(regionInfo);
-        }
-      });
-
-      path.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          choosePendingRegion(regionInfo);
-        }
-      });
-    }
-
-    storage.push(path);
-  }
-
-  function createCleanSvg(mode) {
-    const parser = new DOMParser();
-    const sourceDoc = parser.parseFromString(svgTextCache, 'image/svg+xml');
-    const sourceSvg = sourceDoc.querySelector('svg');
-    const cleanSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-
-    if (!sourceSvg) {
-      throw new Error('SVG tag not found');
-    }
-
-    const rawViewBox =
-      sourceSvg.getAttribute('viewBox') ||
-      sourceSvg.getAttribute('viewbox') ||
-      REGIONS_VIEW_BOX;
-
-    cleanSvg.setAttribute('viewBox', rawViewBox);
-    cleanSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    cleanSvg.setAttribute('focusable', 'false');
-    cleanSvg.setAttribute('aria-hidden', 'true');
-
-    Object.keys(REGION_DATA).forEach((regionId) => {
-      const sourceRegion = sourceDoc.getElementById(regionId);
-
-      if (!sourceRegion) {
-        return;
-      }
-
-      const region = sourceRegion.cloneNode(true);
-
-      region.removeAttribute('fill');
-      region.removeAttribute('stroke');
-      region.removeAttribute('stroke-width');
-      region.removeAttribute('style');
-
-      cleanSvg.appendChild(region);
-    });
-
-    cleanSvg.dataset.mode = mode;
-
-    return cleanSvg;
-  }
-
-  function loadSvgInto(layer, storage, mode) {
-    layer.textContent = '';
-    storage.length = 0;
-
-    const svg = createCleanSvg(mode);
-    layer.appendChild(svg);
-
-    prepareSvg(svg, mode).forEach((path) => {
-      setupRegion(path, storage, mode);
-    });
-  }
-
-  function openMap(regionInfo) {
+  openMapBtn.addEventListener('click', () => {
     mapModal.classList.remove('hidden');
-    pendingRegion = null;
-    pointers.clear();
-    gesture.mode = 'none';
-    gesture.moved = false;
 
-    renderCityPreview(null);
-    resetTransform();
+    pendingRegion = selectedRegion;
+    renderCityPreview(pendingRegion);
+    updateVisualState();
 
-    if (regionInfo) {
-      choosePendingRegion(regionInfo);
-    } else {
-      updateVisualState();
-    }
-  }
-
-  async function initRegions() {
-    try {
-      await preloadAssets();
-
-      loadSvgInto(compactRegionsLayer, compactRegionElements, 'compact');
-      loadSvgInto(fullRegionsLayer, fullRegionElements, 'full');
-      updateVisualState();
-
-      loader.classList.add('is-hidden');
-
-      window.setTimeout(() => {
-        loader.remove();
-      }, 280);
-    } catch (error) {
-      console.error(error);
-      loader.classList.add('is-hidden');
-
-      compactRegionsLayer.innerHTML = '<div class="map-error">Ошибка загрузки SVG</div>';
-      fullRegionsLayer.innerHTML = '<div class="map-error">Ошибка загрузки SVG</div>';
-      setMainText('Ошибка загрузки карты областей');
-    }
-  }
-
-  openMapBtn.addEventListener('click', () => openMap());
-  compactMap.addEventListener('click', () => openMap());
+    requestAnimationFrame(() => {
+      resetView();
+    });
+  });
 
   closeMapBtn.addEventListener('click', () => {
     mapModal.classList.add('hidden');
-    pendingRegion = null;
-    pointers.clear();
-    gesture.mode = 'none';
-    gesture.moved = false;
-    renderCityPreview(null);
-    updateVisualState();
   });
 
-  confirmCityBtn.addEventListener('click', confirmRegion);
+  mapModal.addEventListener('click', (event) => {
+    if (event.target === mapModal) {
+      mapModal.classList.add('hidden');
+    }
+  });
+
+  confirmCityBtn.addEventListener('click', confirmCity);
 
   nextBtn.addEventListener('click', () => {
     if (!selectedRegion) {
-      alert('Сначала выбери город на карте');
       return;
     }
 
-    show('preload', {
-      next: 'home',
-      mode: 'first-start',
+    show('game');
+  });
+
+  compactMap.addEventListener('click', () => {
+    openMapBtn.click();
+  });
+
+  bindMapControls();
+
+  const savedRegionId = getState().regionId;
+  const savedCityId = getState().cityId;
+
+  if (savedRegionId && REGION_DATA[savedRegionId]) {
+    selectedRegion = makeRegionInfo(savedRegionId);
+    pendingRegion = selectedRegion;
+  } else if (savedCityId) {
+    const matchedRegionId = Object.keys(REGION_DATA).find((regionId) => {
+      return normalizeCityId(REGION_DATA[regionId].cityId) === normalizeCityId(savedCityId);
     });
-  });
 
-  fullMapViewport.addEventListener('contextmenu', (event) => {
-    event.preventDefault();
-  });
+    if (matchedRegionId) {
+      selectedRegion = makeRegionInfo(matchedRegionId);
+      pendingRegion = selectedRegion;
+    }
+  }
 
-  fullMapViewport.addEventListener('pointerdown', onPointerDown);
-  fullMapViewport.addEventListener('pointermove', onPointerMove);
-  fullMapViewport.addEventListener('pointerup', onPointerUp);
-  fullMapViewport.addEventListener('pointercancel', onPointerUp);
-  fullMapViewport.addEventListener('wheel', onWheel, { passive: false });
+  preloadAssets()
+    .then(() => {
+      renderLayers();
+    })
+    .catch((error) => {
+      console.error(error);
 
-  initRegions();
+      compactRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
+      fullRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки карты областей</div>`;
+    })
+    .finally(() => {
+      window.setTimeout(() => {
+        loader.classList.add('hidden');
+      }, 450);
+    });
+
+  updateVisualState();
 });
