@@ -5,27 +5,35 @@ import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib
 
 
 
-const ASSET_BASE =
-  import.meta.env.BASE_URL && import.meta.env.BASE_URL !== './'
-    ? new URL(import.meta.env.BASE_URL, window.location.origin).href
-    : new URL('/Don/', window.location.origin).href;
-
-function assetUrl(src, version = '') {
-  const cleanSrc = String(src || '').replace(/^\.\//, '').replace(/^\//, '');
-  const url = new URL(cleanSrc, ASSET_BASE).href;
-  return version ? `${url}?v=${version}` : url;
+function bundledAsset(path) {
+  return new URL(path, import.meta.url).href;
 }
 
-const MAP_IMG = assetUrl('UkraineMap.png', '122');
+function versionedAsset(src, version = CITY_MAP_VERSION) {
+  if (!src) {
+    return bundledAsset('../../UkraineMap.png');
+  }
 
+  if (
+    src.startsWith('http://') ||
+    src.startsWith('https://') ||
+    src.startsWith('/assets/') ||
+    src.startsWith('/Don/assets/')
+  ) {
+    return src;
+  }
+
+  if (src.includes('?')) {
+    return src;
+  }
+
+  return src;
+}
+
+const MAP_IMG = bundledAsset('../../UkraineMap.png');
 
 const REGIONS_SVG_CANDIDATES = [
-  'ua.svg',
-  'ua.SVG',
-  'UA.svg',
-  'UA.SVG',
-  'ukraine.svg',
-  'Ukraine.svg',
+  bundledAsset('../../ua.svg')
 ];
 
 const CITY_MAP_VERSION = '35';
