@@ -654,7 +654,6 @@ function createSvgLayer(target, mode) {
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgTextCache, 'image/svg+xml');
-
   const svg = doc.querySelector('svg');
 
   if (!svg) {
@@ -662,11 +661,7 @@ function createSvgLayer(target, mode) {
     return [];
   }
 
-  svg.setAttribute(
-    'viewBox',
-    svg.getAttribute('viewBox') || REGIONS_VIEW_BOX
-  );
-
+  svg.setAttribute('viewBox', svg.getAttribute('viewBox') || REGIONS_VIEW_BOX);
   svg.removeAttribute('width');
   svg.removeAttribute('height');
 
@@ -675,43 +670,43 @@ function createSvgLayer(target, mode) {
     mode === 'compact' ? 'compact-svg' : 'full-svg'
   );
 
+  const allSvgElements = Array.from(
+    svg.querySelectorAll('path, polygon, polyline, g')
+  );
+
+  allSvgElements.forEach((el) => {
+    el.style.pointerEvents = 'none';
+  });
+
   const validRegions = [];
 
   Object.keys(REGION_DATA).forEach((regionId) => {
-    const regionEl = svg.querySelector(`#${regionId}`);
+    const regionEl =
+      svg.querySelector(`#${CSS.escape(regionId)}`) ||
+      svg.querySelector(`[id="${regionId}"]`) ||
+      svg.querySelector(`[data-id="${regionId}"]`) ||
+      svg.querySelector(`[data-region="${regionId}"]`);
 
     if (!regionEl) {
+      console.warn('[welcome3] region not found in svg:', regionId);
       return;
     }
 
-    const tag = regionEl.tagName.toLowerCase();
+    const clickableEl =
+      regionEl.matches('path, polygon, polyline')
+        ? regionEl
+        : regionEl.querySelector('path, polygon, polyline');
 
-    if (
-      tag !== 'path' &&
-      tag !== 'polygon' &&
-      tag !== 'polyline'
-    ) {
+    if (!clickableEl) {
+      console.warn('[welcome3] region has no clickable shape:', regionId);
       return;
     }
 
-    if (tag === 'path') {
-      const d = regionEl.getAttribute('d') || '';
+    clickableEl.id = regionId;
+    clickableEl.dataset.regionId = regionId;
+    clickableEl.style.pointerEvents = 'auto';
 
-      const normalized = d.trim();
-
-      const isBroken =
-        !normalized ||
-        normalized.length < 8 ||
-        !/^[Mm]/.test(normalized) ||
-        !/\d/.test(normalized);
-
-      if (isBroken) {
-        console.warn('[welcome3] broken path skipped:', regionId);
-        return;
-      }
-    }
-
-    validRegions.push(regionEl);
+    validRegions.push(clickableEl);
   });
 
   validRegions.forEach((regionEl) => {
@@ -722,7 +717,6 @@ function createSvgLayer(target, mode) {
     }
 
     regionEl.classList.add('map-region');
-
     regionEl.setAttribute('role', 'button');
     regionEl.setAttribute('tabindex', '0');
     regionEl.setAttribute('aria-label', info.cityName);
@@ -730,7 +724,12 @@ function createSvgLayer(target, mode) {
     regionEl.dataset.cityId = info.cityId;
     regionEl.dataset.cityName = info.cityName;
 
+    regionEl.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+    });
+
     regionEl.addEventListener('click', (event) => {
+      event.preventDefault();
       event.stopPropagation();
       pickRegion(regionEl.id, { animate: true });
     });
@@ -744,6 +743,8 @@ function createSvgLayer(target, mode) {
   });
 
   target.appendChild(svg);
+
+  console.log('[welcome3] regions mounted:', mode, validRegions.length);
 
   return validRegions;
 }
