@@ -99,12 +99,12 @@
 }
 
 .preload-city-card {
-  position: absolute;
-  left: 22px;
-  bottom: 148px;
-  z-index: 8;
-  width: min(520px, calc(100vw - 44px));
-  animation: preloadCardIn 0.55s ease both;
+  left: 50%;
+  top: 43%;
+  bottom: auto;
+  width: calc(100vw - 32px);
+  transform: translate(-50%, -50%);
+  text-align: center;
 }
 
 .preload-eyebrow {
@@ -256,13 +256,17 @@
     font-size: 20px;
   }
 
-  .preload-city-card {
-    left: 50%;
-    bottom: 210px;
-    width: calc(100vw - 32px);
-    transform: translateX(-50%);
-    text-align: center;
-  }
+.preload-city-card {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  z-index: 8;
+  width: min(440px, calc(100vw - 40px));
+  text-align: center;
+  animation: preloadCardIn 0.55s ease both;
+}
   
   .preload-city-card h1 {
     font-size: clamp(30px, 11vw, 52px);
