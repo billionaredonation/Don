@@ -2,53 +2,45 @@ import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 
-const V = '45';
-const BASE_PATH = import.meta.env.BASE_URL || './';
+const V = '50';
 
-function cleanPath(path) {
-  return String(path || '').replace(/^\.?\//, '');
+const CITY_MAPS = {
+  vinnytsia: 'VinitsaMap.png',
+  lutsk: 'LutskMap.png',
+  luhansk: 'LuganskMap.png',
+  dnipro: 'DneprMap.png',
+  donetsk: 'DonetskMap.png',
+  zhytomyr: 'ZutomyrMap.png',
+  uzhhorod: 'UzgorodMap.png',
+  zaporizhzhia: 'Zaporozya.png',
+  'ivano-frankivsk': 'IvanoFrankovsk.png',
+  kyiv: 'KiyvMap.png',
+  kropyvnytskyi: 'Kropivnitskyi.png',
+  crimea: 'KrymMap.png',
+  lviv: 'Lviv.png',
+  mykolaiv: 'Nikolaev.png',
+  odesa: 'Odessa.png',
+  poltava: 'Poltava.png',
+  rivne: 'Rovno.png',
+  sumy: 'Sumy.png',
+  ternopil: 'Ternopil.png',
+  kharkiv: 'Kharkiv.png',
+  kherson: 'Kherson.png',
+  khmelnytskyi: 'Khmelnitskiy.png',
+  cherkasy: 'CherkasyMap.png',
+  chernihiv: 'ChernigovMap.png',
+  chernivtsi: 'ChernivtsiMap.png',
+};
+
+function getBasePath() {
+  const path = window.location.pathname;
+
+  if (path.includes('/Don/')) return '/Don/';
+  return './';
 }
 
-function asset(path) {
-  return `${BASE_PATH}${cleanPath(path)}?v=${V}`;
-}
-
-function unique(list) {
-  return [...new Set(list.filter(Boolean))];
-}
-
-function buildMapCandidates(city) {
-  return unique([
-    city.map,
-    cleanPath(city.map),
-    asset(city.map),
-
-    `${city.id}.png`,
-    asset(`${city.id}.png`),
-
-    `${city.name}.png`,
-    asset(`${city.name}.png`),
-
-    'UkraineMap.png',
-    asset('UkraineMap.png'),
-  ]);
-}
-
-function loadImageFromCandidates(img, candidates, index = 0) {
-  if (index >= candidates.length) {
-    console.error('[MN] Карта не найдена. Проверенные пути:', candidates);
-    img.removeAttribute('src');
-    img.alt = 'Карта не найдена';
-    return;
-  }
-
-  img.onerror = () => loadImageFromCandidates(img, candidates, index + 1);
-  img.onload = () => {
-    img.onerror = null;
-    console.log('[MN] Карта загружена:', candidates[index]);
-  };
-
-  img.src = candidates[index];
+function asset(fileName) {
+  return `${getBasePath()}${fileName}?v=${V}`;
 }
 
 register('home', (root) => {
@@ -63,19 +55,22 @@ register('home', (root) => {
     save();
   }
 
-  root.dataset.city = city.id;
+  const mapFile = CITY_MAPS[cityId] || 'UkraineMap.png';
 
   root.innerHTML = `
     <main class="home-gameplay">
       <img
         class="city-map-image"
+        src="${asset(mapFile)}"
         alt="${city.name}"
-        loading="eager"
-        decoding="async"
       />
     </main>
   `;
 
   const img = root.querySelector('.city-map-image');
-  loadImageFromCandidates(img, buildMapCandidates(city));
+
+  img.onerror = () => {
+    img.onerror = null;
+    img.src = asset('UkraineMap.png');
+  };
 });
