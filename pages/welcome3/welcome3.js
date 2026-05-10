@@ -9,26 +9,7 @@ function bundledAsset(path) {
   return new URL(path, import.meta.url).href;
 }
 
-function versionedAsset(src, version = CITY_MAP_VERSION) {
-  if (!src) {
-    return bundledAsset('../../UkraineMap.png');
-  }
 
-  if (
-    src.startsWith('http://') ||
-    src.startsWith('https://') ||
-    src.startsWith('/assets/') ||
-    src.startsWith('/Don/assets/')
-  ) {
-    return src;
-  }
-
-  if (src.includes('?')) {
-    return src;
-  }
-
-  return src;
-}
 
 const MAP_IMG = bundledAsset('../../UkraineMap.png');
 
@@ -267,7 +248,7 @@ async function fetchFirstSvg() {
   const errors = [];
 
   for (const svgSrc of REGIONS_SVG_CANDIDATES) {
-    const url = versionedAsset(svgSrc, CITY_MAP_VERSION);
+    const url = svgSrc;
 
     try {
       const response = await fetch(url, {
