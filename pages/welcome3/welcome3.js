@@ -956,68 +956,31 @@ function createSvgLayer(target, mode) {
 
   confirmCityBtn.addEventListener('click', confirmCity);
 
-  nextBtn.addEventListener('click', () => {
-    if (!selectedRegion) {
-      return;
-    }
-
-    show('preload');
-  });
-
-  compactMap.addEventListener('click', () => {
-    openMapBtn.click();
-  });
-
-  bindMapControls();
-
-  const savedRegionId = getState().regionId;
-  const savedCityId = getState().cityId;
-
-  if (savedRegionId && REGION_DATA[savedRegionId]) {
-    selectedRegion = makeRegionInfo(savedRegionId);
-    pendingRegion = selectedRegion;
-  } else if (savedCityId) {
-    const matchedRegionId = Object.keys(REGION_DATA).find((regionId) => {
-      return normalizeCityId(REGION_DATA[regionId].cityId) === normalizeCityId(savedCityId);
-    });
-
-    if (matchedRegionId) {
-      selectedRegion = makeRegionInfo(matchedRegionId);
-      pendingRegion = selectedRegion;
-    }
+nextBtn.addEventListener('click', () => {
+  if (!selectedRegion) {
+    return;
   }
 
-  function hideLoader() {
-    if (!loader) {
-      return;
-    }
+  const finalCityId = normalizeCityId(selectedRegion.cityId);
 
-    loader.classList.add('is-hidden');
-    loader.style.opacity = '0';
-    loader.style.pointerEvents = 'none';
-    loader.style.visibility = 'hidden';
+  state.city = finalCityId;
+  state.cityId = finalCityId;
+  state.cityName = selectedRegion.cityName;
+  state.regionId = selectedRegion.regionId;
 
-    window.setTimeout(() => {
-      loader.style.display = 'none';
-    }, 350);
+  if (!state.player) {
+    state.player = {};
   }
 
-  preloadAssets()
-    .then(() => {
-      renderLayers();
-      updateVisualState();
-    })
-    .catch((error) => {
-      console.error(error);
+  state.player.city = finalCityId;
+  state.player.cityId = finalCityId;
+  state.player.cityName = selectedRegion.cityName;
+  state.player.regionId = selectedRegion.regionId;
 
-      compactRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
-      fullRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки карты областей</div>`;
-    })
-    .finally(() => {
-      window.setTimeout(hideLoader, 450);
-    });
+  save();
 
-  window.setTimeout(hideLoader, 3500);
-
-  updateVisualState();
+  show('preload', {
+    next: 'home',
+    mode: 'first-start',
+  });
 });
