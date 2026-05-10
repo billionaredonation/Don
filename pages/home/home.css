@@ -27,4 +27,5 @@
   object-position: center;
   user-select: none;
   -webkit-user-drag: none;
+  background: #050505;
 }
