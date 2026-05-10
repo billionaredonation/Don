@@ -170,7 +170,7 @@ function versionedAsset(src) {
   }
 
   return rootAsset(src);
-}
+}  
 
   if (String(src).includes('?')) {
     return assetUrl(src);
