@@ -3,8 +3,6 @@ import { state, save, getState } from '../../src/state.js';
 import { citiesBase } from '../../src/data/citiesBase.js';
 import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib/economy.js';
 
-
-
 const ROOT_ASSETS = import.meta.glob('../../*.{png,svg,jpg,jpeg,webp,gif,ico,avif}', {
   eager: true,
   query: '?url',
@@ -28,10 +26,12 @@ function rootAsset(src) {
 }
 
 const FALLBACK_MAP_SRC = 'UkraineMap.png';
+const MAP_IMG = rootAsset(FALLBACK_MAP_SRC);
 
 const REGIONS_SVG_CANDIDATES = [
   rootAsset('ua.svg')
 ];
+
 const REGIONS_VIEW_BOX = '0 0 1000 669';
 const MAX_ZOOM = 3.4;
 
