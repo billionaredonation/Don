@@ -5,20 +5,33 @@ import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib
 
 
 
-function bundledAsset(path) {
-  return new URL(path, import.meta.url).href;
+const ROOT_ASSETS = import.meta.glob('../../*.{png,svg,jpg,jpeg,webp,gif,ico,avif}', {
+  eager: true,
+  query: '?url',
+  import: 'default'
+});
+
+function rootAsset(src) {
+  const cleanSrc = String(src || '')
+    .replace(/^\.\//, '')
+    .replace(/^\//, '')
+    .split('?')[0];
+
+  const key = `../../${cleanSrc}`;
+  const bundled = ROOT_ASSETS[key];
+
+  if (bundled) {
+    return bundled;
+  }
+
+  return new URL(`../../${cleanSrc}`, import.meta.url).href;
 }
 
-
-
-const MAP_IMG = bundledAsset('../../UkraineMap.png');
+const FALLBACK_MAP_SRC = 'UkraineMap.png';
 
 const REGIONS_SVG_CANDIDATES = [
-  bundledAsset('../../ua.svg')
+  rootAsset('ua.svg')
 ];
-
-const CITY_MAP_VERSION = '35';
-const FALLBACK_MAP_SRC = './UkraineMap.png';
 const REGIONS_VIEW_BOX = '0 0 1000 669';
 const MAX_ZOOM = 3.4;
 
@@ -151,10 +164,13 @@ function normalizeCityId(cityId) {
   return CITY_ID_ALIASES[cityId] || cityId;
 }
 
-function versionedAsset(src, version = CITY_MAP_VERSION) {
+function versionedAsset(src) {
   if (!src) {
-    return assetUrl(FALLBACK_MAP_SRC, version);
+    return rootAsset(FALLBACK_MAP_SRC);
   }
+
+  return rootAsset(src);
+}
 
   if (String(src).includes('?')) {
     return assetUrl(src);
@@ -933,7 +949,7 @@ function createSvgLayer(target, mode) {
       return;
     }
 
-    show('home-screen');
+    show('home');
   });
 
   compactMap.addEventListener('click', () => {
@@ -979,7 +995,7 @@ function hideLoader() {
     return;
   }
 
-  loader.classList.add('hidden');
+  loader.classList.add('is-hidden');
   loader.style.opacity = '0';
   loader.style.pointerEvents = 'none';
   loader.style.visibility = 'hidden';
@@ -988,23 +1004,3 @@ function hideLoader() {
     loader.style.display = 'none';
   }, 350);
 }
-
-preloadAssets()
-  .then(() => {
-    renderLayers();
-    updateVisualState();
-  })
-  .catch((error) => {
-    console.error(error);
-
-    compactRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
-    fullRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки карты областей</div>`;
-  })
-  .finally(() => {
-    window.setTimeout(hideLoader, 450);
-  });
-
-window.setTimeout(hideLoader, 3500);
-
-updateVisualState();
-});
