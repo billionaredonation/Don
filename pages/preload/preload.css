@@ -50,8 +50,8 @@
   z-index: 2;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.24) 46%, rgba(0,0,0,0.12) 100%),
-    linear-gradient(0deg, rgba(0,0,0,0.74) 0%, rgba(0,0,0,0.08) 48%, rgba(0,0,0,0.42) 100%);
+    linear-gradient(90deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.18) 46%, rgba(0,0,0,0.08) 100%),
+    linear-gradient(0deg, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.06) 48%, rgba(0,0,0,0.28) 100%);
 }
 
 .preload-vignette {
@@ -108,31 +108,30 @@
 }
 
 .preload-eyebrow {
-  margin: 0 0 8px;
-  color: rgba(255,255,255,0.66);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  display: none;
 }
 
 .preload-city-card h1 {
   margin: 0;
-  font-size: clamp(44px, 9vw, 96px);
-  line-height: 0.88;
-  font-weight: 1000;
-  letter-spacing: -0.08em;
+  font-size: clamp(32px, 8vw, 64px);
+  line-height: 0.95;
+  font-weight: 900;
+  letter-spacing: -0.05em;
   text-transform: uppercase;
-  text-shadow: 0 18px 42px rgba(0,0,0,0.55);
+  text-align: center;
+  text-shadow: 0 10px 28px rgba(0,0,0,0.45);
 }
 
-.preload-city-card p:last-child {
-  max-width: 410px;
-  margin: 18px 0 0;
-  color: rgba(255,255,255,0.78);
-  font-size: 15px;
-  line-height: 1.45;
-  text-shadow: 0 10px 30px rgba(0,0,0,0.7);
+
+.preload-city-card {
+  position: absolute;
+  left: 50%;
+  bottom: 185px;
+  transform: translateX(-50%);
+  z-index: 8;
+  width: min(460px, calc(100vw - 40px));
+  text-align: center;
+  animation: preloadCardIn 0.55s ease both;
 }
 
 .preload-bottom {
@@ -158,20 +157,16 @@
 }
 
 .preload-tip span {
-  display: block;
-  margin-bottom: 6px;
-  color: rgba(255,255,255,0.56);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  display: none;
 }
+
 
 .preload-tip p {
   margin: 0;
-  color: rgba(255,255,255,0.9);
-  font-size: 14px;
-  line-height: 1.35;
+  color: rgba(255,255,255,0.84);
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 500;
 }
 
 .preload-status {
@@ -253,7 +248,7 @@
     top: max(14px, env(safe-area-inset-top));
     left: 14px;
   }
-
+  
   .preload-brand span {
     width: 52px;
     height: 52px;
@@ -262,18 +257,21 @@
   }
 
   .preload-city-card {
-    left: 16px;
+    left: 50%;
     bottom: 210px;
     width: calc(100vw - 32px);
+    transform: translateX(-50%);
+    text-align: center;
+  }
+  
+  .preload-city-card h1 {
+    font-size: clamp(30px, 11vw, 52px);
   }
 
-  .preload-city-card h1 {
-    font-size: clamp(40px, 15vw, 72px);
-  }
 
   .preload-city-card p:last-child {
-    max-width: 330px;
-    font-size: 14px;
+    max-width: 310px;
+    font-size: 13px;
   }
 
   .preload-bottom {
@@ -285,9 +283,10 @@
 
   .preload-tip {
     min-height: auto;
-    padding: 13px 14px;
+    padding: 12px 14px;
   }
 
+  
   .preload-status {
     padding: 14px;
   }
