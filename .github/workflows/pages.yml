@@ -36,38 +36,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Verify env
-        run: |
-          test -n "$VITE_SUPABASE_URL"
-          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY"
-          echo "Supabase env OK"
-
       - name: Build app
         run: npm run build
 
-      - name: Copy static assets
+      - name: Check required assets
         run: |
-          mkdir -p dist
-
-          cp -f ./ua.svg ./dist/ua.svg
-          cp -f ./UkraineMap.png ./dist/UkraineMap.png
-
-          cp -f ./*.png dist/ 2>/dev/null || true
-          cp -f ./*.svg dist/ 2>/dev/null || true
-          cp -f ./*.jpg dist/ 2>/dev/null || true
-          cp -f ./*.jpeg dist/ 2>/dev/null || true
-          cp -f ./*.webp dist/ 2>/dev/null || true
-          cp -f ./*.gif dist/ 2>/dev/null || true
-          cp -f ./*.ico dist/ 2>/dev/null || true
-          cp -f ./*.avif dist/ 2>/dev/null || true
-
-          touch dist/.nojekyll
-
           test -f dist/index.html
           test -f dist/ua.svg
           test -f dist/UkraineMap.png
-
-          echo "FINAL DIST:"
+          touch dist/.nojekyll
           ls -la dist
 
       - name: Configure Pages
