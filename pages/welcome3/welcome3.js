@@ -172,12 +172,7 @@ function versionedAsset(src) {
   return rootAsset(src);
 }  
 
-  if (String(src).includes('?')) {
-    return assetUrl(src);
-  }
 
-  return assetUrl(src, version);
-}
 
 function cityMapCandidates(cityId) {
   const normalizedCityId = normalizeCityId(cityId);
