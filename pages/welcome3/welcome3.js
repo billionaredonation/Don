@@ -160,17 +160,13 @@ const CITY_META = {
   default: { title: 'Регион Украины', subtitle: 'Стартовая зона для развития персонажа.', jobs: ['Подработка', 'Доставка', 'Склад'] }
 };
 
-function normalizeCityId(cityId) {
-  return CITY_ID_ALIASES[cityId] || cityId;
-}
-
 function versionedAsset(src) {
   if (!src) {
     return rootAsset(FALLBACK_MAP_SRC);
   }
 
   return rootAsset(src);
-}  
+}
 
 
 
