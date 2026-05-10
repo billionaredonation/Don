@@ -628,22 +628,38 @@ register('welcome3', (root) => {
     }
   }
 
-  function confirmCity() {
-    if (!pendingRegion) {
-      return;
-    }
-
-    selectedRegion = pendingRegion;
-
-    state.cityId = normalizeCityId(selectedRegion.cityId);
-    state.cityName = selectedRegion.cityName;
-    state.regionId = selectedRegion.regionId;
-    save();
-
-    mapModal.classList.add('hidden');
-    updateVisualState();
+function confirmCity() {
+  if (!pendingRegion) {
+    return;
   }
 
+  selectedRegion = {
+    regionId: pendingRegion.regionId,
+    cityId: normalizeCityId(pendingRegion.cityId),
+    cityName: pendingRegion.cityName
+  };
+
+  const finalCityId = normalizeCityId(selectedRegion.cityId);
+
+  state.city = finalCityId;
+  state.cityId = finalCityId;
+  state.cityName = selectedRegion.cityName;
+  state.regionId = selectedRegion.regionId;
+
+  if (!state.player) {
+    state.player = {};
+  }
+
+  state.player.city = finalCityId;
+  state.player.cityId = finalCityId;
+  state.player.cityName = selectedRegion.cityName;
+  state.player.regionId = selectedRegion.regionId;
+
+  save();
+
+  mapModal.classList.add('hidden');
+  updateVisualState();
+}
 function createSvgLayer(target, mode) {
   if (!svgTextCache) {
     target.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
