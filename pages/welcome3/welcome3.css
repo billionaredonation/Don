@@ -544,3 +544,11 @@
     flex-basis: 72px;
   }
 }
+
+.regions-svg {
+  pointer-events: none;
+}
+
+.regions-svg .map-region {
+  pointer-events: auto !important;
+}
