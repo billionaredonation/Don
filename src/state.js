@@ -2,58 +2,76 @@
 import { citiesBase } from './data/citiesBase.js';
 import { supabase } from './supabaseClient.js';
 
-/* ---------- 1. localStorage ---------- */
-
 const LS_KEY = 'mn-game-state';
 
-/*
-  ВАЖНО:
-  deviceId больше не используем для БД.
-
-  Причина:
-  - localStorage можно подделать;
-  - deviceId можно поменять руками;
-  - RLS не может проверить владельца deviceId.
-
-  Теперь владелец строки определяется только через:
-  auth.uid() === game_state.user_id
-*/
-
-/* ---------- 2. состояние по умолчанию ---------- */
-
 const defaultState = {
+  telegramId: null,
   nickname: null,
   city: null,
+  cityId: null,
   cityName: null,
   regionId: null,
   player: {},
   citiesRuntime: {},
 };
 
-/* ---------- 3. helpers ---------- */
-
 function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
+}
+
+function getTelegramId() {
+  try {
+    return window.Telegram?.WebApp?.initDataUnsafe?.user?.id || null;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeLoadedState(loaded) {
   loaded.player = loaded.player || {};
   loaded.citiesRuntime = loaded.citiesRuntime || {};
 
-  loaded.nickname = loaded.nickname || loaded.player.nickname || null;
-  loaded.city = loaded.city || loaded.player.city || null;
-  loaded.cityName = loaded.cityName || loaded.player.cityName || null;
-  loaded.regionId = loaded.regionId || loaded.player.regionId || null;
+  loaded.telegramId =
+    loaded.telegramId ||
+    loaded.player.telegramId ||
+    getTelegramId() ||
+    null;
 
+  loaded.nickname = loaded.nickname || loaded.player.nickname || null;
+
+  loaded.city =
+    loaded.city ||
+    loaded.cityId ||
+    loaded.player.city ||
+    loaded.player.cityId ||
+    null;
+
+  loaded.cityId =
+    loaded.cityId ||
+    loaded.city ||
+    loaded.player.cityId ||
+    loaded.player.city ||
+    null;
+
+  loaded.cityName =
+    loaded.cityName ||
+    loaded.player.cityName ||
+    null;
+
+  loaded.regionId =
+    loaded.regionId ||
+    loaded.player.regionId ||
+    null;
+
+  loaded.player.telegramId = loaded.telegramId;
   loaded.player.nickname = loaded.nickname;
   loaded.player.city = loaded.city;
+  loaded.player.cityId = loaded.cityId;
   loaded.player.cityName = loaded.cityName;
   loaded.player.regionId = loaded.regionId;
 
   return loaded;
 }
-
-/* ---------- 4. локальная загрузка ---------- */
 
 function loadLocal() {
   try {
@@ -71,15 +89,11 @@ function loadLocal() {
   }
 }
 
-/* ---------- 5. глобальное состояние ---------- */
-
 export let state = loadLocal();
 
 export function getState() {
   return state;
 }
-
-/* ---------- 6. Supabase anonymous auth ---------- */
 
 let userIdPromise = null;
 
@@ -93,35 +107,18 @@ async function getUserId() {
 }
 
 async function resolveUserId() {
-  console.log('[Supabase] resolveUserId started');
-
   const { data: sessionData, error: sessionError } =
     await supabase.auth.getSession();
-
-  console.log('[Supabase] getSession result:', {
-    hasSession: Boolean(sessionData?.session),
-    userId: sessionData?.session?.user?.id || null,
-    error: sessionError,
-  });
 
   if (sessionError) {
     console.warn('[Supabase] getSession error', sessionError);
   }
 
   if (sessionData?.session?.user?.id) {
-    console.log('[Supabase] existing user:', sessionData.session.user.id);
     return sessionData.session.user.id;
   }
 
-  console.log('[Supabase] no session, signing in anonymously');
-
   const { data, error } = await supabase.auth.signInAnonymously();
-
-  console.log('[Supabase] signInAnonymously result:', {
-    userId: data?.user?.id || null,
-    hasSession: Boolean(data?.session),
-    error,
-  });
 
   if (error) {
     userIdPromise = null;
@@ -136,23 +133,27 @@ async function resolveUserId() {
   return data.user.id;
 }
 
-/* ---------- 7. удалённая загрузка ---------- */
-
 export async function loadRemote() {
   console.log('[Supabase] loadRemote started');
 
   try {
     const userId = await getUserId();
+    const telegramId = getTelegramId();
 
-    console.log('[Supabase] loading game_state for user:', userId);
-
-    const { data, error, status, statusText } = await supabase
+    let query = supabase
       .from('game_state')
-      .select('data')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .select('data');
+
+    if (telegramId) {
+      query = query.eq('telegram_id', telegramId);
+    } else {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error, status, statusText } = await query.maybeSingle();
 
     console.log('[Supabase] loadRemote result:', {
+      telegramId,
       data,
       error,
       status,
@@ -165,7 +166,15 @@ export async function loadRemote() {
     }
 
     if (!data?.data) {
-      console.log('[Supabase] no remote state found, creating first row');
+      state.telegramId = telegramId || state.telegramId || null;
+
+      if (!state.player) {
+        state.player = {};
+      }
+
+      state.player.telegramId = state.telegramId;
+
+      saveLocal();
       await saveRemote();
       return;
     }
@@ -178,14 +187,11 @@ export async function loadRemote() {
       remoteData
     );
 
-    /*
-      Обратная совместимость:
-      если раньше где-то было state.runtime,
-      переносим его в citiesRuntime.
-    */
     if (remoteData.runtime && !remoteData.citiesRuntime) {
       merged.citiesRuntime = remoteData.runtime;
     }
+
+    merged.telegramId = merged.telegramId || telegramId || null;
 
     state = normalizeLoadedState(merged);
     saveLocal();
@@ -195,8 +201,6 @@ export async function loadRemote() {
     console.warn('[Supabase] Remote load crashed. Local state used.', error);
   }
 }
-
-/* ---------- 8. сохранение ---------- */
 
 export function save() {
   saveLocal();
@@ -218,10 +222,13 @@ async function saveRemote() {
 
   try {
     const userId = await getUserId();
+    const normalizedState = normalizeLoadedState(state);
+    const telegramId = normalizedState.telegramId || getTelegramId();
 
     const payload = {
       user_id: userId,
-      data: normalizeLoadedState(state),
+      telegram_id: telegramId,
+      data: normalizedState,
       updated_at: new Date().toISOString(),
     };
 
@@ -230,7 +237,7 @@ async function saveRemote() {
     const { data, error, status, statusText } = await supabase
       .from('game_state')
       .upsert(payload, {
-        onConflict: 'user_id',
+        onConflict: telegramId ? 'telegram_id' : 'user_id',
       })
       .select();
 
@@ -248,8 +255,6 @@ async function saveRemote() {
     console.warn('[Supabase] Remote save crashed', error);
   }
 }
-
-/* ---------- 9. mutators ---------- */
 
 export function setState(path, value) {
   const keys = path.split('.');
