@@ -6,7 +6,27 @@ import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 const PRELOAD_VERSION = '12';
 const CITY_MAP_VERSION = '36';
 
-const BASE_PATH = import.meta.env.BASE_URL || './';
+const ROOT_ASSETS = import.meta.glob('../../*.{png,svg,jpg,jpeg,webp,gif,ico,avif}', {
+  eager: true,
+  query: '?url',
+  import: 'default'
+});
+
+function rootAsset(src) {
+  const cleanSrc = String(src || '')
+    .replace(/^\.\//, '')
+    .replace(/^\//, '')
+    .split('?')[0];
+
+  const key = `../../${cleanSrc}`;
+  const bundled = ROOT_ASSETS[key];
+
+  if (bundled) {
+    return bundled;
+  }
+
+  return new URL(`../../${cleanSrc}`, import.meta.url).href;
+}
 
 const MIN_LOADING_TIME = 2600;
 const SLIDE_TIME = 1200;
@@ -68,28 +88,51 @@ const CITY_MAP_FILES = {
 };
 
 const DEFAULT_LOADING_IMAGES = [
-  './loading-1.png',
-  './loading-2.png',
-  './loading-3.png',
+  'loading-1.png',
+  'loading-2.png',
+  'loading-3.png',
+  'UkraineMap.png',
 ];
+
+const CITY_LOADING_FILE_ALIASES = {
+  vinnytsia: ['vinnytsia', 'vinnitsa', 'vinitsa'],
+  lutsk: ['lutsk'],
+  luhansk: ['luhansk', 'lugansk'],
+  dnipro: ['dnipro', 'dnepr'],
+  donetsk: ['donetsk'],
+  zhytomyr: ['zhytomyr', 'zutomyr', 'zhitomir'],
+  uzhhorod: ['uzhhorod', 'uzgorod'],
+  zaporizhzhia: ['zaporizhzhia', 'zaporizhia', 'zaporozya'],
+  'ivano-frankivsk': ['ivano-frankivsk', 'ivanoFrankovsk', 'ivanofrankovsk'],
+  kyiv: ['kyiv', 'kiev', 'kiyv'],
+  kropyvnytskyi: ['kropyvnytskyi', 'kropivnitsky', 'kropivnitskyi'],
+  crimea: ['crimea', 'krym', 'cream'],
+  lviv: ['lviv'],
+  mykolaiv: ['mykolaiv', 'nikolaev'],
+  odesa: ['odesa', 'odessa'],
+  poltava: ['poltava'],
+  rivne: ['rivne', 'rovno'],
+  sumy: ['sumy'],
+  ternopil: ['ternopil'],
+  kharkiv: ['kharkiv'],
+  kherson: ['kherson'],
+  khmelnytskyi: ['khmelnytskyi', 'khmelnitskiy'],
+  cherkasy: ['cherkasy', 'cherkassy', 'cherkasi'],
+  chernihiv: ['chernihiv', 'chernigov'],
+  chernivtsi: ['chernivtsi', 'chernovtsy'],
+};
 
 function assetUrl(src) {
   if (!src) return '';
-
   if (src.startsWith('http')) return src;
-  if (src.startsWith(BASE_PATH)) return src;
-  if (src.startsWith('./')) return `${BASE_PATH}${src.slice(2)}`;
-  if (src.startsWith('/')) return `${BASE_PATH}${src.slice(1)}`;
 
-  return `${BASE_PATH}${src}`;
+  return rootAsset(src);
 }
 
-function withVersion(src, version = PRELOAD_VERSION) {
+function withVersion(src) {
   if (!src) return '';
 
-  const url = assetUrl(src);
-
-  return url.includes('?') ? url : `${url}?v=${version}`;
+  return assetUrl(src);
 }
 
 function getCityMapSrc(cityId, city) {
@@ -106,12 +149,13 @@ function getCityMapSrc(cityId, city) {
 
 function makeCityLoadingCandidates(cityId) {
   const normalizedCityId = normalizeCityId(cityId);
+  const aliases = CITY_LOADING_FILE_ALIASES[normalizedCityId] || [normalizedCityId];
 
-  return [
-    `./loading-${normalizedCityId}-1.png`,
-    `./loading-${normalizedCityId}-2.png`,
-    `./loading-${normalizedCityId}-3.png`,
-  ];
+  return aliases.flatMap((name) => [
+    `loading-${name}-1.png`,
+    `loading-${name}-2.png`,
+    `loading-${name}-3.png`,
+  ]);
 }
 
 const DEFAULT_PRELOAD_TEXTS = [
@@ -703,12 +747,11 @@ async function collectExistingImages(candidates) {
 async function resolveLoadingImages(cityId, city) {
   const normalizedCityId = normalizeCityId(cityId);
 
-  const cityMap = withVersion(city.map || './UkraineMap.png', CITY_MAP_VERSION);
-  const ukraineMap = withVersion('./UkraineMap.png', CITY_MAP_VERSION);
+  const cityMap = withVersion(city.map || getCityMapSrc(normalizedCityId, city), CITY_MAP_VERSION);
+  const ukraineMap = withVersion('UkraineMap.png', CITY_MAP_VERSION);
 
   const images = [];
 
-  // 1. Сначала грузим реальную карту выбранного города из city.map
   const cityMapOk = await preloadImage(cityMap, 4500);
 
   if (cityMapOk) {
@@ -718,7 +761,6 @@ async function resolveLoadingImages(cityId, city) {
     console.warn('[Preload] city map failed:', normalizedCityId, cityMap);
   }
 
-  // 2. Потом пробуем городские loading-картинки
   const cityCandidates = makeCityLoadingCandidates(normalizedCityId);
   const cityLoadingImages = await collectExistingImages(cityCandidates);
 
@@ -728,7 +770,6 @@ async function resolveLoadingImages(cityId, city) {
     }
   }
 
-  // 3. Если мало — общие loading
   if (images.length < 3) {
     const defaultImages = await collectExistingImages(DEFAULT_LOADING_IMAGES);
 
@@ -741,7 +782,6 @@ async function resolveLoadingImages(cityId, city) {
     }
   }
 
-  // 4. Последний fallback
   if (!images.length) {
     images.push(cityMap || ukraineMap);
   }
