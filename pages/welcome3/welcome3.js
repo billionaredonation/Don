@@ -945,7 +945,7 @@ function createSvgLayer(target, mode) {
       return;
     }
 
-    show('home');
+    show('preload');
   });
 
   compactMap.addEventListener('click', () => {
