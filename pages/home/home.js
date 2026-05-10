@@ -2,24 +2,63 @@ import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 
-const V = '60';
+const MAP_FILES = import.meta.glob('../../*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
 
-function getBasePath() {
-  const base = import.meta.env.BASE_URL || '/';
-  return base.endsWith('/') ? base : `${base}/`;
+const CITY_MAPS = {
+  vinnytsia: 'VinitsaMap.png',
+  lutsk: 'LutskMap.png',
+  luhansk: 'LuganskMap.png',
+  dnipro: 'DneprMap.png',
+  donetsk: 'DonetskMap.png',
+  zhytomyr: 'ZutomyrMap.png',
+  uzhhorod: 'UzgorodMap.png',
+  zaporizhzhia: 'Zaporozya.png',
+  'ivano-frankivsk': 'IvanoFrankovsk.png',
+  kyiv: 'KiyvMap.png',
+  kropyvnytskyi: 'Kropivnitskyi.png',
+  crimea: 'KrymMap.png',
+  lviv: 'Lviv.png',
+  mykolaiv: 'Nikolaev.png',
+  odesa: 'Odessa.png',
+  poltava: 'Poltava.png',
+  rivne: 'Rovno.png',
+  sumy: 'Sumy.png',
+  ternopil: 'Ternopil.png',
+  kharkiv: 'Kharkiv.png',
+  kherson: 'Kherson.png',
+  khmelnytskyi: 'Khmelnitskiy.png',
+  cherkasy: 'CherkasyMap.png',
+  chernihiv: 'ChernigovMap.png',
+  chernivtsi: 'ChernivtsiMap.png',
+};
+
+function getMapByFileName(fileName) {
+  const entry = Object.entries(MAP_FILES).find(([path]) => {
+    return path.endsWith(`/${fileName}`);
+  });
+
+  return entry?.[1] || null;
 }
 
-function normalizeAssetPath(path) {
-  return String(path || '')
-    .replace(/^https?:\/\/[^/]+/i, '')
-    .replace(/^\/Don\//, '')
-    .replace(/^\/+/, '')
-    .replace(/^\.\//, '');
-}
+function getCityMap(cityId) {
+  const fileName = CITY_MAPS[cityId];
+  const cityMap = getMapByFileName(fileName);
 
-function asset(path) {
-  const clean = normalizeAssetPath(path);
-  return `${getBasePath()}${clean}?v=${V}`;
+  if (cityMap) return cityMap;
+
+  const fallback = getMapByFileName('UkraineMap.png');
+
+  console.error('[MN] Карта города не найдена:', {
+    cityId,
+    fileName,
+    availableMaps: Object.keys(MAP_FILES),
+  });
+
+  return fallback;
 }
 
 register('home', (root) => {
@@ -34,7 +73,9 @@ register('home', (root) => {
     save();
   }
 
-  const mapSrc = asset(city.map || 'UkraineMap.png');
+  const mapSrc = getCityMap(cityId);
+
+  root.dataset.city = cityId;
 
   root.innerHTML = `
     <main class="home-gameplay">
@@ -42,15 +83,9 @@ register('home', (root) => {
         class="city-map-image"
         src="${mapSrc}"
         alt="${city.name}"
+        loading="eager"
+        decoding="async"
       />
     </main>
   `;
-
-  const img = root.querySelector('.city-map-image');
-
-  img.onerror = () => {
-    console.error('[MN] Карта города не загрузилась:', mapSrc, city);
-    img.onerror = null;
-    img.src = asset('UkraineMap.png');
-  };
 });
