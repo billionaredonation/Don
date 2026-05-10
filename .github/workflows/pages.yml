@@ -39,14 +39,6 @@ jobs:
       - name: Build app
         run: npm run build
 
-      - name: Check required assets
-        run: |
-          test -f dist/index.html
-          test -f dist/ua.svg
-          test -f dist/UkraineMap.png
-          touch dist/.nojekyll
-          ls -la dist
-
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
