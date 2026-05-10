@@ -1,79 +1,73 @@
 import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
-import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
+import { normalizeCityId } from '../../src/cities/index.js';
 
-const V = '36';
+const V = '40';
 
-function money(value) {
-  const safeValue = Number(value || 0);
-  return safeValue.toLocaleString('ru-RU') + ' грн';
+const BASE_PATH = import.meta.env.BASE_URL || './';
+
+function rootAsset(fileName) {
+  return `${BASE_PATH}${fileName}?v=${V}`;
 }
 
-function getSafeCity() {
-  const normalizedCityId = normalizeCityId(state.city);
-  const city = getCityConfig(normalizedCityId);
-
-  if (state.city !== normalizedCityId) {
-    state.city = normalizedCityId;
-    state.cityName = city.name;
-    save();
-  }
-
-  return city;
-}
+const CITY_MAPS = {
+  vinnytsia: 'VinitsaMap.png',
+  lutsk: 'LutskMap.png',
+  luhansk: 'LuganskMap.png',
+  dnipro: 'DneprMap.png',
+  donetsk: 'DonetskMap.png',
+  zhytomyr: 'ZutomyrMap.png',
+  uzhhorod: 'UzgorodMap.png',
+  zaporizhzhia: 'Zaporozya.png',
+  'ivano-frankivsk': 'IvanoFrankovsk.png',
+  kyiv: 'KiyvMap.png',
+  kropyvnytskyi: 'Kropivnitskyi.png',
+  crimea: 'KrymMap.png',
+  lviv: 'Lviv.png',
+  mykolaiv: 'Nikolaev.png',
+  odesa: 'Odessa.png',
+  poltava: 'Poltava.png',
+  rivne: 'Rovno.png',
+  sumy: 'Sumy.png',
+  ternopil: 'Ternopil.png',
+  kharkiv: 'Kharkiv.png',
+  kherson: 'Kherson.png',
+  khmelnytskyi: 'Khmelnitskiy.png',
+  cherkasy: 'CherkasyMap.png',
+  chernihiv: 'ChernigovMap.png',
+  chernivtsi: 'ChernivtsiMap.png',
+};
 
 register('home', (root) => {
   root.className = 'page home';
 
-  const city = getSafeCity();
+  const cityId = normalizeCityId(state.city);
 
-  root.dataset.city = city.id;
+  if (state.city !== cityId) {
+    state.city = cityId;
+    save();
+  }
+
+  const mapFile = CITY_MAPS[cityId] || 'UkraineMap.png';
+
+  root.dataset.city = cityId;
 
   root.innerHTML = `
     <main class="home-gameplay">
-      <section class="home-map-stage" aria-label="${city.name}">
-        <img
-          class="city-map-image"
-          src="${city.map}?v=${V}"
-          alt="${city.name}"
-          loading="eager"
-          decoding="async"
-        />
-
-        <div class="home-map-overlay"></div>
-
-        <header class="home-hud">
-          <div class="home-city-title">
-            <span>${city.region || 'Городской регион'}</span>
-            <strong>${city.name}</strong>
-          </div>
-
-          <div class="home-player-name">
-            ${state.nickname || 'Игрок'}
-          </div>
-        </header>
-
-        <section class="home-map-info">
-          <span>Карта города</span>
-          <h1>${city.name}</h1>
-          <p>${city.tagline || 'Город открыт для развития.'}</p>
-        </section>
-
-        <section class="home-bottom-panel">
-          <div class="home-detail-card">
-            <b>${city.specialty?.value || 'Городская экономика'}</b>
-            <p>${city.specialty?.description || 'Здесь будет основная механика города: районы, работа, бизнес, жильё и события.'}</p>
-            <small>Стартовый капитал: ${money(city.startMoney)}</small>
-          </div>
-        </section>
-      </section>
+      <img
+        class="city-map-image"
+        src="${rootAsset(mapFile)}"
+        alt="${cityId}"
+        loading="eager"
+        decoding="async"
+      />
     </main>
   `;
 
-  const cityMapImage = root.querySelector('.city-map-image');
+  const image = root.querySelector('.city-map-image');
 
-  cityMapImage.addEventListener('error', () => {
-    cityMapImage.onerror = null;
-    cityMapImage.src = './UkraineMap.png?v=' + V;
+  image.addEventListener('error', () => {
+    image.onerror = null;
+    image.src = rootAsset('UkraineMap.png');
   });
 });
