@@ -8,6 +8,8 @@ const MAP_FILES = import.meta.glob('../../*.png', {
   import: 'default',
 });
 
+const V = '70';
+
 const CITY_MAPS = {
   vinnytsia: 'VinitsaMap.png',
   lutsk: 'LutskMap.png',
