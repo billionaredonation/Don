@@ -160,6 +160,10 @@ const CITY_META = {
   default: { title: 'Регион Украины', subtitle: 'Стартовая зона для развития персонажа.', jobs: ['Подработка', 'Доставка', 'Склад'] }
 };
 
+function normalizeCityId(cityId) {
+  return CITY_ID_ALIASES[cityId] || cityId;
+}
+
 function versionedAsset(src) {
   if (!src) {
     return rootAsset(FALLBACK_MAP_SRC);
@@ -966,32 +970,37 @@ function createSvgLayer(target, mode) {
     }
   }
 
- function hideLoader() {
-  if (!loader) {
-    return;
+  function hideLoader() {
+    if (!loader) {
+      return;
+    }
+
+    loader.classList.add('is-hidden');
+    loader.style.opacity = '0';
+    loader.style.pointerEvents = 'none';
+    loader.style.visibility = 'hidden';
+
+    window.setTimeout(() => {
+      loader.style.display = 'none';
+    }, 350);
   }
 
-  loader.classList.add('hidden');
-  loader.style.opacity = '0';
-  loader.style.pointerEvents = 'none';
-  loader.style.visibility = 'hidden';
+  preloadAssets()
+    .then(() => {
+      renderLayers();
+      updateVisualState();
+    })
+    .catch((error) => {
+      console.error(error);
 
-  window.setTimeout(() => {
-    loader.style.display = 'none';
-  }, 350);
-}
+      compactRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
+      fullRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки карты областей</div>`;
+    })
+    .finally(() => {
+      window.setTimeout(hideLoader, 450);
+    });
 
-function hideLoader() {
-  if (!loader) {
-    return;
-  }
+  window.setTimeout(hideLoader, 3500);
 
-  loader.classList.add('is-hidden');
-  loader.style.opacity = '0';
-  loader.style.pointerEvents = 'none';
-  loader.style.visibility = 'hidden';
-
-  window.setTimeout(() => {
-    loader.style.display = 'none';
-  }, 350);
-}
+  updateVisualState();
+});
