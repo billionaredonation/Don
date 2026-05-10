@@ -984,3 +984,60 @@ nextBtn.addEventListener('click', () => {
     mode: 'first-start',
   });
 });
+  compactMap.addEventListener('click', () => {
+    openMapBtn.click();
+  });
+
+  bindMapControls();
+
+  const savedRegionId = getState().regionId;
+  const savedCityId = getState().cityId || getState().city;
+
+  if (savedRegionId && REGION_DATA[savedRegionId]) {
+    selectedRegion = makeRegionInfo(savedRegionId);
+    pendingRegion = selectedRegion;
+  } else if (savedCityId) {
+    const matchedRegionId = Object.keys(REGION_DATA).find((regionId) => {
+      return normalizeCityId(REGION_DATA[regionId].cityId) === normalizeCityId(savedCityId);
+    });
+
+    if (matchedRegionId) {
+      selectedRegion = makeRegionInfo(matchedRegionId);
+      pendingRegion = selectedRegion;
+    }
+  }
+
+  function hideLoader() {
+    if (!loader) {
+      return;
+    }
+
+    loader.classList.add('is-hidden');
+    loader.style.opacity = '0';
+    loader.style.pointerEvents = 'none';
+    loader.style.visibility = 'hidden';
+
+    window.setTimeout(() => {
+      loader.style.display = 'none';
+    }, 350);
+  }
+
+  preloadAssets()
+    .then(() => {
+      renderLayers();
+      updateVisualState();
+    })
+    .catch((error) => {
+      console.error(error);
+
+      compactRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
+      fullRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки карты областей</div>`;
+    })
+    .finally(() => {
+      window.setTimeout(hideLoader, 450);
+    });
+
+  window.setTimeout(hideLoader, 3500);
+
+  updateVisualState();
+});
