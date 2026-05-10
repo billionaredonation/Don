@@ -3,7 +3,7 @@ import { register, show } from '../../src/router.js';
 import { getState } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 
-const PRELOAD_VERSION = '12';
+const PRELOAD_VERSION = '13';
 const CITY_MAP_VERSION = '36';
 
 const ROOT_ASSETS = import.meta.glob('../../*.{png,svg,jpg,jpeg,webp,gif,ico,avif}', {
@@ -28,8 +28,8 @@ function rootAsset(src) {
   return new URL(`../../${cleanSrc}`, import.meta.url).href;
 }
 
-const MIN_LOADING_TIME = 2600;
-const SLIDE_TIME = 1200;
+const MIN_LOADING_TIME = 6200;
+const SLIDE_TIME = 2600;
 
 const ALL_CITY_IDS = [
   'vinnytsia',
@@ -815,21 +815,28 @@ function makeSlides(cityId, city, images) {
 
 function setImageWithFallback(img, primarySrc, fallbackSrc) {
   const safeFallback = fallbackSrc || withVersion('UkraineMap.png', CITY_MAP_VERSION);
+  const nextSrc = primarySrc || safeFallback;
+
+  if (img.dataset.currentSrc === nextSrc && img.classList.contains('is-active')) {
+    return;
+  }
 
   img.classList.remove('is-active');
 
   window.setTimeout(() => {
     img.onerror = () => {
       img.onerror = null;
+      img.dataset.currentSrc = safeFallback;
       img.src = safeFallback;
     };
 
     img.onload = () => {
+      img.dataset.currentSrc = img.src;
       img.classList.add('is-active');
     };
 
-    img.src = primarySrc || safeFallback;
-  }, 80);
+    img.src = nextSrc;
+  }, 180);
 }
 
 function resolveSelectedCityId() {
@@ -966,15 +973,15 @@ register('preload', async (root, props = {}) => {
   let visualProgress = 0;
 
   progressTimer = window.setInterval(() => {
-    const timePart = clamp(((Date.now() - startedAt) / MIN_LOADING_TIME) * 75, 0, 75);
-    const assetPart = loadedAssets > 0 ? 25 : 0;
+    const timePart = clamp(((Date.now() - startedAt) / MIN_LOADING_TIME) * 92, 0, 92);
+    const assetPart = loadedAssets > 0 ? 8 : 0;
 
     visualProgress = Math.max(visualProgress, timePart + assetPart);
     setProgress(visualProgress);
   }, 80);
 
-  const images = await resolveLoadingImages(cityId, city);
-  const slides = makeSlides(cityId, city, images);
+  const firstImage = withVersion(getCityMapSrc(cityId, city), CITY_MAP_VERSION);
+  let slides = makeSlides(cityId, city, [firstImage]);
 
   function setSlide(index) {
     const slide = slides[index % slides.length];
@@ -994,11 +1001,22 @@ register('preload', async (root, props = {}) => {
     setSlide(currentSlideIndex);
   }, SLIDE_TIME);
 
+  const imagesPromise = resolveLoadingImages(cityId, city).then((images) => {
+    if (finished) return images;
+
+    if (Array.isArray(images) && images.length) {
+      slides = makeSlides(cityId, city, images);
+      loadedAssets = Math.max(1, images.length);
+      setSlide(currentSlideIndex);
+    } else {
+      loadedAssets = 1;
+    }
+
+    return images;
+  });
+
   Promise.allSettled([
-    ...images.map(async (src) => {
-      await preloadImage(src, 4500);
-      loadedAssets += 1;
-    }),
+    imagesPromise,
 
     import('../home/home.js').catch((error) => {
       console.warn('[Preload] home module preload failed:', error);
