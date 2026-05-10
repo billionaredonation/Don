@@ -3,7 +3,7 @@
   min-height: 100dvh;
   margin: 0;
   padding: 0;
-  background: #050505;
+  background: #000;
   overflow: hidden;
 }
 
@@ -14,7 +14,7 @@
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #050505;
+  background: #000;
 }
 
 .city-map-image {
@@ -27,5 +27,4 @@
   object-position: center;
   user-select: none;
   -webkit-user-drag: none;
-  background: #050505;
 }
