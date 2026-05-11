@@ -3,7 +3,7 @@
   min-height: 100dvh;
   margin: 0;
   padding: 0;
-  background: #06151d;
+  background: #031014;
   overflow: hidden;
 }
 
@@ -12,141 +12,88 @@
   width: 100%;
   height: 100dvh;
   min-height: 100dvh;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at 72% 18%, rgba(255, 210, 130, 0.22), transparent 24%),
-    radial-gradient(circle at 20% 80%, rgba(40, 170, 210, 0.2), transparent 34%),
-    linear-gradient(180deg, #0a3240 0%, #06212c 48%, #031016 100%);
-  perspective: 1200px;
-  isolation: isolate;
+    radial-gradient(circle at 70% 18%, rgba(255, 210, 135, 0.16), transparent 24%),
+    radial-gradient(circle at 20% 80%, rgba(42, 170, 210, 0.22), transparent 34%),
+    linear-gradient(180deg, #082b38 0%, #041923 48%, #02090d 100%);
 }
 
-.home-gameplay::before {
+.home-map-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.home-map-stage:active {
+  cursor: grabbing;
+}
+
+.home-map-stage::before {
   content: "";
   position: absolute;
-  inset: -25%;
+  inset: -20%;
   z-index: 0;
   background:
-    repeating-radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.09) 0 1px, transparent 1px 34px),
-    repeating-linear-gradient(115deg, rgba(255,255,255,0.045) 0 1px, transparent 1px 26px),
-    linear-gradient(135deg, rgba(42, 168, 190, 0.25), rgba(0, 43, 74, 0.48));
-  opacity: 0.65;
-  animation: waterDrift 22s linear infinite;
+    repeating-radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.07) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(115deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 28px),
+    linear-gradient(135deg, rgba(42, 168, 190, 0.2), rgba(0, 43, 74, 0.46));
+  opacity: 0.62;
+  animation: waterMove 24s linear infinite;
 }
 
-.home-gameplay::after {
+.home-map-stage::after {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 6;
+  z-index: 3;
   pointer-events: none;
   background:
-    radial-gradient(circle at 72% 16%, rgba(255, 228, 160, 0.28), transparent 18%),
-    linear-gradient(180deg, rgba(255, 190, 100, 0.08), transparent 34%, rgba(0,0,0,0.46) 100%);
-  mix-blend-mode: screen;
-  opacity: 0.85;
-}
-
-.home-map-island {
-  position: absolute;
-  left: 50%;
-  top: 48%;
-  z-index: 2;
-  width: min(108vw, 760px);
-  aspect-ratio: 1 / 1.18;
-  transform:
-    translate(-50%, -50%)
-    rotateX(58deg)
-    rotateZ(-6deg)
-    scale(1);
-  transform-style: preserve-3d;
-  filter: drop-shadow(0 46px 42px rgba(0,0,0,0.74));
-}
-
-.home-map-island::before {
-  content: "";
-  position: absolute;
-  inset: 3%;
-  z-index: 0;
-  background: rgba(0, 0, 0, 0.72);
-  border-radius: 24px;
-  transform: translateZ(-28px) translateY(34px) scale(0.98);
-  filter: blur(18px);
-}
-
-.home-map-island::after {
-  content: "";
-  position: absolute;
-  inset: 7%;
-  z-index: 1;
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at 50% 52%, rgba(90, 210, 235, 0.34), transparent 58%);
-  transform: translateZ(-12px) scale(1.04);
-  filter: blur(16px);
-  opacity: 0.85;
+    radial-gradient(circle at 72% 16%, rgba(255, 230, 160, 0.24), transparent 18%),
+    radial-gradient(circle at center, transparent 42%, rgba(0,0,0,0.42) 100%);
 }
 
 .city-map-image {
   position: absolute;
-  inset: 0;
-  z-index: 3;
-  width: 100%;
-  height: 100%;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: min(96vw, 760px);
+  height: min(86dvh, 820px);
   display: block;
   object-fit: contain;
   object-position: center;
-  background: transparent;
-  transform: translateZ(22px);
+  transform: translate3d(0, 0, 0) scale(1);
+  translate: -50% -50%;
+  transform-origin: center;
   filter:
-    saturate(1.16)
-    contrast(1.16)
+    saturate(1.14)
+    contrast(1.12)
     brightness(0.92)
-    drop-shadow(0 16px 16px rgba(0,0,0,0.55));
+    drop-shadow(0 28px 34px rgba(0,0,0,0.68));
   user-select: none;
   -webkit-user-drag: none;
+  will-change: transform;
 }
 
-.map-night {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 50%, transparent 24%, rgba(0,0,0,0.36) 82%),
-    linear-gradient(180deg, rgba(0, 9, 28, 0.12), rgba(0,0,0,0.5));
-  opacity: 0;
-}
-
-.map-light {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 72% 16%, rgba(255, 231, 158, 0.34), transparent 18%),
-    radial-gradient(circle at 54% 48%, transparent 24%, rgba(0,0,0,0.38) 86%);
-  opacity: 0.78;
-}
-
-@keyframes waterDrift {
+@keyframes waterMove {
   from {
-    transform: translate3d(0, 0, 0) rotate(-2deg) scale(1.05);
+    transform: translate3d(0, 0, 0) scale(1.05);
   }
 
   to {
-    transform: translate3d(-90px, 56px, 0) rotate(-2deg) scale(1.05);
+    transform: translate3d(-80px, 48px, 0) scale(1.05);
   }
 }
 
 @media (max-width: 520px) {
-  .home-map-island {
-    top: 48%;
-    width: min(116vw, 560px);
-    transform:
-      translate(-50%, -50%)
-      rotateX(58deg)
-      rotateZ(-6deg)
-      scale(1);
+  .city-map-image {
+    width: 98vw;
+    height: 82dvh;
   }
 }
