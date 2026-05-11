@@ -316,6 +316,80 @@
   backdrop-filter: blur(12px);
 }
 
+.home[data-time="day"] .gta-map-stage {
+  background: #071018;
+}
+
+.home[data-time="day"] .gta-map-bg {
+  background:
+    radial-gradient(circle at 72% 18%, rgba(255, 230, 145, 0.34), transparent 16%),
+    radial-gradient(circle at 50% 42%, rgba(90, 170, 190, 0.18), transparent 46%),
+    linear-gradient(180deg, #10202a 0%, #07151d 50%, #03080d 100%);
+}
+
+.home[data-time="day"] .gta-map-stage::before {
+  background:
+    radial-gradient(circle at 72% 18%, rgba(255, 235, 170, 0.22), transparent 24%),
+    linear-gradient(90deg, rgba(0,0,0,0.22) 0%, transparent 18%, transparent 84%, rgba(0,0,0,0.26) 100%),
+    linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 28%, transparent 76%, rgba(0,0,0,0.32) 100%);
+}
+
+.home[data-time="day"] .gta-water {
+  background:
+    radial-gradient(circle at 50% 46%,
+      rgba(38, 125, 150, 0.48) 0%,
+      rgba(9, 55, 73, 0.82) 48%,
+      rgba(2, 15, 23, 0.96) 100%),
+    linear-gradient(180deg, #09202b 0%, #061923 50%, #02080d 100%);
+}
+
+.home[data-time="day"] .gta-map-image {
+  filter:
+    grayscale(1)
+    saturate(0)
+    contrast(2.25)
+    brightness(2.35)
+    drop-shadow(0 0 1px rgba(255,255,255,1))
+    drop-shadow(0 0 7px rgba(255,245,205,0.46));
+}
+
+.home[data-time="night"] .gta-map-stage {
+  background: #020508;
+}
+
+.home[data-time="night"] .gta-map-bg {
+  background:
+    radial-gradient(circle at 24% 20%, rgba(170, 205, 255, 0.28), transparent 13%),
+    radial-gradient(circle at 50% 45%, rgba(55, 125, 145, 0.14), transparent 44%),
+    linear-gradient(180deg, #06101a 0%, #03090f 52%, #010204 100%);
+}
+
+.home[data-time="night"] .gta-map-stage::before {
+  background:
+    radial-gradient(circle at 24% 20%, rgba(190, 220, 255, 0.18), transparent 22%),
+    linear-gradient(90deg, rgba(0,0,0,0.52) 0%, transparent 16%, transparent 84%, rgba(0,0,0,0.56) 100%),
+    linear-gradient(180deg, rgba(0,0,0,0.46) 0%, transparent 18%, transparent 80%, rgba(0,0,0,0.58) 100%);
+}
+
+.home[data-time="night"] .gta-water {
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(15, 75, 92, 0.38) 0%,
+      rgba(5, 31, 43, 0.9) 48%,
+      rgba(1, 7, 11, 0.99) 100%),
+    linear-gradient(180deg, #04151d 0%, #031018 50%, #010407 100%);
+}
+
+.home[data-time="night"] .gta-map-image {
+  filter:
+    grayscale(1)
+    saturate(0)
+    contrast(2.42)
+    brightness(2.05)
+    drop-shadow(0 0 1px rgba(255,255,255,1))
+    drop-shadow(0 0 7px rgba(175,210,255,0.46));
+}
+
 @keyframes gtaMarkerPulse {
   0%, 100% {
     scale: 1;
