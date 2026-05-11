@@ -25,9 +25,9 @@ function clamp(value, min, max) {
 }
 
 function enableMapControls(stage, viewport) {
-  const MIN_SCALE = 0.78;
+  const MIN_SCALE = 0.9;
   const MAX_SCALE = 8;
-  const WORLD_FACTOR = 1.18;
+  const WORLD_FACTOR = 1.55;
 
   let scale = 1;
   let x = 0;
@@ -50,8 +50,8 @@ function enableMapControls(stage, viewport) {
   function measureWorld() {
     const rect = stage.getBoundingClientRect();
 
-    worldWidth = rect.width * WORLD_FACTOR;
-    worldHeight = rect.height * WORLD_FACTOR;
+    worldWidth = Math.max(rect.width, rect.height) * WORLD_FACTOR;
+    worldHeight = worldWidth * 0.72;
 
     viewport.style.width = `${worldWidth}px`;
     viewport.style.height = `${worldHeight}px`;
