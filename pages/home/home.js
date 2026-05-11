@@ -24,10 +24,21 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function isLowPowerDevice() {
+  const memory = navigator.deviceMemory || 4;
+  const cores = navigator.hardwareConcurrency || 4;
+  const isSmallScreen = window.matchMedia('(max-width: 520px)').matches;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  return reducedMotion || memory <= 3 || cores <= 4 || isSmallScreen;
+}
+
 function enableMapControls(stage, viewport) {
-  const MIN_SCALE = 0.9;
-  const MAX_SCALE = 8;
-  const WORLD_FACTOR = 1.55;
+  const lowPower = isLowPowerDevice();
+
+  const MIN_SCALE = lowPower ? 0.82 : 0.9;
+  const MAX_SCALE = lowPower ? 5.5 : 8;
+  const WORLD_FACTOR = lowPower ? 1.38 : 1.55;
 
   let scale = 1;
   let x = 0;
@@ -41,6 +52,9 @@ function enableMapControls(stage, viewport) {
   let startY = 0;
   let startMapX = 0;
   let startMapY = 0;
+
+  let ticking = false;
+  let pendingApply = false;
 
   const pointers = new Map();
   let pinchStartDist = 0;
@@ -69,7 +83,7 @@ function enableMapControls(stage, viewport) {
     };
   }
 
-  function applyTransform() {
+  function applyTransformNow() {
     const limits = getLimits();
 
     x = clamp(x, -limits.maxX, limits.maxX);
@@ -79,6 +93,28 @@ function enableMapControls(stage, viewport) {
       `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
 
     stage.style.setProperty('--zoom', scale.toFixed(2));
+  }
+
+  function applyTransform() {
+    if (!lowPower) {
+      applyTransformNow();
+      return;
+    }
+
+    pendingApply = true;
+
+    if (ticking) return;
+
+    ticking = true;
+
+    requestAnimationFrame(() => {
+      if (pendingApply) {
+        applyTransformNow();
+        pendingApply = false;
+      }
+
+      ticking = false;
+    });
   }
 
   function zoomAt(clientX, clientY, nextScale) {
@@ -99,7 +135,7 @@ function enableMapControls(stage, viewport) {
   }
 
   stage.addEventListener('pointerdown', (event) => {
-    if (event.target.closest('.gta-map-header, .gta-map-footer')) return;
+    if (event.target.closest('.gta-map-header')) return;
 
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     stage.setPointerCapture(event.pointerId);
@@ -196,7 +232,7 @@ function enableMapControls(stage, viewport) {
       return;
     }
 
-    zoomAt(event.clientX, event.clientY, 2.35);
+    zoomAt(event.clientX, event.clientY, lowPower ? 2 : 2.35);
   });
 
   window.addEventListener('resize', () => {
@@ -224,6 +260,12 @@ register('home', (root) => {
 
   root.dataset.city = cityId;
 
+  if (isLowPowerDevice()) {
+    root.dataset.performance = 'low';
+  } else {
+    root.dataset.performance = 'normal';
+  }
+
   root.innerHTML = `
     <main class="home-gameplay">
       <section class="gta-map-stage">
@@ -240,29 +282,12 @@ register('home', (root) => {
             alt="${city.name}"
             loading="eager"
             decoding="async"
+            fetchpriority="high"
           />
-
-          <div class="gta-map-markers">
-            <button class="gta-marker marker-work" type="button">
-              <span></span>
-              <b>Робота</b>
-            </button>
-
-            <button class="gta-marker marker-base" type="button">
-              <span></span>
-              <b>База</b>
-            </button>
-
-            <button class="gta-marker marker-market" type="button">
-              <span></span>
-              <b>Ринок</b>
-            </button>
-          </div>
         </div>
 
         <header class="gta-map-header">
           <div class="gta-map-title">
-            <span>MN MAP</span>
             <strong>${city.name}</strong>
           </div>
 
@@ -270,12 +295,6 @@ register('home', (root) => {
             ${state.nickname || 'Игрок'}
           </div>
         </header>
-
-        <footer class="gta-map-footer">
-          <span>Колесо / pinch — масштаб</span>
-          <span>Перетаскивай карту</span>
-          <span>Двойной клик — сброс</span>
-        </footer>
       </section>
     </main>
   `;
