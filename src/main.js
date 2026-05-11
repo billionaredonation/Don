@@ -40,8 +40,8 @@ async function boot() {
     window.Telegram?.WebApp?.ready?.();
     window.Telegram?.WebApp?.expand?.();
 
-    await loadRemote();
     initRuntime();
+    await loadRemote();
 
     const currentState = getState();
 
@@ -51,7 +51,9 @@ async function boot() {
 
     const city =
       currentState.city ||
-      currentState.player?.city;
+      currentState.cityId ||
+      currentState.player?.city ||
+      currentState.player?.cityId;
 
     if (!nickname) {
       show('welcome1');
