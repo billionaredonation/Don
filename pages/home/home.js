@@ -20,6 +20,11 @@ function getCityMap(city) {
   return getMapByFileName(mapFileName) || getMapByFileName('UkraineMap.png');
 }
 
+function getUserDayMode() {
+  const hour = new Date().getHours();
+  return hour >= 6 && hour < 19 ? 'day' : 'night';
+}
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -259,6 +264,7 @@ register('home', (root) => {
   const mapSrc = getCityMap(city);
 
   root.dataset.city = cityId;
+  root.dataset.time = getUserDayMode();
 
   if (isLowPowerDevice()) {
     root.dataset.performance = 'low';
