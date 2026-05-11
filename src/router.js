@@ -1,5 +1,5 @@
 const routerStore = window.__MN_GAME_ROUTER__ || {
-  screens: {}
+  screens: {},
 };
 
 window.__MN_GAME_ROUTER__ = routerStore;
@@ -36,4 +36,3 @@ export function show(id, props = {}) {
   screens[id](root, props);
   window.currentScreen = id;
 }
-
