@@ -37,11 +37,17 @@
   inset: 0;
   z-index: 0;
   background:
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,0.035) 1px, transparent 1px),
     radial-gradient(circle at 50% 45%, rgba(255,255,255,0.055), transparent 42%),
     linear-gradient(180deg, #101316 0%, #080a0d 52%, #030405 100%);
+  background-size:
+    44px 44px,
+    44px 44px,
+    100% 100%,
+    100% 100%;
 }
 
-/* === ВОДА: только мягкие пятна, никаких прямых линий === */
 .gta-water {
   position: absolute;
   inset: 0;
@@ -60,13 +66,21 @@
   inset: -30%;
   z-index: 1;
   background:
-    radial-gradient(ellipse at 18% 28%, rgba(160, 240, 255, 0.12), transparent 32%),
-    radial-gradient(ellipse at 82% 22%, rgba(120, 220, 250, 0.10), transparent 36%),
-    radial-gradient(ellipse at 32% 78%, rgba(80, 200, 240, 0.10), transparent 38%),
-    radial-gradient(ellipse at 72% 68%, rgba(180, 245, 255, 0.08), transparent 30%);
-  opacity: 0.85;
+    repeating-linear-gradient(
+      116deg,
+      transparent 0 26px,
+      rgba(160, 240, 255, 0.075) 27px,
+      transparent 29px 72px
+    ),
+    repeating-linear-gradient(
+      24deg,
+      transparent 0 38px,
+      rgba(255, 255, 255, 0.045) 39px,
+      transparent 41px 96px
+    );
+  opacity: 0.7;
   mix-blend-mode: screen;
-  animation: gtaWaterFlowA 22s ease-in-out infinite alternate;
+  animation: gtaWaterFlowA 16s linear infinite;
 }
 
 .gta-water::after {
@@ -106,26 +120,31 @@
 
 .water-light {
   z-index: 3;
-  opacity: 0.55;
+  opacity: 0.42;
   mix-blend-mode: screen;
   background:
-    radial-gradient(circle at 25% 35%, rgba(190, 250, 255, 0.10), transparent 18%),
-    radial-gradient(circle at 65% 25%, rgba(190, 250, 255, 0.08), transparent 20%),
-    radial-gradient(circle at 45% 65%, rgba(190, 250, 255, 0.09), transparent 22%),
-    radial-gradient(circle at 80% 70%, rgba(190, 250, 255, 0.07), transparent 18%),
-    radial-gradient(circle at 15% 80%, rgba(190, 250, 255, 0.08), transparent 20%);
+    repeating-radial-gradient(
+      ellipse at 50% 50%,
+      transparent 0 22px,
+      rgba(190, 250, 255, 0.045) 23px,
+      transparent 25px 58px
+    );
   animation: gtaWaterPulse 7s ease-in-out infinite alternate;
 }
 
 .water-lines {
   z-index: 4;
-  opacity: 0.4;
+  opacity: 0.34;
   mix-blend-mode: screen;
   background:
-    radial-gradient(ellipse at 30% 40%, rgba(170, 240, 255, 0.08), transparent 25%),
-    radial-gradient(ellipse at 70% 60%, rgba(170, 240, 255, 0.06), transparent 28%),
-    radial-gradient(ellipse at 50% 20%, rgba(170, 240, 255, 0.05), transparent 22%);
-  animation: gtaWaterFlowB 18s ease-in-out infinite alternate;
+    linear-gradient(90deg, transparent, rgba(180, 245, 255, 0.08), transparent),
+    repeating-linear-gradient(
+      102deg,
+      transparent 0 54px,
+      rgba(170, 240, 255, 0.07) 55px,
+      transparent 57px 128px
+    );
+  animation: gtaWaterFlowB 12s linear infinite;
 }
 
 .gta-map-stage::before {
@@ -149,25 +168,25 @@
     radial-gradient(circle at center, transparent 58%, rgba(0,0,0,0.48) 100%);
 }
 
+/* viewport теперь это «мир»: квадрат больше экрана, без обрезки */
 .gta-map-viewport {
   position: absolute;
   left: 50%;
   top: 50%;
   z-index: 3;
-  width: 0;
+  width: 0;       /* реальный размер ставится в JS (measureWorld) */
   height: 0;
   transform-origin: center center;
   will-change: transform;
 }
 
-/* === КАРТА: рваный край через SVG-маску === */
 .gta-map-image {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: contain;
+  object-fit: contain;          /* было cover — больше не растягивает */
   object-position: center;
   background: transparent;
   mix-blend-mode: screen;
@@ -181,36 +200,6 @@
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
-
-  /* Маска по силуэту города — генерируется в JS и подключается через --mask-url */
-  -webkit-mask-image: var(--mask-url);
-          mask-image: var(--mask-url);
-  -webkit-mask-repeat: no-repeat;
-          mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-          mask-position: center;
-  -webkit-mask-size: 100% 100%;
-          mask-size: 100% 100%;
-}
-
-/* Лёгкое свечение края города — повторяет ту же маску, но размытую */
-.gta-map-viewport::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: radial-gradient(circle at 50% 50%, rgba(140, 230, 255, 0.22), transparent 65%);
-  -webkit-mask-image: var(--mask-url);
-          mask-image: var(--mask-url);
-  -webkit-mask-repeat: no-repeat;
-          mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-          mask-position: center;
-  -webkit-mask-size: 100% 100%;
-          mask-size: 100% 100%;
-  filter: blur(12px);
-  opacity: 0.85;
 }
 
 .gta-map-image::selection {
@@ -263,6 +252,8 @@
   box-shadow: 0 10px 22px rgba(0,0,0,0.4);
 }
 
+/* Координаты маркеров — в процентах относительно "мира" (квадрат 1.6× экрана).
+   Подкорректируй под реальные точки на UkraineMap.png. */
 .marker-work {
   left: 50%;
   top: 42%;
@@ -358,41 +349,104 @@
 }
 
 @keyframes gtaMarkerPulse {
-  0%, 100% { scale: 1; opacity: 0.95; }
-  50%      { scale: 1.22; opacity: 1; }
+  0%, 100% {
+    scale: 1;
+    opacity: 0.95;
+  }
+
+  50% {
+    scale: 1.22;
+    opacity: 1;
+  }
 }
 
 @keyframes gtaWaterFlowA {
-  from { transform: translate3d(-30px, -20px, 0) scale(1.05); }
-  to   { transform: translate3d(40px, 30px, 0) scale(1.1); }
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1.05);
+  }
+
+  to {
+    transform: translate3d(-110px, 64px, 0) rotate(0.4deg) scale(1.05);
+  }
 }
 
 @keyframes gtaWaterFlowB {
-  from { transform: translate3d(20px, -15px, 0) scale(1.05); }
-  to   { transform: translate3d(-30px, 25px, 0) scale(1.1); }
+  from {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+
+  to {
+    transform: translate3d(90px, -52px, 0) scale(1.04);
+  }
 }
 
 @keyframes gtaWaterGlow {
-  from { transform: translate3d(-24px, -18px, 0) scale(1.02); opacity: 0.54; }
-  to   { transform: translate3d(26px, 18px, 0) scale(1.08); opacity: 0.82; }
+  from {
+    transform: translate3d(-24px, -18px, 0) scale(1.02);
+    opacity: 0.54;
+  }
+
+  to {
+    transform: translate3d(26px, 18px, 0) scale(1.08);
+    opacity: 0.82;
+  }
 }
 
 @keyframes gtaWaterSlow {
-  from { transform: translate3d(-18px, 10px, 0) rotate(-2deg) scale(1.05); }
-  to   { transform: translate3d(22px, -14px, 0) rotate(2deg) scale(1.08); }
+  from {
+    transform: translate3d(-18px, 10px, 0) rotate(-2deg) scale(1.05);
+  }
+
+  to {
+    transform: translate3d(22px, -14px, 0) rotate(2deg) scale(1.08);
+  }
 }
 
 @keyframes gtaWaterPulse {
-  from { transform: scale(1); opacity: 0.35; }
-  to   { transform: scale(1.08); opacity: 0.6; }
+  from {
+    transform: scale(1);
+    opacity: 0.22;
+  }
+
+  to {
+    transform: scale(1.08);
+    opacity: 0.46;
+  }
 }
 
 @media (max-width: 520px) {
+  .gta-map-bg {
+    background-size:
+      36px 36px,
+      36px 36px,
+      100% 100%,
+      100% 100%;
+  }
+
   .gta-map-title,
-  .gta-map-player { border-radius: 14px; }
-  .gta-map-title { padding: 9px 11px; }
-  .gta-map-title strong { font-size: 15px; }
-  .gta-map-player { padding: 10px 11px; font-size: 13px; }
-  .gta-map-footer { gap: 6px; }
-  .gta-map-footer span { padding: 6px 9px; font-size: 10px; }
+  .gta-map-player {
+    border-radius: 14px;
+  }
+
+  .gta-map-title {
+    padding: 9px 11px;
+  }
+
+  .gta-map-title strong {
+    font-size: 15px;
+  }
+
+  .gta-map-player {
+    padding: 10px 11px;
+    font-size: 13px;
+  }
+
+  .gta-map-footer {
+    gap: 6px;
+  }
+
+  .gta-map-footer span {
+    padding: 6px 9px;
+    font-size: 10px;
+  }
 }
