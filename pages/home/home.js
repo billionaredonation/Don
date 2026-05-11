@@ -25,14 +25,15 @@ function clamp(value, min, max) {
 }
 
 function enableMapControls(stage, viewport) {
-  const MIN_SCALE = 0.72;
-  const MAX_SCALE = 9;
-  const WORLD_FACTOR = 1.72;
+  const MIN_SCALE = 0.78;
+  const MAX_SCALE = 8;
+  const WORLD_FACTOR = 1.18;
 
   let scale = 1;
   let x = 0;
   let y = 0;
-  let worldSize = 0;
+  let worldWidth = 0;
+  let worldHeight = 0;
 
   let isDragging = false;
   let activePointerId = null;
@@ -48,16 +49,19 @@ function enableMapControls(stage, viewport) {
 
   function measureWorld() {
     const rect = stage.getBoundingClientRect();
-    worldSize = Math.max(rect.width, rect.height) * WORLD_FACTOR;
 
-    viewport.style.width = `${worldSize}px`;
-    viewport.style.height = `${worldSize}px`;
+    worldWidth = rect.width * WORLD_FACTOR;
+    worldHeight = rect.height * WORLD_FACTOR;
+
+    viewport.style.width = `${worldWidth}px`;
+    viewport.style.height = `${worldHeight}px`;
   }
 
   function getLimits() {
     const rect = stage.getBoundingClientRect();
-    const w = worldSize * scale;
-    const h = worldSize * scale;
+
+    const w = worldWidth * scale;
+    const h = worldHeight * scale;
 
     return {
       maxX: Math.max(0, (w - rect.width) / 2),
@@ -113,6 +117,7 @@ function enableMapControls(stage, viewport) {
       activePointerId = null;
 
       const [p1, p2] = [...pointers.values()];
+
       pinchStartDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
       pinchStartScale = scale;
       pinchCenter = {
@@ -132,8 +137,7 @@ function enableMapControls(stage, viewport) {
       const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
 
       if (pinchStartDist > 0) {
-        const nextScale = pinchStartScale * (dist / pinchStartDist);
-        zoomAt(pinchCenter.x, pinchCenter.y, nextScale);
+        zoomAt(pinchCenter.x, pinchCenter.y, pinchStartScale * (dist / pinchStartDist));
       }
 
       return;
@@ -159,6 +163,7 @@ function enableMapControls(stage, viewport) {
 
       isDragging = true;
       activePointerId = remainingId;
+
       startX = p.x;
       startY = p.y;
       startMapX = x;
@@ -179,9 +184,7 @@ function enableMapControls(stage, viewport) {
     event.preventDefault();
 
     const delta = event.deltaY > 0 ? -0.12 : 0.12;
-    const factor = 1 + delta;
-
-    zoomAt(event.clientX, event.clientY, scale * factor);
+    zoomAt(event.clientX, event.clientY, scale * (1 + delta));
   }, { passive: false });
 
   stage.addEventListener('dblclick', (event) => {
@@ -193,7 +196,7 @@ function enableMapControls(stage, viewport) {
       return;
     }
 
-    zoomAt(event.clientX, event.clientY, 2.7);
+    zoomAt(event.clientX, event.clientY, 2.35);
   });
 
   window.addEventListener('resize', () => {
@@ -227,9 +230,7 @@ register('home', (root) => {
         <div class="gta-map-bg"></div>
 
         <div class="gta-water">
-          <div class="gta-water-layer water-main"></div>
-          <div class="gta-water-layer water-light"></div>
-          <div class="gta-water-layer water-lines"></div>
+          <div class="gta-water-soft"></div>
         </div>
 
         <div class="gta-map-viewport">
@@ -281,8 +282,6 @@ register('home', (root) => {
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
-
-  viewport.style.setProperty('--mask-url', `url("${mapSrc}")`);
 
   enableMapControls(stage, viewport);
 });
