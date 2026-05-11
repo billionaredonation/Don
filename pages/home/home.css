@@ -456,3 +456,32 @@
     font-size: 10px;
   }
 }
+
+
+.gta-time-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 1000;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.home[data-time="day"] .gta-time-badge {
+  color: #fff3b0;
+  background: rgba(255, 202, 82, 0.16);
+  border: 1px solid rgba(255, 225, 130, 0.24);
+  box-shadow: 0 0 18px rgba(255, 210, 90, 0.18);
+}
+
+.home[data-time="night"] .gta-time-badge {
+  color: #cfe3ff;
+  background: rgba(115, 160, 255, 0.14);
+  border: 1px solid rgba(170, 205, 255, 0.22);
+  box-shadow: 0 0 18px rgba(130, 175, 255, 0.18);
+}
