@@ -1,6 +1,7 @@
 import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
+import { getCityWeather } from '../../src/weather/weather.js';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
@@ -255,6 +256,7 @@ register('home', (root) => {
   const cityId = normalizeCityId(state.city);
   const city = getCityConfig(cityId);
   const dayMode = getUserDayMode();
+  const weather = getCityWeather(cityId);
 
   if (state.city !== cityId) {
     state.city = cityId;
@@ -266,6 +268,7 @@ register('home', (root) => {
 
   root.dataset.city = cityId;
   root.dataset.time = dayMode;
+  root.dataset.weather = weather.type;
 
   if (isLowPowerDevice()) {
     root.dataset.performance = 'low';
@@ -279,6 +282,11 @@ register('home', (root) => {
         <div class="gta-map-bg"></div>
         <div class="gta-stars"></div>
         <div class="gta-sky-light"></div>
+
+        <div class="gta-weather-sun"></div>
+        <div class="gta-weather-clouds"></div>
+        <div class="gta-weather-rain"></div>
+        <div class="gta-weather-heat"></div>
 
         <div class="gta-water">
           <div class="gta-water-soft"></div>
@@ -309,6 +317,11 @@ register('home', (root) => {
             <span class="gta-time-badge">
               ${dayMode === 'day' ? '☀ День' : '☾ Ночь'}
             </span>
+
+            <span class="gta-weather-badge">
+              ${weather.icon} ${weather.label} · ${weather.temperature}°C
+            </span>
+
             <strong>${city.name}</strong>
           </div>
 
