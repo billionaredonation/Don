@@ -3,7 +3,7 @@
   min-height: 100dvh;
   margin: 0;
   padding: 0;
-  background: #031014;
+  background: #052533;
   overflow: hidden;
 }
 
@@ -15,10 +15,7 @@
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 70% 18%, rgba(255, 210, 135, 0.16), transparent 24%),
-    radial-gradient(circle at 20% 80%, rgba(42, 170, 210, 0.22), transparent 34%),
-    linear-gradient(180deg, #082b38 0%, #041923 48%, #02090d 100%);
+  background: #052533;
 }
 
 .home-map-stage {
@@ -28,6 +25,9 @@
   touch-action: none;
   cursor: grab;
   user-select: none;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(85, 210, 230, 0.2), transparent 34%),
+    linear-gradient(180deg, #0b4558 0%, #073444 48%, #041a24 100%);
 }
 
 .home-map-stage:active {
@@ -37,63 +37,85 @@
 .home-map-stage::before {
   content: "";
   position: absolute;
-  inset: -20%;
+  inset: -25%;
   z-index: 0;
   background:
-    repeating-radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.07) 0 1px, transparent 1px 34px),
-    repeating-linear-gradient(115deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 28px),
-    linear-gradient(135deg, rgba(42, 168, 190, 0.2), rgba(0, 43, 74, 0.46));
-  opacity: 0.62;
-  animation: waterMove 24s linear infinite;
+    repeating-radial-gradient(ellipse at center, rgba(255,255,255,0.09) 0 1px, transparent 1px 36px),
+    repeating-linear-gradient(120deg, rgba(255,255,255,0.055) 0 1px, transparent 1px 30px),
+    linear-gradient(135deg, rgba(52, 190, 220, 0.25), rgba(0, 62, 95, 0.58));
+  opacity: 0.72;
+  animation: waterMove 28s linear infinite;
 }
 
 .home-map-stage::after {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
   background:
-    radial-gradient(circle at 72% 16%, rgba(255, 230, 160, 0.24), transparent 18%),
-    radial-gradient(circle at center, transparent 42%, rgba(0,0,0,0.42) 100%);
+    radial-gradient(circle at 50% 50%, transparent 48%, rgba(0,0,0,0.32) 100%);
 }
 
-.city-map-image {
+.city-water-field {
   position: absolute;
   z-index: 2;
   left: 50%;
   top: 50%;
-  width: min(96vw, 760px);
-  height: min(86dvh, 820px);
+  width: min(104vw, 820px);
+  height: min(88dvh, 860px);
+  translate: -50% -50%;
+  transform-origin: center;
+  will-change: transform;
+  background:
+    radial-gradient(circle at center, rgba(88, 218, 235, 0.36), rgba(5, 46, 68, 0.14) 44%, transparent 68%);
+}
+
+.city-water-field::before {
+  content: "";
+  position: absolute;
+  inset: 2%;
+  z-index: 0;
+  border-radius: 46%;
+  background:
+    radial-gradient(circle at center, rgba(78, 220, 238, 0.28), transparent 62%);
+  filter: none;
+  opacity: 0.9;
+}
+
+.city-map-image {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
   display: block;
   object-fit: contain;
   object-position: center;
-  transform: translate3d(0, 0, 0) scale(1);
-  translate: -50% -50%;
-  transform-origin: center;
+  background: transparent;
   filter:
-    saturate(1.14)
-    contrast(1.12)
-    brightness(0.92)
-    drop-shadow(0 28px 34px rgba(0,0,0,0.68));
+    saturate(1.16)
+    contrast(1.16)
+    brightness(0.95)
+    drop-shadow(0 18px 22px rgba(0,0,0,0.72));
   user-select: none;
   -webkit-user-drag: none;
-  will-change: transform;
+  pointer-events: none;
 }
 
 @keyframes waterMove {
   from {
-    transform: translate3d(0, 0, 0) scale(1.05);
+    transform: translate3d(0, 0, 0) scale(1.04);
   }
 
   to {
-    transform: translate3d(-80px, 48px, 0) scale(1.05);
+    transform: translate3d(-90px, 54px, 0) scale(1.04);
   }
 }
 
 @media (max-width: 520px) {
-  .city-map-image {
-    width: 98vw;
-    height: 82dvh;
+  .city-water-field {
+    width: 112vw;
+    height: 86dvh;
   }
 }
