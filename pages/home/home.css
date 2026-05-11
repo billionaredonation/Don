@@ -1,4 +1,17 @@
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #050607;
+}
+
 .home {
+  position: fixed;
+  inset: 0;
   width: 100%;
   min-height: 100dvh;
   margin: 0;
@@ -42,56 +55,31 @@
     linear-gradient(180deg, #06131a 0%, #030b10 48%, #010305 100%);
 }
 
-.gta-map-bg::before,
-.gta-map-bg::after {
-  content: "";
+.gta-stars {
   position: absolute;
-  inset: -10%;
-  z-index: 1;
+  inset: 0;
+  z-index: 4;
   pointer-events: none;
   opacity: 0;
-}
-
-.gta-map-bg::before {
   background:
-    radial-gradient(circle at 8% 12%, rgba(255,255,255,0.9) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 18% 28%, rgba(255,255,255,0.55) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 34% 16%, rgba(180,210,255,0.85) 0 1.2px, transparent 2px),
-    radial-gradient(circle at 44% 34%, rgba(255,255,255,0.7) 0 1px, transparent 1.7px),
-    radial-gradient(circle at 58% 18%, rgba(255,255,255,0.85) 0 1.1px, transparent 1.9px),
-    radial-gradient(circle at 72% 30%, rgba(170,205,255,0.8) 0 1.2px, transparent 2px),
-    radial-gradient(circle at 84% 12%, rgba(255,255,255,0.65) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 92% 40%, rgba(255,255,255,0.75) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 12% 78%, rgba(255,255,255,0.6) 0 1px, transparent 1.7px),
-    radial-gradient(circle at 28% 88%, rgba(170,205,255,0.72) 0 1.2px, transparent 2px),
-    radial-gradient(circle at 52% 82%, rgba(255,255,255,0.82) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 76% 88%, rgba(255,255,255,0.58) 0 1px, transparent 1.7px),
-    radial-gradient(circle at 90% 72%, rgba(180,210,255,0.72) 0 1.2px, transparent 2px);
-  background-size: 260px 260px;
-  animation: gtaStarsFloat 34s linear infinite;
-}
-
-.gta-map-bg::after {
-  background:
-    radial-gradient(circle at 14% 20%, rgba(255,255,255,0.75) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 24% 44%, rgba(160,195,255,0.68) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 42% 24%, rgba(255,255,255,0.62) 0 1px, transparent 1.7px),
-    radial-gradient(circle at 62% 46%, rgba(255,255,255,0.82) 0 1.2px, transparent 2px),
-    radial-gradient(circle at 78% 22%, rgba(180,210,255,0.72) 0 1px, transparent 1.9px),
-    radial-gradient(circle at 88% 52%, rgba(255,255,255,0.68) 0 1px, transparent 1.7px),
-    radial-gradient(circle at 18% 64%, rgba(255,255,255,0.55) 0 1px, transparent 1.7px),
-    radial-gradient(circle at 40% 74%, rgba(170,205,255,0.7) 0 1.2px, transparent 2px),
-    radial-gradient(circle at 68% 78%, rgba(255,255,255,0.6) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 92% 86%, rgba(255,255,255,0.76) 0 1px, transparent 1.8px);
-  background-size: 380px 380px;
-  filter: blur(0.2px);
-  animation: gtaStarsFloatReverse 48s linear infinite;
+    radial-gradient(circle at 8% 12%, rgba(255,255,255,0.95) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 22% 26%, rgba(180,210,255,0.8) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 38% 14%, rgba(255,255,255,0.9) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 54% 32%, rgba(255,255,255,0.7) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 72% 18%, rgba(170,205,255,0.85) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 86% 36%, rgba(255,255,255,0.75) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 14% 72%, rgba(255,255,255,0.65) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 36% 84%, rgba(170,205,255,0.75) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 62% 76%, rgba(255,255,255,0.8) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 88% 88%, rgba(255,255,255,0.7) 0 1px, transparent 1.8px);
+  background-size: 280px 280px;
+  animation: gtaStarsFloat 40s linear infinite;
 }
 
 .gta-sky-light {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 5;
   pointer-events: none;
 }
 
@@ -148,7 +136,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 8;
   pointer-events: none;
   background:
     linear-gradient(90deg, rgba(0,0,0,0.48) 0%, transparent 16%, transparent 84%, rgba(0,0,0,0.48) 100%),
@@ -169,7 +157,7 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  z-index: 3;
+  z-index: 6;
   width: 0;
   height: 0;
   overflow: visible;
@@ -180,25 +168,25 @@
 .gta-map-viewport::before {
   content: "";
   position: absolute;
-  inset: -34px -28px;
+  inset: -38px -30px;
   z-index: 0;
   pointer-events: none;
   background:
     linear-gradient(180deg,
       transparent 0%,
-      rgba(34, 36, 38, 0.38) 7%,
-      rgba(34, 36, 38, 0.82) 18%,
-      rgba(34, 36, 38, 0.9) 82%,
-      rgba(34, 36, 38, 0.34) 93%,
+      rgba(34, 36, 38, 0.26) 7%,
+      rgba(34, 36, 38, 0.74) 18%,
+      rgba(34, 36, 38, 0.86) 82%,
+      rgba(34, 36, 38, 0.28) 93%,
       transparent 100%);
-  filter: blur(18px);
-  opacity: 0.9;
+  filter: blur(20px);
+  opacity: 0.86;
 }
 
 .gta-map-viewport::after {
   content: "";
   position: absolute;
-  inset: -18px -14px;
+  inset: -20px -16px;
   z-index: 7;
   pointer-events: none;
   background:
@@ -241,18 +229,18 @@
   -webkit-mask-image:
     linear-gradient(180deg,
       transparent 0%,
-      rgba(0,0,0,0.18) 3%,
-      #000 9%,
-      #000 91%,
-      rgba(0,0,0,0.18) 97%,
+      rgba(0,0,0,0.2) 4%,
+      #000 10%,
+      #000 90%,
+      rgba(0,0,0,0.2) 96%,
       transparent 100%);
   mask-image:
     linear-gradient(180deg,
       transparent 0%,
-      rgba(0,0,0,0.18) 3%,
-      #000 9%,
-      #000 91%,
-      rgba(0,0,0,0.18) 97%,
+      rgba(0,0,0,0.2) 4%,
+      #000 10%,
+      #000 90%,
+      rgba(0,0,0,0.2) 96%,
       transparent 100%);
 }
 
@@ -264,18 +252,18 @@
   -webkit-mask-image:
     linear-gradient(180deg,
       transparent 0%,
-      rgba(0,0,0,0.12) 2%,
-      #000 8%,
-      #000 92%,
-      rgba(0,0,0,0.12) 98%,
+      rgba(0,0,0,0.14) 3%,
+      #000 9%,
+      #000 91%,
+      rgba(0,0,0,0.14) 97%,
       transparent 100%);
   mask-image:
     linear-gradient(180deg,
       transparent 0%,
-      rgba(0,0,0,0.12) 2%,
-      #000 8%,
-      #000 92%,
-      rgba(0,0,0,0.12) 98%,
+      rgba(0,0,0,0.14) 3%,
+      #000 9%,
+      #000 91%,
+      rgba(0,0,0,0.14) 97%,
       transparent 100%);
 }
 
@@ -452,8 +440,7 @@
     linear-gradient(180deg, #10202a 0%, #07151d 50%, #03080d 100%);
 }
 
-.home[data-time="day"] .gta-map-bg::before,
-.home[data-time="day"] .gta-map-bg::after {
+.home[data-time="day"] .gta-stars {
   opacity: 0;
   animation: none;
 }
@@ -554,12 +541,8 @@
     linear-gradient(180deg, #06101a 0%, #03090f 52%, #010204 100%);
 }
 
-.home[data-time="night"] .gta-map-bg::before {
+.home[data-time="night"] .gta-stars {
   opacity: 0.72;
-}
-
-.home[data-time="night"] .gta-map-bg::after {
-  opacity: 0.46;
 }
 
 .home[data-time="night"] .gta-sky-light {
@@ -589,10 +572,10 @@
 .home[data-time="night"] .gta-water {
   background:
     radial-gradient(circle at 50% 50%,
-      rgba(15, 75, 92, 0.3) 0%,
-      rgba(5, 31, 43, 0.76) 48%,
-      rgba(1, 7, 11, 0.92) 100%),
-    linear-gradient(180deg, rgba(4,21,29,0.86) 0%, rgba(3,16,24,0.88) 50%, rgba(1,4,7,0.94) 100%);
+      rgba(15, 75, 92, 0.28) 0%,
+      rgba(5, 31, 43, 0.72) 48%,
+      rgba(1, 7, 11, 0.88) 100%),
+    linear-gradient(180deg, rgba(4,21,29,0.82) 0%, rgba(3,16,24,0.84) 50%, rgba(1,4,7,0.9) 100%);
 }
 
 .home[data-time="night"] .gta-map-viewport::before {
@@ -686,17 +669,7 @@
   }
 
   to {
-    transform: translate3d(-80px, 48px, 0);
-  }
-}
-
-@keyframes gtaStarsFloatReverse {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    transform: translate3d(90px, -54px, 0);
+    transform: translate3d(-80px, 50px, 0);
   }
 }
 
@@ -732,12 +705,8 @@
     font-size: 10px;
   }
 
-  .gta-map-bg::before {
+  .gta-stars {
     background-size: 220px 220px;
-  }
-
-  .gta-map-bg::after {
-    background-size: 320px 320px;
   }
 
   .gta-map-image {
