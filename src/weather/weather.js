@@ -23,7 +23,7 @@ const CITY_BASE_TEMPERATURE = {
   ternopil: 16,
   khmelnytskyi: 17,
   chernivtsi: 17,
-  ivano-frankivsk: 16,
+  'ivano-frankivsk': 16,
   uzhhorod: 19,
   kropyvnytskyi: 20,
   crimea: 25,
