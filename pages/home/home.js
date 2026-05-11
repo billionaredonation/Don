@@ -293,10 +293,9 @@ register('home', (root) => {
         </div>
 
         <header class="gta-map-header">
-          <div class="gta-map-title">
-            <strong>${city.name}</strong>
+        <div class="gta-map-title">
+          <strong>${city.name}</strong>
           </div>
-
           <div class="gta-map-player">
             ${state.nickname || 'Игрок'}
           </div>
