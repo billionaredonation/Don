@@ -276,62 +276,64 @@ register('home', (root) => {
     root.dataset.performance = 'normal';
   }
 
-  root.innerHTML = `
-    <main class="home-gameplay">
-      <section class="gta-map-stage">
-        <div class="gta-map-bg"></div>
-        <div class="gta-stars"></div>
-        <div class="gta-sky-light"></div>
+root.innerHTML = `
+  <main class="home-gameplay">
+    <section class="gta-map-stage">
+      <div class="gta-map-bg"></div>
+      <div class="gta-stars"></div>
+      <div class="gta-sky-light"></div>
 
-        <div class="gta-weather-sun"></div>
-        <div class="gta-weather-clouds"></div>
-        <div class="gta-weather-rain"></div>
-        <div class="gta-weather-heat"></div>
+      <div class="gta-water">
+        <div class="gta-water-soft"></div>
+      </div>
 
-        <div class="gta-water">
-          <div class="gta-water-soft"></div>
+      <div class="gta-map-viewport">
+        <div class="gta-map-weather">
+          <div class="gta-weather-sun"></div>
+          <div class="gta-weather-clouds"></div>
+          <div class="gta-weather-rain"></div>
+          <div class="gta-weather-heat"></div>
         </div>
 
-        <div class="gta-map-viewport">
-          <img
-            class="gta-map-image gta-map-glow"
-            src="${mapSrc}"
-            alt=""
-            aria-hidden="true"
-            loading="eager"
-            decoding="async"
-          />
+        <img
+          class="gta-map-image gta-map-glow"
+          src="${mapSrc}"
+          alt=""
+          aria-hidden="true"
+          loading="eager"
+          decoding="async"
+        />
 
-          <img
-            class="gta-map-image"
-            src="${mapSrc}"
-            alt="${city.name}"
-            loading="eager"
-            decoding="async"
-            fetchpriority="high"
-          />
+        <img
+          class="gta-map-image"
+          src="${mapSrc}"
+          alt="${city.name}"
+          loading="eager"
+          decoding="async"
+          fetchpriority="high"
+        />
+      </div>
+
+      <header class="gta-map-header">
+        <div class="gta-map-title">
+          <span class="gta-time-badge">
+            ${dayMode === 'day' ? '☀ День' : '☾ Ночь'}
+          </span>
+
+          <span class="gta-weather-badge">
+            ${weather.icon} ${weather.label} · ${weather.temperature}°C
+          </span>
+
+          <strong>${city.name}</strong>
         </div>
 
-        <header class="gta-map-header">
-          <div class="gta-map-title">
-            <span class="gta-time-badge">
-              ${dayMode === 'day' ? '☀ День' : '☾ Ночь'}
-            </span>
-
-            <span class="gta-weather-badge">
-              ${weather.icon} ${weather.label} · ${weather.temperature}°C
-            </span>
-
-            <strong>${city.name}</strong>
-          </div>
-
-          <div class="gta-map-player">
-            ${state.nickname || 'Игрок'}
-          </div>
-        </header>
-      </section>
-    </main>
-  `;
+        <div class="gta-map-player">
+          ${state.nickname || 'Игрок'}
+        </div>
+      </header>
+    </section>
+  </main>
+`;
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
