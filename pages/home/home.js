@@ -8,36 +8,6 @@ const MAP_FILES = import.meta.glob('../../*.png', {
   import: 'default',
 });
 
-const V = '70';
-
-const CITY_MAPS = {
-  vinnytsia: 'VinitsaMap.png',
-  lutsk: 'LutskMap.png',
-  luhansk: 'LuganskMap.png',
-  dnipro: 'DneprMap.png',
-  donetsk: 'DonetskMap.png',
-  zhytomyr: 'ZutomyrMap.png',
-  uzhhorod: 'UzgorodMap.png',
-  zaporizhzhia: 'Zaporozya.png',
-  'ivano-frankivsk': 'IvanoFrankovsk.png',
-  kyiv: 'KiyvMap.png',
-  kropyvnytskyi: 'Kropivnitskyi.png',
-  crimea: 'KrymMap.png',
-  lviv: 'Lviv.png',
-  mykolaiv: 'Nikolaev.png',
-  odesa: 'Odessa.png',
-  poltava: 'Poltava.png',
-  rivne: 'Rovno.png',
-  sumy: 'Sumy.png',
-  ternopil: 'Ternopil.png',
-  kharkiv: 'Kharkiv.png',
-  kherson: 'Kherson.png',
-  khmelnytskyi: 'Khmelnitskiy.png',
-  cherkasy: 'CherkasyMap.png',
-  chernihiv: 'ChernigovMap.png',
-  chernivtsi: 'ChernivtsiMap.png',
-};
-
 function getMapByFileName(fileName) {
   const entry = Object.entries(MAP_FILES).find(([path]) => {
     return path.endsWith(`/${fileName}`);
@@ -46,21 +16,14 @@ function getMapByFileName(fileName) {
   return entry?.[1] || null;
 }
 
-function getCityMap(cityId) {
-  const fileName = CITY_MAPS[cityId];
-  const cityMap = getMapByFileName(fileName);
+function getCityMap(city) {
+  const mapPath = String(city.map || '').replace(/^\.?\//, '');
+  const mapFileName = mapPath.split('/').pop();
 
-  if (cityMap) return cityMap;
-
-  const fallback = getMapByFileName('UkraineMap.png');
-
-  console.error('[MN] Карта города не найдена:', {
-    cityId,
-    fileName,
-    availableMaps: Object.keys(MAP_FILES),
-  });
-
-  return fallback;
+  return (
+    getMapByFileName(mapFileName) ||
+    getMapByFileName('UkraineMap.png')
+  );
 }
 
 register('home', (root) => {
@@ -75,30 +38,31 @@ register('home', (root) => {
     save();
   }
 
-  const mapSrc = getCityMap(cityId);
+  const mapSrc = getCityMap(city);
 
   root.dataset.city = cityId;
 
-root.innerHTML = `
-  <main
-    class="home-gameplay"
-    style="
-      --sun-x: 72%;
-      --sun-y: 18%;
-      --light-power: 0.72;
-      --night-power: 0;
-      --map-brightness: 0.92;
-    "
-  >
-    <img
-      class="city-map-image"
-      src="${mapSrc}"
-      alt="${city.name}"
-      loading="eager"
-      decoding="async"
-    />
+  root.innerHTML = `
+    <main
+      class="home-gameplay"
+      style="
+        --sun-x: 72%;
+        --sun-y: 18%;
+        --light-power: 0.72;
+        --night-power: 0;
+        --map-brightness: 0.92;
+      "
+    >
+      <img
+        class="city-map-image"
+        src="${mapSrc}"
+        alt="${city.name}"
+        loading="eager"
+        decoding="async"
+      />
 
-    <div class="map-night"></div>
-    <div class="map-light"></div>
-  </main>
-`;
+      <div class="map-night"></div>
+      <div class="map-light"></div>
+    </main>
+  `;
+});
