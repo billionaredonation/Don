@@ -162,10 +162,10 @@
   filter:
     grayscale(1)
     saturate(0)
-    contrast(2.75)
-    brightness(1.85)
+    contrast(2.35)
+    brightness(2.15)
     drop-shadow(0 0 1px rgba(255,255,255,1))
-    drop-shadow(0 0 5px rgba(255,255,255,0.36));
+    drop-shadow(0 0 6px rgba(255,255,255,0.42));
   opacity: 1;
   user-select: none;
   -webkit-user-drag: none;
