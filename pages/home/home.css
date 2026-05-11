@@ -3,7 +3,7 @@
   min-height: 100dvh;
   margin: 0;
   padding: 0;
-  background: #02090d;
+  background: #06151d;
   overflow: hidden;
 }
 
@@ -14,104 +14,139 @@
   min-height: 100dvh;
   overflow: hidden;
   background:
-    radial-gradient(circle at 72% 18%, rgba(255, 184, 92, 0.18), transparent 24%),
-    radial-gradient(circle at 18% 72%, rgba(48, 145, 180, 0.22), transparent 34%),
-    linear-gradient(180deg, #061018 0%, #04151d 46%, #02080c 100%);
-  perspective: 900px;
+    radial-gradient(circle at 72% 18%, rgba(255, 210, 130, 0.22), transparent 24%),
+    radial-gradient(circle at 20% 80%, rgba(40, 170, 210, 0.2), transparent 34%),
+    linear-gradient(180deg, #0a3240 0%, #06212c 48%, #031016 100%);
+  perspective: 1200px;
   isolation: isolate;
 }
 
 .home-gameplay::before {
   content: "";
   position: absolute;
-  inset: -18%;
+  inset: -25%;
   z-index: 0;
   background:
-    repeating-radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0 1px, transparent 1px 22px),
-    linear-gradient(120deg, rgba(0, 120, 150, 0.18), rgba(0, 40, 70, 0.42));
-  transform: rotate(-8deg) scale(1.1);
-  opacity: 0.55;
-  animation: waterMove 18s linear infinite;
+    repeating-radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.09) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(115deg, rgba(255,255,255,0.045) 0 1px, transparent 1px 26px),
+    linear-gradient(135deg, rgba(42, 168, 190, 0.25), rgba(0, 43, 74, 0.48));
+  opacity: 0.65;
+  animation: waterDrift 22s linear infinite;
 }
 
 .home-gameplay::after {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 5;
+  z-index: 6;
   pointer-events: none;
   background:
-    radial-gradient(circle at var(--sun-x, 72%) var(--sun-y, 18%), rgba(255, 220, 145, 0.28), transparent 20%),
-    linear-gradient(180deg, rgba(255, 170, 80, 0.08), rgba(0,0,0,0.36) 74%, rgba(0,0,0,0.62));
+    radial-gradient(circle at 72% 16%, rgba(255, 228, 160, 0.28), transparent 18%),
+    linear-gradient(180deg, rgba(255, 190, 100, 0.08), transparent 34%, rgba(0,0,0,0.46) 100%);
   mix-blend-mode: screen;
-  opacity: var(--light-power, 0.7);
+  opacity: 0.85;
+}
+
+.home-map-island {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  z-index: 2;
+  width: min(108vw, 760px);
+  aspect-ratio: 1 / 1.18;
+  transform:
+    translate(-50%, -50%)
+    rotateX(58deg)
+    rotateZ(-6deg)
+    scale(1);
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 46px 42px rgba(0,0,0,0.74));
+}
+
+.home-map-island::before {
+  content: "";
+  position: absolute;
+  inset: 3%;
+  z-index: 0;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: 24px;
+  transform: translateZ(-28px) translateY(34px) scale(0.98);
+  filter: blur(18px);
+}
+
+.home-map-island::after {
+  content: "";
+  position: absolute;
+  inset: 7%;
+  z-index: 1;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 50% 52%, rgba(90, 210, 235, 0.34), transparent 58%);
+  transform: translateZ(-12px) scale(1.04);
+  filter: blur(16px);
+  opacity: 0.85;
 }
 
 .city-map-image {
   position: absolute;
-  z-index: 2;
-  left: 50%;
-  top: 50%;
-  width: min(86vw, 760px);
-  height: auto;
-  max-height: 78dvh;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  display: block;
   object-fit: contain;
   object-position: center;
-  transform:
-    translate(-50%, -50%)
-    rotateX(48deg)
-    rotateZ(-8deg)
-    scale(1);
-  transform-origin: center;
+  background: transparent;
+  transform: translateZ(22px);
   filter:
-    saturate(1.08)
-    contrast(1.12)
-    brightness(var(--map-brightness, 0.92))
-    drop-shadow(0 34px 42px rgba(0,0,0,0.68));
+    saturate(1.16)
+    contrast(1.16)
+    brightness(0.92)
+    drop-shadow(0 16px 16px rgba(0,0,0,0.55));
   user-select: none;
   -webkit-user-drag: none;
-}
-
-.map-light {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at var(--sun-x, 72%) var(--sun-y, 18%), rgba(255, 226, 156, 0.34), transparent 22%),
-    radial-gradient(circle at 50% 56%, transparent 18%, rgba(0,0,0,0.32) 72%);
-  opacity: var(--light-power, 0.72);
 }
 
 .map-night {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   pointer-events: none;
   background:
-    radial-gradient(circle at 50% 50%, transparent 28%, rgba(0,0,0,0.42) 100%),
-    linear-gradient(180deg, rgba(4, 12, 28, 0.08), rgba(0, 0, 0, 0.62));
-  opacity: var(--night-power, 0);
+    radial-gradient(circle at 50% 50%, transparent 24%, rgba(0,0,0,0.36) 82%),
+    linear-gradient(180deg, rgba(0, 9, 28, 0.12), rgba(0,0,0,0.5));
+  opacity: 0;
 }
 
-@keyframes waterMove {
+.map-light {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 72% 16%, rgba(255, 231, 158, 0.34), transparent 18%),
+    radial-gradient(circle at 54% 48%, transparent 24%, rgba(0,0,0,0.38) 86%);
+  opacity: 0.78;
+}
+
+@keyframes waterDrift {
   from {
-    transform: rotate(-8deg) scale(1.1) translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) rotate(-2deg) scale(1.05);
   }
 
   to {
-    transform: rotate(-8deg) scale(1.1) translate3d(-80px, 44px, 0);
+    transform: translate3d(-90px, 56px, 0) rotate(-2deg) scale(1.05);
   }
 }
 
 @media (max-width: 520px) {
-  .city-map-image {
-    width: min(96vw, 520px);
-    max-height: 74dvh;
+  .home-map-island {
+    top: 48%;
+    width: min(116vw, 560px);
     transform:
       translate(-50%, -50%)
-      rotateX(46deg)
-      rotateZ(-8deg)
+      rotateX(58deg)
+      rotateZ(-6deg)
       scale(1);
   }
 }
