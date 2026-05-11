@@ -24,7 +24,7 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function enableMapControls(stage, map) {
+function enableMapControls(stage, viewport) {
   let scale = 1;
   let x = 0;
   let y = 0;
@@ -37,10 +37,11 @@ function enableMapControls(stage, map) {
   let lastTouchDistance = 0;
 
   const MIN_SCALE = 1;
-  const MAX_SCALE = 12;
+  const MAX_SCALE = 9;
 
   function getLimits() {
     const rect = stage.getBoundingClientRect();
+
     const mapWidth = rect.width * scale;
     const mapHeight = rect.height * scale;
 
@@ -56,7 +57,8 @@ function enableMapControls(stage, map) {
     x = clamp(x, -limits.maxX, limits.maxX);
     y = clamp(y, -limits.maxY, limits.maxY);
 
-    map.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+    viewport.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+    stage.style.setProperty('--zoom', scale.toFixed(2));
   }
 
   function zoomAt(clientX, clientY, nextScale) {
@@ -78,7 +80,9 @@ function enableMapControls(stage, map) {
 
   stage.addEventListener('wheel', (event) => {
     event.preventDefault();
-    zoomAt(event.clientX, event.clientY, scale + (event.deltaY > 0 ? -0.45 : 0.45));
+
+    const delta = event.deltaY > 0 ? -0.35 : 0.35;
+    zoomAt(event.clientX, event.clientY, scale + delta);
   }, { passive: false });
 
   stage.addEventListener('pointerdown', (event) => {
@@ -135,6 +139,7 @@ function enableMapControls(stage, map) {
     if (event.touches.length === 1 && dragging) {
       x = startMapX + event.touches[0].clientX - startX;
       y = startMapY + event.touches[0].clientY - startY;
+
       applyTransform();
     }
 
@@ -168,7 +173,7 @@ function enableMapControls(stage, map) {
       return;
     }
 
-    zoomAt(event.clientX, event.clientY, 3);
+    zoomAt(event.clientX, event.clientY, 2.7);
   });
 
   window.addEventListener('resize', applyTransform);
@@ -194,64 +199,58 @@ register('home', (root) => {
 
   root.innerHTML = `
     <main class="home-gameplay">
-      <section class="home-map-stage">
-        <div class="map-bg-grid"></div>
-        <div class="map-bg-radar"></div>
+      <section class="gta-map-stage">
+        <div class="gta-map-bg"></div>
 
-        <div class="map-island island-a"></div>
-        <div class="map-island island-b"></div>
-        <div class="map-island island-c"></div>
-
-        <div class="map-route route-a"></div>
-        <div class="map-route route-b"></div>
-
-        <div class="city-map-frame">
+        <div class="gta-map-viewport">
           <img
-            class="city-map-image"
+            class="gta-map-image"
             src="${mapSrc}"
             alt="${city.name}"
             loading="eager"
             decoding="async"
           />
+
+          <div class="gta-map-markers">
+            <button class="gta-marker marker-work" type="button">
+              <span></span>
+              <b>Робота</b>
+            </button>
+
+            <button class="gta-marker marker-base" type="button">
+              <span></span>
+              <b>База</b>
+            </button>
+
+            <button class="gta-marker marker-market" type="button">
+              <span></span>
+              <b>Ринок</b>
+            </button>
+          </div>
         </div>
 
-        <div class="map-marker marker-work">
-          <span></span>
-          <b>WORK</b>
-        </div>
-
-        <div class="map-marker marker-home">
-          <span></span>
-          <b>BASE</b>
-        </div>
-
-        <div class="map-marker marker-market">
-          <span></span>
-          <b>MARKET</b>
-        </div>
-
-        <div class="home-map-ui">
-          <div class="home-map-title">
-            <span>MN CITY MAP</span>
-            <b>${city.name}</b>
+        <header class="gta-map-header">
+          <div class="gta-map-title">
+            <span>MN MAP</span>
+            <strong>${city.name}</strong>
           </div>
 
-          <div class="home-map-player">
+          <div class="gta-map-player">
             ${state.nickname || 'Игрок'}
           </div>
-        </div>
+        </header>
 
-        <div class="map-side-panel">
-          <span>STATUS</span>
-          <b>ONLINE</b>
-          <small>move / zoom / explore</small>
-        </div>
+        <footer class="gta-map-footer">
+          <span>Колесо / pinch — масштаб</span>
+          <span>Перетаскивай карту</span>
+          <span>Двойной клик — сброс</span>
+        </footer>
       </section>
     </main>
   `;
 
-  const stage = root.querySelector('.home-map-stage');
-  const map = root.querySelector('.city-map-frame');
+  const stage = root.querySelector('.gta-map-stage');
+  const viewport = root.querySelector('.gta-map-viewport');
 
-  enableMapControls(stage, map);
+  enableMapControls(stage, viewport);
 });
