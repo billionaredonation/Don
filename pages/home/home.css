@@ -3,7 +3,7 @@
   min-height: 100dvh;
   margin: 0;
   padding: 0;
-  background: #040608;
+  background: #050607;
   color: #fff;
   overflow: hidden;
 }
@@ -14,133 +14,66 @@
   height: 100dvh;
   min-height: 100dvh;
   overflow: hidden;
-  background: #040608;
+  background: #050607;
 }
 
-.home-map-stage {
+.gta-map-stage {
+  --zoom: 1;
   position: absolute;
   inset: 0;
   overflow: hidden;
   touch-action: none;
   cursor: grab;
   user-select: none;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(34, 92, 105, 0.34), transparent 52%),
-    linear-gradient(180deg, #11161a 0%, #080b0e 48%, #030405 100%);
+  background: #060708;
 }
 
-.home-map-stage:active {
+.gta-map-stage:active {
   cursor: grabbing;
 }
 
-.map-bg-grid {
+.gta-map-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
   background:
     linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
     linear-gradient(180deg, rgba(255,255,255,0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(100, 220, 255, 0.035), transparent 30%, transparent 70%, rgba(100, 220, 255, 0.025));
-  background-size: 42px 42px, 42px 42px, 100% 100%;
-  opacity: 0.72;
+    radial-gradient(circle at 50% 45%, rgba(255,255,255,0.055), transparent 42%),
+    linear-gradient(180deg, #101316 0%, #080a0d 52%, #030405 100%);
+  background-size:
+    44px 44px,
+    44px 44px,
+    100% 100%,
+    100% 100%;
 }
 
-.map-bg-radar {
-  position: absolute;
-  left: 50%;
-  top: 48%;
-  z-index: 0;
-  width: 92vmin;
-  height: 92vmin;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, transparent 0 18%, rgba(255,255,255,0.04) 18.3% 18.8%, transparent 19% 34%, rgba(255,255,255,0.035) 34.3% 34.8%, transparent 35% 52%, rgba(255,255,255,0.03) 52.3% 52.8%, transparent 53%),
-    conic-gradient(from 18deg, transparent 0 72deg, rgba(90, 220, 255, 0.09), transparent 110deg 360deg);
-  opacity: 0.48;
-  animation: radarSpin 26s linear infinite;
-}
-
-.home-map-stage::after {
+.gta-map-stage::before {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 12;
+  z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(circle at center, transparent 58%, rgba(0,0,0,0.58) 100%),
-    linear-gradient(180deg, rgba(255,255,255,0.04), transparent 18%, rgba(0,0,0,0.36) 100%);
+    linear-gradient(90deg, rgba(0,0,0,0.48) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.48) 100%),
+    linear-gradient(180deg, rgba(0,0,0,0.44) 0%, transparent 20%, transparent 78%, rgba(0,0,0,0.48) 100%);
 }
 
-.map-island {
+.gta-map-stage::after {
+  content: "";
   position: absolute;
-  z-index: 1;
-  border: 1px solid rgba(120, 220, 255, 0.2);
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
   background:
-    radial-gradient(circle at 35% 28%, rgba(255,255,255,0.18), transparent 14%),
-    linear-gradient(135deg, rgba(22, 52, 60, 0.86), rgba(6, 15, 20, 0.92));
-  box-shadow:
-    0 20px 46px rgba(0,0,0,0.42),
-    inset 0 0 28px rgba(90, 220, 255, 0.08);
-  opacity: 0.9;
+    radial-gradient(circle at center, transparent 58%, rgba(0,0,0,0.48) 100%);
 }
 
-.island-a {
-  left: -42px;
-  top: 24%;
-  width: 142px;
-  height: 94px;
-  border-radius: 54% 46% 60% 40% / 48% 58% 42% 52%;
-  rotate: -14deg;
-}
-
-.island-b {
-  right: -38px;
-  top: 62%;
-  width: 170px;
-  height: 112px;
-  border-radius: 48% 52% 41% 59% / 55% 45% 55% 45%;
-  rotate: 12deg;
-}
-
-.island-c {
-  left: 62%;
-  top: 12%;
-  width: 96px;
-  height: 62px;
-  border-radius: 56% 44% 52% 48% / 46% 60% 40% 54%;
-  rotate: 24deg;
-  opacity: 0.55;
-}
-
-.map-route {
+.gta-map-viewport {
   position: absolute;
-  z-index: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(130, 230, 255, 0.28), transparent);
-  transform-origin: center;
-  opacity: 0.65;
-}
-
-.route-a {
-  left: 4%;
-  top: 37%;
-  width: 92%;
-  rotate: -18deg;
-}
-
-.route-b {
-  left: 9%;
-  top: 68%;
-  width: 84%;
-  rotate: 11deg;
-}
-
-.city-map-frame {
-  position: absolute;
-  z-index: 4;
   left: 50%;
   top: 50%;
+  z-index: 3;
   width: 100vw;
   height: 100dvh;
   translate: -50% -50%;
@@ -148,30 +81,7 @@
   will-change: transform;
 }
 
-.city-map-frame::before {
-  content: "";
-  position: absolute;
-  inset: 6%;
-  z-index: 0;
-  border-radius: 28px;
-  background:
-    radial-gradient(circle at center, rgba(80, 210, 240, 0.14), transparent 60%);
-  opacity: 0.7;
-}
-
-.city-map-frame::after {
-  content: "";
-  position: absolute;
-  inset: 14%;
-  z-index: 1;
-  border-radius: 28px;
-  background: rgba(0,0,0,0.48);
-  transform: translateY(16px) scale(0.96);
-  filter: blur(14px);
-  opacity: 0.72;
-}
-
-.city-map-image {
+.gta-map-image {
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -181,111 +91,125 @@
   object-fit: contain;
   object-position: center;
   background: transparent;
-  image-rendering: auto;
   mix-blend-mode: screen;
+  image-rendering: auto;
   filter:
-    saturate(1.55)
-    contrast(1.48)
+    grayscale(0.1)
+    saturate(1.6)
+    contrast(1.55)
     brightness(1.22)
-    drop-shadow(0 0 16px rgba(140, 230, 255, 0.08))
-    drop-shadow(0 22px 24px rgba(0,0,0,0.84));
+    drop-shadow(0 0 18px rgba(190, 245, 255, 0.08));
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
 }
 
-.map-marker {
+.gta-map-image::selection {
+  background: transparent;
+}
+
+.gta-map-markers {
   position: absolute;
-  z-index: 8;
-  display: grid;
-  place-items: center;
-  gap: 5px;
+  inset: 0;
+  z-index: 5;
   pointer-events: none;
 }
 
-.map-marker span {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #eafcff;
-  box-shadow:
-    0 0 0 6px rgba(120, 230, 255, 0.14),
-    0 0 24px rgba(120, 230, 255, 0.82);
-  animation: markerPulse 1.7s ease-in-out infinite;
+.gta-marker {
+  position: absolute;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  width: 74px;
+  min-height: 52px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
-.map-marker b {
+.gta-marker span {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #f5ffff;
+  box-shadow:
+    0 0 0 6px rgba(255,255,255,0.12),
+    0 0 24px rgba(210, 250, 255, 0.78);
+  animation: gtaMarkerPulse 1.8s ease-in-out infinite;
+}
+
+.gta-marker b {
   padding: 4px 8px;
   border-radius: 999px;
-  background: rgba(3, 7, 9, 0.72);
-  border: 1px solid rgba(160, 235, 255, 0.18);
-  color: rgba(240, 252, 255, 0.9);
-  font-size: 10px;
+  background: rgba(5, 7, 9, 0.76);
+  border: 1px solid rgba(255,255,255,0.16);
+  color: rgba(255,255,255,0.92);
+  font-size: calc(10px / var(--zoom));
+  min-font-size: 8px;
   font-weight: 1000;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   backdrop-filter: blur(10px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.4);
 }
 
 .marker-work {
-  left: 42%;
-  top: 41%;
+  left: 46%;
+  top: 43%;
 }
 
-.marker-home {
+.marker-base {
   left: 56%;
   top: 58%;
 }
 
 .marker-market {
-  left: 68%;
-  top: 45%;
+  left: 66%;
+  top: 47%;
 }
 
-.home-map-ui {
+.gta-map-header {
   position: absolute;
-  z-index: 20;
   top: max(12px, env(safe-area-inset-top));
   left: 12px;
   right: 12px;
+  z-index: 30;
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
   pointer-events: none;
 }
 
-.home-map-title,
-.home-map-player,
-.map-side-panel {
+.gta-map-title,
+.gta-map-player {
   pointer-events: auto;
   border-radius: 16px;
   background:
     linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025)),
-    rgba(4, 7, 9, 0.76);
-  border: 1px solid rgba(160, 230, 255, 0.14);
+    rgba(5, 7, 9, 0.78);
+  border: 1px solid rgba(255,255,255,0.14);
   box-shadow:
-    0 16px 36px rgba(0,0,0,0.4),
+    0 18px 42px rgba(0,0,0,0.38),
     inset 0 1px 0 rgba(255,255,255,0.06);
   backdrop-filter: blur(16px);
 }
 
-.home-map-title,
-.home-map-player {
+.gta-map-title {
   padding: 10px 12px;
 }
 
-.home-map-title span,
-.map-side-panel span {
+.gta-map-title span {
   display: block;
-  color: rgba(210, 245, 255, 0.58);
+  color: rgba(255,255,255,0.52);
   font-size: 10px;
   font-weight: 950;
-  text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
-.home-map-title b,
-.map-side-panel b {
+.gta-map-title strong {
   display: block;
   margin-top: 2px;
   color: #fff;
@@ -294,85 +218,82 @@
   font-weight: 1000;
 }
 
-.home-map-player {
+.gta-map-player {
+  padding: 11px 13px;
   color: #fff;
   font-size: 14px;
   font-weight: 900;
 }
 
-.map-side-panel {
+.gta-map-footer {
   position: absolute;
-  z-index: 20;
   left: 12px;
+  right: 12px;
   bottom: max(12px, env(safe-area-inset-bottom));
-  padding: 12px 13px;
-  width: 148px;
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
   pointer-events: none;
 }
 
-.map-side-panel small {
-  display: block;
-  margin-top: 6px;
-  color: rgba(255,255,255,0.48);
-  font-size: 10.5px;
-  font-weight: 700;
+.gta-map-footer span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(5, 7, 9, 0.72);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.58);
+  font-size: 11px;
+  font-weight: 750;
+  backdrop-filter: blur(12px);
 }
 
-@keyframes radarSpin {
-  from {
-    rotate: 0deg;
-  }
-
-  to {
-    rotate: 360deg;
-  }
-}
-
-@keyframes markerPulse {
+@keyframes gtaMarkerPulse {
   0%, 100% {
-    transform: scale(1);
-    opacity: 0.92;
+    scale: 1;
+    opacity: 0.95;
   }
 
   50% {
-    transform: scale(1.22);
+    scale: 1.22;
     opacity: 1;
   }
 }
 
 @media (max-width: 520px) {
-  .map-bg-grid {
-    background-size: 36px 36px, 36px 36px, 100% 100%;
+  .gta-map-bg {
+    background-size:
+      36px 36px,
+      36px 36px,
+      100% 100%,
+      100% 100%;
   }
 
-  .home-map-title,
-  .home-map-player {
-    padding: 9px 11px;
+  .gta-map-title,
+  .gta-map-player {
     border-radius: 14px;
   }
 
-  .home-map-title b {
+  .gta-map-title {
+    padding: 9px 11px;
+  }
+
+  .gta-map-title strong {
     font-size: 15px;
   }
 
-  .home-map-player {
+  .gta-map-player {
+    padding: 10px 11px;
     font-size: 13px;
   }
 
-  .map-side-panel {
-    width: 132px;
-    padding: 11px 12px;
+  .gta-map-footer {
+    gap: 6px;
   }
 
-  .map-marker b {
-    font-size: 9px;
-  }
-
-  .island-a {
-    left: -70px;
-  }
-
-  .island-b {
-    right: -80px;
+  .gta-map-footer span {
+    padding: 6px 9px;
+    font-size: 10px;
   }
 }
