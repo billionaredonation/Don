@@ -254,6 +254,7 @@ register('home', (root) => {
 
   const cityId = normalizeCityId(state.city);
   const city = getCityConfig(cityId);
+  const dayMode = getUserDayMode();
 
   if (state.city !== cityId) {
     state.city = cityId;
@@ -264,7 +265,7 @@ register('home', (root) => {
   const mapSrc = getCityMap(city);
 
   root.dataset.city = cityId;
-  root.dataset.time = getUserDayMode();
+  root.dataset.time = dayMode;
 
   if (isLowPowerDevice()) {
     root.dataset.performance = 'low';
@@ -284,6 +285,15 @@ register('home', (root) => {
 
         <div class="gta-map-viewport">
           <img
+            class="gta-map-image gta-map-glow"
+            src="${mapSrc}"
+            alt=""
+            aria-hidden="true"
+            loading="eager"
+            decoding="async"
+          />
+
+          <img
             class="gta-map-image"
             src="${mapSrc}"
             alt="${city.name}"
@@ -296,11 +306,12 @@ register('home', (root) => {
         <header class="gta-map-header">
           <div class="gta-map-title">
             <span class="gta-time-badge">
-            ${getUserDayMode() === 'day' ? '☀ День' : '☾ Ночь'}
-                </span>
-              <strong>${city.name}</strong>
-              </div>
-             <div class="gta-map-player">
+              ${dayMode === 'day' ? '☀ День' : '☾ Ночь'}
+            </span>
+            <strong>${city.name}</strong>
+          </div>
+
+          <div class="gta-map-player">
             ${state.nickname || 'Игрок'}
           </div>
         </header>
