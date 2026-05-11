@@ -20,10 +20,6 @@ function getCityMap(city) {
   return getMapByFileName(mapFileName) || getMapByFileName('UkraineMap.png');
 }
 
-function money(value) {
-  return Number(value || 0).toLocaleString('ru-RU') + ' грн';
-}
-
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -40,7 +36,29 @@ function enableMapControls(stage, map) {
   let startMapY = 0;
   let lastTouchDistance = 0;
 
+  const MIN_SCALE = 1;
+  const MAX_SCALE = 12;
+
+  function getLimits() {
+    const rect = stage.getBoundingClientRect();
+    const mapWidth = rect.width * scale;
+    const mapHeight = rect.height * scale;
+
+    return {
+      maxX: Math.max(0, (mapWidth - rect.width) / 2),
+      maxY: Math.max(0, (mapHeight - rect.height) / 2),
+    };
+  }
+
+  function clampPosition() {
+    const limits = getLimits();
+
+    x = clamp(x, -limits.maxX, limits.maxX);
+    y = clamp(y, -limits.maxY, limits.maxY);
+  }
+
   function applyTransform() {
+    clampPosition();
     map.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
   }
 
@@ -51,7 +69,7 @@ function enableMapControls(stage, map) {
     const pointY = clientY - rect.top - rect.height / 2;
 
     const oldScale = scale;
-    scale = clamp(nextScale, 1, 8);
+    scale = clamp(nextScale, MIN_SCALE, MAX_SCALE);
 
     const factor = scale / oldScale;
 
@@ -63,7 +81,7 @@ function enableMapControls(stage, map) {
 
   stage.addEventListener('wheel', (event) => {
     event.preventDefault();
-    zoomAt(event.clientX, event.clientY, scale + (event.deltaY > 0 ? -0.3 : 0.3));
+    zoomAt(event.clientX, event.clientY, scale + (event.deltaY > 0 ? -0.45 : 0.45));
   }, { passive: false });
 
   stage.addEventListener('pointerdown', (event) => {
@@ -120,6 +138,7 @@ function enableMapControls(stage, map) {
     if (event.touches.length === 1 && dragging) {
       x = startMapX + event.touches[0].clientX - startX;
       y = startMapY + event.touches[0].clientY - startY;
+
       applyTransform();
     }
 
@@ -145,7 +164,7 @@ function enableMapControls(stage, map) {
   });
 
   stage.addEventListener('dblclick', (event) => {
-    if (scale > 1.2) {
+    if (scale > 1.1) {
       scale = 1;
       x = 0;
       y = 0;
@@ -153,74 +172,12 @@ function enableMapControls(stage, map) {
       return;
     }
 
-    zoomAt(event.clientX, event.clientY, 2.4);
+    zoomAt(event.clientX, event.clientY, 3);
   });
 
+  window.addEventListener('resize', applyTransform);
+
   applyTransform();
-}
-
-const POINTS = {
-  profile: {
-    title: 'Профиль',
-    label: 'Игрок',
-    text: 'Личная карточка персонажа, город, стартовый капитал и будущая статистика.',
-    x: 27,
-    y: 34,
-  },
-  work: {
-    title: 'Работа',
-    label: 'Заработок',
-    text: 'Здесь будет стартовая механика заработка: смены, энергия, опыт и прокачка профессий.',
-    x: 56,
-    y: 41,
-  },
-  business: {
-    title: 'Бизнес',
-    label: 'Капитал',
-    text: 'Будущая зона для активов, оборота, улучшений и городских предприятий.',
-    x: 72,
-    y: 58,
-  },
-  home: {
-    title: 'Дом',
-    label: 'База',
-    text: 'Личная база игрока: жильё, комфорт, бонусы и восстановление ресурсов.',
-    x: 39,
-    y: 66,
-  },
-  skills: {
-    title: 'Навыки',
-    label: 'Развитие',
-    text: 'Прокачка персонажа: работа, бизнес, транспорт, интеллект и городские умения.',
-    x: 52,
-    y: 78,
-  },
-};
-
-function renderPoint(id, point) {
-  return `
-    <button
-      class="map-point"
-      type="button"
-      data-point="${id}"
-      style="--x:${point.x}%; --y:${point.y}%;"
-      aria-label="${point.title}"
-    >
-      <span></span>
-      <b>${point.label}</b>
-    </button>
-  `;
-}
-
-function setPanel(root, point, city) {
-  const panel = root.querySelector('#homePanel');
-
-  panel.innerHTML = `
-    <div class="home-panel-kicker">${point.title}</div>
-    <h2>${point.label}</h2>
-    <p>${point.text}</p>
-    <small>${city.name} · ${city.region || 'городской регион'}</small>
-  `;
 }
 
 register('home', (root) => {
@@ -242,9 +199,6 @@ register('home', (root) => {
   root.innerHTML = `
     <main class="home-gameplay">
       <section class="home-map-stage">
-        <div class="water-layer water-layer-back"></div>
-        <div class="water-layer water-layer-front"></div>
-
         <div class="city-map-frame">
           <img
             class="city-map-image"
@@ -253,30 +207,18 @@ register('home', (root) => {
             loading="eager"
             decoding="async"
           />
-
-          <div class="map-points">
-            ${Object.entries(POINTS).map(([id, point]) => renderPoint(id, point)).join('')}
-          </div>
         </div>
 
-        <header class="home-hud">
-          <div class="home-city-chip">
-            <span>${city.region || 'Город'}</span>
+        <div class="home-map-ui">
+          <div class="home-map-title">
+            <span>Карта</span>
             <b>${city.name}</b>
           </div>
 
-          <div class="home-player-chip">
-            <b>${state.nickname || 'Игрок'}</b>
-            <span>${money(city.startMoney)}</span>
+          <div class="home-map-player">
+            ${state.nickname || 'Игрок'}
           </div>
-        </header>
-
-        <section class="home-panel" id="homePanel">
-          <div class="home-panel-kicker">Карта города</div>
-          <h2>${city.name}</h2>
-          <p>${city.tagline || 'Город открыт для развития. Выбирай район на карте и начинай движение.'}</p>
-          <small>Двойной клик — приблизить / сбросить · Колесо или pinch — zoom</small>
-        </section>
+        </div>
       </section>
     </main>
   `;
@@ -285,14 +227,4 @@ register('home', (root) => {
   const map = root.querySelector('.city-map-frame');
 
   enableMapControls(stage, map);
-
-  root.querySelector('.map-points').addEventListener('click', (event) => {
-    const button = event.target.closest('.map-point');
-    if (!button) return;
-
-    const point = POINTS[button.dataset.point];
-    if (!point) return;
-
-    setPanel(root, point, city);
-  });
 });
