@@ -79,15 +79,26 @@ register('home', (root) => {
 
   root.dataset.city = cityId;
 
-  root.innerHTML = `
-    <main class="home-gameplay">
-      <img
-        class="city-map-image"
-        src="${mapSrc}"
-        alt="${city.name}"
-        loading="eager"
-        decoding="async"
-      />
-    </main>
-  `;
-});
+root.innerHTML = `
+  <main
+    class="home-gameplay"
+    style="
+      --sun-x: 72%;
+      --sun-y: 18%;
+      --light-power: 0.72;
+      --night-power: 0;
+      --map-brightness: 0.92;
+    "
+  >
+    <img
+      class="city-map-image"
+      src="${mapSrc}"
+      alt="${city.name}"
+      loading="eager"
+      decoding="async"
+    />
+
+    <div class="map-night"></div>
+    <div class="map-light"></div>
+  </main>
+`;
