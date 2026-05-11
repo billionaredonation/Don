@@ -277,6 +277,7 @@ register('home', (root) => {
     <main class="home-gameplay">
       <section class="gta-map-stage">
         <div class="gta-map-bg"></div>
+        <div class="gta-stars"></div>
         <div class="gta-sky-light"></div>
 
         <div class="gta-water">
