@@ -24,17 +24,83 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+/* ============================================================
+   SVG-МАСКА ГОРОДА С РВАНЫМ КРАЕМ
+   ============================================================
+   Координаты заданы в системе 1000x1000 (см. viewBox).
+   Это органический силуэт "город у реки" — основной массив
+   суши плюс несколько обособленных кусочков (острова/районы),
+   чтобы край смотрелся натурально, а не как один овал.
+
+   Если у тебя появится точный GeoJSON города — просто
+   замени массивы ниже на свои [x, y] в координатах 0..1000.
+   ============================================================ */
+const CITY_SHAPES = [
+  // Основной массив города
+  [
+    [180, 210], [240, 170], [320, 150], [410, 140], [490, 155],
+    [560, 175], [620, 200], [680, 230], [730, 270], [770, 320],
+    [800, 380], [820, 450], [830, 520], [820, 590], [800, 650],
+    [760, 700], [710, 740], [650, 770], [580, 790], [510, 800],
+    [440, 795], [370, 780], [310, 755], [260, 720], [220, 680],
+    [195, 630], [180, 575], [170, 515], [165, 450], [165, 385],
+    [170, 320], [175, 260],
+  ],
+  // Островок / район 1
+  [
+    [120, 470], [150, 440], [165, 470], [155, 510], [125, 515], [110, 495],
+  ],
+  // Островок / район 2
+  [
+    [840, 280], [870, 270], [885, 295], [875, 320], [850, 325], [835, 305],
+  ],
+  // Островок / район 3
+  [
+    [600, 850], [640, 840], [665, 865], [655, 890], [615, 895], [595, 875],
+  ],
+];
+
+function shapeToPath(points) {
+  return points.reduce((acc, [px, py], i) => {
+    return acc + (i === 0 ? `M${px},${py}` : `L${px},${py}`);
+  }, '') + 'Z';
+}
+
+function buildCityMaskDataUrl() {
+  const paths = CITY_SHAPES.map(shapeToPath).join(' ');
+
+  const svg = `
+<svg xmlns="[w3.org](http://www.w3.org/2000/svg)" viewBox="0 0 1000 1000" preserveAspectRatio="none">
+  <defs>
+    <filter id="tear" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="38" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+  <g filter="url(#tear)">
+    <path d="${paths}" fill="white"/>
+  </g>
+</svg>`.trim();
+
+  const encoded = encodeURIComponent(svg)
+    .replace(/'/g, '%27')
+    .replace(/"/g, '%22');
+
+  return `url("data:image/svg+xml;charset=utf-8,${encoded}")`;
+}
+
+/* ============================================================ */
+
 function enableMapControls(stage, viewport) {
-  const MIN_SCALE = 0.6;     // отдаление — видна вода вокруг карты
-  const MAX_SCALE = 9;       // приближение вплотную
-  const WORLD_FACTOR = 1.6;  // во сколько раз "мир" больше экрана
+  const MIN_SCALE = 0.6;
+  const MAX_SCALE = 9;
+  const WORLD_FACTOR = 1.6;
 
   let scale = 1;
   let x = 0;
   let y = 0;
   let worldSize = 0;
 
-  // drag (одним пальцем / мышью)
   let isDragging = false;
   let activePointerId = null;
   let startX = 0;
@@ -42,7 +108,6 @@ function enableMapControls(stage, viewport) {
   let startMapX = 0;
   let startMapY = 0;
 
-  // pinch (двумя пальцами)
   const pointers = new Map();
   let pinchStartDist = 0;
   let pinchStartScale = 1;
@@ -72,8 +137,6 @@ function enableMapControls(stage, viewport) {
     x = clamp(x, -limits.maxX, limits.maxX);
     y = clamp(y, -limits.maxY, limits.maxY);
 
-    // Центрирование + пан + зум в одном transform.
-    // translate(-50%,-50%) перебивает CSS-смещение, поэтому в CSS его нет.
     viewport.style.transform =
       `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
 
@@ -112,7 +175,6 @@ function enableMapControls(stage, viewport) {
       startMapX = x;
       startMapY = y;
     } else if (pointers.size === 2) {
-      // переход в pinch — отключаем drag
       isDragging = false;
       activePointerId = null;
 
@@ -157,7 +219,6 @@ function enableMapControls(stage, viewport) {
     }
 
     if (pointers.size === 1) {
-      // выход из pinch обратно в drag — без рывка
       const [remainingId] = [...pointers.keys()];
       const p = pointers.get(remainingId);
 
@@ -284,6 +345,9 @@ register('home', (root) => {
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
+
+  // Подключаем рваную SVG-маску города
+  viewport.style.setProperty('--mask-url', buildCityMaskDataUrl());
 
   enableMapControls(stage, viewport);
 });
