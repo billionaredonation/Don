@@ -895,6 +895,24 @@ body,
   box-shadow: 0 0 18px rgba(90, 150, 220, 0.22);
 }
 
+.home[data-weather="rain"] .gta-map-image {
+  filter:
+    grayscale(1)
+    saturate(0)
+    contrast(2.55)
+    brightness(1.62)
+    drop-shadow(0 0 1px rgba(255,255,255,0.75))
+    drop-shadow(0 0 5px rgba(160,205,255,0.7))
+    drop-shadow(0 0 18px rgba(75,130,210,0.52));
+}
+
+.home[data-weather="rain"] .gta-weather-badge {
+  color: #d7ebff;
+  background: rgba(70, 120, 170, 0.18);
+  border-color: rgba(165, 210, 255, 0.24);
+  box-shadow: 0 0 18px rgba(90, 150, 220, 0.22);
+}
+
 .home[data-weather="cloudy"] .gta-map-image {
   filter:
     grayscale(1)
