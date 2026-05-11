@@ -197,57 +197,63 @@ register('home', (root) => {
 
   root.dataset.city = cityId;
 
-  root.innerHTML = `
-    <main class="home-gameplay">
-      <section class="gta-map-stage">
-        <div class="gta-map-bg"></div>
+root.innerHTML = `
+  <main class="home-gameplay">
+    <section class="gta-map-stage">
+      <div class="gta-map-bg"></div>
 
-        <div class="gta-map-viewport">
-          <img
-            class="gta-map-image"
-            src="${mapSrc}"
-            alt="${city.name}"
-            loading="eager"
-            decoding="async"
-          />
+      <div class="gta-water">
+        <div class="gta-water-layer water-main"></div>
+        <div class="gta-water-layer water-light"></div>
+        <div class="gta-water-layer water-lines"></div>
+      </div>
 
-          <div class="gta-map-markers">
-            <button class="gta-marker marker-work" type="button">
-              <span></span>
-              <b>Робота</b>
-            </button>
+      <div class="gta-map-viewport">
+        <img
+          class="gta-map-image"
+          src="${mapSrc}"
+          alt="${city.name}"
+          loading="eager"
+          decoding="async"
+        />
 
-            <button class="gta-marker marker-base" type="button">
-              <span></span>
-              <b>База</b>
-            </button>
+        <div class="gta-map-markers">
+          <button class="gta-marker marker-work" type="button">
+            <span></span>
+            <b>Робота</b>
+          </button>
 
-            <button class="gta-marker marker-market" type="button">
-              <span></span>
-              <b>Ринок</b>
-            </button>
-          </div>
+          <button class="gta-marker marker-base" type="button">
+            <span></span>
+            <b>База</b>
+          </button>
+
+          <button class="gta-marker marker-market" type="button">
+            <span></span>
+            <b>Ринок</b>
+          </button>
+        </div>
+      </div>
+
+      <header class="gta-map-header">
+        <div class="gta-map-title">
+          <span>MN MAP</span>
+          <strong>${city.name}</strong>
         </div>
 
-        <header class="gta-map-header">
-          <div class="gta-map-title">
-            <span>MN MAP</span>
-            <strong>${city.name}</strong>
-          </div>
+        <div class="gta-map-player">
+          ${state.nickname || 'Игрок'}
+        </div>
+      </header>
 
-          <div class="gta-map-player">
-            ${state.nickname || 'Игрок'}
-          </div>
-        </header>
-
-        <footer class="gta-map-footer">
-          <span>Колесо / pinch — масштаб</span>
-          <span>Перетаскивай карту</span>
-          <span>Двойной клик — сброс</span>
-        </footer>
-      </section>
-    </main>
-  `;
+      <footer class="gta-map-footer">
+        <span>Колесо / pinch — масштаб</span>
+        <span>Перетаскивай карту</span>
+        <span>Двойной клик — сброс</span>
+      </footer>
+    </section>
+  </main>
+`;
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
