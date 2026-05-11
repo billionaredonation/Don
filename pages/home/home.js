@@ -21,8 +21,7 @@ function getCityMap(city) {
 }
 
 function getUserDayMode() {
-  const hour = new Date().getHours();
-  return hour >= 6 && hour < 19 ? 'day' : 'night';
+  return 'day';
 }
 
 function clamp(value, min, max) {
