@@ -293,10 +293,13 @@ register('home', (root) => {
         </div>
 
         <header class="gta-map-header">
-        <div class="gta-map-title">
-          <strong>${city.name}</strong>
-          </div>
-          <div class="gta-map-player">
+          <div class="gta-map-title">
+            <span class="gta-time-badge">
+            ${getUserDayMode() === 'day' ? '☀ День' : '☾ Ночь'}
+                </span>
+              <strong>${city.name}</strong>
+              </div>
+             <div class="gta-map-player">
             ${state.nickname || 'Игрок'}
           </div>
         </header>
