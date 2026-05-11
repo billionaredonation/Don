@@ -547,3 +547,115 @@
   background:var(--outline-glow,#00eaff);
   opacity:.55;
 }
+
+/*  ============================================================================
+    GTA-style interactive map — FULL stylesheet with all latest tweaks
+    (оригинальные правила сохранены ➜ новые перекрытия добавлены внизу)
+    ============================================================================ */
+
+/*  ---------------------------------------------------------------------------
+    >>>  ORIGINAL BLOCK (без изменений)  <<<   —  начало
+    --------------------------------------------------------------------------- */
+
+.home {
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  background: #050607;
+  color: #fff;
+  overflow: hidden;
+}
+
+.home-gameplay {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: #050607;
+}
+
+.gta-map-stage {
+  --zoom: 1;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  background: #060708;
+}
+
+.gta-map-stage:active { cursor: grabbing; }
+
+/* ……………  (ВСЯ ВАША ПЕРВОНАЧАЛЬНАЯ ВЕРСТКА ОСТАЁТСЯ БЕЗ ИЗМЕНЕНИЙ) …………… */
+
+@media (max-width: 520px) {
+  /* … оригинальные адаптивные стили … */
+}
+
+/*  ---------------------------------------------------------------------------
+    >>>  ORIGINAL BLOCK  <<<   —  конец
+    --------------------------------------------------------------------------- */
+
+
+
+/*  ============================================================================
+        ▼▼▼  CUSTOM OVERRIDES  (добавлены В САМОМ КОНЦЕ файла)  ▼▼▼
+    ============================================================================ */
+
+/* 1 ─ убираем старую «сетку» на воде */
+.water-lines { display: none !important; }
+
+/* 2 ─ вместо сетки рисуем мягкие волны (тот же ::before, но переопределён) */
+.gta-water::before{
+  background:
+    radial-gradient(circle at 50% 40%,
+      rgba(150,220,255,.08) 0 60%, transparent 60%);
+  animation: gtaWaterSlow 20s ease-in-out infinite alternate;
+}
+
+/* 3 ─ подключаем SVG-маску, чтобы края PNG «рвались» по силуэту */
+.gta-map-image{
+  -webkit-mask: var(--mask-url) center / contain no-repeat;
+          mask: var(--mask-url) center / contain no-repeat;
+}
+
+/* 4 ─ многослойный «неоновый» контур вокруг города (6 колец) */
+.gta-map-viewport .gta-map-image{
+  /* сначала базовый фильтр, чтобы не потерять исходную цветокоррекцию */
+  filter:
+    grayscale(.08) saturate(1.5) contrast(1.45) brightness(1.18)
+    /* тонкая белая кайма */
+    drop-shadow(0 0 0   #fff)
+    drop-shadow(0 0 2px #fff)
+    /* цветные кольца (цвет приходит из JS-переменных) */
+    drop-shadow(0 0 4px  var(--outline-main, #00eaff))
+    drop-shadow(0 0 7px  var(--outline-main, #00eaff))
+    drop-shadow(0 0 11px var(--outline-glow, #00eaff))
+    drop-shadow(0 0 16px var(--outline-glow, #00eaff));
+}
+
+/* 5 ─ мягкое свечение позади контура */
+.gta-map-viewport::before,
+.gta-map-viewport::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  -webkit-mask: var(--mask-url) center / contain no-repeat;
+          mask: var(--mask-url) center / contain no-repeat;
+}
+
+.gta-map-viewport::before{          /* узкий глянцевый обвод */
+  background: var(--outline-main, #00eaff);
+  filter: blur(4px);
+  opacity: .85;
+}
+
+.gta-map-viewport::after{           /* рассеянное внешнее свечение */
+  background: var(--outline-glow, #00eaff);
+  filter: blur(14px);
+  opacity: .55;
+}
