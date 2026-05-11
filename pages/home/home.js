@@ -20,10 +20,7 @@ function getCityMap(city) {
   const mapPath = String(city.map || '').replace(/^\.?\//, '');
   const mapFileName = mapPath.split('/').pop();
 
-  return (
-    getMapByFileName(mapFileName) ||
-    getMapByFileName('UkraineMap.png')
-  );
+  return getMapByFileName(mapFileName) || getMapByFileName('UkraineMap.png');
 }
 
 register('home', (root) => {
@@ -42,19 +39,20 @@ register('home', (root) => {
 
   root.dataset.city = cityId;
 
-root.innerHTML = `
-  <main class="home-gameplay">
-    <div class="home-map-island">
-      <img
-        class="city-map-image"
-        src="${mapSrc}"
-        alt="${city.name}"
-        loading="eager"
-        decoding="async"
-      />
-    </div>
+  root.innerHTML = `
+    <main class="home-gameplay">
+      <div class="home-map-island">
+        <img
+          class="city-map-image"
+          src="${mapSrc}"
+          alt="${city.name}"
+          loading="eager"
+          decoding="async"
+        />
+      </div>
 
-    <div class="map-night"></div>
-    <div class="map-light"></div>
-  </main>
-`;
+      <div class="map-night"></div>
+      <div class="map-light"></div>
+    </main>
+  `;
+});
