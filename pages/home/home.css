@@ -521,3 +521,29 @@
     drop-shadow(0 0 6px  var(--outline-main, #00eaff))
     drop-shadow(0 0 18px var(--outline-glow, #00eaff));
 }
+
+
+/* ------------------------------------------------------------------
+   4. Светящаяся обводка, независимая от содержания PNG
+   ------------------------------------------------------------------ */
+.gta-map-viewport::before,
+.gta-map-viewport::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:var(--outline-main,#00eaff);
+  -webkit-mask:var(--mask-url) center/contain no-repeat;
+          mask:var(--mask-url) center/contain no-repeat;
+}
+
+.gta-map-viewport::before{          /* «тонкий» ободок */
+  filter:blur(4px);
+  opacity:.85;
+}
+
+.gta-map-viewport::after{           /* рассеянное свечение */
+  filter:blur(14px);
+  background:var(--outline-glow,#00eaff);
+  opacity:.55;
+}
