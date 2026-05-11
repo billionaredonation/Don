@@ -48,11 +48,110 @@
     100% 100%;
 }
 
+.gta-water {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(130, 235, 255, 0.18), transparent 26%),
+    radial-gradient(circle at 76% 78%, rgba(0, 120, 180, 0.22), transparent 34%),
+    linear-gradient(180deg, #063746 0%, #052431 48%, #02080e 100%);
+}
+
+.gta-water::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  z-index: 1;
+  background:
+    repeating-linear-gradient(
+      116deg,
+      transparent 0 26px,
+      rgba(160, 240, 255, 0.075) 27px,
+      transparent 29px 72px
+    ),
+    repeating-linear-gradient(
+      24deg,
+      transparent 0 38px,
+      rgba(255, 255, 255, 0.045) 39px,
+      transparent 41px 96px
+    );
+  opacity: 0.7;
+  mix-blend-mode: screen;
+  animation: gtaWaterFlowA 16s linear infinite;
+}
+
+.gta-water::after {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  z-index: 2;
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(160, 245, 255, 0.22), transparent 22%),
+    radial-gradient(ellipse at 70% 42%, rgba(90, 210, 255, 0.14), transparent 28%),
+    radial-gradient(ellipse at 48% 82%, rgba(255, 255, 255, 0.08), transparent 24%);
+  opacity: 0.75;
+  mix-blend-mode: screen;
+  animation: gtaWaterGlow 9s ease-in-out infinite alternate;
+}
+
+.gta-water-layer {
+  position: absolute;
+  inset: -25%;
+  pointer-events: none;
+}
+
+.water-main {
+  z-index: 0;
+  background:
+    conic-gradient(
+      from 210deg at 50% 45%,
+      rgba(255,255,255,0.02),
+      rgba(80,210,240,0.11),
+      rgba(0,50,80,0.08),
+      rgba(255,255,255,0.025),
+      rgba(80,210,240,0.1)
+    );
+  opacity: 0.9;
+  animation: gtaWaterSlow 28s ease-in-out infinite alternate;
+}
+
+.water-light {
+  z-index: 3;
+  opacity: 0.42;
+  mix-blend-mode: screen;
+  background:
+    repeating-radial-gradient(
+      ellipse at 50% 50%,
+      transparent 0 22px,
+      rgba(190, 250, 255, 0.045) 23px,
+      transparent 25px 58px
+    );
+  animation: gtaWaterPulse 7s ease-in-out infinite alternate;
+}
+
+.water-lines {
+  z-index: 4;
+  opacity: 0.34;
+  mix-blend-mode: screen;
+  background:
+    linear-gradient(90deg, transparent, rgba(180, 245, 255, 0.08), transparent),
+    repeating-linear-gradient(
+      102deg,
+      transparent 0 54px,
+      rgba(170, 240, 255, 0.07) 55px,
+      transparent 57px 128px
+    );
+  animation: gtaWaterFlowB 12s linear infinite;
+}
+
 .gta-map-stage::before {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
   background:
     linear-gradient(90deg, rgba(0,0,0,0.48) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.48) 100%),
@@ -147,8 +246,7 @@
   background: rgba(5, 7, 9, 0.76);
   border: 1px solid rgba(255,255,255,0.16);
   color: rgba(255,255,255,0.92);
-  font-size: calc(10px / var(--zoom));
-  min-font-size: 8px;
+  font-size: clamp(8px, calc(10px / var(--zoom)), 10px);
   font-weight: 1000;
   letter-spacing: 0.04em;
   backdrop-filter: blur(10px);
@@ -261,142 +359,6 @@
   }
 }
 
-@media (max-width: 520px) {
-  .gta-map-bg {
-    background-size:
-      36px 36px,
-      36px 36px,
-      100% 100%,
-      100% 100%;
-  }
-
-  .gta-map-title,
-  .gta-map-player {
-    border-radius: 14px;
-  }
-
-  .gta-map-title {
-    padding: 9px 11px;
-  }
-
-  .gta-map-title strong {
-    font-size: 15px;
-  }
-
-  .gta-map-player {
-    padding: 10px 11px;
-    font-size: 13px;
-  }
-
-  .gta-map-footer {
-    gap: 6px;
-  }
-
-  .gta-map-footer span {
-    padding: 6px 9px;
-    font-size: 10px;
-  }
-}
-
-.gta-water {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  overflow: hidden;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 28% 18%, rgba(130, 235, 255, 0.18), transparent 26%),
-    radial-gradient(circle at 76% 78%, rgba(0, 120, 180, 0.22), transparent 34%),
-    linear-gradient(180deg, #063746 0%, #052431 48%, #02080e 100%);
-}
-
-.gta-water::before {
-  content: "";
-  position: absolute;
-  inset: -30%;
-  z-index: 1;
-  background:
-    repeating-linear-gradient(
-      116deg,
-      transparent 0 26px,
-      rgba(160, 240, 255, 0.075) 27px,
-      transparent 29px 72px
-    ),
-    repeating-linear-gradient(
-      24deg,
-      transparent 0 38px,
-      rgba(255, 255, 255, 0.045) 39px,
-      transparent 41px 96px
-    );
-  opacity: 0.7;
-  mix-blend-mode: screen;
-  animation: gtaWaterFlowA 16s linear infinite;
-}
-
-.gta-water::after {
-  content: "";
-  position: absolute;
-  inset: -25%;
-  z-index: 2;
-  background:
-    radial-gradient(ellipse at 20% 30%, rgba(160, 245, 255, 0.22), transparent 22%),
-    radial-gradient(ellipse at 70% 42%, rgba(90, 210, 255, 0.14), transparent 28%),
-    radial-gradient(ellipse at 48% 82%, rgba(255, 255, 255, 0.08), transparent 24%);
-  opacity: 0.75;
-  mix-blend-mode: screen;
-  animation: gtaWaterGlow 9s ease-in-out infinite alternate;
-}
-
-.gta-water-layer {
-  position: absolute;
-  inset: -25%;
-  pointer-events: none;
-}
-
-.water-main {
-  z-index: 0;
-  background:
-    conic-gradient(
-      from 210deg at 50% 45%,
-      rgba(255,255,255,0.02),
-      rgba(80,210,240,0.11),
-      rgba(0,50,80,0.08),
-      rgba(255,255,255,0.025),
-      rgba(80,210,240,0.1)
-    );
-  opacity: 0.9;
-  animation: gtaWaterSlow 28s ease-in-out infinite alternate;
-}
-
-.water-light {
-  z-index: 3;
-  opacity: 0.42;
-  mix-blend-mode: screen;
-  background:
-    repeating-radial-gradient(
-      ellipse at 50% 50%,
-      transparent 0 22px,
-      rgba(190, 250, 255, 0.045) 23px,
-      transparent 25px 58px
-    );
-  animation: gtaWaterPulse 7s ease-in-out infinite alternate;
-}
-
-.water-lines {
-  z-index: 4;
-  opacity: 0.34;
-  mix-blend-mode: screen;
-  background:
-    linear-gradient(90deg, transparent, rgba(180, 245, 255, 0.08), transparent),
-    repeating-linear-gradient(
-      102deg,
-      transparent 0 54px,
-      rgba(170, 240, 255, 0.07) 55px,
-      transparent 57px 128px
-    );
-  animation: gtaWaterFlowB 12s linear infinite;
-}
-
 @keyframes gtaWaterFlowA {
   from {
     transform: translate3d(0, 0, 0) rotate(0deg) scale(1.05);
@@ -448,5 +410,42 @@
   to {
     transform: scale(1.08);
     opacity: 0.46;
+  }
+}
+
+@media (max-width: 520px) {
+  .gta-map-bg {
+    background-size:
+      36px 36px,
+      36px 36px,
+      100% 100%,
+      100% 100%;
+  }
+
+  .gta-map-title,
+  .gta-map-player {
+    border-radius: 14px;
+  }
+
+  .gta-map-title {
+    padding: 9px 11px;
+  }
+
+  .gta-map-title strong {
+    font-size: 15px;
+  }
+
+  .gta-map-player {
+    padding: 10px 11px;
+    font-size: 13px;
+  }
+
+  .gta-map-footer {
+    gap: 6px;
+  }
+
+  .gta-map-footer span {
+    padding: 6px 9px;
+    font-size: 10px;
   }
 }
