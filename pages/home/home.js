@@ -50,15 +50,12 @@ function enableMapControls(stage, map) {
     };
   }
 
-  function clampPosition() {
+  function applyTransform() {
     const limits = getLimits();
 
     x = clamp(x, -limits.maxX, limits.maxX);
     y = clamp(y, -limits.maxY, limits.maxY);
-  }
 
-  function applyTransform() {
-    clampPosition();
     map.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
   }
 
@@ -138,7 +135,6 @@ function enableMapControls(stage, map) {
     if (event.touches.length === 1 && dragging) {
       x = startMapX + event.touches[0].clientX - startX;
       y = startMapY + event.touches[0].clientY - startY;
-
       applyTransform();
     }
 
@@ -199,6 +195,16 @@ register('home', (root) => {
   root.innerHTML = `
     <main class="home-gameplay">
       <section class="home-map-stage">
+        <div class="map-bg-grid"></div>
+        <div class="map-bg-radar"></div>
+
+        <div class="map-island island-a"></div>
+        <div class="map-island island-b"></div>
+        <div class="map-island island-c"></div>
+
+        <div class="map-route route-a"></div>
+        <div class="map-route route-b"></div>
+
         <div class="city-map-frame">
           <img
             class="city-map-image"
@@ -209,15 +215,36 @@ register('home', (root) => {
           />
         </div>
 
+        <div class="map-marker marker-work">
+          <span></span>
+          <b>WORK</b>
+        </div>
+
+        <div class="map-marker marker-home">
+          <span></span>
+          <b>BASE</b>
+        </div>
+
+        <div class="map-marker marker-market">
+          <span></span>
+          <b>MARKET</b>
+        </div>
+
         <div class="home-map-ui">
           <div class="home-map-title">
-            <span>Карта</span>
+            <span>MN CITY MAP</span>
             <b>${city.name}</b>
           </div>
 
           <div class="home-map-player">
             ${state.nickname || 'Игрок'}
           </div>
+        </div>
+
+        <div class="map-side-panel">
+          <span>STATUS</span>
+          <b>ONLINE</b>
+          <small>move / zoom / explore</small>
         </div>
       </section>
     </main>
