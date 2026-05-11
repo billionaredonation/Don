@@ -168,17 +168,16 @@
     radial-gradient(circle at center, transparent 58%, rgba(0,0,0,0.48) 100%);
 }
 
+/* viewport теперь это «мир»: квадрат больше экрана, без обрезки */
 .gta-map-viewport {
   position: absolute;
   left: 50%;
   top: 50%;
   z-index: 3;
-  width: 100vw;
-  height: 100dvh;
-  translate: -50% -50%;
-  transform-origin: center;
+  width: 0;       /* реальный размер ставится в JS (measureWorld) */
+  height: 0;
+  transform-origin: center center;
   will-change: transform;
-  overflow: hidden;
 }
 
 .gta-map-image {
@@ -187,17 +186,17 @@
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
+  object-fit: contain;          /* было cover — больше не растягивает */
   object-position: center;
   background: transparent;
   mix-blend-mode: screen;
   image-rendering: auto;
   filter:
-    grayscale(0.1)
-    saturate(1.6)
-    contrast(1.55)
-    brightness(1.22)
-    drop-shadow(0 0 18px rgba(190, 245, 255, 0.08));
+    grayscale(0.08)
+    saturate(1.5)
+    contrast(1.45)
+    brightness(1.18)
+    drop-shadow(0 0 22px rgba(190, 245, 255, 0.1));
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
@@ -253,19 +252,21 @@
   box-shadow: 0 10px 22px rgba(0,0,0,0.4);
 }
 
+/* Координаты маркеров — в процентах относительно "мира" (квадрат 1.6× экрана).
+   Подкорректируй под реальные точки на UkraineMap.png. */
 .marker-work {
-  left: 46%;
-  top: 43%;
+  left: 50%;
+  top: 42%;
 }
 
 .marker-base {
   left: 56%;
-  top: 58%;
+  top: 56%;
 }
 
 .marker-market {
-  left: 66%;
-  top: 47%;
+  left: 64%;
+  top: 48%;
 }
 
 .gta-map-header {
