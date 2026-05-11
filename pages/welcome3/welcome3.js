@@ -1,5 +1,5 @@
 import { register, show } from '../../src/router.js';
-import { state, save, getState } from '../../src/state.js';
+import { state, save, getState, createAndSavePlayer } from '../../src/state.js';
 import { citiesBase } from '../../src/data/citiesBase.js';
 import { getInflation, getDevaluation, getStateAssetsShare } from '../../src/lib/economy.js';
 
@@ -956,34 +956,51 @@ function createSvgLayer(target, mode) {
 
   confirmCityBtn.addEventListener('click', confirmCity);
 
-nextBtn.addEventListener('click', () => {
+nextBtn.addEventListener('click', async () => {
   if (!selectedRegion) {
+    return;
+  }
+
+  const nickname =
+    state.nickname ||
+    state.player?.nickname ||
+    '';
+
+  if (!nickname) {
+    show('welcome2');
     return;
   }
 
   const finalCityId = normalizeCityId(selectedRegion.cityId);
 
-  state.city = finalCityId;
-  state.cityId = finalCityId;
-  state.cityName = selectedRegion.cityName;
-  state.regionId = selectedRegion.regionId;
+  nextBtn.disabled = true;
+  nextBtn.classList.remove('active');
+  nextBtn.textContent = 'Сохраняем...';
 
-  if (!state.player) {
-    state.player = {};
+  try {
+    await createAndSavePlayer({
+      nickname,
+      city: finalCityId,
+      cityId: finalCityId,
+      cityName: selectedRegion.cityName,
+      regionId: selectedRegion.regionId,
+    });
+
+    show('preload', {
+      next: 'home',
+      mode: 'first-start',
+    });
+  } catch (error) {
+    console.warn('[welcome3] create player failed:', error);
+
+    nextBtn.disabled = false;
+    nextBtn.classList.add('active');
+    nextBtn.textContent = 'Далее';
+
+    alert('Не удалось сохранить игрока. Проверь интернет и попробуй ещё раз.');
   }
-
-  state.player.city = finalCityId;
-  state.player.cityId = finalCityId;
-  state.player.cityName = selectedRegion.cityName;
-  state.player.regionId = selectedRegion.regionId;
-
-  save();
-
-  show('preload', {
-    next: 'home',
-    mode: 'first-start',
-  });
 });
+  
   compactMap.addEventListener('click', () => {
     openMapBtn.click();
   });
