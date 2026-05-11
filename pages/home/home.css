@@ -846,103 +846,109 @@ body,
 
 .home[data-weather="rain"] .gta-weather-clouds,
 .home[data-weather="cloudy"] .gta-weather-clouds {
-  opacity: 0.72;
+  opacity: 0.9;
   background:
-    radial-gradient(ellipse at 18% 18%, rgba(190, 210, 225, 0.16), transparent 34%),
-    radial-gradient(ellipse at 54% 24%, rgba(125, 150, 170, 0.16), transparent 38%),
-    radial-gradient(ellipse at 84% 32%, rgba(85, 105, 125, 0.18), transparent 36%),
+    radial-gradient(ellipse at 18% 12%, rgba(190, 210, 225, 0.14), transparent 36%),
+    radial-gradient(ellipse at 52% 20%, rgba(125, 145, 165, 0.16), transparent 42%),
+    radial-gradient(ellipse at 88% 18%, rgba(80, 100, 120, 0.16), transparent 40%),
+    radial-gradient(ellipse at 42% 70%, rgba(150, 175, 195, 0.06), transparent 48%),
     linear-gradient(180deg,
-      rgba(145, 170, 190, 0.11) 0%,
-      rgba(60, 75, 90, 0.08) 38%,
-      transparent 76%);
-  filter: blur(18px);
-  animation: gtaCloudDrift 32s ease-in-out infinite alternate;
+      rgba(125, 150, 170, 0.16) 0%,
+      rgba(45, 60, 75, 0.1) 42%,
+      rgba(5, 10, 14, 0.02) 100%);
+  filter: blur(22px);
+  mix-blend-mode: screen;
+  animation: gtaCloudDrift 42s ease-in-out infinite alternate;
 }
 
 .home[data-weather="rain"] .gta-weather-rain {
-  opacity: 0.54;
+  opacity: 0.78;
   background:
-    repeating-linear-gradient(
-      104deg,
-      transparent 0px,
-      transparent 16px,
-      rgba(185, 215, 255, 0.16) 17px,
-      rgba(185, 215, 255, 0.16) 18px,
-      transparent 19px,
-      transparent 38px
-    );
-  background-size: 240px 240px;
-  filter: blur(0.7px);
+    radial-gradient(circle at 12% 8%, rgba(210, 230, 255, 0.28) 0 0.8px, transparent 1.6px),
+    radial-gradient(circle at 28% 22%, rgba(210, 230, 255, 0.18) 0 0.7px, transparent 1.5px),
+    radial-gradient(circle at 44% 12%, rgba(210, 230, 255, 0.22) 0 0.8px, transparent 1.6px),
+    radial-gradient(circle at 61% 28%, rgba(210, 230, 255, 0.16) 0 0.7px, transparent 1.5px),
+    radial-gradient(circle at 77% 10%, rgba(210, 230, 255, 0.24) 0 0.8px, transparent 1.6px),
+    radial-gradient(circle at 92% 24%, rgba(210, 230, 255, 0.18) 0 0.7px, transparent 1.5px);
+  background-size:
+    92px 138px,
+    128px 164px,
+    156px 190px,
+    112px 150px,
+    174px 210px,
+    140px 176px;
+  filter: blur(0.25px);
   mix-blend-mode: screen;
-  animation: gtaRainFallSoft 0.95s linear infinite;
+  animation: gtaRainFine 0.62s linear infinite;
 }
 
-.home[data-weather="rain"] .gta-map-image {
-  filter:
-    grayscale(1)
-    saturate(0)
-    contrast(2.55)
-    brightness(1.62)
-    drop-shadow(0 0 1px rgba(255,255,255,0.75))
-    drop-shadow(0 0 5px rgba(160,205,255,0.7))
-    drop-shadow(0 0 18px rgba(75,130,210,0.52));
+.home[data-weather="rain"] .gta-map-weather::before {
+  content: "";
+  position: absolute;
+  inset: -6%;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.32;
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(180, 210, 235, 0.16), transparent 48%),
+    radial-gradient(ellipse at 50% 84%, rgba(90, 125, 160, 0.1), transparent 56%),
+    linear-gradient(180deg,
+      rgba(135, 165, 190, 0.12) 0%,
+      transparent 38%,
+      rgba(40, 70, 105, 0.08) 100%);
+  filter: blur(14px);
+  mix-blend-mode: screen;
+  animation: gtaRainMist 8s ease-in-out infinite alternate;
 }
 
-.home[data-weather="rain"] .gta-weather-badge {
-  color: #d7ebff;
-  background: rgba(70, 120, 170, 0.18);
-  border-color: rgba(165, 210, 255, 0.24);
-  box-shadow: 0 0 18px rgba(90, 150, 220, 0.22);
+.home[data-weather="rain"] .gta-map-weather::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0.18;
+  background:
+    linear-gradient(180deg,
+      rgba(220, 235, 255, 0.08) 0%,
+      transparent 18%,
+      transparent 72%,
+      rgba(120, 170, 220, 0.08) 100%);
+  filter: blur(8px);
+  mix-blend-mode: screen;
 }
 
-.home[data-weather="rain"] .gta-map-image {
-  filter:
-    grayscale(1)
-    saturate(0)
-    contrast(2.55)
-    brightness(1.62)
-    drop-shadow(0 0 1px rgba(255,255,255,0.75))
-    drop-shadow(0 0 5px rgba(160,205,255,0.7))
-    drop-shadow(0 0 18px rgba(75,130,210,0.52));
-}
-
-.home[data-weather="rain"] .gta-weather-badge {
-  color: #d7ebff;
-  background: rgba(70, 120, 170, 0.18);
-  border-color: rgba(165, 210, 255, 0.24);
-  box-shadow: 0 0 18px rgba(90, 150, 220, 0.22);
-}
-
-.home[data-weather="cloudy"] .gta-map-image {
-  filter:
-    grayscale(1)
-    saturate(0)
-    contrast(2.35)
-    brightness(1.95)
-    drop-shadow(0 0 1px rgba(255,255,255,0.82))
-    drop-shadow(0 0 8px rgba(180,205,220,0.58))
-    drop-shadow(0 0 22px rgba(110,135,160,0.34));
-}
-
-.home[data-weather="cloudy"] .gta-weather-badge {
-  color: #e5eef6;
-  background: rgba(130, 150, 165, 0.16);
-  border-color: rgba(210, 225, 235, 0.2);
-}
-
-.home[data-weather="clear"] .gta-weather-badge {
-  color: #f3fbff;
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.14);
-}
-
-@keyframes gtaRainFallSoft {
+@keyframes gtaRainFine {
   from {
-    background-position: 0 -240px;
+    background-position:
+      0 -138px,
+      0 -164px,
+      0 -190px,
+      0 -150px,
+      0 -210px,
+      0 -176px;
   }
 
   to {
-    background-position: -70px 240px;
+    background-position:
+      -16px 138px,
+      -22px 164px,
+      -28px 190px,
+      -18px 150px,
+      -32px 210px,
+      -24px 176px;
+  }
+}
+
+@keyframes gtaRainMist {
+  from {
+    transform: translate3d(-12px, -6px, 0) scale(1.04);
+    opacity: 0.24;
+  }
+
+  to {
+    transform: translate3d(16px, 8px, 0) scale(1.1);
+    opacity: 0.38;
   }
 }
 
