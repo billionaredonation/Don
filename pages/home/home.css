@@ -37,8 +37,8 @@
   inset: 0;
   z-index: 0;
   background:
-    radial-gradient(circle at 50% 45%, rgba(80, 160, 185, 0.16), transparent 42%),
-    linear-gradient(180deg, #071820 0%, #031017 45%, #010407 100%);
+    radial-gradient(circle at 50% 45%, rgba(55, 125, 145, 0.16), transparent 44%),
+    linear-gradient(180deg, #06131a 0%, #030b10 48%, #010305 100%);
 }
 
 .gta-water {
@@ -49,10 +49,10 @@
   pointer-events: none;
   background:
     radial-gradient(circle at 50% 50%,
-      rgba(20, 105, 130, 0.22) 0%,
-      rgba(5, 38, 52, 0.72) 48%,
-      rgba(1, 8, 13, 0.96) 100%),
-    linear-gradient(180deg, #063142 0%, #031722 54%, #010508 100%);
+      rgba(15, 75, 92, 0.42) 0%,
+      rgba(5, 31, 43, 0.88) 48%,
+      rgba(1, 7, 11, 0.98) 100%),
+    linear-gradient(180deg, #04151d 0%, #031018 50%, #010407 100%);
 }
 
 .gta-water::before {
@@ -61,11 +61,11 @@
   inset: -20%;
   z-index: 1;
   background:
-    radial-gradient(ellipse at 24% 28%, rgba(115, 210, 235, 0.08), transparent 28%),
-    radial-gradient(ellipse at 78% 68%, rgba(40, 135, 170, 0.09), transparent 32%),
-    radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.035), transparent 48%);
-  opacity: 0.75;
-  filter: blur(12px);
+    radial-gradient(ellipse at 24% 28%, rgba(115, 210, 235, 0.06), transparent 30%),
+    radial-gradient(ellipse at 78% 68%, rgba(40, 135, 170, 0.06), transparent 34%),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.022), transparent 50%);
+  opacity: 0.55;
+  filter: blur(14px);
   animation: gtaWaterSoftMove 14s ease-in-out infinite alternate;
 }
 
@@ -75,11 +75,11 @@
   inset: -15%;
   z-index: 2;
   background:
-    linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.025) 48%, transparent 54%),
-    linear-gradient(45deg, transparent 0%, rgba(80,210,240,0.025) 42%, transparent 52%);
-  opacity: 0.35;
-  filter: blur(6px);
-  animation: gtaWaterDrift 20s linear infinite;
+    radial-gradient(circle at 30% 40%, rgba(255,255,255,0.018), transparent 34%),
+    radial-gradient(circle at 70% 64%, rgba(80,210,240,0.018), transparent 38%);
+  opacity: 0.28;
+  filter: blur(10px);
+  animation: gtaWaterDrift 22s linear infinite;
 }
 
 .gta-water-soft {
@@ -87,7 +87,7 @@
   inset: 0;
   z-index: 3;
   background:
-    radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.24) 64%, rgba(0,0,0,0.62) 100%);
+    radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.16) 64%, rgba(0,0,0,0.56) 100%);
 }
 
 .gta-map-stage::before {
@@ -97,8 +97,8 @@
   z-index: 2;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(0,0,0,0.55) 0%, transparent 16%, transparent 84%, rgba(0,0,0,0.55) 100%),
-    linear-gradient(180deg, rgba(0,0,0,0.5) 0%, transparent 18%, transparent 80%, rgba(0,0,0,0.55) 100%);
+    linear-gradient(90deg, rgba(0,0,0,0.48) 0%, transparent 16%, transparent 84%, rgba(0,0,0,0.48) 100%),
+    linear-gradient(180deg, rgba(0,0,0,0.42) 0%, transparent 18%, transparent 80%, rgba(0,0,0,0.48) 100%);
 }
 
 .gta-map-stage::after {
@@ -108,7 +108,7 @@
   z-index: 20;
   pointer-events: none;
   background:
-    radial-gradient(circle at center, transparent 56%, rgba(0,0,0,0.46) 100%);
+    radial-gradient(circle at center, transparent 62%, rgba(0,0,0,0.38) 100%);
 }
 
 .gta-map-viewport {
@@ -125,17 +125,13 @@
 .gta-map-viewport::before {
   content: "";
   position: absolute;
-  inset: -18px;
+  inset: 0;
   z-index: 0;
   pointer-events: none;
-  background:
-    radial-gradient(circle at center,
-      rgba(0, 190, 235, 0.2),
-      rgba(0, 120, 165, 0.08) 44%,
-      transparent 72%);
-  filter: blur(20px);
-  opacity: 0.95;
-  mix-blend-mode: screen;
+  background: rgba(22, 24, 25, 0.88);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.04),
+    0 0 42px rgba(0, 0, 0, 0.75);
 }
 
 .gta-map-viewport::after {
@@ -145,10 +141,10 @@
   z-index: 7;
   pointer-events: none;
   background:
-    radial-gradient(circle at center, transparent 68%, rgba(0,0,0,0.18) 100%);
+    radial-gradient(circle at center, transparent 70%, rgba(0,0,0,0.18) 100%);
   box-shadow:
-    inset 0 0 0 1px rgba(230, 250, 255, 0.08),
-    0 0 28px rgba(0, 190, 235, 0.14);
+    inset 0 0 0 1px rgba(230, 250, 255, 0.07),
+    0 0 22px rgba(0, 0, 0, 0.45);
   mix-blend-mode: screen;
 }
 
@@ -165,12 +161,12 @@
   image-rendering: auto;
   filter:
     grayscale(1)
-    saturate(0.18)
-    contrast(1.68)
-    brightness(0.62)
-    drop-shadow(0 0 3px rgba(230, 250, 255, 0.35))
-    drop-shadow(0 0 18px rgba(0, 185, 230, 0.18));
-  opacity: 0.98;
+    saturate(0)
+    contrast(2.45)
+    brightness(1.35)
+    drop-shadow(0 0 1px rgba(255,255,255,0.9))
+    drop-shadow(0 0 4px rgba(255,255,255,0.28));
+  opacity: 1;
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
@@ -335,12 +331,12 @@
 @keyframes gtaWaterSoftMove {
   from {
     transform: translate3d(-18px, -10px, 0) scale(1.02);
-    opacity: 0.55;
+    opacity: 0.45;
   }
 
   to {
     transform: translate3d(22px, 16px, 0) scale(1.08);
-    opacity: 0.8;
+    opacity: 0.62;
   }
 }
 
