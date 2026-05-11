@@ -36,7 +36,6 @@ function enableMapControls(stage, map) {
   let startMapY = 0;
 
   let lastTouchDistance = 0;
-  let lastTouchCenter = null;
 
   function applyTransform() {
     map.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
@@ -44,12 +43,11 @@ function enableMapControls(stage, map) {
 
   function zoomAt(clientX, clientY, nextScale) {
     const rect = stage.getBoundingClientRect();
-
     const pointX = clientX - rect.left - rect.width / 2;
     const pointY = clientY - rect.top - rect.height / 2;
 
     const oldScale = scale;
-    scale = clamp(nextScale, 1, 4);
+    scale = clamp(nextScale, 0.8, 8);
 
     const factor = scale / oldScale;
 
@@ -62,7 +60,7 @@ function enableMapControls(stage, map) {
   stage.addEventListener('wheel', (event) => {
     event.preventDefault();
 
-    const delta = event.deltaY > 0 ? -0.18 : 0.18;
+    const delta = event.deltaY > 0 ? -0.28 : 0.28;
     zoomAt(event.clientX, event.clientY, scale + delta);
   }, { passive: false });
 
@@ -111,10 +109,6 @@ function enableMapControls(stage, map) {
       const b = event.touches[1];
 
       lastTouchDistance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-      lastTouchCenter = {
-        x: (a.clientX + b.clientX) / 2,
-        y: (a.clientY + b.clientY) / 2,
-      };
     }
   }, { passive: false });
 
@@ -132,25 +126,21 @@ function enableMapControls(stage, map) {
       const b = event.touches[1];
 
       const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-      const center = {
-        x: (a.clientX + b.clientX) / 2,
-        y: (a.clientY + b.clientY) / 2,
-      };
+      const centerX = (a.clientX + b.clientX) / 2;
+      const centerY = (a.clientY + b.clientY) / 2;
 
-      if (lastTouchDistance && lastTouchCenter) {
+      if (lastTouchDistance) {
         const ratio = distance / lastTouchDistance;
-        zoomAt(center.x, center.y, scale * ratio);
+        zoomAt(centerX, centerY, scale * ratio);
       }
 
       lastTouchDistance = distance;
-      lastTouchCenter = center;
     }
   }, { passive: false });
 
   stage.addEventListener('touchend', () => {
     isDragging = false;
     lastTouchDistance = 0;
-    lastTouchCenter = null;
   });
 
   stage.addEventListener('dblclick', (event) => {
@@ -159,9 +149,10 @@ function enableMapControls(stage, map) {
       x = 0;
       y = 0;
       applyTransform();
-    } else {
-      zoomAt(event.clientX, event.clientY, 2);
+      return;
     }
+
+    zoomAt(event.clientX, event.clientY, 2.5);
   });
 
   applyTransform();
@@ -186,19 +177,21 @@ register('home', (root) => {
   root.innerHTML = `
     <main class="home-gameplay">
       <section class="home-map-stage">
-        <img
-          class="city-map-image"
-          src="${mapSrc}"
-          alt="${city.name}"
-          loading="eager"
-          decoding="async"
-        />
+        <div class="city-water-field">
+          <img
+            class="city-map-image"
+            src="${mapSrc}"
+            alt="${city.name}"
+            loading="eager"
+            decoding="async"
+          />
+        </div>
       </section>
     </main>
   `;
 
   const stage = root.querySelector('.home-map-stage');
-  const map = root.querySelector('.city-map-image');
+  const map = root.querySelector('.city-water-field');
 
   enableMapControls(stage, map);
 });
