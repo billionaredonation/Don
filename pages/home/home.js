@@ -29,12 +29,12 @@ function enableMapControls(stage, viewport) {
   let x = 0;
   let y = 0;
 
-  let dragging = false;
+  let isDragging = false;
+  let activePointerId = null;
   let startX = 0;
   let startY = 0;
   let startMapX = 0;
   let startMapY = 0;
-  let lastTouchDistance = 0;
 
   const MIN_SCALE = 1;
   const MAX_SCALE = 9;
@@ -78,17 +78,12 @@ function enableMapControls(stage, viewport) {
     applyTransform();
   }
 
-  stage.addEventListener('wheel', (event) => {
-    event.preventDefault();
-
-    const delta = event.deltaY > 0 ? -0.35 : 0.35;
-    zoomAt(event.clientX, event.clientY, scale + delta);
-  }, { passive: false });
-
   stage.addEventListener('pointerdown', (event) => {
-    if (event.pointerType === 'touch') return;
+    if (event.target.closest('.gta-map-header, .gta-map-footer')) return;
 
-    dragging = true;
+    isDragging = true;
+    activePointerId = event.pointerId;
+
     startX = event.clientX;
     startY = event.clientY;
     startMapX = x;
@@ -98,7 +93,7 @@ function enableMapControls(stage, viewport) {
   });
 
   stage.addEventListener('pointermove', (event) => {
-    if (!dragging) return;
+    if (!isDragging || event.pointerId !== activePointerId) return;
 
     x = startMapX + event.clientX - startX;
     y = startMapY + event.clientY - startY;
@@ -106,63 +101,24 @@ function enableMapControls(stage, viewport) {
     applyTransform();
   });
 
-  stage.addEventListener('pointerup', () => {
-    dragging = false;
+  stage.addEventListener('pointerup', (event) => {
+    if (event.pointerId !== activePointerId) return;
+
+    isDragging = false;
+    activePointerId = null;
   });
 
   stage.addEventListener('pointercancel', () => {
-    dragging = false;
+    isDragging = false;
+    activePointerId = null;
   });
 
-  stage.addEventListener('touchstart', (event) => {
-    if (event.touches.length === 1) {
-      dragging = true;
-      startX = event.touches[0].clientX;
-      startY = event.touches[0].clientY;
-      startMapX = x;
-      startMapY = y;
-    }
-
-    if (event.touches.length === 2) {
-      dragging = false;
-
-      const a = event.touches[0];
-      const b = event.touches[1];
-
-      lastTouchDistance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    }
-  }, { passive: false });
-
-  stage.addEventListener('touchmove', (event) => {
+  stage.addEventListener('wheel', (event) => {
     event.preventDefault();
 
-    if (event.touches.length === 1 && dragging) {
-      x = startMapX + event.touches[0].clientX - startX;
-      y = startMapY + event.touches[0].clientY - startY;
-
-      applyTransform();
-    }
-
-    if (event.touches.length === 2) {
-      const a = event.touches[0];
-      const b = event.touches[1];
-
-      const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-      const centerX = (a.clientX + b.clientX) / 2;
-      const centerY = (a.clientY + b.clientY) / 2;
-
-      if (lastTouchDistance) {
-        zoomAt(centerX, centerY, scale * (distance / lastTouchDistance));
-      }
-
-      lastTouchDistance = distance;
-    }
+    const delta = event.deltaY > 0 ? -0.35 : 0.35;
+    zoomAt(event.clientX, event.clientY, scale + delta);
   }, { passive: false });
-
-  stage.addEventListener('touchend', () => {
-    dragging = false;
-    lastTouchDistance = 0;
-  });
 
   stage.addEventListener('dblclick', (event) => {
     if (scale > 1.1) {
@@ -197,63 +153,63 @@ register('home', (root) => {
 
   root.dataset.city = cityId;
 
-root.innerHTML = `
-  <main class="home-gameplay">
-    <section class="gta-map-stage">
-      <div class="gta-map-bg"></div>
+  root.innerHTML = `
+    <main class="home-gameplay">
+      <section class="gta-map-stage">
+        <div class="gta-map-bg"></div>
 
-      <div class="gta-water">
-        <div class="gta-water-layer water-main"></div>
-        <div class="gta-water-layer water-light"></div>
-        <div class="gta-water-layer water-lines"></div>
-      </div>
-
-      <div class="gta-map-viewport">
-        <img
-          class="gta-map-image"
-          src="${mapSrc}"
-          alt="${city.name}"
-          loading="eager"
-          decoding="async"
-        />
-
-        <div class="gta-map-markers">
-          <button class="gta-marker marker-work" type="button">
-            <span></span>
-            <b>Робота</b>
-          </button>
-
-          <button class="gta-marker marker-base" type="button">
-            <span></span>
-            <b>База</b>
-          </button>
-
-          <button class="gta-marker marker-market" type="button">
-            <span></span>
-            <b>Ринок</b>
-          </button>
-        </div>
-      </div>
-
-      <header class="gta-map-header">
-        <div class="gta-map-title">
-          <span>MN MAP</span>
-          <strong>${city.name}</strong>
+        <div class="gta-water">
+          <div class="gta-water-layer water-main"></div>
+          <div class="gta-water-layer water-light"></div>
+          <div class="gta-water-layer water-lines"></div>
         </div>
 
-        <div class="gta-map-player">
-          ${state.nickname || 'Игрок'}
-        </div>
-      </header>
+        <div class="gta-map-viewport">
+          <img
+            class="gta-map-image"
+            src="${mapSrc}"
+            alt="${city.name}"
+            loading="eager"
+            decoding="async"
+          />
 
-      <footer class="gta-map-footer">
-        <span>Колесо / pinch — масштаб</span>
-        <span>Перетаскивай карту</span>
-        <span>Двойной клик — сброс</span>
-      </footer>
-    </section>
-  </main>
-`;
+          <div class="gta-map-markers">
+            <button class="gta-marker marker-work" type="button">
+              <span></span>
+              <b>Робота</b>
+            </button>
+
+            <button class="gta-marker marker-base" type="button">
+              <span></span>
+              <b>База</b>
+            </button>
+
+            <button class="gta-marker marker-market" type="button">
+              <span></span>
+              <b>Ринок</b>
+            </button>
+          </div>
+        </div>
+
+        <header class="gta-map-header">
+          <div class="gta-map-title">
+            <span>MN MAP</span>
+            <strong>${city.name}</strong>
+          </div>
+
+          <div class="gta-map-player">
+            ${state.nickname || 'Игрок'}
+          </div>
+        </header>
+
+        <footer class="gta-map-footer">
+          <span>Колесо / pinch — масштаб</span>
+          <span>Перетаскивай карту</span>
+          <span>Двойной клик — сброс</span>
+        </footer>
+      </section>
+    </main>
+  `;
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
