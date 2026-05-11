@@ -41,6 +41,13 @@
     linear-gradient(180deg, #06131a 0%, #030b10 48%, #010305 100%);
 }
 
+.gta-sky-light {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
 .gta-water {
   position: absolute;
   inset: 0;
@@ -151,7 +158,7 @@
 .gta-map-image {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
   height: 100%;
   display: block;
@@ -170,6 +177,17 @@
   user-select: none;
   -webkit-user-drag: none;
   pointer-events: none;
+}
+
+.gta-map-glow {
+  z-index: 1;
+  opacity: 0.68;
+  filter: blur(4px);
+  mix-blend-mode: screen;
+}
+
+.gta-map-viewport > .gta-map-image:not(.gta-map-glow) {
+  z-index: 2;
 }
 
 .gta-map-image::selection {
@@ -292,6 +310,20 @@
   font-weight: 900;
 }
 
+.gta-time-badge {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 1000;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .gta-map-footer {
   position: absolute;
   left: 12px;
@@ -327,6 +359,23 @@
     linear-gradient(180deg, #10202a 0%, #07151d 50%, #03080d 100%);
 }
 
+.home[data-time="day"] .gta-sky-light {
+  background:
+    radial-gradient(circle at 78% 16%,
+      rgba(255, 248, 190, 0.95) 0%,
+      rgba(255, 215, 95, 0.48) 5%,
+      rgba(255, 180, 60, 0.18) 13%,
+      transparent 28%),
+    radial-gradient(circle at 78% 16%,
+      rgba(255, 220, 80, 0.28) 0%,
+      transparent 42%),
+    linear-gradient(135deg,
+      rgba(255, 215, 95, 0.16) 0%,
+      transparent 42%);
+  mix-blend-mode: screen;
+  opacity: 0.95;
+}
+
 .home[data-time="day"] .gta-map-stage::before {
   background:
     radial-gradient(circle at 72% 18%, rgba(255, 235, 170, 0.22), transparent 24%),
@@ -347,10 +396,29 @@
   filter:
     grayscale(1)
     saturate(0)
-    contrast(2.25)
-    brightness(2.35)
+    contrast(2.05)
+    brightness(2.95)
+    sepia(0.12)
     drop-shadow(0 0 1px rgba(255,255,255,1))
-    drop-shadow(0 0 7px rgba(255,245,205,0.46));
+    drop-shadow(0 0 4px rgba(255,255,255,0.95))
+    drop-shadow(0 0 12px rgba(255,220,110,0.85))
+    drop-shadow(0 0 26px rgba(255,180,60,0.46));
+}
+
+.home[data-time="day"] .gta-map-glow {
+  opacity: 0.82;
+  filter:
+    blur(5px)
+    brightness(2.8)
+    drop-shadow(0 0 18px rgba(255,210,90,0.75))
+    drop-shadow(0 0 32px rgba(255,175,50,0.42));
+}
+
+.home[data-time="day"] .gta-time-badge {
+  color: #fff3b0;
+  background: rgba(255, 202, 82, 0.16);
+  border: 1px solid rgba(255, 225, 130, 0.24);
+  box-shadow: 0 0 18px rgba(255, 210, 90, 0.18);
 }
 
 .home[data-time="night"] .gta-map-stage {
@@ -362,6 +430,23 @@
     radial-gradient(circle at 24% 20%, rgba(170, 205, 255, 0.28), transparent 13%),
     radial-gradient(circle at 50% 45%, rgba(55, 125, 145, 0.14), transparent 44%),
     linear-gradient(180deg, #06101a 0%, #03090f 52%, #010204 100%);
+}
+
+.home[data-time="night"] .gta-sky-light {
+  background:
+    radial-gradient(circle at 24% 16%,
+      rgba(225, 238, 255, 0.92) 0%,
+      rgba(150, 190, 255, 0.34) 4%,
+      rgba(80, 125, 220, 0.14) 12%,
+      transparent 25%),
+    radial-gradient(circle at 24% 16%,
+      rgba(150, 190, 255, 0.22) 0%,
+      transparent 38%),
+    linear-gradient(145deg,
+      rgba(110, 150, 255, 0.12) 0%,
+      transparent 44%);
+  mix-blend-mode: screen;
+  opacity: 0.85;
 }
 
 .home[data-time="night"] .gta-map-stage::before {
@@ -384,10 +469,28 @@
   filter:
     grayscale(1)
     saturate(0)
-    contrast(2.42)
-    brightness(2.05)
-    drop-shadow(0 0 1px rgba(255,255,255,1))
-    drop-shadow(0 0 7px rgba(175,210,255,0.46));
+    contrast(2.7)
+    brightness(1.85)
+    drop-shadow(0 0 1px rgba(255,255,255,0.85))
+    drop-shadow(0 0 5px rgba(170,205,255,0.85))
+    drop-shadow(0 0 16px rgba(95,145,255,0.62))
+    drop-shadow(0 0 34px rgba(60,100,220,0.34));
+}
+
+.home[data-time="night"] .gta-map-glow {
+  opacity: 0.64;
+  filter:
+    blur(5px)
+    brightness(1.8)
+    drop-shadow(0 0 20px rgba(100,150,255,0.7))
+    drop-shadow(0 0 36px rgba(60,95,220,0.38));
+}
+
+.home[data-time="night"] .gta-time-badge {
+  color: #cfe3ff;
+  background: rgba(115, 160, 255, 0.14);
+  border: 1px solid rgba(170, 205, 255, 0.22);
+  box-shadow: 0 0 18px rgba(130, 175, 255, 0.18);
 }
 
 @keyframes gtaMarkerPulse {
@@ -455,93 +558,4 @@
     padding: 6px 9px;
     font-size: 10px;
   }
-}
-
-
-.gta-time-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  width: fit-content;
-  margin-bottom: 4px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 1000;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.home[data-time="day"] .gta-time-badge {
-  color: #fff3b0;
-  background: rgba(255, 202, 82, 0.16);
-  border: 1px solid rgba(255, 225, 130, 0.24);
-  box-shadow: 0 0 18px rgba(255, 210, 90, 0.18);
-}
-
-.home[data-time="night"] .gta-time-badge {
-  color: #cfe3ff;
-  background: rgba(115, 160, 255, 0.14);
-  border: 1px solid rgba(170, 205, 255, 0.22);
-  box-shadow: 0 0 18px rgba(130, 175, 255, 0.18);
-}
-.gta-sky-light {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.home[data-time="day"] .gta-sky-light {
-  background:
-    radial-gradient(circle at 78% 16%,
-      rgba(255, 248, 190, 0.95) 0%,
-      rgba(255, 215, 95, 0.48) 5%,
-      rgba(255, 180, 60, 0.18) 13%,
-      transparent 28%),
-    radial-gradient(circle at 78% 16%,
-      rgba(255, 220, 80, 0.28) 0%,
-      transparent 42%),
-    linear-gradient(135deg,
-      rgba(255, 215, 95, 0.16) 0%,
-      transparent 42%);
-  mix-blend-mode: screen;
-  opacity: 0.95;
-}
-
-.home[data-time="night"] .gta-sky-light {
-  background:
-    radial-gradient(circle at 24% 16%,
-      rgba(225, 238, 255, 0.92) 0%,
-      rgba(150, 190, 255, 0.34) 4%,
-      rgba(80, 125, 220, 0.14) 12%,
-      transparent 25%),
-    radial-gradient(circle at 24% 16%,
-      rgba(150, 190, 255, 0.22) 0%,
-      transparent 38%),
-    linear-gradient(145deg,
-      rgba(110, 150, 255, 0.12) 0%,
-      transparent 44%);
-  mix-blend-mode: screen;
-  opacity: 0.85;
-}
-
-.home[data-time="day"] .gta-map-image {
-  filter:
-    grayscale(1)
-    saturate(0)
-    contrast(2.1)
-    brightness(2.75)
-    drop-shadow(0 0 1px rgba(255,255,255,1))
-    drop-shadow(0 0 10px rgba(255,225,120,0.68));
-}
-
-.home[data-time="night"] .gta-map-image {
-  filter:
-    grayscale(1)
-    saturate(0)
-    contrast(2.55)
-    brightness(1.75)
-    drop-shadow(0 0 1px rgba(255,255,255,0.9))
-    drop-shadow(0 0 9px rgba(125,170,255,0.58));
 }
