@@ -298,7 +298,6 @@
   }
 }
 
-
 .gta-water {
   position: absolute;
   inset: 0;
@@ -306,79 +305,148 @@
   overflow: hidden;
   pointer-events: none;
   background:
-    radial-gradient(circle at 50% 45%, rgba(32, 125, 145, 0.26), transparent 46%),
-    linear-gradient(180deg, #08151b 0%, #061015 52%, #030608 100%);
+    radial-gradient(circle at 28% 18%, rgba(130, 235, 255, 0.18), transparent 26%),
+    radial-gradient(circle at 76% 78%, rgba(0, 120, 180, 0.22), transparent 34%),
+    linear-gradient(180deg, #063746 0%, #052431 48%, #02080e 100%);
+}
+
+.gta-water::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  z-index: 1;
+  background:
+    repeating-linear-gradient(
+      116deg,
+      transparent 0 26px,
+      rgba(160, 240, 255, 0.075) 27px,
+      transparent 29px 72px
+    ),
+    repeating-linear-gradient(
+      24deg,
+      transparent 0 38px,
+      rgba(255, 255, 255, 0.045) 39px,
+      transparent 41px 96px
+    );
+  opacity: 0.7;
+  mix-blend-mode: screen;
+  animation: gtaWaterFlowA 16s linear infinite;
+}
+
+.gta-water::after {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  z-index: 2;
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(160, 245, 255, 0.22), transparent 22%),
+    radial-gradient(ellipse at 70% 42%, rgba(90, 210, 255, 0.14), transparent 28%),
+    radial-gradient(ellipse at 48% 82%, rgba(255, 255, 255, 0.08), transparent 24%);
+  opacity: 0.75;
+  mix-blend-mode: screen;
+  animation: gtaWaterGlow 9s ease-in-out infinite alternate;
 }
 
 .gta-water-layer {
   position: absolute;
-  inset: -18%;
+  inset: -25%;
   pointer-events: none;
 }
 
 .water-main {
+  z-index: 0;
   background:
-    radial-gradient(ellipse at 30% 28%, rgba(80, 190, 220, 0.18), transparent 26%),
-    radial-gradient(ellipse at 78% 70%, rgba(35, 120, 160, 0.18), transparent 32%),
-    linear-gradient(135deg, rgba(14, 70, 92, 0.52), rgba(2, 12, 18, 0.88));
-  animation: waterMainMove 22s ease-in-out infinite alternate;
+    conic-gradient(
+      from 210deg at 50% 45%,
+      rgba(255,255,255,0.02),
+      rgba(80,210,240,0.11),
+      rgba(0,50,80,0.08),
+      rgba(255,255,255,0.025),
+      rgba(80,210,240,0.1)
+    );
+  opacity: 0.9;
+  animation: gtaWaterSlow 28s ease-in-out infinite alternate;
 }
 
 .water-light {
+  z-index: 3;
+  opacity: 0.42;
   mix-blend-mode: screen;
-  opacity: 0.45;
   background:
-    radial-gradient(ellipse at 22% 40%, rgba(145, 235, 255, 0.16), transparent 22%),
-    radial-gradient(ellipse at 65% 26%, rgba(90, 210, 240, 0.12), transparent 26%),
-    radial-gradient(ellipse at 78% 76%, rgba(110, 220, 255, 0.1), transparent 24%);
-  animation: waterLightMove 13s ease-in-out infinite alternate;
+    repeating-radial-gradient(
+      ellipse at 50% 50%,
+      transparent 0 22px,
+      rgba(190, 250, 255, 0.045) 23px,
+      transparent 25px 58px
+    );
+  animation: gtaWaterPulse 7s ease-in-out infinite alternate;
 }
 
 .water-lines {
-  opacity: 0.28;
+  z-index: 4;
+  opacity: 0.34;
   mix-blend-mode: screen;
   background:
+    linear-gradient(90deg, transparent, rgba(180, 245, 255, 0.08), transparent),
     repeating-linear-gradient(
-      112deg,
-      transparent 0 38px,
-      rgba(160, 235, 255, 0.06) 38px 39px,
-      transparent 39px 76px
-    ),
-    repeating-linear-gradient(
-      18deg,
-      transparent 0 52px,
-      rgba(255, 255, 255, 0.035) 52px 53px,
-      transparent 53px 104px
+      102deg,
+      transparent 0 54px,
+      rgba(170, 240, 255, 0.07) 55px,
+      transparent 57px 128px
     );
-  animation: waterLinesMove 18s linear infinite;
+  animation: gtaWaterFlowB 12s linear infinite;
 }
 
-@keyframes waterMainMove {
+@keyframes gtaWaterFlowA {
   from {
-    transform: translate3d(-20px, -12px, 0) scale(1.04);
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1.05);
+  }
+
+  to {
+    transform: translate3d(-110px, 64px, 0) rotate(0.4deg) scale(1.05);
+  }
+}
+
+@keyframes gtaWaterFlowB {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+
+  to {
+    transform: translate3d(90px, -52px, 0) scale(1.04);
+  }
+}
+
+@keyframes gtaWaterGlow {
+  from {
+    transform: translate3d(-24px, -18px, 0) scale(1.02);
+    opacity: 0.54;
   }
 
   to {
     transform: translate3d(26px, 18px, 0) scale(1.08);
+    opacity: 0.82;
   }
 }
 
-@keyframes waterLightMove {
+@keyframes gtaWaterSlow {
   from {
-    transform: translate3d(18px, -10px, 0) scale(1.02);
+    transform: translate3d(-18px, 10px, 0) rotate(-2deg) scale(1.05);
   }
 
   to {
-    transform: translate3d(-22px, 16px, 0) scale(1.06);
+    transform: translate3d(22px, -14px, 0) rotate(2deg) scale(1.08);
   }
 }
 
-@keyframes waterLinesMove {
+@keyframes gtaWaterPulse {
   from {
-    transform: translate3d(0, 0, 0);
+    transform: scale(1);
+    opacity: 0.22;
   }
 
   to {
-    transform: translate3d(-80px, 48px, 0);
+    transform: scale(1.08);
+    opacity: 0.46;
   }
 }
