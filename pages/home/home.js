@@ -37,17 +37,30 @@ function enableMapControls(stage, map) {
 
   let lastTouchDistance = 0;
 
+  function clampPosition() {
+    const rect = stage.getBoundingClientRect();
+    const mapRect = map.getBoundingClientRect();
+
+    const maxX = Math.max(0, (mapRect.width - rect.width) / 2 + 80);
+    const maxY = Math.max(0, (mapRect.height - rect.height) / 2 + 80);
+
+    x = clamp(x, -maxX, maxX);
+    y = clamp(y, -maxY, maxY);
+  }
+
   function applyTransform() {
+    clampPosition();
     map.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
   }
 
   function zoomAt(clientX, clientY, nextScale) {
     const rect = stage.getBoundingClientRect();
+
     const pointX = clientX - rect.left - rect.width / 2;
     const pointY = clientY - rect.top - rect.height / 2;
 
     const oldScale = scale;
-    scale = clamp(nextScale, 0.8, 8);
+    scale = clamp(nextScale, 1, 10);
 
     const factor = scale / oldScale;
 
@@ -60,7 +73,7 @@ function enableMapControls(stage, map) {
   stage.addEventListener('wheel', (event) => {
     event.preventDefault();
 
-    const delta = event.deltaY > 0 ? -0.28 : 0.28;
+    const delta = event.deltaY > 0 ? -0.35 : 0.35;
     zoomAt(event.clientX, event.clientY, scale + delta);
   }, { passive: false });
 
@@ -118,6 +131,7 @@ function enableMapControls(stage, map) {
     if (event.touches.length === 1 && isDragging) {
       x = startMapX + event.touches[0].clientX - startX;
       y = startMapY + event.touches[0].clientY - startY;
+
       applyTransform();
     }
 
@@ -152,8 +166,10 @@ function enableMapControls(stage, map) {
       return;
     }
 
-    zoomAt(event.clientX, event.clientY, 2.5);
+    zoomAt(event.clientX, event.clientY, 3);
   });
+
+  window.addEventListener('resize', applyTransform);
 
   applyTransform();
 }
@@ -177,7 +193,10 @@ register('home', (root) => {
   root.innerHTML = `
     <main class="home-gameplay">
       <section class="home-map-stage">
-        <div class="city-water-field">
+        <div class="water-layer water-layer-back"></div>
+        <div class="water-layer water-layer-front"></div>
+
+        <div class="city-map-frame">
           <img
             class="city-map-image"
             src="${mapSrc}"
@@ -191,7 +210,7 @@ register('home', (root) => {
   `;
 
   const stage = root.querySelector('.home-map-stage');
-  const map = root.querySelector('.city-water-field');
+  const map = root.querySelector('.city-map-frame');
 
   enableMapControls(stage, map);
 });
