@@ -25,10 +25,16 @@ function clamp(value, min, max) {
 }
 
 function enableMapControls(stage, viewport) {
+  const MIN_SCALE = 0.6;     // отдаление — видна вода вокруг карты
+  const MAX_SCALE = 9;       // приближение вплотную
+  const WORLD_FACTOR = 1.6;  // во сколько раз "мир" больше экрана
+
   let scale = 1;
   let x = 0;
   let y = 0;
+  let worldSize = 0;
 
+  // drag (одним пальцем / мышью)
   let isDragging = false;
   let activePointerId = null;
   let startX = 0;
@@ -36,18 +42,27 @@ function enableMapControls(stage, viewport) {
   let startMapX = 0;
   let startMapY = 0;
 
-  const MIN_SCALE = 1;
-  const MAX_SCALE = 9;
+  // pinch (двумя пальцами)
+  const pointers = new Map();
+  let pinchStartDist = 0;
+  let pinchStartScale = 1;
+  let pinchCenter = { x: 0, y: 0 };
+
+  function measureWorld() {
+    const rect = stage.getBoundingClientRect();
+    worldSize = Math.max(rect.width, rect.height) * WORLD_FACTOR;
+    viewport.style.width = `${worldSize}px`;
+    viewport.style.height = `${worldSize}px`;
+  }
 
   function getLimits() {
     const rect = stage.getBoundingClientRect();
-
-    const mapWidth = rect.width * scale;
-    const mapHeight = rect.height * scale;
+    const w = worldSize * scale;
+    const h = worldSize * scale;
 
     return {
-      maxX: Math.max(0, (mapWidth - rect.width) / 2),
-      maxY: Math.max(0, (mapHeight - rect.height) / 2),
+      maxX: Math.max(0, (w - rect.width) / 2),
+      maxY: Math.max(0, (h - rect.height) / 2),
     };
   }
 
@@ -57,7 +72,11 @@ function enableMapControls(stage, viewport) {
     x = clamp(x, -limits.maxX, limits.maxX);
     y = clamp(y, -limits.maxY, limits.maxY);
 
-    viewport.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+    // Центрирование + пан + зум в одном transform.
+    // translate(-50%,-50%) перебивает CSS-смещение, поэтому в CSS его нет.
+    viewport.style.transform =
+      `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+
     stage.style.setProperty('--zoom', scale.toFixed(2));
   }
 
@@ -81,43 +100,91 @@ function enableMapControls(stage, viewport) {
   stage.addEventListener('pointerdown', (event) => {
     if (event.target.closest('.gta-map-header, .gta-map-footer')) return;
 
-    isDragging = true;
-    activePointerId = event.pointerId;
-
-    startX = event.clientX;
-    startY = event.clientY;
-    startMapX = x;
-    startMapY = y;
-
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     stage.setPointerCapture(event.pointerId);
+
+    if (pointers.size === 1) {
+      isDragging = true;
+      activePointerId = event.pointerId;
+
+      startX = event.clientX;
+      startY = event.clientY;
+      startMapX = x;
+      startMapY = y;
+    } else if (pointers.size === 2) {
+      // переход в pinch — отключаем drag
+      isDragging = false;
+      activePointerId = null;
+
+      const [p1, p2] = [...pointers.values()];
+      pinchStartDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      pinchStartScale = scale;
+      pinchCenter = {
+        x: (p1.x + p2.x) / 2,
+        y: (p1.y + p2.y) / 2,
+      };
+    }
   });
 
   stage.addEventListener('pointermove', (event) => {
-    if (!isDragging || event.pointerId !== activePointerId) return;
+    if (!pointers.has(event.pointerId)) return;
 
-    x = startMapX + event.clientX - startX;
-    y = startMapY + event.clientY - startY;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
-    applyTransform();
+    if (pointers.size === 2) {
+      const [p1, p2] = [...pointers.values()];
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+
+      if (pinchStartDist > 0) {
+        const nextScale = pinchStartScale * (dist / pinchStartDist);
+        zoomAt(pinchCenter.x, pinchCenter.y, nextScale);
+      }
+      return;
+    }
+
+    if (isDragging && event.pointerId === activePointerId) {
+      x = startMapX + event.clientX - startX;
+      y = startMapY + event.clientY - startY;
+      applyTransform();
+    }
   });
 
-  stage.addEventListener('pointerup', (event) => {
-    if (event.pointerId !== activePointerId) return;
+  function endPointer(event) {
+    pointers.delete(event.pointerId);
 
-    isDragging = false;
-    activePointerId = null;
-  });
+    if (pointers.size < 2) {
+      pinchStartDist = 0;
+    }
 
-  stage.addEventListener('pointercancel', () => {
-    isDragging = false;
-    activePointerId = null;
-  });
+    if (pointers.size === 1) {
+      // выход из pinch обратно в drag — без рывка
+      const [remainingId] = [...pointers.keys()];
+      const p = pointers.get(remainingId);
+
+      isDragging = true;
+      activePointerId = remainingId;
+      startX = p.x;
+      startY = p.y;
+      startMapX = x;
+      startMapY = y;
+    }
+
+    if (pointers.size === 0) {
+      isDragging = false;
+      activePointerId = null;
+    }
+  }
+
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
+  stage.addEventListener('pointerleave', endPointer);
 
   stage.addEventListener('wheel', (event) => {
     event.preventDefault();
 
-    const delta = event.deltaY > 0 ? -0.35 : 0.35;
-    zoomAt(event.clientX, event.clientY, scale + delta);
+    const delta = event.deltaY > 0 ? -0.12 : 0.12;
+    const factor = 1 + delta;
+    zoomAt(event.clientX, event.clientY, scale * factor);
   }, { passive: false });
 
   stage.addEventListener('dblclick', (event) => {
@@ -132,8 +199,12 @@ function enableMapControls(stage, viewport) {
     zoomAt(event.clientX, event.clientY, 2.7);
   });
 
-  window.addEventListener('resize', applyTransform);
+  window.addEventListener('resize', () => {
+    measureWorld();
+    applyTransform();
+  });
 
+  measureWorld();
   applyTransform();
 }
 
