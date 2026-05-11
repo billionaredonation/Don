@@ -43,6 +43,10 @@ register('welcome2', (root) => {
   const error = root.querySelector('#nicknameError');
   const nextBtn = root.querySelector('#nextBtn');
 
+  if (state.nickname) {
+    input.value = state.nickname;
+  }
+
   function setInvalid(message) {
     error.textContent = message;
     nextBtn.disabled = true;
@@ -94,7 +98,12 @@ register('welcome2', (root) => {
       return;
     }
 
-    state.nickname = input.value.trim();
+    const nickname = input.value.trim();
+
+    state.nickname = nickname;
+    state.player = state.player || {};
+    state.player.nickname = nickname;
+
     save();
 
     show('welcome3');
