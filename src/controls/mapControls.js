@@ -35,6 +35,7 @@ export function enableMapControls(stage, viewport) {
   let pendingApply = false;
 
   const pointers = new Map();
+
   let pinchStartDist = 0;
   let pinchStartScale = 1;
   let pinchCenter = { x: 0, y: 0 };
@@ -102,6 +103,7 @@ export function enableMapControls(stage, viewport) {
     const pointY = clientY - rect.top - rect.height / 2;
 
     const oldScale = scale;
+
     scale = clamp(nextScale, MIN_SCALE, MAX_SCALE);
 
     const factor = scale / oldScale;
@@ -113,9 +115,19 @@ export function enableMapControls(stage, viewport) {
   }
 
   function onPointerDown(event) {
-    if (event.target.closest('.gta-map-header')) return;
+    if (
+      event.target.closest('.gta-map-header') ||
+      event.target.closest('.mobile-controls-layer') ||
+      event.target.closest('.mobile-joystick')
+    ) {
+      return;
+    }
 
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+
     stage.setPointerCapture(event.pointerId);
 
     if (pointers.size === 1) {
@@ -124,6 +136,7 @@ export function enableMapControls(stage, viewport) {
 
       startX = event.clientX;
       startY = event.clientY;
+
       startMapX = x;
       startMapY = y;
     } else if (pointers.size === 2) {
@@ -132,8 +145,13 @@ export function enableMapControls(stage, viewport) {
 
       const [p1, p2] = [...pointers.values()];
 
-      pinchStartDist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      pinchStartDist = Math.hypot(
+        p2.x - p1.x,
+        p2.y - p1.y
+      );
+
       pinchStartScale = scale;
+
       pinchCenter = {
         x: (p1.x + p2.x) / 2,
         y: (p1.y + p2.y) / 2,
@@ -144,14 +162,25 @@ export function enableMapControls(stage, viewport) {
   function onPointerMove(event) {
     if (!pointers.has(event.pointerId)) return;
 
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    pointers.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
 
     if (pointers.size === 2) {
       const [p1, p2] = [...pointers.values()];
-      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+
+      const dist = Math.hypot(
+        p2.x - p1.x,
+        p2.y - p1.y
+      );
 
       if (pinchStartDist > 0) {
-        zoomAt(pinchCenter.x, pinchCenter.y, pinchStartScale * (dist / pinchStartDist));
+        zoomAt(
+          pinchCenter.x,
+          pinchCenter.y,
+          pinchStartScale * (dist / pinchStartDist)
+        );
       }
 
       return;
@@ -160,6 +189,7 @@ export function enableMapControls(stage, viewport) {
     if (isDragging && event.pointerId === activePointerId) {
       x = startMapX + event.clientX - startX;
       y = startMapY + event.clientY - startY;
+
       applyTransform();
     }
   }
@@ -180,6 +210,7 @@ export function enableMapControls(stage, viewport) {
 
       startX = p.x;
       startY = p.y;
+
       startMapX = x;
       startMapY = y;
     }
@@ -194,7 +225,12 @@ export function enableMapControls(stage, viewport) {
     event.preventDefault();
 
     const delta = event.deltaY > 0 ? -0.12 : 0.12;
-    zoomAt(event.clientX, event.clientY, scale * (1 + delta));
+
+    zoomAt(
+      event.clientX,
+      event.clientY,
+      scale * (1 + delta)
+    );
   }
 
   function onDoubleClick(event) {
@@ -202,11 +238,16 @@ export function enableMapControls(stage, viewport) {
       scale = 1;
       x = 0;
       y = 0;
+
       applyTransform();
       return;
     }
 
-    zoomAt(event.clientX, event.clientY, lowPower ? 2 : 2.35);
+    zoomAt(
+      event.clientX,
+      event.clientY,
+      lowPower ? 2 : 2.35
+    );
   }
 
   function onResize() {
@@ -219,8 +260,13 @@ export function enableMapControls(stage, viewport) {
   stage.addEventListener('pointerup', endPointer);
   stage.addEventListener('pointercancel', endPointer);
   stage.addEventListener('pointerleave', endPointer);
-  stage.addEventListener('wheel', onWheel, { passive: false });
+
+  stage.addEventListener('wheel', onWheel, {
+    passive: false,
+  });
+
   stage.addEventListener('dblclick', onDoubleClick);
+
   window.addEventListener('resize', onResize);
 
   measureWorld();
@@ -234,6 +280,7 @@ export function enableMapControls(stage, viewport) {
     stage.removeEventListener('pointerleave', endPointer);
     stage.removeEventListener('wheel', onWheel);
     stage.removeEventListener('dblclick', onDoubleClick);
+
     window.removeEventListener('resize', onResize);
   };
 }
