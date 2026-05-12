@@ -3,7 +3,9 @@ import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
 import {
+  getLocalPlayerId,
   getOrCreatePlayerPosition,
+  getCityPlayers,
   updatePlayerPosition,
 } from '../../src/player/playerPosition.js';
 
@@ -283,6 +285,25 @@ function enableMapControls(stage, viewport) {
   applyTransform();
 }
 
+function renderPlayersHtml(players, localPlayerId) {
+  return players
+    .map((player) => {
+      const isSelf = player.playerId === localPlayerId;
+
+      return `
+        <div
+          class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
+          style="left: ${player.x}%; top: ${player.y}%;"
+          data-player-id="${player.playerId}"
+        >
+          <span></span>
+          <b>${player.nickname || 'Игрок'}</b>
+        </div>
+      `;
+    })
+    .join('');
+}
+
 function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) {
   if (!marker || !playerPosition) return;
 
@@ -406,6 +427,7 @@ register('home', async (root) => {
   const city = getCityConfig(cityId);
   const dayMode = getUserDayMode();
   const nickname = state.nickname || 'Игрок';
+  const localPlayerId = getLocalPlayerId();
 
   let weather = getFallbackWeather();
 
@@ -425,11 +447,33 @@ register('home', async (root) => {
     console.warn('[home] player position loading failed:', error);
 
     playerPosition = {
+      playerId: localPlayerId,
       x: 50,
       y: 50,
       nickname,
     };
   }
+
+  let cityPlayers = [];
+
+  try {
+    cityPlayers = await getCityPlayers(cityId);
+  } catch (error) {
+    console.warn('[home] city players loading failed:', error);
+    cityPlayers = [playerPosition];
+  }
+
+  const hasSelf = cityPlayers.some((player) => player.playerId === localPlayerId);
+
+  if (!hasSelf) {
+    cityPlayers.unshift({
+      ...playerPosition,
+      playerId: localPlayerId,
+      nickname,
+    });
+  }
+
+  const playersHtml = renderPlayersHtml(cityPlayers, localPlayerId);
 
   if (state.city !== cityId) {
     state.city = cityId;
@@ -469,13 +513,7 @@ register('home', async (root) => {
           </div>
 
           <div class="gta-map-entities">
-            <div
-              class="gta-player-marker gta-player-marker-self"
-              style="left: ${playerPosition.x}%; top: ${playerPosition.y}%;"
-            >
-              <span></span>
-              <b>${playerPosition.nickname || nickname}</b>
-            </div>
+            ${playersHtml}
           </div>
 
           <img
@@ -520,7 +558,7 @@ register('home', async (root) => {
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
-  const playerMarker = root.querySelector('.gta-player-marker-self');
+  const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
 
   enableMapControls(stage, viewport);
   enableKeyboardPlayerMovement(playerMarker, playerPosition, cityId, nickname);
