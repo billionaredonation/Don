@@ -13,6 +13,7 @@ import {
 
 import { enableMapControls, isLowPowerDevice } from '../../src/controls/mapControls.js';
 import { enableKeyboardPlayerMovement } from '../../src/controls/keyboardMovement.js';
+import { enableMobileJoystick } from '../../src/controls/mobileJoystick.js';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
@@ -287,6 +288,8 @@ register('home', async (root) => {
             ${nickname}
           </div>
         </header>
+
+        <div class="mobile-controls-layer"></div>
       </section>
     </main>
   `;
@@ -295,6 +298,7 @@ register('home', async (root) => {
   const viewport = root.querySelector('.gta-map-viewport');
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
+  const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
 
   const movementChannel = createCityMovementChannel(cityId, {
     onMove(player) {
@@ -304,6 +308,15 @@ register('home', async (root) => {
   });
 
   const cleanupMovement = enableKeyboardPlayerMovement(
+    playerMarker,
+    playerPosition,
+    cityId,
+    nickname,
+    movementChannel
+  );
+
+  const cleanupMobileJoystick = enableMobileJoystick(
+    mobileControlsLayer,
     playerMarker,
     playerPosition,
     cityId,
@@ -342,6 +355,7 @@ register('home', async (root) => {
 
   root._cleanupHome = () => {
     cleanupMovement?.();
+    cleanupMobileJoystick?.();
     cleanupMapControls?.();
     cleanupRealtime?.();
     cleanupStalePlayers?.();
