@@ -1206,3 +1206,59 @@ body,
 .home[data-performance="low"] .gta-time-badge {
   backdrop-filter: none;
 }
+
+
+.mobile-controls-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.mobile-joystick {
+  position: absolute;
+  left: 22px;
+  bottom: 28px;
+  width: 124px;
+  height: 124px;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+
+.mobile-joystick-base {
+  position: relative;
+  width: 124px;
+  height: 124px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18), rgba(255,255,255,0.05));
+  border: 1px solid rgba(255,255,255,0.22);
+  box-shadow:
+    0 18px 45px rgba(0,0,0,0.45),
+    inset 0 0 28px rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px);
+}
+
+.mobile-joystick-stick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%) translate3d(0, 0, 0);
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0.26));
+  border: 1px solid rgba(255,255,255,0.35);
+  box-shadow:
+    0 10px 26px rgba(0,0,0,0.5),
+    inset 0 0 14px rgba(255,255,255,0.16);
+  will-change: transform;
+}
+
+@media (min-width: 769px) and (pointer: fine) {
+  .mobile-controls-layer {
+    display: none;
+  }
+}
