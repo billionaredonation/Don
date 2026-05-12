@@ -1126,3 +1126,16 @@ body,
     opacity: 1;
   }
 }
+
+
+.gta-player-marker-other span {
+  background: #ffffff;
+  box-shadow:
+    0 0 0 4px rgba(255,255,255,0.1),
+    0 0 14px rgba(255,255,255,0.72),
+    0 0 26px rgba(170,190,255,0.52);
+}
+
+.gta-player-marker-other b {
+  opacity: 0.82;
+}
