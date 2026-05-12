@@ -134,21 +134,7 @@ export async function updatePlayerPosition({ cityId, nickname, x, y }) {
   return normalizePosition(data);
 }
 
-export async function setPlayerOffline() {
-  const playerId = getLocalPlayerId();
 
-  const { error } = await supabase
-    .from('player_positions')
-    .update({
-      is_online: false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('player_id', playerId);
-
-  if (error) {
-    throw error;
-  }
-}
 
 export async function getCityPlayers(cityId) {
   const aliveSince = new Date(Date.now() - 5000).toISOString();
