@@ -25,6 +25,7 @@ function normalizePosition(row) {
     cityId: row.city_id,
     x: Number(row.x),
     y: Number(row.y),
+    isOnline: row.is_online ?? true,
     updatedAt: row.updated_at,
   };
 }
@@ -39,7 +40,33 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     .maybeSingle();
 
   if (!selectError && currentPosition && currentPosition.city_id === cityId) {
-    return normalizePosition(currentPosition);
+    const nextPosition = {
+      player_id: playerId,
+      nickname: nickname || 'Игрок',
+      city_id: cityId,
+      x: currentPosition.x,
+      y: currentPosition.y,
+      is_online: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: refreshedPosition, error: refreshError } = await supabase
+      .from('player_positions')
+      .upsert(nextPosition, {
+        onConflict: 'player_id',
+      })
+      .select('*')
+      .single();
+
+    if (!refreshError && refreshedPosition) {
+      return normalizePosition(refreshedPosition);
+    }
+
+    return normalizePosition({
+      ...currentPosition,
+      is_online: true,
+      updated_at: new Date().toISOString(),
+    });
   }
 
   const spawn = getRandomSpawnPoint(cityId);
@@ -50,6 +77,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     city_id: cityId,
     x: spawn.x,
     y: spawn.y,
+    is_online: true,
     updated_at: new Date().toISOString(),
   };
 
@@ -70,13 +98,13 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
       cityId,
       x: spawn.x,
       y: spawn.y,
+      isOnline: true,
       updatedAt: new Date().toISOString(),
     };
   }
 
   return normalizePosition(savedPosition);
 }
-
 
 export async function updatePlayerPosition({ cityId, nickname, x, y }) {
   const playerId = getLocalPlayerId();
@@ -87,6 +115,7 @@ export async function updatePlayerPosition({ cityId, nickname, x, y }) {
     city_id: cityId,
     x,
     y,
+    is_online: true,
     updated_at: new Date().toISOString(),
   };
 
@@ -105,11 +134,31 @@ export async function updatePlayerPosition({ cityId, nickname, x, y }) {
   return normalizePosition(data);
 }
 
+export async function setPlayerOffline() {
+  const playerId = getLocalPlayerId();
+
+  const { error } = await supabase
+    .from('player_positions')
+    .update({
+      is_online: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('player_id', playerId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function getCityPlayers(cityId) {
+  const aliveSince = new Date(Date.now() - 5000).toISOString();
+
   const { data, error } = await supabase
     .from('player_positions')
     .select('*')
     .eq('city_id', cityId)
+    .eq('is_online', true)
+    .gte('updated_at', aliveSince)
     .order('updated_at', { ascending: false })
     .limit(50);
 
@@ -133,11 +182,25 @@ export function subscribeCityPlayers(cityId, handlers = {}) {
       },
       (payload) => {
         if (payload.eventType === 'INSERT' && payload.new) {
-          handlers.onInsert?.(normalizePosition(payload.new));
+          const player = normalizePosition(payload.new);
+
+          if (player.isOnline) {
+            handlers.onInsert?.(player);
+          }
+
+          return;
         }
 
         if (payload.eventType === 'UPDATE' && payload.new) {
-          handlers.onUpdate?.(normalizePosition(payload.new));
+          const player = normalizePosition(payload.new);
+
+          if (player.isOnline) {
+            handlers.onUpdate?.(player);
+          } else {
+            handlers.onDelete?.(player.playerId);
+          }
+
+          return;
         }
 
         if (payload.eventType === 'DELETE' && payload.old) {
