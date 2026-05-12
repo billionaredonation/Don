@@ -151,3 +151,33 @@ export function subscribeCityPlayers(cityId, handlers = {}) {
     supabase.removeChannel(channel);
   };
 }
+
+export function createCityMovementChannel(cityId, handlers = {}) {
+  const channel = supabase.channel(`city_movement_${cityId}`, {
+    config: {
+      broadcast: {
+        self: false,
+      },
+    },
+  });
+
+  channel.on('broadcast', { event: 'player_move' }, (payload) => {
+    handlers.onMove?.(payload.payload);
+  });
+
+  channel.subscribe();
+
+  return {
+    sendMove(player) {
+      channel.send({
+        type: 'broadcast',
+        event: 'player_move',
+        payload: player,
+      });
+    },
+
+    unsubscribe() {
+      supabase.removeChannel(channel);
+    },
+  };
+}
