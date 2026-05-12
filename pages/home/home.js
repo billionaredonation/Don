@@ -2,7 +2,10 @@ import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
-import { getOrCreatePlayerPosition } from '../../src/player/playerPosition.js';
+import {
+  getOrCreatePlayerPosition,
+  updatePlayerPosition,
+} from '../../src/player/playerPosition.js';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
@@ -280,12 +283,129 @@ function enableMapControls(stage, viewport) {
   applyTransform();
 }
 
+function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) {
+  if (!marker || !playerPosition) return;
+
+  const keys = new Set();
+  const SPEED = 0.12;
+  const SAVE_DELAY = 450;
+
+  let x = Number(playerPosition.x) || 50;
+  let y = Number(playerPosition.y) || 50;
+  let animationId = null;
+  let saveTimer = null;
+  let destroyed = false;
+
+  function renderPlayer() {
+    x = clamp(x, 0, 100);
+    y = clamp(y, 0, 100);
+
+    marker.style.left = `${x}%`;
+    marker.style.top = `${y}%`;
+  }
+
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+
+    saveTimer = setTimeout(async () => {
+      try {
+        await updatePlayerPosition({
+          cityId,
+          nickname,
+          x,
+          y,
+        });
+      } catch (error) {
+        console.warn('[home] player position update failed:', error);
+      }
+    }, SAVE_DELAY);
+  }
+
+  function loop() {
+    if (destroyed) return;
+
+    let moved = false;
+
+    if (keys.has('w') || keys.has('ц')) {
+      y -= SPEED;
+      moved = true;
+    }
+
+    if (keys.has('s') || keys.has('ы')) {
+      y += SPEED;
+      moved = true;
+    }
+
+    if (keys.has('a') || keys.has('ф')) {
+      x -= SPEED;
+      moved = true;
+    }
+
+    if (keys.has('d') || keys.has('в')) {
+      x += SPEED;
+      moved = true;
+    }
+
+    if (moved) {
+      renderPlayer();
+      scheduleSave();
+    }
+
+    animationId = requestAnimationFrame(loop);
+  }
+
+  function onKeyDown(event) {
+    const tag = document.activeElement?.tagName?.toLowerCase();
+
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    const key = event.key.toLowerCase();
+
+    if (['w', 'a', 's', 'd', 'ц', 'ф', 'ы', 'в'].includes(key)) {
+      event.preventDefault();
+      keys.add(key);
+
+      if (!animationId) {
+        animationId = requestAnimationFrame(loop);
+      }
+    }
+  }
+
+  function onKeyUp(event) {
+    keys.delete(event.key.toLowerCase());
+
+    if (keys.size === 0 && animationId) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+      scheduleSave();
+    }
+  }
+
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keyup', onKeyUp);
+
+  renderPlayer();
+
+  return () => {
+    destroyed = true;
+    clearTimeout(saveTimer);
+
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+    }
+  };
+}
+
 register('home', async (root) => {
   root.className = 'page home';
 
   const cityId = normalizeCityId(state.city);
   const city = getCityConfig(cityId);
   const dayMode = getUserDayMode();
+  const nickname = state.nickname || 'Игрок';
 
   let weather = getFallbackWeather();
 
@@ -300,14 +420,14 @@ register('home', async (root) => {
   let playerPosition = null;
 
   try {
-    playerPosition = await getOrCreatePlayerPosition(cityId, state.nickname || 'Игрок');
+    playerPosition = await getOrCreatePlayerPosition(cityId, nickname);
   } catch (error) {
     console.warn('[home] player position loading failed:', error);
 
     playerPosition = {
       x: 50,
       y: 50,
-      nickname: state.nickname || 'Игрок',
+      nickname,
     };
   }
 
@@ -354,7 +474,7 @@ register('home', async (root) => {
               style="left: ${playerPosition.x}%; top: ${playerPosition.y}%;"
             >
               <span></span>
-              <b>${playerPosition.nickname || state.nickname || 'Игрок'}</b>
+              <b>${playerPosition.nickname || nickname}</b>
             </div>
           </div>
 
@@ -391,7 +511,7 @@ register('home', async (root) => {
           </div>
 
           <div class="gta-map-player">
-            ${state.nickname || 'Игрок'}
+            ${nickname}
           </div>
         </header>
       </section>
@@ -400,6 +520,8 @@ register('home', async (root) => {
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
+  const playerMarker = root.querySelector('.gta-player-marker-self');
 
   enableMapControls(stage, viewport);
+  enableKeyboardPlayerMovement(playerMarker, playerPosition, cityId, nickname);
 });
