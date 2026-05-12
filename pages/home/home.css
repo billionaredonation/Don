@@ -1170,3 +1170,39 @@ body,
     left 0.12s linear,
     top 0.12s linear;
 }
+
+.home[data-performance="low"] .gta-stars,
+.home[data-performance="low"] .gta-weather-heat,
+.home[data-performance="low"] .gta-map-glow {
+  animation: none !important;
+}
+
+.home[data-performance="low"] .gta-water::before,
+.home[data-performance="low"] .gta-water::after {
+  animation: none !important;
+  opacity: 0.22;
+}
+
+.home[data-performance="low"] .gta-player-marker span {
+  animation: none !important;
+}
+
+.home[data-performance="low"] .gta-weather-clouds {
+  filter: blur(10px);
+}
+
+.home[data-performance="low"] .gta-weather-rain {
+  opacity: 0.42;
+  filter: none;
+}
+
+.home[data-performance="low"] .gta-map-image {
+  image-rendering: auto;
+}
+
+.home[data-performance="low"] .gta-map-title,
+.home[data-performance="low"] .gta-map-player,
+.home[data-performance="low"] .gta-weather-badge,
+.home[data-performance="low"] .gta-time-badge {
+  backdrop-filter: none;
+}
