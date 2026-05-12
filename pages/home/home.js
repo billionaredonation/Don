@@ -40,6 +40,26 @@ function getFallbackWeather() {
   };
 }
 
+function getDisplayWeather(weather, dayMode) {
+  if (weather.type !== 'hot') {
+    return weather;
+  }
+
+  if (dayMode === 'night') {
+    return {
+      ...weather,
+      label: 'Тёплая ночь',
+      icon: '🌙',
+      temperature: Math.min(weather.temperature - 5, 25),
+    };
+  }
+
+  return {
+    ...weather,
+    temperature: Math.min(weather.temperature, 32),
+  };
+}
+
 function isLowPowerDevice() {
   const memory = navigator.deviceMemory || 4;
   const cores = navigator.hardwareConcurrency || 4;
@@ -260,27 +280,6 @@ function enableMapControls(stage, viewport) {
   applyTransform();
 }
 
-
-function getDisplayWeather(weather, dayMode) {
-  if (weather.type !== 'hot') {
-    return weather;
-  }
-
-  if (dayMode === 'night') {
-    return {
-      ...weather,
-      label: 'Тёплая ночь',
-      icon: '🌙',
-      temperature: Math.min(weather.temperature - 5, 25),
-    };
-  }
-
-  return {
-    ...weather,
-    temperature: Math.min(weather.temperature, 32),
-  };
-}
-
 register('home', async (root) => {
   root.className = 'page home';
 
@@ -289,12 +288,27 @@ register('home', async (root) => {
   const dayMode = getUserDayMode();
 
   let weather = getFallbackWeather();
-  const displayWeather = getDisplayWeather(weather, dayMode);
 
   try {
     weather = await getCityWeather(cityId);
   } catch (error) {
     console.warn('[home] weather loading failed:', error);
+  }
+
+  const displayWeather = getDisplayWeather(weather, dayMode);
+
+  let playerPosition = null;
+
+  try {
+    playerPosition = await getOrCreatePlayerPosition(cityId, state.nickname || 'Игрок');
+  } catch (error) {
+    console.warn('[home] player position loading failed:', error);
+
+    playerPosition = {
+      x: 50,
+      y: 50,
+      nickname: state.nickname || 'Игрок',
+    };
   }
 
   if (state.city !== cityId) {
@@ -332,6 +346,16 @@ register('home', async (root) => {
             <div class="gta-weather-clouds"></div>
             <div class="gta-weather-rain"></div>
             <div class="gta-weather-heat"></div>
+          </div>
+
+          <div class="gta-map-entities">
+            <div
+              class="gta-player-marker gta-player-marker-self"
+              style="left: ${playerPosition.x}%; top: ${playerPosition.y}%;"
+            >
+              <span></span>
+              <b>${playerPosition.nickname || state.nickname || 'Игрок'}</b>
+            </div>
           </div>
 
           <img
@@ -379,17 +403,3 @@ register('home', async (root) => {
 
   enableMapControls(stage, viewport);
 });
-
-
-let playerPosition = null;
-
-try {
-  playerPosition = await getOrCreatePlayerPosition(cityId, state.nickname || 'Игрок');
-} catch (error) {
-  console.warn('[home] player position loading failed:', error);
-  playerPosition = {
-    x: 50,
-    y: 50,
-    nickname: state.nickname || 'Игрок',
-  };
-}
