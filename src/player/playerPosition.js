@@ -76,3 +76,31 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 
   return normalizePosition(savedPosition);
 }
+
+
+export async function updatePlayerPosition({ cityId, nickname, x, y }) {
+  const playerId = getLocalPlayerId();
+
+  const nextPosition = {
+    player_id: playerId,
+    nickname: nickname || 'Игрок',
+    city_id: cityId,
+    x,
+    y,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('player_positions')
+    .upsert(nextPosition, {
+      onConflict: 'player_id',
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return normalizePosition(data);
+}
