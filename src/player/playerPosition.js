@@ -104,3 +104,18 @@ export async function updatePlayerPosition({ cityId, nickname, x, y }) {
 
   return normalizePosition(data);
 }
+
+export async function getCityPlayers(cityId) {
+  const { data, error } = await supabase
+    .from('player_positions')
+    .select('*')
+    .eq('city_id', cityId)
+    .order('updated_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map(normalizePosition);
+}
