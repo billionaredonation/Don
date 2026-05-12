@@ -9,6 +9,7 @@ import {
   updatePlayerPosition,
   subscribeCityPlayers,
   createCityMovementChannel,
+  setPlayerOffline,
 } from '../../src/player/playerPosition.js';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
@@ -358,6 +359,22 @@ function startStalePlayersCleanup(entities) {
   return () => clearInterval(timer);
 }
 
+function enableOfflineOnExit() {
+  const goOffline = () => {
+    setPlayerOffline().catch((error) => {
+      console.warn('[home] set offline failed:', error);
+    });
+  };
+
+  window.addEventListener('pagehide', goOffline);
+  window.addEventListener('beforeunload', goOffline);
+
+  return () => {
+    window.removeEventListener('pagehide', goOffline);
+    window.removeEventListener('beforeunload', goOffline);
+  };
+}
+
 function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname, movementChannel) {
   if (!marker || !playerPosition) return;
 
@@ -695,6 +712,7 @@ register('home', async (root) => {
   );
 
   const cleanupStalePlayers = startStalePlayersCleanup(entities);
+  const cleanupOffline = enableOfflineOnExit();
 
   let cleanupRealtime = null;
 
@@ -720,6 +738,7 @@ register('home', async (root) => {
     cleanupMovement?.();
     cleanupRealtime?.();
     cleanupStalePlayers?.();
+    cleanupOffline?.();
     movementChannel?.unsubscribe?.();
   };
 
