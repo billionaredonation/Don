@@ -1164,3 +1164,9 @@ body,
 .home[data-performance="low"] .gta-weather-clouds {
   filter: blur(12px);
 }
+
+.gta-player-marker-other {
+  transition:
+    left 0.12s linear,
+    top 0.12s linear;
+}
