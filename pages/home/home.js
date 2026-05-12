@@ -259,6 +259,27 @@ function enableMapControls(stage, viewport) {
   applyTransform();
 }
 
+
+function getDisplayWeather(weather, dayMode) {
+  if (weather.type !== 'hot') {
+    return weather;
+  }
+
+  if (dayMode === 'night') {
+    return {
+      ...weather,
+      label: 'Тёплая ночь',
+      icon: '🌙',
+      temperature: Math.min(weather.temperature - 5, 25),
+    };
+  }
+
+  return {
+    ...weather,
+    temperature: Math.min(weather.temperature, 32),
+  };
+}
+
 register('home', async (root) => {
   root.className = 'page home';
 
@@ -267,6 +288,7 @@ register('home', async (root) => {
   const dayMode = getUserDayMode();
 
   let weather = getFallbackWeather();
+  const displayWeather = getDisplayWeather(weather, dayMode);
 
   try {
     weather = await getCityWeather(cityId);
@@ -337,7 +359,7 @@ register('home', async (root) => {
             </span>
 
             <span class="gta-weather-badge">
-              ${weather.icon} ${weather.label} · ${weather.temperature}°C
+              ${displayWeather.icon} ${displayWeather.label} · ${displayWeather.temperature}°C
             </span>
 
             <strong>${city.name}</strong>
