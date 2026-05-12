@@ -1139,3 +1139,28 @@ body,
 .gta-player-marker-other b {
   opacity: 0.82;
 }
+
+.home[data-performance="low"] .gta-stars,
+.home[data-performance="low"] .gta-weather-heat,
+.home[data-performance="low"] .gta-map-glow {
+  animation: none !important;
+}
+
+.home[data-performance="low"] .gta-water::before,
+.home[data-performance="low"] .gta-water::after {
+  animation: none !important;
+  opacity: 0.24;
+}
+
+.home[data-performance="low"] .gta-player-marker span {
+  animation: none !important;
+}
+
+.home[data-performance="low"] .gta-weather-rain {
+  opacity: 0.45;
+  filter: none;
+}
+
+.home[data-performance="low"] .gta-weather-clouds {
+  filter: blur(12px);
+}
