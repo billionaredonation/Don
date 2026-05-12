@@ -382,8 +382,8 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname, 
 
   const SPEED = 0.12;
   const BROADCAST_INTERVAL = 5;
-  const DB_SAVE_INTERVAL = 1100;
-  const HEARTBEAT_DELAY = 900;
+  const DB_SAVE_INTERVAL = 1000;
+  const HEARTBEAT_DELAY = 700;
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
