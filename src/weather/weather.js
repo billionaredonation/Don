@@ -1,4 +1,5 @@
-const WEATHER_STORAGE_KEY = 'mn_city_weather_v1';
+import { supabase } from '../lib/supabaseClient.js';
+
 const WEATHER_TTL = 45 * 60 * 1000;
 
 const CITY_BASE_TEMPERATURE = {
@@ -34,21 +35,21 @@ const WEATHER_TYPES = [
     type: 'clear',
     label: 'Ясно',
     icon: '☀',
-    chance: 42,
+    chance: 38,
     tempShift: 0,
   },
   {
     type: 'cloudy',
     label: 'Облачно',
     icon: '☁',
-    chance: 24,
+    chance: 26,
     tempShift: -2,
   },
   {
     type: 'rain',
     label: 'Дождь',
     icon: '🌧',
-    chance: 20,
+    chance: 22,
     tempShift: -5,
   },
   {
@@ -59,18 +60,6 @@ const WEATHER_TYPES = [
     tempShift: 8,
   },
 ];
-
-function getStoredWeather() {
-  try {
-    return JSON.parse(localStorage.getItem(WEATHER_STORAGE_KEY)) || {};
-  } catch {
-    return {};
-  }
-}
-
-function saveStoredWeather(data) {
-  localStorage.setItem(WEATHER_STORAGE_KEY, JSON.stringify(data));
-}
 
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -95,43 +84,88 @@ function getBaseTemperature(cityId) {
   return CITY_BASE_TEMPERATURE[cityId] ?? 18;
 }
 
+function normalizeWeatherRow(row) {
+  return {
+    cityId: row.city_id,
+    type: row.weather_type,
+    label: row.label,
+    icon: row.icon,
+    temperature: row.temperature,
+    createdAt: row.created_at,
+    expiresAt: row.expires_at,
+  };
+}
+
 function createWeather(cityId) {
   const selected = pickWeatherType();
   const baseTemp = getBaseTemperature(cityId);
   const randomShift = getRandomInt(-2, 2);
-
-  const temperature = baseTemp + selected.tempShift + randomShift;
+  const now = Date.now();
 
   return {
-    cityId,
-    type: selected.type,
+    city_id: cityId,
+    weather_type: selected.type,
     label: selected.label,
     icon: selected.icon,
-    temperature,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + WEATHER_TTL,
+    temperature: baseTemp + selected.tempShift + randomShift,
+    created_at: new Date(now).toISOString(),
+    expires_at: new Date(now + WEATHER_TTL).toISOString(),
   };
 }
 
-export function getCityWeather(cityId) {
-  const stored = getStoredWeather();
-  const current = stored[cityId];
-
-  if (current && current.expiresAt && Date.now() < current.expiresAt) {
-    return current;
-  }
-
-  const next = createWeather(cityId);
-
-  stored[cityId] = next;
-  saveStoredWeather(stored);
-
-  return next;
+function isWeatherFresh(weather) {
+  if (!weather?.expires_at) return false;
+  return new Date(weather.expires_at).getTime() > Date.now();
 }
 
-export function resetCityWeather(cityId) {
-  const stored = getStoredWeather();
-  delete stored[cityId];
-  saveStoredWeather(stored);
-  return getCityWeather(cityId);
+function createFallbackWeather(cityId) {
+  return normalizeWeatherRow(createWeather(cityId));
+}
+
+export async function getCityWeather(cityId) {
+  const { data: currentWeather, error: selectError } = await supabase
+    .from('city_weather')
+    .select('*')
+    .eq('city_id', cityId)
+    .maybeSingle();
+
+  if (!selectError && currentWeather && isWeatherFresh(currentWeather)) {
+    return normalizeWeatherRow(currentWeather);
+  }
+
+  const nextWeather = createWeather(cityId);
+
+  const { data: savedWeather, error: upsertError } = await supabase
+    .from('city_weather')
+    .upsert(nextWeather, {
+      onConflict: 'city_id',
+    })
+    .select('*')
+    .single();
+
+  if (upsertError) {
+    console.warn('[weather] Supabase weather upsert failed:', upsertError);
+    return normalizeWeatherRow(nextWeather);
+  }
+
+  return normalizeWeatherRow(savedWeather);
+}
+
+export async function resetCityWeather(cityId) {
+  const nextWeather = createWeather(cityId);
+
+  const { data: savedWeather, error } = await supabase
+    .from('city_weather')
+    .upsert(nextWeather, {
+      onConflict: 'city_id',
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    console.warn('[weather] Supabase weather reset failed:', error);
+    return createFallbackWeather(cityId);
+  }
+
+  return normalizeWeatherRow(savedWeather);
 }
