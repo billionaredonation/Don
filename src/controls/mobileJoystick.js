@@ -11,7 +11,14 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
-export function enableMobileJoystick(container, marker, playerPosition, cityId, nickname, movementChannel) {
+export function enableMobileJoystick(
+  container,
+  marker,
+  playerPosition,
+  cityId,
+  nickname,
+  movementChannel
+) {
   if (!container || !marker || !playerPosition) return null;
   if (!isMobileDevice()) return null;
 
@@ -37,8 +44,10 @@ export function enableMobileJoystick(container, marker, playerPosition, cityId, 
   let y = Number(playerPosition.y) || 50;
 
   let activePointerId = null;
+
   let centerX = 0;
   let centerY = 0;
+
   let moveX = 0;
   let moveY = 0;
 
@@ -48,6 +57,7 @@ export function enableMobileJoystick(container, marker, playerPosition, cityId, 
 
   let lastBroadcastAt = 0;
   let lastDbSaveAt = 0;
+
   let dbSaveInFlight = false;
   let dbSavePending = false;
 
@@ -125,14 +135,19 @@ export function enableMobileJoystick(container, marker, playerPosition, cityId, 
     moveX = 0;
     moveY = 0;
 
-    stick.style.transform = 'translate(-50%, -50%) translate3d(0, 0, 0)';
+    stick.style.transform =
+      'translate(-50%, -50%) translate3d(0,0,0)';
   }
 
   function updateStick(clientX, clientY) {
     const dx = clientX - centerX;
     const dy = clientY - centerY;
 
-    const distance = Math.min(Math.hypot(dx, dy), MAX_DISTANCE);
+    const distance = Math.min(
+      Math.hypot(dx, dy),
+      MAX_DISTANCE
+    );
+
     const angle = Math.atan2(dy, dx);
 
     const stickX = Math.cos(angle) * distance;
@@ -148,7 +163,9 @@ export function enableMobileJoystick(container, marker, playerPosition, cityId, 
   function loop() {
     if (destroyed) return;
 
-    const isMoving = Math.abs(moveX) > 0.08 || Math.abs(moveY) > 0.08;
+    const isMoving =
+      Math.abs(moveX) > 0.08 ||
+      Math.abs(moveY) > 0.08;
 
     if (isMoving) {
       x += moveX * SPEED;
@@ -164,6 +181,7 @@ export function enableMobileJoystick(container, marker, playerPosition, cityId, 
 
   function onPointerDown(event) {
     event.preventDefault();
+    event.stopPropagation();
 
     activePointerId = event.pointerId;
 
@@ -185,13 +203,19 @@ export function enableMobileJoystick(container, marker, playerPosition, cityId, 
     if (event.pointerId !== activePointerId) return;
 
     event.preventDefault();
+    event.stopPropagation();
+
     updateStick(event.clientX, event.clientY);
   }
 
   function onPointerEnd(event) {
     if (event.pointerId !== activePointerId) return;
 
+    event.preventDefault();
+    event.stopPropagation();
+
     activePointerId = null;
+
     resetStick();
 
     broadcastMove();
