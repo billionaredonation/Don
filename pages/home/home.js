@@ -288,12 +288,14 @@ function enableMapControls(stage, viewport) {
 
 function createPlayerMarkerHtml(player, localPlayerId) {
   const isSelf = player.playerId === localPlayerId;
+  const updatedAt = new Date(player.updatedAt || Date.now()).getTime();
 
   return `
     <div
       class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
       style="left: ${player.x}%; top: ${player.y}%;"
       data-player-id="${player.playerId}"
+      data-updated-at="${updatedAt}"
     >
       <span></span>
       <b>${player.nickname || 'Игрок'}</b>
@@ -318,6 +320,7 @@ function upsertPlayerMarker(entities, player, localPlayerId) {
 
   marker.style.left = `${player.x}%`;
   marker.style.top = `${player.y}%`;
+  marker.dataset.updatedAt = String(new Date(player.updatedAt || Date.now()).getTime());
 
   const name = marker.querySelector('b');
 
@@ -336,20 +339,43 @@ function removePlayerMarker(entities, playerId) {
   }
 }
 
+function startStalePlayersCleanup(entities) {
+  const STALE_AFTER = 5000;
+
+  const timer = setInterval(() => {
+    const now = Date.now();
+
+    entities.querySelectorAll('.gta-player-marker-other').forEach((marker) => {
+      const updatedAt = Number(marker.dataset.updatedAt || 0);
+
+      if (updatedAt && now - updatedAt > STALE_AFTER) {
+        marker.remove();
+      }
+    });
+  }, 1000);
+
+  return () => clearInterval(timer);
+}
+
 function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) {
   if (!marker || !playerPosition) return;
 
   const keys = new Set();
+
   const SPEED = 0.12;
-  const SAVE_DELAY = 80;
-  const HEARTBEAT_DELAY = 10000;
+  const SAVE_INTERVAL = 60;
+  const HEARTBEAT_DELAY = 1000;
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
+
   let animationId = null;
-  let saveTimer = null;
   let heartbeatTimer = null;
   let destroyed = false;
+
+  let lastSaveAt = 0;
+  let saveInFlight = false;
+  let savePending = false;
 
   function renderPlayer() {
     x = clamp(x, 0, 100);
@@ -359,37 +385,51 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
     marker.style.top = `${y}%`;
   }
 
-  function scheduleSave() {
-    clearTimeout(saveTimer);
+  async function savePositionNow() {
+    if (saveInFlight) {
+      savePending = true;
+      return;
+    }
 
-    saveTimer = setTimeout(async () => {
-      try {
-        await updatePlayerPosition({
-          cityId,
-          nickname,
-          x,
-          y,
-        });
-      } catch (error) {
-        console.warn('[home] player position update failed:', error);
+    saveInFlight = true;
+    savePending = false;
+
+    try {
+      await updatePlayerPosition({
+        cityId,
+        nickname,
+        x,
+        y,
+      });
+
+      lastSaveAt = Date.now();
+    } catch (error) {
+      console.warn('[home] player position update failed:', error);
+    } finally {
+      saveInFlight = false;
+
+      if (savePending && !destroyed) {
+        savePositionNow();
       }
-    }, SAVE_DELAY);
+    }
+  }
+
+  function scheduleSave() {
+    const now = Date.now();
+
+    if (now - lastSaveAt >= SAVE_INTERVAL) {
+      savePositionNow();
+      return;
+    }
+
+    savePending = true;
   }
 
   function startHeartbeat() {
     clearInterval(heartbeatTimer);
 
-    heartbeatTimer = setInterval(async () => {
-      try {
-        await updatePlayerPosition({
-          cityId,
-          nickname,
-          x,
-          y,
-        });
-      } catch (error) {
-        console.warn('[home] player heartbeat failed:', error);
-      }
+    heartbeatTimer = setInterval(() => {
+      savePositionNow();
     }, HEARTBEAT_DELAY);
   }
 
@@ -449,7 +489,7 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
     if (keys.size === 0 && animationId) {
       cancelAnimationFrame(animationId);
       animationId = null;
-      scheduleSave();
+      savePositionNow();
     }
   }
 
@@ -457,11 +497,11 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
   window.addEventListener('keyup', onKeyUp);
 
   renderPlayer();
+  savePositionNow();
   startHeartbeat();
 
   return () => {
     destroyed = true;
-    clearTimeout(saveTimer);
     clearInterval(heartbeatTimer);
 
     window.removeEventListener('keydown', onKeyDown);
@@ -470,6 +510,8 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
     if (animationId) {
       cancelAnimationFrame(animationId);
     }
+
+    savePositionNow();
   };
 }
 
@@ -617,6 +659,7 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
 
   const cleanupMovement = enableKeyboardPlayerMovement(playerMarker, playerPosition, cityId, nickname);
+  const cleanupStalePlayers = startStalePlayersCleanup(entities);
 
   let cleanupRealtime = null;
 
@@ -641,6 +684,7 @@ register('home', async (root) => {
   root._cleanupHome = () => {
     cleanupMovement?.();
     cleanupRealtime?.();
+    cleanupStalePlayers?.();
   };
 
   enableMapControls(stage, viewport);
