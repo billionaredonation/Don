@@ -2,6 +2,7 @@ import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
+import { getOrCreatePlayerPosition } from '../../src/player/playerPosition.js';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
@@ -378,3 +379,17 @@ register('home', async (root) => {
 
   enableMapControls(stage, viewport);
 });
+
+
+let playerPosition = null;
+
+try {
+  playerPosition = await getOrCreatePlayerPosition(cityId, state.nickname || 'Игрок');
+} catch (error) {
+  console.warn('[home] player position loading failed:', error);
+  playerPosition = {
+    x: 50,
+    y: 50,
+    nickname: state.nickname || 'Игрок',
+  };
+}
