@@ -341,12 +341,14 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
 
   const keys = new Set();
   const SPEED = 0.12;
-  const SAVE_DELAY = 450;
+  const SAVE_DELAY = 80;
+  const HEARTBEAT_DELAY = 10000;
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
   let animationId = null;
   let saveTimer = null;
+  let heartbeatTimer = null;
   let destroyed = false;
 
   function renderPlayer() {
@@ -372,6 +374,23 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
         console.warn('[home] player position update failed:', error);
       }
     }, SAVE_DELAY);
+  }
+
+  function startHeartbeat() {
+    clearInterval(heartbeatTimer);
+
+    heartbeatTimer = setInterval(async () => {
+      try {
+        await updatePlayerPosition({
+          cityId,
+          nickname,
+          x,
+          y,
+        });
+      } catch (error) {
+        console.warn('[home] player heartbeat failed:', error);
+      }
+    }, HEARTBEAT_DELAY);
   }
 
   function loop() {
@@ -438,10 +457,12 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
   window.addEventListener('keyup', onKeyUp);
 
   renderPlayer();
+  startHeartbeat();
 
   return () => {
     destroyed = true;
     clearTimeout(saveTimer);
+    clearInterval(heartbeatTimer);
 
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
