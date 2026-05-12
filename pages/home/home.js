@@ -7,6 +7,7 @@ import {
   getOrCreatePlayerPosition,
   getCityPlayers,
   updatePlayerPosition,
+  subscribeCityPlayers,
 } from '../../src/player/playerPosition.js';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
@@ -285,23 +286,54 @@ function enableMapControls(stage, viewport) {
   applyTransform();
 }
 
-function renderPlayersHtml(players, localPlayerId) {
-  return players
-    .map((player) => {
-      const isSelf = player.playerId === localPlayerId;
+function createPlayerMarkerHtml(player, localPlayerId) {
+  const isSelf = player.playerId === localPlayerId;
 
-      return `
-        <div
-          class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
-          style="left: ${player.x}%; top: ${player.y}%;"
-          data-player-id="${player.playerId}"
-        >
-          <span></span>
-          <b>${player.nickname || 'Игрок'}</b>
-        </div>
-      `;
-    })
-    .join('');
+  return `
+    <div
+      class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
+      style="left: ${player.x}%; top: ${player.y}%;"
+      data-player-id="${player.playerId}"
+    >
+      <span></span>
+      <b>${player.nickname || 'Игрок'}</b>
+    </div>
+  `;
+}
+
+function renderPlayersHtml(players, localPlayerId) {
+  return players.map((player) => createPlayerMarkerHtml(player, localPlayerId)).join('');
+}
+
+function upsertPlayerMarker(entities, player, localPlayerId) {
+  if (!entities || !player?.playerId) return;
+
+  const selector = `[data-player-id="${player.playerId}"]`;
+  let marker = entities.querySelector(selector);
+
+  if (!marker) {
+    entities.insertAdjacentHTML('beforeend', createPlayerMarkerHtml(player, localPlayerId));
+    return;
+  }
+
+  marker.style.left = `${player.x}%`;
+  marker.style.top = `${player.y}%`;
+
+  const name = marker.querySelector('b');
+
+  if (name) {
+    name.textContent = player.nickname || 'Игрок';
+  }
+}
+
+function removePlayerMarker(entities, playerId) {
+  if (!entities || !playerId) return;
+
+  const marker = entities.querySelector(`[data-player-id="${playerId}"]`);
+
+  if (marker) {
+    marker.remove();
+  }
 }
 
 function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) {
@@ -421,6 +453,8 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
 }
 
 register('home', async (root) => {
+  root._cleanupHome?.();
+
   root.className = 'page home';
 
   const cityId = normalizeCityId(state.city);
@@ -558,8 +592,35 @@ register('home', async (root) => {
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
+  const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
 
+  const cleanupMovement = enableKeyboardPlayerMovement(playerMarker, playerPosition, cityId, nickname);
+
+  let cleanupRealtime = null;
+
+  try {
+    cleanupRealtime = subscribeCityPlayers(cityId, {
+      onInsert(player) {
+        upsertPlayerMarker(entities, player, localPlayerId);
+      },
+
+      onUpdate(player) {
+        upsertPlayerMarker(entities, player, localPlayerId);
+      },
+
+      onDelete(playerId) {
+        removePlayerMarker(entities, playerId);
+      },
+    });
+  } catch (error) {
+    console.warn('[home] realtime subscribe failed:', error);
+  }
+
+  root._cleanupHome = () => {
+    cleanupMovement?.();
+    cleanupRealtime?.();
+  };
+
   enableMapControls(stage, viewport);
-  enableKeyboardPlayerMovement(playerMarker, playerPosition, cityId, nickname);
 });
