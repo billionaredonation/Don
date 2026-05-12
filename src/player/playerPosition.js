@@ -119,3 +119,35 @@ export async function getCityPlayers(cityId) {
 
   return (data || []).map(normalizePosition);
 }
+
+export function subscribeCityPlayers(cityId, handlers = {}) {
+  const channel = supabase
+    .channel(`city_players_${cityId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'player_positions',
+        filter: `city_id=eq.${cityId}`,
+      },
+      (payload) => {
+        if (payload.eventType === 'INSERT' && payload.new) {
+          handlers.onInsert?.(normalizePosition(payload.new));
+        }
+
+        if (payload.eventType === 'UPDATE' && payload.new) {
+          handlers.onUpdate?.(normalizePosition(payload.new));
+        }
+
+        if (payload.eventType === 'DELETE' && payload.old) {
+          handlers.onDelete?.(payload.old.player_id);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
