@@ -8,6 +8,7 @@ import {
   getCityPlayers,
   updatePlayerPosition,
   subscribeCityPlayers,
+  createCityMovementChannel,
 } from '../../src/player/playerPosition.js';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
@@ -357,13 +358,14 @@ function startStalePlayersCleanup(entities) {
   return () => clearInterval(timer);
 }
 
-function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) {
+function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname, movementChannel) {
   if (!marker || !playerPosition) return;
 
   const keys = new Set();
 
   const SPEED = 0.12;
-  const SAVE_INTERVAL = 60;
+  const BROADCAST_INTERVAL = 45;
+  const DB_SAVE_INTERVAL = 1200;
   const HEARTBEAT_DELAY = 1000;
 
   let x = Number(playerPosition.x) || 50;
@@ -373,9 +375,10 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
   let heartbeatTimer = null;
   let destroyed = false;
 
-  let lastSaveAt = 0;
-  let saveInFlight = false;
-  let savePending = false;
+  let lastBroadcastAt = 0;
+  let lastDbSaveAt = 0;
+  let dbSaveInFlight = false;
+  let dbSavePending = false;
 
   function renderPlayer() {
     x = clamp(x, 0, 100);
@@ -385,14 +388,38 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
     marker.style.top = `${y}%`;
   }
 
-  async function savePositionNow() {
-    if (saveInFlight) {
-      savePending = true;
+  function broadcastMove() {
+    const now = Date.now();
+
+    if (now - lastBroadcastAt < BROADCAST_INTERVAL) return;
+
+    lastBroadcastAt = now;
+
+    movementChannel?.sendMove({
+      playerId: getLocalPlayerId(),
+      nickname,
+      cityId,
+      x,
+      y,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  async function savePositionToDb(force = false) {
+    const now = Date.now();
+
+    if (!force && now - lastDbSaveAt < DB_SAVE_INTERVAL) {
+      dbSavePending = true;
       return;
     }
 
-    saveInFlight = true;
-    savePending = false;
+    if (dbSaveInFlight) {
+      dbSavePending = true;
+      return;
+    }
+
+    dbSaveInFlight = true;
+    dbSavePending = false;
 
     try {
       await updatePlayerPosition({
@@ -402,34 +429,24 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
         y,
       });
 
-      lastSaveAt = Date.now();
+      lastDbSaveAt = Date.now();
     } catch (error) {
       console.warn('[home] player position update failed:', error);
     } finally {
-      saveInFlight = false;
+      dbSaveInFlight = false;
 
-      if (savePending && !destroyed) {
-        savePositionNow();
+      if (dbSavePending && !destroyed) {
+        savePositionToDb(false);
       }
     }
-  }
-
-  function scheduleSave() {
-    const now = Date.now();
-
-    if (now - lastSaveAt >= SAVE_INTERVAL) {
-      savePositionNow();
-      return;
-    }
-
-    savePending = true;
   }
 
   function startHeartbeat() {
     clearInterval(heartbeatTimer);
 
     heartbeatTimer = setInterval(() => {
-      savePositionNow();
+      savePositionToDb(true);
+      broadcastMove();
     }, HEARTBEAT_DELAY);
   }
 
@@ -460,7 +477,8 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
 
     if (moved) {
       renderPlayer();
-      scheduleSave();
+      broadcastMove();
+      savePositionToDb(false);
     }
 
     animationId = requestAnimationFrame(loop);
@@ -489,7 +507,9 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
     if (keys.size === 0 && animationId) {
       cancelAnimationFrame(animationId);
       animationId = null;
-      savePositionNow();
+
+      broadcastMove();
+      savePositionToDb(true);
     }
   }
 
@@ -497,7 +517,7 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
   window.addEventListener('keyup', onKeyUp);
 
   renderPlayer();
-  savePositionNow();
+  savePositionToDb(true);
   startHeartbeat();
 
   return () => {
@@ -511,7 +531,8 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname) 
       cancelAnimationFrame(animationId);
     }
 
-    savePositionNow();
+    broadcastMove();
+    savePositionToDb(true);
   };
 }
 
@@ -658,7 +679,21 @@ register('home', async (root) => {
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
 
-  const cleanupMovement = enableKeyboardPlayerMovement(playerMarker, playerPosition, cityId, nickname);
+  const movementChannel = createCityMovementChannel(cityId, {
+    onMove(player) {
+      if (!player || player.playerId === localPlayerId) return;
+      upsertPlayerMarker(entities, player, localPlayerId);
+    },
+  });
+
+  const cleanupMovement = enableKeyboardPlayerMovement(
+    playerMarker,
+    playerPosition,
+    cityId,
+    nickname,
+    movementChannel
+  );
+
   const cleanupStalePlayers = startStalePlayersCleanup(entities);
 
   let cleanupRealtime = null;
@@ -685,6 +720,7 @@ register('home', async (root) => {
     cleanupMovement?.();
     cleanupRealtime?.();
     cleanupStalePlayers?.();
+    movementChannel?.unsubscribe?.();
   };
 
   enableMapControls(stage, viewport);
