@@ -1262,3 +1262,17 @@ body,
     display: none;
   }
 }
+
+
+.mobile-controls-layer {
+  pointer-events: none;
+}
+
+.mobile-joystick {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.mobile-joystick-base {
+  touch-action: none;
+}
