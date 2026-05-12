@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient.js';
+import { supabase } from '../supabaseClient.js';
 
 const WEATHER_TTL = 45 * 60 * 1000;
 
