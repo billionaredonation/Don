@@ -381,7 +381,7 @@ function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname, 
   const keys = new Set();
 
   const SPEED = 0.12;
-  const BROADCAST_INTERVAL = 45;
+  const BROADCAST_INTERVAL = 10;
   const DB_SAVE_INTERVAL = 1200;
   const HEARTBEAT_DELAY = 1000;
 
@@ -717,19 +717,21 @@ register('home', async (root) => {
   let cleanupRealtime = null;
 
   try {
-    cleanupRealtime = subscribeCityPlayers(cityId, {
-      onInsert(player) {
-        upsertPlayerMarker(entities, player, localPlayerId);
-      },
+      cleanupRealtime = subscribeCityPlayers(cityId, {
+        onInsert(player) {
+            upsertPlayerMarker(entities, player, localPlayerId);
+                },
 
-      onUpdate(player) {
-        upsertPlayerMarker(entities, player, localPlayerId);
-      },
+              onUpdate(player) {
+                if (!player.isOnline) {
+              removePlayerMarker(entities, player.playerId);
+              }
+            },
 
-      onDelete(playerId) {
-        removePlayerMarker(entities, playerId);
-      },
-    });
+          onDelete(playerId) {
+          removePlayerMarker(entities, playerId);
+          },
+        });
   } catch (error) {
     console.warn('[home] realtime subscribe failed:', error);
   }
