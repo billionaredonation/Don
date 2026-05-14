@@ -161,34 +161,34 @@ export function enableMobileJoystick(
       'translate(-50%, -50%) translate3d(0, 0, 0)';
   }
 
-  function updateStick(clientX, clientY) {
-    const dx = clientX - centerX;
-    const dy = clientY - centerY;
+function updateStick(clientX, clientY) {
+  const dx = clientX - centerX;
+  const dy = clientY - centerY;
 
-    const rawDistance = Math.hypot(dx, dy);
-    const distance = Math.min(rawDistance, MAX_DISTANCE);
+  const rawDistance = Math.hypot(dx, dy);
+  const distance = Math.min(rawDistance, MAX_DISTANCE);
 
-    if (rawDistance <= 0.001) {
-      resetStick();
-      return;
-    }
-
-    const inputX = dx / rawDistance;
-    const inputY = dy / rawDistance;
-
-    const rotatedInput = rotateInputForMobileScene(inputX, inputY);
-
-    moveX = rotatedInput.x * (distance / MAX_DISTANCE);
-    moveY = rotatedInput.y * (distance / MAX_DISTANCE);
-
-    const angle = Math.atan2(dy, dx);
-    const stickX = Math.cos(angle) * distance;
-    const stickY = Math.sin(angle) * distance;
-
-    stick.style.transform =
-      `translate(-50%, -50%) translate3d(${stickX}px, ${stickY}px, 0)`;
+  if (rawDistance <= 0.001) {
+    resetStick();
+    return;
   }
 
+  const inputX = dx / rawDistance;
+  const inputY = dy / rawDistance;
+
+  const rotatedInput = rotateInputForMobileScene(inputX, inputY);
+  const power = distance / MAX_DISTANCE;
+
+  moveX = rotatedInput.x * power;
+  moveY = rotatedInput.y * power;
+
+  const angle = Math.atan2(dy, dx);
+  const stickX = Math.cos(angle) * distance;
+  const stickY = Math.sin(angle) * distance;
+
+  stick.style.transform =
+    `translate(-50%, -50%) translate3d(${stickX}px, ${stickY}px, 0)`;
+}
   function loop() {
     if (destroyed) return;
 
