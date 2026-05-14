@@ -13,32 +13,29 @@ body,
   position: fixed;
   inset: 0;
   width: 100%;
-  min-height: 100dvh;
-  margin: 0;
-  padding: 0;
-  background: #050607;
-  color: #fff;
+  height: 100%;
+  height: 100svh;
+  min-height: 100svh;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .home-gameplay {
-  position: relative;
+  position: fixed;
+  inset: 0;
   width: 100%;
-  height: 100dvh;
-  min-height: 100dvh;
+  height: 100%;
+  height: 100svh;
+  min-height: 100svh;
   overflow: hidden;
-  background: #050607;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 .gta-map-stage {
-  --zoom: 1;
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
+  overscroll-behavior: none;
   touch-action: none;
-  cursor: grab;
-  user-select: none;
-  background: #03080c;
 }
 
 .gta-map-stage:active {
@@ -1474,15 +1471,14 @@ body,
     bottom: max(10px, env(safe-area-inset-bottom));
   }
 
-    .home[data-mobile-controls="enabled"] .mobile-control-toggle {
+  .home[data-mobile-controls="enabled"] .mobile-control-toggle {
+    position: fixed;
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
     left: auto;
-    right: max(12px, env(safe-area-inset-right));
-    bottom: 0;
     translate: 0 0;
-    width: 42px;
-    height: 42px;
-    font-size: 19px;
   }
+}
 
     .home[data-mobile-controls="enabled"] .mobile-control-panel {
     place-items: center;
@@ -1495,38 +1491,38 @@ body,
 }
   
 @media (orientation: portrait) and (hover: none) and (pointer: coarse) {
-  .home[data-mobile-controls="enabled"] .home-gameplay {
-    position: fixed;
-    left: 50%;
-    top: 50%;
-    width: 100dvh;
-    height: 100dvw;
-    min-height: 100dvw;
-    transform: translate(-50%, -50%) rotate(90deg);
-    transform-origin: center center;
+  .home[data-mobile-controls="enabled"] {
+    width: 100vw;
+    height: 100svh;
+    min-height: 100svh;
     overflow: hidden;
   }
 
   .home[data-mobile-controls="enabled"] .gta-map-stage {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
+    overflow: hidden;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-controls-layer {
     position: fixed;
     inset: 0;
-    z-index: 90;
+    z-index: 120;
     pointer-events: none;
+    transform: none;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-joystick {
     position: fixed;
     left: max(18px, env(safe-area-inset-left));
     bottom: max(18px, env(safe-area-inset-bottom));
-    z-index: 120;
+    z-index: 130;
     pointer-events: auto;
+    touch-action: none;
   }
-
+  
   .home[data-mobile-controls="enabled"] .mobile-control-toggle {
     position: fixed;
     right: max(14px, env(safe-area-inset-right));
@@ -1535,3 +1531,41 @@ body,
     translate: 0 0;
   }
 }
+
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  height: 100svh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  background: #050607;
+}
+
+  .home[data-mobile-controls="enabled"] .home-gameplay {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: 100svh;
+    height: 100vw;
+    min-height: 100vw;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg);
+    transform-origin: center center;
+    overflow: hidden;
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    touch-action: none;
+  }
+
+
+
+
+
