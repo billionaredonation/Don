@@ -16,6 +16,8 @@ import {
   renderPlayersHtml,
   setupPlayerNetwork,
 } from '../../src/network/playerNetwork.js';
+import { setupMobileControlPrompt } from '../../src/controls/mobileControlPrompt.js';
+
 
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
@@ -222,20 +224,25 @@ register('home', async (root) => {
     network.movementChannel
   );
 
-  const cleanupMobileJoystick = enableMobileJoystick(
-    mobileControlsLayer,
-    playerMarker,
-    playerPosition,
-    cityId,
-    nickname,
-    network.movementChannel
-  );
-
+const cleanupMobilePrompt = setupMobileControlPrompt({
+  root,
+  layer: mobileControlsLayer,
+  enableJoystick() {
+    return enableMobileJoystick(
+      mobileControlsLayer,
+      playerMarker,
+      playerPosition,
+      cityId,
+      nickname,
+      network.movementChannel
+    );
+  },
+});
   const cleanupMapControls = enableMapControls(stage, viewport);
 
   root._cleanupHome = () => {
     cleanupMovement?.();
-    cleanupMobileJoystick?.();
+    cleanupMobilePrompt?.();
     cleanupMapControls?.();
     network.cleanup?.();
   };
