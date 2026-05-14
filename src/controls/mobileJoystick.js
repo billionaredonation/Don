@@ -182,9 +182,9 @@ function updateStick(clientX, clientY) {
   moveX = rotatedInput.x * power;
   moveY = rotatedInput.y * power;
 
-  const angle = Math.atan2(dy, dx);
-  const stickX = Math.cos(angle) * distance;
-  const stickY = Math.sin(angle) * distance;
+  const visualInput = rotateInputForMobileScene(inputX, inputY);
+  const stickX = visualInput.x * distance;
+  const stickY = visualInput.y * distance;
 
   stick.style.transform =
     `translate(-50%, -50%) translate3d(${stickX}px, ${stickY}px, 0)`;
