@@ -1,17 +1,44 @@
+const MOBILE_CONTROLS_KEY = 'mn_mobile_controls_enabled';
+
 function isMobileDevice() {
   return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+}
+
+function hasMobileControlsEnabled() {
+  return localStorage.getItem(MOBILE_CONTROLS_KEY) === '1';
+}
+
+function saveMobileControlsEnabled() {
+  localStorage.setItem(MOBILE_CONTROLS_KEY, '1');
 }
 
 async function requestGameFullscreen() {
   const target = document.documentElement;
 
   try {
-    if (target.requestFullscreen) {
+    if (target.requestFullscreen && !document.fullscreenElement) {
       await target.requestFullscreen();
     }
   } catch (error) {
     console.warn('[mobileControls] fullscreen failed:', error);
   }
+}
+
+async function lockLandscape() {
+  try {
+    if (screen.orientation?.lock) {
+      await screen.orientation.lock('landscape');
+    }
+  } catch (error) {
+    console.warn('[mobileControls] orientation lock failed:', error);
+  }
+}
+
+async function enterMobileGameMode(root) {
+  root.dataset.mobileControls = 'enabled';
+
+  await requestGameFullscreen();
+  await lockLandscape();
 }
 
 export function setupMobileControlPrompt({
@@ -33,7 +60,12 @@ export function setupMobileControlPrompt({
   layer.innerHTML = `
     <button class="mobile-control-toggle" type="button" aria-label="Mobile controls">
       🎮
+      <span class="mobile-control-dot"></span>
     </button>
+
+    <div class="mobile-control-tip">
+      Мобильное управление здесь
+    </div>
 
     <div class="mobile-control-panel" hidden>
       <div class="mobile-control-card">
@@ -45,7 +77,7 @@ export function setupMobileControlPrompt({
         </p>
 
         <p class="mobile-control-hint">
-          После включения игра попробует открыться на весь экран.
+          После включения игра откроется на весь экран.
           Поверните телефон на бок для нормальной игры.
         </p>
 
@@ -63,6 +95,7 @@ export function setupMobileControlPrompt({
   `;
 
   const toggle = layer.querySelector('.mobile-control-toggle');
+  const tip = layer.querySelector('.mobile-control-tip');
   const panel = layer.querySelector('.mobile-control-panel');
   const cancel = layer.querySelector('.mobile-control-cancel');
   const accept = layer.querySelector('.mobile-control-accept');
@@ -77,10 +110,12 @@ export function setupMobileControlPrompt({
 
   async function enableMobileMode() {
     closePanel();
+    saveMobileControlsEnabled();
 
-    root.dataset.mobileControls = 'enabled';
+    tip.hidden = true;
+    toggle.classList.add('is-enabled');
 
-    await requestGameFullscreen();
+    await enterMobileGameMode(root);
 
     joystickCleanup?.();
     joystickCleanup = enableJoystick?.() || null;
@@ -89,6 +124,22 @@ export function setupMobileControlPrompt({
   toggle.addEventListener('click', openPanel);
   cancel.addEventListener('click', closePanel);
   accept.addEventListener('click', enableMobileMode);
+
+  if (hasMobileControlsEnabled()) {
+    tip.hidden = true;
+    toggle.classList.add('is-enabled');
+
+    enterMobileGameMode(root).finally(() => {
+      joystickCleanup?.();
+      joystickCleanup = enableJoystick?.() || null;
+    });
+  } else {
+    setTimeout(() => {
+      if (!hasMobileControlsEnabled()) {
+        tip.classList.add('is-visible');
+      }
+    }, 1200);
+  }
 
   return () => {
     toggle.removeEventListener('click', openPanel);
