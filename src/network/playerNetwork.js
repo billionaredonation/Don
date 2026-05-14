@@ -5,6 +5,13 @@ import {
 } from '../player/playerPosition.js';
 import { NETWORK_CONFIG } from '../config/networkConfig.js';
 
+const remoteMarkers = new Map();
+
+function percentToNumber(value, fallback = 50) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export function createPlayerMarkerHtml(player, localPlayerId) {
   const isSelf = player.playerId === localPlayerId;
   const updatedAt = new Date(player.updatedAt || Date.now()).getTime();
@@ -15,6 +22,8 @@ export function createPlayerMarkerHtml(player, localPlayerId) {
       style="left: ${player.x}%; top: ${player.y}%;"
       data-player-id="${player.playerId}"
       data-updated-at="${updatedAt}"
+      data-x="${player.x}"
+      data-y="${player.y}"
     >
       <span></span>
       <b>${player.nickname || 'Игрок'}</b>
@@ -26,19 +35,85 @@ export function renderPlayersHtml(players, localPlayerId) {
   return players.map((player) => createPlayerMarkerHtml(player, localPlayerId)).join('');
 }
 
-export function upsertPlayerMarker(entities, player, localPlayerId) {
+function getRemoteState(marker, player) {
+  const playerId = player.playerId;
+
+  let state = remoteMarkers.get(playerId);
+
+  if (!state) {
+    const startX = percentToNumber(marker.dataset.x, player.x);
+    const startY = percentToNumber(marker.dataset.y, player.y);
+
+    state = {
+      marker,
+      currentX: startX,
+      currentY: startY,
+      targetX: startX,
+      targetY: startY,
+      animationId: null,
+      lastUpdateAt: performance.now(),
+    };
+
+    remoteMarkers.set(playerId, state);
+  }
+
+  return state;
+}
+
+function animateRemoteMarker(playerId) {
+  const state = remoteMarkers.get(playerId);
+
+  if (!state) return;
+
+  const SMOOTHING = NETWORK_CONFIG.movement.remoteSmoothing ?? 0.24;
+  const SNAP_DISTANCE = NETWORK_CONFIG.movement.remoteSnapDistance ?? 18;
+
+  const dx = state.targetX - state.currentX;
+  const dy = state.targetY - state.currentY;
+  const distance = Math.hypot(dx, dy);
+
+  if (distance > SNAP_DISTANCE) {
+    state.currentX = state.targetX;
+    state.currentY = state.targetY;
+  } else {
+    state.currentX += dx * SMOOTHING;
+    state.currentY += dy * SMOOTHING;
+  }
+
+  state.marker.style.left = `${state.currentX}%`;
+  state.marker.style.top = `${state.currentY}%`;
+  state.marker.dataset.x = String(state.currentX);
+  state.marker.dataset.y = String(state.currentY);
+
+  if (Math.abs(dx) > 0.015 || Math.abs(dy) > 0.015) {
+    state.animationId = requestAnimationFrame(() => animateRemoteMarker(playerId));
+  } else {
+    state.currentX = state.targetX;
+    state.currentY = state.targetY;
+    state.marker.style.left = `${state.currentX}%`;
+    state.marker.style.top = `${state.currentY}%`;
+    state.animationId = null;
+  }
+}
+
+export function upsertPlayerMarker(entities, player, localPlayerId, options = {}) {
   if (!entities || !player?.playerId) return;
 
+  const isSelf = player.playerId === localPlayerId;
   const selector = `[data-player-id="${player.playerId}"]`;
+
   let marker = entities.querySelector(selector);
 
   if (!marker) {
     entities.insertAdjacentHTML('beforeend', createPlayerMarkerHtml(player, localPlayerId));
-    return;
+    marker = entities.querySelector(selector);
   }
 
-  marker.style.left = `${player.x}%`;
-  marker.style.top = `${player.y}%`;
+  if (!marker) return;
+
+  const nextX = percentToNumber(player.x);
+  const nextY = percentToNumber(player.y);
+
   marker.dataset.updatedAt = String(new Date(player.updatedAt || Date.now()).getTime());
 
   const name = marker.querySelector('b');
@@ -46,10 +121,36 @@ export function upsertPlayerMarker(entities, player, localPlayerId) {
   if (name) {
     name.textContent = player.nickname || 'Игрок';
   }
+
+  if (isSelf || options.instant) {
+    marker.style.left = `${nextX}%`;
+    marker.style.top = `${nextY}%`;
+    marker.dataset.x = String(nextX);
+    marker.dataset.y = String(nextY);
+    return;
+  }
+
+  const state = getRemoteState(marker, player);
+
+  state.targetX = nextX;
+  state.targetY = nextY;
+  state.lastUpdateAt = performance.now();
+
+  if (!state.animationId) {
+    state.animationId = requestAnimationFrame(() => animateRemoteMarker(player.playerId));
+  }
 }
 
 export function removePlayerMarker(entities, playerId) {
   if (!entities || !playerId) return;
+
+  const state = remoteMarkers.get(playerId);
+
+  if (state?.animationId) {
+    cancelAnimationFrame(state.animationId);
+  }
+
+  remoteMarkers.delete(playerId);
 
   const marker = entities.querySelector(`[data-player-id="${playerId}"]`);
 
@@ -67,9 +168,10 @@ function startStalePlayersCleanup(entities) {
 
     entities.querySelectorAll('.gta-player-marker-other').forEach((marker) => {
       const updatedAt = Number(marker.dataset.updatedAt || 0);
+      const playerId = marker.dataset.playerId;
 
       if (updatedAt && now - updatedAt > staleAfter) {
-        marker.remove();
+        removePlayerMarker(entities, playerId);
       }
     });
   }, checkInterval);
@@ -97,7 +199,10 @@ export function setupPlayerNetwork({ cityId, entities, localPlayerId }) {
   const movementChannel = createCityMovementChannel(cityId, {
     onMove(player) {
       if (!player || player.playerId === localPlayerId) return;
-      upsertPlayerMarker(entities, player, localPlayerId);
+
+      upsertPlayerMarker(entities, player, localPlayerId, {
+        instant: false,
+      });
     },
   });
 
@@ -109,7 +214,9 @@ export function setupPlayerNetwork({ cityId, entities, localPlayerId }) {
   try {
     cleanupRealtime = subscribeCityPlayers(cityId, {
       onInsert(player) {
-        upsertPlayerMarker(entities, player, localPlayerId);
+        upsertPlayerMarker(entities, player, localPlayerId, {
+          instant: true,
+        });
       },
 
       onUpdate(player) {
@@ -134,6 +241,14 @@ export function setupPlayerNetwork({ cityId, entities, localPlayerId }) {
       cleanupStalePlayers?.();
       cleanupOffline?.();
       movementChannel?.unsubscribe?.();
+
+      remoteMarkers.forEach((state) => {
+        if (state.animationId) {
+          cancelAnimationFrame(state.animationId);
+        }
+      });
+
+      remoteMarkers.clear();
     },
   };
 }
