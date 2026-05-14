@@ -1276,3 +1276,44 @@ body,
 .mobile-joystick-base {
   touch-action: none;
 }
+
+
+.home[data-performance="low"] .gta-stars,
+.home[data-performance="low"] .gta-weather-heat,
+.home[data-performance="low"] .gta-map-glow,
+.home[data-performance="low"] .gta-water::before,
+.home[data-performance="low"] .gta-water::after,
+.home[data-performance="low"] .gta-player-marker span {
+  animation: none !important;
+}
+
+.home[data-performance="low"] .gta-map-glow {
+  display: none;
+}
+
+.home[data-performance="low"] .gta-water::before,
+.home[data-performance="low"] .gta-water::after {
+  opacity: 0.18;
+}
+
+.home[data-performance="low"] .gta-weather-clouds {
+  filter: blur(8px);
+}
+
+.home[data-performance="low"] .gta-weather-rain {
+  opacity: 0.36;
+  filter: none;
+}
+
+.home[data-performance="low"] .gta-map-title,
+.home[data-performance="low"] .gta-map-player,
+.home[data-performance="low"] .gta-weather-badge,
+.home[data-performance="low"] .gta-time-badge {
+  backdrop-filter: none !important;
+}
+
+.home[data-performance="low"] .gta-player-marker-other {
+  transition:
+    left 0.16s linear,
+    top 0.16s linear;
+}
