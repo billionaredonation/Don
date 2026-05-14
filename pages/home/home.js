@@ -6,14 +6,16 @@ import {
   getLocalPlayerId,
   getOrCreatePlayerPosition,
   getCityPlayers,
-  subscribeCityPlayers,
-  createCityMovementChannel,
-  setPlayerOffline,
 } from '../../src/player/playerPosition.js';
 
 import { enableMapControls, isLowPowerDevice } from '../../src/controls/mapControls.js';
 import { enableKeyboardPlayerMovement } from '../../src/controls/keyboardMovement.js';
 import { enableMobileJoystick } from '../../src/controls/mobileJoystick.js';
+
+import {
+  renderPlayersHtml,
+  setupPlayerNetwork,
+} from '../../src/network/playerNetwork.js';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
@@ -48,9 +50,7 @@ function getFallbackWeather() {
 }
 
 function getDisplayWeather(weather, dayMode) {
-  if (weather.type !== 'hot') {
-    return weather;
-  }
+  if (weather.type !== 'hot') return weather;
 
   if (dayMode === 'night') {
     return {
@@ -64,93 +64,6 @@ function getDisplayWeather(weather, dayMode) {
   return {
     ...weather,
     temperature: Math.min(weather.temperature, 32),
-  };
-}
-
-function createPlayerMarkerHtml(player, localPlayerId) {
-  const isSelf = player.playerId === localPlayerId;
-  const updatedAt = new Date(player.updatedAt || Date.now()).getTime();
-
-  return `
-    <div
-      class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
-      style="left: ${player.x}%; top: ${player.y}%;"
-      data-player-id="${player.playerId}"
-      data-updated-at="${updatedAt}"
-    >
-      <span></span>
-      <b>${player.nickname || 'Игрок'}</b>
-    </div>
-  `;
-}
-
-function renderPlayersHtml(players, localPlayerId) {
-  return players.map((player) => createPlayerMarkerHtml(player, localPlayerId)).join('');
-}
-
-function upsertPlayerMarker(entities, player, localPlayerId) {
-  if (!entities || !player?.playerId) return;
-
-  const selector = `[data-player-id="${player.playerId}"]`;
-  let marker = entities.querySelector(selector);
-
-  if (!marker) {
-    entities.insertAdjacentHTML('beforeend', createPlayerMarkerHtml(player, localPlayerId));
-    return;
-  }
-
-  marker.style.left = `${player.x}%`;
-  marker.style.top = `${player.y}%`;
-  marker.dataset.updatedAt = String(new Date(player.updatedAt || Date.now()).getTime());
-
-  const name = marker.querySelector('b');
-
-  if (name) {
-    name.textContent = player.nickname || 'Игрок';
-  }
-}
-
-function removePlayerMarker(entities, playerId) {
-  if (!entities || !playerId) return;
-
-  const marker = entities.querySelector(`[data-player-id="${playerId}"]`);
-
-  if (marker) {
-    marker.remove();
-  }
-}
-
-function startStalePlayersCleanup(entities) {
-  const STALE_AFTER = 5000;
-
-  const timer = setInterval(() => {
-    const now = Date.now();
-
-    entities.querySelectorAll('.gta-player-marker-other').forEach((marker) => {
-      const updatedAt = Number(marker.dataset.updatedAt || 0);
-
-      if (updatedAt && now - updatedAt > STALE_AFTER) {
-        marker.remove();
-      }
-    });
-  }, 1000);
-
-  return () => clearInterval(timer);
-}
-
-function enableOfflineOnExit() {
-  const goOffline = () => {
-    setPlayerOffline().catch((error) => {
-      console.warn('[home] set offline failed:', error);
-    });
-  };
-
-  window.addEventListener('pagehide', goOffline);
-  window.addEventListener('beforeunload', goOffline);
-
-  return () => {
-    window.removeEventListener('pagehide', goOffline);
-    window.removeEventListener('beforeunload', goOffline);
   };
 }
 
@@ -222,12 +135,7 @@ register('home', async (root) => {
   root.dataset.city = cityId;
   root.dataset.time = dayMode;
   root.dataset.weather = weather.type;
-
-  if (isLowPowerDevice()) {
-    root.dataset.performance = 'low';
-  } else {
-    root.dataset.performance = 'normal';
-  }
+  root.dataset.performance = isLowPowerDevice() ? 'low' : 'normal';
 
   root.innerHTML = `
     <main class="home-gameplay">
@@ -300,11 +208,10 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
 
-  const movementChannel = createCityMovementChannel(cityId, {
-    onMove(player) {
-      if (!player || player.playerId === localPlayerId) return;
-      upsertPlayerMarker(entities, player, localPlayerId);
-    },
+  const network = setupPlayerNetwork({
+    cityId,
+    entities,
+    localPlayerId,
   });
 
   const cleanupMovement = enableKeyboardPlayerMovement(
@@ -312,7 +219,7 @@ register('home', async (root) => {
     playerPosition,
     cityId,
     nickname,
-    movementChannel
+    network.movementChannel
   );
 
   const cleanupMobileJoystick = enableMobileJoystick(
@@ -321,45 +228,15 @@ register('home', async (root) => {
     playerPosition,
     cityId,
     nickname,
-    movementChannel
+    network.movementChannel
   );
 
   const cleanupMapControls = enableMapControls(stage, viewport);
-  const cleanupStalePlayers = startStalePlayersCleanup(entities);
-  const cleanupOffline = enableOfflineOnExit();
-
-  let cleanupRealtime = null;
-
-  try {
-    cleanupRealtime = subscribeCityPlayers(cityId, {
-      onInsert(player) {
-        upsertPlayerMarker(entities, player, localPlayerId);
-      },
-
-      onUpdate(player) {
-        if (!player.isOnline) {
-          removePlayerMarker(entities, player.playerId);
-          return;
-        }
-
-        upsertPlayerMarker(entities, player, localPlayerId);
-      },
-
-      onDelete(playerId) {
-        removePlayerMarker(entities, playerId);
-      },
-    });
-  } catch (error) {
-    console.warn('[home] realtime subscribe failed:', error);
-  }
 
   root._cleanupHome = () => {
     cleanupMovement?.();
     cleanupMobileJoystick?.();
     cleanupMapControls?.();
-    cleanupRealtime?.();
-    cleanupStalePlayers?.();
-    cleanupOffline?.();
-    movementChannel?.unsubscribe?.();
+    network.cleanup?.();
   };
 });
