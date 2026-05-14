@@ -11,6 +11,28 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
+function isPortraitScreen() {
+  return window.matchMedia('(orientation: portrait)').matches;
+}
+
+function isRotatedMobileScene() {
+  return isPortraitScreen();
+}
+
+function rotateInputForMobileScene(inputX, inputY) {
+  if (!isRotatedMobileScene()) {
+    return {
+      x: inputX,
+      y: inputY,
+    };
+  }
+
+  return {
+    x: inputY,
+    y: -inputX,
+  };
+}
+
 export function enableMobileJoystick(
   container,
   marker,
@@ -36,9 +58,9 @@ export function enableMobileJoystick(
 
   const SPEED = 0.16;
   const MAX_DISTANCE = 42;
-  const BROADCAST_INTERVAL = 5;
-  const DB_SAVE_INTERVAL = 1000;
-  const HEARTBEAT_DELAY = 700;
+  const BROADCAST_INTERVAL = 25;
+  const DB_SAVE_INTERVAL = 1200;
+  const HEARTBEAT_DELAY = 1000;
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
@@ -136,25 +158,32 @@ export function enableMobileJoystick(
     moveY = 0;
 
     stick.style.transform =
-      'translate(-50%, -50%) translate3d(0,0,0)';
+      'translate(-50%, -50%) translate3d(0, 0, 0)';
   }
 
   function updateStick(clientX, clientY) {
     const dx = clientX - centerX;
     const dy = clientY - centerY;
 
-    const distance = Math.min(
-      Math.hypot(dx, dy),
-      MAX_DISTANCE
-    );
+    const rawDistance = Math.hypot(dx, dy);
+    const distance = Math.min(rawDistance, MAX_DISTANCE);
+
+    if (rawDistance <= 0.001) {
+      resetStick();
+      return;
+    }
+
+    const inputX = dx / rawDistance;
+    const inputY = dy / rawDistance;
+
+    const rotatedInput = rotateInputForMobileScene(inputX, inputY);
+
+    moveX = rotatedInput.x * (distance / MAX_DISTANCE);
+    moveY = rotatedInput.y * (distance / MAX_DISTANCE);
 
     const angle = Math.atan2(dy, dx);
-
     const stickX = Math.cos(angle) * distance;
     const stickY = Math.sin(angle) * distance;
-
-    moveX = stickX / MAX_DISTANCE;
-    moveY = stickY / MAX_DISTANCE;
 
     stick.style.transform =
       `translate(-50%, -50%) translate3d(${stickX}px, ${stickY}px, 0)`;
