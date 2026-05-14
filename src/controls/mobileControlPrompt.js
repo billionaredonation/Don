@@ -283,3 +283,13 @@ export function enableMobileJoystick(
     savePositionToDb(true);
   };
 }
+
+export function setupMobileControlPrompt({
+  root,
+  layer,
+  enableJoystick,
+}) {
+
+
+
+export function setupMobileControlPrompt(...)
