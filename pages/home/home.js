@@ -16,11 +16,7 @@ import {
   renderPlayersHtml,
   setupPlayerNetwork,
 } from '../../src/network/playerNetwork.js';
-import * as mobileControlPromptModule from '../../src/controls/mobileControlPrompt.js';
 
-const setupMobileControlPrompt =
-  mobileControlPromptModule.setupMobileControlPrompt ||
-  mobileControlPromptModule.setupMobileControlPrompt;
 
 
 
