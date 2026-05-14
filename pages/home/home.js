@@ -16,7 +16,12 @@ import {
   renderPlayersHtml,
   setupPlayerNetwork,
 } from '../../src/network/playerNetwork.js';
-import { setupMobileControlPrompt } from '../../src/controls/mobileControlPrompt.js';
+import * as mobileControlPromptModule from '../../src/controls/mobileControlPrompt.js';
+
+const setupMobileControlPrompt =
+  mobileControlPromptModule.setupMobileControlPrompt ||
+  mobileControlPromptModule.setupMobileControlPrompt;
+
 
 
 const MAP_FILES = import.meta.glob('../../*.png', {
