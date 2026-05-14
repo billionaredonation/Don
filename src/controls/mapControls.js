@@ -2,13 +2,49 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function isPortraitScreen() {
+  return window.matchMedia('(orientation: portrait)').matches;
+}
+
+function isRotatedMobileScene() {
+  const home = document.querySelector('.home');
+
+  return (
+    home?.dataset.mobileControls === 'enabled' &&
+    isPortraitScreen()
+  );
+}
+
+function rotateDelta(dx, dy) {
+  if (!isRotatedMobileScene()) {
+    return {
+      x: dx,
+      y: dy,
+    };
+  }
+
+  return {
+    x: dy,
+    y: -dx,
+  };
+}
+
 export function isLowPowerDevice() {
   const memory = navigator.deviceMemory || 4;
   const cores = navigator.hardwareConcurrency || 4;
-  const isSmallScreen = window.matchMedia('(max-width: 520px)').matches;
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  return reducedMotion || memory <= 3 || cores <= 4 || isSmallScreen;
+  const isSmallScreen =
+    window.matchMedia('(max-width: 520px)').matches;
+
+  const reducedMotion =
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  return (
+    reducedMotion ||
+    memory <= 3 ||
+    cores <= 4 ||
+    isSmallScreen
+  );
 }
 
 export function enableMapControls(stage, viewport) {
@@ -19,15 +55,19 @@ export function enableMapControls(stage, viewport) {
   const WORLD_FACTOR = lowPower ? 1.38 : 1.55;
 
   let scale = 1;
+
   let x = 0;
   let y = 0;
+
   let worldWidth = 0;
   let worldHeight = 0;
 
   let isDragging = false;
   let activePointerId = null;
+
   let startX = 0;
   let startY = 0;
+
   let startMapX = 0;
   let startMapY = 0;
 
@@ -38,12 +78,18 @@ export function enableMapControls(stage, viewport) {
 
   let pinchStartDist = 0;
   let pinchStartScale = 1;
-  let pinchCenter = { x: 0, y: 0 };
+
+  let pinchCenter = {
+    x: 0,
+    y: 0,
+  };
 
   function measureWorld() {
     const rect = stage.getBoundingClientRect();
 
-    worldWidth = Math.max(rect.width, rect.height) * WORLD_FACTOR;
+    worldWidth =
+      Math.max(rect.width, rect.height) * WORLD_FACTOR;
+
     worldHeight = worldWidth * 0.72;
 
     viewport.style.width = `${worldWidth}px`;
@@ -99,8 +145,11 @@ export function enableMapControls(stage, viewport) {
   function zoomAt(clientX, clientY, nextScale) {
     const rect = stage.getBoundingClientRect();
 
-    const pointX = clientX - rect.left - rect.width / 2;
-    const pointY = clientY - rect.top - rect.height / 2;
+    const pointX =
+      clientX - rect.left - rect.width / 2;
+
+    const pointY =
+      clientY - rect.top - rect.height / 2;
 
     const oldScale = scale;
 
@@ -187,8 +236,13 @@ export function enableMapControls(stage, viewport) {
     }
 
     if (isDragging && event.pointerId === activePointerId) {
-      x = startMapX + event.clientX - startX;
-      y = startMapY + event.clientY - startY;
+      const rawDx = event.clientX - startX;
+      const rawDy = event.clientY - startY;
+
+      const rotated = rotateDelta(rawDx, rawDy);
+
+      x = startMapX + rotated.x;
+      y = startMapY + rotated.y;
 
       applyTransform();
     }
@@ -224,7 +278,8 @@ export function enableMapControls(stage, viewport) {
   function onWheel(event) {
     event.preventDefault();
 
-    const delta = event.deltaY > 0 ? -0.12 : 0.12;
+    const delta =
+      event.deltaY > 0 ? -0.12 : 0.12;
 
     zoomAt(
       event.clientX,
@@ -236,6 +291,7 @@ export function enableMapControls(stage, viewport) {
   function onDoubleClick(event) {
     if (scale > 1.1) {
       scale = 1;
+
       x = 0;
       y = 0;
 
@@ -257,6 +313,7 @@ export function enableMapControls(stage, viewport) {
 
   stage.addEventListener('pointerdown', onPointerDown);
   stage.addEventListener('pointermove', onPointerMove);
+
   stage.addEventListener('pointerup', endPointer);
   stage.addEventListener('pointercancel', endPointer);
   stage.addEventListener('pointerleave', endPointer);
@@ -275,9 +332,11 @@ export function enableMapControls(stage, viewport) {
   return () => {
     stage.removeEventListener('pointerdown', onPointerDown);
     stage.removeEventListener('pointermove', onPointerMove);
+
     stage.removeEventListener('pointerup', endPointer);
     stage.removeEventListener('pointercancel', endPointer);
     stage.removeEventListener('pointerleave', endPointer);
+
     stage.removeEventListener('wheel', onWheel);
     stage.removeEventListener('dblclick', onDoubleClick);
 
