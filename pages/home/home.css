@@ -1494,4 +1494,44 @@ body,
   }
 }
   
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .home-gameplay {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: 100dvh;
+    height: 100dvw;
+    min-height: 100dvw;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center center;
+    overflow: hidden;
+  }
 
+  .home[data-mobile-controls="enabled"] .gta-map-stage {
+    width: 100%;
+    height: 100%;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    pointer-events: none;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    position: fixed;
+    left: max(18px, env(safe-area-inset-left));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    z-index: 120;
+    pointer-events: auto;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-control-toggle {
+    position: fixed;
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: auto;
+    translate: 0 0;
+  }
+}
