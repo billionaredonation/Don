@@ -1,153 +1,285 @@
-const MOBILE_CONTROLS_KEY = 'mn_mobile_controls_enabled';
+import {
+  getLocalPlayerId,
+  updatePlayerPosition,
+} from '../player/playerPosition.js';
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
 function isMobileDevice() {
-  return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
-function hasMobileControlsEnabled() {
-  return localStorage.getItem(MOBILE_CONTROLS_KEY) === '1';
+function isPortraitScreen() {
+  return window.matchMedia('(orientation: portrait)').matches;
 }
 
-function saveMobileControlsEnabled() {
-  localStorage.setItem(MOBILE_CONTROLS_KEY, '1');
+function isRotatedMobileScene() {
+  return isPortraitScreen();
 }
 
-async function requestGameFullscreen() {
-  const target = document.documentElement;
-
-  try {
-    if (target.requestFullscreen && !document.fullscreenElement) {
-      await target.requestFullscreen();
-    }
-  } catch (error) {
-    console.warn('[mobileControls] fullscreen failed:', error);
-  }
-}
-
-async function lockLandscape() {
-  try {
-    if (screen.orientation?.lock) {
-      await screen.orientation.lock('landscape');
-    }
-  } catch (error) {
-    console.warn('[mobileControls] orientation lock failed:', error);
-  }
-}
-
-async function enterMobileGameMode(root) {
-  root.dataset.mobileControls = 'enabled';
-
-  await requestGameFullscreen();
-  await lockLandscape();
-}
-
-export function setupMobileControlPrompt({
-  root,
-  layer,
-  enableJoystick,
-}) {
-  if (!root || !layer) return null;
-
-  const mobile = isMobileDevice();
-
-  if (!mobile) {
-    layer.innerHTML = '';
-    return null;
+function rotateInputForMobileScene(inputX, inputY) {
+  if (!isRotatedMobileScene()) {
+    return {
+      x: inputX,
+      y: inputY,
+    };
   }
 
-  let joystickCleanup = null;
+  return {
+    x: inputY,
+    y: -inputX,
+  };
+}
 
-  layer.innerHTML = `
-    <button class="mobile-control-toggle" type="button" aria-label="Mobile controls">
-      🎮
-      <span class="mobile-control-dot"></span>
-    </button>
+export function enableMobileJoystick(
+  container,
+  marker,
+  playerPosition,
+  cityId,
+  nickname,
+  movementChannel
+) {
+  if (!container || !marker || !playerPosition) return null;
+  if (!isMobileDevice()) return null;
 
-    <div class="mobile-control-tip">
-      Мобильное управление здесь
-    </div>
-
-    <div class="mobile-control-panel" hidden>
-      <div class="mobile-control-card">
-        <strong>Мобильное управление</strong>
-
-        <p>
-          Если вы играете с ПК — оставайтесь на стандартном управлении.
-          Если вы играете с телефона — рекомендуем включить мобильное управление.
-        </p>
-
-        <p class="mobile-control-hint">
-          После включения игра откроется на весь экран.
-          Поверните телефон на бок для нормальной игры.
-        </p>
-
-        <div class="mobile-control-actions">
-          <button class="mobile-control-cancel" type="button">
-            Оставить стандартное
-          </button>
-
-          <button class="mobile-control-accept" type="button">
-            Включить
-          </button>
-        </div>
+  container.innerHTML = `
+    <div class="mobile-joystick">
+      <div class="mobile-joystick-base">
+        <div class="mobile-joystick-stick"></div>
       </div>
     </div>
   `;
 
-  const toggle = layer.querySelector('.mobile-control-toggle');
-  const tip = layer.querySelector('.mobile-control-tip');
-  const panel = layer.querySelector('.mobile-control-panel');
-  const cancel = layer.querySelector('.mobile-control-cancel');
-  const accept = layer.querySelector('.mobile-control-accept');
+  const joystick = container.querySelector('.mobile-joystick');
+  const base = container.querySelector('.mobile-joystick-base');
+  const stick = container.querySelector('.mobile-joystick-stick');
 
-  function openPanel() {
-    panel.hidden = false;
+  const SPEED = 0.16;
+  const MAX_DISTANCE = 42;
+  const BROADCAST_INTERVAL = 25;
+  const DB_SAVE_INTERVAL = 1200;
+  const HEARTBEAT_DELAY = 1000;
+
+  let x = Number(playerPosition.x) || 50;
+  let y = Number(playerPosition.y) || 50;
+
+  let activePointerId = null;
+
+  let centerX = 0;
+  let centerY = 0;
+
+  let moveX = 0;
+  let moveY = 0;
+
+  let animationId = null;
+  let heartbeatTimer = null;
+  let destroyed = false;
+
+  let lastBroadcastAt = 0;
+  let lastDbSaveAt = 0;
+
+  let dbSaveInFlight = false;
+  let dbSavePending = false;
+
+  function renderPlayer() {
+    x = clamp(x, 0, 100);
+    y = clamp(y, 0, 100);
+
+    marker.style.left = `${x}%`;
+    marker.style.top = `${y}%`;
   }
 
-  function closePanel() {
-    panel.hidden = true;
-  }
+  function broadcastMove() {
+    const now = Date.now();
 
-  async function enableMobileMode() {
-    closePanel();
-    saveMobileControlsEnabled();
+    if (now - lastBroadcastAt < BROADCAST_INTERVAL) return;
 
-    tip.hidden = true;
-    toggle.classList.add('is-enabled');
+    lastBroadcastAt = now;
 
-    await enterMobileGameMode(root);
-
-    joystickCleanup?.();
-    joystickCleanup = enableJoystick?.() || null;
-  }
-
-  toggle.addEventListener('click', openPanel);
-  cancel.addEventListener('click', closePanel);
-  accept.addEventListener('click', enableMobileMode);
-
-  if (hasMobileControlsEnabled()) {
-    tip.hidden = true;
-    toggle.classList.add('is-enabled');
-
-    enterMobileGameMode(root).finally(() => {
-      joystickCleanup?.();
-      joystickCleanup = enableJoystick?.() || null;
+    movementChannel?.sendMove({
+      playerId: getLocalPlayerId(),
+      nickname,
+      cityId,
+      x,
+      y,
+      updatedAt: new Date().toISOString(),
     });
-  } else {
-    setTimeout(() => {
-      if (!hasMobileControlsEnabled()) {
-        tip.classList.add('is-visible');
-      }
-    }, 1200);
   }
+
+  async function savePositionToDb(force = false) {
+    const now = Date.now();
+
+    if (!force && now - lastDbSaveAt < DB_SAVE_INTERVAL) {
+      dbSavePending = true;
+      return;
+    }
+
+    if (dbSaveInFlight) {
+      dbSavePending = true;
+      return;
+    }
+
+    dbSaveInFlight = true;
+    dbSavePending = false;
+
+    try {
+      await updatePlayerPosition({
+        cityId,
+        nickname,
+        x,
+        y,
+      });
+
+      lastDbSaveAt = Date.now();
+    } catch (error) {
+      console.warn('[mobileJoystick] player position update failed:', error);
+    } finally {
+      dbSaveInFlight = false;
+
+      if (dbSavePending && !destroyed) {
+        savePositionToDb(false);
+      }
+    }
+  }
+
+  function startHeartbeat() {
+    clearInterval(heartbeatTimer);
+
+    heartbeatTimer = setInterval(() => {
+      savePositionToDb(true);
+      broadcastMove();
+    }, HEARTBEAT_DELAY);
+  }
+
+  function resetStick() {
+    moveX = 0;
+    moveY = 0;
+
+    stick.style.transform =
+      'translate(-50%, -50%) translate3d(0, 0, 0)';
+  }
+
+  function updateStick(clientX, clientY) {
+    const dx = clientX - centerX;
+    const dy = clientY - centerY;
+
+    const rawDistance = Math.hypot(dx, dy);
+    const distance = Math.min(rawDistance, MAX_DISTANCE);
+
+    if (rawDistance <= 0.001) {
+      resetStick();
+      return;
+    }
+
+    const inputX = dx / rawDistance;
+    const inputY = dy / rawDistance;
+
+    const rotatedInput = rotateInputForMobileScene(inputX, inputY);
+
+    const power = distance / MAX_DISTANCE;
+
+    moveX = rotatedInput.x * power;
+    moveY = rotatedInput.y * power;
+
+    const stickX = moveX * MAX_DISTANCE;
+    const stickY = moveY * MAX_DISTANCE;
+
+    stick.style.transform =
+      `translate(-50%, -50%) translate3d(${stickX}px, ${stickY}px, 0)`;
+  }
+
+  function loop() {
+    if (destroyed) return;
+
+    const isMoving =
+      Math.abs(moveX) > 0.08 ||
+      Math.abs(moveY) > 0.08;
+
+    if (isMoving) {
+      x += moveX * SPEED;
+      y += moveY * SPEED;
+
+      renderPlayer();
+      broadcastMove();
+      savePositionToDb(false);
+    }
+
+    animationId = requestAnimationFrame(loop);
+  }
+
+  function onPointerDown(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    activePointerId = event.pointerId;
+
+    const rect = base.getBoundingClientRect();
+
+    centerX = rect.left + rect.width / 2;
+    centerY = rect.top + rect.height / 2;
+
+    base.setPointerCapture(event.pointerId);
+
+    updateStick(event.clientX, event.clientY);
+
+    if (!animationId) {
+      animationId = requestAnimationFrame(loop);
+    }
+  }
+
+  function onPointerMove(event) {
+    if (event.pointerId !== activePointerId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    updateStick(event.clientX, event.clientY);
+  }
+
+  function onPointerEnd(event) {
+    if (event.pointerId !== activePointerId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    activePointerId = null;
+
+    resetStick();
+
+    broadcastMove();
+    savePositionToDb(true);
+  }
+
+  base.addEventListener('pointerdown', onPointerDown);
+  base.addEventListener('pointermove', onPointerMove);
+  base.addEventListener('pointerup', onPointerEnd);
+  base.addEventListener('pointercancel', onPointerEnd);
+  base.addEventListener('pointerleave', onPointerEnd);
+
+  renderPlayer();
+  savePositionToDb(true);
+  startHeartbeat();
 
   return () => {
-    toggle.removeEventListener('click', openPanel);
-    cancel.removeEventListener('click', closePanel);
-    accept.removeEventListener('click', enableMobileMode);
+    destroyed = true;
 
-    joystickCleanup?.();
+    clearInterval(heartbeatTimer);
 
-    layer.innerHTML = '';
+    base.removeEventListener('pointerdown', onPointerDown);
+    base.removeEventListener('pointermove', onPointerMove);
+    base.removeEventListener('pointerup', onPointerEnd);
+    base.removeEventListener('pointercancel', onPointerEnd);
+    base.removeEventListener('pointerleave', onPointerEnd);
+
+    if (animationId) {
+      cancelAnimationFrame(animationId);
+    }
+
+    joystick?.remove();
+
+    broadcastMove();
+    savePositionToDb(true);
   };
 }
