@@ -3,10 +3,10 @@ import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
 import {
-  getLocalPlayerId,
-  getOrCreatePlayerPosition,
-  getCityPlayers,
+  getLocalPlayerId,a
 } from '../../src/player/playerPosition.js';
+
+import { setupMobileControlPrompt } from '../../src/controls/mobileControlPrompt.js';
 
 import { enableMapControls, isLowPowerDevice } from '../../src/controls/mapControls.js';
 import { enableKeyboardPlayerMovement } from '../../src/controls/keyboardMovement.js';
