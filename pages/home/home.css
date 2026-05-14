@@ -1317,3 +1317,99 @@ body,
     left 0.16s linear,
     top 0.16s linear;
 }
+
+
+.mobile-controls-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 80;
+  pointer-events: none;
+}
+
+.mobile-control-toggle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  translate: -50% 0;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  background: rgba(5, 7, 10, 0.82);
+  color: #fff;
+  font-size: 22px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 14px 34px rgba(0,0,0,0.42);
+  pointer-events: auto;
+}
+
+.mobile-control-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: end center;
+  padding: 18px;
+  background: rgba(0,0,0,0.42);
+  pointer-events: auto;
+}
+
+.mobile-control-card {
+  width: min(420px, 100%);
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(8, 10, 14, 0.92);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #fff;
+  box-shadow: 0 22px 60px rgba(0,0,0,0.52);
+  backdrop-filter: blur(18px);
+}
+
+.mobile-control-card strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: 1000;
+}
+
+.mobile-control-card p {
+  margin: 0 0 10px;
+  color: rgba(255,255,255,0.72);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.mobile-control-hint {
+  color: rgba(190,220,255,0.86) !important;
+}
+
+.mobile-control-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.mobile-control-actions button {
+  flex: 1;
+  min-height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #fff;
+  font-weight: 900;
+}
+
+.mobile-control-cancel {
+  background: rgba(255,255,255,0.08);
+}
+
+.mobile-control-accept {
+  background: rgba(80, 150, 255, 0.28);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mobile-controls-layer {
+    display: none;
+  }
+}
