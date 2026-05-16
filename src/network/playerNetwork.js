@@ -149,17 +149,40 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
     return;
   }
 
-  const state = getRemoteState(marker, player);
+const state = getRemoteState(marker, player);
 
+const dx = nextX - state.currentX;
+const dy = nextY - state.currentY;
+const distance = Math.hypot(dx, dy);
+
+const idleThreshold = NETWORK_CONFIG.movement.remoteIdleThreshold ?? 0.12;
+
+if (distance < idleThreshold) {
+  state.currentX = nextX;
+  state.currentY = nextY;
   state.targetX = nextX;
   state.targetY = nextY;
-  state.lastUpdateAt = performance.now();
 
-  if (!state.animationId) {
-    state.animationId = requestAnimationFrame(() => animateRemoteMarker(player.playerId));
+  if (state.animationId) {
+    cancelAnimationFrame(state.animationId);
+    state.animationId = null;
   }
+
+  marker.style.left = `${nextX}%`;
+  marker.style.top = `${nextY}%`;
+  marker.dataset.x = String(nextX);
+  marker.dataset.y = String(nextY);
+
+  return;
 }
 
+state.targetX = nextX;
+state.targetY = nextY;
+state.lastUpdateAt = performance.now();
+
+if (!state.animationId) {
+  state.animationId = requestAnimationFrame(() => animateRemoteMarker(player.playerId));
+}
 export function removePlayerMarker(entities, playerId) {
   if (!entities || !playerId) return;
 
