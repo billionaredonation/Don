@@ -9,6 +9,7 @@ export const NETWORK_CONFIG = {
 
     remoteSmoothing: 0.28,
     remoteSnapDistance: 35,
+    remoteIdleThreshold: 0.12,
   },
 
   limits: {
