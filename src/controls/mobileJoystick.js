@@ -1,6 +1,3 @@
-Замени весь `src/controls/mobileJoystick.js` на этот. Добавил `angle`, синхрон угла, отправку в Broadcast и сохранение в БД. Основа взята из твоего текущего файла. 
-
-```js
 import {
   getLocalPlayerId,
   updatePlayerPosition,
@@ -327,4 +324,3 @@ export function enableMobileJoystick(
     savePositionToDb(true);
   };
 }
-```
