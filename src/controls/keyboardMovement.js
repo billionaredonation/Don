@@ -7,18 +7,31 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function getAngleFromMovement(moveX, moveY, fallback = 0) {
+  if (Math.abs(moveX) < 0.001 && Math.abs(moveY) < 0.001) {
+    return fallback;
+  }
+
+  return Math.atan2(moveY, moveX) * 180 / Math.PI + 90;
+}
+
 export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname, movementChannel) {
   if (!marker || !playerPosition) return null;
 
   const keys = new Set();
 
   const SPEED = 0.12;
-  const BROADCAST_INTERVAL = 5;
-  const DB_SAVE_INTERVAL = 1000;
-  const HEARTBEAT_DELAY = 700;
+  const BROADCAST_INTERVAL = 25;
+  const DB_SAVE_INTERVAL = 1200;
+  const HEARTBEAT_DELAY = 1000;
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
+  let angle = Number(playerPosition.angle || playerPosition.direction || 0);
+
+  playerPosition.x = x;
+  playerPosition.y = y;
+  playerPosition.angle = angle;
 
   let animationId = null;
   let heartbeatTimer = null;
@@ -29,18 +42,28 @@ export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nic
   let dbSaveInFlight = false;
   let dbSavePending = false;
 
+  function syncPlayerPosition() {
+    playerPosition.x = x;
+    playerPosition.y = y;
+    playerPosition.angle = angle;
+  }
+
   function renderPlayer() {
     x = clamp(x, 0, 100);
     y = clamp(y, 0, 100);
 
+    syncPlayerPosition();
+
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
+    marker.dataset.angle = String(angle);
+    marker.style.setProperty('--player-angle', `${angle}deg`);
   }
 
-  function broadcastMove() {
+  function broadcastMove(force = false) {
     const now = Date.now();
 
-    if (now - lastBroadcastAt < BROADCAST_INTERVAL) return;
+    if (!force && now - lastBroadcastAt < BROADCAST_INTERVAL) return;
 
     lastBroadcastAt = now;
 
@@ -48,8 +71,9 @@ export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nic
       playerId: getLocalPlayerId(),
       nickname,
       cityId,
-      x,
-      y,
+      x: playerPosition.x,
+      y: playerPosition.y,
+      angle: playerPosition.angle,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -74,8 +98,9 @@ export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nic
       await updatePlayerPosition({
         cityId,
         nickname,
-        x,
-        y,
+        x: playerPosition.x,
+        y: playerPosition.y,
+        angle: playerPosition.angle,
       });
 
       lastDbSaveAt = Date.now();
@@ -94,39 +119,61 @@ export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nic
     clearInterval(heartbeatTimer);
 
     heartbeatTimer = setInterval(() => {
+      renderPlayer();
       savePositionToDb(true);
-      broadcastMove();
+      broadcastMove(true);
     }, HEARTBEAT_DELAY);
+  }
+
+  function getMoveVector() {
+    let moveX = 0;
+    let moveY = 0;
+
+    if (keys.has('w') || keys.has('ц') || keys.has('arrowup')) {
+      moveY -= 1;
+    }
+
+    if (keys.has('s') || keys.has('ы') || keys.has('arrowdown')) {
+      moveY += 1;
+    }
+
+    if (keys.has('a') || keys.has('ф') || keys.has('arrowleft')) {
+      moveX -= 1;
+    }
+
+    if (keys.has('d') || keys.has('в') || keys.has('arrowright')) {
+      moveX += 1;
+    }
+
+    const length = Math.hypot(moveX, moveY);
+
+    if (length > 0) {
+      moveX /= length;
+      moveY /= length;
+    }
+
+    return {
+      moveX,
+      moveY,
+    };
   }
 
   function loop() {
     if (destroyed) return;
 
-    let moved = false;
+    const { moveX, moveY } = getMoveVector();
 
-    if (keys.has('w') || keys.has('ц') || keys.has('arrowup')) {
-      y -= SPEED;
-      moved = true;
-    }
-
-    if (keys.has('s') || keys.has('ы') || keys.has('arrowdown')) {
-      y += SPEED;
-      moved = true;
-    }
-
-    if (keys.has('a') || keys.has('ф') || keys.has('arrowleft')) {
-      x -= SPEED;
-      moved = true;
-    }
-
-    if (keys.has('d') || keys.has('в') || keys.has('arrowright')) {
-      x += SPEED;
-      moved = true;
-    }
+    const moved =
+      Math.abs(moveX) > 0.001 ||
+      Math.abs(moveY) > 0.001;
 
     if (moved) {
+      x += moveX * SPEED;
+      y += moveY * SPEED;
+      angle = getAngleFromMovement(moveX, moveY, angle);
+
       renderPlayer();
-      broadcastMove();
+      broadcastMove(false);
       savePositionToDb(false);
     }
 
@@ -163,7 +210,8 @@ export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nic
       cancelAnimationFrame(animationId);
       animationId = null;
 
-      broadcastMove();
+      renderPlayer();
+      broadcastMove(true);
       savePositionToDb(true);
     }
   }
@@ -186,7 +234,8 @@ export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nic
       cancelAnimationFrame(animationId);
     }
 
-    broadcastMove();
+    renderPlayer();
+    broadcastMove(true);
     savePositionToDb(true);
   };
-    }
+}
