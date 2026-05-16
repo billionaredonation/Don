@@ -12,10 +12,8 @@ import { enableMapControls, isLowPowerDevice } from '../../src/controls/mapContr
 import { enableKeyboardPlayerMovement } from '../../src/controls/keyboardMovement.js';
 import { enableMobileJoystick } from '../../src/controls/mobileJoystick.js';
 
-import {
-  renderPlayersHtml,
-  setupPlayerNetwork,
-} from '../../src/network/playerNetwork.js';
+import { setupPlayerNetwork } from '../../src/network/playerNetwork.js';
+import { renderPlayersHtml } from '../../src/player/playerMarkerView.js';
 
 
 
