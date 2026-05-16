@@ -4,6 +4,10 @@ import {
   setPlayerOffline,
 } from '../player/playerPosition.js';
 import { NETWORK_CONFIG } from '../config/networkConfig.js';
+import {
+  createPlayerMarkerHtml,
+  updatePlayerMarkerView,
+} from '../player/playerMarkerView.js';
 
 const remoteMarkers = new Map();
 
@@ -11,14 +15,6 @@ function percentToNumber(value, fallback = 50) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
-
-
-
-ъ
-import {
-  createPlayerMarkerHtml,
-  updatePlayerMarkerView,
-} from '../player/playerMarkerView.js';
 
 function getRemoteState(marker, player) {
   const playerId = player.playerId;
@@ -110,7 +106,7 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
   marker.dataset.updatedAt = String(Date.now());
 
   updatePlayerMarkerView(marker, player);
-  
+
   if (isSelf || options.instant) {
     const state = remoteMarkers.get(player.playerId);
 
