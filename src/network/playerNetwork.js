@@ -12,31 +12,13 @@ function percentToNumber(value, fallback = 50) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-export function createPlayerMarkerHtml(player, localPlayerId) {
-  const isSelf = player.playerId === localPlayerId;
-  const updatedAt = Date.now();
 
-  return `
-    <div
-      class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
-      style="left: ${player.x}%; top: ${player.y}%;"
-      data-player-id="${player.playerId}"
-      data-updated-at="${updatedAt}"
-      data-x="${player.x}"
-      data-y="${player.y}"
-    >
-      <span></span>
-      <b>${player.nickname || 'Игрок'}</b>
-    </div>
-  `;
-}
 
-export function renderPlayersHtml(players, localPlayerId) {
-  return players
-    .filter((player) => player?.isOnline !== false)
-    .map((player) => createPlayerMarkerHtml(player, localPlayerId))
-    .join('');
-}
+ъ
+import {
+  createPlayerMarkerHtml,
+  updatePlayerMarkerView,
+} from '../player/playerMarkerView.js';
 
 function getRemoteState(marker, player) {
   const playerId = player.playerId;
@@ -127,12 +109,8 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
 
   marker.dataset.updatedAt = String(Date.now());
 
-  const name = marker.querySelector('b');
-
-  if (name) {
-    name.textContent = player.nickname || 'Игрок';
-  }
-
+  updatePlayerMarkerView(marker, player);
+  
   if (isSelf || options.instant) {
     const state = remoteMarkers.get(player.playerId);
 
