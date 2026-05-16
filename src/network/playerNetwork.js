@@ -40,7 +40,6 @@ export function renderPlayersHtml(players, localPlayerId) {
 
 function getRemoteState(marker, player) {
   const playerId = player.playerId;
-
   let state = remoteMarkers.get(playerId);
 
   if (!state) {
@@ -127,8 +126,9 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
   const nextY = percentToNumber(player.y);
 
   marker.dataset.updatedAt = String(Date.now());
-  
+
   const name = marker.querySelector('b');
+
   if (name) {
     name.textContent = player.nickname || 'Игрок';
   }
@@ -149,40 +149,40 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
     return;
   }
 
-const state = getRemoteState(marker, player);
+  const state = getRemoteState(marker, player);
 
-const dx = nextX - state.currentX;
-const dy = nextY - state.currentY;
-const distance = Math.hypot(dx, dy);
+  const dx = nextX - state.currentX;
+  const dy = nextY - state.currentY;
+  const distance = Math.hypot(dx, dy);
+  const idleThreshold = NETWORK_CONFIG.movement.remoteIdleThreshold ?? 0.12;
 
-const idleThreshold = NETWORK_CONFIG.movement.remoteIdleThreshold ?? 0.12;
+  if (distance < idleThreshold) {
+    state.currentX = nextX;
+    state.currentY = nextY;
+    state.targetX = nextX;
+    state.targetY = nextY;
 
-if (distance < idleThreshold) {
-  state.currentX = nextX;
-  state.currentY = nextY;
-  state.targetX = nextX;
-  state.targetY = nextY;
+    if (state.animationId) {
+      cancelAnimationFrame(state.animationId);
+      state.animationId = null;
+    }
 
-  if (state.animationId) {
-    cancelAnimationFrame(state.animationId);
-    state.animationId = null;
+    marker.style.left = `${nextX}%`;
+    marker.style.top = `${nextY}%`;
+    marker.dataset.x = String(nextX);
+    marker.dataset.y = String(nextY);
+    return;
   }
 
-  marker.style.left = `${nextX}%`;
-  marker.style.top = `${nextY}%`;
-  marker.dataset.x = String(nextX);
-  marker.dataset.y = String(nextY);
+  state.targetX = nextX;
+  state.targetY = nextY;
+  state.lastUpdateAt = performance.now();
 
-  return;
+  if (!state.animationId) {
+    state.animationId = requestAnimationFrame(() => animateRemoteMarker(player.playerId));
+  }
 }
 
-state.targetX = nextX;
-state.targetY = nextY;
-state.lastUpdateAt = performance.now();
-
-if (!state.animationId) {
-  state.animationId = requestAnimationFrame(() => animateRemoteMarker(player.playerId));
-}
 export function removePlayerMarker(entities, playerId) {
   if (!entities || !playerId) return;
 
@@ -265,10 +265,6 @@ export function setupPlayerNetwork({ cityId, entities, localPlayerId }) {
         if (!player.isOnline) {
           removePlayerMarker(entities, player.playerId);
         }
-
-        // Важно:
-        // БД не двигает игроков, чтобы не было отката на старую позицию.
-        // Движение идёт только через Broadcast.
       },
 
       onDelete(playerId) {
