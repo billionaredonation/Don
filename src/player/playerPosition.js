@@ -25,9 +25,9 @@ function normalizePosition(row) {
     cityId: row.city_id,
     x: Number(row.x),
     y: Number(row.y),
+    angle: Number(row.angle || 0),
     isOnline: row.is_online ?? true,
     updatedAt: row.updated_at,
-    angle: Number(row.angle || 0),
   };
 }
 
@@ -41,6 +41,8 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     .maybeSingle();
 
   if (!selectError && currentPosition && currentPosition.city_id === cityId) {
+    const angle = Number(currentPosition.angle || 0);
+
     const nextPosition = {
       player_id: playerId,
       nickname: nickname || 'Игрок',
@@ -66,6 +68,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 
     return normalizePosition({
       ...currentPosition,
+      angle,
       is_online: true,
       updated_at: new Date().toISOString(),
     });
@@ -79,6 +82,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     city_id: cityId,
     x: spawn.x,
     y: spawn.y,
+    angle: 0,
     is_online: true,
     updated_at: new Date().toISOString(),
   };
@@ -100,6 +104,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
       cityId,
       x: spawn.x,
       y: spawn.y,
+      angle: 0,
       isOnline: true,
       updatedAt: new Date().toISOString(),
     };
@@ -108,7 +113,6 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
   return normalizePosition(savedPosition);
 }
 
-export async function updatePlayerPosition({ cityId, nickname, x, y }) {
 export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }) {
   const playerId = getLocalPlayerId();
 
@@ -118,6 +122,7 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
     city_id: cityId,
     x,
     y,
+    angle,
     is_online: true,
     updated_at: new Date().toISOString(),
   };
@@ -136,8 +141,6 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
 
   return normalizePosition(data);
 }
-
-
 
 export async function getCityPlayers(cityId) {
   const aliveSince = new Date(Date.now() - 5000).toISOString();
