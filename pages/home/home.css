@@ -1832,3 +1832,31 @@ body,
     0 0 0 2px rgba(255,255,255,0.08),
     0 0 5px rgba(220,225,235,0.30) !important;
 }
+
+.gta-player-marker-dot {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background: #3a2a0a !important;
+  border: 2px solid #e6b84a !important;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.45),
+    0 0 6px rgba(230, 184, 74, 0.55) !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot {
+  background: #3a2a0a !important;
+  border-color: #f0c65a !important;
+}
+
+.gta-player-marker-other .gta-player-marker-dot {
+  background: #242424 !important;
+  border-color: #a8a8a8 !important;
+}
+
+.gta-player-lidar::before {
+  top: -25px !important;
+  width: 26px !important;
+  height: 32px !important;
+  opacity: 0.46 !important;
+}
