@@ -38,7 +38,7 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
     return fallback;
   }
 
-  return Math.atan2(moveY, moveX) * 180 / Math.PI + 90;
+  return Math.atan2(moveX, -moveY) * 180 / Math.PI;
 }
 
 export function enableMobileJoystick(
