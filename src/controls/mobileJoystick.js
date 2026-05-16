@@ -58,6 +58,7 @@ export function enableMobileJoystick(
 
   const SPEED = 0.16;
   const MAX_DISTANCE = 42;
+  const DEADZONE = 0.22;
   const BROADCAST_INTERVAL = 25;
   const DB_SAVE_INTERVAL = 1200;
   const HEARTBEAT_DELAY = 1000;
@@ -101,10 +102,10 @@ export function enableMobileJoystick(
     marker.style.top = `${y}%`;
   }
 
-  function broadcastMove() {
+  function broadcastMove(force = false) {
     const now = Date.now();
 
-    if (now - lastBroadcastAt < BROADCAST_INTERVAL) return;
+    if (!force && now - lastBroadcastAt < BROADCAST_INTERVAL) return;
 
     lastBroadcastAt = now;
 
@@ -158,8 +159,9 @@ export function enableMobileJoystick(
     clearInterval(heartbeatTimer);
 
     heartbeatTimer = setInterval(() => {
+      renderPlayer();
       savePositionToDb(true);
-      broadcastMove();
+      broadcastMove(true);
     }, HEARTBEAT_DELAY);
   }
 
@@ -189,6 +191,11 @@ export function enableMobileJoystick(
     const rotatedInput = rotateInputForMobileScene(inputX, inputY);
     const power = distance / MAX_DISTANCE;
 
+    if (power < DEADZONE) {
+      resetStick();
+      return;
+    }
+
     moveX = rotatedInput.x * power;
     moveY = rotatedInput.y * power;
 
@@ -204,15 +211,15 @@ export function enableMobileJoystick(
     if (destroyed) return;
 
     const isMoving =
-      Math.abs(moveX) > 0.08 ||
-      Math.abs(moveY) > 0.08;
+      Math.abs(moveX) > DEADZONE ||
+      Math.abs(moveY) > DEADZONE;
 
     if (isMoving) {
       x += moveX * SPEED;
       y += moveY * SPEED;
 
       renderPlayer();
-      broadcastMove();
+      broadcastMove(false);
       savePositionToDb(false);
     }
 
@@ -257,8 +264,9 @@ export function enableMobileJoystick(
     activePointerId = null;
 
     resetStick();
+    renderPlayer();
 
-    broadcastMove();
+    broadcastMove(true);
     savePositionToDb(true);
   }
 
@@ -287,10 +295,12 @@ export function enableMobileJoystick(
       cancelAnimationFrame(animationId);
     }
 
+    resetStick();
+    renderPlayer();
+
     joystick?.remove();
 
-    renderPlayer();
-    broadcastMove();
+    broadcastMove(true);
     savePositionToDb(true);
   };
 }
