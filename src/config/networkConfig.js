@@ -4,8 +4,8 @@ export const NETWORK_CONFIG = {
     dbSaveInterval: 1500,
     heartbeatDelay: 1000,
 
-    staleAfter: 8000,
-    staleCheckInterval: 1500,
+    staleAfter: 10000,
+    staleCheckInterval: 2000,
 
     remoteSmoothing: 0.28,
     remoteSnapDistance: 35,
