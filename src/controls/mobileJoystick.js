@@ -65,6 +65,9 @@ export function enableMobileJoystick(
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
 
+  playerPosition.x = x;
+  playerPosition.y = y;
+
   let activePointerId = null;
 
   let centerX = 0;
@@ -83,9 +86,16 @@ export function enableMobileJoystick(
   let dbSaveInFlight = false;
   let dbSavePending = false;
 
+  function syncPlayerPosition() {
+    playerPosition.x = x;
+    playerPosition.y = y;
+  }
+
   function renderPlayer() {
     x = clamp(x, 0, 100);
     y = clamp(y, 0, 100);
+
+    syncPlayerPosition();
 
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
@@ -102,8 +112,8 @@ export function enableMobileJoystick(
       playerId: getLocalPlayerId(),
       nickname,
       cityId,
-      x,
-      y,
+      x: playerPosition.x,
+      y: playerPosition.y,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -128,8 +138,8 @@ export function enableMobileJoystick(
       await updatePlayerPosition({
         cityId,
         nickname,
-        x,
-        y,
+        x: playerPosition.x,
+        y: playerPosition.y,
       });
 
       lastDbSaveAt = Date.now();
@@ -161,34 +171,35 @@ export function enableMobileJoystick(
       'translate(-50%, -50%) translate3d(0, 0, 0)';
   }
 
-function updateStick(clientX, clientY) {
-  const dx = clientX - centerX;
-  const dy = clientY - centerY;
+  function updateStick(clientX, clientY) {
+    const dx = clientX - centerX;
+    const dy = clientY - centerY;
 
-  const rawDistance = Math.hypot(dx, dy);
-  const distance = Math.min(rawDistance, MAX_DISTANCE);
+    const rawDistance = Math.hypot(dx, dy);
+    const distance = Math.min(rawDistance, MAX_DISTANCE);
 
-  if (rawDistance <= 0.001) {
-    resetStick();
-    return;
+    if (rawDistance <= 0.001) {
+      resetStick();
+      return;
+    }
+
+    const inputX = dx / rawDistance;
+    const inputY = dy / rawDistance;
+
+    const rotatedInput = rotateInputForMobileScene(inputX, inputY);
+    const power = distance / MAX_DISTANCE;
+
+    moveX = rotatedInput.x * power;
+    moveY = rotatedInput.y * power;
+
+    const visualInput = rotateInputForMobileScene(inputX, inputY);
+    const stickX = visualInput.x * distance;
+    const stickY = visualInput.y * distance;
+
+    stick.style.transform =
+      `translate(-50%, -50%) translate3d(${stickX}px, ${stickY}px, 0)`;
   }
 
-  const inputX = dx / rawDistance;
-  const inputY = dy / rawDistance;
-
-  const rotatedInput = rotateInputForMobileScene(inputX, inputY);
-  const power = distance / MAX_DISTANCE;
-
-  moveX = rotatedInput.x * power;
-  moveY = rotatedInput.y * power;
-
-  const visualInput = rotateInputForMobileScene(inputX, inputY);
-  const stickX = visualInput.x * distance;
-  const stickY = visualInput.y * distance;
-
-  stick.style.transform =
-    `translate(-50%, -50%) translate3d(${stickX}px, ${stickY}px, 0)`;
-}
   function loop() {
     if (destroyed) return;
 
@@ -278,6 +289,7 @@ function updateStick(clientX, clientY) {
 
     joystick?.remove();
 
+    renderPlayer();
     broadcastMove();
     savePositionToDb(true);
   };
