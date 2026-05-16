@@ -14,7 +14,7 @@ function percentToNumber(value, fallback = 50) {
 
 export function createPlayerMarkerHtml(player, localPlayerId) {
   const isSelf = player.playerId === localPlayerId;
-  const updatedAt = new Date(player.updatedAt || Date.now()).getTime();
+  const updatedAt = Date.now();
 
   return `
     <div
@@ -126,8 +126,8 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
   const nextX = percentToNumber(player.x);
   const nextY = percentToNumber(player.y);
 
-  marker.dataset.updatedAt = String(new Date(player.updatedAt || Date.now()).getTime());
-
+  marker.dataset.updatedAt = String(Date.now());
+  
   const name = marker.querySelector('b');
   if (name) {
     name.textContent = player.nickname || 'Игрок';
