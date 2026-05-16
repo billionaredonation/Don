@@ -27,6 +27,7 @@ function normalizePosition(row) {
     y: Number(row.y),
     isOnline: row.is_online ?? true,
     updatedAt: row.updated_at,
+    angle: Number(row.angle || 0),
   };
 }
 
@@ -46,6 +47,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
       city_id: cityId,
       x: currentPosition.x,
       y: currentPosition.y,
+      angle,
       is_online: true,
       updated_at: new Date().toISOString(),
     };
@@ -107,6 +109,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 }
 
 export async function updatePlayerPosition({ cityId, nickname, x, y }) {
+export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }) {
   const playerId = getLocalPlayerId();
 
   const nextPosition = {
