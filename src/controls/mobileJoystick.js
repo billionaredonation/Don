@@ -1,3 +1,6 @@
+Замени весь `src/controls/mobileJoystick.js` на этот. Добавил `angle`, синхрон угла, отправку в Broadcast и сохранение в БД. Основа взята из твоего текущего файла. 
+
+```js
 import {
   getLocalPlayerId,
   updatePlayerPosition,
@@ -33,6 +36,14 @@ function rotateInputForMobileScene(inputX, inputY) {
   };
 }
 
+function getAngleFromMovement(moveX, moveY, fallback = 0) {
+  if (Math.abs(moveX) < 0.001 && Math.abs(moveY) < 0.001) {
+    return fallback;
+  }
+
+  return Math.atan2(moveY, moveX) * 180 / Math.PI + 90;
+}
+
 export function enableMobileJoystick(
   container,
   marker,
@@ -65,9 +76,11 @@ export function enableMobileJoystick(
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
+  let angle = Number(playerPosition.angle || playerPosition.direction || 0);
 
   playerPosition.x = x;
   playerPosition.y = y;
+  playerPosition.angle = angle;
 
   let activePointerId = null;
 
@@ -90,6 +103,7 @@ export function enableMobileJoystick(
   function syncPlayerPosition() {
     playerPosition.x = x;
     playerPosition.y = y;
+    playerPosition.angle = angle;
   }
 
   function renderPlayer() {
@@ -100,6 +114,8 @@ export function enableMobileJoystick(
 
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
+    marker.dataset.angle = String(angle);
+    marker.style.setProperty('--player-angle', `${angle}deg`);
   }
 
   function broadcastMove(force = false) {
@@ -115,6 +131,7 @@ export function enableMobileJoystick(
       cityId,
       x: playerPosition.x,
       y: playerPosition.y,
+      angle: playerPosition.angle,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -141,6 +158,7 @@ export function enableMobileJoystick(
         nickname,
         x: playerPosition.x,
         y: playerPosition.y,
+        angle: playerPosition.angle,
       });
 
       lastDbSaveAt = Date.now();
@@ -199,6 +217,9 @@ export function enableMobileJoystick(
     moveX = rotatedInput.x * power;
     moveY = rotatedInput.y * power;
 
+    angle = getAngleFromMovement(moveX, moveY, angle);
+    syncPlayerPosition();
+
     const visualInput = rotateInputForMobileScene(inputX, inputY);
     const stickX = visualInput.x * distance;
     const stickY = visualInput.y * distance;
@@ -217,6 +238,8 @@ export function enableMobileJoystick(
     if (isMoving) {
       x += moveX * SPEED;
       y += moveY * SPEED;
+
+      angle = getAngleFromMovement(moveX, moveY, angle);
 
       renderPlayer();
       broadcastMove(false);
@@ -304,3 +327,4 @@ export function enableMobileJoystick(
     savePositionToDb(true);
   };
 }
+```
