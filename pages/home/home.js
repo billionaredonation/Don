@@ -218,6 +218,7 @@ register('home', async (root) => {
     playerPosition,
     cityId,
     nickname,
+    mapControls,
     network.movementChannel
   );
 
