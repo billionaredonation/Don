@@ -1,4 +1,11 @@
 import {
+  getMobileMoveSpeed,
+  getMovementBounds,
+  getMovementSyncConfig,
+} from '../player/playerStatsConfig.js';
+
+
+import {
   getLocalPlayerId,
   updatePlayerPosition,
 } from '../player/playerPosition.js';
@@ -64,13 +71,18 @@ export function enableMobileJoystick(
   const base = container.querySelector('.mobile-joystick-base');
   const stick = container.querySelector('.mobile-joystick-stick');
 
-  const SPEED = 0.16;
-  const MAX_DISTANCE = 42;
-  const DEADZONE = 0.22;
-  const BROADCAST_INTERVAL = 25;
-  const DB_SAVE_INTERVAL = 1200;
-  const HEARTBEAT_DELAY = 1000;
+const SPEED = getMobileMoveSpeed();
+const MAX_DISTANCE = 42;
+const DEADZONE = 0.22;
 
+const BOUNDS = getMovementBounds();
+const SYNC_CONFIG = getMovementSyncConfig();
+
+const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
+const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
+const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
+
+  
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
   let angle = Number(playerPosition.angle || playerPosition.direction || 0);
@@ -104,8 +116,8 @@ export function enableMobileJoystick(
   }
 
   function renderPlayer() {
-    x = clamp(x, 0, 100);
-    y = clamp(y, 0, 100);
+    x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
+    y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
 
     syncPlayerPosition();
 
