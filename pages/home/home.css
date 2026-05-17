@@ -1823,3 +1823,36 @@ body,
   height: 32px !important;
   opacity: 0.46 !important;
 }
+
+.gta-player-marker-dot {
+  width: 7px !important;
+  height: 7px !important;
+}
+
+.gta-player-marker-dot::before {
+  width: 15px !important;
+  height: 15px !important;
+  opacity: 0.55 !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot {
+  border-width: 2px !important;
+  box-shadow:
+    0 0 0 1px rgba(245, 252, 255, 0.72),
+    0 0 5px rgba(165, 225, 255, 0.38) !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot::before {
+  background: radial-gradient(
+    circle,
+    rgba(190, 235, 255, 0.22) 0%,
+    rgba(145, 220, 255, 0.10) 48%,
+    transparent 100%
+  ) !important;
+}
+
+.gta-player-marker-name {
+  top: 10px !important;
+  font-size: 8.5px !important;
+  padding: 3px 6px !important;
+}
