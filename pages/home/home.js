@@ -213,7 +213,7 @@ register('home', async (root) => {
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
     focusY: playerPosition.y,
-    startScale: isLowPowerDevice() ? 2.55 : 3.75,
+    startScale: isLowPowerDevice() ? 2.65 : 3.95,
   });
 
   const network = setupPlayerNetwork({
