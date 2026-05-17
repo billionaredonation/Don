@@ -77,26 +77,11 @@ export function enableMapControls(stage, viewport, options = {}) {
   function measureWorld() {
     const rect = stage.getBoundingClientRect();
 
-    worldWidth =
-      Math.max(rect.width, rect.height) * WORLD_FACTOR;
-
+    worldWidth = Math.max(rect.width, rect.height) * WORLD_FACTOR;
     worldHeight = worldWidth * 0.72;
 
     viewport.style.width = `${worldWidth}px`;
     viewport.style.height = `${worldHeight}px`;
-
-    if (options.focusX !== undefined && options.focusY !== undefined) {
-      const focusX = Number(options.focusX);
-      const focusY = Number(options.focusY);
-
-      if (Number.isFinite(focusX) && Number.isFinite(focusY)) {
-        const fx = (focusX / 100 - 0.5) * worldWidth * scale;
-        const fy = (focusY / 100 - 0.5) * worldHeight * scale;
-
-        x = -fx;
-        y = -fy;
-      }
-    }
   }
 
   function getLimits() {
@@ -147,6 +132,23 @@ export function enableMapControls(stage, viewport, options = {}) {
     });
   }
 
+  function focusOnPlayer(playerX, playerY) {
+    const focusX = Number(playerX);
+    const focusY = Number(playerY);
+
+    if (!Number.isFinite(focusX) || !Number.isFinite(focusY)) {
+      return;
+    }
+
+    const fx = (focusX / 100 - 0.5) * worldWidth * scale;
+    const fy = (focusY / 100 - 0.5) * worldHeight * scale;
+
+    x = -fx;
+    y = -fy;
+
+    applyTransform();
+  }
+
   function onPointerDown(event) {
     if (
       event.target.closest('.gta-map-header') ||
@@ -172,7 +174,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
       startMapX = x;
       startMapY = y;
-    } else if (pointers.size === 2) {
+    } else if (pointers.size >= 2) {
       isDragging = false;
       activePointerId = null;
     }
@@ -243,12 +245,11 @@ export function enableMapControls(stage, viewport, options = {}) {
   function onResize() {
     scale = LOCKED_SCALE;
     measureWorld();
-    applyTransform();
+    focusOnPlayer(options.focusX, options.focusY);
   }
 
   stage.addEventListener('pointerdown', onPointerDown);
   stage.addEventListener('pointermove', onPointerMove);
-
   stage.addEventListener('pointerup', endPointer);
   stage.addEventListener('pointercancel', endPointer);
   stage.addEventListener('pointerleave', endPointer);
@@ -262,39 +263,18 @@ export function enableMapControls(stage, viewport, options = {}) {
   window.addEventListener('resize', onResize);
 
   measureWorld();
-  applyTransform();
+  focusOnPlayer(options.focusX, options.focusY);
 
-    function focusOnPlayer(playerX, playerY) {
-    const focusX = Number(playerX);
-    const focusY = Number(playerY);
-
-    if (!Number.isFinite(focusX) || !Number.isFinite(focusY)) {
-      return;
-    }
-
-    const fx = (focusX / 100 - 0.5) * worldWidth * scale;
-    const fy = (focusY / 100 - 0.5) * worldHeight * scale;
-
-    x = -fx;
-    y = -fy;
-
-    applyTransform();
-  }
-
-   const cleanup = () => {
+  const cleanup = () => {
     stage.removeEventListener('pointerdown', onPointerDown);
     stage.removeEventListener('pointermove', onPointerMove);
-
     stage.removeEventListener('pointerup', endPointer);
     stage.removeEventListener('pointercancel', endPointer);
     stage.removeEventListener('pointerleave', endPointer);
-
     stage.removeEventListener('wheel', onWheel);
     stage.removeEventListener('dblclick', onDoubleClick);
 
     window.removeEventListener('resize', onResize);
-  };
-}
   };
 
   return {
