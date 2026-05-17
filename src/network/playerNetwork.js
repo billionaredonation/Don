@@ -3,7 +3,9 @@ import {
   createCityMovementChannel,
   setPlayerOffline,
 } from '../player/playerPosition.js';
+
 import { NETWORK_CONFIG } from '../config/networkConfig.js';
+
 import {
   createPlayerMarkerHtml,
   updatePlayerMarkerView,
@@ -88,7 +90,7 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
     return;
   }
 
-  const isSelf = player.playerId === localPlayerId;
+  const isSelf = String(player.playerId) === String(localPlayerId);
   const selector = `[data-player-id="${player.playerId}"]`;
 
   let marker = entities.querySelector(selector);
@@ -211,12 +213,20 @@ function enableOfflineOnExit() {
   };
 }
 
-export function setupPlayerNetwork({ cityId, entities, localPlayerId }) {
+export function setupPlayerNetwork({
+  cityId,
+  playerId,
+  localPlayerId,
+  entities,
+  mapControls,
+}) {
+  const selfPlayerId = localPlayerId || playerId;
+
   const movementChannel = createCityMovementChannel(cityId, {
     onMove(player) {
-      if (!player || player.playerId === localPlayerId) return;
+      if (!player || String(player.playerId) === String(selfPlayerId)) return;
 
-      upsertPlayerMarker(entities, player, localPlayerId, {
+      upsertPlayerMarker(entities, player, selfPlayerId, {
         instant: false,
       });
     },
@@ -230,15 +240,22 @@ export function setupPlayerNetwork({ cityId, entities, localPlayerId }) {
   try {
     cleanupRealtime = subscribeCityPlayers(cityId, {
       onInsert(player) {
-        upsertPlayerMarker(entities, player, localPlayerId, {
+        upsertPlayerMarker(entities, player, selfPlayerId, {
           instant: true,
         });
       },
 
       onUpdate(player) {
-        if (!player.isOnline) {
+        if (!player) return;
+
+        if (player.isOnline === false) {
           removePlayerMarker(entities, player.playerId);
+          return;
         }
+
+        upsertPlayerMarker(entities, player, selfPlayerId, {
+          instant: false,
+        });
       },
 
       onDelete(playerId) {
@@ -251,6 +268,7 @@ export function setupPlayerNetwork({ cityId, entities, localPlayerId }) {
 
   return {
     movementChannel,
+    mapControls,
 
     cleanup() {
       cleanupRealtime?.();
