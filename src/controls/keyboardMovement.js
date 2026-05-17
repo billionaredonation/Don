@@ -20,9 +20,14 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
 
   return Math.atan2(moveX, -moveY) * 180 / Math.PI;
 }
-export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname, movementChannel) {
-  if (!marker || !playerPosition) return null;
-
+export function enableKeyboardPlayerMovement(
+  marker,
+  playerPosition,
+  cityId,
+  nickname,
+  mapControls,
+  movementChannel
+) {
 const keys = new Set();
 
 const SPEED = getKeyboardMoveSpeed();
