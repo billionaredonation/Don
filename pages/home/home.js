@@ -238,7 +238,7 @@ const cleanupMobilePrompt = setupMobileControlPrompt({
 const cleanupMapControls = enableMapControls(stage, viewport, {
   focusX: playerPosition.x,
   focusY: playerPosition.y,
-  startScale: isLowPowerDevice() ? 2.25 : 2.75,
+ startScale: isLowPowerDevice() ? 2.55 : 3.05,
 });
 
 const cleanupFogOfWar = enableFogOfWar({
