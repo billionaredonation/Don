@@ -14,9 +14,7 @@ import { enableMobileJoystick } from '../../src/controls/mobileJoystick.js';
 
 import { setupPlayerNetwork } from '../../src/network/playerNetwork.js';
 import { renderPlayersHtml } from '../../src/player/playerMarkerView.js';
-
-
-
+import { enableFogOfWar } from '../../src/map/fogOfWar.js';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
@@ -237,12 +235,27 @@ const cleanupMobilePrompt = setupMobileControlPrompt({
     );
   },
 });
-  const cleanupMapControls = enableMapControls(stage, viewport);
+const cleanupMapControls = enableMapControls(stage, viewport, {
+  focusX: playerPosition.x,
+  focusY: playerPosition.y,
+  startScale: isLowPowerDevice() ? 2.25 : 2.75,
+});
+
+const cleanupFogOfWar = enableFogOfWar({
+  stage,
+  viewport,
+  playerMarker,
+  playerPosition,
+  cityId,
+  playerId: localPlayerId,
+});
+  
 
   root._cleanupHome = () => {
     cleanupMovement?.();
     cleanupMobilePrompt?.();
     cleanupMapControls?.();
+    cleanupFogOfWar?.();
     network.cleanup?.();
   };
 });
