@@ -217,12 +217,11 @@ register('home', async (root) => {
   });
 
   const network = setupPlayerNetwork({
-    cityId,
-    playerId: localPlayerId,
-    localPlayerId,
-    entities,
-  });
-
+      cityId,
+      playerId: localPlayerId,
+      localPlayerId,
+      entities,
+    });
   const cleanupMovement = enableKeyboardPlayerMovement(
     playerMarker,
     playerPosition,
