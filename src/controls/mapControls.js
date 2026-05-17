@@ -53,7 +53,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   const MIN_SCALE = lowPower ? 0.82 : 0.9;
   const MAX_SCALE = lowPower ? 5.5 : 8;
   const WORLD_FACTOR = lowPower ? 1.38 : 1.55;
-  
+
   let scale = Number(options.startScale) || 1;
   let x = 0;
   let y = 0;
@@ -93,16 +93,20 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     viewport.style.width = `${worldWidth}px`;
     viewport.style.height = `${worldHeight}px`;
+
     if (options.focusX !== undefined && options.focusY !== undefined) {
-    const rect = stage.getBoundingClientRect();
+      const focusX = Number(options.focusX);
+      const focusY = Number(options.focusY);
 
-    const fx = (Number(options.focusX) / 100 - 0.5) * worldWidth * scale;
-    const fy = (Number(options.focusY) / 100 - 0.5) * worldHeight * scale;
+      if (Number.isFinite(focusX) && Number.isFinite(focusY)) {
+        const fx = (focusX / 100 - 0.5) * worldWidth * scale;
+        const fy = (focusY / 100 - 0.5) * worldHeight * scale;
 
-    x = -fx;
-    y = -fy;
+        x = -fx;
+        y = -fy;
       }
     }
+  }
 
   function getLimits() {
     const rect = stage.getBoundingClientRect();
@@ -296,17 +300,9 @@ export function enableMapControls(stage, viewport, options = {}) {
     );
   }
 
-  function onDoubleClick(event) {
-  scale = Number(options.startScale) || 2.35;
-  applyTransform();
-  return;
-    }
-
-    zoomAt(
-      event.clientX,
-      event.clientY,
-      lowPower ? 2 : 2.35
-    );
+  function onDoubleClick() {
+    scale = Number(options.startScale) || 2.35;
+    applyTransform();
   }
 
   function onResize() {
