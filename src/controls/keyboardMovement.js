@@ -23,7 +23,7 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
 export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nickname, movementChannel) {
   if (!marker || !playerPosition) return null;
 
-  const keys = new Set();
+const keys = new Set();
 
 const SPEED = getKeyboardMoveSpeed();
 const BOUNDS = getMovementBounds();
@@ -40,6 +40,7 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
   playerPosition.x = x;
   playerPosition.y = y;
   playerPosition.angle = angle;
+  mapControls?.focusOnPlayer?.(x, y);
 
   let animationId = null;
   let heartbeatTimer = null;
@@ -54,6 +55,7 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     playerPosition.x = x;
     playerPosition.y = y;
     playerPosition.angle = angle;
+    mapControls?.focusOnPlayer?.(x, y);
   }
 
   function renderPlayer() {
