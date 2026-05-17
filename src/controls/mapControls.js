@@ -264,7 +264,24 @@ export function enableMapControls(stage, viewport, options = {}) {
   measureWorld();
   applyTransform();
 
-  return () => {
+    function focusOnPlayer(playerX, playerY) {
+    const focusX = Number(playerX);
+    const focusY = Number(playerY);
+
+    if (!Number.isFinite(focusX) || !Number.isFinite(focusY)) {
+      return;
+    }
+
+    const fx = (focusX / 100 - 0.5) * worldWidth * scale;
+    const fy = (focusY / 100 - 0.5) * worldHeight * scale;
+
+    x = -fx;
+    y = -fy;
+
+    applyTransform();
+  }
+
+   const cleanup = () => {
     stage.removeEventListener('pointerdown', onPointerDown);
     stage.removeEventListener('pointermove', onPointerMove);
 
@@ -276,5 +293,12 @@ export function enableMapControls(stage, viewport, options = {}) {
     stage.removeEventListener('dblclick', onDoubleClick);
 
     window.removeEventListener('resize', onResize);
+  };
+}
+  };
+
+  return {
+    cleanup,
+    focusOnPlayer,
   };
 }
