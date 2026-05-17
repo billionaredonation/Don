@@ -50,11 +50,10 @@ export function isLowPowerDevice() {
 export function enableMapControls(stage, viewport, options = {}) {
   const lowPower = isLowPowerDevice();
 
-  const MIN_SCALE = lowPower ? 0.82 : 0.9;
-  const MAX_SCALE = lowPower ? 5.5 : 8;
+  const LOCKED_SCALE = Number(options.startScale) || 2.35;
   const WORLD_FACTOR = lowPower ? 1.38 : 1.55;
 
-  let scale = Number(options.startScale) || 1;
+  let scale = LOCKED_SCALE;
   let x = 0;
   let y = 0;
 
@@ -74,14 +73,6 @@ export function enableMapControls(stage, viewport, options = {}) {
   let pendingApply = false;
 
   const pointers = new Map();
-
-  let pinchStartDist = 0;
-  let pinchStartScale = 1;
-
-  let pinchCenter = {
-    x: 0,
-    y: 0,
-  };
 
   function measureWorld() {
     const rect = stage.getBoundingClientRect();
@@ -121,6 +112,8 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function applyTransformNow() {
+    scale = LOCKED_SCALE;
+
     const limits = getLimits();
 
     x = clamp(x, -limits.maxX, limits.maxX);
@@ -154,27 +147,6 @@ export function enableMapControls(stage, viewport, options = {}) {
     });
   }
 
-  function zoomAt(clientX, clientY, nextScale) {
-    const rect = stage.getBoundingClientRect();
-
-    const pointX =
-      clientX - rect.left - rect.width / 2;
-
-    const pointY =
-      clientY - rect.top - rect.height / 2;
-
-    const oldScale = scale;
-
-    scale = clamp(nextScale, MIN_SCALE, MAX_SCALE);
-
-    const factor = scale / oldScale;
-
-    x = pointX - (pointX - x) * factor;
-    y = pointY - (pointY - y) * factor;
-
-    applyTransform();
-  }
-
   function onPointerDown(event) {
     if (
       event.target.closest('.gta-map-header') ||
@@ -203,20 +175,6 @@ export function enableMapControls(stage, viewport, options = {}) {
     } else if (pointers.size === 2) {
       isDragging = false;
       activePointerId = null;
-
-      const [p1, p2] = [...pointers.values()];
-
-      pinchStartDist = Math.hypot(
-        p2.x - p1.x,
-        p2.y - p1.y
-      );
-
-      pinchStartScale = scale;
-
-      pinchCenter = {
-        x: (p1.x + p2.x) / 2,
-        y: (p1.y + p2.y) / 2,
-      };
     }
   }
 
@@ -228,22 +186,7 @@ export function enableMapControls(stage, viewport, options = {}) {
       y: event.clientY,
     });
 
-    if (pointers.size === 2) {
-      const [p1, p2] = [...pointers.values()];
-
-      const dist = Math.hypot(
-        p2.x - p1.x,
-        p2.y - p1.y
-      );
-
-      if (pinchStartDist > 0) {
-        zoomAt(
-          pinchCenter.x,
-          pinchCenter.y,
-          pinchStartScale * (dist / pinchStartDist)
-        );
-      }
-
+    if (pointers.size >= 2) {
       return;
     }
 
@@ -262,10 +205,6 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   function endPointer(event) {
     pointers.delete(event.pointerId);
-
-    if (pointers.size < 2) {
-      pinchStartDist = 0;
-    }
 
     if (pointers.size === 1) {
       const [remainingId] = [...pointers.keys()];
@@ -290,22 +229,19 @@ export function enableMapControls(stage, viewport, options = {}) {
   function onWheel(event) {
     event.preventDefault();
 
-    const delta =
-      event.deltaY > 0 ? -0.12 : 0.12;
-
-    zoomAt(
-      event.clientX,
-      event.clientY,
-      scale * (1 + delta)
-    );
+    scale = LOCKED_SCALE;
+    applyTransform();
   }
 
-  function onDoubleClick() {
-    scale = Number(options.startScale) || 2.35;
+  function onDoubleClick(event) {
+    event.preventDefault();
+
+    scale = LOCKED_SCALE;
     applyTransform();
   }
 
   function onResize() {
+    scale = LOCKED_SCALE;
     measureWorld();
     applyTransform();
   }
@@ -341,5 +277,4 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     window.removeEventListener('resize', onResize);
   };
-
 }
