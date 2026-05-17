@@ -29,16 +29,10 @@ function isRotatedMobileScene() {
 
 function rotateInputForMobileScene(inputX, inputY) {
   if (!isRotatedMobileScene()) {
-    return {
-      x: inputX,
-      y: inputY,
-    };
+    return { x: inputX, y: inputY };
   }
 
-  return {
-    x: inputY,
-    y: -inputX,
-  };
+  return { x: inputY, y: -inputX };
 }
 
 function getAngleFromMovement(moveX, moveY, fallback = 0) {
@@ -303,10 +297,6 @@ export function enableMobileJoystick(
       renderPlayer();
       broadcastMove(false);
       savePositionToDb(false);
-    }
-
-    if (!isMoving) {
-      updateSprintState(false);
     }
 
     animationId = requestAnimationFrame(loop);
