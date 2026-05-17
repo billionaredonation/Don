@@ -1069,14 +1069,6 @@ body,
   pointer-events: none;
 }
 
-.gta-player-marker {
-  position: absolute;
-  translate: -50% -50%;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  z-index: 30;
-}
 
 .gta-player-marker span {
   width: 13px;
@@ -1589,19 +1581,6 @@ body,
   filter: drop-shadow(0 0 6px rgba(120, 210, 255, 0.45));
 }
 
-.gta-player-marker-name {
-  position: absolute;
-  top: 15px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  color: rgba(255,255,255,0.94);
-  background: rgba(5, 7, 10, 0.82);
-  border: 1px solid rgba(255,255,255,0.16);
-  font-size: 10px;
-  font-weight: 1000;
-  white-space: nowrap;
-  z-index: 4;
-}
 
 
 
@@ -1701,13 +1680,6 @@ body,
   filter: drop-shadow(0 0 4px rgba(180, 185, 195, 0.22)) !important;
 }
 
-.gta-player-marker-dot {
-  position: relative !important;
-  width: 9px !important;
-  height: 9px !important;
-  border-radius: 50% !important;
-  z-index: 3 !important;
-}
 
 .gta-player-marker-self .gta-player-marker-dot {
   background: #f1fbff !important;
@@ -1798,11 +1770,7 @@ body,
   z-index: 4 !important;
 }
 
-.gta-player-marker-self .gta-player-marker-dot {
-  box-shadow:
-    0 0 0 2px rgba(120, 210, 255, 0.12),
-    0 0 7px rgba(180, 235, 255, 0.58) !important;
-}
+
 
 
 .gta-player-lidar::before {
@@ -1826,12 +1794,7 @@ body,
     0 0 5px rgba(180, 235, 255, 0.46) !important;
 }
 
-.gta-player-marker-other .gta-player-marker-dot {
-  background: #eeeeee !important;
-  box-shadow:
-    0 0 0 2px rgba(255,255,255,0.08),
-    0 0 5px rgba(220,225,235,0.30) !important;
-}
+
 
 .gta-player-marker-dot {
   width: 10px !important;
