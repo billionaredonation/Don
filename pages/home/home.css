@@ -1896,3 +1896,27 @@ body,
   position: absolute;
   z-index: 130;
 }
+
+
+html,
+body,
+#app,
+.home,
+.home-gameplay,
+.gta-map-stage,
+.mobile-controls-layer,
+.mobile-joystick,
+.mobile-joystick-base,
+.mobile-joystick-stick {
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+.mobile-joystick,
+.mobile-joystick-base,
+.mobile-joystick-stick {
+  -webkit-tap-highlight-color: transparent !important;
+}
