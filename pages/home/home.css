@@ -1884,3 +1884,16 @@ body,
 .gta-map-header {
   z-index: 120;
 }
+
+
+.gta-player-marker-self .gta-player-marker-name {
+  display: none !important;
+}
+
+.gta-map-entities {
+  z-index: 120;
+}
+
+.gta-player-marker {
+  z-index: 130;
+}
