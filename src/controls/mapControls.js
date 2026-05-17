@@ -47,15 +47,14 @@ export function isLowPowerDevice() {
   );
 }
 
-export function enableMapControls(stage, viewport) {
+export function enableMapControls(stage, viewport, options = {}) {
   const lowPower = isLowPowerDevice();
 
   const MIN_SCALE = lowPower ? 0.82 : 0.9;
   const MAX_SCALE = lowPower ? 5.5 : 8;
   const WORLD_FACTOR = lowPower ? 1.38 : 1.55;
-
-  let scale = 1;
-
+  
+  let scale = Number(options.startScale) || 1;
   let x = 0;
   let y = 0;
 
@@ -94,7 +93,16 @@ export function enableMapControls(stage, viewport) {
 
     viewport.style.width = `${worldWidth}px`;
     viewport.style.height = `${worldHeight}px`;
-  }
+    if (options.focusX !== undefined && options.focusY !== undefined) {
+    const rect = stage.getBoundingClientRect();
+
+    const fx = (Number(options.focusX) / 100 - 0.5) * worldWidth * scale;
+    const fy = (Number(options.focusY) / 100 - 0.5) * worldHeight * scale;
+
+    x = -fx;
+    y = -fy;
+      }
+    }
 
   function getLimits() {
     const rect = stage.getBoundingClientRect();
@@ -289,14 +297,9 @@ export function enableMapControls(stage, viewport) {
   }
 
   function onDoubleClick(event) {
-    if (scale > 1.1) {
-      scale = 1;
-
-      x = 0;
-      y = 0;
-
-      applyTransform();
-      return;
+  scale = Number(options.startScale) || 2.35;
+  applyTransform();
+  return;
     }
 
     zoomAt(
