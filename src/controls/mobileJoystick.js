@@ -61,40 +61,26 @@ export function enableMobileJoystick(
         <div class="mobile-joystick-stick"></div>
       </div>
     </div>
-
-    <button class="mobile-sprint-button" type="button" aria-label="Sprint">
-      🏃
-    </button>
   `;
 
   const joystick = container.querySelector('.mobile-joystick');
   const base = container.querySelector('.mobile-joystick-base');
   const stick = container.querySelector('.mobile-joystick-stick');
-  const sprintButton = container.querySelector('.mobile-sprint-button');
 
   const SPEED = getMobileMoveSpeed();
   const STAMINA = getStaminaConfig();
 
   let stamina = STAMINA.max;
   let sprintLocked = false;
-  let sprintEnabled = false;
-
-  function updateSprintButton() {
-    if (!sprintButton) return;
-
-    sprintButton.classList.toggle('is-active', sprintEnabled && !sprintLocked);
-    sprintButton.classList.toggle('is-locked', sprintLocked);
-  }
 
   function updateSprintState(isMoving) {
-    const wantsSprint = isMoving && sprintEnabled && !sprintLocked;
+    const wantsSprint = isMoving && !sprintLocked;
 
     if (wantsSprint) {
       stamina = Math.max(STAMINA.emptyAt, stamina - STAMINA.drainPerFrame);
 
       if (stamina <= STAMINA.emptyAt) {
         sprintLocked = true;
-        sprintEnabled = false;
         stamina = STAMINA.emptyAt;
       }
     } else {
@@ -105,8 +91,6 @@ export function enableMobileJoystick(
         stamina = STAMINA.max;
       }
     }
-
-    updateSprintButton();
 
     return wantsSprint
       ? STAMINA.sprintSpeedMultiplier
@@ -346,25 +330,12 @@ export function enableMobileJoystick(
     savePositionToDb(true);
   }
 
-  function onSprintClick(event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (sprintLocked) return;
-
-    sprintEnabled = !sprintEnabled;
-    updateSprintButton();
-  }
-
-  sprintButton?.addEventListener('click', onSprintClick);
-
   base.addEventListener('pointerdown', onPointerDown);
   base.addEventListener('pointermove', onPointerMove);
   base.addEventListener('pointerup', onPointerEnd);
   base.addEventListener('pointercancel', onPointerEnd);
   base.addEventListener('pointerleave', onPointerEnd);
 
-  updateSprintButton();
   renderPlayer();
   savePositionToDb(true);
   startHeartbeat();
@@ -373,8 +344,6 @@ export function enableMobileJoystick(
     destroyed = true;
 
     clearInterval(heartbeatTimer);
-
-    sprintButton?.removeEventListener('click', onSprintClick);
 
     base.removeEventListener('pointerdown', onPointerDown);
     base.removeEventListener('pointermove', onPointerMove);
@@ -390,7 +359,6 @@ export function enableMobileJoystick(
     renderPlayer();
 
     joystick?.remove();
-    sprintButton?.remove();
 
     broadcastMove(true);
     savePositionToDb(true);
