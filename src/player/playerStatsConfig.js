@@ -1,7 +1,7 @@
 export const PLAYER_STATS_CONFIG = {
   movement: {
-    keyboardSpeed: 0.055,
-    mobileSpeed: 0.065,
+    keyboardSpeed: 0.045,
+    mobileSpeed: 0.055,
 
     minX: 0,
     maxX: 100,
