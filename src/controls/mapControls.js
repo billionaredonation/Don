@@ -341,3 +341,5 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     window.removeEventListener('resize', onResize);
   };
+
+}
