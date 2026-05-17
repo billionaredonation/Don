@@ -54,6 +54,7 @@ export function enableMobileJoystick(
   playerPosition,
   cityId,
   nickname,
+  mapControls,
   movementChannel
 ) {
   if (!container || !marker || !playerPosition) return null;
@@ -113,6 +114,8 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     playerPosition.x = x;
     playerPosition.y = y;
     playerPosition.angle = angle;
+
+    mapControls?.focusOnPlayer?.(x, y);
   }
 
   function renderPlayer() {
