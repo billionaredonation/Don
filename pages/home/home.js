@@ -232,6 +232,7 @@ const cleanupMobilePrompt = setupMobileControlPrompt({
       playerPosition,
       cityId,
       nickname,
+      mapControls,
       network.movementChannel
     );
   },
