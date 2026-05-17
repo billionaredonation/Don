@@ -1890,10 +1890,9 @@ body,
   display: none !important;
 }
 
-.gta-map-entities {
-  z-index: 120;
-}
+
 
 .gta-player-marker {
+  position: absolute;
   z-index: 130;
 }
