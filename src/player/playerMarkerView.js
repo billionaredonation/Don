@@ -32,23 +32,24 @@ export function createPlayerMarkerHtml(player, localPlayerId) {
 
   const nickname = getSafeNickname(player);
 
-return `
-  <div
-    class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
-    data-player-id="${playerId}"
-    data-x="${x}"
-    data-y="${y}"
-    data-angle="${angle}"
-    style="
-      left: ${x}%;
-      top: ${y}%;
-      --player-angle: ${angle}deg;
-    "
-  >
-    <div class="gta-player-marker-dot"></div>
-    <div class="gta-player-marker-name">${nickname}</div>
-  </div>
-`;
+  return `
+    <div
+      class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
+      data-player-id="${playerId}"
+      data-x="${x}"
+      data-y="${y}"
+      data-angle="${angle}"
+      style="
+        left: ${x}%;
+        top: ${y}%;
+        --player-angle: ${angle}deg;
+      "
+    >
+      <div class="gta-player-marker-dot"></div>
+      <div class="gta-player-marker-name">${nickname}</div>
+    </div>
+  `;
+}
 
 export function renderPlayersHtml(players, localPlayerId) {
   return (players || [])
