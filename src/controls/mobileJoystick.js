@@ -1,3 +1,5 @@
+import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+
 import {
   getMobileMoveSpeed,
   getMovementBounds,
@@ -72,7 +74,34 @@ export function enableMobileJoystick(
   const base = container.querySelector('.mobile-joystick-base');
   const stick = container.querySelector('.mobile-joystick-stick');
 
+
 const SPEED = getMobileMoveSpeed();
+
+const STAMINA = getStaminaConfig();
+
+let stamina = STAMINA.max;
+let isTired = false;
+
+function updateStamina(isMoving) {
+  if (isMoving) {
+    stamina = Math.max(0, stamina - STAMINA.drainPerFrame);
+  } else {
+    stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
+  }
+
+  if (stamina <= STAMINA.tiredAt) {
+    isTired = true;
+  }
+
+  if (stamina >= STAMINA.recoveredAt) {
+    isTired = false;
+  }
+
+  return isTired
+    ? STAMINA.tiredSpeedMultiplier
+    : STAMINA.normalSpeedMultiplier;
+}
+  
 const MAX_DISTANCE = 42;
 const DEADZONE = 0.22;
 
@@ -247,9 +276,11 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
       Math.abs(moveX) > DEADZONE ||
       Math.abs(moveY) > DEADZONE;
 
-    if (isMoving) {
-      x += moveX * SPEED;
-      y += moveY * SPEED;
+    const speedMultiplier = updateStamina(isMoving);
+
+      if (isMoving) {
+        x += moveX * SPEED * speedMultiplier;
+        y += moveY * SPEED * speedMultiplier;
 
       angle = getAngleFromMovement(moveX, moveY, angle);
 
@@ -258,7 +289,12 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
       savePositionToDb(false);
     }
 
+    if (!isMoving) {
+      updateStamina(false);
+    }
+
     animationId = requestAnimationFrame(loop);
+    
   }
 
   function onPointerDown(event) {
