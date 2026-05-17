@@ -3,11 +3,29 @@ import { getRandomSpawnPoint } from '../spawn/spawnPoints.js';
 
 const PLAYER_ID_KEY = 'mn_player_id';
 
+let cachedPlayerId = null;
+
+function getTelegramUserId() {
+  return window.Telegram?.WebApp?.initDataUnsafe?.user?.id || null;
+}
+
 function createLocalPlayerId() {
   return `player_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
 export function getLocalPlayerId() {
+  if (cachedPlayerId) {
+    return cachedPlayerId;
+  }
+
+  const telegramId = getTelegramUserId();
+
+  if (telegramId) {
+    cachedPlayerId = `tg_${telegramId}`;
+    localStorage.setItem(PLAYER_ID_KEY, cachedPlayerId);
+    return cachedPlayerId;
+  }
+
   let playerId = localStorage.getItem(PLAYER_ID_KEY);
 
   if (!playerId) {
@@ -15,7 +33,9 @@ export function getLocalPlayerId() {
     localStorage.setItem(PLAYER_ID_KEY, playerId);
   }
 
-  return playerId;
+  cachedPlayerId = playerId;
+
+  return cachedPlayerId;
 }
 
 function normalizePosition(row) {
