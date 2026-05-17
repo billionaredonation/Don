@@ -1920,3 +1920,19 @@ body,
 .mobile-joystick-stick {
   -webkit-tap-highlight-color: transparent !important;
 }
+
+.gta-player-marker-dot {
+  width: 4px !important;
+  height: 4px !important;
+}
+
+.gta-player-marker-dot::before {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.gta-player-marker-name {
+  top: 7px !important;
+  font-size: 6.8px !important;
+  padding: 2px 4px !important;
+}
