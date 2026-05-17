@@ -77,14 +77,14 @@ function animateRemoteMarker(playerId) {
 export function upsertPlayerMarker(entities, player, localPlayerId, options = {}) {
   if (!entities || !player?.playerId) return;
 
+  if (String(player.playerId) === String(localPlayerId)) return;
+
   if (player.isOnline === false) {
     removePlayerMarker(entities, player.playerId);
     return;
   }
 
-  const isSelf = String(player.playerId) === String(localPlayerId);
   const selector = `[data-player-id="${player.playerId}"]`;
-
   let marker = entities.querySelector(selector);
 
   if (!marker) {
@@ -101,7 +101,7 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
 
   updatePlayerMarkerView(marker, player);
 
-  if (isSelf || options.instant) {
+  if (options.instant) {
     const state = remoteMarkers.get(player.playerId);
 
     if (state?.animationId) {
@@ -208,13 +208,15 @@ export function setupPlayerNetwork({
   try {
     cleanupRealtime = subscribeCityPlayers(cityId, {
       onInsert(player) {
+        if (!player || String(player.playerId) === String(selfPlayerId)) return;
+
         upsertPlayerMarker(entities, player, selfPlayerId, {
           instant: true,
         });
       },
 
       onUpdate(player) {
-        if (!player) return;
+        if (!player || String(player.playerId) === String(selfPlayerId)) return;
 
         if (player.isOnline === false) {
           removePlayerMarker(entities, player.playerId);
@@ -226,8 +228,10 @@ export function setupPlayerNetwork({
         });
       },
 
-      onDelete(playerId) {
-        removePlayerMarker(entities, playerId);
+      onDelete(deletedPlayerId) {
+        if (!deletedPlayerId || String(deletedPlayerId) === String(selfPlayerId)) return;
+
+        removePlayerMarker(entities, deletedPlayerId);
       },
     });
   } catch (error) {
