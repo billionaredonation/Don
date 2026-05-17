@@ -51,7 +51,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   const lowPower = isLowPowerDevice();
 
   const LOCKED_SCALE = Number(options.startScale) || 2.35;
-  const WORLD_FACTOR = lowPower ? 0.95 : 1.0;
+  const WORLD_FACTOR = lowPower ? 1.95 : 3.0;
 
   let scale = LOCKED_SCALE;
   let x = 0;
