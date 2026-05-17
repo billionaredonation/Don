@@ -36,26 +36,34 @@ const SPEED = getKeyboardMoveSpeed();
 const STAMINA = getStaminaConfig();
 
 let stamina = STAMINA.max;
-let isTired = false;
+let sprintLocked = false;
 
-function updateStamina(isMoving) {
-  if (isMoving) {
-    stamina = Math.max(0, stamina - STAMINA.drainPerFrame);
+function isSprintPressed() {
+  return keys.has('shift');
+}
+
+function updateSprintState(isMoving) {
+  const wantsSprint = isMoving && isSprintPressed() && !sprintLocked;
+
+  if (wantsSprint) {
+    stamina = Math.max(STAMINA.emptyAt, stamina - STAMINA.drainPerFrame);
+
+    if (stamina <= STAMINA.emptyAt) {
+      sprintLocked = true;
+      stamina = STAMINA.emptyAt;
+    }
   } else {
     stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
+
+    if (stamina >= STAMINA.recoveredAt) {
+      sprintLocked = false;
+      stamina = STAMINA.max;
+    }
   }
 
-  if (stamina <= STAMINA.tiredAt) {
-    isTired = true;
-  }
-
-  if (stamina >= STAMINA.recoveredAt) {
-    isTired = false;
-  }
-
-  return isTired
-    ? STAMINA.tiredSpeedMultiplier
-    : STAMINA.normalSpeedMultiplier;
+  return wantsSprint
+    ? STAMINA.sprintSpeedMultiplier
+    : STAMINA.walkSpeedMultiplier;
 }
   
 const BOUNDS = getMovementBounds();
@@ -199,32 +207,33 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     };
   }
 
-  function loop() {
-    if (destroyed) return;
+function loop() {
+  if (destroyed) return;
 
-    const { moveX, moveY } = getMoveVector();
+  const { moveX, moveY } = getMoveVector();
 
-    const moved =
-      Math.abs(moveX) > 0.001 ||
-      Math.abs(moveY) > 0.001;
+  const moved =
+    Math.abs(moveX) > 0.001 ||
+    Math.abs(moveY) > 0.001;
 
-    const speedMultiplier = updateStamina(moved);
+  const speedMultiplier = updateSprintState(moved);
 
-    if (moved) {
-      x += moveX * SPEED * speedMultiplier;
-      y += moveY * SPEED * speedMultiplier;
-      angle = getAngleFromMovement(moveX, moveY, angle);
+  if (moved) {
+    x += moveX * SPEED * speedMultiplier;
+    y += moveY * SPEED * speedMultiplier;
+    angle = getAngleFromMovement(moveX, moveY, angle);
 
-      renderPlayer();
-      broadcastMove(false);
-      savePositionToDb(false);
-    }
-    if (!moved) {
-      updateStamina(false);
-    }
-    animationId = requestAnimationFrame(loop);
+    renderPlayer();
+    broadcastMove(false);
+    savePositionToDb(false);
   }
 
+  if (!moved) {
+    updateSprintState(false);
+  }
+
+  animationId = requestAnimationFrame(loop);
+}
   function onKeyDown(event) {
     const tag = document.activeElement?.tagName?.toLowerCase();
 
@@ -235,6 +244,7 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     const allowedKeys = [
       'w', 'a', 's', 'd',
       'ц', 'ф', 'ы', 'в',
+      'shift',
       'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
     ];
 
