@@ -24,6 +24,7 @@ function isSamePlayer(a, b) {
 
 function getRemoteState(marker, player) {
   const playerId = player.playerId;
+
   let state = remoteMarkers.get(playerId);
 
   if (!state) {
@@ -32,12 +33,16 @@ function getRemoteState(marker, player) {
 
     state = {
       marker,
+
       currentX: startX,
       currentY: startY,
+
       targetX: startX,
       targetY: startY,
+
       animationId: null,
-      lastUpdateAt: performance.now(),
+
+      lastUpdateAt: 0,
     };
 
     remoteMarkers.set(playerId, state);
@@ -48,13 +53,25 @@ function getRemoteState(marker, player) {
 
 function animateRemoteMarker(playerId) {
   const state = remoteMarkers.get(playerId);
+
   if (!state) return;
 
-  const smoothing = NETWORK_CONFIG.movement.remoteSmoothing ?? 0.28;
-  const snapDistance = NETWORK_CONFIG.movement.remoteSnapDistance ?? 35;
+  const smoothing =
+    NETWORK_CONFIG.movement.remoteSmoothing ?? 0.18;
+
+  const snapDistance =
+    NETWORK_CONFIG.movement.remoteSnapDistance ?? 12;
+
+  const now = performance.now();
+
+  if (now - state.lastUpdateAt > 1200) {
+    state.animationId = null;
+    return;
+  }
 
   const dx = state.targetX - state.currentX;
   const dy = state.targetY - state.currentY;
+
   const distance = Math.hypot(dx, dy);
 
   if (distance > snapDistance) {
@@ -67,18 +84,31 @@ function animateRemoteMarker(playerId) {
 
   state.marker.style.left = `${state.currentX}%`;
   state.marker.style.top = `${state.currentY}%`;
+
   state.marker.dataset.x = String(state.currentX);
   state.marker.dataset.y = String(state.currentY);
 
-  if (Math.abs(dx) > 0.012 || Math.abs(dy) > 0.012) {
-    state.animationId = requestAnimationFrame(() => animateRemoteMarker(playerId));
+  if (distance <= 0.01) {
+    state.currentX = state.targetX;
+    state.currentY = state.targetY;
+
+    state.marker.style.left = `${state.targetX}%`;
+    state.marker.style.top = `${state.targetY}%`;
+
+    state.animationId = null;
     return;
   }
 
-  state.animationId = null;
+  state.animationId =
+    requestAnimationFrame(() => animateRemoteMarker(playerId));
 }
 
-export function upsertPlayerMarker(entities, player, localPlayerId, options = {}) {
+export function upsertPlayerMarker(
+  entities,
+  player,
+  localPlayerId,
+  options = {}
+) {
   if (!entities || !player?.playerId) return;
 
   if (isSamePlayer(player.playerId, localPlayerId)) return;
@@ -88,12 +118,17 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
     return;
   }
 
-  const selector = `[data-player-id="${player.playerId}"]`;
+  const selector =
+    `[data-player-id="${player.playerId}"]`;
 
   let marker = entities.querySelector(selector);
 
   if (!marker) {
-    entities.insertAdjacentHTML('beforeend', createPlayerMarkerHtml(player, localPlayerId));
+    entities.insertAdjacentHTML(
+      'beforeend',
+      createPlayerMarkerHtml(player, localPlayerId)
+    );
+
     marker = entities.querySelector(selector);
   }
 
@@ -117,19 +152,32 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
 
     marker.style.left = `${nextX}%`;
     marker.style.top = `${nextY}%`;
+
     marker.dataset.x = String(nextX);
     marker.dataset.y = String(nextY);
+
     return;
   }
 
   const state = getRemoteState(marker, player);
 
+  if (
+    Math.abs(state.targetX - nextX) < 0.001 &&
+    Math.abs(state.targetY - nextY) < 0.001
+  ) {
+    return;
+  }
+
   state.targetX = nextX;
   state.targetY = nextY;
+
   state.lastUpdateAt = performance.now();
 
   if (!state.animationId) {
-    state.animationId = requestAnimationFrame(() => animateRemoteMarker(player.playerId));
+    state.animationId =
+      requestAnimationFrame(() =>
+        animateRemoteMarker(player.playerId)
+      );
   }
 }
 
@@ -144,7 +192,9 @@ export function removePlayerMarker(entities, playerId) {
 
   remoteMarkers.delete(playerId);
 
-  const marker = entities.querySelector(`[data-player-id="${playerId}"]`);
+  const marker = entities.querySelector(
+    `[data-player-id="${playerId}"]`
+  );
 
   if (marker) {
     marker.remove();
@@ -152,20 +202,31 @@ export function removePlayerMarker(entities, playerId) {
 }
 
 function startStalePlayersCleanup(entities) {
-  const staleAfter = NETWORK_CONFIG.movement.staleAfter;
-  const checkInterval = NETWORK_CONFIG.movement.staleCheckInterval || 1000;
+  const staleAfter =
+    NETWORK_CONFIG.movement.staleAfter;
+
+  const checkInterval =
+    NETWORK_CONFIG.movement.staleCheckInterval || 1000;
 
   const timer = setInterval(() => {
     const now = Date.now();
 
-    entities.querySelectorAll('.gta-player-marker-other').forEach((marker) => {
-      const updatedAt = Number(marker.dataset.updatedAt || 0);
-      const playerId = marker.dataset.playerId;
+    entities
+      .querySelectorAll('.gta-player-marker-other')
+      .forEach((marker) => {
+        const updatedAt =
+          Number(marker.dataset.updatedAt || 0);
 
-      if (updatedAt && now - updatedAt > staleAfter) {
-        removePlayerMarker(entities, playerId);
-      }
-    });
+        const playerId =
+          marker.dataset.playerId;
+
+        if (
+          updatedAt &&
+          now - updatedAt > staleAfter
+        ) {
+          removePlayerMarker(entities, playerId);
+        }
+      });
   }, checkInterval);
 
   return () => clearInterval(timer);
@@ -174,7 +235,10 @@ function startStalePlayersCleanup(entities) {
 function enableOfflineOnExit() {
   const goOffline = () => {
     setPlayerOffline().catch((error) => {
-      console.warn('[network] set offline failed:', error);
+      console.warn(
+        '[network] set offline failed:',
+        error
+      );
     });
   };
 
@@ -182,8 +246,15 @@ function enableOfflineOnExit() {
   window.addEventListener('beforeunload', goOffline);
 
   return () => {
-    window.removeEventListener('pagehide', goOffline);
-    window.removeEventListener('beforeunload', goOffline);
+    window.removeEventListener(
+      'pagehide',
+      goOffline
+    );
+
+    window.removeEventListener(
+      'beforeunload',
+      goOffline
+    );
   };
 }
 
@@ -193,54 +264,116 @@ export function setupPlayerNetwork({
   localPlayerId,
   entities,
 }) {
-  const selfPlayerId = localPlayerId || playerId;
+  const selfPlayerId =
+    localPlayerId || playerId;
 
-  const movementChannel = createCityMovementChannel(cityId, {
-    onMove(player) {
-      if (!player || isSamePlayer(player.playerId, selfPlayerId)) return;
+  const movementChannel =
+    createCityMovementChannel(cityId, {
+      onMove(player) {
+        if (
+          !player ||
+          isSamePlayer(
+            player.playerId,
+            selfPlayerId
+          )
+        ) {
+          return;
+        }
 
-      upsertPlayerMarker(entities, player, selfPlayerId, {
-        instant: false,
-      });
-    },
-  });
+        upsertPlayerMarker(
+          entities,
+          player,
+          selfPlayerId,
+          {
+            instant: false,
+          }
+        );
+      },
+    });
 
-  const cleanupStalePlayers = startStalePlayersCleanup(entities);
-  const cleanupOffline = enableOfflineOnExit();
+  const cleanupStalePlayers =
+    startStalePlayersCleanup(entities);
+
+  const cleanupOffline =
+    enableOfflineOnExit();
 
   let cleanupRealtime = null;
 
   try {
-    cleanupRealtime = subscribeCityPlayers(cityId, {
-      onInsert(player) {
-        if (!player || isSamePlayer(player.playerId, selfPlayerId)) return;
+    cleanupRealtime =
+      subscribeCityPlayers(cityId, {
+        onInsert(player) {
+          if (
+            !player ||
+            isSamePlayer(
+              player.playerId,
+              selfPlayerId
+            )
+          ) {
+            return;
+          }
 
-        upsertPlayerMarker(entities, player, selfPlayerId, {
-          instant: true,
-        });
-      },
+          upsertPlayerMarker(
+            entities,
+            player,
+            selfPlayerId,
+            {
+              instant: true,
+            }
+          );
+        },
 
-      onUpdate(player) {
-        if (!player || isSamePlayer(player.playerId, selfPlayerId)) return;
+        onUpdate(player) {
+          if (
+            !player ||
+            isSamePlayer(
+              player.playerId,
+              selfPlayerId
+            )
+          ) {
+            return;
+          }
 
-        if (player.isOnline === false) {
-          removePlayerMarker(entities, player.playerId);
-          return;
-        }
+          if (player.isOnline === false) {
+            removePlayerMarker(
+              entities,
+              player.playerId
+            );
 
-        upsertPlayerMarker(entities, player, selfPlayerId, {
-          instant: false,
-        });
-      },
+            return;
+          }
 
-      onDelete(playerId) {
-        if (isSamePlayer(playerId, selfPlayerId)) return;
+          upsertPlayerMarker(
+            entities,
+            player,
+            selfPlayerId,
+            {
+              instant: false,
+            }
+          );
+        },
 
-        removePlayerMarker(entities, playerId);
-      },
-    });
+        onDelete(playerId) {
+          if (
+            isSamePlayer(
+              playerId,
+              selfPlayerId
+            )
+          ) {
+            return;
+          }
+
+          removePlayerMarker(
+            entities,
+            playerId
+          );
+        },
+      });
   } catch (error) {
-    console.warn('[network] realtime subscribe failed:', error);
+    console.warn(
+      '[network] realtime subscribe failed:',
+      error
+    );
   }
 
   return {
@@ -248,13 +381,17 @@ export function setupPlayerNetwork({
 
     cleanup() {
       cleanupRealtime?.();
+
       cleanupStalePlayers?.();
       cleanupOffline?.();
+
       movementChannel?.unsubscribe?.();
 
       remoteMarkers.forEach((state) => {
         if (state.animationId) {
-          cancelAnimationFrame(state.animationId);
+          cancelAnimationFrame(
+            state.animationId
+          );
         }
       });
 
