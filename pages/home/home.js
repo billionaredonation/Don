@@ -2,8 +2,11 @@ import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
+
 import {
-  getLocalPlayerId,a
+  getLocalPlayerId,
+  getOrCreatePlayerPosition,
+  getCityPlayers,
 } from '../../src/player/playerPosition.js';
 
 import { setupMobileControlPrompt } from '../../src/controls/mobileControlPrompt.js';
@@ -111,7 +114,7 @@ register('home', async (root) => {
     cityPlayers = [playerPosition];
   }
 
-  const hasSelf = cityPlayers.some((player) => player.playerId === localPlayerId);
+  const hasSelf = cityPlayers.some((player) => String(player.playerId) === String(localPlayerId));
 
   if (!hasSelf) {
     cityPlayers.unshift({
@@ -207,6 +210,12 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
 
+  const mapControls = enableMapControls(stage, viewport, {
+    focusX: playerPosition.x,
+    focusY: playerPosition.y,
+    startScale: isLowPowerDevice() ? 2.55 : 3.25,
+  });
+
   const network = setupPlayerNetwork({
     cityId,
     entities,
@@ -222,41 +231,35 @@ register('home', async (root) => {
     network.movementChannel
   );
 
-const cleanupMobilePrompt = setupMobileControlPrompt({
-  root,
-  layer: mobileControlsLayer,
-  enableJoystick() {
-    return enableMobileJoystick(
-      mobileControlsLayer,
-      playerMarker,
-      playerPosition,
-      cityId,
-      nickname,
-      mapControls,
-      network.movementChannel
-    );
-  },
-});
-const mapControls = enableMapControls(stage, viewport, {
-  focusX: playerPosition.x,
-  focusY: playerPosition.y,
- startScale: isLowPowerDevice() ? 2.55 : 3.25,
-});
+  const cleanupMobilePrompt = setupMobileControlPrompt({
+    root,
+    layer: mobileControlsLayer,
+    enableJoystick() {
+      return enableMobileJoystick(
+        mobileControlsLayer,
+        playerMarker,
+        playerPosition,
+        cityId,
+        nickname,
+        mapControls,
+        network.movementChannel
+      );
+    },
+  });
 
-const cleanupFogOfWar = enableFogOfWar({
-  stage,
-  viewport,
-  playerMarker,
-  playerPosition,
-  cityId,
-  playerId: localPlayerId,
-});
-  
+  const cleanupFogOfWar = enableFogOfWar({
+    stage,
+    viewport,
+    playerMarker,
+    playerPosition,
+    cityId,
+    playerId: localPlayerId,
+  });
 
   root._cleanupHome = () => {
     cleanupMovement?.();
     cleanupMobilePrompt?.();
-    cleanupMapControls?.();
+    mapControls?.cleanup?.();
     cleanupFogOfWar?.();
     network.cleanup?.();
   };
