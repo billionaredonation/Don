@@ -216,12 +216,6 @@ register('home', async (root) => {
     startScale: isLowPowerDevice() ? 2.55 : 3.25,
   });
 
-  const network = setupPlayerNetwork({
-    cityId,
-    entities,
-    localPlayerId,
-  });
-
 
   const network = setupPlayerNetwork({
     cityId,
