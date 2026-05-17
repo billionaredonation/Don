@@ -218,7 +218,6 @@ export function setupPlayerNetwork({
   playerId,
   localPlayerId,
   entities,
-  mapControls,
 }) {
   const selfPlayerId = localPlayerId || playerId;
 
@@ -268,7 +267,6 @@ export function setupPlayerNetwork({
 
   return {
     movementChannel,
-    mapControls,
 
     cleanup() {
       cleanupRealtime?.();
