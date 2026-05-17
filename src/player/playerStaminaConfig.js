@@ -1,13 +1,16 @@
 export const PLAYER_STAMINA_CONFIG = {
   max: 100,
-  drainPerFrame: 0.18,
-  recoverPerFrame: 0.28,
 
-  normalSpeedMultiplier: 1,
-  tiredSpeedMultiplier: 0.32,
+  sprintSpeedMultiplier: 1.75,
+  walkSpeedMultiplier: 1,
 
-  tiredAt: 5,
-  recoveredAt: 35,
+  tiredSpeedMultiplier: 1,
+
+  drainPerFrame: 0.34,
+  recoverPerFrame: 0.055,
+
+  emptyAt: 0,
+  recoveredAt: 100,
 };
 
 export function getStaminaConfig() {
