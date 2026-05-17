@@ -1,3 +1,19 @@
+import {
+  subscribeCityPlayers,
+  createCityMovementChannel,
+  setPlayerOffline,
+} from '../player/playerPosition.js';
+
+import { NETWORK_CONFIG } from '../config/networkConfig.js';
+
+import {
+  createPlayerMarkerHtml,
+  updatePlayerMarkerView,
+} from '../player/playerMarkerView.js';
+
+
+
+
 export function setupPlayerNetwork({
   cityId,
   playerId,
