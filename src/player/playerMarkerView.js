@@ -6,16 +6,24 @@ export function createPlayerMarkerHtml(player, localPlayerId) {
   return `
     <div
       class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
-      style="left: ${player.x}%; top: ${player.y}%; --player-angle: ${angle}deg;"
       data-player-id="${player.playerId}"
+      data-x="${Number(player.x || 50)}"
+      data-y="${Number(player.y || 50)}"
       data-updated-at="${updatedAt}"
-      data-x="${player.x}"
-      data-y="${player.y}"
       data-angle="${angle}"
+      style="
+        left: ${Number(player.x || 50)}%;
+        top: ${Number(player.y || 50)}%;
+        --player-angle: ${angle}deg;
+      "
     >
-      <span class="gta-player-lidar"></span>
-      <span class="gta-player-marker-dot"></span>
-      <b class="gta-player-marker-name">${player.nickname || 'Игрок'}</b>
+      <div class="gta-player-dot"></div>
+
+      ${
+        isSelf
+          ? ''
+          : `<div class="gta-player-marker-name">${player.nickname || 'Игрок'}</div>`
+      }
     </div>
   `;
 }
@@ -30,9 +38,12 @@ export function renderPlayersHtml(players, localPlayerId) {
 export function updatePlayerMarkerView(marker, player) {
   if (!marker || !player) return;
 
+  const isSelf = marker.classList.contains('gta-player-marker-self');
   const name = marker.querySelector('.gta-player-marker-name');
 
-  if (name) {
+  if (isSelf) {
+    name?.remove();
+  } else if (name) {
     name.textContent = player.nickname || 'Игрок';
   }
 
