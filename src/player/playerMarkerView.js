@@ -19,11 +19,12 @@ export function createPlayerMarkerHtml(player, localPlayerId) {
     >
       <div class="gta-player-dot"></div>
 
-      ${
-        isSelf
-          ? ''
-          : `<div class="gta-player-marker-name">${player.nickname || 'Игрок'}</div>`
-      }
+      <div
+        class="gta-player-marker-name"
+        style="${isSelf ? 'display:none;' : ''}"
+      >
+        ${player.nickname || 'Игрок'}
+      </div>
     </div>
   `;
 }
@@ -35,20 +36,36 @@ export function renderPlayersHtml(players, localPlayerId) {
     .join('');
 }
 
-export function updatePlayerMarkerView(marker, player) {
+export function updatePlayerMarkerView(marker, player, localPlayerId) {
   if (!marker || !player) return;
 
-  const isSelf = marker.classList.contains('gta-player-marker-self');
-  const name = marker.querySelector('.gta-player-marker-name');
+  const isSelf =
+    player.playerId === localPlayerId;
 
-  if (isSelf) {
-    name?.remove();
-  } else if (name) {
-    name.textContent = player.nickname || 'Игрок';
+  const name = marker.querySelector(
+    '.gta-player-marker-name'
+  );
+
+  if (name) {
+    name.style.display = isSelf
+      ? 'none'
+      : '';
+
+    name.textContent =
+      player.nickname || 'Игрок';
   }
 
-  const angle = Number(player.angle || player.direction || marker.dataset.angle || 0);
+  const angle = Number(
+    player.angle ||
+    player.direction ||
+    marker.dataset.angle ||
+    0
+  );
 
   marker.dataset.angle = String(angle);
-  marker.style.setProperty('--player-angle', `${angle}deg`);
+
+  marker.style.setProperty(
+    '--player-angle',
+    `${angle}deg`
+  );
 }
