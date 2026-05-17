@@ -141,6 +141,24 @@ export function enableMobileJoystick(
     mapControls?.focusOnPlayer?.(x, y);
   }
 
+  function forceSyncPosition() {
+    x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
+    y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
+
+    playerPosition.x = x;
+    playerPosition.y = y;
+    playerPosition.angle = angle;
+
+    marker.style.left = `${x}%`;
+    marker.style.top = `${y}%`;
+    marker.dataset.x = String(x);
+    marker.dataset.y = String(y);
+    marker.dataset.angle = String(angle);
+    marker.style.setProperty('--player-angle', `${angle}deg`);
+
+    mapControls?.focusOnPlayer?.(x, y);
+  }
+
   function renderPlayer() {
     x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
     y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
@@ -149,6 +167,8 @@ export function enableMobileJoystick(
 
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
+    marker.dataset.x = String(x);
+    marker.dataset.y = String(y);
     marker.dataset.angle = String(angle);
     marker.style.setProperty('--player-angle', `${angle}deg`);
   }
@@ -212,7 +232,7 @@ export function enableMobileJoystick(
     clearInterval(heartbeatTimer);
 
     heartbeatTimer = setInterval(() => {
-      renderPlayer();
+      forceSyncPosition();
       savePositionToDb(true);
       broadcastMove(true);
     }, HEARTBEAT_DELAY);
@@ -281,6 +301,8 @@ export function enableMobileJoystick(
       renderPlayer();
       broadcastMove(false);
       savePositionToDb(false);
+    } else {
+      syncPlayerPosition();
     }
 
     animationId = requestAnimationFrame(loop);
@@ -324,10 +346,15 @@ export function enableMobileJoystick(
     activePointerId = null;
 
     resetStick();
-    renderPlayer();
+    forceSyncPosition();
 
     broadcastMove(true);
-    savePositionToDb(true);
+
+    setTimeout(() => {
+      if (!destroyed) {
+        savePositionToDb(true);
+      }
+    }, 60);
   }
 
   base.addEventListener('pointerdown', onPointerDown);
@@ -336,7 +363,7 @@ export function enableMobileJoystick(
   base.addEventListener('pointercancel', onPointerEnd);
   base.addEventListener('pointerleave', onPointerEnd);
 
-  renderPlayer();
+  forceSyncPosition();
   savePositionToDb(true);
   startHeartbeat();
 
@@ -356,7 +383,7 @@ export function enableMobileJoystick(
     }
 
     resetStick();
-    renderPlayer();
+    forceSyncPosition();
 
     joystick?.remove();
 
