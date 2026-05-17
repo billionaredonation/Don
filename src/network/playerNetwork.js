@@ -18,6 +18,10 @@ function percentToNumber(value, fallback = 50) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function isSamePlayer(a, b) {
+  return String(a || '') === String(b || '');
+}
+
 function getRemoteState(marker, player) {
   const playerId = player.playerId;
   let state = remoteMarkers.get(playerId);
@@ -77,7 +81,7 @@ function animateRemoteMarker(playerId) {
 export function upsertPlayerMarker(entities, player, localPlayerId, options = {}) {
   if (!entities || !player?.playerId) return;
 
-  if (String(player.playerId) === String(localPlayerId)) return;
+  if (isSamePlayer(player.playerId, localPlayerId)) return;
 
   if (player.isOnline === false) {
     removePlayerMarker(entities, player.playerId);
@@ -85,6 +89,7 @@ export function upsertPlayerMarker(entities, player, localPlayerId, options = {}
   }
 
   const selector = `[data-player-id="${player.playerId}"]`;
+
   let marker = entities.querySelector(selector);
 
   if (!marker) {
@@ -192,7 +197,7 @@ export function setupPlayerNetwork({
 
   const movementChannel = createCityMovementChannel(cityId, {
     onMove(player) {
-      if (!player || String(player.playerId) === String(selfPlayerId)) return;
+      if (!player || isSamePlayer(player.playerId, selfPlayerId)) return;
 
       upsertPlayerMarker(entities, player, selfPlayerId, {
         instant: false,
@@ -208,7 +213,7 @@ export function setupPlayerNetwork({
   try {
     cleanupRealtime = subscribeCityPlayers(cityId, {
       onInsert(player) {
-        if (!player || String(player.playerId) === String(selfPlayerId)) return;
+        if (!player || isSamePlayer(player.playerId, selfPlayerId)) return;
 
         upsertPlayerMarker(entities, player, selfPlayerId, {
           instant: true,
@@ -216,7 +221,7 @@ export function setupPlayerNetwork({
       },
 
       onUpdate(player) {
-        if (!player || String(player.playerId) === String(selfPlayerId)) return;
+        if (!player || isSamePlayer(player.playerId, selfPlayerId)) return;
 
         if (player.isOnline === false) {
           removePlayerMarker(entities, player.playerId);
@@ -228,10 +233,10 @@ export function setupPlayerNetwork({
         });
       },
 
-      onDelete(deletedPlayerId) {
-        if (!deletedPlayerId || String(deletedPlayerId) === String(selfPlayerId)) return;
+      onDelete(playerId) {
+        if (isSamePlayer(playerId, selfPlayerId)) return;
 
-        removePlayerMarker(entities, deletedPlayerId);
+        removePlayerMarker(entities, playerId);
       },
     });
   } catch (error) {
