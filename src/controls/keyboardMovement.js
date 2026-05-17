@@ -22,6 +22,7 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
 
   return Math.atan2(moveX, -moveY) * 180 / Math.PI;
 }
+
 export function enableKeyboardPlayerMovement(
   marker,
   playerPosition,
@@ -30,57 +31,54 @@ export function enableKeyboardPlayerMovement(
   mapControls,
   movementChannel
 ) {
-const keys = new Set();
+  if (!marker || !playerPosition) return null;
 
-const SPEED = getKeyboardMoveSpeed();
-const STAMINA = getStaminaConfig();
+  const keys = new Set();
 
-let stamina = STAMINA.max;
-let sprintLocked = false;
+  const SPEED = getKeyboardMoveSpeed();
+  const STAMINA = getStaminaConfig();
 
-function isSprintPressed() {
-  return keys.has('shift');
-}
+  let stamina = STAMINA.max;
+  let sprintLocked = false;
 
-function updateSprintState(isMoving) {
-  const wantsSprint = isMoving && isSprintPressed() && !sprintLocked;
-
-  if (wantsSprint) {
-    stamina = Math.max(STAMINA.emptyAt, stamina - STAMINA.drainPerFrame);
-
-    if (stamina <= STAMINA.emptyAt) {
-      sprintLocked = true;
-      stamina = STAMINA.emptyAt;
-    }
-  } else {
-    stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
-
-    if (stamina >= STAMINA.recoveredAt) {
-      sprintLocked = false;
-      stamina = STAMINA.max;
-    }
+  function isSprintPressed() {
+    return keys.has('shift');
   }
 
-  return wantsSprint
-    ? STAMINA.sprintSpeedMultiplier
-    : STAMINA.walkSpeedMultiplier;
-}
-  
-const BOUNDS = getMovementBounds();
-const SYNC_CONFIG = getMovementSyncConfig();
+  function updateSprintState(isMoving) {
+    const wantsSprint = isMoving && isSprintPressed() && !sprintLocked;
 
-const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
-const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
-const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
+    if (wantsSprint) {
+      stamina = Math.max(STAMINA.emptyAt, stamina - STAMINA.drainPerFrame);
+
+      if (stamina <= STAMINA.emptyAt) {
+        sprintLocked = true;
+        stamina = STAMINA.emptyAt;
+      }
+    } else {
+      stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
+
+      if (stamina >= STAMINA.recoveredAt) {
+        sprintLocked = false;
+        stamina = STAMINA.max;
+      }
+    }
+
+    return wantsSprint
+      ? STAMINA.sprintSpeedMultiplier
+      : STAMINA.walkSpeedMultiplier;
+  }
+
+  const BOUNDS = getMovementBounds();
+  const SYNC_CONFIG = getMovementSyncConfig();
+
+  const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
+  const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
+  const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
   let angle = Number(playerPosition.angle || playerPosition.direction || 0);
-
-  playerPosition.x = x;
-  playerPosition.y = y;
-  playerPosition.angle = angle;
-  mapControls?.focusOnPlayer?.(x, y);
 
   let animationId = null;
   let heartbeatTimer = null;
@@ -95,16 +93,38 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     playerPosition.x = x;
     playerPosition.y = y;
     playerPosition.angle = angle;
+
+    mapControls?.focusOnPlayer?.(x, y);
+  }
+
+  function forceSyncPosition() {
+    x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
+    y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
+
+    playerPosition.x = x;
+    playerPosition.y = y;
+    playerPosition.angle = angle;
+
+    marker.style.left = `${x}%`;
+    marker.style.top = `${y}%`;
+    marker.dataset.x = String(x);
+    marker.dataset.y = String(y);
+    marker.dataset.angle = String(angle);
+    marker.style.setProperty('--player-angle', `${angle}deg`);
+
     mapControls?.focusOnPlayer?.(x, y);
   }
 
   function renderPlayer() {
     x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
     y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
+
     syncPlayerPosition();
 
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
+    marker.dataset.x = String(x);
+    marker.dataset.y = String(y);
     marker.dataset.angle = String(angle);
     marker.style.setProperty('--player-angle', `${angle}deg`);
   }
@@ -168,7 +188,7 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     clearInterval(heartbeatTimer);
 
     heartbeatTimer = setInterval(() => {
-      renderPlayer();
+      forceSyncPosition();
       savePositionToDb(true);
       broadcastMove(true);
     }, HEARTBEAT_DELAY);
@@ -207,33 +227,33 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     };
   }
 
-function loop() {
-  if (destroyed) return;
+  function loop() {
+    if (destroyed) return;
 
-  const { moveX, moveY } = getMoveVector();
+    const { moveX, moveY } = getMoveVector();
 
-  const moved =
-    Math.abs(moveX) > 0.001 ||
-    Math.abs(moveY) > 0.001;
+    const moved =
+      Math.abs(moveX) > 0.001 ||
+      Math.abs(moveY) > 0.001;
 
-  const speedMultiplier = updateSprintState(moved);
+    const speedMultiplier = updateSprintState(moved);
 
-  if (moved) {
-    x += moveX * SPEED * speedMultiplier;
-    y += moveY * SPEED * speedMultiplier;
-    angle = getAngleFromMovement(moveX, moveY, angle);
+    if (moved) {
+      x += moveX * SPEED * speedMultiplier;
+      y += moveY * SPEED * speedMultiplier;
 
-    renderPlayer();
-    broadcastMove(false);
-    savePositionToDb(false);
+      angle = getAngleFromMovement(moveX, moveY, angle);
+
+      renderPlayer();
+      broadcastMove(false);
+      savePositionToDb(false);
+    } else {
+      syncPlayerPosition();
+    }
+
+    animationId = requestAnimationFrame(loop);
   }
 
-  if (!moved) {
-    updateSprintState(false);
-  }
-
-  animationId = requestAnimationFrame(loop);
-}
   function onKeyDown(event) {
     const tag = document.activeElement?.tagName?.toLowerCase();
 
@@ -244,8 +264,8 @@ function loop() {
     const allowedKeys = [
       'w', 'a', 's', 'd',
       'ц', 'ф', 'ы', 'в',
-      'shift',
       'arrowup', 'arrowdown', 'arrowleft', 'arrowright',
+      'shift',
     ];
 
     if (allowedKeys.includes(key)) {
@@ -265,16 +285,21 @@ function loop() {
       cancelAnimationFrame(animationId);
       animationId = null;
 
-      renderPlayer();
+      forceSyncPosition();
       broadcastMove(true);
-      savePositionToDb(true);
+
+      setTimeout(() => {
+        if (!destroyed) {
+          savePositionToDb(true);
+        }
+      }, 60);
     }
   }
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
 
-  renderPlayer();
+  forceSyncPosition();
   savePositionToDb(true);
   startHeartbeat();
 
@@ -289,7 +314,7 @@ function loop() {
       cancelAnimationFrame(animationId);
     }
 
-    renderPlayer();
+    forceSyncPosition();
     broadcastMove(true);
     savePositionToDb(true);
   };
