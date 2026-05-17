@@ -6,7 +6,6 @@ import {
   getMovementSyncConfig,
 } from '../player/playerStatsConfig.js';
 
-
 import {
   getLocalPlayerId,
   updatePlayerPosition,
@@ -68,51 +67,68 @@ export function enableMobileJoystick(
         <div class="mobile-joystick-stick"></div>
       </div>
     </div>
+
+    <button class="mobile-sprint-button" type="button" aria-label="Sprint">
+      🏃
+    </button>
   `;
 
   const joystick = container.querySelector('.mobile-joystick');
   const base = container.querySelector('.mobile-joystick-base');
   const stick = container.querySelector('.mobile-joystick-stick');
+  const sprintButton = container.querySelector('.mobile-sprint-button');
 
+  const SPEED = getMobileMoveSpeed();
+  const STAMINA = getStaminaConfig();
 
-const SPEED = getMobileMoveSpeed();
+  let stamina = STAMINA.max;
+  let sprintLocked = false;
+  let sprintEnabled = false;
 
-const STAMINA = getStaminaConfig();
+  function updateSprintButton() {
+    if (!sprintButton) return;
 
-let stamina = STAMINA.max;
-let isTired = false;
-
-function updateStamina(isMoving) {
-  if (isMoving) {
-    stamina = Math.max(0, stamina - STAMINA.drainPerFrame);
-  } else {
-    stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
+    sprintButton.classList.toggle('is-active', sprintEnabled && !sprintLocked);
+    sprintButton.classList.toggle('is-locked', sprintLocked);
   }
 
-  if (stamina <= STAMINA.tiredAt) {
-    isTired = true;
+  function updateSprintState(isMoving) {
+    const wantsSprint = isMoving && sprintEnabled && !sprintLocked;
+
+    if (wantsSprint) {
+      stamina = Math.max(STAMINA.emptyAt, stamina - STAMINA.drainPerFrame);
+
+      if (stamina <= STAMINA.emptyAt) {
+        sprintLocked = true;
+        sprintEnabled = false;
+        stamina = STAMINA.emptyAt;
+      }
+    } else {
+      stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
+
+      if (stamina >= STAMINA.recoveredAt) {
+        sprintLocked = false;
+        stamina = STAMINA.max;
+      }
+    }
+
+    updateSprintButton();
+
+    return wantsSprint
+      ? STAMINA.sprintSpeedMultiplier
+      : STAMINA.walkSpeedMultiplier;
   }
 
-  if (stamina >= STAMINA.recoveredAt) {
-    isTired = false;
-  }
+  const MAX_DISTANCE = 42;
+  const DEADZONE = 0.22;
 
-  return isTired
-    ? STAMINA.tiredSpeedMultiplier
-    : STAMINA.normalSpeedMultiplier;
-}
-  
-const MAX_DISTANCE = 42;
-const DEADZONE = 0.22;
+  const BOUNDS = getMovementBounds();
+  const SYNC_CONFIG = getMovementSyncConfig();
 
-const BOUNDS = getMovementBounds();
-const SYNC_CONFIG = getMovementSyncConfig();
+  const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
+  const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
+  const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
 
-const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
-const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
-const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
-
-  
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
   let angle = Number(playerPosition.angle || playerPosition.direction || 0);
@@ -276,11 +292,11 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
       Math.abs(moveX) > DEADZONE ||
       Math.abs(moveY) > DEADZONE;
 
-    const speedMultiplier = updateStamina(isMoving);
+    const speedMultiplier = updateSprintState(isMoving);
 
-      if (isMoving) {
-        x += moveX * SPEED * speedMultiplier;
-        y += moveY * SPEED * speedMultiplier;
+    if (isMoving) {
+      x += moveX * SPEED * speedMultiplier;
+      y += moveY * SPEED * speedMultiplier;
 
       angle = getAngleFromMovement(moveX, moveY, angle);
 
@@ -290,11 +306,10 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     }
 
     if (!isMoving) {
-      updateStamina(false);
+      updateSprintState(false);
     }
 
     animationId = requestAnimationFrame(loop);
-    
   }
 
   function onPointerDown(event) {
@@ -341,12 +356,25 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     savePositionToDb(true);
   }
 
+  function onSprintClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (sprintLocked) return;
+
+    sprintEnabled = !sprintEnabled;
+    updateSprintButton();
+  }
+
+  sprintButton?.addEventListener('click', onSprintClick);
+
   base.addEventListener('pointerdown', onPointerDown);
   base.addEventListener('pointermove', onPointerMove);
   base.addEventListener('pointerup', onPointerEnd);
   base.addEventListener('pointercancel', onPointerEnd);
   base.addEventListener('pointerleave', onPointerEnd);
 
+  updateSprintButton();
   renderPlayer();
   savePositionToDb(true);
   startHeartbeat();
@@ -355,6 +383,8 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     destroyed = true;
 
     clearInterval(heartbeatTimer);
+
+    sprintButton?.removeEventListener('click', onSprintClick);
 
     base.removeEventListener('pointerdown', onPointerDown);
     base.removeEventListener('pointermove', onPointerMove);
@@ -370,6 +400,7 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
     renderPlayer();
 
     joystick?.remove();
+    sprintButton?.remove();
 
     broadcastMove(true);
     savePositionToDb(true);
