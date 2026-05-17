@@ -3,6 +3,7 @@ export function createPlayerMarkerHtml(player, localPlayerId) {
   const localId = String(localPlayerId || '');
 
   const isSelf = playerId === localId;
+
   const updatedAt = Date.now();
 
   const x = Number(player.x || 50);
@@ -13,6 +14,11 @@ export function createPlayerMarkerHtml(player, localPlayerId) {
     player.direction ||
     0
   );
+
+  const nickname =
+    player.nickname ||
+    player.name ||
+    'Игрок';
 
   return `
     <div
@@ -31,7 +37,7 @@ export function createPlayerMarkerHtml(player, localPlayerId) {
       <div class="gta-player-dot"></div>
 
       <div class="gta-player-marker-name">
-        ${player.nickname || player.name || 'Игрок'}
+        ${nickname}
       </div>
     </div>
   `;
