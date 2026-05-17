@@ -1,4 +1,10 @@
 import {
+  getKeyboardMoveSpeed,
+  getMovementBounds,
+  getMovementSyncConfig,
+} from '../player/playerStatsConfig.js';
+
+import {
   getLocalPlayerId,
   updatePlayerPosition,
 } from '../player/playerPosition.js';
@@ -19,10 +25,13 @@ export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nic
 
   const keys = new Set();
 
-  const SPEED = 0.12;
-  const BROADCAST_INTERVAL = 25;
-  const DB_SAVE_INTERVAL = 1200;
-  const HEARTBEAT_DELAY = 1000;
+const SPEED = getKeyboardMoveSpeed();
+const BOUNDS = getMovementBounds();
+const SYNC_CONFIG = getMovementSyncConfig();
+
+const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
+const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
+const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
@@ -48,9 +57,8 @@ export function enableKeyboardPlayerMovement(marker, playerPosition, cityId, nic
   }
 
   function renderPlayer() {
-    x = clamp(x, 0, 100);
-    y = clamp(y, 0, 100);
-
+    x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
+    y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
     syncPlayerPosition();
 
     marker.style.left = `${x}%`;
