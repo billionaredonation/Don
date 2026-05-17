@@ -222,13 +222,12 @@ register('home', async (root) => {
     localPlayerId,
     entities,
   });
-  
+
   const cleanupMovement = enableKeyboardPlayerMovement(
     playerMarker,
     playerPosition,
     cityId,
     nickname,
-    mapControls,
     network.movementChannel
   );
 
@@ -242,7 +241,6 @@ register('home', async (root) => {
         playerPosition,
         cityId,
         nickname,
-        mapControls,
         network.movementChannel
       );
     },
