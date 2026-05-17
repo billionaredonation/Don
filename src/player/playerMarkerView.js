@@ -1,29 +1,37 @@
 export function createPlayerMarkerHtml(player, localPlayerId) {
-  const isSelf = player.playerId === localPlayerId;
+  const playerId = String(player.playerId || player.id || '');
+  const localId = String(localPlayerId || '');
+
+  const isSelf = playerId === localId;
   const updatedAt = Date.now();
-  const angle = Number(player.angle || player.direction || 0);
+
+  const x = Number(player.x || 50);
+  const y = Number(player.y || 50);
+
+  const angle = Number(
+    player.angle ||
+    player.direction ||
+    0
+  );
 
   return `
     <div
       class="gta-player-marker ${isSelf ? 'gta-player-marker-self' : 'gta-player-marker-other'}"
-      data-player-id="${player.playerId}"
-      data-x="${Number(player.x || 50)}"
-      data-y="${Number(player.y || 50)}"
+      data-player-id="${playerId}"
+      data-x="${x}"
+      data-y="${y}"
       data-updated-at="${updatedAt}"
       data-angle="${angle}"
       style="
-        left: ${Number(player.x || 50)}%;
-        top: ${Number(player.y || 50)}%;
+        left: ${x}%;
+        top: ${y}%;
         --player-angle: ${angle}deg;
       "
     >
       <div class="gta-player-dot"></div>
 
-      <div
-        class="gta-player-marker-name"
-        style="${isSelf ? 'display:none;' : ''}"
-      >
-        ${player.nickname || 'Игрок'}
+      <div class="gta-player-marker-name">
+        ${player.nickname || player.name || 'Игрок'}
       </div>
     </div>
   `;
@@ -36,24 +44,17 @@ export function renderPlayersHtml(players, localPlayerId) {
     .join('');
 }
 
-export function updatePlayerMarkerView(marker, player, localPlayerId) {
+export function updatePlayerMarkerView(marker, player) {
   if (!marker || !player) return;
 
-  const isSelf =
-    player.playerId === localPlayerId;
+  const x = Number(player.x || marker.dataset.x || 50);
+  const y = Number(player.y || marker.dataset.y || 50);
 
-  const name = marker.querySelector(
-    '.gta-player-marker-name'
-  );
+  marker.dataset.x = String(x);
+  marker.dataset.y = String(y);
 
-  if (name) {
-    name.style.display = isSelf
-      ? 'none'
-      : '';
-
-    name.textContent =
-      player.nickname || 'Игрок';
-  }
+  marker.style.left = `${x}%`;
+  marker.style.top = `${y}%`;
 
   const angle = Number(
     player.angle ||
@@ -68,4 +69,13 @@ export function updatePlayerMarkerView(marker, player, localPlayerId) {
     '--player-angle',
     `${angle}deg`
   );
+
+  const name = marker.querySelector('.gta-player-marker-name');
+
+  if (name) {
+    name.textContent =
+      player.nickname ||
+      player.name ||
+      'Игрок';
+  }
 }
