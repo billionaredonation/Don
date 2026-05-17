@@ -226,7 +226,6 @@ register('home', async (root) => {
     mapControls,
   });
 
-
   const cleanupMovement = enableKeyboardPlayerMovement(
     playerMarker,
     playerPosition,
