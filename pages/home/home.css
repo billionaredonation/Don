@@ -1936,3 +1936,39 @@ body,
   font-size: 6.8px !important;
   padding: 2px 4px !important;
 }
+
+
+.mobile-sprint-button {
+  position: fixed;
+  right: 22px;
+  bottom: 118px;
+  z-index: 80;
+
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 999px;
+
+  background: rgba(10, 12, 16, 0.72);
+  color: #fff;
+
+  font-size: 22px;
+  line-height: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+
+.mobile-sprint-button.is-active {
+  transform: scale(1.08);
+  border-color: rgba(255,255,255,0.55);
+}
+
+.mobile-sprint-button.is-locked {
+  opacity: 0.38;
+  filter: grayscale(1);
+}
