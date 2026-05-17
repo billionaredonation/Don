@@ -1,3 +1,5 @@
+import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+
 import {
   getKeyboardMoveSpeed,
   getMovementBounds,
@@ -31,6 +33,31 @@ export function enableKeyboardPlayerMovement(
 const keys = new Set();
 
 const SPEED = getKeyboardMoveSpeed();
+const STAMINA = getStaminaConfig();
+
+let stamina = STAMINA.max;
+let isTired = false;
+
+function updateStamina(isMoving) {
+  if (isMoving) {
+    stamina = Math.max(0, stamina - STAMINA.drainPerFrame);
+  } else {
+    stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
+  }
+
+  if (stamina <= STAMINA.tiredAt) {
+    isTired = true;
+  }
+
+  if (stamina >= STAMINA.recoveredAt) {
+    isTired = false;
+  }
+
+  return isTired
+    ? STAMINA.tiredSpeedMultiplier
+    : STAMINA.normalSpeedMultiplier;
+}
+  
 const BOUNDS = getMovementBounds();
 const SYNC_CONFIG = getMovementSyncConfig();
 
@@ -181,16 +208,20 @@ const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
       Math.abs(moveX) > 0.001 ||
       Math.abs(moveY) > 0.001;
 
+    const speedMultiplier = updateStamina(moved);
+
     if (moved) {
-      x += moveX * SPEED;
-      y += moveY * SPEED;
+      x += moveX * SPEED * speedMultiplier;
+      y += moveY * SPEED * speedMultiplier;
       angle = getAngleFromMovement(moveX, moveY, angle);
 
       renderPlayer();
       broadcastMove(false);
       savePositionToDb(false);
     }
-
+    if (!moved) {
+      updateStamina(false);
+    }
     animationId = requestAnimationFrame(loop);
   }
 
