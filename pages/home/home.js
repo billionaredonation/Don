@@ -235,7 +235,7 @@ const cleanupMobilePrompt = setupMobileControlPrompt({
     );
   },
 });
-const cleanupMapControls = enableMapControls(stage, viewport, {
+const mapControls = enableMapControls(stage, viewport, {
   focusX: playerPosition.x,
   focusY: playerPosition.y,
  startScale: isLowPowerDevice() ? 2.55 : 3.25,
