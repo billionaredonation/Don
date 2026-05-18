@@ -68,7 +68,7 @@ async function boot() {
     }
 
     show('preload', {
-      next: 'home',
+      next: 'auth',
       mode: 'return',
     });
   } catch (error) {
