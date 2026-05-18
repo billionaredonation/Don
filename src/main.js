@@ -9,7 +9,7 @@ import '../pages/welcome2/welcome2.js';
 import '../pages/welcome3/welcome3.js';
 import '../pages/preload/preload.js';
 import '../pages/home/home-screen.js';
-
+import { verifyTelegramAccess } from './auth/telegramAuth.js';
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
 
@@ -88,10 +88,12 @@ async function boot() {
       return;
     }
 
+    await verifyTelegramAccess();
     window.Telegram?.WebApp?.ready?.();
     window.Telegram?.WebApp?.expand?.();
 
     initRuntime();
+    
     await loadRemote();
 
     const currentState = getState();
