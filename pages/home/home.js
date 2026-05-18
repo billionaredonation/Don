@@ -2,6 +2,7 @@ import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
+import { setupSessionGuard } from '../../src/network/sessionGuard.js';
 
 import {
   getLocalPlayerId,
@@ -223,6 +224,8 @@ register('home', async (root) => {
     entities,
   });
 
+  const cleanupSessionGuard = setupSessionGuard(root);
+
   const cleanupMovement = enableKeyboardPlayerMovement(
     playerMarker,
     playerPosition,
@@ -231,6 +234,7 @@ register('home', async (root) => {
     mapControls,
     network.movementChannel
   );
+
   const cleanupMobilePrompt = setupMobileControlPrompt({
     root,
     layer: mobileControlsLayer,
@@ -259,6 +263,7 @@ register('home', async (root) => {
   root._cleanupHome = () => {
     cleanupMovement?.();
     cleanupMobilePrompt?.();
+    cleanupSessionGuard?.();
     mapControls?.cleanup?.();
     cleanupFogOfWar?.();
     network.cleanup?.();
