@@ -15,12 +15,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 22px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 28%),
-    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.055), transparent 32%),
-    linear-gradient(135deg, #050607 0%, #0b0f14 45%, #030405 100%);
+    radial-gradient(circle at 18% 18%, rgba(255,255,255,0.08), transparent 28%),
+    radial-gradient(circle at 82% 76%, rgba(255,255,255,0.045), transparent 34%),
+    linear-gradient(135deg, #050607 0%, #0a0d12 52%, #030405 100%);
 }
 
 .auth-screen::before {
@@ -28,25 +28,23 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-  background-size: 52px 52px;
-  mask-image: radial-gradient(circle at center, black 0%, transparent 72%);
-  opacity: 0.38;
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 54px 54px;
+  opacity: 0.32;
   pointer-events: none;
 }
 
 .auth-screen::after {
   content: "MN";
   position: absolute;
-  right: -22px;
-  bottom: -42px;
-  font-size: clamp(120px, 28vw, 330px);
+  right: -28px;
+  bottom: -52px;
+  font-size: clamp(130px, 30vw, 340px);
   font-weight: 900;
   letter-spacing: -0.08em;
   color: rgba(255,255,255,0.035);
   pointer-events: none;
-  user-select: none;
 }
 
 .auth-card {
@@ -59,7 +57,7 @@
   background:
     linear-gradient(180deg, rgba(255,255,255,0.105), rgba(255,255,255,0.045));
   box-shadow:
-    0 24px 90px rgba(0,0,0,0.55),
+    0 24px 90px rgba(0,0,0,0.58),
     inset 0 1px 0 rgba(255,255,255,0.12);
   backdrop-filter: blur(18px);
 }
@@ -86,14 +84,14 @@
 .auth-input {
   width: 100%;
   min-height: 52px;
+  box-sizing: border-box;
   padding: 0 15px;
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 16px;
   outline: none;
-  background: rgba(0,0,0,0.34);
+  background: rgba(0,0,0,0.36);
   color: #fff;
   font-size: 16px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 .auth-input::placeholder {
@@ -102,7 +100,7 @@
 
 .auth-input:focus {
   border-color: rgba(255,255,255,0.42);
-  background: rgba(0,0,0,0.46);
+  background: rgba(0,0,0,0.5);
 }
 
 .auth-button {
@@ -115,8 +113,6 @@
   color: #07090c;
   font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.02em;
-  box-shadow: 0 14px 34px rgba(0,0,0,0.38);
 }
 
 .auth-button:active {
@@ -126,9 +122,9 @@
 .auth-error {
   margin-top: 14px;
   padding: 12px 14px;
-  border: 1px solid rgba(255, 91, 91, 0.28);
+  border: 1px solid rgba(255,91,91,0.28);
   border-radius: 14px;
-  background: rgba(255, 91, 91, 0.09);
+  background: rgba(255,91,91,0.09);
   color: #ff8a8a;
   font-size: 13px;
   line-height: 1.4;
