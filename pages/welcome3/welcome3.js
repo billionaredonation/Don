@@ -987,7 +987,7 @@ nextBtn.addEventListener('click', async () => {
     });
 
     show('preload', {
-      next: 'home',
+      next: 'auth',
       mode: 'first-start',
     });
   } catch (error) {
