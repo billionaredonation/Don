@@ -2,8 +2,10 @@ import { supabase } from '../supabaseClient.js';
 import { getRandomSpawnPoint } from '../spawn/spawnPoints.js';
 
 const PLAYER_ID_KEY = 'mn_player_id';
+const SESSION_ID_KEY = 'mn_session_id';
 
 let cachedPlayerId = null;
+let cachedSessionId = null;
 
 function getTelegramUserId() {
   return window.Telegram?.WebApp?.initDataUnsafe?.user?.id || null;
@@ -13,10 +15,12 @@ function createLocalPlayerId() {
   return `player_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+function createSessionId() {
+  return `session_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
 export function getLocalPlayerId() {
-  if (cachedPlayerId) {
-    return cachedPlayerId;
-  }
+  if (cachedPlayerId) return cachedPlayerId;
 
   const telegramId = getTelegramUserId();
 
@@ -34,8 +38,21 @@ export function getLocalPlayerId() {
   }
 
   cachedPlayerId = playerId;
-
   return cachedPlayerId;
+}
+
+export function getSessionId() {
+  if (cachedSessionId) return cachedSessionId;
+
+  let sessionId = localStorage.getItem(SESSION_ID_KEY);
+
+  if (!sessionId) {
+    sessionId = createSessionId();
+    localStorage.setItem(SESSION_ID_KEY, sessionId);
+  }
+
+  cachedSessionId = sessionId;
+  return cachedSessionId;
 }
 
 function normalizePosition(row) {
@@ -47,12 +64,14 @@ function normalizePosition(row) {
     y: Number(row.y),
     angle: Number(row.angle || 0),
     isOnline: row.is_online ?? true,
+    sessionId: row.session_id || null,
     updatedAt: row.updated_at,
   };
 }
 
 export async function getOrCreatePlayerPosition(cityId, nickname) {
   const playerId = getLocalPlayerId();
+  const sessionId = getSessionId();
 
   const { data: currentPosition, error: selectError } = await supabase
     .from('player_positions')
@@ -65,12 +84,13 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 
     const nextPosition = {
       player_id: playerId,
-      nickname: nickname || 'Игрок',
+      nickname: nickname || currentPosition.nickname || 'Игрок',
       city_id: cityId,
       x: currentPosition.x,
       y: currentPosition.y,
       angle,
       is_online: true,
+      session_id: sessionId,
       updated_at: new Date().toISOString(),
     };
 
@@ -88,9 +108,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 
     return normalizePosition({
       ...currentPosition,
-      angle,
-      is_online: true,
-      updated_at: new Date().toISOString(),
+      ...nextPosition,
     });
   }
 
@@ -104,6 +122,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     y: spawn.y,
     angle: 0,
     is_online: true,
+    session_id: sessionId,
     updated_at: new Date().toISOString(),
   };
 
@@ -126,6 +145,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
       y: spawn.y,
       angle: 0,
       isOnline: true,
+      sessionId,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -135,6 +155,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 
 export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }) {
   const playerId = getLocalPlayerId();
+  const sessionId = getSessionId();
 
   const nextPosition = {
     player_id: playerId,
@@ -144,6 +165,7 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
     y,
     angle,
     is_online: true,
+    session_id: sessionId,
     updated_at: new Date().toISOString(),
   };
 
@@ -155,9 +177,7 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
     .select('*')
     .single();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   return normalizePosition(data);
 }
@@ -174,9 +194,7 @@ export async function getCityPlayers(cityId) {
     .order('updated_at', { ascending: false })
     .limit(50);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   return (data || []).map(normalizePosition);
 }
@@ -257,8 +275,23 @@ export function createCityMovementChannel(cityId, handlers = {}) {
   };
 }
 
+export async function getActivePlayerSession() {
+  const playerId = getLocalPlayerId();
+
+  const { data, error } = await supabase
+    .from('player_positions')
+    .select('session_id')
+    .eq('player_id', playerId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data?.session_id || null;
+}
+
 export async function setPlayerOffline() {
   const playerId = getLocalPlayerId();
+  const sessionId = getSessionId();
 
   const { error } = await supabase
     .from('player_positions')
@@ -266,9 +299,8 @@ export async function setPlayerOffline() {
       is_online: false,
       updated_at: new Date().toISOString(),
     })
-    .eq('player_id', playerId);
+    .eq('player_id', playerId)
+    .eq('session_id', sessionId);
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 }
