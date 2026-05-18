@@ -84,7 +84,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 
     const nextPosition = {
       player_id: playerId,
-      nickname: nickname || currentPosition.nickname || 'Игрок',
+      nickname: nickname || 'Игрок',
       city_id: cityId,
       x: currentPosition.x,
       y: currentPosition.y,
