@@ -19,6 +19,11 @@ function createSessionId() {
   return `session_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+function getSafeNickname(nickname) {
+  const value = String(nickname || '').trim();
+  return value || 'Игрок';
+}
+
 export function getLocalPlayerId() {
   if (cachedPlayerId) return cachedPlayerId;
 
@@ -58,7 +63,7 @@ export function getSessionId() {
 function normalizePosition(row) {
   return {
     playerId: row.player_id,
-    nickname: row.nickname,
+    nickname: getSafeNickname(row.nickname),
     cityId: row.city_id,
     x: Number(row.x),
     y: Number(row.y),
@@ -72,6 +77,7 @@ function normalizePosition(row) {
 export async function getOrCreatePlayerPosition(cityId, nickname) {
   const playerId = getLocalPlayerId();
   const sessionId = getSessionId();
+  const safeNickname = getSafeNickname(nickname);
 
   const { data: currentPosition, error: selectError } = await supabase
     .from('player_positions')
@@ -84,7 +90,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 
     const nextPosition = {
       player_id: playerId,
-      nickname: nickname || 'Игрок',
+      nickname: safeNickname,
       city_id: cityId,
       x: currentPosition.x,
       y: currentPosition.y,
@@ -106,17 +112,14 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
       return normalizePosition(refreshedPosition);
     }
 
-    return normalizePosition({
-      ...currentPosition,
-      ...nextPosition,
-    });
+    return normalizePosition(nextPosition);
   }
 
   const spawn = getRandomSpawnPoint(cityId);
 
   const nextPosition = {
     player_id: playerId,
-    nickname: nickname || 'Игрок',
+    nickname: safeNickname,
     city_id: cityId,
     x: spawn.x,
     y: spawn.y,
@@ -139,7 +142,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 
     return {
       playerId,
-      nickname: nickname || 'Игрок',
+      nickname: safeNickname,
       cityId,
       x: spawn.x,
       y: spawn.y,
@@ -156,10 +159,11 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
 export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }) {
   const playerId = getLocalPlayerId();
   const sessionId = getSessionId();
+  const safeNickname = getSafeNickname(nickname);
 
   const nextPosition = {
     player_id: playerId,
-    nickname: nickname || 'Игрок',
+    nickname: safeNickname,
     city_id: cityId,
     x,
     y,
