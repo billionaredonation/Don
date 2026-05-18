@@ -3,11 +3,13 @@ import { show } from './router.js';
 import { initRuntime, getState, loadRemote } from './state.js';
 
 // статические страницы
+import '../pages/auth/auth.js';
 import '../pages/welcome1/welcome1.js';
 import '../pages/welcome2/welcome2.js';
 import '../pages/welcome3/welcome3.js';
 import '../pages/preload/preload.js';
 import '../pages/home/home-screen.js';
+
 
 function renderBootError(error) {
   console.error(error);
