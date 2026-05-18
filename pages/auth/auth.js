@@ -1,3 +1,5 @@
+import './auth.css';
+
 import { register, show } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { loginByNickname, getAuthPlayer } from '../../src/auth/playerAuth.js';
