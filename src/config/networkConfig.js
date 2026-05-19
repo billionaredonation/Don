@@ -1,15 +1,16 @@
 export const NETWORK_CONFIG = {
   movement: {
-    broadcastInterval: 35,
-    dbSaveInterval: 1500,
-    heartbeatDelay: 1000,
+    broadcastInterval: 50,
+    dbSaveInterval: 1200,
+    heartbeatDelay: 1500,
 
-    staleAfter: 10000,
+    staleAfter: 12000,
     staleCheckInterval: 2000,
 
-    remoteSmoothing: 0.18,
-    remoteSnapDistance: 45,
-    remoteIdleThreshold: 0.35,
+    remoteSmoothing: 0.16,
+    remoteSnapDistance: 18,
+    remoteIdleThreshold: 0.03,
+    remotePacketMaxAge: 3500,
   },
 
   limits: {
