@@ -55,18 +55,12 @@ function getInitialPosition(playerPosition, marker, bounds) {
   const mx = toFiniteNumber(marker?.dataset?.x);
   const my = toFiniteNumber(marker?.dataset?.y);
 
-  const left = marker?.style?.left?.replace('%', '');
-  const top = marker?.style?.top?.replace('%', '');
-
-  const sx = toFiniteNumber(left);
-  const sy = toFiniteNumber(top);
-
-  const x = px ?? mx ?? sx ?? 50;
-  const y = py ?? my ?? sy ?? 50;
+  const sx = toFiniteNumber(marker?.style?.left?.replace('%', ''));
+  const sy = toFiniteNumber(marker?.style?.top?.replace('%', ''));
 
   return {
-    x: clamp(x, bounds.minX, bounds.maxX),
-    y: clamp(y, bounds.minY, bounds.maxY),
+    x: clamp(px ?? mx ?? sx ?? 50, bounds.minX, bounds.maxX),
+    y: clamp(py ?? my ?? sy ?? 50, bounds.minY, bounds.maxY),
   };
 }
 
@@ -97,8 +91,47 @@ export function enableMobileJoystick(
   const SPEED = getMobileMoveSpeed();
   const STAMINA = getStaminaConfig();
 
+  const MAX_DISTANCE = 42;
+  const DEADZONE = 0.22;
+
+  const BOUNDS = getMovementBounds();
+  const SYNC_CONFIG = getMovementSyncConfig();
+
+  const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
+  const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
+
+  const initialPosition = getInitialPosition(playerPosition, marker, BOUNDS);
+
+  let x = initialPosition.x;
+  let y = initialPosition.y;
+  let angle =
+    toFiniteNumber(playerPosition.angle) ??
+    toFiniteNumber(playerPosition.direction) ??
+    toFiniteNumber(marker.dataset.angle) ??
+    0;
+
   let stamina = STAMINA.max;
   let sprintLocked = false;
+
+  let activePointerId = null;
+  let centerX = 0;
+  let centerY = 0;
+
+  let moveX = 0;
+  let moveY = 0;
+
+  let animationId = null;
+  let destroyed = false;
+
+  let lastBroadcastAt = 0;
+  let lastDbSaveAt = 0;
+
+  let dbSaveInFlight = false;
+  let dbSavePending = false;
+
+  let lastSentX = x;
+  let lastSentY = y;
+  let lastSentAngle = angle;
 
   function updateSprintState(isMoving) {
     const wantsSprint = isMoving && !sprintLocked;
@@ -124,53 +157,6 @@ export function enableMobileJoystick(
       : STAMINA.walkSpeedMultiplier;
   }
 
-  const MAX_DISTANCE = 42;
-  const DEADZONE = 0.22;
-
-  const BOUNDS = getMovementBounds();
-  const SYNC_CONFIG = getMovementSyncConfig();
-
-  const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
-  const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
-  const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
-
-  const initialPosition = getInitialPosition(playerPosition, marker, BOUNDS);
-
-  let x = initialPosition.x;
-  let y = initialPosition.y;
-  let angle =
-    toFiniteNumber(playerPosition.angle) ??
-    toFiniteNumber(playerPosition.direction) ??
-    toFiniteNumber(marker.dataset.angle) ??
-    0;
-
-  playerPosition.x = x;
-  playerPosition.y = y;
-  playerPosition.angle = angle;
-
-  let activePointerId = null;
-
-  let centerX = 0;
-  let centerY = 0;
-
-  let moveX = 0;
-  let moveY = 0;
-
-  let animationId = null;
-  let heartbeatTimer = null;
-  let destroyed = false;
-
-  let lastBroadcastAt = 0;
-  let lastDbSaveAt = 0;
-
-  let dbSaveInFlight = false;
-  let dbSavePending = false;
-
-  let hasMovedAtLeastOnce = false;
-  let lastSentX = x;
-  let lastSentY = y;
-  let lastSentAngle = angle;
-
   function syncPlayerPosition() {
     playerPosition.x = x;
     playerPosition.y = y;
@@ -191,13 +177,6 @@ export function enableMobileJoystick(
     marker.dataset.y = String(y);
     marker.dataset.angle = String(angle);
     marker.style.setProperty('--player-angle', `${angle}deg`);
-  }
-
-  function forceSyncPosition() {
-    x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
-    y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
-
-    renderPlayer();
   }
 
   function hasPositionChangedEnough() {
@@ -236,8 +215,6 @@ export function enableMobileJoystick(
   }
 
   async function savePositionToDb(force = false) {
-    if (!hasMovedAtLeastOnce && !force) return;
-
     const now = Date.now();
 
     if (!force && now - lastDbSaveAt < DB_SAVE_INTERVAL) {
@@ -274,21 +251,6 @@ export function enableMobileJoystick(
         savePositionToDb(false);
       }
     }
-  }
-
-  function startHeartbeat() {
-    clearInterval(heartbeatTimer);
-
-    heartbeatTimer = setInterval(() => {
-      if (destroyed) return;
-
-      syncPlayerPosition();
-      broadcastMove(true);
-
-      if (hasMovedAtLeastOnce) {
-        savePositionToDb(true);
-      }
-    }, HEARTBEAT_DELAY);
   }
 
   function resetStick() {
@@ -346,8 +308,6 @@ export function enableMobileJoystick(
     const speedMultiplier = updateSprintState(isMoving);
 
     if (isMoving) {
-      hasMovedAtLeastOnce = true;
-
       x += moveX * SPEED * speedMultiplier;
       y += moveY * SPEED * speedMultiplier;
 
@@ -401,15 +361,10 @@ export function enableMobileJoystick(
     activePointerId = null;
 
     resetStick();
-    syncPlayerPosition();
+    renderPlayer();
 
     broadcastMove(true);
-
-    setTimeout(() => {
-      if (!destroyed && hasMovedAtLeastOnce) {
-        savePositionToDb(true);
-      }
-    }, 80);
+    savePositionToDb(true);
   }
 
   base.addEventListener('pointerdown', onPointerDown);
@@ -417,13 +372,10 @@ export function enableMobileJoystick(
   base.addEventListener('pointerup', onPointerEnd);
   base.addEventListener('pointercancel', onPointerEnd);
 
-  forceSyncPosition();
-  startHeartbeat();
+  renderPlayer();
 
   return () => {
     destroyed = true;
-
-    clearInterval(heartbeatTimer);
 
     base.removeEventListener('pointerdown', onPointerDown);
     base.removeEventListener('pointermove', onPointerMove);
@@ -435,14 +387,11 @@ export function enableMobileJoystick(
     }
 
     resetStick();
-    syncPlayerPosition();
+    renderPlayer();
 
     joystick?.remove();
 
     broadcastMove(true);
-
-    if (hasMovedAtLeastOnce) {
-      savePositionToDb(true);
-    }
+    savePositionToDb(true);
   };
 }
