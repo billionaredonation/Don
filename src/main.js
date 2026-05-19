@@ -9,7 +9,9 @@ import '../pages/welcome2/welcome2.js';
 import '../pages/welcome3/welcome3.js';
 import '../pages/preload/preload.js';
 import '../pages/home/home.js';
+
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
+
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
 
@@ -89,38 +91,45 @@ async function boot() {
     }
 
     await verifyTelegramAccess();
+
     window.Telegram?.WebApp?.ready?.();
     window.Telegram?.WebApp?.expand?.();
 
     initRuntime();
-    
+
     await loadRemote();
 
     const currentState = getState();
 
-const nickname =
-  currentState.nickname ||
-  currentState.player?.nickname;
+    const nickname =
+      currentState.nickname ||
+      currentState.player?.nickname ||
+      '';
 
-const city =
-  currentState.city ||
-  currentState.cityId ||
-  currentState.player?.city ||
-  currentState.player?.cityId;
+    const city =
+      currentState.city ||
+      currentState.cityId ||
+      currentState.player?.city ||
+      currentState.player?.cityId ||
+      '';
 
-if (!nickname) {
-  show('welcome1');
-  return;
+    if (!nickname) {
+      show('welcome1');
+      return;
+    }
+
+    if (!city) {
+      show('welcome3');
+      return;
+    }
+
+    show('preload', {
+      next: 'home',
+      mode: 'return',
+    });
+  } catch (error) {
+    renderBootError(error);
+  }
 }
-
-if (!city) {
-  show('welcome3');
-  return;
-}
-
-show('preload', {
-  next: 'home',
-  mode: 'return',
-});
 
 boot();
