@@ -22,6 +22,22 @@ function isSamePlayer(a, b) {
   return String(a || '') === String(b || '');
 }
 
+function getPacketTime(player) {
+  const raw =
+    player?.updatedAt ||
+    player?.updated_at ||
+    player?.sentAt ||
+    player?.sent_at;
+
+  const parsed = raw ? Date.parse(raw) : NaN;
+
+  return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function shortestAngleDelta(from, to) {
+  return ((to - from + 540) % 360) - 180;
+}
+
 function getRemoteState(marker, player) {
   const playerId = player.playerId;
 
@@ -30,19 +46,23 @@ function getRemoteState(marker, player) {
   if (!state) {
     const startX = percentToNumber(marker.dataset.x, player.x);
     const startY = percentToNumber(marker.dataset.y, player.y);
+    const startAngle = percentToNumber(player.angle, 0);
 
     state = {
       marker,
 
       currentX: startX,
       currentY: startY,
+      currentAngle: startAngle,
 
       targetX: startX,
       targetY: startY,
+      targetAngle: startAngle,
 
       animationId: null,
 
       lastUpdateAt: 0,
+      lastPacketTime: 0,
     };
 
     remoteMarkers.set(playerId, state);
@@ -51,28 +71,49 @@ function getRemoteState(marker, player) {
   return state;
 }
 
+function paintRemoteMarker(state) {
+  state.marker.style.left = `${state.currentX}%`;
+  state.marker.style.top = `${state.currentY}%`;
+
+  state.marker.dataset.x = String(state.currentX);
+  state.marker.dataset.y = String(state.currentY);
+  state.marker.dataset.angle = String(state.currentAngle);
+
+  state.marker.style.setProperty(
+    '--player-angle',
+    `${state.currentAngle}deg`
+  );
+}
+
 function animateRemoteMarker(playerId) {
   const state = remoteMarkers.get(playerId);
 
   if (!state) return;
 
   const smoothing =
-    NETWORK_CONFIG.movement.remoteSmoothing ?? 0.18;
+    NETWORK_CONFIG.movement.remoteSmoothing ?? 0.16;
 
   const snapDistance =
-    NETWORK_CONFIG.movement.remoteSnapDistance ?? 12;
+    NETWORK_CONFIG.movement.remoteSnapDistance ?? 18;
+
+  const idleThreshold =
+    NETWORK_CONFIG.movement.remoteIdleThreshold ?? 0.03;
 
   const now = performance.now();
 
-  if (now - state.lastUpdateAt > 1200) {
+  if (now - state.lastUpdateAt > 1600) {
     state.animationId = null;
     return;
   }
 
   const dx = state.targetX - state.currentX;
   const dy = state.targetY - state.currentY;
-
   const distance = Math.hypot(dx, dy);
+
+  const angleDelta = shortestAngleDelta(
+    state.currentAngle,
+    state.targetAngle
+  );
 
   if (distance > snapDistance) {
     state.currentX = state.targetX;
@@ -82,18 +123,27 @@ function animateRemoteMarker(playerId) {
     state.currentY += dy * smoothing;
   }
 
-  state.marker.style.left = `${state.currentX}%`;
-  state.marker.style.top = `${state.currentY}%`;
+  state.currentAngle += angleDelta * Math.min(0.35, smoothing * 1.8);
 
-  state.marker.dataset.x = String(state.currentX);
-  state.marker.dataset.y = String(state.currentY);
+  if (state.currentAngle < 0) {
+    state.currentAngle += 360;
+  }
 
-  if (distance <= 0.01) {
+  if (state.currentAngle >= 360) {
+    state.currentAngle -= 360;
+  }
+
+  paintRemoteMarker(state);
+
+  if (
+    distance <= idleThreshold &&
+    Math.abs(angleDelta) <= 0.25
+  ) {
     state.currentX = state.targetX;
     state.currentY = state.targetY;
+    state.currentAngle = state.targetAngle;
 
-    state.marker.style.left = `${state.targetX}%`;
-    state.marker.style.top = `${state.targetY}%`;
+    paintRemoteMarker(state);
 
     state.animationId = null;
     return;
@@ -136,40 +186,65 @@ export function upsertPlayerMarker(
 
   const nextX = percentToNumber(player.x);
   const nextY = percentToNumber(player.y);
+  const nextAngle = percentToNumber(player.angle, 0);
+
+  const packetTime = getPacketTime(player);
+  const packetMaxAge =
+    NETWORK_CONFIG.movement.remotePacketMaxAge ?? 3500;
+
+  const state = getRemoteState(marker, player);
+
+  if (!options.instant) {
+    if (packetTime < state.lastPacketTime) {
+      return;
+    }
+
+    if (Date.now() - packetTime > packetMaxAge) {
+      return;
+    }
+  }
+
+  state.lastPacketTime = Math.max(
+    state.lastPacketTime,
+    packetTime
+  );
 
   marker.dataset.updatedAt = String(Date.now());
 
   updatePlayerMarkerView(marker, player);
 
   if (options.instant) {
-    const state = remoteMarkers.get(player.playerId);
-
-    if (state?.animationId) {
+    if (state.animationId) {
       cancelAnimationFrame(state.animationId);
     }
 
-    remoteMarkers.delete(player.playerId);
+    state.currentX = nextX;
+    state.currentY = nextY;
+    state.currentAngle = nextAngle;
 
-    marker.style.left = `${nextX}%`;
-    marker.style.top = `${nextY}%`;
+    state.targetX = nextX;
+    state.targetY = nextY;
+    state.targetAngle = nextAngle;
 
-    marker.dataset.x = String(nextX);
-    marker.dataset.y = String(nextY);
+    state.lastUpdateAt = performance.now();
 
+    paintRemoteMarker(state);
+
+    state.animationId = null;
     return;
   }
 
-  const state = getRemoteState(marker, player);
-
   if (
     Math.abs(state.targetX - nextX) < 0.001 &&
-    Math.abs(state.targetY - nextY) < 0.001
+    Math.abs(state.targetY - nextY) < 0.001 &&
+    Math.abs(shortestAngleDelta(state.targetAngle, nextAngle)) < 0.001
   ) {
     return;
   }
 
   state.targetX = nextX;
   state.targetY = nextY;
+  state.targetAngle = nextAngle;
 
   state.lastUpdateAt = performance.now();
 
