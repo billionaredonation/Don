@@ -987,7 +987,7 @@ nextBtn.addEventListener('click', async () => {
     });
 
     show('preload', {
-      next: 'auth',
+      next: 'home',
       mode: 'first-start',
     });
   } catch (error) {
@@ -1000,7 +1000,6 @@ nextBtn.addEventListener('click', async () => {
     alert('Не удалось сохранить игрока. Проверь интернет и попробуй ещё раз.');
   }
 });
-  
   compactMap.addEventListener('click', () => {
     openMapBtn.click();
   });
