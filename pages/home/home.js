@@ -70,6 +70,11 @@ function getDisplayWeather(weather, dayMode) {
   };
 }
 
+function isMobileGameplayDevice() {
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches ||
+    window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+}
+
 register('home', async (root) => {
   root._cleanupHome?.();
 
@@ -226,35 +231,54 @@ register('home', async (root) => {
 
   const cleanupSessionGuard = setupSessionGuard(root);
 
-  const isMobile =
-    window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+  const isMobileGameplay = isMobileGameplayDevice();
 
-  const cleanupMovement = !isMobile
-    ? enableKeyboardPlayerMovement(
-        playerMarker,
-        playerPosition,
-        cityId,
-        nickname,
-        mapControls,
-        network.movementChannel
-      )
-    : null;
+  let cleanupMovement = null;
+  let cleanupMobilePrompt = null;
+  let cleanupMobileJoystick = null;
 
-  const cleanupMobilePrompt = setupMobileControlPrompt({
-    root,
-    layer: mobileControlsLayer,
-    enableJoystick() {
-      return enableMobileJoystick(
-        mobileControlsLayer,
-        playerMarker,
-        playerPosition,
-        cityId,
-        nickname,
-        mapControls,
-        network.movementChannel
-      );
-    },
-  });
+  if (isMobileGameplay) {
+    cleanupMobileJoystick = enableMobileJoystick(
+      mobileControlsLayer,
+      playerMarker,
+      playerPosition,
+      cityId,
+      nickname,
+      mapControls,
+      network.movementChannel
+    );
+  } else {
+    cleanupMovement = enableKeyboardPlayerMovement(
+      playerMarker,
+      playerPosition,
+      cityId,
+      nickname,
+      mapControls,
+      network.movementChannel
+    );
+
+    cleanupMobilePrompt = setupMobileControlPrompt({
+      root,
+      layer: mobileControlsLayer,
+      enableJoystick() {
+        cleanupMovement?.();
+        cleanupMovement = null;
+
+        cleanupMobileJoystick?.();
+        cleanupMobileJoystick = enableMobileJoystick(
+          mobileControlsLayer,
+          playerMarker,
+          playerPosition,
+          cityId,
+          nickname,
+          mapControls,
+          network.movementChannel
+        );
+
+        return cleanupMobileJoystick;
+      },
+    });
+  }
 
   const cleanupFogOfWar = enableFogOfWar({
     stage,
@@ -267,6 +291,7 @@ register('home', async (root) => {
 
   root._cleanupHome = () => {
     cleanupMovement?.();
+    cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
     cleanupSessionGuard?.();
     mapControls?.cleanup?.();
