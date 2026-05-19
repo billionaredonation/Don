@@ -93,6 +93,7 @@ export function enableMobileJoystick(
 
   const MAX_DISTANCE = 42;
   const DEADZONE = 0.22;
+  const SPRINT_POWER = 0.82;
 
   const BOUNDS = getMovementBounds();
   const SYNC_CONFIG = getMovementSyncConfig();
@@ -134,7 +135,15 @@ export function enableMobileJoystick(
   let lastSentAngle = angle;
 
   function updateSprintState(isMoving) {
-    const wantsSprint = isMoving && !sprintLocked;
+    const joystickPower = Math.max(
+      Math.abs(moveX),
+      Math.abs(moveY)
+    );
+
+    const wantsSprint =
+      isMoving &&
+      joystickPower >= SPRINT_POWER &&
+      !sprintLocked;
 
     if (wantsSprint) {
       stamina = Math.max(STAMINA.emptyAt, stamina - STAMINA.drainPerFrame);
