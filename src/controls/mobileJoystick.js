@@ -171,16 +171,6 @@ export function enableMobileJoystick(
   let lastSentY = y;
   let lastSentAngle = angle;
 
-  function pullLatestVisualPosition() {
-    const markerX = toFiniteNumber(marker.dataset.x);
-    const markerY = toFiniteNumber(marker.dataset.y);
-    const markerAngle = toFiniteNumber(marker.dataset.angle);
-
-    if (markerX !== null) x = clamp(markerX, BOUNDS.minX, BOUNDS.maxX);
-    if (markerY !== null) y = clamp(markerY, BOUNDS.minY, BOUNDS.maxY);
-    if (markerAngle !== null) angle = markerAngle;
-  }
-
   function syncPlayerPosition() {
     playerPosition.x = x;
     playerPosition.y = y;
@@ -204,8 +194,6 @@ export function enableMobileJoystick(
   }
 
   function forceSyncPosition() {
-    pullLatestVisualPosition();
-
     x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
     y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
 
@@ -230,7 +218,6 @@ export function enableMobileJoystick(
     const now = Date.now();
 
     if (!force && now - lastBroadcastAt < BROADCAST_INTERVAL) return;
-
     if (!force && !hasPositionChangedEnough()) return;
 
     lastBroadcastAt = now;
@@ -263,7 +250,7 @@ export function enableMobileJoystick(
       return;
     }
 
-    forceSyncPosition();
+    syncPlayerPosition();
 
     dbSaveInFlight = true;
     dbSavePending = false;
@@ -295,8 +282,7 @@ export function enableMobileJoystick(
     heartbeatTimer = setInterval(() => {
       if (destroyed) return;
 
-      forceSyncPosition();
-
+      syncPlayerPosition();
       broadcastMove(true);
 
       if (hasMovedAtLeastOnce) {
@@ -371,7 +357,7 @@ export function enableMobileJoystick(
       broadcastMove(false);
       savePositionToDb(false);
     } else {
-      forceSyncPosition();
+      syncPlayerPosition();
     }
 
     animationId = requestAnimationFrame(loop);
@@ -415,7 +401,7 @@ export function enableMobileJoystick(
     activePointerId = null;
 
     resetStick();
-    forceSyncPosition();
+    syncPlayerPosition();
 
     broadcastMove(true);
 
@@ -449,7 +435,7 @@ export function enableMobileJoystick(
     }
 
     resetStick();
-    forceSyncPosition();
+    syncPlayerPosition();
 
     joystick?.remove();
 
