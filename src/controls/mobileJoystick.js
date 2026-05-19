@@ -15,6 +15,11 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function toFiniteNumber(value, fallback = null) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
@@ -41,6 +46,28 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
   }
 
   return Math.atan2(moveX, -moveY) * 180 / Math.PI;
+}
+
+function getInitialPosition(playerPosition, marker, bounds) {
+  const px = toFiniteNumber(playerPosition?.x);
+  const py = toFiniteNumber(playerPosition?.y);
+
+  const mx = toFiniteNumber(marker?.dataset?.x);
+  const my = toFiniteNumber(marker?.dataset?.y);
+
+  const left = marker?.style?.left?.replace('%', '');
+  const top = marker?.style?.top?.replace('%', '');
+
+  const sx = toFiniteNumber(left);
+  const sy = toFiniteNumber(top);
+
+  const x = px ?? mx ?? sx ?? 50;
+  const y = py ?? my ?? sy ?? 50;
+
+  return {
+    x: clamp(x, bounds.minX, bounds.maxX),
+    y: clamp(y, bounds.minY, bounds.maxY),
+  };
 }
 
 export function enableMobileJoystick(
@@ -107,9 +134,15 @@ export function enableMobileJoystick(
   const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
   const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
 
-  let x = Number(playerPosition.x) || 50;
-  let y = Number(playerPosition.y) || 50;
-  let angle = Number(playerPosition.angle || playerPosition.direction || 0);
+  const initialPosition = getInitialPosition(playerPosition, marker, BOUNDS);
+
+  let x = initialPosition.x;
+  let y = initialPosition.y;
+  let angle =
+    toFiniteNumber(playerPosition.angle) ??
+    toFiniteNumber(playerPosition.direction) ??
+    toFiniteNumber(marker.dataset.angle) ??
+    0;
 
   playerPosition.x = x;
   playerPosition.y = y;
@@ -133,28 +166,25 @@ export function enableMobileJoystick(
   let dbSaveInFlight = false;
   let dbSavePending = false;
 
+  let hasMovedAtLeastOnce = false;
+  let lastSentX = x;
+  let lastSentY = y;
+  let lastSentAngle = angle;
+
+  function pullLatestVisualPosition() {
+    const markerX = toFiniteNumber(marker.dataset.x);
+    const markerY = toFiniteNumber(marker.dataset.y);
+    const markerAngle = toFiniteNumber(marker.dataset.angle);
+
+    if (markerX !== null) x = clamp(markerX, BOUNDS.minX, BOUNDS.maxX);
+    if (markerY !== null) y = clamp(markerY, BOUNDS.minY, BOUNDS.maxY);
+    if (markerAngle !== null) angle = markerAngle;
+  }
+
   function syncPlayerPosition() {
     playerPosition.x = x;
     playerPosition.y = y;
     playerPosition.angle = angle;
-
-    mapControls?.focusOnPlayer?.(x, y);
-  }
-
-  function forceSyncPosition() {
-    x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
-    y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
-
-    playerPosition.x = x;
-    playerPosition.y = y;
-    playerPosition.angle = angle;
-
-    marker.style.left = `${x}%`;
-    marker.style.top = `${y}%`;
-    marker.dataset.x = String(x);
-    marker.dataset.y = String(y);
-    marker.dataset.angle = String(angle);
-    marker.style.setProperty('--player-angle', `${angle}deg`);
 
     mapControls?.focusOnPlayer?.(x, y);
   }
@@ -173,10 +203,35 @@ export function enableMobileJoystick(
     marker.style.setProperty('--player-angle', `${angle}deg`);
   }
 
+  function forceSyncPosition() {
+    pullLatestVisualPosition();
+
+    x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
+    y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
+
+    renderPlayer();
+  }
+
+  function hasPositionChangedEnough() {
+    return (
+      Math.abs(x - lastSentX) > 0.002 ||
+      Math.abs(y - lastSentY) > 0.002 ||
+      Math.abs(angle - lastSentAngle) > 0.1
+    );
+  }
+
+  function markPositionSent() {
+    lastSentX = x;
+    lastSentY = y;
+    lastSentAngle = angle;
+  }
+
   function broadcastMove(force = false) {
     const now = Date.now();
 
     if (!force && now - lastBroadcastAt < BROADCAST_INTERVAL) return;
+
+    if (!force && !hasPositionChangedEnough()) return;
 
     lastBroadcastAt = now;
 
@@ -184,14 +239,18 @@ export function enableMobileJoystick(
       playerId: getLocalPlayerId(),
       nickname,
       cityId,
-      x: playerPosition.x,
-      y: playerPosition.y,
-      angle: playerPosition.angle,
+      x,
+      y,
+      angle,
       updatedAt: new Date().toISOString(),
     });
+
+    markPositionSent();
   }
 
   async function savePositionToDb(force = false) {
+    if (!hasMovedAtLeastOnce && !force) return;
+
     const now = Date.now();
 
     if (!force && now - lastDbSaveAt < DB_SAVE_INTERVAL) {
@@ -204,6 +263,8 @@ export function enableMobileJoystick(
       return;
     }
 
+    forceSyncPosition();
+
     dbSaveInFlight = true;
     dbSavePending = false;
 
@@ -211,9 +272,9 @@ export function enableMobileJoystick(
       await updatePlayerPosition({
         cityId,
         nickname,
-        x: playerPosition.x,
-        y: playerPosition.y,
-        angle: playerPosition.angle,
+        x,
+        y,
+        angle,
       });
 
       lastDbSaveAt = Date.now();
@@ -232,9 +293,15 @@ export function enableMobileJoystick(
     clearInterval(heartbeatTimer);
 
     heartbeatTimer = setInterval(() => {
+      if (destroyed) return;
+
       forceSyncPosition();
-      savePositionToDb(true);
+
       broadcastMove(true);
+
+      if (hasMovedAtLeastOnce) {
+        savePositionToDb(true);
+      }
     }, HEARTBEAT_DELAY);
   }
 
@@ -293,6 +360,8 @@ export function enableMobileJoystick(
     const speedMultiplier = updateSprintState(isMoving);
 
     if (isMoving) {
+      hasMovedAtLeastOnce = true;
+
       x += moveX * SPEED * speedMultiplier;
       y += moveY * SPEED * speedMultiplier;
 
@@ -302,7 +371,7 @@ export function enableMobileJoystick(
       broadcastMove(false);
       savePositionToDb(false);
     } else {
-      syncPlayerPosition();
+      forceSyncPosition();
     }
 
     animationId = requestAnimationFrame(loop);
@@ -351,20 +420,18 @@ export function enableMobileJoystick(
     broadcastMove(true);
 
     setTimeout(() => {
-      if (!destroyed) {
+      if (!destroyed && hasMovedAtLeastOnce) {
         savePositionToDb(true);
       }
-    }, 60);
+    }, 80);
   }
 
   base.addEventListener('pointerdown', onPointerDown);
   base.addEventListener('pointermove', onPointerMove);
   base.addEventListener('pointerup', onPointerEnd);
   base.addEventListener('pointercancel', onPointerEnd);
-  base.addEventListener('pointerleave', onPointerEnd);
 
   forceSyncPosition();
-  savePositionToDb(true);
   startHeartbeat();
 
   return () => {
@@ -376,7 +443,6 @@ export function enableMobileJoystick(
     base.removeEventListener('pointermove', onPointerMove);
     base.removeEventListener('pointerup', onPointerEnd);
     base.removeEventListener('pointercancel', onPointerEnd);
-    base.removeEventListener('pointerleave', onPointerEnd);
 
     if (animationId) {
       cancelAnimationFrame(animationId);
@@ -388,6 +454,9 @@ export function enableMobileJoystick(
     joystick?.remove();
 
     broadcastMove(true);
-    savePositionToDb(true);
+
+    if (hasMovedAtLeastOnce) {
+      savePositionToDb(true);
+    }
   };
 }
