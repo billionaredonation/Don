@@ -73,8 +73,11 @@ function getDisplayWeather(weather, dayMode) {
 }
 
 function isMobileGameplayDevice() {
-  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches ||
-    window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  const width = Math.min(window.innerWidth || 9999, window.screen?.width || 9999);
+  const height = Math.min(window.innerHeight || 9999, window.screen?.height || 9999);
+  const hasTouch = navigator.maxTouchPoints > 0;
+
+  return hasTouch && Math.min(width, height) <= 768;
 }
 
 function hasMobileControlsAccepted() {
