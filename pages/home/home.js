@@ -20,6 +20,8 @@ import { setupPlayerNetwork } from '../../src/network/playerNetwork.js';
 import { renderPlayersHtml } from '../../src/player/playerMarkerView.js';
 import { enableFogOfWar } from '../../src/map/fogOfWar.js';
 
+const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
+
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
   query: '?url',
@@ -73,6 +75,22 @@ function getDisplayWeather(weather, dayMode) {
 function isMobileGameplayDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches ||
     window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+}
+
+function hasMobileControlsAccepted() {
+  try {
+    return localStorage.getItem(MOBILE_CONTROLS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function saveMobileControlsAccepted() {
+  try {
+    localStorage.setItem(MOBILE_CONTROLS_KEY, '1');
+  } catch {
+    // localStorage может быть недоступен, но игра не должна падать
+  }
 }
 
 register('home', async (root) => {
@@ -144,6 +162,8 @@ register('home', async (root) => {
   root.dataset.time = dayMode;
   root.dataset.weather = weather.type;
   root.dataset.performance = isLowPowerDevice() ? 'low' : 'normal';
+
+  delete root.dataset.mobileControls;
 
   root.innerHTML = `
     <main class="home-gameplay">
@@ -230,14 +250,17 @@ register('home', async (root) => {
   });
 
   const cleanupSessionGuard = setupSessionGuard(root);
-
   const isMobileGameplay = isMobileGameplayDevice();
 
   let cleanupMovement = null;
   let cleanupMobilePrompt = null;
   let cleanupMobileJoystick = null;
 
-  if (isMobileGameplay) {
+  function enableMobileGameplayMode() {
+    root.dataset.mobileControls = 'enabled';
+
+    cleanupMobileJoystick?.();
+
     cleanupMobileJoystick = enableMobileJoystick(
       mobileControlsLayer,
       playerMarker,
@@ -247,6 +270,23 @@ register('home', async (root) => {
       mapControls,
       network.movementChannel
     );
+
+    return cleanupMobileJoystick;
+  }
+
+  if (isMobileGameplay) {
+    if (hasMobileControlsAccepted()) {
+      enableMobileGameplayMode();
+    } else {
+      cleanupMobilePrompt = setupMobileControlPrompt({
+        root,
+        layer: mobileControlsLayer,
+        enableJoystick() {
+          saveMobileControlsAccepted();
+          return enableMobileGameplayMode();
+        },
+      });
+    }
   } else {
     cleanupMovement = enableKeyboardPlayerMovement(
       playerMarker,
@@ -256,28 +296,6 @@ register('home', async (root) => {
       mapControls,
       network.movementChannel
     );
-
-    cleanupMobilePrompt = setupMobileControlPrompt({
-      root,
-      layer: mobileControlsLayer,
-      enableJoystick() {
-        cleanupMovement?.();
-        cleanupMovement = null;
-
-        cleanupMobileJoystick?.();
-        cleanupMobileJoystick = enableMobileJoystick(
-          mobileControlsLayer,
-          playerMarker,
-          playerPosition,
-          cityId,
-          nickname,
-          mapControls,
-          network.movementChannel
-        );
-
-        return cleanupMobileJoystick;
-      },
-    });
   }
 
   const cleanupFogOfWar = enableFogOfWar({
@@ -297,5 +315,7 @@ register('home', async (root) => {
     mapControls?.cleanup?.();
     cleanupFogOfWar?.();
     network.cleanup?.();
+
+    delete root.dataset.mobileControls;
   };
 });
