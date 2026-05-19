@@ -8,7 +8,7 @@ import '../pages/welcome1/welcome1.js';
 import '../pages/welcome2/welcome2.js';
 import '../pages/welcome3/welcome3.js';
 import '../pages/preload/preload.js';
-import '../pages/home/home-screen.js';
+import '../pages/home/home.js';
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
@@ -98,33 +98,29 @@ async function boot() {
 
     const currentState = getState();
 
-    const nickname =
-      currentState.nickname ||
-      currentState.player?.nickname;
+const nickname =
+  currentState.nickname ||
+  currentState.player?.nickname;
 
-    const city =
-      currentState.city ||
-      currentState.cityId ||
-      currentState.player?.city ||
-      currentState.player?.cityId;
+const city =
+  currentState.city ||
+  currentState.cityId ||
+  currentState.player?.city ||
+  currentState.player?.cityId;
 
-    if (!nickname) {
-      show('welcome1');
-      return;
-    }
-
-    if (!city) {
-      show('welcome3');
-      return;
-    }
-
-    show('preload', {
-      next: 'auth',
-      mode: 'return',
-    });
-  } catch (error) {
-    renderBootError(error);
-  }
+if (!nickname) {
+  show('welcome1');
+  return;
 }
+
+if (!city) {
+  show('welcome3');
+  return;
+}
+
+show('preload', {
+  next: 'home',
+  mode: 'return',
+});
 
 boot();
