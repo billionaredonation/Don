@@ -1,6 +1,10 @@
 // src/state.js
 import { citiesBase } from './data/citiesBase.js';
-import { loadPlayer, registerPlayer, getCurrentTgId } from './playerRepository.js';
+import {
+  loadPlayer,
+  registerPlayer,
+  getCurrentTgId,
+} from './playerRepository.js';
 
 const LS_KEY = 'mn-game-state';
 
@@ -21,10 +25,19 @@ function clone(obj) {
 
 function getTelegramId() {
   try {
-    return getCurrentTgId() || window.Telegram?.WebApp?.initDataUnsafe?.user?.id || null;
+    return (
+      getCurrentTgId() ||
+      window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+      null
+    );
   } catch {
     return null;
   }
+}
+
+function sameTelegramId(a, b) {
+  if (!a || !b) return false;
+  return String(a) === String(b);
 }
 
 function normalizeLoadedState(loaded) {
@@ -62,6 +75,7 @@ function normalizeLoadedState(loaded) {
     loaded.player.cityName ||
     loaded.player.city_name ||
     loaded.player.city ||
+    loaded.city ||
     null;
 
   loaded.regionId =
@@ -84,22 +98,40 @@ function normalizeLoadedState(loaded) {
 function applyRemotePlayer(player) {
   if (!player) return;
 
-  state.telegramId = player.tg_id || state.telegramId || getTelegramId();
-  state.nickname = player.nickname || state.nickname;
-  state.city = player.city || state.city;
-  state.cityId = player.city || state.cityId || state.city;
-  state.cityName = player.city || state.cityName;
-  state.regionId = player.region_id || state.regionId || null;
+  const telegramId =
+    player.tg_id ||
+    player.telegramId ||
+    state.telegramId ||
+    getTelegramId() ||
+    null;
+
+  state.telegramId = telegramId;
+  state.nickname = player.nickname || state.nickname || null;
+  state.city = player.city || state.city || null;
+  state.cityId = player.city || state.cityId || state.city || null;
+  state.cityName =
+    player.cityName ||
+    player.city_name ||
+    player.city ||
+    state.cityName ||
+    state.city ||
+    null;
+  state.regionId =
+    player.region_id ||
+    player.regionId ||
+    state.regionId ||
+    null;
 
   state.player = {
     ...state.player,
     id: player.id,
-    tg_id: player.tg_id,
-    telegramId: player.tg_id,
-    nickname: player.nickname,
-    city: player.city,
-    cityId: player.city,
-    cityName: player.city,
+    tg_id: telegramId,
+    telegramId,
+    nickname: state.nickname,
+    city: state.city,
+    cityId: state.cityId,
+    cityName: state.cityName,
+    regionId: state.regionId,
     balance: Number(player.balance || 0),
     level: Number(player.level || 1),
     is_admin: Boolean(player.is_admin),
@@ -112,12 +144,37 @@ function applyRemotePlayer(player) {
 
 function loadLocal() {
   try {
+    const telegramId = getTelegramId();
     const savedRaw = localStorage.getItem(LS_KEY);
     const saved = savedRaw ? JSON.parse(savedRaw) : null;
 
-    const loaded = saved
-      ? Object.assign(clone(defaultState), saved)
-      : clone(defaultState);
+    if (!saved) {
+      return clone(defaultState);
+    }
+
+    const savedTelegramId =
+      saved.telegramId ||
+      saved.player?.telegramId ||
+      saved.player?.tg_id ||
+      null;
+
+    if (
+      telegramId &&
+      savedTelegramId &&
+      !sameTelegramId(telegramId, savedTelegramId)
+    ) {
+      console.warn(
+        '[State] Local state belongs to another Telegram user. Local state ignored.'
+      );
+
+      localStorage.removeItem(LS_KEY);
+      return clone(defaultState);
+    }
+
+    const loaded = Object.assign(
+      clone(defaultState),
+      saved
+    );
 
     return normalizeLoadedState(loaded);
   } catch (error) {
@@ -145,12 +202,66 @@ export async function loadRemote() {
       state.player.tg_id = telegramId;
     }
 
+    const localTelegramId =
+      state.telegramId ||
+      state.player?.telegramId ||
+      state.player?.tg_id ||
+      null;
+
+    if (
+      telegramId &&
+      localTelegramId &&
+      !sameTelegramId(telegramId, localTelegramId)
+    ) {
+      console.warn(
+        '[Backend] Local state tg_id mismatch. Resetting local state.'
+      );
+
+      localStorage.removeItem(LS_KEY);
+
+      state = clone(defaultState);
+      state.telegramId = telegramId;
+      state.player = {
+        telegramId,
+        tg_id: telegramId,
+      };
+    }
+
     const player = await loadPlayer();
 
     if (!player) {
-      console.log('[Backend] player not found. Local state used.');
+      console.log('[Backend] player not found. New registration flow required.');
+
+      if (telegramId) {
+        state.telegramId = telegramId;
+        state.player = state.player || {};
+        state.player.telegramId = telegramId;
+        state.player.tg_id = telegramId;
+      }
+
+      state.nickname = null;
+      state.city = null;
+      state.cityId = null;
+      state.cityName = null;
+      state.regionId = null;
+
       saveLocal();
       return;
+    }
+
+    const remoteTelegramId =
+      player.tg_id ||
+      player.telegramId ||
+      null;
+
+    if (
+      telegramId &&
+      remoteTelegramId &&
+      !sameTelegramId(telegramId, remoteTelegramId)
+    ) {
+      throw new Error(
+        'Remote player tg_id mismatch. Access denied.'
+      );
     }
 
     applyRemotePlayer(player);
@@ -162,8 +273,19 @@ export async function loadRemote() {
   }
 }
 
-export async function createAndSavePlayer({ nickname, city, cityId, cityName, regionId }) {
+export async function createAndSavePlayer({
+  nickname,
+  city,
+  cityId,
+  cityName,
+  regionId,
+}) {
   const finalCity = city || cityId;
+  const telegramId = getTelegramId();
+
+  if (!telegramId) {
+    throw new Error('Telegram ID is required');
+  }
 
   if (!nickname) {
     throw new Error('Nickname is required');
@@ -180,17 +302,23 @@ export async function createAndSavePlayer({ nickname, city, cityId, cityName, re
 
   applyRemotePlayer(player);
 
+  state.telegramId = telegramId;
   state.nickname = nickname;
   state.city = finalCity;
   state.cityId = finalCity;
   state.cityName = cityName || player.city || finalCity;
   state.regionId = regionId || state.regionId || null;
 
-  state.player.nickname = state.nickname;
-  state.player.city = state.city;
-  state.player.cityId = state.cityId;
-  state.player.cityName = state.cityName;
-  state.player.regionId = state.regionId;
+  state.player = {
+    ...state.player,
+    telegramId,
+    tg_id: telegramId,
+    nickname: state.nickname,
+    city: state.city,
+    cityId: state.cityId,
+    cityName: state.cityName,
+    regionId: state.regionId,
+  };
 
   saveLocal();
 
