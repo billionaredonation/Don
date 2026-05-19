@@ -226,14 +226,19 @@ register('home', async (root) => {
 
   const cleanupSessionGuard = setupSessionGuard(root);
 
-  const cleanupMovement = enableKeyboardPlayerMovement(
-    playerMarker,
-    playerPosition,
-    cityId,
-    nickname,
-    mapControls,
-    network.movementChannel
-  );
+  const isMobile =
+    window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+
+  const cleanupMovement = !isMobile
+    ? enableKeyboardPlayerMovement(
+        playerMarker,
+        playerPosition,
+        cityId,
+        nickname,
+        mapControls,
+        network.movementChannel
+      )
+    : null;
 
   const cleanupMobilePrompt = setupMobileControlPrompt({
     root,
