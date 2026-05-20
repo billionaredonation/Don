@@ -41,6 +41,35 @@ export function enableKeyboardPlayerMovement(
   let stamina = STAMINA.max;
   let sprintLocked = false;
 
+  const staminaHud = document.createElement('div');
+  staminaHud.className = 'pc-stamina';
+  staminaHud.innerHTML = `
+    <div class="pc-stamina-label">STAMINA</div>
+    <div class="pc-stamina-track">
+      <div class="pc-stamina-fill"></div>
+    </div>
+  `;
+
+  document.body.appendChild(staminaHud);
+
+  const staminaFill = staminaHud.querySelector('.pc-stamina-fill');
+
+  function updateStaminaUi() {
+    if (!staminaFill) return;
+
+    const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
+
+    staminaFill.style.width = `${percent}%`;
+
+    if (sprintLocked) {
+      staminaFill.dataset.state = 'locked';
+    } else if (percent < 30) {
+      staminaFill.dataset.state = 'low';
+    } else {
+      staminaFill.dataset.state = 'normal';
+    }
+  }
+
   function isSprintPressed() {
     return keys.has('shift');
   }
@@ -63,6 +92,8 @@ export function enableKeyboardPlayerMovement(
         stamina = STAMINA.max;
       }
     }
+
+    updateStaminaUi();
 
     return wantsSprint
       ? STAMINA.sprintSpeedMultiplier
@@ -221,10 +252,7 @@ export function enableKeyboardPlayerMovement(
       moveY /= length;
     }
 
-    return {
-      moveX,
-      moveY,
-    };
+    return { moveX, moveY };
   }
 
   function loop() {
@@ -287,6 +315,7 @@ export function enableKeyboardPlayerMovement(
 
       forceSyncPosition();
       broadcastMove(true);
+      updateStaminaUi();
 
       setTimeout(() => {
         if (!destroyed) {
@@ -302,6 +331,7 @@ export function enableKeyboardPlayerMovement(
   forceSyncPosition();
   savePositionToDb(true);
   startHeartbeat();
+  updateStaminaUi();
 
   return () => {
     destroyed = true;
@@ -317,5 +347,7 @@ export function enableKeyboardPlayerMovement(
     forceSyncPosition();
     broadcastMove(true);
     savePositionToDb(true);
+
+    staminaHud.remove();
   };
 }
