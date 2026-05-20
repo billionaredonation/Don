@@ -85,9 +85,6 @@ function renderBootError(error) {
 
 async function boot() {
   try {
-    resetLocalStateOnly();
-    localStorage.removeItem('mn-mobile-controls-enabled');
-
     if (!isTelegramWebApp()) {
       renderTelegramOnlyScreen();
       return;
