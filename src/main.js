@@ -12,6 +12,18 @@ import '../pages/home/home.js';
 
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
 
+localStorage.clear();
+
+sessionStorage.clear();
+
+indexedDB.databases?.().then((dbs) => {
+  dbs.forEach((db) => {
+    if (db.name) {
+      indexedDB.deleteDatabase(db.name);
+    }
+  });
+});
+
 
 
 function renderTelegramOnlyScreen() {
