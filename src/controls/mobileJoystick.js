@@ -77,6 +77,13 @@ export function enableMobileJoystick(
   if (!isMobileDevice()) return null;
 
   container.innerHTML = `
+    <div class="mobile-stamina">
+      <div class="mobile-stamina-label">STAMINA</div>
+      <div class="mobile-stamina-track">
+        <div class="mobile-stamina-fill"></div>
+      </div>
+    </div>
+
     <div class="mobile-joystick">
       <div class="mobile-joystick-base">
         <div class="mobile-joystick-stick"></div>
@@ -87,13 +94,14 @@ export function enableMobileJoystick(
   const joystick = container.querySelector('.mobile-joystick');
   const base = container.querySelector('.mobile-joystick-base');
   const stick = container.querySelector('.mobile-joystick-stick');
+  const staminaFill = container.querySelector('.mobile-stamina-fill');
 
   const SPEED = getMobileMoveSpeed();
   const STAMINA = getStaminaConfig();
 
   const MAX_DISTANCE = 42;
   const DEADZONE = 0.22;
-  const SPRINT_POWER = 0.82;
+  const SPRINT_POWER = 0.62;
 
   const BOUNDS = getMovementBounds();
   const SYNC_CONFIG = getMovementSyncConfig();
@@ -134,6 +142,22 @@ export function enableMobileJoystick(
   let lastSentY = y;
   let lastSentAngle = angle;
 
+  function updateStaminaUi() {
+    if (!staminaFill) return;
+
+    const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
+
+    staminaFill.style.width = `${percent}%`;
+
+    if (sprintLocked) {
+      staminaFill.dataset.state = 'locked';
+    } else if (percent < 30) {
+      staminaFill.dataset.state = 'low';
+    } else {
+      staminaFill.dataset.state = 'normal';
+    }
+  }
+
   function updateSprintState(isMoving) {
     const joystickPower = Math.max(
       Math.abs(moveX),
@@ -160,6 +184,8 @@ export function enableMobileJoystick(
         stamina = STAMINA.max;
       }
     }
+
+    updateStaminaUi();
 
     return wantsSprint
       ? STAMINA.sprintSpeedMultiplier
@@ -371,6 +397,7 @@ export function enableMobileJoystick(
 
     resetStick();
     renderPlayer();
+    updateStaminaUi();
 
     broadcastMove(true);
     savePositionToDb(true);
@@ -382,6 +409,7 @@ export function enableMobileJoystick(
   base.addEventListener('pointercancel', onPointerEnd);
 
   renderPlayer();
+  updateStaminaUi();
 
   return () => {
     destroyed = true;
@@ -397,6 +425,7 @@ export function enableMobileJoystick(
 
     resetStick();
     renderPlayer();
+    updateStaminaUi();
 
     joystick?.remove();
 
