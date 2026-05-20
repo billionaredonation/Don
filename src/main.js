@@ -13,6 +13,9 @@ import '../pages/home/home.js';
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
 
 
+localStorage.removeItem('mn-game-state');
+localStorage.removeItem('mn-mobile-controls-enabled');
+
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
 
