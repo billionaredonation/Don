@@ -2018,3 +2018,50 @@ body,
 .mobile-stamina-fill[data-state="locked"] {
   background: linear-gradient(90deg, #ff3d3d, #ff8a3d);
 }
+
+
+.pc-stamina {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 999;
+  width: 180px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(10, 12, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.pc-stamina-label {
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pc-stamina-track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.pc-stamina-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd24a, #58ff8a);
+  transition: width 0.12s linear, background 0.16s ease;
+}
+
+.pc-stamina-fill[data-state="low"] {
+  background: linear-gradient(90deg, #ff8a3d, #ffd24a);
+}
+
+.pc-stamina-fill[data-state="locked"] {
+  background: linear-gradient(90deg, #ff3d3d, #ff8a3d);
+}
