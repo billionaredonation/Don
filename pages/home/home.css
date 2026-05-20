@@ -1972,3 +1972,49 @@ body,
   opacity: 0.38;
   filter: grayscale(1);
 }
+
+.mobile-stamina {
+  position: absolute;
+  left: 22px;
+  bottom: 170px;
+  z-index: 80;
+  width: 138px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(10, 12, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.mobile-stamina-label {
+  margin-bottom: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.mobile-stamina-track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mobile-stamina-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd24a, #58ff8a);
+  transition: width 0.12s linear, background 0.16s ease;
+}
+
+.mobile-stamina-fill[data-state="low"] {
+  background: linear-gradient(90deg, #ff8a3d, #ffd24a);
+}
+
+.mobile-stamina-fill[data-state="locked"] {
+  background: linear-gradient(90deg, #ff3d3d, #ff8a3d);
+}
