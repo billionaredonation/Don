@@ -1,6 +1,6 @@
 // src/main.js
 import { show } from './router.js';
-import { initRuntime, getState, loadRemote } from './state.js';
+import { initRuntime, getState, loadRemote, resetLocalStateOnly } from './state.js';
 
 // статические страницы
 import '../pages/auth/auth.js';
@@ -11,9 +11,6 @@ import '../pages/preload/preload.js';
 import '../pages/home/home.js';
 
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
-
-
-
 
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
@@ -88,6 +85,9 @@ function renderBootError(error) {
 
 async function boot() {
   try {
+    resetLocalStateOnly();
+    localStorage.removeItem('mn-mobile-controls-enabled');
+
     if (!isTelegramWebApp()) {
       renderTelegramOnlyScreen();
       return;
