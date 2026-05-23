@@ -34,7 +34,6 @@ export function enableKeyboardPlayerMovement(
   if (!marker || !playerPosition) return null;
 
   const keys = new Set();
-
   const STAMINA = getStaminaConfig();
 
   let stamina = STAMINA.max;
@@ -252,6 +251,15 @@ export function enableKeyboardPlayerMovement(
     return { moveX, moveY };
   }
 
+  function shouldSleepLoop(moved) {
+    return (
+      !moved &&
+      keys.size === 0 &&
+      stamina >= STAMINA.max &&
+      !sprintLocked
+    );
+  }
+
   function loop() {
     if (destroyed) return;
 
@@ -279,7 +287,19 @@ export function enableKeyboardPlayerMovement(
       syncPlayerPosition();
     }
 
+    if (shouldSleepLoop(moved)) {
+      animationId = null;
+      updateStaminaUi();
+      return;
+    }
+
     animationId = requestAnimationFrame(loop);
+  }
+
+  function ensureLoopRunning() {
+    if (!animationId && !destroyed) {
+      animationId = requestAnimationFrame(loop);
+    }
   }
 
   function onKeyDown(event) {
@@ -299,20 +319,14 @@ export function enableKeyboardPlayerMovement(
     if (allowedKeys.includes(key)) {
       event.preventDefault();
       keys.add(key);
-
-      if (!animationId) {
-        animationId = requestAnimationFrame(loop);
-      }
+      ensureLoopRunning();
     }
   }
 
   function onKeyUp(event) {
     keys.delete(event.key.toLowerCase());
 
-    if (keys.size === 0 && animationId) {
-      cancelAnimationFrame(animationId);
-      animationId = null;
-
+    if (keys.size === 0) {
       forceSyncPosition();
       broadcastMove(true);
       updateStaminaUi();
@@ -323,6 +337,8 @@ export function enableKeyboardPlayerMovement(
         }
       }, 60);
     }
+
+    ensureLoopRunning();
   }
 
   window.addEventListener('keydown', onKeyDown);
