@@ -1,7 +1,7 @@
 import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import { MOVEMENT_CONFIG } from '../config/movement.js';
 
 import {
-  getKeyboardMoveSpeed,
   getMovementBounds,
   getMovementSyncConfig,
 } from '../player/playerStatsConfig.js';
@@ -35,7 +35,6 @@ export function enableKeyboardPlayerMovement(
 
   const keys = new Set();
 
-  const SPEED = getKeyboardMoveSpeed();
   const STAMINA = getStaminaConfig();
 
   let stamina = STAMINA.max;
@@ -95,9 +94,7 @@ export function enableKeyboardPlayerMovement(
 
     updateStaminaUi();
 
-    return wantsSprint
-      ? STAMINA.sprintSpeedMultiplier
-      : STAMINA.walkSpeedMultiplier;
+    return wantsSprint;
   }
 
   const BOUNDS = getMovementBounds();
@@ -264,11 +261,14 @@ export function enableKeyboardPlayerMovement(
       Math.abs(moveX) > 0.001 ||
       Math.abs(moveY) > 0.001;
 
-    const speedMultiplier = updateSprintState(moved);
+    const isSprinting = updateSprintState(moved);
+    const speed = isSprinting
+      ? MOVEMENT_CONFIG.SPRINT_SPEED
+      : MOVEMENT_CONFIG.WALK_SPEED;
 
     if (moved) {
-      x += moveX * SPEED * speedMultiplier;
-      y += moveY * SPEED * speedMultiplier;
+      x += moveX * speed;
+      y += moveY * speed;
 
       angle = getAngleFromMovement(moveX, moveY, angle);
 
