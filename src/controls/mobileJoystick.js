@@ -1,7 +1,7 @@
 import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import { MOVEMENT_CONFIG } from '../config/movement.js';
 
 import {
-  getMobileMoveSpeed,
   getMovementBounds,
   getMovementSyncConfig,
 } from '../player/playerStatsConfig.js';
@@ -96,7 +96,6 @@ export function enableMobileJoystick(
   const stick = container.querySelector('.mobile-joystick-stick');
   const staminaFill = container.querySelector('.mobile-stamina-fill');
 
-  const SPEED = getMobileMoveSpeed();
   const STAMINA = getStaminaConfig();
 
   const MAX_DISTANCE = 42;
@@ -187,9 +186,7 @@ export function enableMobileJoystick(
 
     updateStaminaUi();
 
-    return wantsSprint
-      ? STAMINA.sprintSpeedMultiplier
-      : STAMINA.walkSpeedMultiplier;
+    return wantsSprint;
   }
 
   function syncPlayerPosition() {
@@ -340,11 +337,14 @@ export function enableMobileJoystick(
       Math.abs(moveX) > DEADZONE ||
       Math.abs(moveY) > DEADZONE;
 
-    const speedMultiplier = updateSprintState(isMoving);
+    const isSprinting = updateSprintState(isMoving);
+    const speed = isSprinting
+      ? MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED
+      : MOVEMENT_CONFIG.MOBILE_WALK_SPEED;
 
     if (isMoving) {
-      x += moveX * SPEED * speedMultiplier;
-      y += moveY * SPEED * speedMultiplier;
+      x += moveX * speed;
+      y += moveY * speed;
 
       angle = getAngleFromMovement(moveX, moveY, angle);
 
