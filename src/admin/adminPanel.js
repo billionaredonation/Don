@@ -191,8 +191,10 @@ export function enableAdminPanel({
 
   function getSelectedObject() {
     if (!selectedObjectId) return null;
+
     return objects.find((object) => String(object.id) === String(selectedObjectId)) || null;
   }
+  
   function updateVariantVisibility() {
     const config = getMapObjectType(selectedType);
     const isHouse = config.type === 'house';
@@ -231,11 +233,10 @@ export function enableAdminPanel({
 
     updateVariantVisibility();
   }
-
   function markSelectedObject() {
     objects = objects.map((object) => ({
       ...object,
-      selected: object.id === selectedObjectId,
+      selected: Boolean(selectedObjectId) && String(object.id) === String(selectedObjectId),
     }));
 
     renderMapObjects(objectsLayer, objects);
@@ -244,13 +245,13 @@ export function enableAdminPanel({
   function updateSelectedObject(objectId) {
     selectedObjectId = objectId ? String(objectId) : null;
 
-    objects = objects.map((object) => ({
-      ...object,
-      selected: selectedObjectId && String(object.id) === String(selectedObjectId),
-    }));
-
-    renderMapObjects(objectsLayer, objects);
+    markSelectedObject();
     fillEditor(getSelectedObject());
+
+    console.log('[adminPanel] selected object:', {
+      selectedObjectId,
+      selectedObject: getSelectedObject(),
+    });
   }
 
   async function reloadObjects() {
@@ -258,18 +259,18 @@ export function enableAdminPanel({
 
     objects = freshObjects.map((object) => ({
       ...object,
-      selected: selectedObjectId && String(object.id) === String(selectedObjectId),
+      selected: Boolean(selectedObjectId) && String(object.id) === String(selectedObjectId),
     }));
 
     const selectedStillExists = objects.some(
       (object) => String(object.id) === String(selectedObjectId)
     );
 
-    if (!selectedStillExists) {
+    if (selectedObjectId && !selectedStillExists) {
       selectedObjectId = null;
     }
 
-    renderMapObjects(objectsLayer, objects);
+    markSelectedObject();
     fillEditor(getSelectedObject());
   }
   function setEnabled(next) {
@@ -428,16 +429,25 @@ export function enableAdminPanel({
 
   function startMoveSelected() {
     const object = getSelectedObject();
-    if (!object) return;
+
+    if (!object) {
+      console.warn('[adminPanel] move failed: no selected object');
+      return;
+    }
 
     moveSnapshot = {
+      id: object.id,
       x: object.x,
       y: object.y,
     };
 
-    setMoveMode(true);
-  }
+    console.log('[adminPanel] move started:', {
+      selectedObjectId,
+      object,
+    });
 
+  setMoveMode(true);
+}
   async function saveMoveMode() {
     const object = getSelectedObject();
     if (!object) return;
