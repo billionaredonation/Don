@@ -32,6 +32,10 @@ const MAP_FILES = import.meta.glob('../../*.png', {
   import: 'default',
 });
 
+function isTruthyAdmin(value) {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
 function getMapByFileName(fileName) {
   const entry = Object.entries(MAP_FILES).find(([path]) => path.endsWith(`/${fileName}`));
   return entry?.[1] || null;
@@ -126,21 +130,24 @@ register('home', async (root) => {
   try {
     playerPosition = await getOrCreatePlayerPosition(cityId, nickname);
 
+    const isAdmin = isTruthyAdmin(playerPosition?.is_admin) || isTruthyAdmin(playerPosition?.isAdmin);
+
     state.player = {
       ...(state.player || {}),
       ...playerPosition,
-      is_admin: Boolean(playerPosition?.is_admin),
-      isAdmin: Boolean(playerPosition?.is_admin),
+      is_admin: isAdmin,
+      isAdmin: isAdmin,
     };
 
-    state.is_admin = Boolean(playerPosition?.is_admin);
-    state.isAdmin = Boolean(playerPosition?.is_admin);
+    state.is_admin = isAdmin;
+    state.isAdmin = isAdmin;
 
     save();
 
     console.log('[home] admin check:', {
       nickname,
       playerPosition,
+      statePlayer: state.player,
       stateIsAdmin: state.is_admin,
     });
   } catch (error) {
@@ -338,7 +345,18 @@ register('home', async (root) => {
     );
   }
 
-  if (isCurrentPlayerAdmin()) {
+  const canUseAdminPanel =
+    isTruthyAdmin(playerPosition?.is_admin) ||
+    isTruthyAdmin(playerPosition?.isAdmin) ||
+    isCurrentPlayerAdmin();
+
+  console.log('[home] admin panel gate:', {
+    canUseAdminPanel,
+    playerPositionIsAdmin: playerPosition?.is_admin,
+    stateIsAdmin: state.is_admin,
+  });
+
+  if (canUseAdminPanel) {
     cleanupAdminPanel = enableAdminPanel({
       root,
       stage,
@@ -350,6 +368,8 @@ register('home', async (root) => {
       mapControls,
       movementChannel: network.movementChannel,
     });
+
+    console.log('[home] admin panel initialized');
   }
 
   const cleanupFogOfWar = enableFogOfWar({
