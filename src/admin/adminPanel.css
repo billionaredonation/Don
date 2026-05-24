@@ -289,3 +289,21 @@
     max-height: 340px;
   }
 }
+
+
+/* Force stamina under admin overlay */
+[data-admin-mode="enabled"] ~ * [class*="stamina"],
+[data-admin-mode="enabled"] [class*="stamina"],
+body:has([data-admin-mode="enabled"]) [class*="stamina"] {
+  z-index: 99960 !important;
+  position: relative;
+}
+
+/* Admin overlay and panel stay above stamina */
+[data-admin-mode="enabled"]::before {
+  z-index: 99980 !important;
+}
+
+.admin-panel {
+  z-index: 99999 !important;
+}
