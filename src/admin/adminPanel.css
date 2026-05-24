@@ -157,3 +157,57 @@
     width: auto;
   }
 }
+
+.map-objects-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+}
+
+.map-object {
+  position: absolute;
+  width: calc(24px * var(--map-object-scale, 1));
+  height: calc(24px * var(--map-object-scale, 1));
+  translate: -50% -50%;
+  rotate: var(--map-object-rotation, 0deg);
+  border: 1px solid rgba(255,255,255,0.45);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.62);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+}
+
+.map-object:hover {
+  transform: scale(1.12);
+}
+
+.map-object-decor {
+  background: rgba(130, 105, 45, 0.78);
+}
+
+.map-object-house {
+  background: rgba(40, 120, 255, 0.78);
+}
+
+.map-object-business {
+  background: rgba(30, 180, 90, 0.78);
+}
+
+.map-object-npc {
+  background: rgba(180, 70, 220, 0.78);
+}
+
+.map-object-marker {
+  background: rgba(255,255,255,0.18);
+}
+
+.map-object-icon {
+  pointer-events: none;
+}
