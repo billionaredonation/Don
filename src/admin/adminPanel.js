@@ -10,6 +10,7 @@ import {
 import {
   getMapObjects,
   addMapObject,
+  updateMapObject,
   deleteMapObject,
   clearMapObjects,
 } from '../mapObjects/mapObjectsRepository.js';
@@ -31,12 +32,9 @@ function round(value) {
 function getPointFromEvent(event, viewport) {
   const rect = viewport.getBoundingClientRect();
 
-  const x = clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100);
-  const y = clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100);
-
   return {
-    x: round(x),
-    y: round(y),
+    x: round(clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100)),
+    y: round(clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100)),
   };
 }
 
@@ -44,12 +42,9 @@ function getCurrentPlayerPoint(playerMarker, playerPosition) {
   const markerX = Number(playerMarker?.dataset?.x);
   const markerY = Number(playerMarker?.dataset?.y);
 
-  const x = Number.isFinite(markerX) ? markerX : Number(playerPosition?.x || 50);
-  const y = Number.isFinite(markerY) ? markerY : Number(playerPosition?.y || 50);
-
   return {
-    x: round(x),
-    y: round(y),
+    x: round(Number.isFinite(markerX) ? markerX : Number(playerPosition?.x || 50)),
+    y: round(Number.isFinite(markerY) ? markerY : Number(playerPosition?.y || 50)),
   };
 }
 
@@ -64,21 +59,13 @@ function applyMarkerPosition(marker, x, y, angle = 0) {
 
 function createObjectOptionsHtml() {
   return getMapObjectTypesList()
-    .map((type) => `
-      <option value="${type.type}">
-        ${type.icon} ${type.label}
-      </option>
-    `)
+    .map((type) => `<option value="${type.type}">${type.icon} ${type.label}</option>`)
     .join('');
 }
 
 function createHouseClassOptionsHtml() {
   return getHouseClassesList()
-    .map((item) => `
-      <option value="${item.value}">
-        ${item.icon} ${item.label}
-      </option>
-    `)
+    .map((item) => `<option value="${item.value}">${item.icon} ${item.label}</option>`)
     .join('');
 }
 
@@ -93,17 +80,7 @@ export function enableAdminPanel({
   mapControls,
   movementChannel,
 }) {
-  if (!root || !stage || !viewport || !playerMarker || !playerPosition) {
-    console.warn('[adminPanel] init failed: missing required elements', {
-      root,
-      stage,
-      viewport,
-      playerMarker,
-      playerPosition,
-    });
-
-    return null;
-  }
+  if (!root || !stage || !viewport || !playerMarker || !playerPosition) return null;
 
   let enabled = false;
   let teleportMode = false;
@@ -111,6 +88,7 @@ export function enableAdminPanel({
   let selectedType = 'house';
   let selectedVariant = 'standard';
   let objects = [];
+  let selectedObjectId = null;
 
   const objectsLayer = createMapObjectsLayer();
   viewport.appendChild(objectsLayer);
@@ -125,16 +103,9 @@ export function enableAdminPanel({
       <button class="admin-btn admin-close" type="button">×</button>
     </div>
 
-    <div class="admin-hint">
-      Кнопка ADMIN или P — открыть/закрыть. Enter — поставить объект на позицию игрока. ESC — закрыть.
-    </div>
-
     <div class="admin-row">
       <button class="admin-btn admin-toggle-teleport" type="button">Телепорт: OFF</button>
-    </div>
-
-    <div class="admin-row">
-      <button class="admin-btn admin-copy-coords" type="button">Скопировать координаты</button>
+      <button class="admin-btn admin-toggle-place" type="button">Клик: OFF</button>
     </div>
 
     <div class="admin-separator"></div>
@@ -155,30 +126,53 @@ export function enableAdminPanel({
 
     <label class="admin-label">
       Название
-      <input class="admin-input admin-object-name" placeholder="Например: дом у вокзала" />
+      <input class="admin-input admin-object-name" placeholder="Название дома / бизнеса" />
     </label>
 
     <div class="admin-row">
-      <button class="admin-btn admin-place-here" type="button">Поставить на моей позиции</button>
-    </div>
-
-    <div class="admin-row">
-      <button class="admin-btn admin-toggle-place" type="button">Добавление кликом: OFF</button>
-    </div>
-
-    <div class="admin-row">
-      <button class="admin-btn admin-delete-selected" type="button">Удалить выбранный</button>
-      <button class="admin-btn admin-clear-all" type="button">Очистить</button>
+      <button class="admin-btn admin-place-here" type="button">Поставить тут</button>
+      <button class="admin-btn admin-move-selected-here" type="button">Перенести сюда</button>
     </div>
 
     <div class="admin-separator"></div>
 
-    <div class="admin-coords">
-      X: <b class="admin-x">0</b> · Y: <b class="admin-y">0</b>
-    </div>
+    <div class="admin-editor-title">Выбранный объект</div>
 
     <div class="admin-selected">
-      Выбран: <b class="admin-selected-id">нет</b>
+      <span class="admin-selected-name">нет</span>
+    </div>
+
+    <div class="admin-grid-2">
+      <label class="admin-label">
+        X
+        <input class="admin-input admin-edit-x" type="number" step="0.1" min="0" max="100" />
+      </label>
+
+      <label class="admin-label">
+        Y
+        <input class="admin-input admin-edit-y" type="number" step="0.1" min="0" max="100" />
+      </label>
+    </div>
+
+    <div class="admin-row">
+      <button class="admin-btn admin-nudge-left" type="button">←</button>
+      <button class="admin-btn admin-nudge-up" type="button">↑</button>
+      <button class="admin-btn admin-nudge-down" type="button">↓</button>
+      <button class="admin-btn admin-nudge-right" type="button">→</button>
+    </div>
+
+    <div class="admin-row">
+      <button class="admin-btn admin-save-selected" type="button">Сохранить</button>
+      <button class="admin-btn admin-delete-selected" type="button">Удалить</button>
+    </div>
+
+    <div class="admin-row">
+      <button class="admin-btn admin-copy-coords" type="button">Копировать XY</button>
+      <button class="admin-btn admin-clear-all" type="button">Очистить</button>
+    </div>
+
+    <div class="admin-coords">
+      Курсор: X <b class="admin-x">0</b> · Y <b class="admin-y">0</b>
     </div>
   `;
 
@@ -186,25 +180,37 @@ export function enableAdminPanel({
 
   const btnClose = panel.querySelector('.admin-close');
   const btnTeleport = panel.querySelector('.admin-toggle-teleport');
-  const btnCopy = panel.querySelector('.admin-copy-coords');
   const btnPlace = panel.querySelector('.admin-toggle-place');
   const btnPlaceHere = panel.querySelector('.admin-place-here');
+  const btnMoveSelectedHere = panel.querySelector('.admin-move-selected-here');
+  const btnSaveSelected = panel.querySelector('.admin-save-selected');
   const btnDeleteSelected = panel.querySelector('.admin-delete-selected');
   const btnClearAll = panel.querySelector('.admin-clear-all');
+  const btnCopy = panel.querySelector('.admin-copy-coords');
+
+  const btnLeft = panel.querySelector('.admin-nudge-left');
+  const btnRight = panel.querySelector('.admin-nudge-right');
+  const btnUp = panel.querySelector('.admin-nudge-up');
+  const btnDown = panel.querySelector('.admin-nudge-down');
 
   const typeSelect = panel.querySelector('.admin-object-type');
   const houseClassWrap = panel.querySelector('.admin-house-class-wrap');
   const houseClassSelect = panel.querySelector('.admin-house-class');
   const nameInput = panel.querySelector('.admin-object-name');
 
+  const editXInput = panel.querySelector('.admin-edit-x');
+  const editYInput = panel.querySelector('.admin-edit-y');
+
   const xEl = panel.querySelector('.admin-x');
   const yEl = panel.querySelector('.admin-y');
-  const selectedIdEl = panel.querySelector('.admin-selected-id');
-
-  let selectedObjectId = null;
+  const selectedNameEl = panel.querySelector('.admin-selected-name');
 
   typeSelect.value = selectedType;
   houseClassSelect.value = selectedVariant;
+
+  function getSelectedObject() {
+    return objects.find((object) => object.id === selectedObjectId) || null;
+  }
 
   function updateVariantVisibility() {
     const config = getMapObjectType(selectedType);
@@ -225,14 +231,39 @@ export function enableAdminPanel({
     yEl.textContent = String(round(y));
   }
 
+  function fillEditor(object) {
+    if (!object) {
+      selectedNameEl.textContent = 'нет';
+      editXInput.value = '';
+      editYInput.value = '';
+      return;
+    }
+
+    selectedNameEl.textContent = `${object.icon || '◆'} ${object.name || object.type}`;
+    nameInput.value = object.name || '';
+    typeSelect.value = object.type || 'marker';
+    selectedType = typeSelect.value;
+
+    if (object.type === 'house') {
+      selectedVariant = object.variant || object.payload?.houseClass || 'standard';
+      houseClassSelect.value = selectedVariant;
+    }
+
+    editXInput.value = String(round(object.x));
+    editYInput.value = String(round(object.y));
+
+    updateVariantVisibility();
+  }
+
   function updateSelectedObject(objectId) {
     selectedObjectId = objectId || null;
-    selectedIdEl.textContent = selectedObjectId || 'нет';
+    fillEditor(getSelectedObject());
   }
 
   async function reloadObjects() {
     objects = await getMapObjects(cityId);
     renderMapObjects(objectsLayer, objects);
+    fillEditor(getSelectedObject());
   }
 
   function setEnabled(next) {
@@ -244,7 +275,7 @@ export function enableAdminPanel({
       teleportMode = false;
       placeMode = false;
       btnTeleport.textContent = 'Телепорт: OFF';
-      btnPlace.textContent = 'Добавление кликом: OFF';
+      btnPlace.textContent = 'Клик: OFF';
     } else {
       const point = getCurrentPlayerPoint(playerMarker, playerPosition);
       updateCoords(point.x, point.y);
@@ -280,13 +311,7 @@ export function enableAdminPanel({
     });
 
     try {
-      await updatePlayerPosition({
-        cityId,
-        nickname,
-        x,
-        y,
-        angle,
-      });
+      await updatePlayerPosition({ cityId, nickname, x, y, angle });
     } catch (error) {
       console.warn('[adminPanel] teleport save failed:', error);
     }
@@ -303,8 +328,7 @@ export function enableAdminPanel({
     });
 
     const createdObject = await addMapObject(cityId, draft);
-
-    updateSelectedObject(createdObject.id);
+    selectedObjectId = createdObject.id;
     await reloadObjects();
   }
 
@@ -312,6 +336,62 @@ export function enableAdminPanel({
     const point = getCurrentPlayerPoint(playerMarker, playerPosition);
     updateCoords(point.x, point.y);
     await addObjectAt(point.x, point.y);
+  }
+
+  async function saveSelectedObject(patch = {}) {
+    const object = getSelectedObject();
+    if (!object) return;
+
+    const x = clamp(Number(editXInput.value || object.x), 0, 100);
+    const y = clamp(Number(editYInput.value || object.y), 0, 100);
+
+    const config = getMapObjectType(selectedType);
+
+    const nextPatch = {
+      ...patch,
+      name: nameInput.value.trim() || object.name,
+      type: selectedType,
+      category: config.category,
+      variant: selectedType === 'house' ? selectedVariant : '',
+      x: round(x),
+      y: round(y),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (selectedType === 'house') {
+      nextPatch.payload = {
+        ...(object.payload || {}),
+        houseClass: selectedVariant,
+      };
+    }
+
+    await updateMapObject(cityId, object.id, nextPatch);
+    await reloadObjects();
+  }
+
+  async function moveSelectedBy(dx, dy) {
+    const object = getSelectedObject();
+    if (!object) return;
+
+    const x = round(clamp(Number(object.x) + dx, 0, 100));
+    const y = round(clamp(Number(object.y) + dy, 0, 100));
+
+    editXInput.value = String(x);
+    editYInput.value = String(y);
+
+    await saveSelectedObject({ x, y });
+  }
+
+  async function moveSelectedToPlayer() {
+    const object = getSelectedObject();
+    if (!object) return;
+
+    const point = getCurrentPlayerPoint(playerMarker, playerPosition);
+
+    editXInput.value = String(point.x);
+    editYInput.value = String(point.y);
+
+    await saveSelectedObject({ x: point.x, y: point.y });
   }
 
   function onMapClick(event) {
@@ -347,7 +427,6 @@ export function enableAdminPanel({
 
   function onMouseMove(event) {
     if (!enabled) return;
-
     const point = getPointFromEvent(event, viewport);
     updateCoords(point.x, point.y);
   }
@@ -377,7 +456,12 @@ export function enableAdminPanel({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      addObjectAtPlayerPosition();
+
+      if (selectedObjectId) {
+        saveSelectedObject();
+      } else {
+        addObjectAtPlayerPosition();
+      }
     }
   }
 
@@ -390,25 +474,31 @@ export function enableAdminPanel({
   btnTeleport.addEventListener('click', () => {
     teleportMode = !teleportMode;
     placeMode = false;
-
     btnTeleport.textContent = teleportMode ? 'Телепорт: ON' : 'Телепорт: OFF';
-    btnPlace.textContent = 'Добавление кликом: OFF';
+    btnPlace.textContent = 'Клик: OFF';
   });
 
   btnPlace.addEventListener('click', () => {
     placeMode = !placeMode;
     teleportMode = false;
-
-    btnPlace.textContent = placeMode ? 'Добавление кликом: ON' : 'Добавление кликом: OFF';
+    btnPlace.textContent = placeMode ? 'Клик: ON' : 'Клик: OFF';
     btnTeleport.textContent = 'Телепорт: OFF';
   });
 
-  btnPlaceHere.addEventListener('click', () => {
-    addObjectAtPlayerPosition();
-  });
+  btnPlaceHere.addEventListener('click', addObjectAtPlayerPosition);
+  btnMoveSelectedHere.addEventListener('click', moveSelectedToPlayer);
+  btnSaveSelected.addEventListener('click', () => saveSelectedObject());
+
+  btnLeft.addEventListener('click', () => moveSelectedBy(-0.5, 0));
+  btnRight.addEventListener('click', () => moveSelectedBy(0.5, 0));
+  btnUp.addEventListener('click', () => moveSelectedBy(0, -0.5));
+  btnDown.addEventListener('click', () => moveSelectedBy(0, 0.5));
 
   btnCopy.addEventListener('click', async () => {
-    const text = `{ x: ${xEl.textContent}, y: ${yEl.textContent} }`;
+    const object = getSelectedObject();
+    const text = object
+      ? JSON.stringify(object, null, 2)
+      : `{ x: ${xEl.textContent}, y: ${yEl.textContent} }`;
 
     try {
       await navigator.clipboard.writeText(text);
@@ -419,18 +509,15 @@ export function enableAdminPanel({
 
   btnDeleteSelected.addEventListener('click', async () => {
     if (!selectedObjectId) return;
-
     await deleteMapObject(cityId, selectedObjectId);
-    updateSelectedObject(null);
+    selectedObjectId = null;
     await reloadObjects();
   });
 
   btnClearAll.addEventListener('click', async () => {
-    const confirmed = window.confirm('Удалить все объекты на этой карте?');
-    if (!confirmed) return;
-
+    if (!window.confirm('Удалить все объекты на этой карте?')) return;
     await clearMapObjects(cityId);
-    updateSelectedObject(null);
+    selectedObjectId = null;
     await reloadObjects();
   });
 
@@ -442,6 +529,9 @@ export function enableAdminPanel({
   houseClassSelect.addEventListener('change', () => {
     selectedVariant = houseClassSelect.value;
   });
+
+  editXInput.addEventListener('change', () => saveSelectedObject());
+  editYInput.addEventListener('change', () => saveSelectedObject());
 
   viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('mousemove', onMouseMove);
