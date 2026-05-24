@@ -57,6 +57,12 @@ function applyMarkerPosition(marker, x, y, angle = 0) {
   marker.style.setProperty('--player-angle', `${angle}deg`);
 }
 
+function notifyMapObjectsChanged(cityId) {
+  window.dispatchEvent(new CustomEvent('mn:map-objects-changed', {
+    detail: { cityId },
+  }));
+}
+
 function createObjectOptionsHtml() {
   return getMapObjectTypesList()
     .map((type) => `<option value="${type.type}">${type.icon} ${type.label}</option>`)
@@ -94,6 +100,7 @@ export function enableAdminPanel({
   let selectedObjectId = null;
 
   const objectsLayer = createMapObjectsLayer();
+  objectsLayer.classList.add('map-objects-layer-admin');
   viewport.appendChild(objectsLayer);
 
   const panel = document.createElement('aside');
@@ -103,64 +110,64 @@ export function enableAdminPanel({
   panel.innerHTML = `
     <div class="admin-panel-head">
       <strong>ADMIN</strong>
-      <button class="admin-btn admin-close" type="button">×</button>
+      <button class="admin-btn admin-close" type="button">Ã—</button>
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-toggle-teleport" type="button">Телепорт: OFF</button>
-      <button class="admin-btn admin-toggle-place" type="button">Клик: OFF</button>
+      <button class="admin-btn admin-toggle-teleport" type="button">Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: OFF</button>
+      <button class="admin-btn admin-toggle-place" type="button">ÐšÐ»Ð¸Ðº: OFF</button>
     </div>
 
     <div class="admin-separator"></div>
 
     <label class="admin-label">
-      Тип объекта
+      Ð¢Ð¸Ð¿ Ð¾Ð±ÑŠÐµÐºÑ‚Ð°
       <select class="admin-select admin-object-type">
         ${createObjectOptionsHtml()}
       </select>
     </label>
 
     <label class="admin-label admin-house-class-wrap">
-      Класс дома
+      ÐšÐ»Ð°ÑÑ Ð´Ð¾Ð¼Ð°
       <select class="admin-select admin-house-class">
         ${createHouseClassOptionsHtml()}
       </select>
     </label>
 
     <label class="admin-label">
-      Название
-      <input class="admin-input admin-object-name" placeholder="Название дома / бизнеса" />
+      ÐÐ°Ð·Ð²Ð°Ð½Ð¸Ðµ
+      <input class="admin-input admin-object-name" placeholder="ÐÐ°Ð·Ð²Ð°Ð½Ð¸Ðµ Ð´Ð¾Ð¼Ð° / Ð±Ð¸Ð·Ð½ÐµÑÐ°" />
     </label>
 
     <div class="admin-row">
-      <button class="admin-btn admin-place-here" type="button">Поставить тут</button>
-      <button class="admin-btn admin-move-selected-here" type="button">Перенести сюда</button>
+      <button class="admin-btn admin-place-here" type="button">ÐŸÐ¾ÑÑ‚Ð°Ð²Ð¸Ñ‚ÑŒ Ñ‚ÑƒÑ‚</button>
+      <button class="admin-btn admin-move-selected-here" type="button">ÐŸÐµÑ€ÐµÐ½ÐµÑÑ‚Ð¸ ÑÑŽÐ´Ð°</button>
     </div>
 
     <div class="admin-separator"></div>
 
-    <div class="admin-editor-title">Выбранный объект</div>
+    <div class="admin-editor-title">Ð’Ñ‹Ð±Ñ€Ð°Ð½Ð½Ñ‹Ð¹ Ð¾Ð±ÑŠÐµÐºÑ‚</div>
 
     <div class="admin-selected">
-      <span class="admin-selected-name">нет</span>
+      <span class="admin-selected-name">Ð½ÐµÑ‚</span>
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-start-move" type="button">Двигать</button>
-      <button class="admin-btn admin-save-selected" type="button">Сохранить</button>
+      <button class="admin-btn admin-start-move" type="button">Ð”Ð²Ð¸Ð³Ð°Ñ‚ÑŒ</button>
+      <button class="admin-btn admin-save-selected" type="button">Ð¡Ð¾Ñ…Ñ€Ð°Ð½Ð¸Ñ‚ÑŒ</button>
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-delete-selected" type="button">Удалить</button>
+      <button class="admin-btn admin-delete-selected" type="button">Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ</button>
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-copy-coords" type="button">Копировать JSON</button>
-      <button class="admin-btn admin-clear-all" type="button">Очистить</button>
+      <button class="admin-btn admin-copy-coords" type="button">ÐšÐ¾Ð¿Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ JSON</button>
+      <button class="admin-btn admin-clear-all" type="button">ÐžÑ‡Ð¸ÑÑ‚Ð¸Ñ‚ÑŒ</button>
     </div>
 
     <div class="admin-coords">
-      Курсор: X <b class="admin-x">0</b> · Y <b class="admin-y">0</b>
+      ÐšÑƒÑ€ÑÐ¾Ñ€: X <b class="admin-x">0</b> Â· Y <b class="admin-y">0</b>
     </div>
   `;
 
@@ -194,7 +201,7 @@ export function enableAdminPanel({
 
     return objects.find((object) => String(object.id) === String(selectedObjectId)) || null;
   }
-  
+
   function updateVariantVisibility() {
     const config = getMapObjectType(selectedType);
     const isHouse = config.type === 'house';
@@ -216,11 +223,11 @@ export function enableAdminPanel({
 
   function fillEditor(object) {
     if (!object) {
-      selectedNameEl.textContent = 'нет';
+      selectedNameEl.textContent = 'Ð½ÐµÑ‚';
       return;
     }
 
-    selectedNameEl.textContent = `${object.icon || '◆'} ${object.name || object.type}`;
+    selectedNameEl.textContent = `${object.icon || 'â—†'} ${object.name || object.type}`;
 
     nameInput.value = object.name || '';
     typeSelect.value = object.type || 'marker';
@@ -233,6 +240,7 @@ export function enableAdminPanel({
 
     updateVariantVisibility();
   }
+
   function markSelectedObject() {
     objects = objects.map((object) => ({
       ...object,
@@ -272,7 +280,9 @@ export function enableAdminPanel({
 
     markSelectedObject();
     fillEditor(getSelectedObject());
+    notifyMapObjectsChanged(cityId);
   }
+
   function setEnabled(next) {
     enabled = Boolean(next);
     root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
@@ -282,8 +292,8 @@ export function enableAdminPanel({
       teleportMode = false;
       placeMode = false;
       setMoveMode(false);
-      btnTeleport.textContent = 'Телепорт: OFF';
-      btnPlace.textContent = 'Клик: OFF';
+      btnTeleport.textContent = 'Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: OFF';
+      btnPlace.textContent = 'ÐšÐ»Ð¸Ðº: OFF';
     } else {
       const point = getCurrentPlayerPoint(playerMarker, playerPosition);
       updateCoords(point.x, point.y);
@@ -446,8 +456,9 @@ export function enableAdminPanel({
       object,
     });
 
-  setMoveMode(true);
-}
+    setMoveMode(true);
+  }
+
   async function saveMoveMode() {
     const object = getSelectedObject();
     if (!object) return;
@@ -528,7 +539,7 @@ export function enableAdminPanel({
     const isAdminHotkey =
       event.code === 'KeyP' ||
       event.key?.toLowerCase() === 'p' ||
-      event.key?.toLowerCase() === 'з';
+      event.key?.toLowerCase() === 'Ð·';
 
     if (isAdminHotkey && !isFormField && !moveMode) {
       event.preventDefault();
@@ -592,15 +603,15 @@ export function enableAdminPanel({
   btnTeleport.addEventListener('click', () => {
     teleportMode = !teleportMode;
     placeMode = false;
-    btnTeleport.textContent = teleportMode ? 'Телепорт: ON' : 'Телепорт: OFF';
-    btnPlace.textContent = 'Клик: OFF';
+    btnTeleport.textContent = teleportMode ? 'Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: ON' : 'Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: OFF';
+    btnPlace.textContent = 'ÐšÐ»Ð¸Ðº: OFF';
   });
 
   btnPlace.addEventListener('click', () => {
     placeMode = !placeMode;
     teleportMode = false;
-    btnPlace.textContent = placeMode ? 'Клик: ON' : 'Клик: OFF';
-    btnTeleport.textContent = 'Телепорт: OFF';
+    btnPlace.textContent = placeMode ? 'ÐšÐ»Ð¸Ðº: ON' : 'ÐšÐ»Ð¸Ðº: OFF';
+    btnTeleport.textContent = 'Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: OFF';
   });
 
   btnPlaceHere.addEventListener('click', addObjectAtPlayerPosition);
@@ -627,7 +638,7 @@ export function enableAdminPanel({
   });
 
   btnClearAll.addEventListener('click', async () => {
-    if (!window.confirm('Удалить все объекты на этой карте?')) return;
+    if (!window.confirm('Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ Ð²ÑÐµ Ð¾Ð±ÑŠÐµÐºÑ‚Ñ‹ Ð½Ð° ÑÑ‚Ð¾Ð¹ ÐºÐ°Ñ€Ñ‚Ðµ?')) return;
     await clearMapObjects(cityId);
     selectedObjectId = null;
     await reloadObjects();
@@ -642,24 +653,21 @@ export function enableAdminPanel({
     selectedVariant = houseClassSelect.value;
   });
 
-
-
   function onMapPointerDown(event) {
-  if (!enabled) return;
-  if (event.target.closest('.admin-panel')) return;
+    if (!enabled) return;
+    if (event.target.closest('.admin-panel')) return;
 
-  const clickedObjectId = getMapObjectIdFromEvent(event);
+    const clickedObjectId = getMapObjectIdFromEvent(event);
 
-  if (!clickedObjectId) return;
+    if (!clickedObjectId) return;
 
-  event.preventDefault();
-  event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
 
-  updateSelectedObject(clickedObjectId);
-}
+    updateSelectedObject(clickedObjectId);
+  }
 
   viewport.addEventListener('pointerdown', onMapPointerDown, true);
-  viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('mousemove', onMouseMove);
   window.addEventListener('keydown', onKeyDown);
@@ -670,6 +678,7 @@ export function enableAdminPanel({
   setEnabled(false);
 
   return () => {
+    viewport.removeEventListener('pointerdown', onMapPointerDown, true);
     viewport.removeEventListener('click', onMapClick, true);
     viewport.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('keydown', onKeyDown);
