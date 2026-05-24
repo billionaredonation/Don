@@ -1,12 +1,19 @@
 import { updatePlayerPosition, getLocalPlayerId } from '../player/playerPosition.js';
 
-import { getMapObjectTypesList, createMapObjectDraft } from '../mapObjects/mapObjectTypes.js';
+import {
+  getMapObjectTypesList,
+  getMapObjectType,
+  getHouseClassesList,
+  createMapObjectDraft,
+} from '../mapObjects/mapObjectTypes.js';
+
 import {
   getMapObjects,
   addMapObject,
   deleteMapObject,
   clearMapObjects,
 } from '../mapObjects/mapObjectsRepository.js';
+
 import {
   createMapObjectsLayer,
   renderMapObjects,
@@ -33,6 +40,19 @@ function getPointFromEvent(event, viewport) {
   };
 }
 
+function getCurrentPlayerPoint(playerMarker, playerPosition) {
+  const markerX = Number(playerMarker?.dataset?.x);
+  const markerY = Number(playerMarker?.dataset?.y);
+
+  const x = Number.isFinite(markerX) ? markerX : Number(playerPosition?.x || 50);
+  const y = Number.isFinite(markerY) ? markerY : Number(playerPosition?.y || 50);
+
+  return {
+    x: round(x),
+    y: round(y),
+  };
+}
+
 function applyMarkerPosition(marker, x, y, angle = 0) {
   marker.style.left = `${x}%`;
   marker.style.top = `${y}%`;
@@ -47,6 +67,16 @@ function createObjectOptionsHtml() {
     .map((type) => `
       <option value="${type.type}">
         ${type.icon} ${type.label}
+      </option>
+    `)
+    .join('');
+}
+
+function createHouseClassOptionsHtml() {
+  return getHouseClassesList()
+    .map((item) => `
+      <option value="${item.value}">
+        ${item.icon} ${item.label}
       </option>
     `)
     .join('');
@@ -68,7 +98,8 @@ export function enableAdminPanel({
   let enabled = false;
   let teleportMode = false;
   let placeMode = false;
-  let selectedType = 'tree';
+  let selectedType = 'house';
+  let selectedVariant = 'standard';
   let objects = [];
 
   const objectsLayer = createMapObjectsLayer();
@@ -85,7 +116,7 @@ export function enableAdminPanel({
     </div>
 
     <div class="admin-hint">
-      P — открыть/закрыть. ESC — закрыть.
+      P — открыть/закрыть. Enter — поставить объект на позицию игрока. ESC — закрыть.
     </div>
 
     <div class="admin-row">
@@ -105,13 +136,24 @@ export function enableAdminPanel({
       </select>
     </label>
 
+    <label class="admin-label admin-house-class-wrap">
+      Класс дома
+      <select class="admin-select admin-house-class">
+        ${createHouseClassOptionsHtml()}
+      </select>
+    </label>
+
     <label class="admin-label">
       Название
-      <input class="admin-input admin-object-name" placeholder="Например: дерево / дом / магазин" />
+      <input class="admin-input admin-object-name" placeholder="Например: дом у вокзала" />
     </label>
 
     <div class="admin-row">
-      <button class="admin-btn admin-toggle-place" type="button">Добавление: OFF</button>
+      <button class="admin-btn admin-place-here" type="button">Поставить на моей позиции</button>
+    </div>
+
+    <div class="admin-row">
+      <button class="admin-btn admin-toggle-place" type="button">Добавление кликом: OFF</button>
     </div>
 
     <div class="admin-row">
@@ -136,15 +178,37 @@ export function enableAdminPanel({
   const btnTeleport = panel.querySelector('.admin-toggle-teleport');
   const btnCopy = panel.querySelector('.admin-copy-coords');
   const btnPlace = panel.querySelector('.admin-toggle-place');
+  const btnPlaceHere = panel.querySelector('.admin-place-here');
   const btnDeleteSelected = panel.querySelector('.admin-delete-selected');
   const btnClearAll = panel.querySelector('.admin-clear-all');
+
   const typeSelect = panel.querySelector('.admin-object-type');
+  const houseClassWrap = panel.querySelector('.admin-house-class-wrap');
+  const houseClassSelect = panel.querySelector('.admin-house-class');
   const nameInput = panel.querySelector('.admin-object-name');
+
   const xEl = panel.querySelector('.admin-x');
   const yEl = panel.querySelector('.admin-y');
   const selectedIdEl = panel.querySelector('.admin-selected-id');
 
   let selectedObjectId = null;
+
+  typeSelect.value = selectedType;
+  houseClassSelect.value = selectedVariant;
+
+  function updateVariantVisibility() {
+    const config = getMapObjectType(selectedType);
+    const isHouse = config.type === 'house';
+
+    houseClassWrap.hidden = !isHouse;
+
+    if (!isHouse) {
+      selectedVariant = '';
+    } else if (!selectedVariant) {
+      selectedVariant = 'standard';
+      houseClassSelect.value = selectedVariant;
+    }
+  }
 
   function updateCoords(x, y) {
     xEl.textContent = String(round(x));
@@ -170,7 +234,10 @@ export function enableAdminPanel({
       teleportMode = false;
       placeMode = false;
       btnTeleport.textContent = 'Телепорт: OFF';
-      btnPlace.textContent = 'Добавление: OFF';
+      btnPlace.textContent = 'Добавление кликом: OFF';
+    } else {
+      const point = getCurrentPlayerPoint(playerMarker, playerPosition);
+      updateCoords(point.x, point.y);
     }
   }
 
@@ -215,6 +282,7 @@ export function enableAdminPanel({
     const draft = createMapObjectDraft({
       cityId,
       type: selectedType,
+      variant: selectedVariant,
       x,
       y,
       name: nameInput.value.trim(),
@@ -224,6 +292,12 @@ export function enableAdminPanel({
 
     updateSelectedObject(createdObject.id);
     await reloadObjects();
+  }
+
+  async function addObjectAtPlayerPosition() {
+    const point = getCurrentPlayerPoint(playerMarker, playerPosition);
+    updateCoords(point.x, point.y);
+    await addObjectAt(point.x, point.y);
   }
 
   function onMapClick(event) {
@@ -266,18 +340,25 @@ export function enableAdminPanel({
 
   function onKeyDown(event) {
     const tag = document.activeElement?.tagName?.toLowerCase();
+    const isFormField = tag === 'input' || tag === 'textarea' || tag === 'select';
 
-    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-
-    if (event.key.toLowerCase() === 'p') {
+    if (event.key.toLowerCase() === 'p' && !isFormField) {
       event.preventDefault();
       setEnabled(!enabled);
       return;
     }
 
-    if (event.key === 'Escape') {
+    if (!enabled) return;
+
+    if (event.key === 'Escape' && !isFormField) {
       event.preventDefault();
       setEnabled(false);
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      addObjectAtPlayerPosition();
     }
   }
 
@@ -288,15 +369,19 @@ export function enableAdminPanel({
     placeMode = false;
 
     btnTeleport.textContent = teleportMode ? 'Телепорт: ON' : 'Телепорт: OFF';
-    btnPlace.textContent = 'Добавление: OFF';
+    btnPlace.textContent = 'Добавление кликом: OFF';
   });
 
   btnPlace.addEventListener('click', () => {
     placeMode = !placeMode;
     teleportMode = false;
 
-    btnPlace.textContent = placeMode ? 'Добавление: ON' : 'Добавление: OFF';
+    btnPlace.textContent = placeMode ? 'Добавление кликом: ON' : 'Добавление кликом: OFF';
     btnTeleport.textContent = 'Телепорт: OFF';
+  });
+
+  btnPlaceHere.addEventListener('click', () => {
+    addObjectAtPlayerPosition();
   });
 
   btnCopy.addEventListener('click', async () => {
@@ -328,12 +413,18 @@ export function enableAdminPanel({
 
   typeSelect.addEventListener('change', () => {
     selectedType = typeSelect.value;
+    updateVariantVisibility();
+  });
+
+  houseClassSelect.addEventListener('change', () => {
+    selectedVariant = houseClassSelect.value;
   });
 
   viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('mousemove', onMouseMove);
   window.addEventListener('keydown', onKeyDown);
 
+  updateVariantVisibility();
   reloadObjects();
   setEnabled(false);
 
