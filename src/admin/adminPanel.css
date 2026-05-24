@@ -1,22 +1,40 @@
+/* ===== ADMIN CEF BACKDROP ===== */
+
+[data-admin-mode="enabled"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 99980;
+  background: rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  pointer-events: none;
+}
+
+/* ===== ADMIN PANEL ===== */
+
 .admin-panel {
   position: fixed;
-  right: 16px;
-  top: 88px;
+  left: 50%;
+  top: 50%;
   z-index: 99999;
 
-  width: 320px;
-  max-height: calc(100dvh - 110px);
+  width: min(330px, calc(100vw - 28px));
+  max-height: min(560px, calc(100dvh - 120px));
   overflow-y: auto;
 
-  padding: 14px;
+  transform: translate(-50%, -50%);
+
+  padding: 12px;
   border: 1px solid rgba(255,255,255,0.14);
   border-radius: 18px;
 
-  background: rgba(7, 10, 14, 0.94);
-  backdrop-filter: blur(14px);
+  background: rgba(7, 10, 14, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   color: #fff;
 
-  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.58);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
@@ -28,8 +46,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   letter-spacing: 0.08em;
+}
+
+.admin-panel-head strong {
+  font-size: 15px;
 }
 
 .admin-hint {
@@ -38,25 +60,25 @@
 
 .admin-row {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 7px;
+  margin-top: 7px;
 }
 
 .admin-btn {
   flex: 1;
-  min-height: 38px;
-  border: 1px solid rgba(255,255,255,0.16);
-  border-radius: 12px;
-  padding: 8px 10px;
-  background: rgba(255,255,255,0.08);
+  min-height: 34px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 11px;
+  padding: 7px 9px;
+  background: rgba(255,255,255,0.075);
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
 }
 
 .admin-btn:hover {
-  background: rgba(255,255,255,0.13);
+  background: rgba(255,255,255,0.12);
 }
 
 .admin-btn:active {
@@ -65,50 +87,50 @@
 
 .admin-close {
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  font-size: 22px;
+  font-size: 21px;
   line-height: 1;
 }
 
 .admin-label {
   display: grid;
-  gap: 6px;
-  margin-top: 9px;
-  font-size: 12px;
-  color: rgba(255,255,255,0.72);
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.68);
 }
 
 .admin-select,
 .admin-input {
   width: 100%;
-  min-height: 38px;
-  border: 1px solid rgba(255,255,255,0.16);
-  border-radius: 12px;
-  padding: 8px 10px;
+  min-height: 34px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 11px;
+  padding: 7px 9px;
   outline: none;
   background: rgba(0,0,0,0.35);
   color: #fff;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .admin-select:focus,
 .admin-input:focus {
-  border-color: rgba(255,255,255,0.38);
+  border-color: rgba(255,255,255,0.36);
 }
 
 .admin-separator {
   height: 1px;
-  margin: 10px 0;
-  background: rgba(255,255,255,0.12);
+  margin: 9px 0;
+  background: rgba(255,255,255,0.1);
 }
 
 .admin-coords,
 .admin-selected {
-  margin-top: 8px;
-  font-size: 12px;
-  color: rgba(255,255,255,0.62);
+  margin-top: 7px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.58);
 }
 
 .admin-house-class-wrap[hidden] {
@@ -119,7 +141,7 @@
   cursor: crosshair;
 }
 
-/* objects layer */
+/* ===== OBJECTS LAYER ===== */
 
 .map-objects-layer {
   position: absolute;
@@ -185,42 +207,85 @@
   border-radius: 10px;
 }
 
-/* extra admin button disabled completely */
-
+/* лишнюю ADMIN-кнопку полностью убираем */
 .admin-open-button {
   display: none !important;
 }
 
-/* mobile */
+/* ===== HUD / STAMINA PRIORITY ===== */
+/* стамина должна быть ниже админки и не перекрывать её */
+[data-admin-mode="enabled"] .stamina-panel,
+[data-admin-mode="enabled"] .stamina,
+[data-admin-mode="enabled"] .player-stamina,
+[data-admin-mode="enabled"] .gta-stamina,
+[data-admin-mode="enabled"] [class*="stamina"] {
+  z-index: 99970 !important;
+}
+
+/* ===== MOBILE ===== */
 
 @media (max-width: 768px) {
   .admin-panel {
-    left: 10px;
-    right: 10px;
-    top: auto;
-    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-
-    width: auto;
-    max-height: 44dvh;
-
-    padding: 12px;
-    border-radius: 18px;
+    top: 46%;
+    width: min(300px, calc(100vw - 28px));
+    max-height: min(390px, calc(100dvh - 190px));
+    padding: 11px;
+    border-radius: 17px;
   }
 
   .admin-panel-head {
-    margin-bottom: 8px;
+    margin-bottom: 7px;
+  }
+
+  .admin-panel-head strong {
+    font-size: 14px;
+  }
+
+  .admin-row {
+    margin-top: 6px;
   }
 
   .admin-btn {
-    min-height: 36px;
-    padding: 7px 9px;
-    font-size: 12px;
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 11px;
+    border-radius: 10px;
+  }
+
+  .admin-close {
+    width: 30px;
+    height: 30px;
+    font-size: 20px;
+  }
+
+  .admin-label {
+    margin-top: 7px;
+    font-size: 10px;
   }
 
   .admin-select,
   .admin-input {
-    min-height: 36px;
-    padding: 7px 9px;
-    font-size: 12px;
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 11px;
+    border-radius: 10px;
+  }
+
+  .admin-separator {
+    margin: 7px 0;
+  }
+
+  .admin-coords,
+  .admin-selected {
+    font-size: 10px;
+  }
+}
+
+/* ===== SMALL MOBILE ===== */
+
+@media (max-height: 700px) {
+  .admin-panel {
+    top: 43%;
+    max-height: 340px;
   }
 }
