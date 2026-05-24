@@ -6,6 +6,32 @@ export const MAP_OBJECT_CATEGORIES = {
   MARKER: 'marker',
 };
 
+export const HOUSE_CLASSES = {
+  standard: {
+    value: 'standard',
+    label: 'Стандарт',
+    icon: '🏠',
+    asset: 'house_standard_01',
+    scale: 1,
+  },
+
+  premium: {
+    value: 'premium',
+    label: 'Премиум',
+    icon: '🏡',
+    asset: 'house_premium_01',
+    scale: 1.15,
+  },
+
+  lux: {
+    value: 'lux',
+    label: 'Люкс',
+    icon: '🏛',
+    asset: 'house_lux_01',
+    scale: 1.35,
+  },
+};
+
 export const MAP_OBJECT_TYPES = {
   tree: {
     type: 'tree',
@@ -31,10 +57,11 @@ export const MAP_OBJECT_TYPES = {
     type: 'house',
     category: MAP_OBJECT_CATEGORIES.HOUSE,
     label: 'Дом',
-    icon: '⌂',
+    icon: '🏠',
     defaultScale: 1,
     defaultRotation: 0,
-    defaultAsset: 'house_01',
+    defaultAsset: 'house_standard_01',
+    variants: HOUSE_CLASSES,
   },
 
   business: {
@@ -76,9 +103,18 @@ export function getMapObjectTypesList() {
   return Object.values(MAP_OBJECT_TYPES);
 }
 
+export function getHouseClass(value) {
+  return HOUSE_CLASSES[value] || HOUSE_CLASSES.standard;
+}
+
+export function getHouseClassesList() {
+  return Object.values(HOUSE_CLASSES);
+}
+
 export function createMapObjectDraft({
   cityId,
   type = 'marker',
+  variant = '',
   x = 50,
   y = 50,
   name = '',
@@ -86,19 +122,41 @@ export function createMapObjectDraft({
 }) {
   const config = getMapObjectType(type);
 
+  let icon = config.icon;
+  let asset = config.defaultAsset;
+  let scale = config.defaultScale;
+  let objectName = name || config.label;
+  let nextPayload = { ...payload };
+
+  if (config.type === 'house') {
+    const houseClass = getHouseClass(variant || 'standard');
+
+    icon = houseClass.icon;
+    asset = houseClass.asset;
+    scale = houseClass.scale;
+    objectName = name || `Дом · ${houseClass.label}`;
+
+    nextPayload = {
+      ...nextPayload,
+      houseClass: houseClass.value,
+      houseClassLabel: houseClass.label,
+    };
+  }
+
   return {
-    id: `${type}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    id: `${config.type}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
     cityId,
     type: config.type,
     category: config.category,
-    name: name || config.label,
-    icon: config.icon,
-    asset: config.defaultAsset,
+    variant: variant || '',
+    name: objectName,
+    icon,
+    asset,
     x: Number(x),
     y: Number(y),
     rotation: config.defaultRotation,
-    scale: config.defaultScale,
-    payload,
+    scale,
+    payload: nextPayload,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
