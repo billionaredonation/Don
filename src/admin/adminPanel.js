@@ -1,5 +1,18 @@
 import { updatePlayerPosition, getLocalPlayerId } from '../player/playerPosition.js';
 
+import { getMapObjectTypesList, createMapObjectDraft } from '../mapObjects/mapObjectTypes.js';
+import {
+  getMapObjects,
+  addMapObject,
+  deleteMapObject,
+  clearMapObjects,
+} from '../mapObjects/mapObjectsRepository.js';
+import {
+  createMapObjectsLayer,
+  renderMapObjects,
+  getMapObjectIdFromEvent,
+} from '../mapObjects/mapObjectsRenderer.js';
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -29,34 +42,12 @@ function applyMarkerPosition(marker, x, y, angle = 0) {
   marker.style.setProperty('--player-angle', `${angle}deg`);
 }
 
-function saveLocalAdminEntities(cityId, entities) {
-  try {
-    localStorage.setItem(`mn_admin_entities_${cityId}`, JSON.stringify(entities));
-  } catch {
-    // ignore
-  }
-}
-
-function loadLocalAdminEntities(cityId) {
-  try {
-    return JSON.parse(localStorage.getItem(`mn_admin_entities_${cityId}`)) || [];
-  } catch {
-    return [];
-  }
-}
-
-function renderAdminEntities(layer, entities) {
-  layer.innerHTML = entities
-    .map((entity) => `
-      <button
-        class="admin-map-entity admin-map-entity-${entity.type}"
-        data-admin-entity-id="${entity.id}"
-        style="left:${entity.x}%;top:${entity.y}%"
-        title="${entity.type}: ${entity.name || entity.id}"
-        type="button"
-      >
-        ${entity.icon || '◆'}
-      </button>
+function createObjectOptionsHtml() {
+  return getMapObjectTypesList()
+    .map((type) => `
+      <option value="${type.type}">
+        ${type.icon} ${type.label}
+      </option>
     `)
     .join('');
 }
@@ -77,11 +68,11 @@ export function enableAdminPanel({
   let enabled = false;
   let teleportMode = false;
   let placeMode = false;
-  let selectedType = 'decor';
+  let selectedType = 'tree';
+  let objects = [];
 
-  const adminLayer = document.createElement('div');
-  adminLayer.className = 'admin-map-layer';
-  adminLayer.hidden = true;
+  const objectsLayer = createMapObjectsLayer();
+  viewport.appendChild(objectsLayer);
 
   const panel = document.createElement('aside');
   panel.className = 'admin-panel';
@@ -109,17 +100,14 @@ export function enableAdminPanel({
 
     <label class="admin-label">
       Тип объекта
-      <select class="admin-select admin-entity-type">
-        <option value="decor">Декор</option>
-        <option value="house">Дом</option>
-        <option value="business">Бизнес</option>
-        <option value="npc">NPC</option>
+      <select class="admin-select admin-object-type">
+        ${createObjectOptionsHtml()}
       </select>
     </label>
 
     <label class="admin-label">
       Название
-      <input class="admin-input admin-entity-name" placeholder="Например: дерево / дом / магазин" />
+      <input class="admin-input admin-object-name" placeholder="Например: дерево / дом / магазин" />
     </label>
 
     <div class="admin-row">
@@ -127,7 +115,7 @@ export function enableAdminPanel({
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-delete-last" type="button">Удалить последний</button>
+      <button class="admin-btn admin-delete-selected" type="button">Удалить выбранный</button>
       <button class="admin-btn admin-clear-all" type="button">Очистить</button>
     </div>
 
@@ -136,41 +124,47 @@ export function enableAdminPanel({
     <div class="admin-coords">
       X: <b class="admin-x">0</b> · Y: <b class="admin-y">0</b>
     </div>
+
+    <div class="admin-selected">
+      Выбран: <b class="admin-selected-id">нет</b>
+    </div>
   `;
 
-  viewport.appendChild(adminLayer);
   root.appendChild(panel);
 
   const btnClose = panel.querySelector('.admin-close');
   const btnTeleport = panel.querySelector('.admin-toggle-teleport');
   const btnCopy = panel.querySelector('.admin-copy-coords');
   const btnPlace = panel.querySelector('.admin-toggle-place');
-  const btnDeleteLast = panel.querySelector('.admin-delete-last');
+  const btnDeleteSelected = panel.querySelector('.admin-delete-selected');
   const btnClearAll = panel.querySelector('.admin-clear-all');
-  const typeSelect = panel.querySelector('.admin-entity-type');
-  const nameInput = panel.querySelector('.admin-entity-name');
+  const typeSelect = panel.querySelector('.admin-object-type');
+  const nameInput = panel.querySelector('.admin-object-name');
   const xEl = panel.querySelector('.admin-x');
   const yEl = panel.querySelector('.admin-y');
+  const selectedIdEl = panel.querySelector('.admin-selected-id');
 
-  let entities = loadLocalAdminEntities(cityId);
-
-  function getIcon(type) {
-    if (type === 'house') return '⌂';
-    if (type === 'business') return '$';
-    if (type === 'npc') return '●';
-    return '◆';
-  }
+  let selectedObjectId = null;
 
   function updateCoords(x, y) {
     xEl.textContent = String(round(x));
     yEl.textContent = String(round(y));
   }
 
+  function updateSelectedObject(objectId) {
+    selectedObjectId = objectId || null;
+    selectedIdEl.textContent = selectedObjectId || 'нет';
+  }
+
+  async function reloadObjects() {
+    objects = await getMapObjects(cityId);
+    renderMapObjects(objectsLayer, objects);
+  }
+
   function setEnabled(next) {
     enabled = Boolean(next);
     root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
     panel.hidden = !enabled;
-    adminLayer.hidden = !enabled;
 
     if (!enabled) {
       teleportMode = false;
@@ -217,30 +211,35 @@ export function enableAdminPanel({
     }
   }
 
-  function addEntity(x, y) {
-    const type = selectedType;
-
-    const entity = {
-      id: `${type}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-      type,
-      name: nameInput.value.trim() || type,
-      icon: getIcon(type),
+  async function addObjectAt(x, y) {
+    const draft = createMapObjectDraft({
       cityId,
+      type: selectedType,
       x,
       y,
-      createdAt: new Date().toISOString(),
-    };
+      name: nameInput.value.trim(),
+    });
 
-    entities.push(entity);
-    saveLocalAdminEntities(cityId, entities);
-    renderAdminEntities(adminLayer, entities);
+    const createdObject = await addMapObject(cityId, draft);
+
+    updateSelectedObject(createdObject.id);
+    await reloadObjects();
   }
 
   function onMapClick(event) {
     if (!enabled) return;
-    if (!teleportMode && !placeMode) return;
     if (event.target.closest('.admin-panel')) return;
-    if (event.target.closest('.admin-map-entity')) return;
+
+    const clickedObjectId = getMapObjectIdFromEvent(event);
+
+    if (clickedObjectId) {
+      event.preventDefault();
+      event.stopPropagation();
+      updateSelectedObject(clickedObjectId);
+      return;
+    }
+
+    if (!teleportMode && !placeMode) return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -254,7 +253,7 @@ export function enableAdminPanel({
     }
 
     if (placeMode) {
-      addEntity(point.x, point.y);
+      addObjectAt(point.x, point.y);
     }
   }
 
@@ -310,16 +309,21 @@ export function enableAdminPanel({
     }
   });
 
-  btnDeleteLast.addEventListener('click', () => {
-    entities.pop();
-    saveLocalAdminEntities(cityId, entities);
-    renderAdminEntities(adminLayer, entities);
+  btnDeleteSelected.addEventListener('click', async () => {
+    if (!selectedObjectId) return;
+
+    await deleteMapObject(cityId, selectedObjectId);
+    updateSelectedObject(null);
+    await reloadObjects();
   });
 
-  btnClearAll.addEventListener('click', () => {
-    entities = [];
-    saveLocalAdminEntities(cityId, entities);
-    renderAdminEntities(adminLayer, entities);
+  btnClearAll.addEventListener('click', async () => {
+    const confirmed = window.confirm('Удалить все объекты на этой карте?');
+    if (!confirmed) return;
+
+    await clearMapObjects(cityId);
+    updateSelectedObject(null);
+    await reloadObjects();
   });
 
   typeSelect.addEventListener('change', () => {
@@ -330,7 +334,7 @@ export function enableAdminPanel({
   viewport.addEventListener('mousemove', onMouseMove);
   window.addEventListener('keydown', onKeyDown);
 
-  renderAdminEntities(adminLayer, entities);
+  reloadObjects();
   setEnabled(false);
 
   return () => {
@@ -339,7 +343,7 @@ export function enableAdminPanel({
     window.removeEventListener('keydown', onKeyDown);
 
     panel.remove();
-    adminLayer.remove();
+    objectsLayer.remove();
 
     delete root.dataset.adminMode;
   };
