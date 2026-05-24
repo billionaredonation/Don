@@ -190,9 +190,9 @@ export function enableAdminPanel({
   houseClassSelect.value = selectedVariant;
 
   function getSelectedObject() {
-    return objects.find((object) => object.id === selectedObjectId) || null;
+    if (!selectedObjectId) return null;
+    return objects.find((object) => String(object.id) === String(selectedObjectId)) || null;
   }
-
   function updateVariantVisibility() {
     const config = getMapObjectType(selectedType);
     const isHouse = config.type === 'house';
@@ -242,8 +242,14 @@ export function enableAdminPanel({
   }
 
   function updateSelectedObject(objectId) {
-    selectedObjectId = objectId || null;
-    markSelectedObject();
+    selectedObjectId = objectId ? String(objectId) : null;
+
+    objects = objects.map((object) => ({
+      ...object,
+      selected: selectedObjectId && String(object.id) === String(selectedObjectId),
+    }));
+
+    renderMapObjects(objectsLayer, objects);
     fillEditor(getSelectedObject());
   }
 
@@ -252,13 +258,20 @@ export function enableAdminPanel({
 
     objects = freshObjects.map((object) => ({
       ...object,
-      selected: object.id === selectedObjectId,
+      selected: selectedObjectId && String(object.id) === String(selectedObjectId),
     }));
+
+    const selectedStillExists = objects.some(
+      (object) => String(object.id) === String(selectedObjectId)
+    );
+
+    if (!selectedStillExists) {
+      selectedObjectId = null;
+    }
 
     renderMapObjects(objectsLayer, objects);
     fillEditor(getSelectedObject());
   }
-
   function setEnabled(next) {
     enabled = Boolean(next);
     root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
