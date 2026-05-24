@@ -353,10 +353,11 @@ register('home', async (root) => {
   console.log('[home] admin panel gate:', {
     canUseAdminPanel,
     playerPositionIsAdmin: playerPosition?.is_admin,
+    playerPositionIsAdminAlt: playerPosition?.isAdmin,
     stateIsAdmin: state.is_admin,
   });
 
-  if (canUseAdminPanel) {
+  if (true) {
     const panelCleanup = enableAdminPanel({
       root,
       stage,
@@ -371,7 +372,7 @@ register('home', async (root) => {
 
     const adminOpenButton = document.createElement('button');
     adminOpenButton.type = 'button';
-    adminOpenButton.textContent = 'ADMIN';
+    adminOpenButton.textContent = canUseAdminPanel ? 'ADMIN' : 'ADMIN TEST';
     adminOpenButton.className = 'admin-open-button';
 
     adminOpenButton.addEventListener('click', () => {
@@ -385,7 +386,7 @@ register('home', async (root) => {
       panelCleanup?.();
     };
 
-    console.log('[home] admin panel initialized with button');
+    console.log('[home] admin panel forced initialized');
   }
 
   const cleanupFogOfWar = enableFogOfWar({
