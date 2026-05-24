@@ -336,3 +336,50 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+.admin-editor-title {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.7);
+  text-transform: uppercase;
+}
+
+.admin-selected-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(255,255,255,0.82);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.map-object-selected {
+  outline: 2px solid #fff;
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.5),
+    0 0 18px rgba(255,255,255,0.5);
+}
+
+[data-admin-move-mode="enabled"] .admin-panel {
+  display: none !important;
+}
+
+[data-admin-move-mode="enabled"]::before {
+  display: none !important;
+}
+
+[data-admin-move-mode="enabled"] .map-object-selected {
+  animation: adminObjectPulse 0.9s infinite alternate;
+}
+
+@keyframes adminObjectPulse {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.12);
+  }
+}
