@@ -85,6 +85,9 @@ export function enableAdminPanel({
   let enabled = false;
   let teleportMode = false;
   let placeMode = false;
+  let moveMode = false;
+  let moveSnapshot = null;
+
   let selectedType = 'house';
   let selectedVariant = 'standard';
   let objects = [];
@@ -142,32 +145,17 @@ export function enableAdminPanel({
       <span class="admin-selected-name">нет</span>
     </div>
 
-    <div class="admin-grid-2">
-      <label class="admin-label">
-        X
-        <input class="admin-input admin-edit-x" type="number" step="0.1" min="0" max="100" />
-      </label>
-
-      <label class="admin-label">
-        Y
-        <input class="admin-input admin-edit-y" type="number" step="0.1" min="0" max="100" />
-      </label>
-    </div>
-
     <div class="admin-row">
-      <button class="admin-btn admin-nudge-left" type="button">←</button>
-      <button class="admin-btn admin-nudge-up" type="button">↑</button>
-      <button class="admin-btn admin-nudge-down" type="button">↓</button>
-      <button class="admin-btn admin-nudge-right" type="button">→</button>
-    </div>
-
-    <div class="admin-row">
+      <button class="admin-btn admin-start-move" type="button">Двигать</button>
       <button class="admin-btn admin-save-selected" type="button">Сохранить</button>
+    </div>
+
+    <div class="admin-row">
       <button class="admin-btn admin-delete-selected" type="button">Удалить</button>
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-copy-coords" type="button">Копировать XY</button>
+      <button class="admin-btn admin-copy-coords" type="button">Копировать JSON</button>
       <button class="admin-btn admin-clear-all" type="button">Очистить</button>
     </div>
 
@@ -183,23 +171,16 @@ export function enableAdminPanel({
   const btnPlace = panel.querySelector('.admin-toggle-place');
   const btnPlaceHere = panel.querySelector('.admin-place-here');
   const btnMoveSelectedHere = panel.querySelector('.admin-move-selected-here');
+  const btnStartMove = panel.querySelector('.admin-start-move');
   const btnSaveSelected = panel.querySelector('.admin-save-selected');
   const btnDeleteSelected = panel.querySelector('.admin-delete-selected');
   const btnClearAll = panel.querySelector('.admin-clear-all');
   const btnCopy = panel.querySelector('.admin-copy-coords');
 
-  const btnLeft = panel.querySelector('.admin-nudge-left');
-  const btnRight = panel.querySelector('.admin-nudge-right');
-  const btnUp = panel.querySelector('.admin-nudge-up');
-  const btnDown = panel.querySelector('.admin-nudge-down');
-
   const typeSelect = panel.querySelector('.admin-object-type');
   const houseClassWrap = panel.querySelector('.admin-house-class-wrap');
   const houseClassSelect = panel.querySelector('.admin-house-class');
   const nameInput = panel.querySelector('.admin-object-name');
-
-  const editXInput = panel.querySelector('.admin-edit-x');
-  const editYInput = panel.querySelector('.admin-edit-y');
 
   const xEl = panel.querySelector('.admin-x');
   const yEl = panel.querySelector('.admin-y');
@@ -234,12 +215,11 @@ export function enableAdminPanel({
   function fillEditor(object) {
     if (!object) {
       selectedNameEl.textContent = 'нет';
-      editXInput.value = '';
-      editYInput.value = '';
       return;
     }
 
     selectedNameEl.textContent = `${object.icon || '◆'} ${object.name || object.type}`;
+
     nameInput.value = object.name || '';
     typeSelect.value = object.type || 'marker';
     selectedType = typeSelect.value;
@@ -249,19 +229,32 @@ export function enableAdminPanel({
       houseClassSelect.value = selectedVariant;
     }
 
-    editXInput.value = String(round(object.x));
-    editYInput.value = String(round(object.y));
-
     updateVariantVisibility();
+  }
+
+  function markSelectedObject() {
+    objects = objects.map((object) => ({
+      ...object,
+      selected: object.id === selectedObjectId,
+    }));
+
+    renderMapObjects(objectsLayer, objects);
   }
 
   function updateSelectedObject(objectId) {
     selectedObjectId = objectId || null;
+    markSelectedObject();
     fillEditor(getSelectedObject());
   }
 
   async function reloadObjects() {
-    objects = await getMapObjects(cityId);
+    const freshObjects = await getMapObjects(cityId);
+
+    objects = freshObjects.map((object) => ({
+      ...object,
+      selected: object.id === selectedObjectId,
+    }));
+
     renderMapObjects(objectsLayer, objects);
     fillEditor(getSelectedObject());
   }
@@ -274,11 +267,23 @@ export function enableAdminPanel({
     if (!enabled) {
       teleportMode = false;
       placeMode = false;
+      setMoveMode(false);
       btnTeleport.textContent = 'Телепорт: OFF';
       btnPlace.textContent = 'Клик: OFF';
     } else {
       const point = getCurrentPlayerPoint(playerMarker, playerPosition);
       updateCoords(point.x, point.y);
+    }
+  }
+
+  function setMoveMode(next) {
+    moveMode = Boolean(next);
+    root.dataset.adminMoveMode = moveMode ? 'enabled' : 'disabled';
+
+    if (moveMode) {
+      panel.hidden = true;
+    } else if (enabled) {
+      panel.hidden = false;
     }
   }
 
@@ -342,9 +347,6 @@ export function enableAdminPanel({
     const object = getSelectedObject();
     if (!object) return;
 
-    const x = clamp(Number(editXInput.value || object.x), 0, 100);
-    const y = clamp(Number(editYInput.value || object.y), 0, 100);
-
     const config = getMapObjectType(selectedType);
 
     const nextPatch = {
@@ -353,33 +355,43 @@ export function enableAdminPanel({
       type: selectedType,
       category: config.category,
       variant: selectedType === 'house' ? selectedVariant : '',
-      x: round(x),
-      y: round(y),
       updatedAt: new Date().toISOString(),
     };
 
     if (selectedType === 'house') {
       nextPatch.payload = {
         ...(object.payload || {}),
+        kind: 'house',
         houseClass: selectedVariant,
+        buyable: true,
+        ownerId: object.payload?.ownerId || null,
+        price: object.payload?.price || 0,
+        locked: object.payload?.locked || false,
+      };
+    }
+
+    if (selectedType === 'business') {
+      nextPatch.payload = {
+        ...(object.payload || {}),
+        kind: 'business',
+        businessType: object.payload?.businessType || 'shop',
+        ownerId: object.payload?.ownerId || null,
+        incomePerHour: object.payload?.incomePerHour || 0,
+        price: object.payload?.price || 0,
+        buyable: true,
+      };
+    }
+
+    if (config.category === 'decor') {
+      nextPatch.payload = {
+        ...(object.payload || {}),
+        kind: 'decor',
+        collision: object.payload?.collision || false,
       };
     }
 
     await updateMapObject(cityId, object.id, nextPatch);
     await reloadObjects();
-  }
-
-  async function moveSelectedBy(dx, dy) {
-    const object = getSelectedObject();
-    if (!object) return;
-
-    const x = round(clamp(Number(object.x) + dx, 0, 100));
-    const y = round(clamp(Number(object.y) + dy, 0, 100));
-
-    editXInput.value = String(x);
-    editYInput.value = String(y);
-
-    await saveSelectedObject({ x, y });
   }
 
   async function moveSelectedToPlayer() {
@@ -388,10 +400,65 @@ export function enableAdminPanel({
 
     const point = getCurrentPlayerPoint(playerMarker, playerPosition);
 
-    editXInput.value = String(point.x);
-    editYInput.value = String(point.y);
+    object.x = point.x;
+    object.y = point.y;
 
-    await saveSelectedObject({ x: point.x, y: point.y });
+    renderMapObjects(objectsLayer, objects);
+
+    await updateMapObject(cityId, object.id, {
+      x: point.x,
+      y: point.y,
+    });
+
+    await reloadObjects();
+  }
+
+  function startMoveSelected() {
+    const object = getSelectedObject();
+    if (!object) return;
+
+    moveSnapshot = {
+      x: object.x,
+      y: object.y,
+    };
+
+    setMoveMode(true);
+  }
+
+  async function saveMoveMode() {
+    const object = getSelectedObject();
+    if (!object) return;
+
+    await updateMapObject(cityId, object.id, {
+      x: round(object.x),
+      y: round(object.y),
+    });
+
+    setMoveMode(false);
+    await reloadObjects();
+  }
+
+  function cancelMoveMode() {
+    const object = getSelectedObject();
+
+    if (object && moveSnapshot) {
+      object.x = moveSnapshot.x;
+      object.y = moveSnapshot.y;
+      renderMapObjects(objectsLayer, objects);
+    }
+
+    setMoveMode(false);
+    moveSnapshot = null;
+  }
+
+  function moveSelectedVisual(dx, dy) {
+    const object = getSelectedObject();
+    if (!object) return;
+
+    object.x = round(clamp(Number(object.x) + dx, 0, 100));
+    object.y = round(clamp(Number(object.y) + dy, 0, 100));
+
+    renderMapObjects(objectsLayer, objects);
   }
 
   function onMapClick(event) {
@@ -440,13 +507,41 @@ export function enableAdminPanel({
       event.key?.toLowerCase() === 'p' ||
       event.key?.toLowerCase() === 'з';
 
-    if (isAdminHotkey && !isFormField) {
+    if (isAdminHotkey && !isFormField && !moveMode) {
       event.preventDefault();
       togglePanel();
       return;
     }
 
     if (!enabled) return;
+
+    if (moveMode) {
+      let dx = 0;
+      let dy = 0;
+
+      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') dx = -0.3;
+      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') dx = 0.3;
+      if (event.key === 'ArrowUp' || event.key.toLowerCase() === 'w') dy = -0.3;
+      if (event.key === 'ArrowDown' || event.key.toLowerCase() === 's') dy = 0.3;
+
+      if (dx || dy) {
+        event.preventDefault();
+        moveSelectedVisual(dx, dy);
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveMoveMode();
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelMoveMode();
+        return;
+      }
+    }
 
     if (event.key === 'Escape' && !isFormField) {
       event.preventDefault();
@@ -487,18 +582,12 @@ export function enableAdminPanel({
 
   btnPlaceHere.addEventListener('click', addObjectAtPlayerPosition);
   btnMoveSelectedHere.addEventListener('click', moveSelectedToPlayer);
+  btnStartMove.addEventListener('click', startMoveSelected);
   btnSaveSelected.addEventListener('click', () => saveSelectedObject());
-
-  btnLeft.addEventListener('click', () => moveSelectedBy(-0.5, 0));
-  btnRight.addEventListener('click', () => moveSelectedBy(0.5, 0));
-  btnUp.addEventListener('click', () => moveSelectedBy(0, -0.5));
-  btnDown.addEventListener('click', () => moveSelectedBy(0, 0.5));
 
   btnCopy.addEventListener('click', async () => {
     const object = getSelectedObject();
-    const text = object
-      ? JSON.stringify(object, null, 2)
-      : `{ x: ${xEl.textContent}, y: ${yEl.textContent} }`;
+    const text = object ? JSON.stringify(object, null, 2) : '{}';
 
     try {
       await navigator.clipboard.writeText(text);
@@ -530,9 +619,6 @@ export function enableAdminPanel({
     selectedVariant = houseClassSelect.value;
   });
 
-  editXInput.addEventListener('change', () => saveSelectedObject());
-  editYInput.addEventListener('change', () => saveSelectedObject());
-
   viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('mousemove', onMouseMove);
   window.addEventListener('keydown', onKeyDown);
@@ -552,5 +638,6 @@ export function enableAdminPanel({
     objectsLayer.remove();
 
     delete root.dataset.adminMode;
+    delete root.dataset.adminMoveMode;
   };
 }
