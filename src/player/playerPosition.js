@@ -82,6 +82,8 @@ async function getPlayerAdminFlag(playerId, nickname) {
 }
 
 function normalizePosition(row, extra = {}) {
+  const adminFlag = extra.is_admin ?? row.is_admin;
+
   return {
     playerId: row.player_id,
     nickname: getSafeNickname(row.nickname),
@@ -91,8 +93,8 @@ function normalizePosition(row, extra = {}) {
     angle: Number(row.angle || 0),
     isOnline: row.is_online ?? true,
     sessionId: row.session_id || null,
-    is_admin: isTruthyAdmin(extra.is_admin ?? row.is_admin),
-    isAdmin: isTruthyAdmin(extra.is_admin ?? row.is_admin),
+    is_admin: isTruthyAdmin(adminFlag),
+    isAdmin: isTruthyAdmin(adminFlag),
     updatedAt: row.updated_at,
   };
 }
@@ -120,6 +122,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
       y: currentPosition.y,
       angle,
       is_online: true,
+      is_admin: isAdmin,
       session_id: sessionId,
       updated_at: new Date().toISOString(),
     };
@@ -133,10 +136,10 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
       .single();
 
     if (!refreshError && refreshedPosition) {
-      return normalizePosition(refreshedPosition, { is_admin: isAdmin });
+      return normalizePosition(refreshedPosition);
     }
 
-    return normalizePosition(nextPosition, { is_admin: isAdmin });
+    return normalizePosition(nextPosition);
   }
 
   const spawn = getRandomSpawnPoint(cityId);
@@ -149,6 +152,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     y: spawn.y,
     angle: 0,
     is_online: true,
+    is_admin: isAdmin,
     session_id: sessionId,
     updated_at: new Date().toISOString(),
   };
@@ -179,7 +183,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     };
   }
 
-  return normalizePosition(savedPosition, { is_admin: isAdmin });
+  return normalizePosition(savedPosition);
 }
 
 export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }) {
@@ -196,6 +200,7 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
     y,
     angle,
     is_online: true,
+    is_admin: isAdmin,
     session_id: sessionId,
     updated_at: new Date().toISOString(),
   };
@@ -210,7 +215,7 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
 
   if (error) throw error;
 
-  return normalizePosition(data, { is_admin: isAdmin });
+  return normalizePosition(data);
 }
 
 export async function getCityPlayers(cityId) {
