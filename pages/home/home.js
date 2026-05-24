@@ -20,6 +20,10 @@ import { setupPlayerNetwork } from '../../src/network/playerNetwork.js';
 import { renderPlayersHtml } from '../../src/player/playerMarkerView.js';
 import { enableFogOfWar } from '../../src/map/fogOfWar.js';
 
+import { enableAdminPanel } from '../../src/admin/adminPanel.js';
+import { isCurrentPlayerAdmin } from '../../src/admin/adminAccess.js';
+import '../../src/admin/adminPanel.css';
+
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 
 const MAP_FILES = import.meta.glob('../../*.png', {
@@ -258,6 +262,7 @@ register('home', async (root) => {
   let cleanupMovement = null;
   let cleanupMobilePrompt = null;
   let cleanupMobileJoystick = null;
+  let cleanupAdminPanel = null;
 
   function enableMobileGameplayMode() {
     root.dataset.mobileControls = 'enabled';
@@ -301,6 +306,20 @@ register('home', async (root) => {
     );
   }
 
+  if (isCurrentPlayerAdmin()) {
+    cleanupAdminPanel = enableAdminPanel({
+      root,
+      stage,
+      viewport,
+      playerMarker,
+      playerPosition,
+      cityId,
+      nickname,
+      mapControls,
+      movementChannel: network.movementChannel,
+    });
+  }
+
   const cleanupFogOfWar = enableFogOfWar({
     stage,
     viewport,
@@ -314,6 +333,7 @@ register('home', async (root) => {
     cleanupMovement?.();
     cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
+    cleanupAdminPanel?.();
     cleanupSessionGuard?.();
     mapControls?.cleanup?.();
     cleanupFogOfWar?.();
