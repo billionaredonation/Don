@@ -125,6 +125,24 @@ register('home', async (root) => {
 
   try {
     playerPosition = await getOrCreatePlayerPosition(cityId, nickname);
+
+    state.player = {
+      ...(state.player || {}),
+      ...playerPosition,
+      is_admin: Boolean(playerPosition?.is_admin),
+      isAdmin: Boolean(playerPosition?.is_admin),
+    };
+
+    state.is_admin = Boolean(playerPosition?.is_admin);
+    state.isAdmin = Boolean(playerPosition?.is_admin);
+
+    save();
+
+    console.log('[home] admin check:', {
+      nickname,
+      playerPosition,
+      stateIsAdmin: state.is_admin,
+    });
   } catch (error) {
     console.warn('[home] player position loading failed:', error);
 
@@ -133,7 +151,21 @@ register('home', async (root) => {
       x: 50,
       y: 50,
       nickname,
+      is_admin: false,
+      isAdmin: false,
     };
+
+    state.player = {
+      ...(state.player || {}),
+      ...playerPosition,
+      is_admin: false,
+      isAdmin: false,
+    };
+
+    state.is_admin = false;
+    state.isAdmin = false;
+
+    save();
   }
 
   let cityPlayers = [];
