@@ -93,7 +93,17 @@ export function enableAdminPanel({
   mapControls,
   movementChannel,
 }) {
-  if (!root || !stage || !viewport || !playerMarker || !playerPosition) return null;
+  if (!root || !stage || !viewport || !playerMarker || !playerPosition) {
+    console.warn('[adminPanel] init failed: missing required elements', {
+      root,
+      stage,
+      viewport,
+      playerMarker,
+      playerPosition,
+    });
+
+    return null;
+  }
 
   let enabled = false;
   let teleportMode = false;
@@ -116,7 +126,7 @@ export function enableAdminPanel({
     </div>
 
     <div class="admin-hint">
-      P — открыть/закрыть. Enter — поставить объект на позицию игрока. ESC — закрыть.
+      Кнопка ADMIN или P — открыть/закрыть. Enter — поставить объект на позицию игрока. ESC — закрыть.
     </div>
 
     <div class="admin-row">
@@ -241,6 +251,10 @@ export function enableAdminPanel({
     }
   }
 
+  function togglePanel() {
+    setEnabled(!enabled);
+  }
+
   async function teleportTo(x, y) {
     const angle = Number(playerPosition.angle || playerMarker.dataset.angle || 0);
 
@@ -342,9 +356,14 @@ export function enableAdminPanel({
     const tag = document.activeElement?.tagName?.toLowerCase();
     const isFormField = tag === 'input' || tag === 'textarea' || tag === 'select';
 
-    if (event.key.toLowerCase() === 'p' && !isFormField) {
+    const isAdminHotkey =
+      event.code === 'KeyP' ||
+      event.key?.toLowerCase() === 'p' ||
+      event.key?.toLowerCase() === 'з';
+
+    if (isAdminHotkey && !isFormField) {
       event.preventDefault();
-      setEnabled(!enabled);
+      togglePanel();
       return;
     }
 
@@ -360,6 +379,10 @@ export function enableAdminPanel({
       event.preventDefault();
       addObjectAtPlayerPosition();
     }
+  }
+
+  function onAdminToggle() {
+    togglePanel();
   }
 
   btnClose.addEventListener('click', () => setEnabled(false));
@@ -423,6 +446,7 @@ export function enableAdminPanel({
   viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('mousemove', onMouseMove);
   window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('mn:admin-toggle', onAdminToggle);
 
   updateVariantVisibility();
   reloadObjects();
@@ -432,6 +456,7 @@ export function enableAdminPanel({
     viewport.removeEventListener('click', onMapClick, true);
     viewport.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('mn:admin-toggle', onAdminToggle);
 
     panel.remove();
     objectsLayer.remove();
