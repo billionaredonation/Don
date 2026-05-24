@@ -1,0 +1,159 @@
+.admin-panel {
+  position: fixed;
+  right: 16px;
+  top: 88px;
+  z-index: 9999;
+  width: min(320px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 18px;
+  background: rgba(7, 10, 14, 0.92);
+  backdrop-filter: blur(14px);
+  color: #fff;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.admin-panel[hidden] {
+  display: none;
+}
+
+.admin-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  letter-spacing: 0.08em;
+}
+
+.admin-hint {
+  margin-bottom: 12px;
+  color: rgba(255,255,255,0.58);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.admin-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.admin-btn {
+  flex: 1;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-btn:hover {
+  background: rgba(255,255,255,0.13);
+}
+
+.admin-btn:active {
+  transform: translateY(1px);
+}
+
+.admin-close {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.admin-label {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.72);
+}
+
+.admin-select,
+.admin-input {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 12px;
+  padding: 10px 12px;
+  outline: none;
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+}
+
+.admin-select:focus,
+.admin-input:focus {
+  border-color: rgba(255,255,255,0.38);
+}
+
+.admin-separator {
+  height: 1px;
+  margin: 12px 0;
+  background: rgba(255,255,255,0.12);
+}
+
+.admin-coords {
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+}
+
+.admin-map-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.admin-map-layer[hidden] {
+  display: none;
+}
+
+.admin-map-entity {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 999px;
+  translate: -50% -50%;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+}
+
+.admin-map-entity-house {
+  background: rgba(40, 120, 255, 0.78);
+}
+
+.admin-map-entity-business {
+  background: rgba(30, 180, 90, 0.78);
+}
+
+.admin-map-entity-decor {
+  background: rgba(180, 130, 40, 0.78);
+}
+
+.admin-map-entity-npc {
+  background: rgba(180, 70, 220, 0.78);
+}
+
+[data-admin-mode="enabled"] .gta-map-stage {
+  cursor: crosshair;
+}
+
+@media (max-width: 768px) {
+  .admin-panel {
+    left: 12px;
+    right: 12px;
+    top: 72px;
+    width: auto;
+  }
+}
