@@ -291,13 +291,7 @@
 }
 
 
-/* Force stamina under admin overlay */
-[data-admin-mode="enabled"] ~ * [class*="stamina"],
-[data-admin-mode="enabled"] [class*="stamina"],
-body:has([data-admin-mode="enabled"]) [class*="stamina"] {
-  z-index: 99960 !important;
-  position: relative;
-}
+
 
 /* Admin overlay and panel stay above stamina */
 [data-admin-mode="enabled"]::before {
@@ -306,4 +300,14 @@ body:has([data-admin-mode="enabled"]) [class*="stamina"] {
 
 .admin-panel {
   z-index: 99999 !important;
+}
+
+
+/* Hide stamina completely while admin CEF is open */
+body:has([data-admin-mode="enabled"]) .mobile-stamina,
+body:has([data-admin-mode="enabled"]) .pc-stamina {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
