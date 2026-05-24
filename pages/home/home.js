@@ -357,7 +357,7 @@ register('home', async (root) => {
   });
 
   if (canUseAdminPanel) {
-    cleanupAdminPanel = enableAdminPanel({
+    const panelCleanup = enableAdminPanel({
       root,
       stage,
       viewport,
@@ -369,7 +369,23 @@ register('home', async (root) => {
       movementChannel: network.movementChannel,
     });
 
-    console.log('[home] admin panel initialized');
+    const adminOpenButton = document.createElement('button');
+    adminOpenButton.type = 'button';
+    adminOpenButton.textContent = 'ADMIN';
+    adminOpenButton.className = 'admin-open-button';
+
+    adminOpenButton.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
+    });
+
+    root.appendChild(adminOpenButton);
+
+    cleanupAdminPanel = () => {
+      adminOpenButton.remove();
+      panelCleanup?.();
+    };
+
+    console.log('[home] admin panel initialized with button');
   }
 
   const cleanupFogOfWar = enableFogOfWar({
