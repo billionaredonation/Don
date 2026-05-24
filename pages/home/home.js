@@ -22,6 +22,12 @@ import { enableFogOfWar } from '../../src/map/fogOfWar.js';
 
 import { enableAdminPanel } from '../../src/admin/adminPanel.js';
 import { isCurrentPlayerAdmin } from '../../src/admin/adminAccess.js';
+import { getMapObjects } from '../../src/mapObjects/mapObjectsRepository.js';
+import {
+  createMapObjectsLayer,
+  renderMapObjects,
+  getMapObjectIdFromEvent,
+} from '../../src/mapObjects/mapObjectsRenderer.js';
 import '../../src/admin/adminPanel.css';
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
@@ -56,8 +62,8 @@ function getUserDayMode() {
 function getFallbackWeather() {
   return {
     type: 'clear',
-    icon: '☀',
-    label: 'Ясно',
+    icon: 'â˜€',
+    label: 'Ð¯ÑÐ½Ð¾',
     temperature: 18,
   };
 }
@@ -68,8 +74,8 @@ function getDisplayWeather(weather, dayMode) {
   if (dayMode === 'night') {
     return {
       ...weather,
-      label: 'Тёплая ночь',
-      icon: '🌙',
+      label: 'Ð¢Ñ‘Ð¿Ð»Ð°Ñ Ð½Ð¾Ñ‡ÑŒ',
+      icon: 'ðŸŒ™',
       temperature: Math.min(weather.temperature - 5, 25),
     };
   }
@@ -100,8 +106,127 @@ function saveMobileControlsAccepted() {
   try {
     localStorage.setItem(MOBILE_CONTROLS_KEY, '1');
   } catch {
-    // localStorage может быть недоступен, но игра не должна падать
+    // localStorage Ð¼Ð¾Ð¶ÐµÑ‚ Ð±Ñ‹Ñ‚ÑŒ Ð½ÐµÐ´Ð¾ÑÑ‚ÑƒÐ¿ÐµÐ½, Ð½Ð¾ Ð¸Ð³Ñ€Ð° Ð½Ðµ Ð´Ð¾Ð»Ð¶Ð½Ð° Ð¿Ð°Ð´Ð°Ñ‚ÑŒ
   }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function isHouseObject(object) {
+  return object?.type === 'house' || object?.category === 'house' || object?.payload?.kind === 'house';
+}
+
+function createHouseSelectionPanel(root) {
+  const panel = document.createElement('section');
+  panel.className = 'house-selection-panel';
+  panel.hidden = true;
+  panel.innerHTML = `
+    <button class="house-selection-close" type="button" aria-label="Ð—Ð°ÐºÑ€Ñ‹Ñ‚ÑŒ">Ã—</button>
+    <div class="house-selection-icon">ðŸ </div>
+    <div class="house-selection-body">
+      <strong class="house-selection-title">Ð”Ð¾Ð¼</strong>
+      <span class="house-selection-meta"></span>
+    </div>
+    <button class="house-selection-action" type="button">Ð’Ñ‹Ð±Ñ€Ð°Ñ‚ÑŒ</button>
+  `;
+
+  root.appendChild(panel);
+
+  const closeButton = panel.querySelector('.house-selection-close');
+  const titleEl = panel.querySelector('.house-selection-title');
+  const metaEl = panel.querySelector('.house-selection-meta');
+  const iconEl = panel.querySelector('.house-selection-icon');
+  const actionButton = panel.querySelector('.house-selection-action');
+
+  let selectedHouse = null;
+
+  function close() {
+    selectedHouse = null;
+    panel.hidden = true;
+  }
+
+  function open(object) {
+    selectedHouse = object;
+
+    const houseClass = object?.payload?.houseClassLabel || object?.payload?.houseClass || object?.variant || 'standard';
+    const price = Number(object?.payload?.price || 0);
+    const ownerId = object?.payload?.ownerId || '';
+    const ownerText = ownerId ? 'Ð·Ð°Ð½ÑÑ‚' : 'ÑÐ²Ð¾Ð±Ð¾Ð´ÐµÐ½';
+    const priceText = price > 0 ? ` Â· ${price.toLocaleString('ru-RU')} $` : '';
+
+    iconEl.textContent = object?.icon || 'ðŸ ';
+    titleEl.textContent = object?.name || 'Ð”Ð¾Ð¼';
+    metaEl.innerHTML = `${escapeHtml(houseClass)} Â· ${escapeHtml(ownerText)}${escapeHtml(priceText)}`;
+    panel.hidden = false;
+  }
+
+  closeButton.addEventListener('click', close);
+
+  actionButton.addEventListener('click', () => {
+    if (!selectedHouse) return;
+
+    window.dispatchEvent(new CustomEvent('mn:house-selected', {
+      detail: { house: selectedHouse },
+    }));
+  });
+
+  return {
+    open,
+    close,
+    cleanup() {
+      panel.remove();
+    },
+  };
+}
+
+function enablePublicHouseSelection({ root, viewport, cityId, houseSelectionPanel }) {
+  if (!root || !viewport || !cityId || !houseSelectionPanel) return null;
+
+  const layer = createMapObjectsLayer();
+  layer.classList.add('map-objects-layer-public');
+  viewport.appendChild(layer);
+
+  let houses = [];
+
+  async function reloadHouses() {
+    const objects = await getMapObjects(cityId);
+    houses = objects.filter(isHouseObject);
+    renderMapObjects(layer, houses);
+  }
+
+  function onClick(event) {
+    const clickedObjectId = getMapObjectIdFromEvent(event);
+    if (!clickedObjectId) return;
+
+    const house = houses.find((object) => String(object.id) === String(clickedObjectId));
+    if (!house) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    houseSelectionPanel.open(house);
+  }
+
+  function onObjectsChanged(event) {
+    if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
+    reloadHouses();
+  }
+
+  layer.addEventListener('click', onClick);
+  window.addEventListener('mn:map-objects-changed', onObjectsChanged);
+  reloadHouses();
+
+  return () => {
+    layer.removeEventListener('click', onClick);
+    window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
+    layer.remove();
+  };
 }
 
 register('home', async (root) => {
@@ -112,7 +237,7 @@ register('home', async (root) => {
   const cityId = normalizeCityId(state.city);
   const city = getCityConfig(cityId);
   const dayMode = getUserDayMode();
-  const nickname = state.nickname || 'Игрок';
+  const nickname = state.nickname || 'Ð˜Ð³Ñ€Ð¾Ðº';
   const localPlayerId = getLocalPlayerId();
 
   let weather = getFallbackWeather();
@@ -256,11 +381,11 @@ register('home', async (root) => {
         <header class="gta-map-header">
           <div class="gta-map-title">
             <span class="gta-time-badge">
-              ${dayMode === 'day' ? '☀ День' : '☾ Ночь'}
+              ${dayMode === 'day' ? 'â˜€ Ð”ÐµÐ½ÑŒ' : 'â˜¾ ÐÐ¾Ñ‡ÑŒ'}
             </span>
 
             <span class="gta-weather-badge">
-              ${displayWeather.icon} ${displayWeather.label} · ${displayWeather.temperature}°C
+              ${displayWeather.icon} ${displayWeather.label} Â· ${displayWeather.temperature}Â°C
             </span>
 
             <strong>${city.name}</strong>
@@ -281,6 +406,7 @@ register('home', async (root) => {
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
+  const houseSelectionPanel = createHouseSelectionPanel(root);
 
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
@@ -302,6 +428,7 @@ register('home', async (root) => {
   let cleanupMobilePrompt = null;
   let cleanupMobileJoystick = null;
   let cleanupAdminPanel = null;
+  let cleanupPublicHouseSelection = null;
 
   function enableMobileGameplayMode() {
     root.dataset.mobileControls = 'enabled';
@@ -357,7 +484,14 @@ register('home', async (root) => {
     stateIsAdmin: state.is_admin,
   });
 
-  if (true) {
+  cleanupPublicHouseSelection = enablePublicHouseSelection({
+    root,
+    viewport,
+    cityId,
+    houseSelectionPanel,
+  });
+
+  if (canUseAdminPanel) {
     const panelCleanup = enableAdminPanel({
       root,
       stage,
@@ -372,7 +506,7 @@ register('home', async (root) => {
 
     const adminOpenButton = document.createElement('button');
     adminOpenButton.type = 'button';
-    adminOpenButton.textContent = canUseAdminPanel ? 'ADMIN' : 'ADMIN TEST';
+    adminOpenButton.textContent = 'ADMIN';
     adminOpenButton.className = 'admin-open-button';
 
     adminOpenButton.addEventListener('click', () => {
@@ -386,7 +520,7 @@ register('home', async (root) => {
       panelCleanup?.();
     };
 
-    console.log('[home] admin panel forced initialized');
+    console.log('[home] admin panel initialized');
   }
 
   const cleanupFogOfWar = enableFogOfWar({
@@ -403,6 +537,8 @@ register('home', async (root) => {
     cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
     cleanupAdminPanel?.();
+    cleanupPublicHouseSelection?.();
+    houseSelectionPanel.cleanup();
     cleanupSessionGuard?.();
     mapControls?.cleanup?.();
     cleanupFogOfWar?.();
