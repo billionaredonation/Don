@@ -24,6 +24,10 @@ function getSafeNickname(nickname) {
   return value || 'Игрок';
 }
 
+function isTruthyAdmin(value) {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
 export function getLocalPlayerId() {
   if (cachedPlayerId) return cachedPlayerId;
 
@@ -60,7 +64,24 @@ export function getSessionId() {
   return cachedSessionId;
 }
 
-function normalizePosition(row) {
+async function getPlayerAdminFlag(playerId, nickname) {
+  const safeNickname = getSafeNickname(nickname);
+
+  const { data, error } = await supabase
+    .from('players')
+    .select('id, player_id, tg_id, nickname, is_admin')
+    .or(`player_id.eq.${playerId},nickname.ilike.${safeNickname}`)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[playerPosition] admin flag loading failed:', error);
+    return false;
+  }
+
+  return isTruthyAdmin(data?.is_admin);
+}
+
+function normalizePosition(row, extra = {}) {
   return {
     playerId: row.player_id,
     nickname: getSafeNickname(row.nickname),
@@ -70,6 +91,8 @@ function normalizePosition(row) {
     angle: Number(row.angle || 0),
     isOnline: row.is_online ?? true,
     sessionId: row.session_id || null,
+    is_admin: isTruthyAdmin(extra.is_admin ?? row.is_admin),
+    isAdmin: isTruthyAdmin(extra.is_admin ?? row.is_admin),
     updatedAt: row.updated_at,
   };
 }
@@ -78,6 +101,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
   const playerId = getLocalPlayerId();
   const sessionId = getSessionId();
   const safeNickname = getSafeNickname(nickname);
+  const isAdmin = await getPlayerAdminFlag(playerId, safeNickname);
 
   const { data: currentPosition, error: selectError } = await supabase
     .from('player_positions')
@@ -109,10 +133,10 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
       .single();
 
     if (!refreshError && refreshedPosition) {
-      return normalizePosition(refreshedPosition);
+      return normalizePosition(refreshedPosition, { is_admin: isAdmin });
     }
 
-    return normalizePosition(nextPosition);
+    return normalizePosition(nextPosition, { is_admin: isAdmin });
   }
 
   const spawn = getRandomSpawnPoint(cityId);
@@ -149,17 +173,20 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
       angle: 0,
       isOnline: true,
       sessionId,
+      is_admin: isAdmin,
+      isAdmin,
       updatedAt: new Date().toISOString(),
     };
   }
 
-  return normalizePosition(savedPosition);
+  return normalizePosition(savedPosition, { is_admin: isAdmin });
 }
 
 export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }) {
   const playerId = getLocalPlayerId();
   const sessionId = getSessionId();
   const safeNickname = getSafeNickname(nickname);
+  const isAdmin = await getPlayerAdminFlag(playerId, safeNickname);
 
   const nextPosition = {
     player_id: playerId,
@@ -183,7 +210,7 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
 
   if (error) throw error;
 
-  return normalizePosition(data);
+  return normalizePosition(data, { is_admin: isAdmin });
 }
 
 export async function getCityPlayers(cityId) {
@@ -200,7 +227,7 @@ export async function getCityPlayers(cityId) {
 
   if (error) throw error;
 
-  return (data || []).map(normalizePosition);
+  return (data || []).map((row) => normalizePosition(row));
 }
 
 export function subscribeCityPlayers(cityId, handlers = {}) {
