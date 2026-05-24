@@ -211,3 +211,20 @@
 .map-object-icon {
   pointer-events: none;
 }
+
+
+.admin-house-class-wrap[hidden] {
+  display: none;
+}
+
+.admin-selected {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.62);
+}
+
+.map-object-type-house {
+  width: calc(30px * var(--map-object-scale, 1));
+  height: calc(30px * var(--map-object-scale, 1));
+  border-radius: 10px;
+}
