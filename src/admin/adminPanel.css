@@ -383,3 +383,17 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
     transform: scale(1.12);
   }
 }
+
+
+.map-object:focus,
+.map-object:focus-visible,
+.map-object:active {
+  outline: none !important;
+}
+
+.map-object-selected {
+  outline: 2px solid #fff !important;
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.55),
+    0 0 18px rgba(255,255,255,0.5) !important;
+}
