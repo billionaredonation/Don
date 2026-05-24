@@ -642,6 +642,24 @@ export function enableAdminPanel({
     selectedVariant = houseClassSelect.value;
   });
 
+
+
+  function onMapPointerDown(event) {
+  if (!enabled) return;
+  if (event.target.closest('.admin-panel')) return;
+
+  const clickedObjectId = getMapObjectIdFromEvent(event);
+
+  if (!clickedObjectId) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  updateSelectedObject(clickedObjectId);
+}
+
+  viewport.addEventListener('pointerdown', onMapPointerDown, true);
+  viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('mousemove', onMouseMove);
   window.addEventListener('keydown', onKeyDown);
