@@ -22,10 +22,11 @@ export function renderMapObjects(layer, objects = []) {
       const y = Number(object.y || 50);
       const scale = Number(object.scale || 1);
       const rotation = Number(object.rotation || 0);
+      const selectedClass = object.selected ? 'map-object-selected' : '';
 
       return `
         <button
-          class="map-object map-object-${escapeHtml(object.category)} map-object-type-${escapeHtml(object.type)}"
+          class="map-object map-object-${escapeHtml(object.category)} map-object-type-${escapeHtml(object.type)} ${selectedClass}"
           data-map-object-id="${escapeHtml(object.id)}"
           data-map-object-type="${escapeHtml(object.type)}"
           data-map-object-category="${escapeHtml(object.category)}"
