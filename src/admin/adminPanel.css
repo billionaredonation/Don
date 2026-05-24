@@ -228,3 +228,18 @@
   height: calc(30px * var(--map-object-scale, 1));
   border-radius: 10px;
 }
+
+.admin-open-button {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10000;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: rgba(8, 12, 18, 0.92);
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  box-shadow: 0 12px 34px rgba(0,0,0,0.45);
+}
