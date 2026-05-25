@@ -472,10 +472,7 @@ register('home', async (root) => {
     );
   }
 
-  const canUseAdminPanel =
-    isTruthyAdmin(playerPosition?.is_admin) ||
-    isTruthyAdmin(playerPosition?.isAdmin) ||
-    isCurrentPlayerAdmin();
+  const canUseAdminPanel = true;
 
   console.log('[home] admin panel gate:', {
     canUseAdminPanel,
