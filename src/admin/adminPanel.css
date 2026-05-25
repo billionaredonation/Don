@@ -150,6 +150,20 @@
   pointer-events: none;
 }
 
+.map-objects-layer-admin {
+  display: none;
+}
+
+[data-admin-mode="enabled"] .map-objects-layer-admin,
+[data-admin-move-mode="enabled"] .map-objects-layer-admin {
+  display: block;
+}
+
+[data-admin-mode="enabled"] .map-objects-layer-public,
+[data-admin-move-mode="enabled"] .map-objects-layer-public {
+  display: none;
+}
+
 .map-object {
   position: absolute;
   width: calc(24px * var(--map-object-scale, 1));
@@ -207,13 +221,13 @@
   border-radius: 10px;
 }
 
-/* лишнюю ADMIN-кнопку полностью убираем */
+/* Ð»Ð¸ÑˆÐ½ÑŽÑŽ ADMIN-ÐºÐ½Ð¾Ð¿ÐºÑƒ Ð¿Ð¾Ð»Ð½Ð¾ÑÑ‚ÑŒÑŽ ÑƒÐ±Ð¸Ñ€Ð°ÐµÐ¼ */
 .admin-open-button {
   display: none !important;
 }
 
 /* ===== HUD / STAMINA PRIORITY ===== */
-/* стамина должна быть ниже админки и не перекрывать её */
+/* ÑÑ‚Ð°Ð¼Ð¸Ð½Ð° Ð´Ð¾Ð»Ð¶Ð½Ð° Ð±Ñ‹Ñ‚ÑŒ Ð½Ð¸Ð¶Ðµ Ð°Ð´Ð¼Ð¸Ð½ÐºÐ¸ Ð¸ Ð½Ðµ Ð¿ÐµÑ€ÐµÐºÑ€Ñ‹Ð²Ð°Ñ‚ÑŒ ÐµÑ‘ */
 [data-admin-mode="enabled"] .stamina-panel,
 [data-admin-mode="enabled"] .stamina,
 [data-admin-mode="enabled"] .player-stamina,
@@ -290,9 +304,6 @@
   }
 }
 
-
-
-
 /* Admin overlay and panel stay above stamina */
 [data-admin-mode="enabled"]::before {
   z-index: 99980 !important;
@@ -302,7 +313,6 @@
   z-index: 99999 !important;
 }
 
-
 /* Hide stamina completely while admin CEF is open */
 body:has([data-admin-mode="enabled"]) .mobile-stamina,
 body:has([data-admin-mode="enabled"]) .pc-stamina {
@@ -311,7 +321,6 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
   visibility: hidden !important;
   pointer-events: none !important;
 }
-
 
 .admin-editor-title {
   margin-top: 6px;
@@ -383,7 +392,6 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
     transform: scale(1.12);
   }
 }
-
 
 .map-object:focus,
 .map-object:focus-visible,
