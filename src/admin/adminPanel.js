@@ -604,52 +604,7 @@ function onKeyDown(event) {
   }
 }
 
-    if (!enabled) return;
 
-    if (moveMode) {
-      let dx = 0;
-      let dy = 0;
-
-      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') dx = -0.3;
-      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') dx = 0.3;
-      if (event.key === 'ArrowUp' || event.key.toLowerCase() === 'w') dy = -0.3;
-      if (event.key === 'ArrowDown' || event.key.toLowerCase() === 's') dy = 0.3;
-
-      if (dx || dy) {
-        event.preventDefault();
-        moveSelectedVisual(dx, dy);
-        return;
-      }
-
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        saveMoveMode();
-        return;
-      }
-
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        cancelMoveMode();
-        return;
-      }
-    }
-
-    if (event.key === 'Escape' && !isFormField) {
-      event.preventDefault();
-      setEnabled(false);
-      return;
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-
-      if (selectedObjectId) {
-        saveSelectedObject();
-      } else {
-        addObjectAtPlayerPosition();
-      }
-    }
-  }
 
   function onAdminToggle() {
     togglePanel();
