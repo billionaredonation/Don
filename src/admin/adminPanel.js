@@ -536,10 +536,13 @@ export function enableAdminPanel({
     const tag = document.activeElement?.tagName?.toLowerCase();
     const isFormField = tag === 'input' || tag === 'textarea' || tag === 'select';
 
+    const key = String(event.key || '').toLowerCase();
+    const code = String(event.code || '');
+
     const isAdminHotkey =
-      event.code === 'KeyP' ||
-      event.key?.toLowerCase() === 'p' ||
-      event.key?.toLowerCase() === 'Ð·';
+      code === 'KeyP' ||
+      key === 'p' ||
+      key === 'з';
 
     if (isAdminHotkey && !isFormField && !moveMode) {
       event.preventDefault();
