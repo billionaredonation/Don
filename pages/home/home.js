@@ -62,8 +62,8 @@ function getUserDayMode() {
 function getFallbackWeather() {
   return {
     type: 'clear',
-    icon: 'â˜€',
-    label: 'Ð¯ÑÐ½Ð¾',
+    icon: '☀',
+    label: 'Ясно',
     temperature: 18,
   };
 }
@@ -74,8 +74,8 @@ function getDisplayWeather(weather, dayMode) {
   if (dayMode === 'night') {
     return {
       ...weather,
-      label: 'Ð¢Ñ‘Ð¿Ð»Ð°Ñ Ð½Ð¾Ñ‡ÑŒ',
-      icon: 'ðŸŒ™',
+      label: 'Тёплая ночь',
+      icon: '🌙',
       temperature: Math.min(weather.temperature - 5, 25),
     };
   }
@@ -106,7 +106,7 @@ function saveMobileControlsAccepted() {
   try {
     localStorage.setItem(MOBILE_CONTROLS_KEY, '1');
   } catch {
-    // localStorage Ð¼Ð¾Ð¶ÐµÑ‚ Ð±Ñ‹Ñ‚ÑŒ Ð½ÐµÐ´Ð¾ÑÑ‚ÑƒÐ¿ÐµÐ½, Ð½Ð¾ Ð¸Ð³Ñ€Ð° Ð½Ðµ Ð´Ð¾Ð»Ð¶Ð½Ð° Ð¿Ð°Ð´Ð°Ñ‚ÑŒ
+    // localStorage может быть недоступен, но игра не должна падать
   }
 }
 
@@ -128,13 +128,13 @@ function createHouseSelectionPanel(root) {
   panel.className = 'house-selection-panel';
   panel.hidden = true;
   panel.innerHTML = `
-    <button class="house-selection-close" type="button" aria-label="Ð—Ð°ÐºÑ€Ñ‹Ñ‚ÑŒ">Ã—</button>
-    <div class="house-selection-icon">ðŸ </div>
+    <button class="house-selection-close" type="button" aria-label="Закрыть">×</button>
+    <div class="house-selection-icon">🏠</div>
     <div class="house-selection-body">
-      <strong class="house-selection-title">Ð”Ð¾Ð¼</strong>
+      <strong class="house-selection-title">Дом</strong>
       <span class="house-selection-meta"></span>
     </div>
-    <button class="house-selection-action" type="button">Ð’Ñ‹Ð±Ñ€Ð°Ñ‚ÑŒ</button>
+    <button class="house-selection-action" type="button">Выбрать</button>
   `;
 
   root.appendChild(panel);
@@ -158,12 +158,12 @@ function createHouseSelectionPanel(root) {
     const houseClass = object?.payload?.houseClassLabel || object?.payload?.houseClass || object?.variant || 'standard';
     const price = Number(object?.payload?.price || 0);
     const ownerId = object?.payload?.ownerId || '';
-    const ownerText = ownerId ? 'Ð·Ð°Ð½ÑÑ‚' : 'ÑÐ²Ð¾Ð±Ð¾Ð´ÐµÐ½';
-    const priceText = price > 0 ? ` Â· ${price.toLocaleString('ru-RU')} $` : '';
+    const ownerText = ownerId ? 'занят' : 'свободен';
+    const priceText = price > 0 ? ` · ${price.toLocaleString('ru-RU')} $` : '';
 
-    iconEl.textContent = object?.icon || 'ðŸ ';
-    titleEl.textContent = object?.name || 'Ð”Ð¾Ð¼';
-    metaEl.innerHTML = `${escapeHtml(houseClass)} Â· ${escapeHtml(ownerText)}${escapeHtml(priceText)}`;
+    iconEl.textContent = object?.icon || '🏠';
+    titleEl.textContent = object?.name || 'Дом';
+    metaEl.innerHTML = `${escapeHtml(houseClass)} · ${escapeHtml(ownerText)}${escapeHtml(priceText)}`;
     panel.hidden = false;
   }
 
@@ -237,7 +237,7 @@ register('home', async (root) => {
   const cityId = normalizeCityId(state.city);
   const city = getCityConfig(cityId);
   const dayMode = getUserDayMode();
-  const nickname = state.nickname || 'Ð˜Ð³Ñ€Ð¾Ðº';
+  const nickname = state.nickname || 'Игрок';
   const localPlayerId = getLocalPlayerId();
 
   let weather = getFallbackWeather();
@@ -381,11 +381,11 @@ register('home', async (root) => {
         <header class="gta-map-header">
           <div class="gta-map-title">
             <span class="gta-time-badge">
-              ${dayMode === 'day' ? 'â˜€ Ð”ÐµÐ½ÑŒ' : 'â˜¾ ÐÐ¾Ñ‡ÑŒ'}
+              ${dayMode === 'day' ? '☀ День' : '☾ Ночь'}
             </span>
 
             <span class="gta-weather-badge">
-              ${displayWeather.icon} ${displayWeather.label} Â· ${displayWeather.temperature}Â°C
+              ${displayWeather.icon} ${displayWeather.label} · ${displayWeather.temperature}°C
             </span>
 
             <strong>${city.name}</strong>
