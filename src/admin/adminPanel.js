@@ -110,64 +110,64 @@ export function enableAdminPanel({
   panel.innerHTML = `
     <div class="admin-panel-head">
       <strong>ADMIN</strong>
-      <button class="admin-btn admin-close" type="button">Ã—</button>
+      <button class="admin-btn admin-close" type="button">×</button>
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-toggle-teleport" type="button">Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: OFF</button>
-      <button class="admin-btn admin-toggle-place" type="button">ÐšÐ»Ð¸Ðº: OFF</button>
+      <button class="admin-btn admin-toggle-teleport" type="button">Телепорт: OFF</button>
+      <button class="admin-btn admin-toggle-place" type="button">Клик: OFF</button>
     </div>
 
     <div class="admin-separator"></div>
 
     <label class="admin-label">
-      Ð¢Ð¸Ð¿ Ð¾Ð±ÑŠÐµÐºÑ‚Ð°
+      Тип объекта
       <select class="admin-select admin-object-type">
         ${createObjectOptionsHtml()}
       </select>
     </label>
 
     <label class="admin-label admin-house-class-wrap">
-      ÐšÐ»Ð°ÑÑ Ð´Ð¾Ð¼Ð°
+      Класс дома
       <select class="admin-select admin-house-class">
         ${createHouseClassOptionsHtml()}
       </select>
     </label>
 
     <label class="admin-label">
-      ÐÐ°Ð·Ð²Ð°Ð½Ð¸Ðµ
-      <input class="admin-input admin-object-name" placeholder="ÐÐ°Ð·Ð²Ð°Ð½Ð¸Ðµ Ð´Ð¾Ð¼Ð° / Ð±Ð¸Ð·Ð½ÐµÑÐ°" />
+      Название
+      <input class="admin-input admin-object-name" placeholder="Название дома / бизнеса" />
     </label>
 
     <div class="admin-row">
-      <button class="admin-btn admin-place-here" type="button">ÐŸÐ¾ÑÑ‚Ð°Ð²Ð¸Ñ‚ÑŒ Ñ‚ÑƒÑ‚</button>
-      <button class="admin-btn admin-move-selected-here" type="button">ÐŸÐµÑ€ÐµÐ½ÐµÑÑ‚Ð¸ ÑÑŽÐ´Ð°</button>
+      <button class="admin-btn admin-place-here" type="button">Поставить тут</button>
+      <button class="admin-btn admin-move-selected-here" type="button">Перенести сюда</button>
     </div>
 
     <div class="admin-separator"></div>
 
-    <div class="admin-editor-title">Ð’Ñ‹Ð±Ñ€Ð°Ð½Ð½Ñ‹Ð¹ Ð¾Ð±ÑŠÐµÐºÑ‚</div>
+    <div class="admin-editor-title">Выбранный объект</div>
 
     <div class="admin-selected">
-      <span class="admin-selected-name">Ð½ÐµÑ‚</span>
+      <span class="admin-selected-name">нет</span>
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-start-move" type="button">Ð”Ð²Ð¸Ð³Ð°Ñ‚ÑŒ</button>
-      <button class="admin-btn admin-save-selected" type="button">Ð¡Ð¾Ñ…Ñ€Ð°Ð½Ð¸Ñ‚ÑŒ</button>
+      <button class="admin-btn admin-start-move" type="button">Двигать</button>
+      <button class="admin-btn admin-save-selected" type="button">Сохранить</button>
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-delete-selected" type="button">Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ</button>
+      <button class="admin-btn admin-delete-selected" type="button">Удалить</button>
     </div>
 
     <div class="admin-row">
-      <button class="admin-btn admin-copy-coords" type="button">ÐšÐ¾Ð¿Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ JSON</button>
-      <button class="admin-btn admin-clear-all" type="button">ÐžÑ‡Ð¸ÑÑ‚Ð¸Ñ‚ÑŒ</button>
+      <button class="admin-btn admin-copy-coords" type="button">Копировать JSON</button>
+      <button class="admin-btn admin-clear-all" type="button">Очистить</button>
     </div>
 
     <div class="admin-coords">
-      ÐšÑƒÑ€ÑÐ¾Ñ€: X <b class="admin-x">0</b> Â· Y <b class="admin-y">0</b>
+      Курсор: X <b class="admin-x">0</b> · Y <b class="admin-y">0</b>
     </div>
   `;
 
@@ -198,7 +198,6 @@ export function enableAdminPanel({
 
   function getSelectedObject() {
     if (!selectedObjectId) return null;
-
     return objects.find((object) => String(object.id) === String(selectedObjectId)) || null;
   }
 
@@ -223,11 +222,11 @@ export function enableAdminPanel({
 
   function fillEditor(object) {
     if (!object) {
-      selectedNameEl.textContent = 'Ð½ÐµÑ‚';
+      selectedNameEl.textContent = 'нет';
       return;
     }
 
-    selectedNameEl.textContent = `${object.icon || 'â—†'} ${object.name || object.type}`;
+    selectedNameEl.textContent = `${object.icon || '◆'} ${object.name || object.type} #${String(object.id || '').slice(-6)}`;
 
     nameInput.value = object.name || '';
     typeSelect.value = object.type || 'marker';
@@ -252,14 +251,8 @@ export function enableAdminPanel({
 
   function updateSelectedObject(objectId) {
     selectedObjectId = objectId ? String(objectId) : null;
-
     markSelectedObject();
     fillEditor(getSelectedObject());
-
-    console.log('[adminPanel] selected object:', {
-      selectedObjectId,
-      selectedObject: getSelectedObject(),
-    });
   }
 
   async function reloadObjects() {
@@ -283,6 +276,17 @@ export function enableAdminPanel({
     notifyMapObjectsChanged(cityId);
   }
 
+  function setMoveMode(next) {
+    moveMode = Boolean(next);
+    root.dataset.adminMoveMode = moveMode ? 'enabled' : 'disabled';
+
+    if (moveMode) {
+      panel.hidden = true;
+    } else if (enabled) {
+      panel.hidden = false;
+    }
+  }
+
   function setEnabled(next) {
     enabled = Boolean(next);
     root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
@@ -292,22 +296,11 @@ export function enableAdminPanel({
       teleportMode = false;
       placeMode = false;
       setMoveMode(false);
-      btnTeleport.textContent = 'Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: OFF';
-      btnPlace.textContent = 'ÐšÐ»Ð¸Ðº: OFF';
+      btnTeleport.textContent = 'Телепорт: OFF';
+      btnPlace.textContent = 'Клик: OFF';
     } else {
       const point = getCurrentPlayerPoint(playerMarker, playerPosition);
       updateCoords(point.x, point.y);
-    }
-  }
-
-  function setMoveMode(next) {
-    moveMode = Boolean(next);
-    root.dataset.adminMoveMode = moveMode ? 'enabled' : 'disabled';
-
-    if (moveMode) {
-      panel.hidden = true;
-    } else if (enabled) {
-      panel.hidden = false;
     }
   }
 
@@ -439,22 +432,13 @@ export function enableAdminPanel({
 
   function startMoveSelected() {
     const object = getSelectedObject();
-
-    if (!object) {
-      console.warn('[adminPanel] move failed: no selected object');
-      return;
-    }
+    if (!object) return;
 
     moveSnapshot = {
       id: object.id,
       x: object.x,
       y: object.y,
     };
-
-    console.log('[adminPanel] move started:', {
-      selectedObjectId,
-      object,
-    });
 
     setMoveMode(true);
   }
@@ -532,79 +516,74 @@ export function enableAdminPanel({
     updateCoords(point.x, point.y);
   }
 
-function onKeyDown(event) {
-  const activeTag = document.activeElement?.tagName?.toLowerCase();
-  const isFormField =
-    activeTag === 'input' ||
-    activeTag === 'textarea' ||
-    activeTag === 'select';
+  function onKeyDown(event) {
+    const activeTag = document.activeElement?.tagName?.toLowerCase();
+    const isFormField =
+      activeTag === 'input' ||
+      activeTag === 'textarea' ||
+      activeTag === 'select';
 
-  const key = String(event.key || '').toLowerCase();
-  const code = String(event.code || '');
+    const key = String(event.key || '').toLowerCase();
+    const code = String(event.code || '');
 
-  const isAdminHotkey =
-    code === 'KeyP' ||
-    key === 'p' ||
-    key === 'з' ||
-    key === 'З';
+    const isAdminHotkey =
+      code === 'KeyP' ||
+      key === 'p' ||
+      key === 'з';
 
-  if (isAdminHotkey && !event.repeat && (!isFormField || !enabled)) {
-    event.preventDefault();
-    event.stopPropagation();
-    togglePanel();
-    return;
-  }
-
-  if (!enabled) return;
-
-  if (moveMode) {
-    let dx = 0;
-    let dy = 0;
-
-    const moveKey = key;
-
-    if (event.key === 'ArrowLeft' || moveKey === 'a' || moveKey === 'ф') dx = -0.3;
-    if (event.key === 'ArrowRight' || moveKey === 'd' || moveKey === 'в') dx = 0.3;
-    if (event.key === 'ArrowUp' || moveKey === 'w' || moveKey === 'ц') dy = -0.3;
-    if (event.key === 'ArrowDown' || moveKey === 's' || moveKey === 'ы') dy = 0.3;
-
-    if (dx || dy) {
+    if (isAdminHotkey && !event.repeat && !isFormField) {
       event.preventDefault();
-      moveSelectedVisual(dx, dy);
+      event.stopPropagation();
+      togglePanel();
       return;
     }
 
-    if (event.key === 'Enter') {
+    if (!enabled) return;
+
+    if (moveMode) {
+      let dx = 0;
+      let dy = 0;
+
+      if (event.key === 'ArrowLeft' || key === 'a' || key === 'ф') dx = -0.3;
+      if (event.key === 'ArrowRight' || key === 'd' || key === 'в') dx = 0.3;
+      if (event.key === 'ArrowUp' || key === 'w' || key === 'ц') dy = -0.3;
+      if (event.key === 'ArrowDown' || key === 's' || key === 'ы') dy = 0.3;
+
+      if (dx || dy) {
+        event.preventDefault();
+        moveSelectedVisual(dx, dy);
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveMoveMode();
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelMoveMode();
+        return;
+      }
+    }
+
+    if (event.key === 'Escape' && !isFormField) {
       event.preventDefault();
-      saveMoveMode();
+      setEnabled(false);
       return;
     }
 
-    if (event.key === 'Escape') {
+    if (event.key === 'Enter' && !isFormField) {
       event.preventDefault();
-      cancelMoveMode();
-      return;
+
+      if (selectedObjectId) {
+        saveSelectedObject();
+      } else {
+        addObjectAtPlayerPosition();
+      }
     }
   }
-
-  if (event.key === 'Escape' && !isFormField) {
-    event.preventDefault();
-    setEnabled(false);
-    return;
-  }
-
-  if (event.key === 'Enter' && !isFormField) {
-    event.preventDefault();
-
-    if (selectedObjectId) {
-      saveSelectedObject();
-    } else {
-      addObjectAtPlayerPosition();
-    }
-  }
-}
-
-
 
   function onAdminToggle() {
     togglePanel();
@@ -615,15 +594,15 @@ function onKeyDown(event) {
   btnTeleport.addEventListener('click', () => {
     teleportMode = !teleportMode;
     placeMode = false;
-    btnTeleport.textContent = teleportMode ? 'Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: ON' : 'Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: OFF';
-    btnPlace.textContent = 'ÐšÐ»Ð¸Ðº: OFF';
+    btnTeleport.textContent = teleportMode ? 'Телепорт: ON' : 'Телепорт: OFF';
+    btnPlace.textContent = 'Клик: OFF';
   });
 
   btnPlace.addEventListener('click', () => {
     placeMode = !placeMode;
     teleportMode = false;
-    btnPlace.textContent = placeMode ? 'ÐšÐ»Ð¸Ðº: ON' : 'ÐšÐ»Ð¸Ðº: OFF';
-    btnTeleport.textContent = 'Ð¢ÐµÐ»ÐµÐ¿Ð¾Ñ€Ñ‚: OFF';
+    btnPlace.textContent = placeMode ? 'Клик: ON' : 'Клик: OFF';
+    btnTeleport.textContent = 'Телепорт: OFF';
   });
 
   btnPlaceHere.addEventListener('click', addObjectAtPlayerPosition);
@@ -650,7 +629,7 @@ function onKeyDown(event) {
   });
 
   btnClearAll.addEventListener('click', async () => {
-    if (!window.confirm('Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ Ð²ÑÐµ Ð¾Ð±ÑŠÐµÐºÑ‚Ñ‹ Ð½Ð° ÑÑ‚Ð¾Ð¹ ÐºÐ°Ñ€Ñ‚Ðµ?')) return;
+    if (!window.confirm('Удалить все объекты на этой карте?')) return;
     await clearMapObjects(cityId);
     selectedObjectId = null;
     await reloadObjects();
@@ -670,7 +649,6 @@ function onKeyDown(event) {
     if (event.target.closest('.admin-panel')) return;
 
     const clickedObjectId = getMapObjectIdFromEvent(event);
-
     if (!clickedObjectId) return;
 
     event.preventDefault();
