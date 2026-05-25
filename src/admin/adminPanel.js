@@ -532,23 +532,77 @@ export function enableAdminPanel({
     updateCoords(point.x, point.y);
   }
 
-  function onKeyDown(event) {
-    const tag = document.activeElement?.tagName?.toLowerCase();
-    const isFormField = tag === 'input' || tag === 'textarea' || tag === 'select';
+function onKeyDown(event) {
+  const activeTag = document.activeElement?.tagName?.toLowerCase();
+  const isFormField =
+    activeTag === 'input' ||
+    activeTag === 'textarea' ||
+    activeTag === 'select';
 
-    const key = String(event.key || '').toLowerCase();
-    const code = String(event.code || '');
+  const key = String(event.key || '').toLowerCase();
+  const code = String(event.code || '');
 
-    const isAdminHotkey =
-      code === 'KeyP' ||
-      key === 'p' ||
-      key === 'з';
+  const isAdminHotkey =
+    code === 'KeyP' ||
+    key === 'p' ||
+    key === 'з' ||
+    key === 'З';
 
-    if (isAdminHotkey && !isFormField && !moveMode) {
+  if (isAdminHotkey && !event.repeat && (!isFormField || !enabled)) {
+    event.preventDefault();
+    event.stopPropagation();
+    togglePanel();
+    return;
+  }
+
+  if (!enabled) return;
+
+  if (moveMode) {
+    let dx = 0;
+    let dy = 0;
+
+    const moveKey = key;
+
+    if (event.key === 'ArrowLeft' || moveKey === 'a' || moveKey === 'ф') dx = -0.3;
+    if (event.key === 'ArrowRight' || moveKey === 'd' || moveKey === 'в') dx = 0.3;
+    if (event.key === 'ArrowUp' || moveKey === 'w' || moveKey === 'ц') dy = -0.3;
+    if (event.key === 'ArrowDown' || moveKey === 's' || moveKey === 'ы') dy = 0.3;
+
+    if (dx || dy) {
       event.preventDefault();
-      togglePanel();
+      moveSelectedVisual(dx, dy);
       return;
     }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      saveMoveMode();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelMoveMode();
+      return;
+    }
+  }
+
+  if (event.key === 'Escape' && !isFormField) {
+    event.preventDefault();
+    setEnabled(false);
+    return;
+  }
+
+  if (event.key === 'Enter' && !isFormField) {
+    event.preventDefault();
+
+    if (selectedObjectId) {
+      saveSelectedObject();
+    } else {
+      addObjectAtPlayerPosition();
+    }
+  }
+}
 
     if (!enabled) return;
 
@@ -673,7 +727,7 @@ export function enableAdminPanel({
   viewport.addEventListener('pointerdown', onMapPointerDown, true);
   viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('mn:admin-toggle', onAdminToggle);
 
   updateVariantVisibility();
@@ -684,7 +738,7 @@ export function enableAdminPanel({
     viewport.removeEventListener('pointerdown', onMapPointerDown, true);
     viewport.removeEventListener('click', onMapClick, true);
     viewport.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('mn:admin-toggle', onAdminToggle);
 
     panel.remove();
