@@ -21,7 +21,6 @@ import { renderPlayersHtml } from '../../src/player/playerMarkerView.js';
 import { enableFogOfWar } from '../../src/map/fogOfWar.js';
 
 import { enableAdminPanel } from '../../src/admin/adminPanel.js';
-import { isCurrentPlayerAdmin } from '../../src/admin/adminAccess.js';
 import { getMapObjects } from '../../src/mapObjects/mapObjectsRepository.js';
 import {
   createMapObjectsLayer,
@@ -119,8 +118,16 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
-function isHouseObject(object) {
-  return object?.type === 'house' || object?.category === 'house' || object?.payload?.kind === 'house';
+function getObjectKindLabel(object) {
+  const category = object?.category || object?.payload?.kind || object?.type;
+
+  if (category === 'house') return 'Дом';
+  if (category === 'business') return 'Бизнес';
+  if (category === 'decor') return 'Декор';
+  if (category === 'npc') return 'NPC';
+  if (category === 'marker') return 'Маркер';
+
+  return 'Сущность';
 }
 
 function createHouseSelectionPanel(root) {
@@ -129,9 +136,9 @@ function createHouseSelectionPanel(root) {
   panel.hidden = true;
   panel.innerHTML = `
     <button class="house-selection-close" type="button" aria-label="Закрыть">×</button>
-    <div class="house-selection-icon">🏠</div>
+    <div class="house-selection-icon">◆</div>
     <div class="house-selection-body">
-      <strong class="house-selection-title">Дом</strong>
+      <strong class="house-selection-title">Сущность</strong>
       <span class="house-selection-meta"></span>
     </div>
     <button class="house-selection-action" type="button">Выбрать</button>
@@ -145,35 +152,44 @@ function createHouseSelectionPanel(root) {
   const iconEl = panel.querySelector('.house-selection-icon');
   const actionButton = panel.querySelector('.house-selection-action');
 
-  let selectedHouse = null;
+  let selectedObject = null;
 
   function close() {
-    selectedHouse = null;
+    selectedObject = null;
     panel.hidden = true;
   }
 
   function open(object) {
-    selectedHouse = object;
+    selectedObject = object;
 
-    const houseClass = object?.payload?.houseClassLabel || object?.payload?.houseClass || object?.variant || 'standard';
+    const kindLabel = getObjectKindLabel(object);
+    const classLabel =
+      object?.payload?.houseClassLabel ||
+      object?.payload?.businessLabel ||
+      object?.payload?.kind ||
+      object?.variant ||
+      object?.type ||
+      'object';
+
     const price = Number(object?.payload?.price || 0);
     const ownerId = object?.payload?.ownerId || '';
     const ownerText = ownerId ? 'занят' : 'свободен';
     const priceText = price > 0 ? ` · ${price.toLocaleString('ru-RU')} $` : '';
 
-    iconEl.textContent = object?.icon || '🏠';
-    titleEl.textContent = object?.name || 'Дом';
-    metaEl.innerHTML = `${escapeHtml(houseClass)} · ${escapeHtml(ownerText)}${escapeHtml(priceText)}`;
+    iconEl.textContent = object?.icon || '◆';
+    titleEl.textContent = object?.name || kindLabel;
+    metaEl.innerHTML = `${escapeHtml(kindLabel)} · ${escapeHtml(classLabel)} · ${escapeHtml(ownerText)}${escapeHtml(priceText)}`;
+
     panel.hidden = false;
   }
 
   closeButton.addEventListener('click', close);
 
   actionButton.addEventListener('click', () => {
-    if (!selectedHouse) return;
+    if (!selectedObject) return;
 
-    window.dispatchEvent(new CustomEvent('mn:house-selected', {
-      detail: { house: selectedHouse },
+    window.dispatchEvent(new CustomEvent('mn:map-object-selected', {
+      detail: { object: selectedObject },
     }));
   });
 
@@ -234,34 +250,6 @@ function enablePublicHouseSelection({ root, viewport, cityId, houseSelectionPane
     layer.remove();
   };
 }
-
-  function onClick(event) {
-    const clickedObjectId = getMapObjectIdFromEvent(event);
-    if (!clickedObjectId) return;
-
-    const house = houses.find((object) => String(object.id) === String(clickedObjectId));
-    if (!house) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    houseSelectionPanel.open(house);
-  }
-
-  function onObjectsChanged(event) {
-    if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
-    reloadHouses();
-  }
-
-  layer.addEventListener('click', onClick);
-  window.addEventListener('mn:map-objects-changed', onObjectsChanged);
-  reloadHouses();
-
-  return () => {
-    layer.removeEventListener('click', onClick);
-    window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
-    layer.remove();
-  };
-
 
 register('home', async (root) => {
   root._cleanupHome?.();
