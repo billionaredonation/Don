@@ -193,13 +193,47 @@ function enablePublicHouseSelection({ root, viewport, cityId, houseSelectionPane
   layer.classList.add('map-objects-layer-public');
   viewport.appendChild(layer);
 
-  let houses = [];
+  let mapObjects = [];
 
-  async function reloadHouses() {
+  async function reloadObjects() {
     const objects = await getMapObjects(cityId);
-    houses = objects.filter(isHouseObject);
-    renderMapObjects(layer, houses);
+
+    mapObjects = Array.isArray(objects)
+      ? objects.filter(Boolean)
+      : [];
+
+    renderMapObjects(layer, mapObjects);
   }
+
+  function onClick(event) {
+    const clickedObjectId = getMapObjectIdFromEvent(event);
+    if (!clickedObjectId) return;
+
+    const object = mapObjects.find((item) => String(item.id) === String(clickedObjectId));
+    if (!object) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    houseSelectionPanel.open(object);
+  }
+
+  function onObjectsChanged(event) {
+    if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
+    reloadObjects();
+  }
+
+  layer.addEventListener('click', onClick);
+  window.addEventListener('mn:map-objects-changed', onObjectsChanged);
+
+  reloadObjects();
+
+  return () => {
+    layer.removeEventListener('click', onClick);
+    window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
+    layer.remove();
+  };
+}
 
   function onClick(event) {
     const clickedObjectId = getMapObjectIdFromEvent(event);
