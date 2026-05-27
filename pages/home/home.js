@@ -261,7 +261,7 @@ function enablePublicHouseSelection({ root, viewport, cityId, houseSelectionPane
     window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
     layer.remove();
   };
-}
+
 
 register('home', async (root) => {
   root._cleanupHome?.();
