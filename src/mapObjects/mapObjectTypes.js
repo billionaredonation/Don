@@ -10,25 +10,66 @@ export const HOUSE_CLASSES = {
   standard: {
     value: 'standard',
     label: 'Стандарт',
+    shortLabel: 'STD',
     icon: '🏠',
     asset: 'house_standard_01',
     scale: 1,
+    price: 15000,
+    rentPerHour: 15,
+    statusText: 'Базовый дом',
+    visualClass: 'standard',
+  },
+
+  comfort: {
+    value: 'comfort',
+    label: 'Комфорт',
+    shortLabel: 'COM',
+    icon: '🏘️',
+    asset: 'house_comfort_01',
+    scale: 1.08,
+    price: 35000,
+    rentPerHour: 35,
+    statusText: 'Дом получше',
+    visualClass: 'comfort',
   },
 
   premium: {
     value: 'premium',
     label: 'Премиум',
+    shortLabel: 'PREM',
     icon: '🏡',
     asset: 'house_premium_01',
-    scale: 1.15,
+    scale: 1.18,
+    price: 85000,
+    rentPerHour: 85,
+    statusText: 'Премиум жильё',
+    visualClass: 'premium',
   },
 
   lux: {
     value: 'lux',
     label: 'Люкс',
-    icon: '🏛',
+    shortLabel: 'LUX',
+    icon: '🏛️',
     asset: 'house_lux_01',
-    scale: 1.35,
+    scale: 1.32,
+    price: 180000,
+    rentPerHour: 180,
+    statusText: 'Элитный объект',
+    visualClass: 'lux',
+  },
+
+  elite: {
+    value: 'elite',
+    label: 'Элита',
+    shortLabel: 'VIP',
+    icon: '💎',
+    asset: 'house_elite_01',
+    scale: 1.42,
+    price: 350000,
+    rentPerHour: 350,
+    statusText: 'VIP недвижимость',
+    visualClass: 'elite',
   },
 };
 
@@ -53,6 +94,26 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'rock_01',
   },
 
+  bench: {
+    type: 'bench',
+    category: MAP_OBJECT_CATEGORIES.DECOR,
+    label: 'Лавка',
+    icon: '🪑',
+    defaultScale: 0.9,
+    defaultRotation: 0,
+    defaultAsset: 'bench_01',
+  },
+
+  lamp: {
+    type: 'lamp',
+    category: MAP_OBJECT_CATEGORIES.DECOR,
+    label: 'Фонарь',
+    icon: '💡',
+    defaultScale: 0.85,
+    defaultRotation: 0,
+    defaultAsset: 'lamp_01',
+  },
+
   house: {
     type: 'house',
     category: MAP_OBJECT_CATEGORIES.HOUSE,
@@ -64,14 +125,74 @@ export const MAP_OBJECT_TYPES = {
     variants: HOUSE_CLASSES,
   },
 
-  business: {
-    type: 'business',
+  shop: {
+    type: 'shop',
     category: MAP_OBJECT_CATEGORIES.BUSINESS,
-    label: 'Бизнес',
-    icon: '$',
-    defaultScale: 1,
+    label: 'Магазин',
+    icon: '🛒',
+    defaultScale: 1.12,
     defaultRotation: 0,
-    defaultAsset: 'business_01',
+    defaultAsset: 'business_shop_01',
+  },
+
+  cafe: {
+    type: 'cafe',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Кафе',
+    icon: '☕',
+    defaultScale: 1.08,
+    defaultRotation: 0,
+    defaultAsset: 'business_cafe_01',
+  },
+
+  gas_station: {
+    type: 'gas_station',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Заправка',
+    icon: '⛽',
+    defaultScale: 1.16,
+    defaultRotation: 0,
+    defaultAsset: 'business_gas_01',
+  },
+
+  bank: {
+    type: 'bank',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Банк',
+    icon: '🏦',
+    defaultScale: 1.18,
+    defaultRotation: 0,
+    defaultAsset: 'business_bank_01',
+  },
+
+  warehouse: {
+    type: 'warehouse',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Склад',
+    icon: '📦',
+    defaultScale: 1.15,
+    defaultRotation: 0,
+    defaultAsset: 'business_warehouse_01',
+  },
+
+  office: {
+    type: 'office',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Офис',
+    icon: '🏢',
+    defaultScale: 1.14,
+    defaultRotation: 0,
+    defaultAsset: 'business_office_01',
+  },
+
+  market: {
+    type: 'market',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Рынок',
+    icon: '🏪',
+    defaultScale: 1.1,
+    defaultRotation: 0,
+    defaultAsset: 'business_market_01',
   },
 
   npc: {
@@ -84,6 +205,16 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'npc_01',
   },
 
+  quest_npc: {
+    type: 'quest_npc',
+    category: MAP_OBJECT_CATEGORIES.NPC,
+    label: 'NPC квест',
+    icon: '❗',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'npc_quest_01',
+  },
+
   marker: {
     type: 'marker',
     category: MAP_OBJECT_CATEGORIES.MARKER,
@@ -92,6 +223,16 @@ export const MAP_OBJECT_TYPES = {
     defaultScale: 1,
     defaultRotation: 0,
     defaultAsset: 'marker_01',
+  },
+
+  spawn: {
+    type: 'spawn',
+    category: MAP_OBJECT_CATEGORIES.MARKER,
+    label: 'Спавн',
+    icon: '📍',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'marker_spawn_01',
   },
 };
 
@@ -128,7 +269,7 @@ export function createMapObjectDraft({
   let objectName = name || config.label;
   let nextPayload = { ...payload };
 
-  if (config.type === 'house') {
+  if (config.category === MAP_OBJECT_CATEGORIES.HOUSE) {
     const houseClass = getHouseClass(variant || 'standard');
 
     icon = houseClass.icon;
@@ -138,8 +279,40 @@ export function createMapObjectDraft({
 
     nextPayload = {
       ...nextPayload,
+      kind: 'house',
       houseClass: houseClass.value,
       houseClassLabel: houseClass.label,
+      houseClassShortLabel: houseClass.shortLabel,
+      visualClass: houseClass.visualClass,
+      statusText: houseClass.statusText,
+      price: nextPayload.price || houseClass.price,
+      rentPerHour: nextPayload.rentPerHour || houseClass.rentPerHour,
+      buyable: nextPayload.buyable ?? true,
+      ownerId: nextPayload.ownerId || null,
+      locked: nextPayload.locked || false,
+    };
+  }
+
+  if (config.category === MAP_OBJECT_CATEGORIES.BUSINESS) {
+    objectName = name || config.label;
+
+    nextPayload = {
+      ...nextPayload,
+      kind: 'business',
+      businessType: config.type,
+      businessLabel: config.label,
+      ownerId: nextPayload.ownerId || null,
+      incomePerHour: nextPayload.incomePerHour || 0,
+      price: nextPayload.price || 0,
+      buyable: nextPayload.buyable ?? true,
+    };
+  }
+
+  if (config.category === MAP_OBJECT_CATEGORIES.DECOR) {
+    nextPayload = {
+      ...nextPayload,
+      kind: 'decor',
+      collision: nextPayload.collision || false,
     };
   }
 
