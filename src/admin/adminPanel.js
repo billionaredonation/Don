@@ -29,6 +29,15 @@ function round(value) {
   return Math.round(Number(value) * 100) / 100;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function getPointFromEvent(event, viewport) {
   const rect = viewport.getBoundingClientRect();
 
@@ -93,6 +102,7 @@ export function enableAdminPanel({
   let placeMode = false;
   let moveMode = false;
   let moveSnapshot = null;
+  let activeMoveObjectId = null;
 
   let selectedType = 'house';
   let selectedVariant = 'standard';
@@ -152,6 +162,8 @@ export function enableAdminPanel({
       <span class="admin-selected-name">нет</span>
     </div>
 
+    <div class="admin-object-list"></div>
+
     <div class="admin-row">
       <button class="admin-btn admin-start-move" type="button">Двигать</button>
       <button class="admin-btn admin-save-selected" type="button">Сохранить</button>
@@ -192,13 +204,22 @@ export function enableAdminPanel({
   const xEl = panel.querySelector('.admin-x');
   const yEl = panel.querySelector('.admin-y');
   const selectedNameEl = panel.querySelector('.admin-selected-name');
+  const objectListEl = panel.querySelector('.admin-object-list');
 
   typeSelect.value = selectedType;
   houseClassSelect.value = selectedVariant;
 
+  function getObjectById(objectId) {
+    if (!objectId) return null;
+    return objects.find((object) => String(object.id) === String(objectId)) || null;
+  }
+
   function getSelectedObject() {
-    if (!selectedObjectId) return null;
-    return objects.find((object) => String(object.id) === String(selectedObjectId)) || null;
+    return getObjectById(selectedObjectId);
+  }
+
+  function getActiveMoveObject() {
+    return getObjectById(activeMoveObjectId || selectedObjectId);
   }
 
   function updateVariantVisibility() {
@@ -240,6 +261,36 @@ export function enableAdminPanel({
     updateVariantVisibility();
   }
 
+  function renderObjectList() {
+    if (!objectListEl) return;
+
+    if (!objects.length) {
+      objectListEl.innerHTML = '<div class="admin-object-empty">Объектов нет</div>';
+      return;
+    }
+
+    objectListEl.innerHTML = objects
+      .map((object, index) => {
+        const id = String(object.id || '');
+        const shortId = id.slice(-6) || String(index + 1);
+        const selectedClass = String(selectedObjectId) === id ? ' is-selected' : '';
+        const label = object.name || object.type || 'Объект';
+
+        return `
+          <button
+            class="admin-object-item${selectedClass}"
+            type="button"
+            data-admin-object-id="${escapeHtml(id)}"
+            title="${escapeHtml(label)} #${escapeHtml(shortId)}"
+          >
+            <span>${escapeHtml(object.icon || '◆')} ${escapeHtml(label)}</span>
+            <b>#${escapeHtml(shortId)}</b>
+          </button>
+        `;
+      })
+      .join('');
+  }
+
   function markSelectedObject() {
     objects = objects.map((object) => ({
       ...object,
@@ -247,6 +298,7 @@ export function enableAdminPanel({
     }));
 
     renderMapObjects(objectsLayer, objects);
+    renderObjectList();
   }
 
   function updateSelectedObject(objectId) {
@@ -282,8 +334,12 @@ export function enableAdminPanel({
 
     if (moveMode) {
       panel.hidden = true;
-    } else if (enabled) {
-      panel.hidden = false;
+    } else {
+      activeMoveObjectId = null;
+
+      if (enabled) {
+        panel.hidden = false;
+      }
     }
   }
 
@@ -295,6 +351,7 @@ export function enableAdminPanel({
     if (!enabled) {
       teleportMode = false;
       placeMode = false;
+      activeMoveObjectId = null;
       setMoveMode(false);
       btnTeleport.textContent = 'Телепорт: OFF';
       btnPlace.textContent = 'Клик: OFF';
@@ -434,18 +491,24 @@ export function enableAdminPanel({
     const object = getSelectedObject();
     if (!object) return;
 
+    activeMoveObjectId = String(object.id);
+    selectedObjectId = String(object.id);
+
     moveSnapshot = {
-      id: object.id,
+      id: String(object.id),
       x: object.x,
       y: object.y,
     };
 
+    markSelectedObject();
     setMoveMode(true);
   }
 
   async function saveMoveMode() {
-    const object = getSelectedObject();
+    const object = getActiveMoveObject();
     if (!object) return;
+
+    selectedObjectId = String(object.id);
 
     await updateMapObject(cityId, object.id, {
       x: round(object.x),
@@ -457,12 +520,13 @@ export function enableAdminPanel({
   }
 
   function cancelMoveMode() {
-    const object = getSelectedObject();
+    const object = getActiveMoveObject();
 
     if (object && moveSnapshot) {
+      selectedObjectId = String(object.id);
       object.x = moveSnapshot.x;
       object.y = moveSnapshot.y;
-      renderMapObjects(objectsLayer, objects);
+      markSelectedObject();
     }
 
     setMoveMode(false);
@@ -470,13 +534,14 @@ export function enableAdminPanel({
   }
 
   function moveSelectedVisual(dx, dy) {
-    const object = getSelectedObject();
+    const object = getActiveMoveObject();
     if (!object) return;
 
+    selectedObjectId = String(object.id);
     object.x = round(clamp(Number(object.x) + dx, 0, 100));
     object.y = round(clamp(Number(object.y) + dy, 0, 100));
 
-    renderMapObjects(objectsLayer, objects);
+    markSelectedObject();
   }
 
   function onMapClick(event) {
@@ -635,6 +700,15 @@ export function enableAdminPanel({
     await reloadObjects();
   });
 
+  objectListEl.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-admin-object-id]');
+    if (!button) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    updateSelectedObject(button.dataset.adminObjectId);
+  });
+
   typeSelect.addEventListener('change', () => {
     selectedType = typeSelect.value;
     updateVariantVisibility();
@@ -647,6 +721,8 @@ export function enableAdminPanel({
   function onMapPointerDown(event) {
     if (!enabled) return;
     if (event.target.closest('.admin-panel')) return;
+
+    if (moveMode) return;
 
     const clickedObjectId = getMapObjectIdFromEvent(event);
     if (!clickedObjectId) return;
