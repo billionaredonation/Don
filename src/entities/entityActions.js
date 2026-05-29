@@ -1,3 +1,7 @@
+import { handleHouseAction } from './houseActions.js';
+import { handleBusinessAction } from './businessActions.js';
+import { handleNpcAction } from './npcActions.js';
+
 export function getEntityKind(object) {
   return object?.category || object?.payload?.kind || object?.type || 'marker';
 }
@@ -75,27 +79,24 @@ export function dispatchEntityAction(object) {
   }));
 
   if (kind === 'house') {
-    window.dispatchEvent(new CustomEvent('mn:house-action', {
-      detail: { object },
-    }));
+    handleHouseAction(object);
     return;
   }
 
   if (kind === 'business') {
-    window.dispatchEvent(new CustomEvent('mn:business-action', {
-      detail: { object },
-    }));
+    handleBusinessAction(object);
     return;
   }
 
   if (kind === 'npc') {
-    window.dispatchEvent(new CustomEvent('mn:npc-action', {
-      detail: { object },
-    }));
+    handleNpcAction(object);
     return;
   }
 
   window.dispatchEvent(new CustomEvent('mn:map-object-selected', {
-    detail: { object },
+    detail: {
+      object,
+      action: 'select',
+    },
   }));
 }
