@@ -1,10 +1,5 @@
-import {
-  getMapObjectType,
-} from '../mapObjects/mapObjectTypes.js';
-
-import {
-  updateMapObject,
-} from '../mapObjects/mapObjectsRepository.js';
+import { getMapObjectType } from '../mapObjects/mapObjectTypes.js';
+import { updateMapObject } from '../mapObjects/mapObjectsRepository.js';
 
 export async function saveAdminObject({
   cityId,
