@@ -21,12 +21,12 @@ import { renderPlayersHtml } from '../../src/player/playerMarkerView.js';
 import { enableFogOfWar } from '../../src/map/fogOfWar.js';
 
 import { enableAdminPanel } from '../../src/admin/adminPanel.js';
-import { getMapObjects } from '../../src/mapObjects/mapObjectsRepository.js';
+
 import {
-  createMapObjectsLayer,
-  renderMapObjects,
-  getMapObjectIdFromEvent,
-} from '../../src/mapObjects/mapObjectsRenderer.js';
+  createEntityInteractionPanel,
+  enableEntityInteraction,
+} from '../../src/entities/entityInteraction.js';
+
 import '../../src/admin/adminPanel.css';
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
@@ -107,148 +107,6 @@ function saveMobileControlsAccepted() {
   } catch {
     // localStorage может быть недоступен, но игра не должна падать
   }
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
-function getObjectKindLabel(object) {
-  const category = object?.category || object?.payload?.kind || object?.type;
-
-  if (category === 'house') return 'Дом';
-  if (category === 'business') return 'Бизнес';
-  if (category === 'decor') return 'Декор';
-  if (category === 'npc') return 'NPC';
-  if (category === 'marker') return 'Маркер';
-
-  return 'Сущность';
-}
-
-function createHouseSelectionPanel(root) {
-  const panel = document.createElement('section');
-  panel.className = 'house-selection-panel';
-  panel.hidden = true;
-  panel.innerHTML = `
-    <button class="house-selection-close" type="button" aria-label="Закрыть">×</button>
-    <div class="house-selection-icon">◆</div>
-    <div class="house-selection-body">
-      <strong class="house-selection-title">Сущность</strong>
-      <span class="house-selection-meta"></span>
-    </div>
-    <button class="house-selection-action" type="button">Выбрать</button>
-  `;
-
-  root.appendChild(panel);
-
-  const closeButton = panel.querySelector('.house-selection-close');
-  const titleEl = panel.querySelector('.house-selection-title');
-  const metaEl = panel.querySelector('.house-selection-meta');
-  const iconEl = panel.querySelector('.house-selection-icon');
-  const actionButton = panel.querySelector('.house-selection-action');
-
-  let selectedObject = null;
-
-  function close() {
-    selectedObject = null;
-    panel.hidden = true;
-  }
-
-  function open(object) {
-    selectedObject = object;
-
-    const kindLabel = getObjectKindLabel(object);
-    const classLabel =
-      object?.payload?.houseClassLabel ||
-      object?.payload?.businessLabel ||
-      object?.payload?.kind ||
-      object?.variant ||
-      object?.type ||
-      'object';
-
-    const price = Number(object?.payload?.price || 0);
-    const ownerId = object?.payload?.ownerId || '';
-    const ownerText = ownerId ? 'занят' : 'свободен';
-    const priceText = price > 0 ? ` · ${price.toLocaleString('ru-RU')} $` : '';
-
-    iconEl.textContent = object?.icon || '◆';
-    titleEl.textContent = object?.name || kindLabel;
-    metaEl.innerHTML = `${escapeHtml(kindLabel)} · ${escapeHtml(classLabel)} · ${escapeHtml(ownerText)}${escapeHtml(priceText)}`;
-
-    panel.hidden = false;
-  }
-
-  closeButton.addEventListener('click', close);
-
-  actionButton.addEventListener('click', () => {
-    if (!selectedObject) return;
-
-    window.dispatchEvent(new CustomEvent('mn:map-object-selected', {
-      detail: { object: selectedObject },
-    }));
-  });
-
-  return {
-    open,
-    close,
-    cleanup() {
-      panel.remove();
-    },
-  };
-}
-
-function enablePublicHouseSelection({ root, viewport, cityId, houseSelectionPanel }) {
-  if (!root || !viewport || !cityId || !houseSelectionPanel) return null;
-
-  const layer = createMapObjectsLayer();
-  layer.classList.add('map-objects-layer-public');
-  viewport.appendChild(layer);
-
-  let mapObjects = [];
-
-  async function reloadObjects() {
-    const objects = await getMapObjects(cityId);
-
-    mapObjects = Array.isArray(objects)
-      ? objects.filter(Boolean)
-      : [];
-
-    renderMapObjects(layer, mapObjects);
-  }
-
-  function onClick(event) {
-    const clickedObjectId = getMapObjectIdFromEvent(event);
-    if (!clickedObjectId) return;
-
-    const object = mapObjects.find((item) => String(item.id) === String(clickedObjectId));
-    if (!object) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    houseSelectionPanel.open(object);
-  }
-
-  function onObjectsChanged(event) {
-    if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
-    reloadObjects();
-  }
-
-  layer.addEventListener('click', onClick);
-  window.addEventListener('mn:map-objects-changed', onObjectsChanged);
-
-  reloadObjects();
-
-  return () => {
-    layer.removeEventListener('click', onClick);
-    window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
-    layer.remove();
-  };
 }
 
 register('home', async (root) => {
@@ -428,7 +286,7 @@ register('home', async (root) => {
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
-  const houseSelectionPanel = createHouseSelectionPanel(root);
+  const entityInteractionPanel = createEntityInteractionPanel(root);
 
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
@@ -450,7 +308,7 @@ register('home', async (root) => {
   let cleanupMobilePrompt = null;
   let cleanupMobileJoystick = null;
   let cleanupAdminPanel = null;
-  let cleanupPublicHouseSelection = null;
+  let cleanupEntityInteraction = null;
 
   function enableMobileGameplayMode() {
     root.dataset.mobileControls = 'enabled';
@@ -503,11 +361,11 @@ register('home', async (root) => {
     stateIsAdmin: state.is_admin,
   });
 
-  cleanupPublicHouseSelection = enablePublicHouseSelection({
+  cleanupEntityInteraction = enableEntityInteraction({
     root,
     viewport,
     cityId,
-    houseSelectionPanel,
+    panel: entityInteractionPanel,
   });
 
   if (canUseAdminPanel) {
@@ -556,8 +414,8 @@ register('home', async (root) => {
     cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
     cleanupAdminPanel?.();
-    cleanupPublicHouseSelection?.();
-    houseSelectionPanel.cleanup();
+    cleanupEntityInteraction?.();
+    entityInteractionPanel.cleanup();
     cleanupSessionGuard?.();
     mapControls?.cleanup?.();
     cleanupFogOfWar?.();
