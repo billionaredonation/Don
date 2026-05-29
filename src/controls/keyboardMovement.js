@@ -302,6 +302,26 @@ export function enableKeyboardPlayerMovement(
     }
   }
 
+  function onExternalTeleport(event) {
+    const detail = event?.detail || {};
+
+    const nextX = Number(detail.x);
+    const nextY = Number(detail.y);
+    const nextAngle = Number(detail.angle || angle);
+
+    if (!Number.isFinite(nextX) || !Number.isFinite(nextY)) return;
+
+    x = clamp(nextX, BOUNDS.minX, BOUNDS.maxX);
+    y = clamp(nextY, BOUNDS.minY, BOUNDS.maxY);
+    angle = Number.isFinite(nextAngle) ? nextAngle : angle;
+
+    keys.clear();
+
+    forceSyncPosition();
+    broadcastMove(true);
+    savePositionToDb(true);
+  }
+
   function onKeyDown(event) {
     const tag = document.activeElement?.tagName?.toLowerCase();
 
@@ -343,6 +363,7 @@ export function enableKeyboardPlayerMovement(
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
+  window.addEventListener('mn:player-teleported', onExternalTeleport);
 
   forceSyncPosition();
   savePositionToDb(true);
@@ -355,6 +376,7 @@ export function enableKeyboardPlayerMovement(
 
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
+    window.removeEventListener('mn:player-teleported', onExternalTeleport);
 
     if (animationId) {
       cancelAnimationFrame(animationId);
