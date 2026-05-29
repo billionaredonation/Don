@@ -2,7 +2,7 @@ import { updateMapObject } from '../mapObjects/mapObjectsRepository.js';
 import { renderMapObjects } from '../mapObjects/mapObjectsRenderer.js';
 
 function clamp(value, min, max) {
-  return Math.min(Math.max(value), max);
+  return Math.min(Math.max(value, min), max);
 }
 
 function round(value) {
@@ -20,6 +20,7 @@ export function createAdminObjectMover({
   setSelectedObjectId,
   reloadObjects,
   renderObjectList,
+  canShowPanel,
 }) {
   let moveMode = false;
   let moveSnapshot = null;
@@ -27,7 +28,6 @@ export function createAdminObjectMover({
 
   function getObjectById(objectId) {
     if (!objectId) return null;
-
     return getObjects().find((object) => String(object.id) === String(objectId)) || null;
   }
 
@@ -54,14 +54,24 @@ export function createAdminObjectMover({
 
     if (moveMode) {
       panel.hidden = true;
-    } else {
-      activeMoveObjectId = null;
+      return;
+    }
+
+    activeMoveObjectId = null;
+
+    if (canShowPanel?.() !== false) {
       panel.hidden = false;
     }
   }
 
   function isMoveMode() {
     return moveMode;
+  }
+
+  function resetMoveMode() {
+    activeMoveObjectId = null;
+    moveSnapshot = null;
+    setMoveMode(false);
   }
 
   function startMoveSelected() {
@@ -93,6 +103,7 @@ export function createAdminObjectMover({
     });
 
     setMoveMode(false);
+    moveSnapshot = null;
     await reloadObjects();
   }
 
@@ -102,9 +113,17 @@ export function createAdminObjectMover({
     if (object && moveSnapshot) {
       setSelectedObjectId(String(object.id));
 
-      object.x = moveSnapshot.x;
-      object.y = moveSnapshot.y;
+      const nextObjects = getObjects().map((item) => {
+        if (String(item.id) !== String(object.id)) return item;
 
+        return {
+          ...item,
+          x: moveSnapshot.x,
+          y: moveSnapshot.y,
+        };
+      });
+
+      setObjects(nextObjects);
       markSelectedObject();
     }
 
@@ -131,12 +150,6 @@ export function createAdminObjectMover({
 
     renderMapObjects(objectsLayer, nextObjects);
     renderObjectList?.();
-  }
-
-  function resetMoveMode() {
-    activeMoveObjectId = null;
-    moveSnapshot = null;
-    setMoveMode(false);
   }
 
   function cleanup() {
