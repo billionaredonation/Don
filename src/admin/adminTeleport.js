@@ -5,12 +5,24 @@ function round(value) {
 }
 
 export function applyMarkerPosition(marker, x, y, angle = 0) {
+  if (!marker) return;
+
   marker.style.left = `${x}%`;
   marker.style.top = `${y}%`;
   marker.dataset.x = String(x);
   marker.dataset.y = String(y);
   marker.dataset.angle = String(angle);
   marker.style.setProperty('--player-angle', `${angle}deg`);
+}
+
+export function getCurrentPlayerPoint(playerMarker, playerPosition) {
+  const markerX = Number(playerMarker?.dataset?.x);
+  const markerY = Number(playerMarker?.dataset?.y);
+
+  return {
+    x: round(Number.isFinite(markerX) ? markerX : Number(playerPosition?.x || 50)),
+    y: round(Number.isFinite(markerY) ? markerY : Number(playerPosition?.y || 50)),
+  };
 }
 
 export async function teleportPlayerTo({
@@ -65,14 +77,4 @@ export async function teleportPlayerTo({
   } catch (error) {
     console.warn('[adminTeleport] teleport save failed:', error);
   }
-}
-
-export function getCurrentPlayerPoint(playerMarker, playerPosition) {
-  const markerX = Number(playerMarker?.dataset?.x);
-  const markerY = Number(playerMarker?.dataset?.y);
-
-  return {
-    x: round(Number.isFinite(markerX) ? markerX : Number(playerPosition?.x || 50)),
-    y: round(Number.isFinite(markerY) ? markerY : Number(playerPosition?.y || 50)),
-  };
 }
