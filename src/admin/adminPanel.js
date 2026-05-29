@@ -1,5 +1,3 @@
-import { updatePlayerPosition, getLocalPlayerId } from '../player/playerPosition.js';
-
 import {
   getMapObjectTypesList,
   getMapObjectType,
@@ -20,6 +18,11 @@ import {
   renderMapObjects,
   getMapObjectIdFromEvent,
 } from '../mapObjects/mapObjectsRenderer.js';
+
+import {
+  teleportPlayerTo,
+  getCurrentPlayerPoint,
+} from './adminTeleport.js';
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -45,25 +48,6 @@ function getPointFromEvent(event, viewport) {
     x: round(clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100)),
     y: round(clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100)),
   };
-}
-
-function getCurrentPlayerPoint(playerMarker, playerPosition) {
-  const markerX = Number(playerMarker?.dataset?.x);
-  const markerY = Number(playerMarker?.dataset?.y);
-
-  return {
-    x: round(Number.isFinite(markerX) ? markerX : Number(playerPosition?.x || 50)),
-    y: round(Number.isFinite(markerY) ? markerY : Number(playerPosition?.y || 50)),
-  };
-}
-
-function applyMarkerPosition(marker, x, y, angle = 0) {
-  marker.style.left = `${x}%`;
-  marker.style.top = `${y}%`;
-  marker.dataset.x = String(x);
-  marker.dataset.y = String(y);
-  marker.dataset.angle = String(angle);
-  marker.style.setProperty('--player-angle', `${angle}deg`);
 }
 
 function notifyMapObjectsChanged(cityId) {
@@ -365,37 +349,6 @@ export function enableAdminPanel({
     setEnabled(!enabled);
   }
 
-  async function teleportTo(x, y) {
-    const angle = Number(playerPosition.angle || playerMarker.dataset.angle || 0);
-
-    playerPosition.x = x;
-    playerPosition.y = y;
-    playerPosition.angle = angle;
-
-    applyMarkerPosition(playerMarker, x, y, angle);
-    mapControls?.focusOnPlayer?.(x, y);
-
-    window.dispatchEvent(new CustomEvent('mn:player-teleport', {
-      detail: { x, y, angle },
-    }));
-
-    movementChannel?.sendMove?.({
-      playerId: getLocalPlayerId(),
-      nickname,
-      cityId,
-      x,
-      y,
-      angle,
-      updatedAt: new Date().toISOString(),
-    });
-
-    try {
-      await updatePlayerPosition({ cityId, nickname, x, y, angle });
-    } catch (error) {
-      console.warn('[adminPanel] teleport save failed:', error);
-    }
-  }
-
   async function addObjectAt(x, y) {
     const draft = createMapObjectDraft({
       cityId,
@@ -444,11 +397,12 @@ export function enableAdminPanel({
       };
     }
 
-    if (selectedType === 'business') {
+    if (config.category === 'business') {
       nextPatch.payload = {
         ...(object.payload || {}),
         kind: 'business',
-        businessType: object.payload?.businessType || 'shop',
+        businessType: selectedType,
+        businessLabel: config.label,
         ownerId: object.payload?.ownerId || null,
         incomePerHour: object.payload?.incomePerHour || 0,
         price: object.payload?.price || 0,
@@ -461,6 +415,15 @@ export function enableAdminPanel({
         ...(object.payload || {}),
         kind: 'decor',
         collision: object.payload?.collision || false,
+      };
+    }
+
+    if (config.category === 'npc') {
+      nextPatch.payload = {
+        ...(object.payload || {}),
+        kind: 'npc',
+        role: object.payload?.role || '',
+        dialogLabel: object.payload?.dialogLabel || '',
       };
     }
 
@@ -566,7 +529,16 @@ export function enableAdminPanel({
     updateCoords(point.x, point.y);
 
     if (teleportMode) {
-      teleportTo(point.x, point.y);
+      teleportPlayerTo({
+        playerMarker,
+        playerPosition,
+        cityId,
+        nickname,
+        mapControls,
+        movementChannel,
+        x: point.x,
+        y: point.y,
+      });
       return;
     }
 
