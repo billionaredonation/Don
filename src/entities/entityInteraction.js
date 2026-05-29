@@ -6,21 +6,8 @@ import {
   getMapObjectIdFromEvent,
 } from '../mapObjects/mapObjectsRenderer.js';
 
-import {
-  getEntityKindLabel,
-  getEntityMetaText,
-  getEntityPrimaryActionLabel,
-  dispatchEntityAction,
-} from './entityActions.js';
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
+import { dispatchEntityAction } from './entityActions.js';
+import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
 export function createEntityInteractionPanel(root) {
   const panel = document.createElement('section');
@@ -55,12 +42,13 @@ export function createEntityInteractionPanel(root) {
   function open(object) {
     selectedObject = object;
 
-    const kindLabel = getEntityKindLabel(object);
-
-    iconEl.textContent = object?.icon || '◆';
-    titleEl.textContent = object?.name || kindLabel;
-    metaEl.innerHTML = escapeHtml(getEntityMetaText(object));
-    actionButton.textContent = getEntityPrimaryActionLabel(object);
+    renderEntityPanelContent({
+      iconEl,
+      titleEl,
+      metaEl,
+      actionButton,
+      object,
+    });
 
     panel.hidden = false;
   }
