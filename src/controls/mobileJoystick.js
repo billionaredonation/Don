@@ -358,6 +358,30 @@ export function enableMobileJoystick(
     animationId = requestAnimationFrame(loop);
   }
 
+  function onExternalTeleport(event) {
+    const detail = event?.detail || {};
+
+    const nextX = Number(detail.x);
+    const nextY = Number(detail.y);
+    const nextAngle = Number(detail.angle || angle);
+
+    if (!Number.isFinite(nextX) || !Number.isFinite(nextY)) return;
+
+    x = clamp(nextX, BOUNDS.minX, BOUNDS.maxX);
+    y = clamp(nextY, BOUNDS.minY, BOUNDS.maxY);
+    angle = Number.isFinite(nextAngle) ? nextAngle : angle;
+
+    moveX = 0;
+    moveY = 0;
+    activePointerId = null;
+
+    resetStick();
+    renderPlayer();
+
+    broadcastMove(true);
+    savePositionToDb(true);
+  }
+
   function onPointerDown(event) {
     event.preventDefault();
     event.stopPropagation();
@@ -407,6 +431,7 @@ export function enableMobileJoystick(
   base.addEventListener('pointermove', onPointerMove);
   base.addEventListener('pointerup', onPointerEnd);
   base.addEventListener('pointercancel', onPointerEnd);
+  window.addEventListener('mn:player-teleported', onExternalTeleport);
 
   renderPlayer();
   updateStaminaUi();
@@ -418,6 +443,7 @@ export function enableMobileJoystick(
     base.removeEventListener('pointermove', onPointerMove);
     base.removeEventListener('pointerup', onPointerEnd);
     base.removeEventListener('pointercancel', onPointerEnd);
+    window.removeEventListener('mn:player-teleported', onExternalTeleport);
 
     if (animationId) {
       cancelAnimationFrame(animationId);
