@@ -295,18 +295,30 @@ export function enableAdminPanel({
     teleportMode = Boolean(next);
     placeMode = false;
 
-    root.dataset.adminTeleportMode = teleportMode ? 'enabled' : 'disabled';
-
     btnTeleport.textContent = teleportMode ? 'Телепорт: ON' : 'Телепорт: OFF';
     btnPlace.textContent = 'Клик: OFF';
 
     if (teleportMode) {
+      enabled = false;
+
+      root.dataset.adminMode = 'disabled';
+      root.dataset.adminTeleportMode = 'enabled';
+
       panel.hidden = true;
+
+      objectMover?.resetMoveMode();
 
       showAdminNotice(
         'Режим телепорта включен. Чтобы телепортироваться, нажмите правой кнопкой мыши по месту на карте.'
       );
       return;
+    }
+
+    delete root.dataset.adminTeleportMode;
+    root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
+
+    if (enabled) {
+      panel.hidden = false;
     }
 
     showAdminNotice('Режим телепорта выключен.');
@@ -426,9 +438,15 @@ export function enableAdminPanel({
 
   function setEnabled(next) {
     enabled = Boolean(next);
-    root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
 
-    panel.hidden = !enabled || teleportMode;
+    if (teleportMode) {
+      root.dataset.adminMode = 'disabled';
+      panel.hidden = true;
+      return;
+    }
+
+    root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
+    panel.hidden = !enabled;
 
     if (!enabled) {
       placeMode = false;
@@ -528,7 +546,7 @@ export function enableAdminPanel({
     addObjectAt(point.x, point.y);
   }
 
-  function onMapContextMenu(event) {
+  async function onMapContextMenu(event) {
     if (!teleportMode) return;
     if (event.target.closest('.admin-panel')) return;
 
@@ -538,7 +556,17 @@ export function enableAdminPanel({
     const point = getPointFromEvent(event, viewport);
     updateCoords(point.x, point.y);
 
-    teleportPlayerTo({
+    playerPosition.x = point.x;
+    playerPosition.y = point.y;
+
+    if (playerMarker) {
+      playerMarker.dataset.x = String(point.x);
+      playerMarker.dataset.y = String(point.y);
+      playerMarker.style.left = `${point.x}%`;
+      playerMarker.style.top = `${point.y}%`;
+    }
+
+    await teleportPlayerTo({
       playerMarker,
       playerPosition,
       cityId,
@@ -548,6 +576,16 @@ export function enableAdminPanel({
       x: point.x,
       y: point.y,
     });
+
+    mapControls?.focusOnPlayer?.(point.x, point.y);
+
+    window.dispatchEvent(new CustomEvent('mn:player-teleported', {
+      detail: {
+        cityId,
+        x: point.x,
+        y: point.y,
+      },
+    }));
   }
 
   function onMouseMove(event) {
@@ -753,5 +791,7 @@ export function enableAdminPanel({
     delete root.dataset.adminMode;
     delete root.dataset.adminMoveMode;
     delete root.dataset.adminTeleportMode;
+
+    document.querySelector('.admin-floating-notice')?.remove();
   };
 }
