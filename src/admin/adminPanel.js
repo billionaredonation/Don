@@ -24,6 +24,8 @@ import {
   getCurrentPlayerPoint,
 } from './adminTeleport.js';
 
+import { createAdminObjectMover } from './adminObjectMover.js';
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -84,14 +86,12 @@ export function enableAdminPanel({
   let enabled = false;
   let teleportMode = false;
   let placeMode = false;
-  let moveMode = false;
-  let moveSnapshot = null;
-  let activeMoveObjectId = null;
 
   let selectedType = 'house';
   let selectedVariant = 'standard';
   let objects = [];
   let selectedObjectId = null;
+  let objectMover = null;
 
   const objectsLayer = createMapObjectsLayer();
   objectsLayer.classList.add('map-objects-layer-admin');
@@ -193,6 +193,22 @@ export function enableAdminPanel({
   typeSelect.value = selectedType;
   houseClassSelect.value = selectedVariant;
 
+  function getObjects() {
+    return objects;
+  }
+
+  function setObjects(nextObjects) {
+    objects = Array.isArray(nextObjects) ? nextObjects : [];
+  }
+
+  function getSelectedObjectId() {
+    return selectedObjectId;
+  }
+
+  function setSelectedObjectId(objectId) {
+    selectedObjectId = objectId ? String(objectId) : null;
+  }
+
   function getObjectById(objectId) {
     if (!objectId) return null;
     return objects.find((object) => String(object.id) === String(objectId)) || null;
@@ -200,10 +216,6 @@ export function enableAdminPanel({
 
   function getSelectedObject() {
     return getObjectById(selectedObjectId);
-  }
-
-  function getActiveMoveObject() {
-    return getObjectById(activeMoveObjectId || selectedObjectId);
   }
 
   function updateVariantVisibility() {
@@ -228,6 +240,7 @@ export function enableAdminPanel({
   function fillEditor(object) {
     if (!object) {
       selectedNameEl.textContent = 'нет';
+      nameInput.value = '';
       return;
     }
 
@@ -312,20 +325,19 @@ export function enableAdminPanel({
     notifyMapObjectsChanged(cityId);
   }
 
-  function setMoveMode(next) {
-    moveMode = Boolean(next);
-    root.dataset.adminMoveMode = moveMode ? 'enabled' : 'disabled';
-
-    if (moveMode) {
-      panel.hidden = true;
-    } else {
-      activeMoveObjectId = null;
-
-      if (enabled) {
-        panel.hidden = false;
-      }
-    }
-  }
+  objectMover = createAdminObjectMover({
+    root,
+    panel,
+    cityId,
+    objectsLayer,
+    getObjects,
+    setObjects,
+    getSelectedObjectId,
+    setSelectedObjectId,
+    reloadObjects,
+    renderObjectList,
+    canShowPanel: () => enabled,
+  });
 
   function setEnabled(next) {
     enabled = Boolean(next);
@@ -335,8 +347,9 @@ export function enableAdminPanel({
     if (!enabled) {
       teleportMode = false;
       placeMode = false;
-      activeMoveObjectId = null;
-      setMoveMode(false);
+
+      objectMover?.resetMoveMode();
+
       btnTeleport.textContent = 'Телепорт: OFF';
       btnPlace.textContent = 'Клик: OFF';
     } else {
@@ -450,63 +463,6 @@ export function enableAdminPanel({
     await reloadObjects();
   }
 
-  function startMoveSelected() {
-    const object = getSelectedObject();
-    if (!object) return;
-
-    activeMoveObjectId = String(object.id);
-    selectedObjectId = String(object.id);
-
-    moveSnapshot = {
-      id: String(object.id),
-      x: object.x,
-      y: object.y,
-    };
-
-    markSelectedObject();
-    setMoveMode(true);
-  }
-
-  async function saveMoveMode() {
-    const object = getActiveMoveObject();
-    if (!object) return;
-
-    selectedObjectId = String(object.id);
-
-    await updateMapObject(cityId, object.id, {
-      x: round(object.x),
-      y: round(object.y),
-    });
-
-    setMoveMode(false);
-    await reloadObjects();
-  }
-
-  function cancelMoveMode() {
-    const object = getActiveMoveObject();
-
-    if (object && moveSnapshot) {
-      selectedObjectId = String(object.id);
-      object.x = moveSnapshot.x;
-      object.y = moveSnapshot.y;
-      markSelectedObject();
-    }
-
-    setMoveMode(false);
-    moveSnapshot = null;
-  }
-
-  function moveSelectedVisual(dx, dy) {
-    const object = getActiveMoveObject();
-    if (!object) return;
-
-    selectedObjectId = String(object.id);
-    object.x = round(clamp(Number(object.x) + dx, 0, 100));
-    object.y = round(clamp(Number(object.y) + dy, 0, 100));
-
-    markSelectedObject();
-  }
-
   function onMapClick(event) {
     if (!enabled) return;
     if (event.target.closest('.admin-panel')) return;
@@ -549,6 +505,7 @@ export function enableAdminPanel({
 
   function onMouseMove(event) {
     if (!enabled) return;
+
     const point = getPointFromEvent(event, viewport);
     updateCoords(point.x, point.y);
   }
@@ -577,7 +534,7 @@ export function enableAdminPanel({
 
     if (!enabled) return;
 
-    if (moveMode) {
+    if (objectMover?.isMoveMode()) {
       let dx = 0;
       let dy = 0;
 
@@ -588,19 +545,19 @@ export function enableAdminPanel({
 
       if (dx || dy) {
         event.preventDefault();
-        moveSelectedVisual(dx, dy);
+        objectMover.moveSelectedVisual(dx, dy);
         return;
       }
 
       if (event.key === 'Enter') {
         event.preventDefault();
-        saveMoveMode();
+        objectMover.saveMoveMode();
         return;
       }
 
       if (event.key === 'Escape') {
         event.preventDefault();
-        cancelMoveMode();
+        objectMover.cancelMoveMode();
         return;
       }
     }
@@ -644,7 +601,7 @@ export function enableAdminPanel({
 
   btnPlaceHere.addEventListener('click', addObjectAtPlayerPosition);
   btnMoveSelectedHere.addEventListener('click', moveSelectedToPlayer);
-  btnStartMove.addEventListener('click', startMoveSelected);
+  btnStartMove.addEventListener('click', () => objectMover?.startMoveSelected());
   btnSaveSelected.addEventListener('click', () => saveSelectedObject());
 
   btnCopy.addEventListener('click', async () => {
@@ -660,14 +617,18 @@ export function enableAdminPanel({
 
   btnDeleteSelected.addEventListener('click', async () => {
     if (!selectedObjectId) return;
+
     await deleteMapObject(cityId, selectedObjectId);
+
     selectedObjectId = null;
     await reloadObjects();
   });
 
   btnClearAll.addEventListener('click', async () => {
     if (!window.confirm('Удалить все объекты на этой карте?')) return;
+
     await clearMapObjects(cityId);
+
     selectedObjectId = null;
     await reloadObjects();
   });
@@ -678,6 +639,7 @@ export function enableAdminPanel({
 
     event.preventDefault();
     event.stopPropagation();
+
     updateSelectedObject(button.dataset.adminObjectId);
   });
 
@@ -693,8 +655,7 @@ export function enableAdminPanel({
   function onMapPointerDown(event) {
     if (!enabled) return;
     if (event.target.closest('.admin-panel')) return;
-
-    if (moveMode) return;
+    if (objectMover?.isMoveMode()) return;
 
     const clickedObjectId = getMapObjectIdFromEvent(event);
     if (!clickedObjectId) return;
@@ -721,6 +682,8 @@ export function enableAdminPanel({
     viewport.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('mn:admin-toggle', onAdminToggle);
+
+    objectMover?.cleanup();
 
     panel.remove();
     objectsLayer.remove();
