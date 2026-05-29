@@ -25,6 +25,7 @@ import {
 } from './adminTeleport.js';
 
 import { createAdminObjectMover } from './adminObjectMover.js';
+import { saveAdminObject } from './adminObjectEditor.js';
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -387,60 +388,15 @@ export function enableAdminPanel({
     const object = getSelectedObject();
     if (!object) return;
 
-    const config = getMapObjectType(selectedType);
+    await saveAdminObject({
+      cityId,
+      object,
+      selectedType,
+      selectedVariant,
+      name: nameInput.value.trim(),
+      patch,
+    });
 
-    const nextPatch = {
-      ...patch,
-      name: nameInput.value.trim() || object.name,
-      type: selectedType,
-      category: config.category,
-      variant: selectedType === 'house' ? selectedVariant : '',
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (selectedType === 'house') {
-      nextPatch.payload = {
-        ...(object.payload || {}),
-        kind: 'house',
-        houseClass: selectedVariant,
-        buyable: true,
-        ownerId: object.payload?.ownerId || null,
-        price: object.payload?.price || 0,
-        locked: object.payload?.locked || false,
-      };
-    }
-
-    if (config.category === 'business') {
-      nextPatch.payload = {
-        ...(object.payload || {}),
-        kind: 'business',
-        businessType: selectedType,
-        businessLabel: config.label,
-        ownerId: object.payload?.ownerId || null,
-        incomePerHour: object.payload?.incomePerHour || 0,
-        price: object.payload?.price || 0,
-        buyable: true,
-      };
-    }
-
-    if (config.category === 'decor') {
-      nextPatch.payload = {
-        ...(object.payload || {}),
-        kind: 'decor',
-        collision: object.payload?.collision || false,
-      };
-    }
-
-    if (config.category === 'npc') {
-      nextPatch.payload = {
-        ...(object.payload || {}),
-        kind: 'npc',
-        role: object.payload?.role || '',
-        dialogLabel: object.payload?.dialogLabel || '',
-      };
-    }
-
-    await updateMapObject(cityId, object.id, nextPatch);
     await reloadObjects();
   }
 
