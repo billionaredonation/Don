@@ -27,6 +27,9 @@ import {
 import { createAdminObjectMover } from './adminObjectMover.js';
 import { saveAdminObject } from './adminObjectEditor.js';
 
+const ADMIN_TELEPORT_HOTKEY_STORAGE_KEY = 'mn-admin-teleport-hotkey';
+const DEFAULT_ADMIN_TELEPORT_HOTKEY = 't';
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -42,6 +45,56 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function getAdminTeleportHotkey() {
+  try {
+    return localStorage.getItem(ADMIN_TELEPORT_HOTKEY_STORAGE_KEY) || DEFAULT_ADMIN_TELEPORT_HOTKEY;
+  } catch {
+    return DEFAULT_ADMIN_TELEPORT_HOTKEY;
+  }
+}
+
+function showAdminNotice(message) {
+  window.dispatchEvent(new CustomEvent('mn:toast', {
+    detail: { message },
+  }));
+
+  let notice = document.querySelector('.admin-floating-notice');
+
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.className = 'admin-floating-notice';
+    notice.style.cssText = `
+      position: fixed;
+      left: 50%;
+      top: 18px;
+      z-index: 100000;
+      transform: translateX(-50%);
+      max-width: min(520px, calc(100vw - 24px));
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px;
+      background: rgba(8, 12, 18, 0.92);
+      color: #fff;
+      font: 800 12px/1.35 system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      pointer-events: none;
+      text-align: center;
+    `;
+    document.body.appendChild(notice);
+  }
+
+  notice.textContent = message;
+  clearTimeout(notice._hideTimer);
+
+  notice._hideTimer = setTimeout(() => {
+    notice?.remove();
+  }, 3200);
+
+  console.log(`[admin] ${message}`);
 }
 
 function getPointFromEvent(event, viewport) {
@@ -238,6 +291,37 @@ export function enableAdminPanel({
     yEl.textContent = String(round(y));
   }
 
+  function setTeleportMode(next) {
+    teleportMode = Boolean(next);
+    placeMode = false;
+
+    root.dataset.adminTeleportMode = teleportMode ? 'enabled' : 'disabled';
+
+    btnTeleport.textContent = teleportMode ? 'Телепорт: ON' : 'Телепорт: OFF';
+    btnPlace.textContent = 'Клик: OFF';
+
+    if (teleportMode) {
+      panel.hidden = true;
+
+      showAdminNotice(
+        'Режим телепорта включен. Чтобы телепортироваться, нажмите правой кнопкой мыши по месту на карте.'
+      );
+      return;
+    }
+
+    showAdminNotice('Режим телепорта выключен.');
+  }
+
+  function setPlaceMode(next) {
+    placeMode = Boolean(next);
+
+    if (placeMode) {
+      setTeleportMode(false);
+    }
+
+    btnPlace.textContent = placeMode ? 'Клик: ON' : 'Клик: OFF';
+  }
+
   function fillEditor(object) {
     if (!object) {
       selectedNameEl.textContent = 'нет';
@@ -337,26 +421,26 @@ export function enableAdminPanel({
     setSelectedObjectId,
     reloadObjects,
     renderObjectList,
-    canShowPanel: () => enabled,
+    canShowPanel: () => enabled && !teleportMode,
   });
 
   function setEnabled(next) {
     enabled = Boolean(next);
     root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
-    panel.hidden = !enabled;
+
+    panel.hidden = !enabled || teleportMode;
 
     if (!enabled) {
-      teleportMode = false;
       placeMode = false;
 
       objectMover?.resetMoveMode();
 
-      btnTeleport.textContent = 'Телепорт: OFF';
       btnPlace.textContent = 'Клик: OFF';
-    } else {
-      const point = getCurrentPlayerPoint(playerMarker, playerPosition);
-      updateCoords(point.x, point.y);
+      return;
     }
+
+    const point = getCurrentPlayerPoint(playerMarker, playerPosition);
+    updateCoords(point.x, point.y);
   }
 
   function togglePanel() {
@@ -422,6 +506,7 @@ export function enableAdminPanel({
   function onMapClick(event) {
     if (!enabled) return;
     if (event.target.closest('.admin-panel')) return;
+    if (teleportMode) return;
 
     const clickedObjectId = getMapObjectIdFromEvent(event);
 
@@ -432,7 +517,7 @@ export function enableAdminPanel({
       return;
     }
 
-    if (!teleportMode && !placeMode) return;
+    if (!placeMode) return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -440,27 +525,33 @@ export function enableAdminPanel({
     const point = getPointFromEvent(event, viewport);
     updateCoords(point.x, point.y);
 
-    if (teleportMode) {
-      teleportPlayerTo({
-        playerMarker,
-        playerPosition,
-        cityId,
-        nickname,
-        mapControls,
-        movementChannel,
-        x: point.x,
-        y: point.y,
-      });
-      return;
-    }
+    addObjectAt(point.x, point.y);
+  }
 
-    if (placeMode) {
-      addObjectAt(point.x, point.y);
-    }
+  function onMapContextMenu(event) {
+    if (!teleportMode) return;
+    if (event.target.closest('.admin-panel')) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const point = getPointFromEvent(event, viewport);
+    updateCoords(point.x, point.y);
+
+    teleportPlayerTo({
+      playerMarker,
+      playerPosition,
+      cityId,
+      nickname,
+      mapControls,
+      movementChannel,
+      x: point.x,
+      y: point.y,
+    });
   }
 
   function onMouseMove(event) {
-    if (!enabled) return;
+    if (!enabled && !teleportMode) return;
 
     const point = getPointFromEvent(event, viewport);
     updateCoords(point.x, point.y);
@@ -476,6 +567,15 @@ export function enableAdminPanel({
     const key = String(event.key || '').toLowerCase();
     const code = String(event.code || '');
 
+    const teleportHotkey = String(getAdminTeleportHotkey()).toLowerCase();
+
+    if (key === teleportHotkey && !event.repeat && !isFormField) {
+      event.preventDefault();
+      event.stopPropagation();
+      setTeleportMode(!teleportMode);
+      return;
+    }
+
     const isAdminHotkey =
       code === 'KeyP' ||
       key === 'p' ||
@@ -485,6 +585,21 @@ export function enableAdminPanel({
       event.preventDefault();
       event.stopPropagation();
       togglePanel();
+      return;
+    }
+
+    if (event.key === 'Escape' && !isFormField) {
+      event.preventDefault();
+
+      if (teleportMode) {
+        setTeleportMode(false);
+        return;
+      }
+
+      if (enabled) {
+        setEnabled(false);
+      }
+
       return;
     }
 
@@ -518,12 +633,6 @@ export function enableAdminPanel({
       }
     }
 
-    if (event.key === 'Escape' && !isFormField) {
-      event.preventDefault();
-      setEnabled(false);
-      return;
-    }
-
     if (event.key === 'Enter' && !isFormField) {
       event.preventDefault();
 
@@ -542,17 +651,11 @@ export function enableAdminPanel({
   btnClose.addEventListener('click', () => setEnabled(false));
 
   btnTeleport.addEventListener('click', () => {
-    teleportMode = !teleportMode;
-    placeMode = false;
-    btnTeleport.textContent = teleportMode ? 'Телепорт: ON' : 'Телепорт: OFF';
-    btnPlace.textContent = 'Клик: OFF';
+    setTeleportMode(!teleportMode);
   });
 
   btnPlace.addEventListener('click', () => {
-    placeMode = !placeMode;
-    teleportMode = false;
-    btnPlace.textContent = placeMode ? 'Клик: ON' : 'Клик: OFF';
-    btnTeleport.textContent = 'Телепорт: OFF';
+    setPlaceMode(!placeMode);
   });
 
   btnPlaceHere.addEventListener('click', addObjectAtPlayerPosition);
@@ -612,6 +715,7 @@ export function enableAdminPanel({
     if (!enabled) return;
     if (event.target.closest('.admin-panel')) return;
     if (objectMover?.isMoveMode()) return;
+    if (teleportMode) return;
 
     const clickedObjectId = getMapObjectIdFromEvent(event);
     if (!clickedObjectId) return;
@@ -624,6 +728,7 @@ export function enableAdminPanel({
 
   viewport.addEventListener('pointerdown', onMapPointerDown, true);
   viewport.addEventListener('click', onMapClick, true);
+  viewport.addEventListener('contextmenu', onMapContextMenu, true);
   viewport.addEventListener('mousemove', onMouseMove);
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('mn:admin-toggle', onAdminToggle);
@@ -635,6 +740,7 @@ export function enableAdminPanel({
   return () => {
     viewport.removeEventListener('pointerdown', onMapPointerDown, true);
     viewport.removeEventListener('click', onMapClick, true);
+    viewport.removeEventListener('contextmenu', onMapContextMenu, true);
     viewport.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('mn:admin-toggle', onAdminToggle);
@@ -646,5 +752,6 @@ export function enableAdminPanel({
 
     delete root.dataset.adminMode;
     delete root.dataset.adminMoveMode;
+    delete root.dataset.adminTeleportMode;
   };
 }
