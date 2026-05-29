@@ -40,7 +40,6 @@ function getEntityMetaText(object) {
 
   const price = Number(object?.payload?.price || 0);
   const ownerId = object?.payload?.ownerId || '';
-
   const ownerText = ownerId ? 'занят' : 'свободен';
   const priceText = price > 0 ? ` · ${price.toLocaleString('ru-RU')} $` : '';
 
