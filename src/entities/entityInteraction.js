@@ -6,6 +6,13 @@ import {
   getMapObjectIdFromEvent,
 } from '../mapObjects/mapObjectsRenderer.js';
 
+import {
+  getEntityKindLabel,
+  getEntityMetaText,
+  getEntityPrimaryActionLabel,
+  dispatchEntityAction,
+} from './entityActions.js';
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -13,37 +20,6 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
-}
-
-function getEntityKindLabel(object) {
-  const category = object?.category || object?.payload?.kind || object?.type;
-
-  if (category === 'house') return 'Дом';
-  if (category === 'business') return 'Бизнес';
-  if (category === 'decor') return 'Декор';
-  if (category === 'npc') return 'NPC';
-  if (category === 'marker') return 'Маркер';
-
-  return 'Сущность';
-}
-
-function getEntityMetaText(object) {
-  const kindLabel = getEntityKindLabel(object);
-
-  const classLabel =
-    object?.payload?.houseClassLabel ||
-    object?.payload?.businessLabel ||
-    object?.payload?.kind ||
-    object?.variant ||
-    object?.type ||
-    'object';
-
-  const price = Number(object?.payload?.price || 0);
-  const ownerId = object?.payload?.ownerId || '';
-  const ownerText = ownerId ? 'занят' : 'свободен';
-  const priceText = price > 0 ? ` · ${price.toLocaleString('ru-RU')} $` : '';
-
-  return `${kindLabel} · ${classLabel} · ${ownerText}${priceText}`;
 }
 
 export function createEntityInteractionPanel(root) {
@@ -84,6 +60,7 @@ export function createEntityInteractionPanel(root) {
     iconEl.textContent = object?.icon || '◆';
     titleEl.textContent = object?.name || kindLabel;
     metaEl.innerHTML = escapeHtml(getEntityMetaText(object));
+    actionButton.textContent = getEntityPrimaryActionLabel(object);
 
     panel.hidden = false;
   }
@@ -92,12 +69,7 @@ export function createEntityInteractionPanel(root) {
 
   actionButton.addEventListener('click', () => {
     if (!selectedObject) return;
-
-    window.dispatchEvent(new CustomEvent('mn:map-object-selected', {
-      detail: {
-        object: selectedObject,
-      },
-    }));
+    dispatchEntityAction(selectedObject);
   });
 
   return {
