@@ -110,8 +110,31 @@ function saveMobileControlsAccepted() {
   }
 }
 
+function isAdminHotkey(event) {
+  return (
+    event.code === 'KeyP' ||
+    event.key === 'p' ||
+    event.key === 'P' ||
+    event.key === 'з' ||
+    event.key === 'З'
+  );
+}
+
+function isTypingTarget(target) {
+  const tagName = target?.tagName?.toLowerCase();
+
+  return (
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select' ||
+    target?.isContentEditable === true
+  );
+}
+
 register('home', async (root) => {
   root._cleanupHome?.();
+
+  delete root.dataset.destroyed;
 
   root.className = 'page home';
 
@@ -309,6 +332,7 @@ register('home', async (root) => {
   let cleanupMobilePrompt = null;
   let cleanupMobileJoystick = null;
   let cleanupAdminPanel = null;
+  let cleanupAdminHotkey = null;
   let cleanupEntityInteraction = null;
 
   function enableMobileGameplayMode() {
@@ -379,18 +403,40 @@ register('home', async (root) => {
         movementChannel: network.movementChannel,
       });
 
+      function toggleAdminPanel() {
+        window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
+      }
+
       const adminOpenButton = document.createElement('button');
       adminOpenButton.type = 'button';
       adminOpenButton.textContent = 'ADMIN';
       adminOpenButton.className = 'admin-open-button';
-
-      adminOpenButton.addEventListener('click', () => {
-        window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
-      });
+      adminOpenButton.addEventListener('click', toggleAdminPanel);
 
       root.appendChild(adminOpenButton);
 
+      const handleAdminHotkey = (event) => {
+        if (!isAdminHotkey(event)) return;
+        if (isTypingTarget(event.target)) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        toggleAdminPanel();
+      };
+
+      window.addEventListener('keydown', handleAdminHotkey, true);
+      document.addEventListener('keydown', handleAdminHotkey, true);
+
+      cleanupAdminHotkey = () => {
+        window.removeEventListener('keydown', handleAdminHotkey, true);
+        document.removeEventListener('keydown', handleAdminHotkey, true);
+      };
+
       cleanupAdminPanel = () => {
+        cleanupAdminHotkey?.();
+        cleanupAdminHotkey = null;
+
         adminOpenButton.remove();
         panelCleanup?.();
       };
@@ -416,6 +462,7 @@ register('home', async (root) => {
     cleanupMovement?.();
     cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
+    cleanupAdminHotkey?.();
     cleanupAdminPanel?.();
     cleanupEntityInteraction?.();
     entityInteractionPanel.cleanup();
