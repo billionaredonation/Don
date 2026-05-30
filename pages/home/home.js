@@ -226,6 +226,28 @@ register('home', async (root) => {
 
   const mapSrc = getCityMap(city);
 
+  const telegramId =
+    state.telegramId ||
+    state.player?.telegramId ||
+    state.player?.tg_id ||
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+    '123456789';
+
+  const playerBalance = Number(state.player?.balance || 12450);
+
+  const cityStats = {
+    housesTotal: 128,
+    housesFree: 42,
+    businessTotal: 56,
+    businessFree: 18,
+    inflation: 5.4,
+    online: cityPlayers.length || 342,
+    ping: 42,
+  };
+
+  const housesFreePercent = Math.round((cityStats.housesFree / cityStats.housesTotal) * 100);
+  const businessFreePercent = Math.round((cityStats.businessFree / cityStats.businessTotal) * 100);
+
   root.dataset.city = cityId;
   root.dataset.time = dayMode;
   root.dataset.weather = weather.type;
@@ -275,23 +297,129 @@ register('home', async (root) => {
           />
         </div>
 
-        <header class="gta-map-header">
-          <div class="gta-map-title">
-            <span class="gta-time-badge">
-              ${dayMode === 'day' ? '☀ День' : '☾ Ночь'}
+        <section class="player-glass-hud" aria-label="Игровая информация">
+          <div class="player-glass-bg"></div>
+
+          <div class="player-mini-markers">
+            <span class="player-mini-marker">
+              <b>${dayMode === 'day' ? '☀' : '☾'}</b>
+              ${dayMode === 'day' ? 'День' : 'Ночь'}
             </span>
 
-            <span class="gta-weather-badge">
-              ${displayWeather.icon} ${displayWeather.label} · ${displayWeather.temperature}°C
+            <span class="player-mini-separator"></span>
+
+            <span class="player-mini-marker">
+              <b>${displayWeather.icon}</b>
+              ${displayWeather.label}
             </span>
 
-            <strong>${city.name}</strong>
+            <span class="player-mini-dot">•</span>
+
+            <span class="player-mini-marker">
+              ${displayWeather.temperature}°C
+            </span>
           </div>
 
-          <div class="gta-map-player">
-            ${nickname}
+          <button class="player-city-button" type="button" aria-label="Открыть статистику города">
+            <span>${city.name}</span>
+            <b>›</b>
+          </button>
+
+          <button class="player-profile-card" type="button" aria-label="Профиль игрока">
+            <span class="player-avatar">${String(nickname).charAt(0).toUpperCase()}</span>
+
+            <span class="player-profile-info">
+              <strong>${nickname}</strong>
+              <em>▮ Статистика</em>
+              <small>ID: ${telegramId}</small>
+            </span>
+
+            <span class="player-profile-arrow">›</span>
+          </button>
+
+          <button class="player-balance-card" type="button" aria-label="Баланс игрока">
+            <span class="player-card-icon player-card-icon-green">▣</span>
+
+            <span class="player-balance-info">
+              <em>Баланс</em>
+              <strong>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
+              <small>Пополнить баланс</small>
+            </span>
+
+            <span class="player-balance-arrow">›</span>
+          </button>
+
+          <div class="player-network-card">
+            <span class="player-online-dot"></span>
+            <strong>Онлайн: ${cityStats.online}</strong>
+
+            <span class="player-network-separator"></span>
+
+            <span class="player-signal">▂▄▆</span>
+            <strong>Пинг: ${cityStats.ping} мс</strong>
           </div>
-        </header>
+        </section>
+
+        <div class="city-stats-modal" hidden>
+          <div class="city-stats-backdrop" data-city-stats-close></div>
+
+          <section class="city-stats-panel" role="dialog" aria-modal="true" aria-label="${city.name} — статистика">
+            <header class="city-stats-header">
+              <strong>${city.name} — статистика</strong>
+              <button type="button" data-city-stats-close>×</button>
+            </header>
+
+            <div class="city-stats-grid">
+              <article class="city-stat-card city-stat-purple">
+                <span class="city-stat-icon">▥</span>
+                <em>Дома</em>
+                <strong>${cityStats.housesTotal}</strong>
+                <small>Свободно: ${cityStats.housesFree}</small>
+                <div class="city-stat-progress">
+                  <i style="width:${housesFreePercent}%"></i>
+                </div>
+                <b>${housesFreePercent}%</b>
+              </article>
+
+              <article class="city-stat-card city-stat-green">
+                <span class="city-stat-icon">▤</span>
+                <em>Бизнесы</em>
+                <strong>${cityStats.businessTotal}</strong>
+                <small>Свободно: ${cityStats.businessFree}</small>
+                <div class="city-stat-progress">
+                  <i style="width:${businessFreePercent}%"></i>
+                </div>
+                <b>${businessFreePercent}%</b>
+              </article>
+
+              <article class="city-stat-card city-stat-orange">
+                <span class="city-stat-icon">↗</span>
+                <em>Инфляция</em>
+                <strong>${cityStats.inflation}%</strong>
+                <small>Текущий уровень</small>
+                <div class="city-stat-progress">
+                  <i style="width:${Math.min(cityStats.inflation * 10, 100)}%"></i>
+                </div>
+                <b>рынок</b>
+              </article>
+
+              <article class="city-stat-card city-stat-blue">
+                <span class="city-stat-icon">●●</span>
+                <em>Пользователей</em>
+                <strong>${cityStats.online}</strong>
+                <small>Онлайн</small>
+                <div class="city-stat-progress">
+                  <i style="width:68%"></i>
+                </div>
+                <b>live</b>
+              </article>
+            </div>
+
+            <button class="city-stats-close-button" type="button" data-city-stats-close>
+              Закрыть
+            </button>
+          </section>
+        </div>
 
         <div class="mobile-controls-layer"></div>
       </section>
@@ -304,6 +432,30 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
+
+  const cityStatsModal = root.querySelector('.city-stats-modal');
+  const cityButton = root.querySelector('.player-city-button');
+  const cityStatsCloseButtons = root.querySelectorAll('[data-city-stats-close]');
+
+  function openCityStats() {
+    if (!cityStatsModal) return;
+
+    cityStatsModal.hidden = false;
+    root.dataset.cityStatsOpen = 'true';
+  }
+
+  function closeCityStats() {
+    if (!cityStatsModal) return;
+
+    cityStatsModal.hidden = true;
+    delete root.dataset.cityStatsOpen;
+  }
+
+  cityButton?.addEventListener('click', openCityStats);
+
+  cityStatsCloseButtons.forEach((button) => {
+    button.addEventListener('click', closeCityStats);
+  });
 
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
@@ -483,6 +635,8 @@ register('home', async (root) => {
 
   root._cleanupHome = () => {
     root.dataset.destroyed = 'true';
+
+    closeCityStats();
 
     cleanupMovement?.();
     cleanupMobileJoystick?.();
