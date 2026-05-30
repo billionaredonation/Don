@@ -165,7 +165,7 @@ register('home', async (root) => {
       ...(state.player || {}),
       ...playerPosition,
       is_admin: isAdmin,
-      isAdmin: isAdmin,
+      isAdmin,
     };
 
     state.is_admin = isAdmin;
@@ -240,13 +240,16 @@ register('home', async (root) => {
     housesFree: 42,
     businessTotal: 56,
     businessFree: 18,
-    avgSalary: 18500,
+    freeSlots: 60,
     online: cityPlayers.length || 1,
     ping: 42,
   };
 
   const housesFreePercent = Math.round((cityStats.housesFree / cityStats.housesTotal) * 100);
   const businessFreePercent = Math.round((cityStats.businessFree / cityStats.businessTotal) * 100);
+  const freeSlotsPercent = Math.round(
+    (cityStats.freeSlots / (cityStats.housesTotal + cityStats.businessTotal)) * 100
+  );
 
   root.dataset.city = cityId;
   root.dataset.time = dayMode;
@@ -355,7 +358,7 @@ register('home', async (root) => {
 
             <span class="player-network-separator"></span>
 
-            <span class="player-signal">▂▄▆</span>
+            <span class="player-signal" aria-hidden="true"><i></i><i></i><i></i></span>
             <strong>Пинг: ${cityStats.ping} мс</strong>
           </div>
         </section>
@@ -393,14 +396,14 @@ register('home', async (root) => {
               </article>
 
               <article class="city-stat-card city-stat-orange">
-                <span class="city-stat-icon">₴</span>
-                <em>Средний доход</em>
-                <strong>${cityStats.avgSalary.toLocaleString('ru-RU')} ₴</strong>
-                <small>по городу</small>
+                <span class="city-stat-icon">◎</span>
+                <em>Свободные слоты</em>
+                <strong>${cityStats.freeSlots}</strong>
+                <small>дома + бизнесы</small>
                 <div class="city-stat-progress">
-                  <i style="width:52%"></i>
+                  <i style="width:${freeSlotsPercent}%"></i>
                 </div>
-                <b>экономика</b>
+                <b>${freeSlotsPercent}%</b>
               </article>
 
               <article class="city-stat-card city-stat-blue">
