@@ -512,3 +512,43 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
 .map-object-business {
   border-radius: 9px;
 }
+
+.map-objects-layer-public {
+  z-index: 40;
+  pointer-events: auto;
+}
+
+.map-objects-layer-admin {
+  z-index: 45;
+  pointer-events: auto;
+}
+
+.mobile-controls-layer {
+  pointer-events: none;
+}
+
+.mobile-controls-layer * {
+  pointer-events: auto;
+}
+
+.map-object {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 768px) {
+  .map-objects-layer-public {
+    display: block !important;
+    z-index: 60;
+  }
+
+  [data-admin-mode="enabled"] .map-objects-layer-public,
+  [data-admin-move-mode="enabled"] .map-objects-layer-public {
+    display: none !important;
+  }
+
+  .map-object {
+    min-width: 30px;
+    min-height: 30px;
+  }
+}
