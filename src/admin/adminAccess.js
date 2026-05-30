@@ -11,6 +11,8 @@ async function checkAdminSession() {
   const initData = getTelegramInitData();
 
   if (!initData) {
+    console.warn('[adminAccess] blocked: missing telegram initData');
+
     return {
       ok: false,
       isAdmin: false,
@@ -64,7 +66,7 @@ export async function isCurrentPlayerAdmin() {
   state.is_admin = isAdmin;
   state.isAdmin = isAdmin;
 
-  console.log('[adminAccess] admin result:', {
+  console.log('[adminAccess] result:', {
     isAdmin,
     reason: session?.reason,
     hasPlayer: Boolean(session?.player),
