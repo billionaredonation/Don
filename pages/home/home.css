@@ -2862,3 +2862,164 @@ body,
     grid-template-columns: 54px 1fr 16px;
   }
 }
+
+/* ===== FIX HUD SIZE + MODAL ===== */
+
+.player-glass-hud {
+  left: 14px !important;
+  right: auto !important;
+  top: 14px !important;
+  width: min(430px, calc(100vw - 28px)) !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 18px !important;
+  border-radius: 26px !important;
+}
+
+.player-mini-markers {
+  width: 100% !important;
+  justify-content: center !important;
+  padding: 10px 14px !important;
+}
+
+.player-city-button {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  margin-top: 24px !important;
+  justify-content: space-between !important;
+}
+
+.player-city-button span {
+  font-size: 34px !important;
+  letter-spacing: -0.055em !important;
+}
+
+.player-city-button b {
+  font-size: 38px !important;
+}
+
+.player-profile-card,
+.player-balance-card,
+.player-network-card {
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin-top: 14px !important;
+}
+
+.player-profile-card,
+.player-balance-card {
+  grid-template-columns: 58px 1fr 18px !important;
+  padding: 14px !important;
+  border-radius: 20px !important;
+}
+
+.player-avatar,
+.player-card-icon {
+  width: 52px !important;
+  height: 52px !important;
+  font-size: 24px !important;
+}
+
+.player-profile-info strong {
+  font-size: 18px !important;
+}
+
+.player-balance-info strong {
+  font-size: 24px !important;
+}
+
+.player-network-card {
+  min-height: 52px !important;
+  padding: 12px 14px !important;
+  justify-content: center !important;
+  border-radius: 18px !important;
+}
+
+.player-network-card strong {
+  font-size: 14px !important;
+}
+
+/* modal center + blur */
+.city-stats-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+}
+
+.city-stats-modal[hidden] {
+  display: none !important;
+}
+
+.city-stats-backdrop {
+  position: absolute !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.56) !important;
+  backdrop-filter: blur(18px) saturate(1.15) !important;
+}
+
+.city-stats-panel {
+  width: min(520px, calc(100vw - 28px)) !important;
+  max-height: min(680px, calc(100vh - 32px)) !important;
+  overflow: auto !important;
+  padding: 18px !important;
+  border-radius: 24px !important;
+}
+
+.city-stats-grid {
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+}
+
+.city-stat-card {
+  min-height: 140px !important;
+  padding: 14px !important;
+}
+
+.city-stat-card strong {
+  font-size: 24px !important;
+}
+
+.city-stat-icon {
+  width: 42px !important;
+  height: 42px !important;
+}
+
+@media (max-width: 768px) {
+  .player-glass-hud {
+    left: 8px !important;
+    right: 8px !important;
+    top: 8px !important;
+    width: auto !important;
+    padding: 14px !important;
+    border-radius: 24px !important;
+  }
+
+  .player-city-button span {
+    font-size: 31px !important;
+  }
+
+  .city-stats-panel {
+    width: min(390px, calc(100vw - 24px)) !important;
+    max-height: 78vh !important;
+    border-radius: 22px !important;
+  }
+
+  .city-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .city-stat-card {
+    min-height: 74px !important;
+  }
+}
