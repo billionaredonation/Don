@@ -240,8 +240,8 @@ register('home', async (root) => {
     housesFree: 42,
     businessTotal: 56,
     businessFree: 18,
-    inflation: 5.4,
-    online: cityPlayers.length || 342,
+    avgSalary: 18500,
+    online: cityPlayers.length || 1,
     ping: 42,
   };
 
@@ -393,14 +393,14 @@ register('home', async (root) => {
               </article>
 
               <article class="city-stat-card city-stat-orange">
-                <span class="city-stat-icon">↗</span>
-                <em>Инфляция</em>
-                <strong>${cityStats.inflation}%</strong>
-                <small>Текущий уровень</small>
+                <span class="city-stat-icon">₴</span>
+                <em>Средний доход</em>
+                <strong>${cityStats.avgSalary.toLocaleString('ru-RU')} ₴</strong>
+                <small>по городу</small>
                 <div class="city-stat-progress">
-                  <i style="width:${Math.min(cityStats.inflation * 10, 100)}%"></i>
+                  <i style="width:52%"></i>
                 </div>
-                <b>рынок</b>
+                <b>экономика</b>
               </article>
 
               <article class="city-stat-card city-stat-blue">
