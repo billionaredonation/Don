@@ -7,6 +7,10 @@ function getStorageKey(cityId) {
   return `${STORAGE_PREFIX}_${cityId}`;
 }
 
+function getTelegramInitData() {
+  return window.Telegram?.WebApp?.initData || '';
+}
+
 function safeParse(value, fallback) {
   try {
     return JSON.parse(value) || fallback;
@@ -49,28 +53,6 @@ function normalizeObject(object = {}) {
     payload,
     createdAt: object.createdAt || object.created_at || new Date().toISOString(),
     updatedAt: object.updatedAt || object.updated_at || new Date().toISOString(),
-  };
-}
-
-function toDbRow(object) {
-  const normalized = normalizeObject(object);
-
-  return {
-    id: normalized.id,
-    city_id: normalized.cityId,
-    type: normalized.type,
-    category: normalized.category,
-    name: normalized.name,
-    icon: normalized.icon,
-    asset: normalized.asset,
-    x: normalized.x,
-    y: normalized.y,
-    rotation: normalized.rotation,
-    scale: normalized.scale,
-    variant: normalized.variant,
-    payload: normalized.payload,
-    created_at: normalized.createdAt,
-    updated_at: normalized.updatedAt,
   };
 }
 
@@ -121,6 +103,31 @@ function saveLocalObjects(cityId, objects) {
   return normalized;
 }
 
+async function adminMapObjectsRequest(payload) {
+  const initData = getTelegramInitData();
+
+  if (!initData) {
+    throw new Error('missing_telegram_init_data');
+  }
+
+  const { data, error } = await supabase.functions.invoke('admin-map-objects', {
+    body: {
+      initData,
+      ...payload,
+    },
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data?.ok) {
+    throw new Error(data?.reason || 'admin_map_objects_failed');
+  }
+
+  return data;
+}
+
 async function fetchRemoteObjects(cityId) {
   const { data, error } = await supabase
     .from(TABLE_NAME)
@@ -135,38 +142,28 @@ async function fetchRemoteObjects(cityId) {
   return Array.isArray(data) ? data.map(fromDbRow) : [];
 }
 
-async function upsertRemoteObjects(objects) {
-  const rows = objects.map(toDbRow);
+async function saveRemoteObject(object) {
+  const data = await adminMapObjectsRequest({
+    action: 'upsert',
+    object,
+  });
 
-  if (!rows.length) return [];
-
-  const { data, error } = await supabase
-    .from(TABLE_NAME)
-    .upsert(rows, { onConflict: 'id' })
-    .select('*');
-
-  if (error) {
-    throw error;
-  }
-
-  return Array.isArray(data) ? data.map(fromDbRow) : objects;
+  return data?.object ? fromDbRow(data.object) : normalizeObject(object);
 }
 
-async function uploadLocalObjectsIfRemoteEmpty(cityId, localObjects, remoteObjects) {
-  if (!localObjects.length || remoteObjects.length) return remoteObjects;
+async function deleteRemoteObject(cityId, objectId) {
+  return adminMapObjectsRequest({
+    action: 'delete',
+    cityId,
+    objectId,
+  });
+}
 
-  try {
-    return await upsertRemoteObjects(
-      localObjects.map((object) => ({
-        ...object,
-        cityId,
-        updatedAt: new Date().toISOString(),
-      }))
-    );
-  } catch (error) {
-    console.warn('[mapObjectsRepository] local upload failed:', error);
-    return remoteObjects;
-  }
+async function clearRemoteCity(cityId) {
+  return adminMapObjectsRequest({
+    action: 'clear_city',
+    cityId,
+  });
 }
 
 export async function getMapObjects(cityId) {
@@ -175,16 +172,8 @@ export async function getMapObjects(cityId) {
 
   try {
     const remoteObjects = await fetchRemoteObjects(normalizedCityId);
-
-    const finalObjects = await uploadLocalObjectsIfRemoteEmpty(
-      normalizedCityId,
-      localObjects,
-      remoteObjects
-    );
-
-    saveLocalObjects(normalizedCityId, finalObjects);
-
-    return finalObjects;
+    saveLocalObjects(normalizedCityId, remoteObjects);
+    return remoteObjects;
   } catch (error) {
     console.warn('[mapObjectsRepository] remote load failed, using local:', error);
     return localObjects;
@@ -201,9 +190,18 @@ export async function saveMapObjects(cityId, objects) {
   saveLocalObjects(normalizedCityId, normalized);
 
   try {
-    return await upsertRemoteObjects(normalized);
+    const savedObjects = [];
+
+    for (const object of normalized) {
+      const savedObject = await saveRemoteObject(object);
+      savedObjects.push(savedObject);
+    }
+
+    saveLocalObjects(normalizedCityId, savedObjects);
+
+    return savedObjects;
   } catch (error) {
-    console.warn('[mapObjectsRepository] remote save failed, using local only:', error);
+    console.warn('[mapObjectsRepository] admin remote save failed:', error);
     return normalized;
   }
 }
@@ -222,9 +220,21 @@ export async function addMapObject(cityId, object) {
   const objects = await getMapObjects(normalizedCityId);
   const nextObjects = [...objects, nextObject];
 
-  await saveMapObjects(normalizedCityId, nextObjects);
+  saveLocalObjects(normalizedCityId, nextObjects);
 
-  return nextObject;
+  try {
+    const savedObject = await saveRemoteObject(nextObject);
+    const syncedObjects = nextObjects.map((item) =>
+      String(item.id) === String(savedObject.id) ? savedObject : item
+    );
+
+    saveLocalObjects(normalizedCityId, syncedObjects);
+
+    return savedObject;
+  } catch (error) {
+    console.warn('[mapObjectsRepository] admin add failed:', error);
+    return nextObject;
+  }
 }
 
 export async function updateMapObject(cityId, objectId, patch) {
@@ -243,9 +253,26 @@ export async function updateMapObject(cityId, objectId, patch) {
     });
   });
 
-  await saveMapObjects(normalizedCityId, nextObjects);
+  const updatedObject = nextObjects.find((object) => String(object.id) === String(objectId)) || null;
 
-  return nextObjects.find((object) => String(object.id) === String(objectId)) || null;
+  saveLocalObjects(normalizedCityId, nextObjects);
+
+  if (!updatedObject) return null;
+
+  try {
+    const savedObject = await saveRemoteObject(updatedObject);
+
+    const syncedObjects = nextObjects.map((item) =>
+      String(item.id) === String(savedObject.id) ? savedObject : item
+    );
+
+    saveLocalObjects(normalizedCityId, syncedObjects);
+
+    return savedObject;
+  } catch (error) {
+    console.warn('[mapObjectsRepository] admin update failed:', error);
+    return updatedObject;
+  }
 }
 
 export async function deleteMapObject(cityId, objectId) {
@@ -257,15 +284,9 @@ export async function deleteMapObject(cityId, objectId) {
   saveLocalObjects(normalizedCityId, nextObjects);
 
   try {
-    const { error } = await supabase
-      .from(TABLE_NAME)
-      .delete()
-      .eq('id', objectId)
-      .eq('city_id', normalizedCityId);
-
-    if (error) throw error;
+    await deleteRemoteObject(normalizedCityId, objectId);
   } catch (error) {
-    console.warn('[mapObjectsRepository] remote delete failed:', error);
+    console.warn('[mapObjectsRepository] admin delete failed:', error);
   }
 
   return nextObjects;
@@ -277,14 +298,9 @@ export async function clearMapObjects(cityId) {
   saveLocalObjects(normalizedCityId, []);
 
   try {
-    const { error } = await supabase
-      .from(TABLE_NAME)
-      .delete()
-      .eq('city_id', normalizedCityId);
-
-    if (error) throw error;
+    await clearRemoteCity(normalizedCityId);
   } catch (error) {
-    console.warn('[mapObjectsRepository] remote clear failed:', error);
+    console.warn('[mapObjectsRepository] admin clear failed:', error);
   }
 
   return [];
