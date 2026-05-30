@@ -233,7 +233,7 @@ register('home', async (root) => {
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
     '123456789';
 
-  const playerBalance = Number(state.player?.balance || 12450);
+  const playerBalance = Number(state.player?.balance || 0);
 
   const cityStats = {
     housesTotal: 128,
