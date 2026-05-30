@@ -79,18 +79,38 @@ export function enableEntityInteraction({
 
   const layer = createMapObjectsLayer();
   layer.classList.add('map-objects-layer-public');
+  layer.dataset.cityId = String(cityId);
+
   viewport.appendChild(layer);
 
   let mapObjects = [];
+  let reloadTimer = null;
+  let destroyed = false;
 
   async function reloadObjects() {
+    if (destroyed) return;
+
     const objects = await getMapObjects(cityId);
+
+    if (destroyed) return;
 
     mapObjects = Array.isArray(objects)
       ? objects.filter(Boolean)
       : [];
 
     renderMapObjects(layer, mapObjects);
+
+    window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
+      detail: {
+        cityId,
+        count: mapObjects.length,
+      },
+    }));
+  }
+
+  function scheduleReload() {
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(reloadObjects, 150);
   }
 
   function onClick(event) {
@@ -108,16 +128,21 @@ export function enableEntityInteraction({
 
   function onObjectsChanged(event) {
     if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
-    reloadObjects();
+    scheduleReload();
   }
 
   layer.addEventListener('click', onClick);
+  layer.addEventListener('pointerdown', onClick);
   window.addEventListener('mn:map-objects-changed', onObjectsChanged);
 
   reloadObjects();
 
   return () => {
+    destroyed = true;
+    clearTimeout(reloadTimer);
+
     layer.removeEventListener('click', onClick);
+    layer.removeEventListener('pointerdown', onClick);
     window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
     layer.remove();
   };
