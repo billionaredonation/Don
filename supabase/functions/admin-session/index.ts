@@ -75,10 +75,15 @@ serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('URL');
+    const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !serviceRoleKey) {
+      console.error('[admin-session] missing env:', {
+        hasUrl: Boolean(supabaseUrl),
+        hasServiceRoleKey: Boolean(serviceRoleKey),
+      });
+
       return jsonResponse(
         {
           ok: false,
@@ -90,7 +95,6 @@ serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
     const telegramId = String(telegramUser.id);
 
     const { data: player, error } = await supabaseAdmin
