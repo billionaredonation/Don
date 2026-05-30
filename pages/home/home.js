@@ -172,13 +172,6 @@ register('home', async (root) => {
     state.isAdmin = isAdmin;
 
     save();
-
-    console.log('[home] local player loaded:', {
-      nickname,
-      playerPosition,
-      statePlayer: state.player,
-      stateIsAdmin: state.is_admin,
-    });
   } catch (error) {
     console.warn('[home] player position loading failed:', error);
 
@@ -332,7 +325,6 @@ register('home', async (root) => {
   let cleanupMobilePrompt = null;
   let cleanupMobileJoystick = null;
   let cleanupAdminPanel = null;
-  let cleanupAdminHotkey = null;
   let cleanupEntityInteraction = null;
 
   function enableMobileGameplayMode() {
@@ -387,7 +379,6 @@ register('home', async (root) => {
   isCurrentPlayerAdmin()
     .then((canUseAdminPanel) => {
       if (!canUseAdminPanel || root.dataset.destroyed === 'true') {
-        console.log('[home] admin panel blocked');
         return;
       }
 
@@ -403,7 +394,48 @@ register('home', async (root) => {
         movementChannel: network.movementChannel,
       });
 
+      if (!panelCleanup) {
+        const fail = document.createElement('div');
+        fail.textContent = 'ADMIN PANEL INIT FAILED';
+        fail.style.cssText = `
+          position: fixed;
+          right: 12px;
+          bottom: 12px;
+          z-index: 999999;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: rgba(160, 20, 20, 0.95);
+          color: #fff;
+          font: 900 12px system-ui;
+        `;
+        document.body.appendChild(fail);
+
+        cleanupAdminPanel = () => fail.remove();
+        return;
+      }
+
+      function setAdminPanelVisible(nextVisible) {
+        const panel = root.querySelector('.admin-panel');
+        if (!panel) return false;
+
+        panel.hidden = !nextVisible;
+        root.dataset.adminMode = nextVisible ? 'enabled' : 'disabled';
+
+        if (nextVisible) {
+          delete root.dataset.adminTeleportMode;
+        }
+
+        return true;
+      }
+
       function toggleAdminPanel() {
+        const panel = root.querySelector('.admin-panel');
+
+        if (panel) {
+          setAdminPanelVisible(panel.hidden);
+          return;
+        }
+
         window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
       }
 
@@ -411,6 +443,7 @@ register('home', async (root) => {
       adminOpenButton.type = 'button';
       adminOpenButton.textContent = 'ADMIN';
       adminOpenButton.className = 'admin-open-button';
+      adminOpenButton.style.zIndex = '999999';
       adminOpenButton.addEventListener('click', toggleAdminPanel);
 
       root.appendChild(adminOpenButton);
@@ -428,20 +461,12 @@ register('home', async (root) => {
       window.addEventListener('keydown', handleAdminHotkey, true);
       document.addEventListener('keydown', handleAdminHotkey, true);
 
-      cleanupAdminHotkey = () => {
+      cleanupAdminPanel = () => {
         window.removeEventListener('keydown', handleAdminHotkey, true);
         document.removeEventListener('keydown', handleAdminHotkey, true);
-      };
-
-      cleanupAdminPanel = () => {
-        cleanupAdminHotkey?.();
-        cleanupAdminHotkey = null;
-
         adminOpenButton.remove();
         panelCleanup?.();
       };
-
-      console.log('[home] admin panel initialized');
     })
     .catch((error) => {
       console.warn('[home] admin panel disabled:', error);
@@ -462,7 +487,6 @@ register('home', async (root) => {
     cleanupMovement?.();
     cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
-    cleanupAdminHotkey?.();
     cleanupAdminPanel?.();
     cleanupEntityInteraction?.();
     entityInteractionPanel.cleanup();
