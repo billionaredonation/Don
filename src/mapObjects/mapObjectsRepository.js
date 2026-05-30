@@ -20,21 +20,33 @@ function createObjectId() {
   return `obj_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-function normalizeObject(object) {
+function toNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function normalizeObject(object = {}) {
+  const payload = object.payload && typeof object.payload === 'object'
+    ? object.payload
+    : {};
+
+  const type = String(object.type || 'marker');
+  const category = String(object.category || payload.category || type || 'marker');
+
   return {
     id: String(object.id || createObjectId()),
     cityId: String(object.cityId || object.city_id || ''),
-    type: String(object.type || 'marker'),
-    category: String(object.category || 'marker'),
-    name: String(object.name || object.type || 'Объект'),
-    icon: String(object.icon || '◆'),
-    asset: String(object.asset || ''),
-    x: Number(object.x || 50),
-    y: Number(object.y || 50),
-    rotation: Number(object.rotation || 0),
-    scale: Number(object.scale || 1),
-    variant: String(object.variant || ''),
-    payload: object.payload && typeof object.payload === 'object' ? object.payload : {},
+    type,
+    category,
+    name: String(object.name || payload.name || type || 'Объект'),
+    icon: String(object.icon || payload.icon || '◆'),
+    asset: String(object.asset || payload.asset || ''),
+    x: toNumber(object.x, 50),
+    y: toNumber(object.y, 50),
+    rotation: toNumber(object.rotation, 0),
+    scale: toNumber(object.scale, 1),
+    variant: String(object.variant || payload.variant || ''),
+    payload,
     createdAt: object.createdAt || object.created_at || new Date().toISOString(),
     updatedAt: object.updatedAt || object.updated_at || new Date().toISOString(),
   };
@@ -109,111 +121,115 @@ function saveLocalObjects(cityId, objects) {
   return normalized;
 }
 
-async function uploadLocalObjectsIfNeeded(cityId, localObjects, remoteObjects) {
+async function fetchRemoteObjects(cityId) {
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select('*')
+    .eq('city_id', cityId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data.map(fromDbRow) : [];
+}
+
+async function upsertRemoteObjects(objects) {
+  const rows = objects.map(toDbRow);
+
+  if (!rows.length) return [];
+
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .upsert(rows, { onConflict: 'id' })
+    .select('*');
+
+  if (error) {
+    throw error;
+  }
+
+  return Array.isArray(data) ? data.map(fromDbRow) : objects;
+}
+
+async function uploadLocalObjectsIfRemoteEmpty(cityId, localObjects, remoteObjects) {
   if (!localObjects.length || remoteObjects.length) return remoteObjects;
 
   try {
-    const rows = localObjects.map((object) => toDbRow({
-      ...object,
-      cityId,
-      updatedAt: new Date().toISOString(),
-    }));
-
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .upsert(rows, { onConflict: 'id' })
-      .select('*');
-
-    if (error) {
-      console.warn('[mapObjectsRepository] local upload failed:', error);
-      return remoteObjects;
-    }
-
-    return Array.isArray(data) ? data.map(fromDbRow) : localObjects;
+    return await upsertRemoteObjects(
+      localObjects.map((object) => ({
+        ...object,
+        cityId,
+        updatedAt: new Date().toISOString(),
+      }))
+    );
   } catch (error) {
-    console.warn('[mapObjectsRepository] local upload crashed:', error);
+    console.warn('[mapObjectsRepository] local upload failed:', error);
     return remoteObjects;
   }
 }
 
 export async function getMapObjects(cityId) {
-  const localObjects = getLocalObjects(cityId);
+  const normalizedCityId = String(cityId || '');
+  const localObjects = getLocalObjects(normalizedCityId);
 
   try {
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .select('*')
-      .eq('city_id', cityId)
-      .order('created_at', { ascending: true });
+    const remoteObjects = await fetchRemoteObjects(normalizedCityId);
 
-    if (error) {
-      console.warn('[mapObjectsRepository] remote load failed:', error);
-      return localObjects;
-    }
-
-    const remoteObjects = Array.isArray(data) ? data.map(fromDbRow) : [];
-
-    const finalObjects = await uploadLocalObjectsIfNeeded(
-      cityId,
+    const finalObjects = await uploadLocalObjectsIfRemoteEmpty(
+      normalizedCityId,
       localObjects,
       remoteObjects
     );
 
-    saveLocalObjects(cityId, finalObjects);
+    saveLocalObjects(normalizedCityId, finalObjects);
 
     return finalObjects;
   } catch (error) {
-    console.warn('[mapObjectsRepository] remote load crashed:', error);
+    console.warn('[mapObjectsRepository] remote load failed, using local:', error);
     return localObjects;
   }
 }
 
 export async function saveMapObjects(cityId, objects) {
+  const normalizedCityId = String(cityId || '');
+
   const normalized = Array.isArray(objects)
-    ? objects.map((object) => normalizeObject({ ...object, cityId }))
+    ? objects.map((object) => normalizeObject({ ...object, cityId: normalizedCityId }))
     : [];
 
-  saveLocalObjects(cityId, normalized);
+  saveLocalObjects(normalizedCityId, normalized);
 
   try {
-    const rows = normalized.map(toDbRow);
-
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .upsert(rows, { onConflict: 'id' })
-      .select('*');
-
-    if (error) {
-      console.warn('[mapObjectsRepository] remote save failed:', error);
-      return normalized;
-    }
-
-    return Array.isArray(data) ? data.map(fromDbRow) : normalized;
+    return await upsertRemoteObjects(normalized);
   } catch (error) {
-    console.warn('[mapObjectsRepository] remote save crashed:', error);
+    console.warn('[mapObjectsRepository] remote save failed, using local only:', error);
     return normalized;
   }
 }
 
 export async function addMapObject(cityId, object) {
+  const normalizedCityId = String(cityId || '');
+
   const nextObject = normalizeObject({
     ...object,
-    id: object.id || createObjectId(),
-    cityId,
-    createdAt: object.createdAt || new Date().toISOString(),
+    id: object?.id || createObjectId(),
+    cityId: normalizedCityId,
+    createdAt: object?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
 
-  const objects = await getMapObjects(cityId);
+  const objects = await getMapObjects(normalizedCityId);
   const nextObjects = [...objects, nextObject];
 
-  await saveMapObjects(cityId, nextObjects);
+  await saveMapObjects(normalizedCityId, nextObjects);
 
   return nextObject;
 }
 
 export async function updateMapObject(cityId, objectId, patch) {
-  const objects = await getMapObjects(cityId);
+  const normalizedCityId = String(cityId || '');
+  const objects = await getMapObjects(normalizedCityId);
 
   const nextObjects = objects.map((object) => {
     if (String(object.id) !== String(objectId)) return object;
@@ -222,53 +238,53 @@ export async function updateMapObject(cityId, objectId, patch) {
       ...object,
       ...patch,
       id: object.id,
-      cityId,
+      cityId: normalizedCityId,
       updatedAt: new Date().toISOString(),
     });
   });
 
-  await saveMapObjects(cityId, nextObjects);
+  await saveMapObjects(normalizedCityId, nextObjects);
 
   return nextObjects.find((object) => String(object.id) === String(objectId)) || null;
 }
 
 export async function deleteMapObject(cityId, objectId) {
-  const objects = await getMapObjects(cityId);
+  const normalizedCityId = String(cityId || '');
+
+  const objects = await getMapObjects(normalizedCityId);
   const nextObjects = objects.filter((object) => String(object.id) !== String(objectId));
 
-  saveLocalObjects(cityId, nextObjects);
+  saveLocalObjects(normalizedCityId, nextObjects);
 
   try {
     const { error } = await supabase
       .from(TABLE_NAME)
       .delete()
       .eq('id', objectId)
-      .eq('city_id', cityId);
+      .eq('city_id', normalizedCityId);
 
-    if (error) {
-      console.warn('[mapObjectsRepository] remote delete failed:', error);
-    }
+    if (error) throw error;
   } catch (error) {
-    console.warn('[mapObjectsRepository] remote delete crashed:', error);
+    console.warn('[mapObjectsRepository] remote delete failed:', error);
   }
 
   return nextObjects;
 }
 
 export async function clearMapObjects(cityId) {
-  saveLocalObjects(cityId, []);
+  const normalizedCityId = String(cityId || '');
+
+  saveLocalObjects(normalizedCityId, []);
 
   try {
     const { error } = await supabase
       .from(TABLE_NAME)
       .delete()
-      .eq('city_id', cityId);
+      .eq('city_id', normalizedCityId);
 
-    if (error) {
-      console.warn('[mapObjectsRepository] remote clear failed:', error);
-    }
+    if (error) throw error;
   } catch (error) {
-    console.warn('[mapObjectsRepository] remote clear crashed:', error);
+    console.warn('[mapObjectsRepository] remote clear failed:', error);
   }
 
   return [];
