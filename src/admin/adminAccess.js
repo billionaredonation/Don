@@ -38,8 +38,51 @@ function showAdminDebug(message, type = 'info') {
   el.textContent = message;
 }
 
+function formatDetails(details) {
+  if (!details) return 'none';
+
+  if (typeof details === 'string') {
+    return details;
+  }
+
+  try {
+    return JSON.stringify(details, null, 2);
+  } catch {
+    return String(details);
+  }
+}
+
 function getTelegramInitData() {
   return window.Telegram?.WebApp?.initData || '';
+}
+
+async function readFunctionError(error) {
+  let details = error?.message || String(error);
+
+  try {
+    const context = error?.context;
+    const responseText = await context?.text?.();
+
+    if (responseText) {
+      details = responseText;
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (error?.context && typeof error.context.json === 'function') {
+      const responseJson = await error.context.json();
+
+      if (responseJson) {
+        details = responseJson;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return details;
 }
 
 async function checkAdminSession() {
@@ -51,6 +94,7 @@ async function checkAdminSession() {
       isAdmin: false,
       player: null,
       reason: 'missing_telegram_init_data',
+      details: 'Telegram Mini App initData is empty',
     };
   }
 
@@ -59,12 +103,14 @@ async function checkAdminSession() {
   });
 
   if (error) {
+    const details = await readFunctionError(error);
+
     return {
       ok: false,
       isAdmin: false,
       player: null,
       reason: 'function_error',
-      details: error.message || String(error),
+      details,
     };
   }
 
@@ -106,7 +152,7 @@ export async function isCurrentPlayerAdmin() {
     );
   } else {
     showAdminDebug(
-      `ADMIN BLOCKED\nreason: ${session?.reason || 'unknown'}\ndetails: ${session?.details || 'none'}`,
+      `ADMIN BLOCKED\nreason: ${session?.reason || 'unknown'}\ndetails: ${formatDetails(session?.details)}`,
       'bad'
     );
   }
