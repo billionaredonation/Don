@@ -11,8 +11,6 @@ async function checkAdminSession() {
   const initData = getTelegramInitData();
 
   if (!initData) {
-    console.warn('[adminAccess] blocked: missing telegram initData');
-
     return {
       ok: false,
       isAdmin: false,
@@ -21,12 +19,12 @@ async function checkAdminSession() {
     };
   }
 
-  const { data, error } = await supabase.functions.invoke('admin-session', {
+  const { data, error } = await supabase.functions.invoke('verify-telegram', {
     body: { initData },
   });
 
   if (error) {
-    console.warn('[adminAccess] admin-session function error:', error);
+    console.warn('[adminAccess] verify-telegram function error:', error);
 
     return {
       ok: false,
@@ -38,7 +36,7 @@ async function checkAdminSession() {
 
   return {
     ok: data?.ok === true,
-    isAdmin: data?.isAdmin === true,
+    isAdmin: data?.isAdmin === true || data?.player?.is_admin === true,
     player: data?.player || null,
     reason: data?.reason || null,
   };
@@ -65,12 +63,6 @@ export async function isCurrentPlayerAdmin() {
 
   state.is_admin = isAdmin;
   state.isAdmin = isAdmin;
-
-  console.log('[adminAccess] result:', {
-    isAdmin,
-    reason: session?.reason,
-    hasPlayer: Boolean(session?.player),
-  });
 
   return isAdmin;
 }
