@@ -21,6 +21,7 @@ import { renderPlayersHtml } from '../../src/player/playerMarkerView.js';
 import { enableFogOfWar } from '../../src/map/fogOfWar.js';
 
 import { enableAdminPanel } from '../../src/admin/adminPanel.js';
+import { isCurrentPlayerAdmin } from '../../src/admin/adminAccess.js';
 
 import {
   createEntityInteractionPanel,
@@ -149,7 +150,7 @@ register('home', async (root) => {
 
     save();
 
-    console.log('[home] admin check:', {
+    console.log('[home] local player loaded:', {
       nickname,
       playerPosition,
       statePlayer: state.player,
@@ -352,15 +353,6 @@ register('home', async (root) => {
     );
   }
 
-  const canUseAdminPanel = true;
-
-  console.log('[home] admin panel gate:', {
-    canUseAdminPanel,
-    playerPositionIsAdmin: playerPosition?.is_admin,
-    playerPositionIsAdminAlt: playerPosition?.isAdmin,
-    stateIsAdmin: state.is_admin,
-  });
-
   cleanupEntityInteraction = enableEntityInteraction({
     root,
     viewport,
@@ -368,37 +360,46 @@ register('home', async (root) => {
     panel: entityInteractionPanel,
   });
 
-  if (canUseAdminPanel) {
-    const panelCleanup = enableAdminPanel({
-      root,
-      stage,
-      viewport,
-      playerMarker,
-      playerPosition,
-      cityId,
-      nickname,
-      mapControls,
-      movementChannel: network.movementChannel,
+  isCurrentPlayerAdmin()
+    .then((canUseAdminPanel) => {
+      if (!canUseAdminPanel || root.dataset.destroyed === 'true') {
+        console.log('[home] admin panel blocked');
+        return;
+      }
+
+      const panelCleanup = enableAdminPanel({
+        root,
+        stage,
+        viewport,
+        playerMarker,
+        playerPosition,
+        cityId,
+        nickname,
+        mapControls,
+        movementChannel: network.movementChannel,
+      });
+
+      const adminOpenButton = document.createElement('button');
+      adminOpenButton.type = 'button';
+      adminOpenButton.textContent = 'ADMIN';
+      adminOpenButton.className = 'admin-open-button';
+
+      adminOpenButton.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
+      });
+
+      root.appendChild(adminOpenButton);
+
+      cleanupAdminPanel = () => {
+        adminOpenButton.remove();
+        panelCleanup?.();
+      };
+
+      console.log('[home] admin panel initialized');
+    })
+    .catch((error) => {
+      console.warn('[home] admin panel disabled:', error);
     });
-
-    const adminOpenButton = document.createElement('button');
-    adminOpenButton.type = 'button';
-    adminOpenButton.textContent = 'ADMIN';
-    adminOpenButton.className = 'admin-open-button';
-
-    adminOpenButton.addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
-    });
-
-    root.appendChild(adminOpenButton);
-
-    cleanupAdminPanel = () => {
-      adminOpenButton.remove();
-      panelCleanup?.();
-    };
-
-    console.log('[home] admin panel initialized');
-  }
 
   const cleanupFogOfWar = enableFogOfWar({
     stage,
@@ -410,6 +411,8 @@ register('home', async (root) => {
   });
 
   root._cleanupHome = () => {
+    root.dataset.destroyed = 'true';
+
     cleanupMovement?.();
     cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
