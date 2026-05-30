@@ -17,16 +17,108 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-function parseInitData(initData: string) {
+function bytesToHex(bytes: ArrayBuffer) {
+  return [...new Uint8Array(bytes)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+async function hmacSha256(key: CryptoKey | Uint8Array, data: string) {
+  const cryptoKey =
+    key instanceof CryptoKey
+      ? key
+      : await crypto.subtle.importKey(
+          'raw',
+          key,
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['sign']
+        );
+
+  return crypto.subtle.sign(
+    'HMAC',
+    cryptoKey,
+    new TextEncoder().encode(data)
+  );
+}
+
+async function verifyTelegramInitData(initData: string, botToken: string) {
   const params = new URLSearchParams(initData);
+  const receivedHash = params.get('hash');
+
+  if (!receivedHash) {
+    return {
+      ok: false,
+      reason: 'missing_hash',
+      user: null,
+    };
+  }
+
+  params.delete('hash');
+
+  const dataCheckString = [...params.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${value}`)
+    .join('\n');
+
+  const secretKeyBuffer = await hmacSha256(
+    new TextEncoder().encode('WebAppData'),
+    botToken
+  );
+
+  const secretKey = await crypto.subtle.importKey(
+    'raw',
+    secretKeyBuffer,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const calculatedHashBuffer = await hmacSha256(secretKey, dataCheckString);
+  const calculatedHash = bytesToHex(calculatedHashBuffer);
+
+  if (calculatedHash !== receivedHash) {
+    return {
+      ok: false,
+      reason: 'bad_hash',
+      user: null,
+    };
+  }
+
+  const authDateRaw = params.get('auth_date');
+  const authDate = Number(authDateRaw || 0);
+  const now = Math.floor(Date.now() / 1000);
+
+  if (!authDate || now - authDate > 86400) {
+    return {
+      ok: false,
+      reason: 'expired_init_data',
+      user: null,
+    };
+  }
+
   const userRaw = params.get('user');
 
-  if (!userRaw) return null;
+  if (!userRaw) {
+    return {
+      ok: false,
+      reason: 'missing_user',
+      user: null,
+    };
+  }
 
   try {
-    return JSON.parse(userRaw);
+    return {
+      ok: true,
+      reason: 'verified',
+      user: JSON.parse(userRaw),
+    };
   } catch {
-    return null;
+    return {
+      ok: false,
+      reason: 'invalid_user_json',
+      user: null,
+    };
   }
 }
 
@@ -62,28 +154,11 @@ serve(async (req) => {
       );
     }
 
-    const telegramUser = parseInitData(initData);
-
-    if (!telegramUser?.id) {
-      return jsonResponse(
-        {
-          ok: false,
-          isAdmin: false,
-          reason: 'invalid_telegram_user',
-        },
-        401
-      );
-    }
-
     const supabaseUrl = Deno.env.get('URL');
     const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY');
+    const botToken = Deno.env.get('BOT_TOKEN');
 
-    if (!supabaseUrl || !serviceRoleKey) {
-      console.error('[admin-session] missing env:', {
-        hasUrl: Boolean(supabaseUrl),
-        hasServiceRoleKey: Boolean(serviceRoleKey),
-      });
-
+    if (!supabaseUrl || !serviceRoleKey || !botToken) {
       return jsonResponse(
         {
           ok: false,
@@ -94,8 +169,21 @@ serve(async (req) => {
       );
     }
 
+    const verifiedTelegram = await verifyTelegramInitData(initData, botToken);
+
+    if (!verifiedTelegram.ok || !verifiedTelegram.user?.id) {
+      return jsonResponse(
+        {
+          ok: false,
+          isAdmin: false,
+          reason: verifiedTelegram.reason,
+        },
+        401
+      );
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-    const telegramId = String(telegramUser.id);
+    const telegramId = String(verifiedTelegram.user.id);
 
     const { data: player, error } = await supabaseAdmin
       .from('players')
