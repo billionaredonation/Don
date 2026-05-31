@@ -3,39 +3,9 @@ import { supabase } from '../supabaseClient.js';
 
 let cachedAdminSession = null;
 
-function showAdminDebug(message, type = 'info') {
-  let el = document.querySelector('.admin-access-debug');
-
-  if (!el) {
-    el = document.createElement('div');
-    el.className = 'admin-access-debug';
-    el.style.cssText = `
-      position: fixed;
-      left: 12px;
-      bottom: 12px;
-      z-index: 999999;
-      max-width: calc(100vw - 24px);
-      padding: 10px 12px;
-      border-radius: 12px;
-      font: 800 12px/1.35 system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      color: white;
-      background: rgba(10, 12, 18, 0.92);
-      border: 1px solid rgba(255,255,255,0.18);
-      box-shadow: 0 12px 30px rgba(0,0,0,0.45);
-      pointer-events: none;
-      white-space: pre-wrap;
-    `;
-    document.body.appendChild(el);
-  }
-
-  el.style.background =
-    type === 'ok'
-      ? 'rgba(0, 120, 70, 0.92)'
-      : type === 'bad'
-        ? 'rgba(150, 20, 20, 0.92)'
-        : 'rgba(10, 12, 18, 0.92)';
-
-  el.textContent = message;
+function showAdminDebug() {
+  // Admin debug banner disabled.
+  // Status is now shown through .admin-status-dot in home.js.
 }
 
 function formatDetails(details) {
