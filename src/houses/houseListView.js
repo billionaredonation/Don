@@ -24,6 +24,11 @@ function getHouseStatus(house) {
   return 'Свободен';
 }
 
+function getHouseFilterState(house) {
+  if (house?.payload?.ownerId || house?.payload?.locked) return 'owned';
+  return 'free';
+}
+
 export function renderHouseList(houses = []) {
   if (!houses.length) {
     return `
@@ -35,17 +40,15 @@ export function renderHouseList(houses = []) {
   }
 
   return `
-    <ul class="house-list">
+    <ul class="house-list" data-house-list>
       ${houses
         .map((house, index) => {
-          const isOwned = Boolean(house?.payload?.ownerId);
-          const isLocked = Boolean(house?.payload?.locked);
-          const isFree = !isOwned && !isLocked;
           const status = getHouseStatus(house);
           const price = formatMoney(house?.payload?.price);
+          const filterState = getHouseFilterState(house);
 
           return `
-            <li class="${isFree ? 'house-free' : 'house-owned'}">
+            <li class="${filterState === 'free' ? 'house-free' : 'house-owned'}" data-house-state="${filterState}">
               <span class="house-card-icon">${house.icon || '🏠'}</span>
 
               <span class="house-card-main">
@@ -66,5 +69,10 @@ export function renderHouseList(houses = []) {
         })
         .join('')}
     </ul>
+
+    <div class="house-empty house-filter-empty" hidden data-house-filter-empty>
+      <b>Таких домов нет</b>
+      <span>Попробуй выбрать другой фильтр.</span>
+    </div>
   `;
 }
