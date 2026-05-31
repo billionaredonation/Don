@@ -77,18 +77,12 @@ export function renderHousesFeatureHtml({ city, houses }) {
             <h3>⌂ Список домов</h3>
 
             <div class="houses-filter">
-              <button
-                type="button"
-                class="houses-filter-button"
-                data-houses-filter-button
-                aria-haspopup="menu"
-                aria-expanded="false"
-              >
-                <span data-houses-filter-label>${FILTER_LABELS.all}</span>
+              <button type="button" class="houses-filter-button" data-houses-filter-button>
+                <span data-houses-filter-label>Все дома</span>
                 <b>⌄</b>
               </button>
 
-              <div class="houses-filter-menu" hidden data-houses-filter-menu role="menu">
+              <div class="houses-filter-menu" hidden data-houses-filter-menu>
                 <button type="button" data-houses-filter="all">Все дома</button>
                 <button type="button" data-houses-filter="free">Свободные</button>
                 <button type="button" data-houses-filter="owned">Купленные</button>
@@ -111,15 +105,20 @@ export function renderHousesFeatureHtml({ city, houses }) {
 }
 
 export function enableHousesStatsModal(root) {
-  const modal = root.querySelector('.houses-modal');
-  const openButton = root.querySelector('.player-city-button');
-  const closeButtons = root.querySelectorAll('[data-houses-stats-close]');
+  let modal = root.querySelector('.houses-modal');
 
-  const filterButton = root.querySelector('[data-houses-filter-button]');
-  const filterMenu = root.querySelector('[data-houses-filter-menu]');
-  const filterLabel = root.querySelector('[data-houses-filter-label]');
-  const houseItems = Array.from(root.querySelectorAll('[data-house-state]'));
-  const filterEmpty = root.querySelector('[data-house-filter-empty]');
+  if (modal && modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
+  const openButton = root.querySelector('.player-city-button');
+  const closeButtons = modal?.querySelectorAll('[data-houses-stats-close]') || [];
+
+  const filterButton = modal?.querySelector('[data-houses-filter-button]');
+  const filterMenu = modal?.querySelector('[data-houses-filter-menu]');
+  const filterLabel = modal?.querySelector('[data-houses-filter-label]');
+  const houseItems = Array.from(modal?.querySelectorAll('[data-house-state]') || []);
+  const filterEmpty = modal?.querySelector('[data-house-filter-empty]');
 
   let activeFilter = 'all';
 
@@ -137,11 +136,8 @@ export function enableHousesStatsModal(root) {
     let visibleCount = 0;
 
     houseItems.forEach((item) => {
-      const state = item.dataset.houseState;
-      const isVisible = filter === 'all' || state === filter;
-
+      const isVisible = filter === 'all' || item.dataset.houseState === filter;
       item.hidden = !isVisible;
-
       if (isVisible) visibleCount += 1;
     });
 
@@ -156,7 +152,10 @@ export function enableHousesStatsModal(root) {
     setFilterMenuOpen(false);
   }
 
-  function open() {
+  function open(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
     if (!modal) return;
 
     modal.hidden = false;
@@ -199,9 +198,10 @@ export function enableHousesStatsModal(root) {
   }
 
   function handleOutsideClick(event) {
-    if (filterMenu && !filterMenu.hidden && !event.target.closest('.houses-filter')) {
-      setFilterMenuOpen(false);
-    }
+    if (!filterMenu || filterMenu.hidden) return;
+    if (event.target.closest('.houses-filter')) return;
+
+    setFilterMenuOpen(false);
   }
 
   function handleKeydown(event) {
@@ -234,5 +234,8 @@ export function enableHousesStatsModal(root) {
     closeButtons.forEach((button) => {
       button.removeEventListener('click', close);
     });
+
+    modal?.remove();
+    modal = null;
   };
 }
