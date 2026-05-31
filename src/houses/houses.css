@@ -1050,3 +1050,39 @@ body.mn-houses-modal-open .admin-status-dot {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+body.mn-houses-modal-open .pc-stamina,
+body.mn-houses-modal-open .mobile-stamina,
+body.mn-houses-modal-open .admin-status-dot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.houses-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999999 !important;
+  transform: none !important;
+  rotate: 0deg !important;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+}
+
+.houses-modal[hidden] {
+  display: none !important;
+}
+
+.houses-panel {
+  transform: none !important;
+  rotate: 0deg !important;
+}
+
+@media (max-width: 800px) {
+  .houses-panel {
+    width: min(390px, calc(100vw - 20px)) !important;
+    max-height: min(540px, calc(100vh - 20px)) !important;
+    padding: 12px !important;
+  }
+}
