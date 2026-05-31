@@ -2230,28 +2230,39 @@ body,
 }
 
 .player-weather-mini {
-  width: 1px;
-  height: 11px;
-  display: block;
   position: absolute;
   left: 8px;
   top: calc(max(8px, env(safe-area-inset-top)) + 43px);
+  height: 24px;
+  min-width: 82px;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 0 8px;
+  padding: 0 9px;
   border-radius: 999px;
-  color: rgba(255,255,255,0.82);
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.86);
+  background: rgba(6, 12, 18, 0.46);
+  border: 1px solid rgba(255,255,255,0.09);
   backdrop-filter: blur(10px);
   pointer-events: auto;
 }
 
 .player-weather-mini span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 10px;
   font-weight: 800;
   line-height: 1;
-  gap: 7px;
+}
+
+.player-weather-mini i {
+  width: 1px;
+  height: 11px;
+  display: block;
+  flex: 0 0 1px;
+  background: rgba(255,255,255,0.18);
 }
 
 .player-profile-card {
