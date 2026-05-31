@@ -241,8 +241,6 @@ register('home', async (root) => {
     businessTotal: 56,
     businessFree: 18,
     freeSlots: 60,
-    online: cityPlayers.length || 1,
-    ping: 42,
   };
 
   const housesFreePercent = Math.round((cityStats.housesFree / cityStats.housesTotal) * 100);
@@ -307,13 +305,14 @@ register('home', async (root) => {
               <b>›</b>
             </button>
 
-         <div class="player-weather-mini">
-          <span>${dayMode === 'day' ? '☀' : '☾'}</span>
-            <i></i>
-          <span>${displayWeather.icon}</span>
-          <i></i>
-         <span>${displayWeather.temperature}°</span>
-        </div>
+            <div class="player-weather-mini" aria-label="Погода">
+              <span>${dayMode === 'day' ? '☀' : '☾'}</span>
+              <i></i>
+              <span>${displayWeather.icon}</span>
+              <i></i>
+              <span>${displayWeather.temperature}°</span>
+            </div>
+          </div>
 
           <button class="player-profile-card" type="button" aria-label="Профиль игрока">
             <span class="player-avatar">${String(nickname).charAt(0).toUpperCase()}</span>
@@ -326,19 +325,11 @@ register('home', async (root) => {
             <span class="player-profile-arrow">›</span>
           </button>
 
-
           <div class="player-balance-card" aria-label="Баланс игрока">
             <span class="player-card-icon player-card-icon-green">₴</span>
             <strong>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
-
-              <span class="player-balance-info">
-                <em>Баланс</em>
-                <strong>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
-              </span>
-            </div>
           </div>
-
-
+        </section>
 
         <div class="city-stats-modal" hidden>
           <div class="city-stats-backdrop" data-city-stats-close></div>
@@ -381,17 +372,6 @@ register('home', async (root) => {
                   <i style="width:${freeSlotsPercent}%"></i>
                 </div>
                 <b>${freeSlotsPercent}%</b>
-              </article>
-
-              <article class="city-stat-card city-stat-blue">
-                <span class="city-stat-icon">●●</span>
-                <em>Пользователей</em>
-                <strong>${cityStats.online}</strong>
-                <small>Онлайн</small>
-                <div class="city-stat-progress">
-                  <i style="width:68%"></i>
-                </div>
-                <b>live</b>
               </article>
             </div>
 
