@@ -2548,11 +2548,11 @@ body,
 
 .admin-status-dot {
   position: fixed;
-  right: 10px;
-  bottom: max(10px, env(safe-area-inset-bottom));
-  z-index: 999999;
-  width: 34px;
-  height: 34px;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 850;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border: 1px solid rgba(255,255,255,0.16);
@@ -2595,54 +2595,35 @@ body,
   background: #ff3b3b;
 }
 
-.admin-debug,
-.admin-debug-toast,
-.admin-status-debug,
-[class*="admin-debug"],
-[class*="admin-toast"] {
-  display: none !important;
+@media (max-width: 800px) {
+  .admin-status-dot {
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+    z-index: 850;
+  }
 }
 
-
-/* ==== City stats modal =========================================== */
-.city-stats-modal {
-  position: fixed;            /* поверх всего */
-  inset: 0;
-  z-index: 140;               /* выше карты и HUD */
-  display: grid;              /* центрируем панель */
-  place-items: center;
-  pointer-events: none;       /* события получит backdrop/панель */
+@media (max-height: 500px) and (orientation: landscape) {
+  .admin-status-dot {
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    width: 42px;
+    height: 42px;
+  }
 }
 
-.city-stats-modal[hidden] {   /* state=закрыто */
-  display: none;
+body.mn-houses-modal-open .admin-status-dot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
-.city-stats-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, .65);
-  backdrop-filter: blur(4px);
-  pointer-events: auto;
-}
-
-.city-stats-panel {
-  position: relative;
-  width: min(420px, 90vw);
-  max-height: 88vh;
-  padding: 24px;
-  border-radius: 18px;
-  background: rgba(7,10,14,.94);
-  border: 1px solid rgba(255,255,255,.12);
-  color: #fff;
-  overflow: auto;
-  pointer-events: auto;
-  box-shadow:
-    0 24px 48px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.06);
-}
-
-/* маленькие карты / телефоны */
-@media (max-width: 390px) {
-  .city-stats-panel { width: 96vw; padding: 18px; }
+body.mn-houses-modal-open .pc-stamina,
+body.mn-houses-modal-open .mobile-stamina {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
