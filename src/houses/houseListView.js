@@ -41,23 +41,25 @@ export function renderHouseList(houses = []) {
           const isOwned = Boolean(house?.payload?.ownerId);
           const isLocked = Boolean(house?.payload?.locked);
           const isFree = !isOwned && !isLocked;
+          const status = getHouseStatus(house);
+          const price = formatMoney(house?.payload?.price);
 
           return `
             <li class="${isFree ? 'house-free' : 'house-owned'}">
               <span class="house-card-icon">${house.icon || '🏠'}</span>
 
               <span class="house-card-main">
-                <b>Дом #${index + 1}</b>
-                <small>Статус: <em>${getHouseStatus(house)}</em></small>
-                <small>Цена: <strong>${formatMoney(house?.payload?.price)}</strong></small>
+                <span class="house-card-title-row">
+                  <b>Дом #${index + 1}</b>
+                  <i>${getHouseClass(house)}</i>
+                </span>
+
+                <small>Статус: <em>${status}</em></small>
+                <small>Цена: <strong>${price}</strong></small>
               </span>
 
-              <span class="house-class-badge">${getHouseClass(house)}</span>
-
-              <span class="house-status-badge">${getHouseStatus(house)}</span>
-
-              <strong class="house-price">${formatMoney(house?.payload?.price)}</strong>
-
+              <span class="house-status-badge">${status}</span>
+              <strong class="house-price">${price}</strong>
               <span class="house-arrow">›</span>
             </li>
           `;
