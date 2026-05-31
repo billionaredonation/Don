@@ -28,6 +28,8 @@ import {
   enableEntityInteraction,
 } from '../../src/entities/entityInteraction.js';
 
+import { fetchCityStats } from '../../src/api/cityStats.js'; // ⚡ добавлено
+
 import '../../src/admin/adminPanel.css';
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
@@ -235,18 +237,37 @@ register('home', async (root) => {
 
   const playerBalance = Number(state.player?.balance || 0);
 
-  const cityStats = {
-    housesTotal: 128,
-    housesFree: 42,
-    businessTotal: 56,
-    businessFree: 18,
-    freeSlots: 60,
+  // ⚡️ Живые данные по городу
+  let cityStats = {
+    housesTotal: 0,
+    housesFree: 0,
+    businessTotal: 0,
+    businessFree: 0,
+    freeSlots: 0,
   };
 
-  const housesFreePercent = Math.round((cityStats.housesFree / cityStats.housesTotal) * 100);
-  const businessFreePercent = Math.round((cityStats.businessFree / cityStats.businessTotal) * 100);
+  try {
+    const stats = await fetchCityStats(cityId);
+
+    if (stats) {
+      cityStats = {
+        housesTotal: Number(stats.houses_total),
+        housesFree: Number(stats.houses_free),
+        businessTotal: Number(stats.biz_total),
+        businessFree: Number(stats.biz_free),
+      };
+      cityStats.freeSlots = cityStats.housesFree + cityStats.businessFree;
+    }
+  } catch (err) {
+    console.warn('[home] city stats load failed:', err);
+  }
+
+  const housesFreePercent = Math.round((cityStats.housesFree / cityStats.housesTotal) * 100 || 0);
+  const businessFreePercent = Math.round(
+    (cityStats.businessFree / cityStats.businessTotal) * 100 || 0
+  );
   const freeSlotsPercent = Math.round(
-    (cityStats.freeSlots / (cityStats.housesTotal + cityStats.businessTotal)) * 100
+    (cityStats.freeSlots / (cityStats.housesTotal + cityStats.businessTotal || 1)) * 100
   );
 
   root.dataset.city = cityId;
