@@ -5,7 +5,7 @@ function formatMoney(value) {
     return 'Цена не указана';
   }
 
-  return `${number.toLocaleString('ru-RU')} ₴`;
+  return `${number.toLocaleString('ru-RU')}₴`;
 }
 
 function getHouseClass(house) {
@@ -37,21 +37,28 @@ export function renderHouseList(houses = []) {
   return `
     <ul class="house-list">
       ${houses
-        .map((house) => {
+        .map((house, index) => {
           const isOwned = Boolean(house?.payload?.ownerId);
           const isLocked = Boolean(house?.payload?.locked);
-          const statusClass = isOwned || isLocked ? 'house-owned' : 'house-free';
+          const isFree = !isOwned && !isLocked;
 
           return `
-            <li class="${statusClass}">
-              <span class="house-list-icon">${house.icon || '🏠'}</span>
+            <li class="${isFree ? 'house-free' : 'house-owned'}">
+              <span class="house-card-icon">${house.icon || '🏠'}</span>
 
-              <span class="house-list-main">
-                <b>${house.name || 'Дом'}</b>
-                <small>${getHouseClass(house)} · ${getHouseStatus(house)}</small>
+              <span class="house-card-main">
+                <b>Дом #${index + 1}</b>
+                <small>Статус: <em>${getHouseStatus(house)}</em></small>
+                <small>Цена: <strong>${formatMoney(house?.payload?.price)}</strong></small>
               </span>
 
-              <strong>${formatMoney(house?.payload?.price)}</strong>
+              <span class="house-class-badge">${getHouseClass(house)}</span>
+
+              <span class="house-status-badge">${getHouseStatus(house)}</span>
+
+              <strong class="house-price">${formatMoney(house?.payload?.price)}</strong>
+
+              <span class="house-arrow">›</span>
             </li>
           `;
         })
