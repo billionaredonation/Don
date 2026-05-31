@@ -2670,14 +2670,15 @@ body.mn-houses-modal-open .mobile-stamina {
     top: auto !important;
     left: auto !important;
 
-    right: 96px !important;
-    bottom: 78px !important;
+    right: 118px !important;
+    bottom: 108px !important;
 
     width: 46px !important;
     height: 46px !important;
 
     transform: rotate(90deg) !important;
     transform-origin: center !important;
+
     z-index: 850 !important;
   }
 }
