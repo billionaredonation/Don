@@ -2192,6 +2192,7 @@ body,
 }
 
 .player-city-button {
+  pointer-events: auto; 
   width: 126px;
   height: 38px;
   display: flex;
