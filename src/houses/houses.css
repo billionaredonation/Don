@@ -1,3 +1,230 @@
 .houses-stats-modal {
+  position: fixed;
+  inset: 0;
   z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.houses-stats-modal[hidden] {
+  display: none;
+}
+
+.houses-stats-panel {
+  width: min(460px, calc(100vw - 28px));
+  max-height: min(720px, calc(100vh - 36px));
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(18, 22, 32, 0.94), rgba(5, 7, 12, 0.96)),
+    rgba(8, 10, 16, 0.94);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.58);
+  color: #fff;
+  backdrop-filter: blur(18px);
+}
+
+.houses-stats-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.houses-stats-header strong {
+  display: block;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.houses-stats-header small {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.houses-stats-header button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.houses-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.houses-stats-grid .city-stat-card {
+  position: relative;
+  padding: 13px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.075);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+}
+
+.houses-stats-grid .city-stat-card em {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.76);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.houses-stats-grid .city-stat-card strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 1000;
+}
+
+.houses-stats-grid .city-stat-card small {
+  display: block;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.houses-stats-grid .city-stat-progress {
+  height: 7px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.houses-stats-grid .city-stat-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.houses-stats-grid .city-stat-card b {
+  position: absolute;
+  right: 13px;
+  top: 13px;
+  font-size: 13px;
+  font-weight: 1000;
+}
+
+.houses-list-section {
+  margin-top: 16px;
+}
+
+.houses-list-section h3 {
+  margin: 0 0 9px;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.house-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.house-list li {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.house-list-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 18px;
+}
+
+.house-list-main {
+  min-width: 0;
+}
+
+.house-list-main b {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.house-list-main small {
+  display: block;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.house-list li > strong {
+  font-size: 13px;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.house-free {
+  box-shadow: inset 3px 0 0 rgba(80, 210, 130, 0.8);
+}
+
+.house-owned {
+  box-shadow: inset 3px 0 0 rgba(255, 190, 80, 0.8);
+}
+
+.house-empty {
+  padding: 13px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.house-empty b {
+  display: block;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.house-empty span {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.houses-close-button {
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 950;
+  cursor: pointer;
 }
