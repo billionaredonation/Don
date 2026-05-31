@@ -2733,3 +2733,34 @@ body.mn-houses-modal-open .admin-status-dot {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+
+/* === final mobile admin button position === */
+
+@media (max-width: 800px) {
+  .admin-status-dot {
+    position: fixed !important;
+
+    left: auto !important;
+    top: auto !important;
+
+    /*
+      больше right = левее
+      больше bottom = выше
+    */
+    right: 72px !important;
+    bottom: 78px !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    z-index: 850 !important;
+    transform: none !important;
+  }
+}
+
+body.mn-houses-modal-open .admin-status-dot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
