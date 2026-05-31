@@ -2551,14 +2551,14 @@ body,
   right: max(12px, env(safe-area-inset-right));
   bottom: max(12px, env(safe-area-inset-bottom));
   z-index: 850;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border: 1px solid rgba(255,255,255,0.16);
   border-radius: 999px;
   color: #fff;
-  font-size: 15px;
+  font-size: 16px;
   cursor: pointer;
   pointer-events: auto;
   backdrop-filter: blur(12px);
@@ -2595,6 +2595,7 @@ body,
   background: #ff3b3b;
 }
 
+/* мобилка портрет */
 @media (max-width: 800px) {
   .admin-status-dot {
     right: max(14px, env(safe-area-inset-right));
@@ -2606,12 +2607,14 @@ body,
   }
 }
 
+/* мобилка горизонтальная */
 @media (max-height: 500px) and (orientation: landscape) {
   .admin-status-dot {
-    right: max(16px, env(safe-area-inset-right));
+    right: max(14px, env(safe-area-inset-right));
     bottom: max(14px, env(safe-area-inset-bottom));
     width: 42px;
     height: 42px;
+    font-size: 17px;
   }
 }
 
