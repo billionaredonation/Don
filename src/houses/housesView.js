@@ -12,7 +12,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
             <div>
               <h2>${city.name} — <span>недвижимость</span></h2>
-              <p>Просмотр недвижимости и свободных слотов в городе</p>
+              <p>Дома, бизнесы и свободные слоты города</p>
             </div>
           </div>
 
@@ -22,11 +22,13 @@ export function renderHousesFeatureHtml({ city, houses }) {
         <div class="houses-stats-grid">
           <article class="houses-stat-card houses-stat-purple">
             <span class="houses-stat-icon">🏠</span>
-            <div>
+
+            <div class="houses-stat-main">
               <em>Дома</em>
               <strong>${houses.housesTotal}</strong>
               <small>Свободно: ${houses.housesFree}</small>
             </div>
+
             <div class="houses-progress">
               <i style="width:${houses.housesFreePercent}%"></i>
               <b>${houses.housesFreePercent}%</b>
@@ -35,11 +37,13 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
           <article class="houses-stat-card houses-stat-green">
             <span class="houses-stat-icon">🏪</span>
-            <div>
+
+            <div class="houses-stat-main">
               <em>Бизнесы</em>
               <strong>${houses.businessTotal}</strong>
               <small>Свободно: ${houses.businessFree}</small>
             </div>
+
             <div class="houses-progress">
               <i style="width:${houses.businessFreePercent}%"></i>
               <b>${houses.businessFreePercent}%</b>
@@ -48,11 +52,13 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
           <article class="houses-stat-card houses-stat-orange">
             <span class="houses-stat-icon">◎</span>
-            <div>
-              <em>Свободные слоты</em>
+
+            <div class="houses-stat-main">
+              <em>Слоты</em>
               <strong>${houses.freeSlots}</strong>
               <small>дома + бизнесы</small>
             </div>
+
             <div class="houses-progress">
               <i style="width:${houses.freeSlotsPercent}%"></i>
               <b>${houses.freeSlotsPercent}%</b>
@@ -74,7 +80,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
         </section>
 
         <footer class="houses-footer">
-          <span>ⓘ Цены указаны в национальной валюте ₴</span>
+          <span>ⓘ Цены указаны в ₴</span>
           <button class="houses-close-button" type="button" data-houses-stats-close>Закрыть</button>
         </footer>
       </section>
@@ -89,14 +95,18 @@ export function enableHousesStatsModal(root) {
 
   function open() {
     if (!modal) return;
+
     modal.hidden = false;
     root.dataset.housesStatsOpen = 'true';
+    document.body.classList.add('mn-houses-modal-open');
   }
 
   function close() {
     if (!modal) return;
+
     modal.hidden = true;
     delete root.dataset.housesStatsOpen;
+    document.body.classList.remove('mn-houses-modal-open');
   }
 
   openButton?.addEventListener('click', open);
