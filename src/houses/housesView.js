@@ -1,72 +1,100 @@
+import { renderHouseList } from './houseListView.js';
+
 export function renderHousesFeatureHtml({ city, houses }) {
   return `
-    <div class="city-stats-modal houses-stats-modal" hidden>
-      <div class="city-stats-backdrop" data-houses-stats-close></div>
+    <div class="houses-modal" hidden>
+      <div class="houses-modal-backdrop" data-houses-stats-close></div>
 
-      <section class="city-stats-panel" role="dialog" aria-modal="true" aria-label="${city.name} — недвижимость">
-        <header class="city-stats-header">
-          <strong>${city.name} — недвижимость</strong>
-          <button type="button" data-houses-stats-close>×</button>
+      <section class="houses-panel" role="dialog" aria-modal="true" aria-label="${city.name} — недвижимость">
+        <header class="houses-header">
+          <div class="houses-title-wrap">
+            <span class="houses-title-icon">🏢</span>
+
+            <div>
+              <h2>${city.name} — <span>недвижимость</span></h2>
+              <p>Просмотр недвижимости и свободных слотов в городе</p>
+            </div>
+          </div>
+
+          <button class="houses-x-button" type="button" data-houses-stats-close>×</button>
         </header>
 
-        <div class="city-stats-grid">
-          <article class="city-stat-card city-stat-purple">
-            <span class="city-stat-icon">▥</span>
-            <em>Дома</em>
-            <strong>${houses.housesTotal}</strong>
-            <small>Свободно: ${houses.housesFree}</small>
-            <div class="city-stat-progress">
+        <div class="houses-stats-grid">
+          <article class="houses-stat-card houses-stat-purple">
+            <span class="houses-stat-icon">🏠</span>
+            <div>
+              <em>Дома</em>
+              <strong>${houses.housesTotal}</strong>
+              <small>Свободно: ${houses.housesFree}</small>
+            </div>
+            <div class="houses-progress">
               <i style="width:${houses.housesFreePercent}%"></i>
+              <b>${houses.housesFreePercent}%</b>
             </div>
-            <b>${houses.housesFreePercent}%</b>
           </article>
 
-          <article class="city-stat-card city-stat-green">
-            <span class="city-stat-icon">▤</span>
-            <em>Бизнесы</em>
-            <strong>${houses.businessTotal}</strong>
-            <small>Свободно: ${houses.businessFree}</small>
-            <div class="city-stat-progress">
+          <article class="houses-stat-card houses-stat-green">
+            <span class="houses-stat-icon">🏪</span>
+            <div>
+              <em>Бизнесы</em>
+              <strong>${houses.businessTotal}</strong>
+              <small>Свободно: ${houses.businessFree}</small>
+            </div>
+            <div class="houses-progress">
               <i style="width:${houses.businessFreePercent}%"></i>
+              <b>${houses.businessFreePercent}%</b>
             </div>
-            <b>${houses.businessFreePercent}%</b>
           </article>
 
-          <article class="city-stat-card city-stat-orange">
-            <span class="city-stat-icon">◎</span>
-            <em>Свободные слоты</em>
-            <strong>${houses.freeSlots}</strong>
-            <small>дома + бизнесы</small>
-            <div class="city-stat-progress">
-              <i style="width:${houses.freeSlotsPercent}%"></i>
+          <article class="houses-stat-card houses-stat-orange">
+            <span class="houses-stat-icon">◎</span>
+            <div>
+              <em>Свободные слоты</em>
+              <strong>${houses.freeSlots}</strong>
+              <small>дома + бизнесы</small>
             </div>
-            <b>${houses.freeSlotsPercent}%</b>
+            <div class="houses-progress">
+              <i style="width:${houses.freeSlotsPercent}%"></i>
+              <b>${houses.freeSlotsPercent}%</b>
+            </div>
           </article>
         </div>
 
-        <button class="city-stats-close-button" type="button" data-houses-stats-close>
-          Закрыть
-        </button>
+        <section class="houses-list-section">
+          <div class="houses-list-header">
+            <h3>⌂ Список домов</h3>
+
+            <button type="button" class="houses-filter-button">
+              Все дома
+              <span>⌄</span>
+            </button>
+          </div>
+
+          ${renderHouseList(houses.houses)}
+        </section>
+
+        <footer class="houses-footer">
+          <span>ⓘ Цены указаны в национальной валюте ₴</span>
+          <button class="houses-close-button" type="button" data-houses-stats-close>Закрыть</button>
+        </footer>
       </section>
     </div>
   `;
 }
 
 export function enableHousesStatsModal(root) {
-  const modal = root.querySelector('.houses-stats-modal');
+  const modal = root.querySelector('.houses-modal');
   const openButton = root.querySelector('.player-city-button');
   const closeButtons = root.querySelectorAll('[data-houses-stats-close]');
 
   function open() {
     if (!modal) return;
-
     modal.hidden = false;
     root.dataset.housesStatsOpen = 'true';
   }
 
   function close() {
     if (!modal) return;
-
     modal.hidden = true;
     delete root.dataset.housesStatsOpen;
   }
@@ -79,7 +107,6 @@ export function enableHousesStatsModal(root) {
 
   return () => {
     close();
-
     openButton?.removeEventListener('click', open);
 
     closeButtons.forEach((button) => {
