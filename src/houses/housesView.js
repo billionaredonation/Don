@@ -1,5 +1,15 @@
 import { renderHouseList } from './houseListView.js';
 
+const FILTER_LABELS = {
+  all: 'Все дома',
+  free: 'Свободные',
+  owned: 'Купленные',
+};
+
+function getValidFilter(value) {
+  return Object.hasOwn(FILTER_LABELS, value) ? value : 'all';
+}
+
 export function renderHousesFeatureHtml({ city, houses }) {
   return `
     <div class="houses-modal" hidden>
@@ -10,13 +20,15 @@ export function renderHousesFeatureHtml({ city, houses }) {
           <div class="houses-title-wrap">
             <span class="houses-title-icon">🏢</span>
 
-            <div>
+            <div class="houses-title-text">
               <h2>${city.name} — <span>недвижимость</span></h2>
               <p>Дома, бизнесы и свободные слоты города</p>
             </div>
           </div>
 
-          <button class="houses-x-button" type="button" data-houses-stats-close>×</button>
+          <button class="houses-x-button" type="button" data-houses-stats-close aria-label="Закрыть">
+            ×
+          </button>
         </header>
 
         <div class="houses-stats-grid">
@@ -71,15 +83,29 @@ export function renderHousesFeatureHtml({ city, houses }) {
             <h3>⌂ Список домов</h3>
 
             <div class="houses-filter">
-              <button type="button" class="houses-filter-button" data-houses-filter-button>
-                <span data-houses-filter-label>Все дома</span>
+              <button
+                type="button"
+                class="houses-filter-button"
+                data-houses-filter-button
+                aria-haspopup="menu"
+                aria-expanded="false"
+              >
+                <span data-houses-filter-label>${FILTER_LABELS.all}</span>
                 <b>⌄</b>
               </button>
 
-              <div class="houses-filter-menu" hidden data-houses-filter-menu>
-                <button type="button" data-houses-filter="all">Все дома</button>
-                <button type="button" data-houses-filter="free">Свободные</button>
-                <button type="button" data-houses-filter="owned">Купленные</button>
+              <div class="houses-filter-menu" hidden data-houses-filter-menu role="menu">
+                <button type="button" data-houses-filter="all" role="menuitem">
+                  Все дома
+                </button>
+
+                <button type="button" data-houses-filter="free" role="menuitem">
+                  Свободные
+                </button>
+
+                <button type="button" data-houses-filter="owned" role="menuitem">
+                  Купленные
+                </button>
               </div>
             </div>
           </div>
@@ -89,7 +115,9 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
         <footer class="houses-footer">
           <span>ⓘ Цены указаны в ₴</span>
-          <button class="houses-close-button" type="button" data-houses-stats-close>Закрыть</button>
+          <button class="houses-close-button" type="button" data-houses-stats-close>
+            Закрыть
+          </button>
         </footer>
       </section>
     </div>
@@ -107,18 +135,24 @@ export function enableHousesStatsModal(root) {
   const houseItems = Array.from(root.querySelectorAll('[data-house-state]'));
   const filterEmpty = root.querySelector('[data-house-filter-empty]');
 
-  const filterLabels = {
-    all: 'Все дома',
-    free: 'Свободные',
-    owned: 'Купленные',
-  };
+  let activeFilter = 'all';
 
-  function applyFilter(filter = 'all') {
+  function setFilterMenuOpen(nextOpen) {
+    if (!filterMenu || !filterButton) return;
+
+    filterMenu.hidden = !nextOpen;
+    filterButton.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+  }
+
+  function applyFilter(nextFilter = 'all') {
+    const filter = getValidFilter(nextFilter);
+    activeFilter = filter;
+
     let visibleCount = 0;
 
     houseItems.forEach((item) => {
-      const state = item.dataset.houseState;
-      const isVisible = filter === 'all' || state === filter;
+      const houseState = item.dataset.houseState;
+      const isVisible = filter === 'all' || houseState === filter;
 
       item.hidden = !isVisible;
 
@@ -128,16 +162,14 @@ export function enableHousesStatsModal(root) {
     });
 
     if (filterLabel) {
-      filterLabel.textContent = filterLabels[filter] || filterLabels.all;
+      filterLabel.textContent = FILTER_LABELS[filter];
     }
 
     if (filterEmpty) {
       filterEmpty.hidden = visibleCount > 0;
     }
 
-    if (filterMenu) {
-      filterMenu.hidden = true;
-    }
+    setFilterMenuOpen(false);
   }
 
   function toggleFilterMenu(event) {
@@ -146,24 +178,30 @@ export function enableHousesStatsModal(root) {
 
     if (!filterMenu) return;
 
-    filterMenu.hidden = !filterMenu.hidden;
+    setFilterMenuOpen(filterMenu.hidden);
   }
 
-  function handleFilterClick(event) {
+  function handleFilterMenuClick(event) {
     const button = event.target.closest('[data-houses-filter]');
     if (!button) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    applyFilter(button.dataset.housesFilter || 'all');
+    applyFilter(button.dataset.housesFilter);
   }
 
   function handleOutsideFilterClick(event) {
     if (!filterMenu || filterMenu.hidden) return;
     if (event.target.closest('.houses-filter')) return;
 
-    filterMenu.hidden = true;
+    setFilterMenuOpen(false);
+  }
+
+  function handleFilterKeydown(event) {
+    if (event.key === 'Escape') {
+      setFilterMenuOpen(false);
+    }
   }
 
   function open() {
@@ -172,6 +210,8 @@ export function enableHousesStatsModal(root) {
     modal.hidden = false;
     root.dataset.housesStatsOpen = 'true';
     document.body.classList.add('mn-houses-modal-open');
+
+    applyFilter(activeFilter);
   }
 
   function close() {
@@ -181,15 +221,14 @@ export function enableHousesStatsModal(root) {
     delete root.dataset.housesStatsOpen;
     document.body.classList.remove('mn-houses-modal-open');
 
-    if (filterMenu) {
-      filterMenu.hidden = true;
-    }
+    setFilterMenuOpen(false);
   }
 
   openButton?.addEventListener('click', open);
   filterButton?.addEventListener('click', toggleFilterMenu);
-  filterMenu?.addEventListener('click', handleFilterClick);
+  filterMenu?.addEventListener('click', handleFilterMenuClick);
   document.addEventListener('click', handleOutsideFilterClick);
+  document.addEventListener('keydown', handleFilterKeydown);
 
   closeButtons.forEach((button) => {
     button.addEventListener('click', close);
@@ -202,8 +241,9 @@ export function enableHousesStatsModal(root) {
 
     openButton?.removeEventListener('click', open);
     filterButton?.removeEventListener('click', toggleFilterMenu);
-    filterMenu?.removeEventListener('click', handleFilterClick);
+    filterMenu?.removeEventListener('click', handleFilterMenuClick);
     document.removeEventListener('click', handleOutsideFilterClick);
+    document.removeEventListener('keydown', handleFilterKeydown);
 
     closeButtons.forEach((button) => {
       button.removeEventListener('click', close);
