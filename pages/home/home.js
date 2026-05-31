@@ -303,54 +303,33 @@ register('home', async (root) => {
         <section class="player-glass-hud" aria-label="Игровая информация">
           <div class="player-glass-bg"></div>
 
-          <div class="player-mini-markers">
-            <span class="player-mini-marker">
-              <b>${dayMode === 'day' ? '☀' : '☾'}</b>
-              ${dayMode === 'day' ? 'День' : 'Ночь'}
-            </span>
-
-            <span class="player-mini-separator"></span>
-
-            <span class="player-mini-marker">
-              <b>${displayWeather.icon}</b>
-              ${displayWeather.label}
-            </span>
-
-            <span class="player-mini-dot">•</span>
-
-            <span class="player-mini-marker">
-              ${displayWeather.temperature}°C
-            </span>
-          </div>
-
           <button class="player-city-button" type="button" aria-label="Открыть статистику города">
             <span>${city.name}</span>
             <b>›</b>
           </button>
 
-          <button class="player-profile-card" type="button" aria-label="Профиль игрока">
-            <span class="player-avatar">${String(nickname).charAt(0).toUpperCase()}</span>
+          <div class="player-hud-row">
+            <button class="player-profile-card" type="button" aria-label="Профиль игрока">
+              <span class="player-avatar">${String(nickname).charAt(0).toUpperCase()}</span>
 
-            <span class="player-profile-info">
-              <strong>${nickname}</strong>
-              <em>▮ Статистика</em>
-              <small>ID: ${telegramId}</small>
-            </span>
+              <span class="player-profile-info">
+                <strong>${nickname}</strong>
+                <em>Статистика</em>
+                <small>ID: ${telegramId}</small>
+              </span>
 
-            <span class="player-profile-arrow">›</span>
-          </button>
+              <span class="player-profile-arrow">›</span>
+            </button>
 
-          <button class="player-balance-card" type="button" aria-label="Баланс игрока">
-            <span class="player-card-icon player-card-icon-green">▣</span>
+            <div class="player-balance-card" aria-label="Баланс игрока">
+              <span class="player-card-icon player-card-icon-green">₴</span>
 
-            <span class="player-balance-info">
-              <em>Баланс</em>
-              <strong>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
-              <small>Пополнить баланс</small>
-            </span>
-
-            <span class="player-balance-arrow">›</span>
-          </button>
+              <span class="player-balance-info">
+                <em>Баланс</em>
+                <strong>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
+              </span>
+            </div>
+          </div>
 
           <div class="player-network-card">
             <span class="player-online-dot"></span>
@@ -358,7 +337,10 @@ register('home', async (root) => {
 
             <span class="player-network-separator"></span>
 
-            <span class="player-signal" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="player-signal" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+
             <strong>Пинг: ${cityStats.ping} мс</strong>
           </div>
         </section>
