@@ -703,3 +703,297 @@ body.mn-houses-modal-open .admin-status-dot {
 .house-filter-empty {
   margin-top: 8px;
 }
+
+/* === remove old arrow layout === */
+
+.house-arrow {
+  display: none !important;
+}
+
+/* === better mobile houses modal === */
+
+@media (max-width: 800px) {
+  .houses-modal {
+    padding: 8px;
+    align-items: center;
+  }
+
+  .houses-panel {
+    width: min(380px, calc(100vw - 16px));
+    max-height: min(560px, calc(100vh - 16px));
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .houses-header {
+    gap: 9px;
+    margin-bottom: 11px;
+  }
+
+  .houses-title-wrap {
+    gap: 8px;
+  }
+
+  .houses-title-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    font-size: 19px;
+  }
+
+  .houses-header h2 {
+    font-size: 20px;
+    line-height: 1.05;
+  }
+
+  .houses-header p {
+    max-width: 210px;
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .houses-x-button {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    font-size: 22px;
+  }
+
+  .houses-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    margin-bottom: 11px;
+  }
+
+  .houses-stat-card {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    column-gap: 9px;
+    min-height: 0;
+    padding: 9px;
+    border-radius: 15px;
+  }
+
+  .houses-stat-icon {
+    width: 32px;
+    height: 32px;
+    margin: 0;
+    font-size: 17px;
+  }
+
+  .houses-stat-card em {
+    font-size: 12px;
+  }
+
+  .houses-stat-card strong {
+    margin-top: 3px;
+    font-size: 23px;
+  }
+
+  .houses-stat-card small {
+    margin-top: 3px;
+    font-size: 10px;
+  }
+
+  .houses-progress {
+    grid-column: 1 / -1;
+    gap: 7px;
+    margin-top: 7px;
+  }
+
+  .houses-progress::before,
+  .houses-progress i {
+    height: 6px;
+  }
+
+  .houses-progress b {
+    font-size: 12px;
+  }
+
+  .houses-list-header {
+    gap: 8px;
+    margin-bottom: 7px;
+    padding-bottom: 7px;
+  }
+
+  .houses-list-header h3 {
+    font-size: 15px;
+  }
+
+  .houses-filter-button {
+    padding: 7px 9px;
+    border-radius: 11px;
+    font-size: 11px;
+  }
+
+  .houses-filter-menu {
+    min-width: 128px;
+  }
+
+  .house-list {
+    gap: 7px;
+  }
+
+  .house-list li {
+    grid-template-columns: 42px 1fr auto;
+    grid-template-areas:
+      "icon main status"
+      "icon main price";
+    align-items: center;
+    gap: 7px 8px;
+    padding: 8px;
+    border-radius: 14px;
+  }
+
+  .house-card-icon {
+    grid-area: icon;
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+    font-size: 22px;
+  }
+
+  .house-card-main {
+    grid-area: main;
+    min-width: 0;
+  }
+
+  .house-card-title-row {
+    gap: 5px;
+  }
+
+  .house-card-title-row b {
+    font-size: 14px;
+  }
+
+  .house-card-title-row i {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+
+  .house-card-main small {
+    margin-top: 2px;
+    font-size: 10px;
+  }
+
+  .house-status-badge {
+    grid-area: status;
+    justify-self: end;
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .house-price {
+    grid-area: price;
+    justify-self: end;
+    display: block;
+    font-size: 12px;
+  }
+
+  .houses-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 9px;
+  }
+
+  .houses-footer span {
+    font-size: 10px;
+  }
+
+  .houses-close-button {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+}
+
+/* === mobile landscape compact === */
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .houses-modal {
+    padding: 8px;
+  }
+
+  .houses-panel {
+    width: min(620px, calc(100vw - 18px));
+    max-height: calc(100vh - 16px);
+    padding: 11px;
+    border-radius: 18px;
+  }
+
+  .houses-header {
+    margin-bottom: 9px;
+  }
+
+  .houses-title-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+
+  .houses-header h2 {
+    font-size: 19px;
+  }
+
+  .houses-header p {
+    font-size: 10px;
+  }
+
+  .houses-x-button {
+    width: 32px;
+    height: 32px;
+    font-size: 21px;
+  }
+
+  .houses-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .houses-stat-card {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    padding: 8px;
+  }
+
+  .houses-stat-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
+  .houses-stat-card strong {
+    font-size: 21px;
+  }
+
+  .house-list li {
+    grid-template-columns: 40px 1fr auto auto;
+    grid-template-areas: "icon main status price";
+  }
+
+  .house-card-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 21px;
+  }
+
+  .house-status-badge {
+    grid-area: status;
+  }
+
+  .house-price {
+    grid-area: price;
+  }
+
+  .houses-footer {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .houses-close-button {
+    width: auto;
+  }
+}
