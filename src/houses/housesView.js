@@ -34,13 +34,11 @@ export function renderHousesFeatureHtml({ city, houses }) {
         <div class="houses-stats-grid">
           <article class="houses-stat-card houses-stat-purple">
             <span class="houses-stat-icon">🏠</span>
-
             <div class="houses-stat-main">
               <em>Дома</em>
               <strong>${houses.housesTotal}</strong>
               <small>Свободно: ${houses.housesFree}</small>
             </div>
-
             <div class="houses-progress">
               <i style="width:${houses.housesFreePercent}%"></i>
               <b>${houses.housesFreePercent}%</b>
@@ -49,13 +47,11 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
           <article class="houses-stat-card houses-stat-green">
             <span class="houses-stat-icon">🏪</span>
-
             <div class="houses-stat-main">
               <em>Бизнесы</em>
               <strong>${houses.businessTotal}</strong>
               <small>Свободно: ${houses.businessFree}</small>
             </div>
-
             <div class="houses-progress">
               <i style="width:${houses.businessFreePercent}%"></i>
               <b>${houses.businessFreePercent}%</b>
@@ -64,13 +60,11 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
           <article class="houses-stat-card houses-stat-orange">
             <span class="houses-stat-icon">◎</span>
-
             <div class="houses-stat-main">
               <em>Слоты</em>
               <strong>${houses.freeSlots}</strong>
               <small>дома + бизнесы</small>
             </div>
-
             <div class="houses-progress">
               <i style="width:${houses.freeSlotsPercent}%"></i>
               <b>${houses.freeSlotsPercent}%</b>
@@ -95,17 +89,9 @@ export function renderHousesFeatureHtml({ city, houses }) {
               </button>
 
               <div class="houses-filter-menu" hidden data-houses-filter-menu role="menu">
-                <button type="button" data-houses-filter="all" role="menuitem">
-                  Все дома
-                </button>
-
-                <button type="button" data-houses-filter="free" role="menuitem">
-                  Свободные
-                </button>
-
-                <button type="button" data-houses-filter="owned" role="menuitem">
-                  Купленные
-                </button>
+                <button type="button" data-houses-filter="all">Все дома</button>
+                <button type="button" data-houses-filter="free">Свободные</button>
+                <button type="button" data-houses-filter="owned">Купленные</button>
               </div>
             </div>
           </div>
@@ -151,14 +137,12 @@ export function enableHousesStatsModal(root) {
     let visibleCount = 0;
 
     houseItems.forEach((item) => {
-      const houseState = item.dataset.houseState;
-      const isVisible = filter === 'all' || houseState === filter;
+      const state = item.dataset.houseState;
+      const isVisible = filter === 'all' || state === filter;
 
       item.hidden = !isVisible;
 
-      if (isVisible) {
-        visibleCount += 1;
-      }
+      if (isVisible) visibleCount += 1;
     });
 
     if (filterLabel) {
@@ -168,6 +152,29 @@ export function enableHousesStatsModal(root) {
     if (filterEmpty) {
       filterEmpty.hidden = visibleCount > 0;
     }
+
+    setFilterMenuOpen(false);
+  }
+
+  function open() {
+    if (!modal) return;
+
+    modal.hidden = false;
+    root.dataset.housesStatsOpen = 'true';
+    document.body.classList.add('mn-houses-modal-open');
+
+    applyFilter(activeFilter);
+  }
+
+  function close(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    if (!modal) return;
+
+    modal.hidden = true;
+    delete root.dataset.housesStatsOpen;
+    document.body.classList.remove('mn-houses-modal-open');
 
     setFilterMenuOpen(false);
   }
@@ -191,44 +198,23 @@ export function enableHousesStatsModal(root) {
     applyFilter(button.dataset.housesFilter);
   }
 
-  function handleOutsideFilterClick(event) {
-    if (!filterMenu || filterMenu.hidden) return;
-    if (event.target.closest('.houses-filter')) return;
-
-    setFilterMenuOpen(false);
-  }
-
-  function handleFilterKeydown(event) {
-    if (event.key === 'Escape') {
+  function handleOutsideClick(event) {
+    if (filterMenu && !filterMenu.hidden && !event.target.closest('.houses-filter')) {
       setFilterMenuOpen(false);
     }
   }
 
-  function open() {
-    if (!modal) return;
-
-    modal.hidden = false;
-    root.dataset.housesStatsOpen = 'true';
-    document.body.classList.add('mn-houses-modal-open');
-
-    applyFilter(activeFilter);
-  }
-
-  function close() {
-    if (!modal) return;
-
-    modal.hidden = true;
-    delete root.dataset.housesStatsOpen;
-    document.body.classList.remove('mn-houses-modal-open');
-
-    setFilterMenuOpen(false);
+  function handleKeydown(event) {
+    if (event.key === 'Escape') {
+      close(event);
+    }
   }
 
   openButton?.addEventListener('click', open);
   filterButton?.addEventListener('click', toggleFilterMenu);
   filterMenu?.addEventListener('click', handleFilterMenuClick);
-  document.addEventListener('click', handleOutsideFilterClick);
-  document.addEventListener('keydown', handleFilterKeydown);
+  document.addEventListener('click', handleOutsideClick);
+  document.addEventListener('keydown', handleKeydown);
 
   closeButtons.forEach((button) => {
     button.addEventListener('click', close);
@@ -242,8 +228,8 @@ export function enableHousesStatsModal(root) {
     openButton?.removeEventListener('click', open);
     filterButton?.removeEventListener('click', toggleFilterMenu);
     filterMenu?.removeEventListener('click', handleFilterMenuClick);
-    document.removeEventListener('click', handleOutsideFilterClick);
-    document.removeEventListener('keydown', handleFilterKeydown);
+    document.removeEventListener('click', handleOutsideClick);
+    document.removeEventListener('keydown', handleKeydown);
 
     closeButtons.forEach((button) => {
       button.removeEventListener('click', close);
