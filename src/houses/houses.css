@@ -997,3 +997,56 @@ body.mn-houses-modal-open .admin-status-dot {
     width: auto;
   }
 }
+
+
+/* чтобы клики точно доходили до кнопок */
+.houses-modal {
+  pointer-events: auto;
+}
+
+.houses-modal-backdrop {
+  z-index: 0;
+}
+
+.houses-panel {
+  z-index: 1;
+}
+
+.houses-x-button,
+.houses-close-button,
+.houses-filter-button,
+.houses-filter-menu button {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+/* скрыть стамину/админку при модалке */
+body.mn-houses-modal-open .pc-stamina,
+body.mn-houses-modal-open .mobile-stamina,
+body.mn-houses-modal-open .admin-status-dot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* компактнее именно для мобилки */
+@media (max-width: 800px) {
+  .houses-panel {
+    width: min(390px, calc(100vw - 18px));
+    max-height: min(520px, calc(100vh - 18px));
+  }
+}
+
+/* горизонтальная мобилка */
+@media (max-height: 500px) and (orientation: landscape) {
+  .houses-panel {
+    width: min(620px, calc(100vw - 20px));
+    max-height: calc(100vh - 18px);
+  }
+
+  .houses-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
