@@ -2593,3 +2593,11 @@ body,
 .admin-status-dot-error::after {
   background: #ff3b3b;
 }
+
+.admin-debug,
+.admin-debug-toast,
+.admin-status-debug,
+[class*="admin-debug"],
+[class*="admin-toast"] {
+  display: none !important;
+}
