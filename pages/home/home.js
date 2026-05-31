@@ -307,12 +307,13 @@ register('home', async (root) => {
               <b>›</b>
             </button>
 
-            <div class="player-weather-mini">
-              <span>${dayMode === 'day' ? '☀' : '☾'}</span>
-              <span>${displayWeather.icon}</span>
-              <span>${displayWeather.temperature}°</span>
-            </div>
-          </div>
+         <div class="player-weather-mini">
+          <span>${dayMode === 'day' ? '☀' : '☾'}</span>
+            <i></i>
+          <span>${displayWeather.icon}</span>
+          <i></i>
+         <span>${displayWeather.temperature}°</span>
+        </div>
 
           <button class="player-profile-card" type="button" aria-label="Профиль игрока">
             <span class="player-avatar">${String(nickname).charAt(0).toUpperCase()}</span>
