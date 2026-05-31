@@ -328,10 +328,7 @@ register('home', async (root) => {
           <div class="player-network-card">
             <span class="player-network-item">👥 ${cityStats.online}</span>
             <span class="player-network-separator"></span>
-            <span class="player-network-item">
-              <span class="player-signal" aria-hidden="true"><i></i><i></i><i></i></span>
-              ${cityStats.ping}
-            </span>
+            <span class="player-network-item">📶 ${cityStats.ping}</span>
           </div>
 
           <div class="player-balance-card" aria-label="Баланс игрока">
