@@ -506,26 +506,6 @@ register('home', async (root) => {
         movementChannel: network.movementChannel,
       });
 
-      if (!panelCleanup) {
-        const fail = document.createElement('div');
-        fail.textContent = 'ADMIN PANEL INIT FAILED';
-        fail.style.cssText = `
-          position: fixed;
-          right: 12px;
-          bottom: 12px;
-          z-index: 999999;
-          padding: 10px 12px;
-          border-radius: 12px;
-          background: rgba(160, 20, 20, 0.95);
-          color: #fff;
-          font: 900 12px system-ui;
-        `;
-        document.body.appendChild(fail);
-
-        cleanupAdminPanel = () => fail.remove();
-        return;
-      }
-
       function setAdminPanelVisible(nextVisible) {
         const panel = root.querySelector('.admin-panel');
         if (!panel) return false;
@@ -551,14 +531,30 @@ register('home', async (root) => {
         window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
       }
 
-      const adminOpenButton = document.createElement('button');
-      adminOpenButton.type = 'button';
-      adminOpenButton.textContent = 'ADMIN';
-      adminOpenButton.className = 'admin-open-button';
-      adminOpenButton.style.zIndex = '999999';
-      adminOpenButton.addEventListener('click', toggleAdminPanel);
+      if (!panelCleanup) {
+        const adminStatusButton = document.createElement('button');
+        adminStatusButton.type = 'button';
+        adminStatusButton.textContent = '👤';
+        adminStatusButton.title = 'Админка не запустилась';
+        adminStatusButton.className = 'admin-status-dot admin-status-dot-error';
 
-      root.appendChild(adminOpenButton);
+        adminStatusButton.addEventListener('click', toggleAdminPanel);
+
+        root.appendChild(adminStatusButton);
+
+        cleanupAdminPanel = () => adminStatusButton.remove();
+        return;
+      }
+
+      const adminStatusButton = document.createElement('button');
+      adminStatusButton.type = 'button';
+      adminStatusButton.textContent = '👤';
+      adminStatusButton.title = 'Админка активна';
+      adminStatusButton.className = 'admin-status-dot admin-status-dot-ok';
+
+      adminStatusButton.addEventListener('click', toggleAdminPanel);
+
+      root.appendChild(adminStatusButton);
 
       const handleAdminHotkey = (event) => {
         if (!isAdminHotkey(event)) return;
@@ -576,7 +572,7 @@ register('home', async (root) => {
       cleanupAdminPanel = () => {
         window.removeEventListener('keydown', handleAdminHotkey, true);
         document.removeEventListener('keydown', handleAdminHotkey, true);
-        adminOpenButton.remove();
+        adminStatusButton.remove();
         panelCleanup?.();
       };
     })
