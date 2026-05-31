@@ -2665,23 +2665,6 @@ body.mn-houses-modal-open .mobile-stamina {
   }
 }
 
-@media (max-width: 800px) and (orientation: portrait) {
-  .admin-status-dot {
-    top: auto !important;
-    left: auto !important;
-
-    right: 118px !important;
-    bottom: 108px !important;
-
-    width: 46px !important;
-    height: 46px !important;
-
-    transform: rotate(90deg) !important;
-    transform-origin: center !important;
-
-    z-index: 850 !important;
-  }
-}
 
 /* если браузер реально в landscape */
 @media (max-height: 500px) and (orientation: landscape) {
@@ -2697,6 +2680,54 @@ body.mn-houses-modal-open .mobile-stamina {
 }
 
 /* когда открыта модалка домов — админка прячется */
+body.mn-houses-modal-open .admin-status-dot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+
+/* === SAFE admin button reset === */
+
+.admin-status-dot {
+  position: fixed !important;
+  left: auto !important;
+  top: auto !important;
+
+  right: 14px !important;
+  bottom: 14px !important;
+
+  z-index: 850 !important;
+
+  width: 42px !important;
+  height: 42px !important;
+
+  transform: none !important;
+}
+
+/* ПК — обычный правый нижний угол */
+@media (min-width: 801px) {
+  .admin-status-dot {
+    right: 14px !important;
+    bottom: 14px !important;
+    transform: none !important;
+  }
+}
+
+/* Телефон — тоже безопасно, без поворота */
+@media (max-width: 800px) {
+  .admin-status-dot {
+    right: 14px !important;
+    bottom: 18px !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    transform: none !important;
+  }
+}
+
+/* При модалке домов скрываем */
 body.mn-houses-modal-open .admin-status-dot {
   opacity: 0 !important;
   visibility: hidden !important;
