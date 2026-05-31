@@ -2646,3 +2646,62 @@ body.mn-houses-modal-open .mobile-stamina {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+
+/* === mobile admin button position fix === */
+
+/* обычный телефон */
+@media (max-width: 800px) {
+  .admin-status-dot {
+    position: fixed !important;
+    right: max(14px, env(safe-area-inset-right)) !important;
+    bottom: max(16px, env(safe-area-inset-bottom)) !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    z-index: 850 !important;
+    transform: none !important;
+  }
+}
+
+/* Telegram mobile: игра повернута горизонтально */
+@media (max-width: 800px) and (orientation: portrait) {
+  .admin-status-dot {
+    /*
+      Визуально это правый нижний угол ПОВЁРНУТОЙ игры.
+      Поэтому используем top/right и поворачиваем саму кнопку.
+    */
+    top: auto !important;
+    left: auto !important;
+
+    right: max(18px, env(safe-area-inset-right)) !important;
+    bottom: max(18px, env(safe-area-inset-bottom)) !important;
+
+    width: 46px !important;
+    height: 46px !important;
+
+    transform: rotate(90deg) !important;
+    transform-origin: center !important;
+  }
+}
+
+/* если браузер реально в landscape */
+@media (max-height: 500px) and (orientation: landscape) {
+  .admin-status-dot {
+    right: max(16px, env(safe-area-inset-right)) !important;
+    bottom: max(14px, env(safe-area-inset-bottom)) !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    transform: none !important;
+  }
+}
+
+/* когда открыта модалка домов — админка прячется */
+body.mn-houses-modal-open .admin-status-dot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
