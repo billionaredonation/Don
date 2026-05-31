@@ -28,9 +28,14 @@ import {
   enableEntityInteraction,
 } from '../../src/entities/entityInteraction.js';
 
-import { fetchCityStats } from '../../src/api/cityStats.js'; // ⚡ добавлено
+import {
+  enableHousesFeature,
+  loadHousesFeature,
+  renderHousesFeatureHtml,
+} from '../../src/houses/housesFeature.js';
 
 import '../../src/admin/adminPanel.css';
+import '../../src/houses/houses.css';
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 
@@ -237,38 +242,7 @@ register('home', async (root) => {
 
   const playerBalance = Number(state.player?.balance || 0);
 
-  // ⚡️ Живые данные по городу
-  let cityStats = {
-    housesTotal: 0,
-    housesFree: 0,
-    businessTotal: 0,
-    businessFree: 0,
-    freeSlots: 0,
-  };
-
-  try {
-    const stats = await fetchCityStats(cityId);
-
-    if (stats) {
-      cityStats = {
-        housesTotal: Number(stats.houses_total),
-        housesFree: Number(stats.houses_free),
-        businessTotal: Number(stats.biz_total),
-        businessFree: Number(stats.biz_free),
-      };
-      cityStats.freeSlots = cityStats.housesFree + cityStats.businessFree;
-    }
-  } catch (err) {
-    console.warn('[home] city stats load failed:', err);
-  }
-
-  const housesFreePercent = Math.round((cityStats.housesFree / cityStats.housesTotal) * 100 || 0);
-  const businessFreePercent = Math.round(
-    (cityStats.businessFree / cityStats.businessTotal) * 100 || 0
-  );
-  const freeSlotsPercent = Math.round(
-    (cityStats.freeSlots / (cityStats.housesTotal + cityStats.businessTotal || 1)) * 100
-  );
+  const housesFeature = await loadHousesFeature(cityId);
 
   root.dataset.city = cityId;
   root.dataset.time = dayMode;
@@ -321,7 +295,7 @@ register('home', async (root) => {
 
         <section class="player-glass-hud" aria-label="Игровой HUD">
           <div class="player-hud-left">
-            <button class="player-city-button" type="button" aria-label="Открыть статистику города">
+            <button class="player-city-button" type="button" aria-label="Открыть недвижимость города">
               <span>${city.name}</span>
               <b>›</b>
             </button>
@@ -352,55 +326,10 @@ register('home', async (root) => {
           </div>
         </section>
 
-        <div class="city-stats-modal" hidden>
-          <div class="city-stats-backdrop" data-city-stats-close></div>
-
-          <section class="city-stats-panel" role="dialog" aria-modal="true" aria-label="${city.name} — статистика">
-            <header class="city-stats-header">
-              <strong>${city.name} — статистика</strong>
-              <button type="button" data-city-stats-close>×</button>
-            </header>
-
-            <div class="city-stats-grid">
-              <article class="city-stat-card city-stat-purple">
-                <span class="city-stat-icon">▥</span>
-                <em>Дома</em>
-                <strong>${cityStats.housesTotal}</strong>
-                <small>Свободно: ${cityStats.housesFree}</small>
-                <div class="city-stat-progress">
-                  <i style="width:${housesFreePercent}%"></i>
-                </div>
-                <b>${housesFreePercent}%</b>
-              </article>
-
-              <article class="city-stat-card city-stat-green">
-                <span class="city-stat-icon">▤</span>
-                <em>Бизнесы</em>
-                <strong>${cityStats.businessTotal}</strong>
-                <small>Свободно: ${cityStats.businessFree}</small>
-                <div class="city-stat-progress">
-                  <i style="width:${businessFreePercent}%"></i>
-                </div>
-                <b>${businessFreePercent}%</b>
-              </article>
-
-              <article class="city-stat-card city-stat-orange">
-                <span class="city-stat-icon">◎</span>
-                <em>Свободные слоты</em>
-                <strong>${cityStats.freeSlots}</strong>
-                <small>дома + бизнесы</small>
-                <div class="city-stat-progress">
-                  <i style="width:${freeSlotsPercent}%"></i>
-                </div>
-                <b>${freeSlotsPercent}%</b>
-              </article>
-            </div>
-
-            <button class="city-stats-close-button" type="button" data-city-stats-close>
-              Закрыть
-            </button>
-          </section>
-        </div>
+        ${renderHousesFeatureHtml({
+          city,
+          houses: housesFeature,
+        })}
 
         <div class="mobile-controls-layer"></div>
       </section>
@@ -413,30 +342,7 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
-
-  const cityStatsModal = root.querySelector('.city-stats-modal');
-  const cityButton = root.querySelector('.player-city-button');
-  const cityStatsCloseButtons = root.querySelectorAll('[data-city-stats-close]');
-
-  function openCityStats() {
-    if (!cityStatsModal) return;
-
-    cityStatsModal.hidden = false;
-    root.dataset.cityStatsOpen = 'true';
-  }
-
-  function closeCityStats() {
-    if (!cityStatsModal) return;
-
-    cityStatsModal.hidden = true;
-    delete root.dataset.cityStatsOpen;
-  }
-
-  cityButton?.addEventListener('click', openCityStats);
-
-  cityStatsCloseButtons.forEach((button) => {
-    button.addEventListener('click', closeCityStats);
-  });
+  const cleanupHousesFeature = enableHousesFeature(root);
 
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
@@ -613,8 +519,7 @@ register('home', async (root) => {
   root._cleanupHome = () => {
     root.dataset.destroyed = 'true';
 
-    closeCityStats();
-
+    cleanupHousesFeature?.();
     cleanupMovement?.();
     cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
