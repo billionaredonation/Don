@@ -1,4 +1,4 @@
-import { handleHouseAction } from './houseActions.js';
+import { handleHouseAction } from '../houses/houseActions.js';
 import { handleBusinessAction } from './businessActions.js';
 import { handleNpcAction } from './npcActions.js';
 
