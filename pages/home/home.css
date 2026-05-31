@@ -2739,6 +2739,8 @@ body.mn-houses-modal-open .admin-status-dot {
 
 /* === mobile admin button near balance === */
 
+/* === mobile admin button final position === */
+
 @media (max-width: 800px) {
   .admin-status-dot {
     position: fixed !important;
@@ -2746,14 +2748,16 @@ body.mn-houses-modal-open .admin-status-dot {
     left: auto !important;
     top: auto !important;
 
-    right: 22px !important;
-    bottom: 150px !important;
+    right: 20px !important;
+    bottom: 230px !important;
 
     width: 42px !important;
     height: 42px !important;
 
     z-index: 850 !important;
-    transform: none !important;
+
+    transform: rotate(90deg) !important;
+    transform-origin: center !important;
   }
 }
 
