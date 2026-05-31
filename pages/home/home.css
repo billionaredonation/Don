@@ -2164,42 +2164,27 @@ body,
 
 
 /* =========================================================
-   PLAYER TOP HUD — DESKTOP FLAT
+   PLAYER HUD — FLAT CORNERS UI
    ========================================================= */
 
 .player-glass-hud {
   position: fixed;
-  left: 12px;
-  right: 12px;
-  top: max(10px, env(safe-area-inset-top));
+  inset: 0;
   z-index: 90;
-  height: auto;
-  padding: 10px;
-  border-radius: 22px;
   pointer-events: none;
   color: #f4f7fb;
-  background:
-    linear-gradient(135deg, rgba(10, 18, 26, 0.82), rgba(5, 9, 14, 0.7));
-  border: 1px solid rgba(215, 238, 255, 0.16);
-  box-shadow:
-    0 18px 50px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px) saturate(1.08);
 }
 
-.player-glass-bg {
+.player-glass-hud * {
+  box-sizing: border-box;
+}
+
+.player-hud-left {
   position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.22;
-  background:
-    radial-gradient(circle at 75% 50%, rgba(255, 190, 105, 0.14), transparent 34%),
-    radial-gradient(circle at 35% 40%, rgba(140, 180, 255, 0.08), transparent 44%);
-}
-
-.player-glass-hud > *:not(.player-glass-bg) {
-  position: relative;
-  z-index: 2;
+  left: 14px;
+  top: max(12px, env(safe-area-inset-top));
+  width: clamp(190px, 22vw, 310px);
+  pointer-events: auto;
 }
 
 .player-city-button {
@@ -2208,80 +2193,97 @@ body,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 6px 8px;
-  border: 0;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  background: transparent;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(215, 238, 255, 0.14);
+  border-radius: 16px;
+  background: rgba(6, 12, 18, 0.62);
   color: #fff;
   cursor: pointer;
-  pointer-events: auto;
-  text-align: left;
+  backdrop-filter: blur(14px) saturate(1.08);
+  box-shadow:
+    0 12px 34px rgba(0,0,0,0.32),
+    inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 .player-city-button span {
-  font-size: clamp(24px, 3.3vw, 42px);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: clamp(20px, 2.6vw, 34px);
   line-height: 1;
   font-weight: 950;
   letter-spacing: -0.055em;
 }
 
 .player-city-button b {
-  font-size: 34px;
+  flex: 0 0 auto;
+  font-size: 28px;
   line-height: 1;
   font-weight: 300;
-  opacity: 0.75;
+  opacity: 0.76;
 }
 
-.player-hud-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 280px);
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.player-profile-card,
-.player-balance-card,
-.player-network-card {
-  pointer-events: auto;
-  border-radius: 16px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018)),
-    rgba(4, 9, 14, 0.56);
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow:
-    0 10px 26px rgba(0,0,0,0.28),
-    inset 0 1px 0 rgba(255,255,255,0.045);
+.player-weather-mini {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: rgba(255,255,255,0.86);
+  background: rgba(6, 12, 18, 0.5);
+  border: 1px solid rgba(255,255,255,0.10);
   backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+
+.player-weather-mini span {
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1;
 }
 
 .player-profile-card {
-  min-width: 0;
+  position: absolute;
+  left: clamp(220px, 24vw, 340px);
+  top: max(12px, env(safe-area-inset-top));
+  width: clamp(190px, 22vw, 300px);
+  min-height: 54px;
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) 16px;
+  grid-template-columns: 42px minmax(0, 1fr) 14px;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(215, 238, 255, 0.13);
+  border-radius: 16px;
+  background: rgba(6, 12, 18, 0.58);
   color: #fff;
   cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(14px) saturate(1.08);
+  box-shadow:
+    0 12px 34px rgba(0,0,0,0.32),
+    inset 0 1px 0 rgba(255,255,255,0.055);
 }
 
 .player-avatar {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border-radius: 999px;
   color: #fff;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 950;
   background:
     radial-gradient(circle at 35% 30%, rgba(255,255,255,0.16), rgba(255,255,255,0.03)),
-    rgba(16, 14, 30, 0.9);
-  border: 1px solid rgba(174, 112, 255, 0.76);
-  box-shadow:
-    0 0 20px rgba(170, 95, 255, 0.28),
-    inset 0 0 14px rgba(160, 90, 255, 0.12);
+    rgba(16, 14, 30, 0.88);
+  border: 1px solid rgba(174, 112, 255, 0.72);
+  box-shadow: 0 0 18px rgba(170, 95, 255, 0.26);
 }
 
 .player-profile-info {
@@ -2291,48 +2293,60 @@ body,
   text-align: left;
 }
 
-.player-profile-info strong {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 17px;
-  line-height: 1.05;
-  font-weight: 900;
-}
-
-.player-profile-info em,
+.player-profile-info strong,
 .player-profile-info small {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.player-profile-info strong {
+  font-size: 15px;
+  line-height: 1.05;
+  font-weight: 900;
+}
+
+.player-profile-info small {
   color: rgba(255,255,255,0.58);
-  font-size: 11px;
-  font-style: normal;
+  font-size: 10px;
   font-weight: 750;
 }
 
 .player-profile-arrow {
-  color: rgba(255,255,255,0.72);
-  font-size: 25px;
-  font-weight: 200;
+  font-size: 23px;
+  font-weight: 300;
+  color: rgba(255,255,255,0.7);
 }
 
 .player-balance-card {
-  display: grid;
-  grid-template-columns: 42px 1fr;
+  position: absolute;
+  right: 14px;
+  top: max(12px, env(safe-area-inset-top));
+  min-width: 150px;
+  min-height: 48px;
+  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 8px 12px;
+  border: 1px solid rgba(215, 238, 255, 0.13);
+  border-radius: 16px;
+  background: rgba(6, 12, 18, 0.58);
   color: #fff;
+  pointer-events: auto;
+  backdrop-filter: blur(14px) saturate(1.08);
+  box-shadow:
+    0 12px 34px rgba(0,0,0,0.32),
+    inset 0 1px 0 rgba(255,255,255,0.055);
 }
 
 .player-card-icon {
-  width: 38px;
-  height: 38px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
   border-radius: 999px;
-  font-size: 19px;
+  font-size: 15px;
   font-weight: 950;
 }
 
@@ -2341,60 +2355,51 @@ body,
   background: rgba(80, 255, 120, 0.08);
 }
 
-.player-balance-info {
-  display: grid;
-  gap: 2px;
-}
-
-.player-balance-info em {
-  color: rgba(255,255,255,0.58);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 750;
-}
-
-.player-balance-info strong {
-  font-size: 19px;
-  line-height: 1.1;
+.player-balance-card strong {
+  font-size: 16px;
+  line-height: 1;
   font-weight: 950;
-  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .player-network-card {
-  min-height: 34px;
-  margin-top: 10px;
-  padding: 8px 12px;
-  display: flex;
+  position: absolute;
+  left: 50%;
+  top: max(78px, calc(env(safe-area-inset-top) + 74px));
+  transform: translateX(-50%);
+  min-height: 32px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  color: #fff;
-  border-radius: 14px;
-}
-
-.player-online-dot {
-  width: 10px;
-  height: 10px;
+  gap: 9px;
+  padding: 7px 12px;
   border-radius: 999px;
-  background: #72e57a;
-  box-shadow: 0 0 14px rgba(114, 229, 122, 0.5);
+  color: #fff;
+  background: rgba(6, 12, 18, 0.48);
+  border: 1px solid rgba(215, 238, 255, 0.11);
+  pointer-events: auto;
+  backdrop-filter: blur(13px) saturate(1.08);
+  box-shadow:
+    0 10px 28px rgba(0,0,0,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.045);
 }
 
-.player-network-card strong {
-  font-size: 13px;
+.player-network-card span {
+  font-size: 12px;
+  line-height: 1;
   font-weight: 850;
   white-space: nowrap;
 }
 
 .player-network-separator {
   width: 1px;
-  height: 18px;
-  background: rgba(255,255,255,0.10);
+  height: 16px;
+  background: rgba(255,255,255,0.12);
 }
 
 .player-signal {
-  width: 22px;
-  height: 18px;
+  width: 20px;
+  height: 16px;
   display: inline-flex;
   align-items: flex-end;
   justify-content: center;
@@ -2408,233 +2413,158 @@ body,
   background: rgba(255,255,255,0.9);
 }
 
-.player-signal i:nth-child(1) { height: 6px; }
-.player-signal i:nth-child(2) { height: 11px; }
-.player-signal i:nth-child(3) { height: 16px; }
+.player-signal i:nth-child(1) { height: 5px; }
+.player-signal i:nth-child(2) { height: 10px; }
+.player-signal i:nth-child(3) { height: 15px; }
 
 .gta-map-header,
+.player-glass-bg,
 .player-mini-markers,
+.player-balance-info,
 .player-balance-arrow {
   display: none !important;
 }
 
 /* =========================================================
-   CITY STATS MODAL — CENTERED COMPACT
-   ========================================================= */
-
-.city-stats-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 999999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.city-stats-modal[hidden] {
-  display: none !important;
-}
-
-.city-stats-backdrop {
-  position: absolute;
-  inset: 0;
-  cursor: pointer;
-  background: rgba(0, 0, 0, 0.58);
-  backdrop-filter: blur(18px) saturate(1.15);
-}
-
-.city-stats-panel {
-  position: relative;
-  z-index: 1;
-  width: min(500px, calc(100vw - 28px));
-  max-height: min(620px, calc(100vh - 32px));
-  overflow: auto;
-  padding: 16px;
-  border-radius: 24px;
-  color: #fff;
-  background:
-    linear-gradient(135deg, rgba(16, 25, 34, 0.9), rgba(7, 12, 18, 0.84)),
-    rgba(4, 8, 13, 0.9);
-  border: 1px solid rgba(225, 240, 255, 0.16);
-  box-shadow:
-    0 30px 90px rgba(0,0,0,0.62),
-    inset 0 1px 0 rgba(255,255,255,0.08);
-  backdrop-filter: blur(24px);
-}
-
-.city-stats-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-.city-stats-header strong {
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-}
-
-.city-stats-header button {
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 999px;
-  color: rgba(255,255,255,0.78);
-  background: rgba(255,255,255,0.06);
-  cursor: pointer;
-  font-size: 26px;
-  line-height: 1;
-}
-
-.city-stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.city-stat-card {
-  min-height: 124px;
-  display: grid;
-  align-content: start;
-  gap: 7px;
-  padding: 13px;
-  border-radius: 20px;
-  background:
-    linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.025));
-  border: 1px solid rgba(255,255,255,0.09);
-}
-
-.city-stat-icon {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  font-size: 19px;
-  font-weight: 900;
-  background: rgba(255,255,255,0.06);
-}
-
-.city-stat-card em {
-  margin-top: 6px;
-  color: rgba(255,255,255,0.58);
-  font-style: normal;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.city-stat-card strong {
-  font-size: 23px;
-  line-height: 1;
-  font-weight: 950;
-}
-
-.city-stat-card small,
-.city-stat-card b {
-  color: rgba(255,255,255,0.62);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.city-stat-progress {
-  height: 7px;
-  margin-top: 3px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-}
-
-.city-stat-progress i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-}
-
-.city-stat-purple .city-stat-progress i { background: linear-gradient(90deg, #9b5cff, #c487ff); }
-.city-stat-green .city-stat-progress i { background: linear-gradient(90deg, #5eea68, #9aff9f); }
-.city-stat-orange .city-stat-progress i { background: linear-gradient(90deg, #ff8a2b, #ffbf6b); }
-.city-stat-blue .city-stat-progress i { background: linear-gradient(90deg, #3f88ff, #67b2ff); }
-
-.city-stats-close-button {
-  width: 100%;
-  margin-top: 12px;
-  padding: 13px 16px;
-  border-radius: 17px;
-  color: #fff;
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.08);
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 850;
-}
-
-/* =========================================================
-   MOBILE TEMP — позже сделаем отдельный HUD
+   MOBILE HUD
    ========================================================= */
 
 @media (max-width: 768px) {
-  .player-glass-hud {
+  .player-hud-left {
     left: 8px;
-    right: 8px;
     top: max(8px, env(safe-area-inset-top));
-    padding: 9px;
-    border-radius: 20px;
+    width: 34vw;
+    min-width: 132px;
+    max-width: 170px;
+  }
+
+  .player-city-button {
+    min-height: 34px;
+    padding: 6px 9px;
+    border-radius: 13px;
   }
 
   .player-city-button span {
-    font-size: 24px;
+    font-size: 18px;
+    letter-spacing: -0.05em;
   }
 
-  .player-hud-row {
-    grid-template-columns: 1fr 130px;
-    gap: 8px;
+  .player-city-button b {
+    font-size: 22px;
+  }
+
+  .player-weather-mini {
+    margin-top: 5px;
+    gap: 7px;
+    padding: 5px 8px;
+  }
+
+  .player-weather-mini span {
+    font-size: 11px;
   }
 
   .player-profile-card {
-    grid-template-columns: 40px minmax(0, 1fr) 12px;
-    padding: 8px;
+    left: calc(8px + 34vw + 8px);
+    top: max(8px, env(safe-area-inset-top));
+    width: 34vw;
+    min-width: 132px;
+    max-width: 175px;
+    min-height: 42px;
+    grid-template-columns: 32px minmax(0, 1fr) 10px;
+    gap: 7px;
+    padding: 6px 8px;
+    border-radius: 13px;
   }
 
   .player-avatar {
-    width: 36px;
-    height: 36px;
-    font-size: 17px;
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
   }
 
   .player-profile-info strong {
-    font-size: 14px;
+    font-size: 12px;
   }
 
-  .player-profile-info em,
-  .player-profile-info small,
-  .player-balance-info em {
-    font-size: 10px;
+  .player-profile-info small {
+    font-size: 8px;
+  }
+
+  .player-profile-arrow {
+    font-size: 18px;
   }
 
   .player-balance-card {
-    grid-template-columns: 30px 1fr;
-    padding: 8px;
+    right: 8px;
+    top: max(8px, env(safe-area-inset-top));
+    min-width: 82px;
+    min-height: 34px;
+    gap: 5px;
+    padding: 6px 8px;
+    border-radius: 13px;
   }
 
   .player-card-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 15px;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
   }
 
-  .player-balance-info strong {
-    font-size: 14px;
+  .player-balance-card strong {
+    font-size: 12px;
   }
 
   .player-network-card {
-    min-height: 30px;
-    padding: 7px 10px;
+    top: max(58px, calc(env(safe-area-inset-top) + 54px));
+    min-height: 26px;
+    padding: 5px 10px;
+    gap: 7px;
   }
 
-  .player-network-card strong {
+  .player-network-card span {
+    font-size: 10px;
+  }
+
+  .player-network-separator {
+    height: 13px;
+  }
+
+  .player-signal {
+    width: 17px;
+    height: 13px;
+    gap: 2px;
+  }
+
+  .player-signal i {
+    width: 3px;
+  }
+
+  .player-signal i:nth-child(1) { height: 4px; }
+  .player-signal i:nth-child(2) { height: 8px; }
+  .player-signal i:nth-child(3) { height: 12px; }
+}
+
+@media (max-width: 390px) {
+  .player-hud-left {
+    width: 33vw;
+    min-width: 120px;
+  }
+
+  .player-profile-card {
+    left: calc(8px + 33vw + 6px);
+    width: 33vw;
+    min-width: 122px;
+  }
+
+  .player-city-button span {
+    font-size: 16px;
+  }
+
+  .player-balance-card {
+    min-width: 74px;
+  }
+
+  .player-balance-card strong {
     font-size: 11px;
   }
 }
