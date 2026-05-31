@@ -2741,7 +2741,10 @@ body.mn-houses-modal-open .admin-status-dot {
 
 /* === mobile admin button final position === */
 
-@media (max-width: 800px) {
+
+/* === mobile-only admin button final position === */
+
+@media (hover: none) and (pointer: coarse) {
   .admin-status-dot {
     position: fixed !important;
 
@@ -2758,6 +2761,15 @@ body.mn-houses-modal-open .admin-status-dot {
 
     transform: rotate(90deg) !important;
     transform-origin: center !important;
+  }
+}
+
+/* ПК принудительно не трогаем */
+@media (hover: hover) and (pointer: fine) {
+  .admin-status-dot {
+    right: 14px !important;
+    bottom: 14px !important;
+    transform: none !important;
   }
 }
 
