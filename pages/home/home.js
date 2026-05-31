@@ -325,11 +325,6 @@ register('home', async (root) => {
             <span class="player-profile-arrow">›</span>
           </button>
 
-          <div class="player-network-card">
-            <span class="player-network-item">👥 ${cityStats.online}</span>
-            <span class="player-network-separator"></span>
-            <span class="player-network-item">📶 ${cityStats.ping}</span>
-          </div>
 
           <div class="player-balance-card" aria-label="Баланс игрока">
             <span class="player-card-icon player-card-icon-green">₴</span>
@@ -342,19 +337,7 @@ register('home', async (root) => {
             </div>
           </div>
 
-          <div class="player-network-card">
-            <span class="player-online-dot"></span>
-            <strong>Онлайн: ${cityStats.online}</strong>
 
-            <span class="player-network-separator"></span>
-
-            <span class="player-signal" aria-hidden="true">
-              <i></i><i></i><i></i>
-            </span>
-
-            <strong>Пинг: ${cityStats.ping} мс</strong>
-          </div>
-        </section>
 
         <div class="city-stats-modal" hidden>
           <div class="city-stats-backdrop" data-city-stats-close></div>
