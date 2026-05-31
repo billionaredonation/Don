@@ -4,26 +4,35 @@
   z-index: 80;
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 16px;
 }
 
 .houses-stats-modal[hidden] {
   display: none;
 }
 
+.houses-stats-modal .city-stats-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(5px);
+}
+
 .houses-stats-panel {
-  width: min(460px, calc(100vw - 28px));
-  max-height: min(720px, calc(100vh - 36px));
+  position: relative;
+  width: min(430px, calc(100vw - 28px));
+  max-height: min(680px, calc(100vh - 36px));
   overflow: auto;
   padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(18, 22, 32, 0.94), rgba(5, 7, 12, 0.96)),
-    rgba(8, 10, 16, 0.94);
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.58);
+  border-radius: 24px;
   color: #fff;
-  backdrop-filter: blur(18px);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(72, 123, 255, 0.22), transparent 36%),
+    linear-gradient(180deg, rgba(15, 18, 27, 0.96), rgba(5, 7, 12, 0.97));
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.68),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .houses-stats-header {
@@ -36,71 +45,75 @@
 
 .houses-stats-header strong {
   display: block;
-  font-size: 18px;
-  font-weight: 950;
+  font-size: 19px;
   line-height: 1.15;
+  font-weight: 950;
 }
 
 .houses-stats-header small {
   display: block;
-  margin-top: 4px;
-  color: rgba(255, 255, 255, 0.62);
+  margin-top: 5px;
+  color: rgba(255, 255, 255, 0.58);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 750;
 }
 
 .houses-stats-header button {
   width: 34px;
   height: 34px;
+  flex: 0 0 auto;
   border: 0;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.1);
+  border-radius: 13px;
   color: #fff;
+  background: rgba(255, 255, 255, 0.1);
   font-size: 22px;
-  font-weight: 900;
+  font-weight: 950;
   cursor: pointer;
 }
 
 .houses-stats-grid {
   display: grid;
-  grid-template-columns: 1fr;
   gap: 10px;
 }
 
 .houses-stats-grid .city-stat-card {
   position: relative;
-  padding: 13px;
+  display: grid;
+  gap: 6px;
+  padding: 13px 14px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.075);
   border: 1px solid rgba(255, 255, 255, 0.11);
 }
 
+.houses-stats-grid .city-stat-icon {
+  position: absolute;
+  right: 13px;
+  top: 13px;
+  opacity: 0.75;
+}
+
 .houses-stats-grid .city-stat-card em {
-  display: block;
-  margin-bottom: 4px;
-  color: rgba(255, 255, 255, 0.76);
-  font-style: normal;
+  color: rgba(255, 255, 255, 0.65);
   font-size: 12px;
+  font-style: normal;
   font-weight: 850;
 }
 
 .houses-stats-grid .city-stat-card strong {
-  display: block;
-  font-size: 24px;
+  font-size: 28px;
+  line-height: 1;
   font-weight: 1000;
 }
 
 .houses-stats-grid .city-stat-card small {
-  display: block;
-  margin-top: 2px;
   color: rgba(255, 255, 255, 0.62);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 750;
 }
 
 .houses-stats-grid .city-stat-progress {
   height: 7px;
-  margin-top: 10px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.12);
@@ -110,19 +123,31 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .houses-stats-grid .city-stat-card b {
   position: absolute;
   right: 13px;
-  top: 13px;
+  bottom: 12px;
   font-size: 13px;
   font-weight: 1000;
 }
 
+.city-stat-purple {
+  box-shadow: inset 3px 0 0 rgba(110, 130, 255, 0.85);
+}
+
+.city-stat-green {
+  box-shadow: inset 3px 0 0 rgba(80, 220, 145, 0.85);
+}
+
+.city-stat-orange {
+  box-shadow: inset 3px 0 0 rgba(255, 180, 70, 0.85);
+}
+
 .houses-list-section {
-  margin-top: 16px;
+  margin-top: 15px;
 }
 
 .houses-list-section h3 {
@@ -141,23 +166,23 @@
 
 .house-list li {
   display: grid;
-  grid-template-columns: 34px 1fr auto;
+  grid-template-columns: 36px 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 10px;
-  border-radius: 16px;
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.075);
   border: 1px solid rgba(255, 255, 255, 0.11);
-  background: rgba(255, 255, 255, 0.07);
 }
 
 .house-list-icon {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 13px;
   background: rgba(255, 255, 255, 0.1);
-  font-size: 18px;
+  font-size: 19px;
 }
 
 .house-list-main {
@@ -167,43 +192,46 @@
 .house-list-main b {
   display: block;
   overflow: hidden;
+  color: #fff;
   font-size: 13px;
   font-weight: 950;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .house-list-main small {
   display: block;
-  margin-top: 2px;
-  color: rgba(255, 255, 255, 0.58);
+  margin-top: 3px;
+  color: rgba(255, 255, 255, 0.56);
   font-size: 11px;
   font-weight: 750;
 }
 
 .house-list li > strong {
+  color: #fff;
   font-size: 13px;
   font-weight: 1000;
   white-space: nowrap;
 }
 
 .house-free {
-  box-shadow: inset 3px 0 0 rgba(80, 210, 130, 0.8);
+  box-shadow: inset 3px 0 0 rgba(80, 220, 145, 0.8);
 }
 
 .house-owned {
-  box-shadow: inset 3px 0 0 rgba(255, 190, 80, 0.8);
+  box-shadow: inset 3px 0 0 rgba(255, 185, 80, 0.85);
 }
 
 .house-empty {
   padding: 13px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.075);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
 }
 
 .house-empty b {
   display: block;
+  color: #fff;
   font-size: 13px;
   font-weight: 950;
 }
@@ -213,17 +241,17 @@
   margin-top: 4px;
   color: rgba(255, 255, 255, 0.58);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 750;
 }
 
 .houses-close-button {
   width: 100%;
   margin-top: 14px;
-  padding: 11px 14px;
+  padding: 12px 14px;
   border: 0;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.12);
+  border-radius: 17px;
   color: #fff;
+  background: rgba(255, 255, 255, 0.12);
   font-size: 14px;
   font-weight: 950;
   cursor: pointer;
