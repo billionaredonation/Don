@@ -8,17 +8,27 @@ function formatMoney(value) {
   return `${number.toLocaleString('ru-RU')} ₴`;
 }
 
+function getHouseClass(object) {
+  return (
+    object?.payload?.houseClassLabel ||
+    object?.payload?.houseClass ||
+    object?.variant ||
+    'Стандарт'
+  );
+}
+
 export function getHousePanelData(object) {
   const price = formatMoney(object?.payload?.price);
   const ownerId = object?.payload?.ownerId || '';
   const locked = Boolean(object?.payload?.locked);
+  const houseClass = getHouseClass(object);
 
   return {
     icon: object?.icon || '🏠',
-    title: object?.name || 'Дом',
+    title: object?.name || `Дом · ${houseClass}`,
     meta: [
-      object?.payload?.houseClassLabel || object?.payload?.houseClass || object?.variant || 'standard',
-      ownerId ? 'занят' : locked ? 'закрыт' : 'свободен',
+      houseClass,
+      ownerId ? 'куплен' : locked ? 'закрыт' : 'свободен',
       price,
     ].filter(Boolean).join(' · '),
     actionLabel: ownerId ? 'Информация' : locked ? 'Закрыто' : 'Купить дом',
