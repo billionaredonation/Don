@@ -5,7 +5,7 @@ function formatMoney(value) {
     return 'Цена не указана';
   }
 
-  return `${number.toLocaleString('ru-RU')}₴`;
+  return `${number.toLocaleString('ru-RU')} ₴`;
 }
 
 function getHouseClass(house) {
@@ -13,7 +13,7 @@ function getHouseClass(house) {
     house?.payload?.houseClassLabel ||
     house?.payload?.houseClass ||
     house?.variant ||
-    'Standard'
+    'Стандарт'
   );
 }
 
@@ -46,7 +46,7 @@ export function renderHouseDetailsModal() {
           <span class="house-details-icon" data-house-details-icon>🏠</span>
 
           <div>
-            <strong data-house-details-price>0₴</strong>
+            <strong data-house-details-price>0 ₴</strong>
             <small data-house-details-status>Свободен</small>
           </div>
         </div>
@@ -54,7 +54,7 @@ export function renderHouseDetailsModal() {
         <div class="house-details-grid">
           <article>
             <span>Класс</span>
-            <strong data-house-details-class>Standard</strong>
+            <strong data-house-details-class>Стандарт</strong>
           </article>
 
           <article>
@@ -75,7 +75,7 @@ export function renderHouseDetailsModal() {
           </button>
 
           <button type="button" class="house-buy-button" data-house-buy-button>
-            Купить
+            Купить дом
           </button>
         </footer>
       </section>
@@ -115,7 +115,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     const isOwned = Boolean(house?.payload?.ownerId);
     const isLocked = Boolean(house?.payload?.locked);
 
-    title.textContent = house?.name || 'Дом';
+    title.textContent = house?.name || `Дом · ${getHouseClass(house)}`;
     icon.textContent = house?.icon || '🏠';
     price.textContent = formatMoney(getHousePrice(house));
     status.textContent = getHouseStatus(house);
@@ -150,7 +150,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
       await onBuy(activeHouse);
 
-      setMessage('Дом успешно куплен. Обнови город или перезайди для полной синхронизации.', 'success');
+      setMessage('Дом успешно куплен.', 'success');
       buyButton.hidden = true;
     } catch (error) {
       console.warn('[houses] buy failed:', error);
@@ -160,11 +160,11 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
       if (code.includes('NOT_ENOUGH_MONEY')) {
         setMessage('Недостаточно денег для покупки дома.', 'error');
       } else if (code.includes('HOUSE_ALREADY_OWNED')) {
-        setMessage('Этот дом уже куплен другим игроком.', 'error');
+        setMessage('Этот дом уже куплен.', 'error');
       } else if (code.includes('HOUSE_LOCKED')) {
-        setMessage('Этот дом закрыт для покупки.', 'error');
+        setMessage('Дом закрыт для покупки.', 'error');
       } else {
-        setMessage('Не удалось купить дом. Попробуй ещё раз.', 'error');
+        setMessage('Не удалось купить дом.', 'error');
       }
 
       buyButton.disabled = false;
@@ -182,6 +182,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     close,
     cleanup() {
       close();
+
       buyButton?.removeEventListener('click', handleBuy);
 
       closeButtons.forEach((button) => {
