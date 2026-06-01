@@ -24,6 +24,10 @@ export function enableHousesFeature(root, { cityId } = {}) {
     async onBuyHouse(house) {
       const playerId = getLocalPlayerId();
 
+      if (!playerId) {
+        throw new Error('PLAYER_ID_NOT_FOUND');
+      }
+
       const result = await buyHouseFromState({
         houseId: house.id,
         playerId,
@@ -38,11 +42,13 @@ export function enableHousesFeature(root, { cityId } = {}) {
         save();
       }
 
-      if (cityId) {
-        window.dispatchEvent(new CustomEvent('mn:houses-updated', {
-          detail: { cityId, houseId: house.id },
-        }));
-      }
+      window.dispatchEvent(new CustomEvent('mn:houses-updated', {
+        detail: {
+          cityId,
+          houseId: house.id,
+          result,
+        },
+      }));
 
       return result;
     },
