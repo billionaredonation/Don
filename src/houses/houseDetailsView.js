@@ -9,20 +9,28 @@ function formatMoney(value) {
 }
 
 function getHouseClass(house) {
-  return (
-    house?.payload?.houseClassLabel ||
-    house?.payload?.houseClass ||
-    house?.variant ||
-    'Стандарт'
-  );
+  const houseClass = house?.class || house?.payload?.houseClass || house?.variant || 'standard';
+
+  const labels = {
+    standard: 'Стандарт',
+    premium: 'Премиум',
+    luxe: 'Люкс',
+    luxury: 'Люкс',
+  };
+
+  return labels[houseClass] || String(houseClass);
 }
 
 function getHousePrice(house) {
-  return house?.payload?.price || house?.price || 0;
+  return house?.price || house?.payload?.price || 0;
+}
+
+function getHouseOwnerId(house) {
+  return house?.owner_id || house?.payload?.ownerId || null;
 }
 
 function getHouseStatus(house) {
-  if (house?.payload?.ownerId) return 'Куплен';
+  if (getHouseOwnerId(house)) return 'Куплен';
   if (house?.payload?.locked) return 'Закрыт';
   return 'Свободен';
 }
@@ -84,17 +92,24 @@ export function renderHouseDetailsModal() {
 }
 
 export function createHouseDetailsController(root, { onBuy } = {}) {
-  const modal = root.querySelector('[data-house-details-modal]');
-  const closeButtons = root.querySelectorAll('[data-house-details-close]');
-  const buyButton = root.querySelector('[data-house-buy-button]');
-  const message = root.querySelector('[data-house-details-message]');
+  let modal = root.querySelector('[data-house-details-modal]');
 
-  const title = root.querySelector('[data-house-details-title]');
-  const icon = root.querySelector('[data-house-details-icon]');
-  const price = root.querySelector('[data-house-details-price]');
-  const status = root.querySelector('[data-house-details-status]');
-  const houseClass = root.querySelector('[data-house-details-class]');
-  const owner = root.querySelector('[data-house-details-owner]');
+  // ВАЖНО: выносим detail-модалку в body,
+  // чтобы она не была вложена внутрь большой модалки домов.
+  if (modal && modal.parentElement !== document.body) {
+    document.body.appendChild(modal);
+  }
+
+  const closeButtons = modal?.querySelectorAll('[data-house-details-close]') || [];
+  const buyButton = modal?.querySelector('[data-house-buy-button]');
+  const message = modal?.querySelector('[data-house-details-message]');
+
+  const title = modal?.querySelector('[data-house-details-title]');
+  const icon = modal?.querySelector('[data-house-details-icon]');
+  const price = modal?.querySelector('[data-house-details-price]');
+  const status = modal?.querySelector('[data-house-details-status]');
+  const houseClass = modal?.querySelector('[data-house-details-class]');
+  const owner = modal?.querySelector('[data-house-details-owner]');
 
   let activeHouse = null;
 
@@ -112,7 +127,8 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     activeHouse = house;
     setMessage('');
 
-    const isOwned = Boolean(house?.payload?.ownerId);
+    const ownerId = getHouseOwnerId(house);
+    const isOwned = Boolean(ownerId);
     const isLocked = Boolean(house?.payload?.locked);
 
     title.textContent = house?.name || `Дом · ${getHouseClass(house)}`;
@@ -120,7 +136,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     price.textContent = formatMoney(getHousePrice(house));
     status.textContent = getHouseStatus(house);
     houseClass.textContent = getHouseClass(house);
-    owner.textContent = isOwned ? String(house.payload.ownerId) : 'Государство';
+    owner.textContent = isOwned ? String(ownerId) : 'Государство';
 
     buyButton.hidden = isOwned || isLocked;
     buyButton.disabled = isOwned || isLocked;
@@ -129,7 +145,10 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     document.body.classList.add('mn-house-details-open');
   }
 
-  function close() {
+  function close(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
     if (!modal) return;
 
     modal.hidden = true;
@@ -153,18 +172,20 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
       setMessage('Дом успешно куплен.', 'success');
       buyButton.hidden = true;
     } catch (error) {
-      console.warn('[houses] buy failed:', error);
+      console.error('[houses] buy failed:', error);
 
-      const code = error?.message || error?.details || '';
+      const code = error?.message || error?.details || error?.hint || '';
 
       if (code.includes('NOT_ENOUGH_MONEY')) {
         setMessage('Недостаточно денег для покупки дома.', 'error');
       } else if (code.includes('HOUSE_ALREADY_OWNED')) {
         setMessage('Этот дом уже куплен.', 'error');
-      } else if (code.includes('HOUSE_LOCKED')) {
-        setMessage('Дом закрыт для покупки.', 'error');
+      } else if (code.includes('HOUSE_NOT_FOUND')) {
+        setMessage('Дом не найден в базе данных.', 'error');
+      } else if (code.includes('PLAYER_NOT_FOUND')) {
+        setMessage('Игрок не найден в базе данных.', 'error');
       } else {
-        setMessage('Не удалось купить дом.', 'error');
+        setMessage(`Не удалось купить дом: ${code || 'неизвестная ошибка'}`, 'error');
       }
 
       buyButton.disabled = false;
@@ -180,6 +201,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
   return {
     open,
     close,
+
     cleanup() {
       close();
 
@@ -188,6 +210,9 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
       closeButtons.forEach((button) => {
         button.removeEventListener('click', close);
       });
+
+      modal?.remove();
+      modal = null;
     },
   };
 }
