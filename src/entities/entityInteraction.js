@@ -10,51 +10,53 @@ import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
 function getPurchasedHouseId(detail = {}) {
-  return (
-    detail.houseId ||
-    detail.house?.id ||
-    detail.house?.payload?.houseId ||
-    detail.result?.houseId ||
-    null
-  );
+  return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
+}
+
+function getPurchasedMapObjectId(detail = {}) {
+  return detail.mapObjectId || detail.house?.id || null;
 }
 
 function getPurchasedOwnerId(detail = {}) {
-  return (
-    detail.ownerId ||
-    detail.result?.ownerId ||
-    detail.result?.playerId ||
-    detail.house?.owner_id ||
-    detail.house?.payload?.ownerId ||
-    null
-  );
+  return detail.ownerId || detail.result?.ownerId || detail.result?.playerId || null;
+}
+
+function getPurchasedOwnerName(detail = {}) {
+  return detail.ownerName || detail.result?.ownerName || 'Игрок';
 }
 
 function getMapObjectHouseId(object) {
-  return (
-    object?.payload?.houseId ||
-    object?.houseId ||
-    object?.id ||
-    null
-  );
+  return object?.payload?.houseId || object?.houseId || null;
 }
 
-function markObjectAsPurchased(object, ownerId) {
+function isSameHouseObject(object, purchasedHouseId, purchasedMapObjectId) {
+  if (!object) return false;
+
+  if (purchasedMapObjectId && String(object.id) === String(purchasedMapObjectId)) {
+    return true;
+  }
+
+  if (purchasedHouseId && String(getMapObjectHouseId(object)) === String(purchasedHouseId)) {
+    return true;
+  }
+
+  return false;
+}
+
+function markObjectAsPurchased(object, ownerId, ownerName) {
   if (!object || !ownerId) return object;
 
   object.owner_id = ownerId;
+  object.ownerName = ownerName;
+
   object.payload = {
     ...(object.payload || {}),
     ownerId,
+    ownerName,
+    owned: true,
   };
 
   return object;
-}
-
-function isSameHouseObject(object, purchasedHouseId) {
-  if (!object || !purchasedHouseId) return false;
-
-  return String(getMapObjectHouseId(object)) === String(purchasedHouseId);
 }
 
 export function createEntityInteractionPanel(root) {
@@ -107,13 +109,15 @@ export function createEntityInteractionPanel(root) {
 
   function handleHousePurchased(event) {
     const purchasedHouseId = getPurchasedHouseId(event.detail);
+    const purchasedMapObjectId = getPurchasedMapObjectId(event.detail);
     const ownerId = getPurchasedOwnerId(event.detail);
+    const ownerName = getPurchasedOwnerName(event.detail);
 
-    if (!selectedObject || !isSameHouseObject(selectedObject, purchasedHouseId)) {
+    if (!selectedObject || !isSameHouseObject(selectedObject, purchasedHouseId, purchasedMapObjectId)) {
       return;
     }
 
-    markObjectAsPurchased(selectedObject, ownerId);
+    markObjectAsPurchased(selectedObject, ownerId, ownerName);
     renderSelectedObject();
   }
 
@@ -173,9 +177,7 @@ export function enableEntityInteraction({
 
     if (destroyed) return;
 
-    mapObjects = Array.isArray(objects)
-      ? objects.filter(Boolean)
-      : [];
+    mapObjects = Array.isArray(objects) ? objects.filter(Boolean) : [];
 
     renderMapObjects(layer, mapObjects);
 
@@ -189,7 +191,7 @@ export function enableEntityInteraction({
 
   function scheduleReload() {
     clearTimeout(reloadTimer);
-    reloadTimer = setTimeout(reloadObjects, 150);
+    reloadTimer = setTimeout(reloadObjects, 250);
   }
 
   function onClick(event) {
@@ -212,17 +214,19 @@ export function enableEntityInteraction({
 
   function onHousePurchased(event) {
     const purchasedHouseId = getPurchasedHouseId(event.detail);
+    const purchasedMapObjectId = getPurchasedMapObjectId(event.detail);
     const ownerId = getPurchasedOwnerId(event.detail);
+    const ownerName = getPurchasedOwnerName(event.detail);
 
-    if (!purchasedHouseId || !ownerId) return;
+    if (!ownerId) return;
 
     let changed = false;
 
     mapObjects = mapObjects.map((object) => {
-      if (!isSameHouseObject(object, purchasedHouseId)) return object;
+      if (!isSameHouseObject(object, purchasedHouseId, purchasedMapObjectId)) return object;
 
       changed = true;
-      return markObjectAsPurchased(object, ownerId);
+      return markObjectAsPurchased(object, ownerId, ownerName);
     });
 
     if (!changed) return;
@@ -231,25 +235,20 @@ export function enableEntityInteraction({
 
     if (typeof panel.updateSelectedObject === 'function') {
       panel.updateSelectedObject((selectedObject) => {
-        if (!isSameHouseObject(selectedObject, purchasedHouseId)) {
+        if (!isSameHouseObject(selectedObject, purchasedHouseId, purchasedMapObjectId)) {
           return selectedObject;
         }
 
-        return markObjectAsPurchased(selectedObject, ownerId);
+        return markObjectAsPurchased(selectedObject, ownerId, ownerName);
       });
     }
 
-    window.dispatchEvent(new CustomEvent('mn:map-objects-changed', {
-      detail: {
-        cityId,
-        reason: 'house-purchased',
-        houseId: purchasedHouseId,
-      },
-    }));
+    scheduleReload();
   }
 
   layer.addEventListener('click', onClick);
   layer.addEventListener('pointerdown', onClick);
+
   window.addEventListener('mn:map-objects-changed', onObjectsChanged);
   window.addEventListener('mn:house-purchased-local', onHousePurchased);
 
@@ -261,8 +260,10 @@ export function enableEntityInteraction({
 
     layer.removeEventListener('click', onClick);
     layer.removeEventListener('pointerdown', onClick);
+
     window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
     window.removeEventListener('mn:house-purchased-local', onHousePurchased);
+
     layer.remove();
   };
 }
