@@ -35,6 +35,18 @@ function getHouseStatus(house) {
   return 'Свободен';
 }
 
+function applyPurchasedState(house, result = {}) {
+  const ownerId = result?.ownerId || result?.playerId || house?.owner_id || house?.payload?.ownerId || 'player';
+
+  house.owner_id = ownerId;
+  house.payload = {
+    ...(house.payload || {}),
+    ownerId,
+  };
+
+  return ownerId;
+}
+
 export function renderHouseDetailsModal() {
   return `
     <div class="house-details-modal" hidden data-house-details-modal>
@@ -94,8 +106,6 @@ export function renderHouseDetailsModal() {
 export function createHouseDetailsController(root, { onBuy } = {}) {
   let modal = root.querySelector('[data-house-details-modal]');
 
-  // ВАЖНО: выносим detail-модалку в body,
-  // чтобы она не была вложена внутрь большой модалки домов.
   if (modal && modal.parentElement !== document.body) {
     document.body.appendChild(modal);
   }
@@ -138,8 +148,10 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     houseClass.textContent = getHouseClass(house);
     owner.textContent = isOwned ? String(ownerId) : 'Государство';
 
-    buyButton.hidden = isOwned || isLocked;
-    buyButton.disabled = isOwned || isLocked;
+    if (buyButton) {
+      buyButton.hidden = isOwned || isLocked;
+      buyButton.disabled = isOwned || isLocked;
+    }
 
     modal.hidden = false;
     document.body.classList.add('mn-house-details-open');
@@ -161,16 +173,29 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!activeHouse || !onBuy) return;
+    if (!activeHouse || !onBuy || !buyButton) return;
 
     try {
       buyButton.disabled = true;
       setMessage('Покупка выполняется...', 'info');
 
-      await onBuy(activeHouse);
+      const result = await onBuy(activeHouse);
+      const ownerId = applyPurchasedState(activeHouse, result);
+
+      status.textContent = 'Куплен';
+      owner.textContent = String(ownerId);
 
       setMessage('Дом успешно куплен.', 'success');
+
       buyButton.hidden = true;
+      buyButton.disabled = true;
+
+      window.dispatchEvent(new CustomEvent('mn:house-purchased-local', {
+        detail: {
+          house: activeHouse,
+          result,
+        },
+      }));
     } catch (error) {
       console.error('[houses] buy failed:', error);
 
