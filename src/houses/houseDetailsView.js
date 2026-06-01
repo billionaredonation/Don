@@ -192,10 +192,12 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
       window.dispatchEvent(new CustomEvent('mn:house-purchased-local', {
         detail: {
+          houseId: activeHouse.id,
           house: activeHouse,
+          ownerId,
           result,
         },
-      }));
+    }));
     } catch (error) {
       console.error('[houses] buy failed:', error);
 
