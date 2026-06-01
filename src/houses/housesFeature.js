@@ -22,7 +22,7 @@ export { renderHousesFeatureHtml };
 export function enableHousesFeature(root, { cityId } = {}) {
   return enableHousesStatsModal(root, {
     async onBuyHouse(house) {
-      const playerId = getLocalPlayerId();
+      console.log('[houses] tg_id:', playerId);
 
       if (!playerId) {
         throw new Error('PLAYER_ID_NOT_FOUND');
