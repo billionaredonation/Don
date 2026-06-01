@@ -1,22 +1,25 @@
-function isBusinessObject(object) {
-  return object?.category === 'business';
+import { getMapObjects } from '../mapObjects/mapObjectsRepository.js';
+
+function isHouseObject(object) {
+  return object?.category === 'house' || object?.type === 'house';
 }
 
-  const businesses = objects.filter(isBusinessObject);
+export async function fetchCityHousesState(cityId) {
+  const objects = await getMapObjects(cityId);
+  const houses = objects.filter(isHouseObject);
 
   const housesFree = houses.filter((house) => {
     return !house?.payload?.ownerId && !house?.payload?.locked;
   });
 
-  const businessFree = businesses.filter((business) => {
-    return !business?.payload?.ownerId && !business?.payload?.locked;
+  const housesOwned = houses.filter((house) => {
+    return house?.payload?.ownerId || house?.payload?.locked;
   });
 
   return {
     houses,
     housesTotal: houses.length,
     housesFree: housesFree.length,
-    businessTotal: businesses.length,
-    businessFree: businessFree.length,
+    housesOwned: housesOwned.length,
   };
 }
