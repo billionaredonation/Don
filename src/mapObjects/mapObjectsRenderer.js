@@ -13,25 +13,48 @@ function formatPrice(value) {
 
   return `${number.toLocaleString('ru-RU')}₴`;
 }
+
+function getHouseClassText(object, payload) {
+  return (
+    payload.houseClassShortLabel ||
+    payload.houseClassLabel ||
+    payload.houseClass ||
+    object.class ||
+    object.variant ||
+    'standard'
+  );
+}
+
+function getHouseOwnerId(object, payload) {
+  return (
+    object.owner_id ||
+    payload.ownerId ||
+    payload.owner_id ||
+    null
+  );
+}
+
 function getObjectMeta(object) {
   const payload = object.payload || {};
 
   if (object.category === 'house') {
-    const classText = payload.houseClassShortLabel || payload.houseClassLabel || object.variant || 'HOME';
-    const priceText = formatPrice(payload.price);
+    const priceText = formatPrice(payload.price || object.price);
+    const ownerId = getHouseOwnerId(object, payload);
+    const isOwned = Boolean(ownerId);
+    const isLocked = Boolean(payload.locked);
 
-    const ownerId = object.owner_id || payload.ownerId;
-    const statusText = ownerId
+    const classText = getHouseClassText(object, payload);
+    const statusText = isOwned
       ? 'Куплен'
-      : payload.locked
+      : isLocked
         ? 'Закрыт'
         : 'Свободен';
 
     return {
-      badge: classText,
-      sub: priceText || statusText,
-      title: `${object.name || 'Дом'} · ${payload.houseClassLabel || classText} · ${statusText}${priceText ? ` · ${priceText}` : ''}`,
-      visualClass: payload.visualClass || object.variant || 'standard',
+      badge: isOwned ? 'КУПЛЕН' : classText,
+      sub: isOwned ? 'Занят' : priceText || statusText,
+      title: `${object.name || 'Дом'} · ${classText} · ${statusText}${priceText ? ` · ${priceText}` : ''}`,
+      visualClass: isOwned ? 'owned' : payload.visualClass || object.variant || classText || 'standard',
     };
   }
 
