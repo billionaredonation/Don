@@ -1359,3 +1359,25 @@ body.mn-houses-modal-open .admin-status-dot {
 .house-buy-button:disabled {
   opacity: 0.55;
 }
+
+/* detail modal must be above houses list modal */
+.house-details-modal {
+  z-index: 1000001 !important;
+}
+
+.house-details-backdrop {
+  z-index: 0 !important;
+}
+
+.house-details-panel {
+  z-index: 1 !important;
+}
+
+/* when detail modal is open, avoid weird interaction with parent modal */
+body.mn-house-details-open .houses-panel {
+  pointer-events: none;
+}
+
+body.mn-house-details-open .house-details-panel {
+  pointer-events: auto;
+}
