@@ -45,7 +45,7 @@ export function renderHouseList(houses = []) {
         .map((house, index) => {
           const state = getHouseState(house);
           const status = getHouseStatus(house);
-          const price = formatMoney(house?.payload?.price);
+          const price = formatMoney(house?.price);
 
           return `
             <li
