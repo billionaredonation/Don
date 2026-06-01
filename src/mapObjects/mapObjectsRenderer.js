@@ -26,12 +26,11 @@ function getHouseClassText(object, payload) {
 }
 
 function getHouseOwnerId(object, payload) {
-  return (
-    object.owner_id ||
-    payload.ownerId ||
-    payload.owner_id ||
-    null
-  );
+  return object.owner_id || payload.ownerId || payload.owner_id || null;
+}
+
+function getHouseOwnerName(object, payload) {
+  return object.ownerName || payload.ownerName || payload.owner_name || null;
 }
 
 function getObjectMeta(object) {
@@ -40,10 +39,12 @@ function getObjectMeta(object) {
   if (object.category === 'house') {
     const priceText = formatPrice(payload.price || object.price);
     const ownerId = getHouseOwnerId(object, payload);
+    const ownerName = getHouseOwnerName(object, payload);
     const isOwned = Boolean(ownerId);
     const isLocked = Boolean(payload.locked);
 
     const classText = getHouseClassText(object, payload);
+
     const statusText = isOwned
       ? 'Куплен'
       : isLocked
@@ -52,8 +53,8 @@ function getObjectMeta(object) {
 
     return {
       badge: isOwned ? 'КУПЛЕН' : classText,
-      sub: isOwned ? 'Занят' : priceText || statusText,
-      title: `${object.name || 'Дом'} · ${classText} · ${statusText}${priceText ? ` · ${priceText}` : ''}`,
+      sub: isOwned ? ownerName || 'Занят' : priceText || statusText,
+      title: `${object.name || 'Дом'} · ${classText} · ${statusText}${ownerName ? ` · ${ownerName}` : ''}${priceText ? ` · ${priceText}` : ''}`,
       visualClass: isOwned ? 'owned' : payload.visualClass || object.variant || classText || 'standard',
     };
   }
