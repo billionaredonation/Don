@@ -138,17 +138,14 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
 
   function handleGlobalHouseAction(event) {
-  const house = event.detail?.house;
-  if (!house) return;
+    const house = event.detail?.house;
+    if (!house) return;
 
-  if (modal) {
-    modal.hidden = false;
-    document.body.classList.add('mn-houses-modal-open');
+    // ВАЖНО:
+    // не открываем большую модалку списка домов.
+    // Клик по дому на карте открывает только detail-модалку.
+    detailsController.open(house);
   }
-
-  root.dataset.housesStatsOpen = 'true';
-  detailsController.open(house);
-}
 
   
   let activeFilter = 'all';
