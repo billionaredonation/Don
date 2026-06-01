@@ -11,11 +11,9 @@ export function normalizeHousesState(rawState = {}) {
 
   return {
     houses,
-
     housesTotal,
     housesFree,
     housesOwned,
-
     housesFreePercent: Math.round((housesFree / housesTotal) * 100 || 0),
     housesOwnedPercent: Math.round((housesOwned / housesTotal) * 100 || 0),
   };
