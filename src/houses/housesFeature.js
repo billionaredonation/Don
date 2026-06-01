@@ -1,11 +1,20 @@
 import { state, save } from '../state.js';
-import { getLocalPlayerId } from '../player/playerPosition.js';
 import { buyHouseFromState, fetchCityHousesState } from './housesRepository.js';
 import { getEmptyHousesState, normalizeHousesState } from './housesStats.js';
 import {
   enableHousesStatsModal,
   renderHousesFeatureHtml,
 } from './housesView.js';
+
+function getPlayerTgId() {
+  return (
+    state.telegramId ||
+    state.player?.tg_id ||
+    state.player?.telegramId ||
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+    null
+  );
+}
 
 export async function loadHousesFeature(cityId) {
   try {
@@ -22,7 +31,7 @@ export { renderHousesFeatureHtml };
 export function enableHousesFeature(root, { cityId } = {}) {
   return enableHousesStatsModal(root, {
     async onBuyHouse(house) {
-      const tgId = getLocalPlayerId();
+      const tgId = getPlayerTgId();
 
       if (!tgId) {
         throw new Error('PLAYER_TG_ID_NOT_FOUND');
