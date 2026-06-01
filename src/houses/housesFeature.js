@@ -22,15 +22,15 @@ export { renderHousesFeatureHtml };
 export function enableHousesFeature(root, { cityId } = {}) {
   return enableHousesStatsModal(root, {
     async onBuyHouse(house) {
-      console.log('[houses] tg_id:', playerId);
+      const tgId = getLocalPlayerId();
 
-      if (!playerId) {
-        throw new Error('PLAYER_ID_NOT_FOUND');
+      if (!tgId) {
+        throw new Error('PLAYER_TG_ID_NOT_FOUND');
       }
 
       const result = await buyHouseFromState({
         houseId: house?.payload?.houseId || house?.houseId || house?.id,
-        playerId,
+        playerId: tgId,
       });
 
       if (result?.newBalance !== undefined) {
@@ -45,7 +45,7 @@ export function enableHousesFeature(root, { cityId } = {}) {
       window.dispatchEvent(new CustomEvent('mn:houses-updated', {
         detail: {
           cityId,
-          houseId: house.id,
+          houseId: house?.payload?.houseId || house?.houseId || house?.id,
           result,
         },
       }));
