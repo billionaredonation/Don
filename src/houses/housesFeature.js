@@ -29,7 +29,7 @@ export function enableHousesFeature(root, { cityId } = {}) {
       }
 
       const result = await buyHouseFromState({
-        houseId: house.id,
+        houseId: house?.payload?.houseId || house?.houseId || house?.id,
         playerId,
       });
 
