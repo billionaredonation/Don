@@ -342,7 +342,9 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
-  const cleanupHousesFeature = enableHousesFeature(root);
+  const cleanupHousesFeature = enableHousesFeature(root, {
+    cityId,
+  });
 
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
