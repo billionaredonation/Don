@@ -1,3 +1,4 @@
+import { supabase } from '../supabaseClient.js';
 import { getMapObjects } from '../mapObjects/mapObjectsRepository.js';
 
 function isHouseObject(object) {
@@ -22,4 +23,17 @@ export async function fetchCityHousesState(cityId) {
     housesFree: housesFree.length,
     housesOwned: housesOwned.length,
   };
+}
+
+export async function buyHouseFromState({ houseId, playerId }) {
+  const { data, error } = await supabase.rpc('buy_house_from_state', {
+    p_house_id: String(houseId),
+    p_player_id: String(playerId),
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
 }
