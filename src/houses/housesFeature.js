@@ -1,4 +1,6 @@
-import { fetchCityHousesState } from './housesRepository.js';
+import { state, save } from '../state.js';
+import { getLocalPlayerId } from '../player/playerPosition.js';
+import { buyHouseFromState, fetchCityHousesState } from './housesRepository.js';
 import { getEmptyHousesState, normalizeHousesState } from './housesStats.js';
 import {
   enableHousesStatsModal,
@@ -17,6 +19,32 @@ export async function loadHousesFeature(cityId) {
 
 export { renderHousesFeatureHtml };
 
-export function enableHousesFeature(root) {
-  return enableHousesStatsModal(root);
+export function enableHousesFeature(root, { cityId } = {}) {
+  return enableHousesStatsModal(root, {
+    async onBuyHouse(house) {
+      const playerId = getLocalPlayerId();
+
+      const result = await buyHouseFromState({
+        houseId: house.id,
+        playerId,
+      });
+
+      if (result?.newBalance !== undefined) {
+        state.player = {
+          ...(state.player || {}),
+          balance: Number(result.newBalance),
+        };
+
+        save();
+      }
+
+      if (cityId) {
+        window.dispatchEvent(new CustomEvent('mn:houses-updated', {
+          detail: { cityId, houseId: house.id },
+        }));
+      }
+
+      return result;
+    },
+  });
 }
