@@ -10,16 +10,25 @@ function formatMoney(value) {
 
 function getHouseClass(object) {
   return (
+    object?.class ||
     object?.payload?.houseClassLabel ||
     object?.payload?.houseClass ||
     object?.variant ||
-    'Стандарт'
+    'standard'
   );
 }
 
+function getHouseOwnerId(object) {
+  return object?.owner_id || object?.payload?.ownerId || null;
+}
+
+function getHousePrice(object) {
+  return object?.price || object?.payload?.price || 0;
+}
+
 export function getHousePanelData(object) {
-  const price = formatMoney(object?.payload?.price);
-  const ownerId = object?.payload?.ownerId || '';
+  const price = formatMoney(getHousePrice(object));
+  const ownerId = getHouseOwnerId(object);
   const locked = Boolean(object?.payload?.locked);
   const houseClass = getHouseClass(object);
 
