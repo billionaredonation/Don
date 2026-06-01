@@ -24,13 +24,10 @@ export async function fetchCityHousesState(cityId) {
 }
 
 export async function buyHouseFromState({ houseId, playerId }) {
-  const { data, error } = await supabase.rpc(
-    'buy_house_from_state',
-    {
-      p_house_id: Number(houseId),
-      p_tg_id: String(playerId),
-    }
-  );
+  const { data, error } = await supabase.rpc('buy_house_from_state', {
+    p_house_id: Number(houseId),
+    p_tg_id: String(playerId),
+  });
 
   if (error) {
     console.error('[houses] buy failed:', error);
