@@ -1,4 +1,8 @@
 import { renderHouseList } from './houseListView.js';
+import {
+  createHouseDetailsController,
+  renderHouseDetailsModal,
+} from './houseDetailsView.js';
 
 const FILTER_LABELS = {
   all: 'Все дома',
@@ -22,7 +26,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
             <div class="houses-title-text">
               <h2>${city.name} — <span>недвижимость</span></h2>
-              <p>Дома, бизнесы и свободные слоты города</p>
+              <p>Дома, свободные объекты и купленная недвижимость</p>
             </div>
           </div>
 
@@ -37,7 +41,20 @@ export function renderHousesFeatureHtml({ city, houses }) {
             <div class="houses-stat-main">
               <em>Дома</em>
               <strong>${houses.housesTotal}</strong>
-              <small>Свободно: ${houses.housesFree}</small>
+              <small>Всего объектов</small>
+            </div>
+            <div class="houses-progress">
+              <i style="width:100%"></i>
+              <b>${houses.housesTotal}</b>
+            </div>
+          </article>
+
+          <article class="houses-stat-card houses-stat-green">
+            <span class="houses-stat-icon">✅</span>
+            <div class="houses-stat-main">
+              <em>Свободно</em>
+              <strong>${houses.housesFree}</strong>
+              <small>Можно купить</small>
             </div>
             <div class="houses-progress">
               <i style="width:${houses.housesFreePercent}%"></i>
@@ -45,29 +62,16 @@ export function renderHousesFeatureHtml({ city, houses }) {
             </div>
           </article>
 
-          <article class="houses-stat-card houses-stat-green">
-            <span class="houses-stat-icon">🏪</span>
-            <div class="houses-stat-main">
-              <em>Бизнесы</em>
-              <strong>${houses.businessTotal}</strong>
-              <small>Свободно: ${houses.businessFree}</small>
-            </div>
-            <div class="houses-progress">
-              <i style="width:${houses.businessFreePercent}%"></i>
-              <b>${houses.businessFreePercent}%</b>
-            </div>
-          </article>
-
           <article class="houses-stat-card houses-stat-orange">
-            <span class="houses-stat-icon">◎</span>
+            <span class="houses-stat-icon">🔒</span>
             <div class="houses-stat-main">
-              <em>Слоты</em>
-              <strong>${houses.freeSlots}</strong>
-              <small>дома + бизнесы</small>
+              <em>Куплено</em>
+              <strong>${houses.housesOwned}</strong>
+              <small>Уже занято</small>
             </div>
             <div class="houses-progress">
-              <i style="width:${houses.freeSlotsPercent}%"></i>
-              <b>${houses.freeSlotsPercent}%</b>
+              <i style="width:${houses.housesOwnedPercent}%"></i>
+              <b>${houses.housesOwnedPercent}%</b>
             </div>
           </article>
         </div>
@@ -78,7 +82,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
             <div class="houses-filter">
               <button type="button" class="houses-filter-button" data-houses-filter-button>
-                <span data-houses-filter-label>Все дома</span>
+                <span data-houses-filter-label>${FILTER_LABELS.all}</span>
                 <b>⌄</b>
               </button>
 
@@ -93,8 +97,10 @@ export function renderHousesFeatureHtml({ city, houses }) {
           ${renderHouseList(houses.houses)}
         </section>
 
+        ${renderHouseDetailsModal()}
+
         <footer class="houses-footer">
-          <span>ⓘ Цены указаны в ₴</span>
+          <span>ⓘ Покупка происходит у государства</span>
           <button class="houses-close-button" type="button" data-houses-stats-close>
             Закрыть
           </button>
@@ -104,7 +110,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
   `;
 }
 
-export function enableHousesStatsModal(root) {
+export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
   let modal = root.querySelector('.houses-modal');
 
   if (modal && modal.parentElement !== document.body) {
@@ -119,6 +125,16 @@ export function enableHousesStatsModal(root) {
   const filterLabel = modal?.querySelector('[data-houses-filter-label]');
   const houseItems = Array.from(modal?.querySelectorAll('[data-house-state]') || []);
   const filterEmpty = modal?.querySelector('[data-house-filter-empty]');
+
+  const housesById = new Map();
+
+  houseItems.forEach((item) => {
+    housesById.set(String(item.dataset.houseId), item);
+  });
+
+  const detailsController = createHouseDetailsController(modal, {
+    onBuy: onBuyHouse,
+  });
 
   let activeFilter = 'all';
 
@@ -176,6 +192,7 @@ export function enableHousesStatsModal(root) {
     document.body.classList.remove('mn-houses-modal-open');
 
     setFilterMenuOpen(false);
+    detailsController.close();
   }
 
   function toggleFilterMenu(event) {
@@ -197,6 +214,21 @@ export function enableHousesStatsModal(root) {
     applyFilter(button.dataset.housesFilter);
   }
 
+  function handleHouseClick(event) {
+    const item = event.target.closest('[data-house-id]');
+    if (!item) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const houseId = String(item.dataset.houseId);
+    const house = window.__MN_HOUSES__?.get(houseId);
+
+    if (!house) return;
+
+    detailsController.open(house);
+  }
+
   function handleOutsideClick(event) {
     if (!filterMenu || filterMenu.hidden) return;
     if (event.target.closest('.houses-filter')) return;
@@ -210,9 +242,34 @@ export function enableHousesStatsModal(root) {
     }
   }
 
+  window.__MN_HOUSES__ = window.__MN_HOUSES__ || new Map();
+
+  houseItems.forEach((item) => {
+    const houseId = String(item.dataset.houseId);
+    const houseElement = item;
+
+    const house = {
+      id: houseId,
+      name: houseElement.querySelector('.house-card-title-row b')?.textContent || 'Дом',
+      icon: houseElement.querySelector('.house-card-icon')?.textContent || '🏠',
+      payload: {
+        price: Number(
+          houseElement
+            .querySelector('.house-price')
+            ?.textContent
+            ?.replace(/\D/g, '') || 0
+        ),
+        ownerId: item.dataset.houseState === 'owned' ? 'player' : '',
+      },
+    };
+
+    window.__MN_HOUSES__.set(houseId, house);
+  });
+
   openButton?.addEventListener('click', open);
   filterButton?.addEventListener('click', toggleFilterMenu);
   filterMenu?.addEventListener('click', handleFilterMenuClick);
+  modal?.addEventListener('click', handleHouseClick);
   document.addEventListener('click', handleOutsideClick);
   document.addEventListener('keydown', handleKeydown);
 
@@ -228,6 +285,7 @@ export function enableHousesStatsModal(root) {
     openButton?.removeEventListener('click', open);
     filterButton?.removeEventListener('click', toggleFilterMenu);
     filterMenu?.removeEventListener('click', handleFilterMenuClick);
+    modal?.removeEventListener('click', handleHouseClick);
     document.removeEventListener('click', handleOutsideClick);
     document.removeEventListener('keydown', handleKeydown);
 
@@ -235,6 +293,7 @@ export function enableHousesStatsModal(root) {
       button.removeEventListener('click', close);
     });
 
+    detailsController.cleanup();
     modal?.remove();
     modal = null;
   };
