@@ -37,14 +37,19 @@ function getHouseStatus(house) {
 
 function applyPurchasedState(house, result = {}) {
   const ownerId = result?.ownerId || result?.playerId || house?.owner_id || house?.payload?.ownerId || 'player';
+  const ownerName = result?.ownerName || 'Игрок';
 
   house.owner_id = ownerId;
+  house.ownerName = ownerName;
+
   house.payload = {
     ...(house.payload || {}),
     ownerId,
+    ownerName,
+    owned: true,
   };
 
-  return ownerId;
+  return ownerName;
 }
 
 export function renderHouseDetailsModal() {
