@@ -19,7 +19,7 @@ function getHouseClass(house) {
 }
 
 function getHouseStatus(house) {
-  if (house?.payload?.ownerId) return 'Занят';
+  if (house?.payload?.ownerId) return 'Куплен';
   if (house?.payload?.locked) return 'Закрыт';
   return 'Свободен';
 }
@@ -48,7 +48,11 @@ export function renderHouseList(houses = []) {
           const price = formatMoney(house?.payload?.price);
 
           return `
-            <li class="${state === 'free' ? 'house-free' : 'house-owned'}" data-house-state="${state}">
+            <li
+              class="${state === 'free' ? 'house-free' : 'house-owned'}"
+              data-house-state="${state}"
+              data-house-id="${house.id}"
+            >
               <span class="house-card-icon">${house.icon || '🏠'}</span>
 
               <span class="house-card-main">
