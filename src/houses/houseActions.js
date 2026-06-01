@@ -7,7 +7,7 @@ export function getHouseActionType(object) {
 export function handleHouseAction(object) {
   if (!object) return;
 
-  window.dispatchEvent(new CustomEvent('mn:house-selected', {
+  window.dispatchEvent(new CustomEvent('mn:house-action', {
     detail: {
       house: object,
       action: getHouseActionType(object),
