@@ -29,6 +29,10 @@ function getHouseOwnerId(house) {
   return house?.owner_id || house?.payload?.ownerId || null;
 }
 
+function getHouseOwnerName(house) {
+  return house?.ownerName || house?.payload?.ownerName || null;
+}
+
 function getHouseStatus(house) {
   if (getHouseOwnerId(house)) return 'Куплен';
   if (house?.payload?.locked) return 'Закрыт';
@@ -37,7 +41,7 @@ function getHouseStatus(house) {
 
 function applyPurchasedState(house, result = {}) {
   const ownerId = result?.ownerId || result?.playerId || house?.owner_id || house?.payload?.ownerId || 'player';
-  const ownerName = result?.ownerName || 'Игрок';
+  const ownerName = result?.ownerName || house?.ownerName || house?.payload?.ownerName || 'Игрок';
 
   house.owner_id = ownerId;
   house.ownerName = ownerName;
@@ -49,7 +53,10 @@ function applyPurchasedState(house, result = {}) {
     owned: true,
   };
 
-  return ownerName;
+  return {
+    ownerId,
+    ownerName,
+  };
 }
 
 export function renderHouseDetailsModal() {
@@ -143,6 +150,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     setMessage('');
 
     const ownerId = getHouseOwnerId(house);
+    const ownerName = getHouseOwnerName(house);
     const isOwned = Boolean(ownerId);
     const isLocked = Boolean(house?.payload?.locked);
 
@@ -151,7 +159,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     price.textContent = formatMoney(getHousePrice(house));
     status.textContent = getHouseStatus(house);
     houseClass.textContent = getHouseClass(house);
-    owner.textContent = isOwned ? String(ownerId) : 'Государство';
+    owner.textContent = isOwned ? String(ownerName || ownerId) : 'Государство';
 
     if (buyButton) {
       buyButton.hidden = isOwned || isLocked;
@@ -185,10 +193,10 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
       setMessage('Покупка выполняется...', 'info');
 
       const result = await onBuy(activeHouse);
-      const ownerId = applyPurchasedState(activeHouse, result);
+      const purchaseState = applyPurchasedState(activeHouse, result);
 
       status.textContent = 'Куплен';
-      owner.textContent = String(ownerId);
+      owner.textContent = String(purchaseState.ownerName || purchaseState.ownerId);
 
       setMessage('Дом успешно куплен.', 'success');
 
@@ -197,12 +205,14 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
       window.dispatchEvent(new CustomEvent('mn:house-purchased-local', {
         detail: {
-          houseId: activeHouse.id,
+          houseId: activeHouse.payload?.houseId || activeHouse.houseId || activeHouse.id,
+          mapObjectId: activeHouse.id,
           house: activeHouse,
-          ownerId,
+          ownerId: purchaseState.ownerId,
+          ownerName: purchaseState.ownerName,
           result,
         },
-    }));
+      }));
     } catch (error) {
       console.error('[houses] buy failed:', error);
 
