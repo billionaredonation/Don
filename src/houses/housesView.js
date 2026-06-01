@@ -136,6 +136,21 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
     onBuy: onBuyHouse,
   });
 
+
+  function handleGlobalHouseAction(event) {
+  const house = event.detail?.house;
+  if (!house) return;
+
+  if (modal) {
+    modal.hidden = false;
+    document.body.classList.add('mn-houses-modal-open');
+  }
+
+  root.dataset.housesStatsOpen = 'true';
+  detailsController.open(house);
+}
+
+  
   let activeFilter = 'all';
 
   function setFilterMenuOpen(nextOpen) {
@@ -267,6 +282,7 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
   });
 
   openButton?.addEventListener('click', open);
+  window.addEventListener('mn:house-action', handleGlobalHouseAction);
   filterButton?.addEventListener('click', toggleFilterMenu);
   filterMenu?.addEventListener('click', handleFilterMenuClick);
   modal?.addEventListener('click', handleHouseClick);
@@ -294,6 +310,7 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
     });
 
     detailsController.cleanup();
+    window.removeEventListener('mn:house-action', handleGlobalHouseAction);
     modal?.remove();
     modal = null;
   };
