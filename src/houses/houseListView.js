@@ -9,23 +9,38 @@ function formatMoney(value) {
 }
 
 function getHouseClass(house) {
-  return (
-    house?.payload?.houseClassShortLabel ||
-    house?.payload?.houseClassLabel ||
-    house?.payload?.houseClass ||
-    house?.variant ||
-    'STD'
-  );
+  const houseClass = house?.class || 'standard';
+
+  const labels = {
+    standard: 'STD',
+    premium: 'PRM',
+    luxe: 'LUX',
+    luxury: 'LUX',
+  };
+
+  return labels[houseClass] || String(houseClass).toUpperCase();
+}
+
+function getHouseClassLabel(house) {
+  const houseClass = house?.class || 'standard';
+
+  const labels = {
+    standard: 'Стандарт',
+    premium: 'Премиум',
+    luxe: 'Люкс',
+    luxury: 'Люкс',
+  };
+
+  return labels[houseClass] || String(houseClass);
 }
 
 function getHouseStatus(house) {
-  if (house?.payload?.ownerId) return 'Куплен';
-  if (house?.payload?.locked) return 'Закрыт';
+  if (house?.owner_id) return 'Куплен';
   return 'Свободен';
 }
 
 function getHouseState(house) {
-  if (house?.payload?.ownerId || house?.payload?.locked) return 'owned';
+  if (house?.owner_id) return 'owned';
   return 'free';
 }
 
@@ -46,6 +61,8 @@ export function renderHouseList(houses = []) {
           const state = getHouseState(house);
           const status = getHouseStatus(house);
           const price = formatMoney(house?.price);
+          const classShort = getHouseClass(house);
+          const classLabel = getHouseClassLabel(house);
 
           return `
             <li
@@ -53,14 +70,15 @@ export function renderHouseList(houses = []) {
               data-house-state="${state}"
               data-house-id="${house.id}"
             >
-              <span class="house-card-icon">${house.icon || '🏠'}</span>
+              <span class="house-card-icon">🏠</span>
 
               <span class="house-card-main">
                 <span class="house-card-title-row">
                   <b>Дом #${index + 1}</b>
-                  <i>${getHouseClass(house)}</i>
+                  <i title="${classLabel}">${classShort}</i>
                 </span>
 
+                <small>Класс: <strong>${classLabel}</strong></small>
                 <small>Статус: <em>${status}</em></small>
                 <small>Цена: <strong>${price}</strong></small>
               </span>
