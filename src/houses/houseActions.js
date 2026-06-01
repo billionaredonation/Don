@@ -1,5 +1,5 @@
 export function getHouseActionType(object) {
-  if (object?.payload?.ownerId) return 'info';
+  if (object?.owner_id || object?.payload?.ownerId) return 'info';
   if (object?.payload?.locked) return 'locked';
   return 'buy';
 }
