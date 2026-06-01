@@ -151,6 +151,44 @@ async function saveRemoteObject(object) {
   return data?.object ? fromDbRow(data.object) : normalizeObject(object);
 }
 
+async function syncHouseMapObject(object) {
+  if (object?.category !== 'house') return object;
+
+  try {
+    const { data, error } = await supabase.rpc('sync_house_map_object', {
+      p_map_object_id: String(object.id),
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    const syncedPayload = {
+      ...(object.payload || {}),
+      houseId: data?.houseId || object.payload?.houseId || null,
+      ownerId: data?.ownerId || object.payload?.ownerId || null,
+      ownerName: data?.ownerName || object.payload?.ownerName || null,
+      owned: Boolean(data?.ownerId || object.payload?.ownerId),
+    };
+
+    if (data?.price !== undefined) {
+      syncedPayload.price = data.price;
+    }
+
+    if (data?.houseClass) {
+      syncedPayload.houseClass = data.houseClass;
+    }
+
+    return normalizeObject({
+      ...object,
+      payload: syncedPayload,
+    });
+  } catch (error) {
+    console.warn('[mapObjectsRepository] house sync failed:', error);
+    return object;
+  }
+}
+
 async function deleteRemoteObject(cityId, objectId) {
   return adminMapObjectsRequest({
     action: 'delete',
@@ -193,7 +231,8 @@ export async function saveMapObjects(cityId, objects) {
     const savedObjects = [];
 
     for (const object of normalized) {
-      const savedObject = await saveRemoteObject(object);
+      const savedObjectRaw = await saveRemoteObject(object);
+      const savedObject = await syncHouseMapObject(savedObjectRaw);
       savedObjects.push(savedObject);
     }
 
@@ -223,7 +262,9 @@ export async function addMapObject(cityId, object) {
   saveLocalObjects(normalizedCityId, nextObjects);
 
   try {
-    const savedObject = await saveRemoteObject(nextObject);
+    const savedObjectRaw = await saveRemoteObject(nextObject);
+    const savedObject = await syncHouseMapObject(savedObjectRaw);
+
     const syncedObjects = nextObjects.map((item) =>
       String(item.id) === String(savedObject.id) ? savedObject : item
     );
@@ -260,7 +301,8 @@ export async function updateMapObject(cityId, objectId, patch) {
   if (!updatedObject) return null;
 
   try {
-    const savedObject = await saveRemoteObject(updatedObject);
+    const savedObjectRaw = await saveRemoteObject(updatedObject);
+    const savedObject = await syncHouseMapObject(savedObjectRaw);
 
     const syncedObjects = nextObjects.map((item) =>
       String(item.id) === String(savedObject.id) ? savedObject : item
