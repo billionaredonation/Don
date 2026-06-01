@@ -1,20 +1,24 @@
 import { supabase } from '../supabaseClient.js';
-import { getMapObjects } from '../mapObjects/mapObjectsRepository.js';
-
-function isHouseObject(object) {
-  return object?.category === 'house' || object?.type === 'house';
-}
 
 export async function fetchCityHousesState(cityId) {
-  const objects = await getMapObjects(cityId);
-  const houses = objects.filter(isHouseObject);
+  const { data, error } = await supabase
+    .from('houses')
+    .select('*')
+    .eq('city_id', cityId)
+    .order('id');
+
+  if (error) {
+    throw error;
+  }
+
+  const houses = data || [];
 
   const housesFree = houses.filter((house) => {
-    return !house?.payload?.ownerId && !house?.payload?.locked;
+    return !house.owner_id;
   });
 
   const housesOwned = houses.filter((house) => {
-    return house?.payload?.ownerId || house?.payload?.locked;
+    return Boolean(house.owner_id);
   });
 
   return {
@@ -26,13 +30,16 @@ export async function fetchCityHousesState(cityId) {
 }
 
 export async function buyHouseFromState({ houseId, playerId }) {
-  const { data, error } = await supabase.rpc('buy_house_from_state', {
-    p_house_id: String(houseId),
-    p_player_id: String(playerId),
-  });
+  const { data, error } = await supabase.rpc(
+    'buy_house_from_state',
+    {
+      p_house_id: Number(houseId),
+      p_player_id: Number(playerId),
+    }
+  );
 
   if (error) {
-    console.error('[houses] buyHouseFromState failed:', error);
+    console.error('[houses] buy failed:', error);
     throw error;
   }
 
