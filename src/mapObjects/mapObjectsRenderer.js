@@ -13,15 +13,16 @@ function formatPrice(value) {
 
   return `${number.toLocaleString('ru-RU')}₴`;
 }
-
 function getObjectMeta(object) {
   const payload = object.payload || {};
 
   if (object.category === 'house') {
     const classText = payload.houseClassShortLabel || payload.houseClassLabel || object.variant || 'HOME';
     const priceText = formatPrice(payload.price);
-    const statusText = payload.ownerId
-      ? 'Занят'
+
+    const ownerId = object.owner_id || payload.ownerId;
+    const statusText = ownerId
+      ? 'Куплен'
       : payload.locked
         ? 'Закрыт'
         : 'Свободен';
@@ -29,7 +30,7 @@ function getObjectMeta(object) {
     return {
       badge: classText,
       sub: priceText || statusText,
-      title: `${object.name || 'Дом'} · ${payload.houseClassLabel || 'Дом'} · ${statusText}${priceText ? ` · ${priceText}` : ''}`,
+      title: `${object.name || 'Дом'} · ${payload.houseClassLabel || classText} · ${statusText}${priceText ? ` · ${priceText}` : ''}`,
       visualClass: payload.visualClass || object.variant || 'standard',
     };
   }
