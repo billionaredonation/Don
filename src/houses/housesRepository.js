@@ -32,6 +32,7 @@ export async function buyHouseFromState({ houseId, playerId }) {
   });
 
   if (error) {
+    console.error('[houses] buyHouseFromState failed:', error);
     throw error;
   }
 
