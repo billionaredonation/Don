@@ -904,3 +904,8 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
     drop-shadow(0 0 3px rgba(255, 255, 255, 0.72))
     drop-shadow(0 0 7px rgba(158, 88, 255, 0.55)) !important;
 }
+
+.entity-interaction-hint {
+  max-width: min(340px, calc(100vw - 28px));
+  white-space: nowrap;
+}
