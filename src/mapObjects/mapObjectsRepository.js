@@ -137,6 +137,8 @@ async function fetchRemoteObjects(cityId) {
     return [];
   }
 
+  console.log('[mapObjectsRepository] loading city:', cityId);
+
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('*')
@@ -171,8 +173,6 @@ cityId: ${cityId}
     `[mapObjects] loaded ${data?.length || 0} objects for city: ${cityId}`
   );
 
-  return Array.isArray(data) ? data : [];
-}
   console.log(
     `[mapObjectsRepository] loaded ${data?.length || 0} objects for city:`,
     cityId
@@ -180,6 +180,7 @@ cityId: ${cityId}
 
   return Array.isArray(data) ? data : [];
 }
+
 async function saveRemoteObject(object) {
   const data = await adminMapObjectsRequest({
     action: 'upsert',
@@ -248,10 +249,13 @@ export async function getMapObjects(cityId) {
 
   try {
     const remoteObjects = await fetchRemoteObjects(normalizedCityId);
+
     saveLocalObjects(normalizedCityId, remoteObjects);
+
     return remoteObjects;
   } catch (error) {
     console.warn('[mapObjectsRepository] remote load failed, using local:', error);
+
     return localObjects;
   }
 }
@@ -260,7 +264,12 @@ export async function saveMapObjects(cityId, objects) {
   const normalizedCityId = String(cityId || '');
 
   const normalized = Array.isArray(objects)
-    ? objects.map((object) => normalizeObject({ ...object, cityId: normalizedCityId }))
+    ? objects.map((object) =>
+        normalizeObject({
+          ...object,
+          cityId: normalizedCityId,
+        })
+      )
     : [];
 
   saveLocalObjects(normalizedCityId, normalized);
@@ -271,6 +280,7 @@ export async function saveMapObjects(cityId, objects) {
     for (const object of normalized) {
       const savedObjectRaw = await saveRemoteObject(object);
       const savedObject = await syncHouseMapObject(savedObjectRaw);
+
       savedObjects.push(savedObject);
     }
 
@@ -279,6 +289,7 @@ export async function saveMapObjects(cityId, objects) {
     return savedObjects;
   } catch (error) {
     console.warn('[mapObjectsRepository] admin remote save failed:', error);
+
     return normalized;
   }
 }
@@ -304,7 +315,9 @@ export async function addMapObject(cityId, object) {
     const savedObject = await syncHouseMapObject(savedObjectRaw);
 
     const syncedObjects = nextObjects.map((item) =>
-      String(item.id) === String(savedObject.id) ? savedObject : item
+      String(item.id) === String(savedObject.id)
+        ? savedObject
+        : item
     );
 
     saveLocalObjects(normalizedCityId, syncedObjects);
@@ -312,6 +325,7 @@ export async function addMapObject(cityId, object) {
     return savedObject;
   } catch (error) {
     console.warn('[mapObjectsRepository] admin add failed:', error);
+
     return nextObject;
   }
 }
@@ -332,7 +346,10 @@ export async function updateMapObject(cityId, objectId, patch) {
     });
   });
 
-  const updatedObject = nextObjects.find((object) => String(object.id) === String(objectId)) || null;
+  const updatedObject =
+    nextObjects.find(
+      (object) => String(object.id) === String(objectId)
+    ) || null;
 
   saveLocalObjects(normalizedCityId, nextObjects);
 
@@ -343,7 +360,9 @@ export async function updateMapObject(cityId, objectId, patch) {
     const savedObject = await syncHouseMapObject(savedObjectRaw);
 
     const syncedObjects = nextObjects.map((item) =>
-      String(item.id) === String(savedObject.id) ? savedObject : item
+      String(item.id) === String(savedObject.id)
+        ? savedObject
+        : item
     );
 
     saveLocalObjects(normalizedCityId, syncedObjects);
@@ -351,6 +370,7 @@ export async function updateMapObject(cityId, objectId, patch) {
     return savedObject;
   } catch (error) {
     console.warn('[mapObjectsRepository] admin update failed:', error);
+
     return updatedObject;
   }
 }
@@ -359,7 +379,10 @@ export async function deleteMapObject(cityId, objectId) {
   const normalizedCityId = String(cityId || '');
 
   const objects = await getMapObjects(normalizedCityId);
-  const nextObjects = objects.filter((object) => String(object.id) !== String(objectId));
+
+  const nextObjects = objects.filter(
+    (object) => String(object.id) !== String(objectId)
+  );
 
   saveLocalObjects(normalizedCityId, nextObjects);
 
