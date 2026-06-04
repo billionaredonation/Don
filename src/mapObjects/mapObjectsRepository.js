@@ -1,4 +1,3 @@
-```js
 import { supabase } from '../supabaseClient.js';
 
 const STORAGE_PREFIX = 'mn_map_objects';
@@ -715,4 +714,4 @@ export async function clearMapObjects(
 
   return [];
 }
-```
+
