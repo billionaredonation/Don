@@ -263,9 +263,7 @@ export function enableHousesStatsModal(root) {
     event.stopPropagation();
   }
 
-  function handleGlobalHouseAction(event) {
-    event?.preventDefault?.();
-  }
+
 
   function handleOutsideClick(event) {
     if (!filterMenu || filterMenu.hidden) return;
@@ -281,7 +279,6 @@ export function enableHousesStatsModal(root) {
   }
 
   openButton?.addEventListener('click', open);
-  window.addEventListener('mn:house-action', handleGlobalHouseAction);
   filterButton?.addEventListener('click', toggleFilterMenu);
   filterMenu?.addEventListener('click', handleFilterMenuClick);
   modal?.addEventListener('click', handleHouseClick);
@@ -298,7 +295,6 @@ export function enableHousesStatsModal(root) {
     close();
 
     openButton?.removeEventListener('click', open);
-    window.removeEventListener('mn:house-action', handleGlobalHouseAction);
     filterButton?.removeEventListener('click', toggleFilterMenu);
     filterMenu?.removeEventListener('click', handleFilterMenuClick);
     modal?.removeEventListener('click', handleHouseClick);
