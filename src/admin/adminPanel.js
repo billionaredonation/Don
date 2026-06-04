@@ -55,6 +55,14 @@ function getAdminTeleportHotkey() {
   }
 }
 
+function enableAdminModeClass() {
+  document.body.classList.add('admin-mode');
+}
+
+function disableAdminModeClass() {
+  document.body.classList.remove('admin-mode');
+}
+
 function showAdminNotice(message) {
   window.dispatchEvent(new CustomEvent('mn:toast', {
     detail: { message },
@@ -301,6 +309,8 @@ export function enableAdminPanel({
     if (teleportMode) {
       enabled = false;
 
+      enableAdminModeClass();
+
       root.dataset.adminMode = 'disabled';
       root.dataset.adminTeleportMode = 'enabled';
 
@@ -319,6 +329,9 @@ export function enableAdminPanel({
 
     if (enabled) {
       panel.hidden = false;
+      enableAdminModeClass();
+    } else {
+      disableAdminModeClass();
     }
 
     showAdminNotice('Режим телепорта выключен.');
@@ -442,11 +455,18 @@ export function enableAdminPanel({
     if (teleportMode) {
       root.dataset.adminMode = 'disabled';
       panel.hidden = true;
+      enableAdminModeClass();
       return;
     }
 
     root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
     panel.hidden = !enabled;
+
+    if (enabled) {
+      enableAdminModeClass();
+    } else {
+      disableAdminModeClass();
+    }
 
     if (!enabled) {
       placeMode = false;
@@ -792,6 +812,9 @@ export function enableAdminPanel({
     delete root.dataset.adminMoveMode;
     delete root.dataset.adminTeleportMode;
 
+    disableAdminModeClass();
+
     document.querySelector('.admin-floating-notice')?.remove();
+    document.querySelector('.mn-admin-toast')?.remove();
   };
 }
