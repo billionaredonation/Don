@@ -770,6 +770,48 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
     drop-shadow(0 0 5px rgba(170, 100, 255, 0.42));
 }
 
+.map-objects-layer .map-object.map-object-house {
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 10px !important;
+  min-height: 10px !important;
+  max-width: 10px !important;
+  max-height: 10px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--map-object-rotation, 0deg))
+    translateZ(0) !important;
+}
+
+.map-objects-layer .map-object.map-object-house.map-object-visual-comfort {
+  width: 12px !important;
+  height: 12px !important;
+  min-width: 12px !important;
+  min-height: 12px !important;
+  max-width: 12px !important;
+  max-height: 12px !important;
+}
+
+.map-objects-layer .map-object.map-object-house.map-object-visual-lux {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  min-height: 14px !important;
+  max-width: 14px !important;
+  max-height: 14px !important;
+}
+
+.map-objects-layer .map-object.map-object-house .map-house-svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  transform: none !important;
+}
+
 .map-object-badge,
 .map-object-sub {
   display: none !important;
