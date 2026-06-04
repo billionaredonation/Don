@@ -446,6 +446,8 @@ register('home', async (root) => {
     viewport,
     cityId,
     panel: entityInteractionPanel,
+    playerMarker,
+    playerPosition,
   });
 
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
