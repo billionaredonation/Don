@@ -11,7 +11,7 @@ import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
 const INTERACTION_RADIUS_PX = 34;
-const INTERACTION_HINT_VISIBLE_MS = 2400;
+const INTERACTION_HINT_VISIBLE_MS = 2200;
 
 function getPurchasedHouseId(detail = {}) {
   return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
@@ -395,8 +395,10 @@ export function enableEntityInteraction({
 
   function hideInteractionHint({ reset = false } = {}) {
     clearTimeout(hintHideTimer);
+    hintHideTimer = null;
 
     hint.hidden = true;
+    hint.classList.remove('is-visible');
 
     if (reset) {
       lastHintObjectId = null;
@@ -424,11 +426,12 @@ export function enableEntityInteraction({
     }
 
     hint.hidden = false;
+    hint.classList.add('is-visible');
 
     clearTimeout(hintHideTimer);
 
     hintHideTimer = setTimeout(() => {
-      hint.hidden = true;
+      hideInteractionHint();
     }, INTERACTION_HINT_VISIBLE_MS);
   }
 
@@ -445,11 +448,13 @@ export function enableEntityInteraction({
 
     setNearestVisual(nearest);
 
-    if (nearest) {
-      showInteractionHintOnce(nearest);
-    } else {
+    if (!nearest) {
       hideInteractionHint({ reset: true });
+      rafId = requestAnimationFrame(updateInteractionHint);
+      return;
     }
+
+    showInteractionHintOnce(nearest);
 
     rafId = requestAnimationFrame(updateInteractionHint);
   }
