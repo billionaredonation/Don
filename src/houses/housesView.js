@@ -1,8 +1,4 @@
 import { renderHouseList } from './houseListView.js';
-import {
-  createHouseDetailsController,
-  renderHouseDetailsModal,
-} from './houseDetailsView.js';
 
 const FILTER_LABELS = {
   all: 'Все дома',
@@ -46,7 +42,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
             <div class="houses-title-text">
               <h2>${city.name} — <span>недвижимость</span></h2>
-              <p>Дома, свободные объекты и купленная недвижимость</p>
+              <p>Дома, бизнесы, работы и городская экономика</p>
             </div>
           </div>
 
@@ -55,72 +51,88 @@ export function renderHousesFeatureHtml({ city, houses }) {
           </button>
         </header>
 
-        <div class="houses-stats-grid">
-          <article class="houses-stat-card houses-stat-purple">
-            <span class="houses-stat-icon">🏠</span>
-            <div class="houses-stat-main">
-              <em>Дома</em>
-              <strong>${houses.housesTotal}</strong>
-              <small>Всего объектов</small>
-            </div>
-            <div class="houses-progress">
-              <i style="width:100%"></i>
-              <b>${houses.housesTotal}</b>
-            </div>
-          </article>
+        <nav class="houses-sections" aria-label="Разделы недвижимости">
+          <button type="button" class="houses-section-tab is-active" data-houses-section="houses">
+            🏠 Дома
+          </button>
 
-          <article class="houses-stat-card houses-stat-green">
-            <span class="houses-stat-icon">✅</span>
-            <div class="houses-stat-main">
-              <em>Свободно</em>
-              <strong>${houses.housesFree}</strong>
-              <small>Можно купить</small>
-            </div>
-            <div class="houses-progress">
-              <i style="width:${houses.housesFreePercent}%"></i>
-              <b>${houses.housesFreePercent}%</b>
-            </div>
-          </article>
+          <button type="button" class="houses-section-tab is-disabled" data-houses-section="businesses" disabled>
+            🏪 Бизнесы
+            <span>скоро</span>
+          </button>
 
-          <article class="houses-stat-card houses-stat-orange">
-            <span class="houses-stat-icon">🔒</span>
-            <div class="houses-stat-main">
-              <em>Куплено</em>
-              <strong>${houses.housesOwned}</strong>
-              <small>Уже занято</small>
-            </div>
-            <div class="houses-progress">
-              <i style="width:${houses.housesOwnedPercent}%"></i>
-              <b>${houses.housesOwnedPercent}%</b>
-            </div>
-          </article>
-        </div>
+          <button type="button" class="houses-section-tab is-disabled" data-houses-section="jobs" disabled>
+            💼 Работы
+            <span>скоро</span>
+          </button>
+        </nav>
 
-        <section class="houses-list-section">
-          <div class="houses-list-header">
-            <h3>⌂ Список домов</h3>
-
-            <div class="houses-filter">
-              <button type="button" class="houses-filter-button" data-houses-filter-button>
-                <span data-houses-filter-label>${FILTER_LABELS[getSavedFilter()]}</span>
-                <b>⌄</b>
-              </button>
-
-              <div class="houses-filter-menu" hidden data-houses-filter-menu>
-                <button type="button" data-houses-filter="all">Все дома</button>
-                <button type="button" data-houses-filter="free">Свободные</button>
-                <button type="button" data-houses-filter="owned">Купленные</button>
+        <div class="houses-section-content" data-houses-section-content="houses">
+          <div class="houses-stats-grid">
+            <article class="houses-stat-card houses-stat-purple">
+              <span class="houses-stat-icon">🏠</span>
+              <div class="houses-stat-main">
+                <em>Дома</em>
+                <strong>${houses.housesTotal}</strong>
+                <small>Всего объектов</small>
               </div>
-            </div>
+              <div class="houses-progress">
+                <i style="width:100%"></i>
+                <b>${houses.housesTotal}</b>
+              </div>
+            </article>
+
+            <article class="houses-stat-card houses-stat-green">
+              <span class="houses-stat-icon">✅</span>
+              <div class="houses-stat-main">
+                <em>Свободно</em>
+                <strong>${houses.housesFree}</strong>
+                <small>Можно купить</small>
+              </div>
+              <div class="houses-progress">
+                <i style="width:${houses.housesFreePercent}%"></i>
+                <b>${houses.housesFreePercent}%</b>
+              </div>
+            </article>
+
+            <article class="houses-stat-card houses-stat-orange">
+              <span class="houses-stat-icon">🔒</span>
+              <div class="houses-stat-main">
+                <em>Куплено</em>
+                <strong>${houses.housesOwned}</strong>
+                <small>Уже занято</small>
+              </div>
+              <div class="houses-progress">
+                <i style="width:${houses.housesOwnedPercent}%"></i>
+                <b>${houses.housesOwnedPercent}%</b>
+              </div>
+            </article>
           </div>
 
-          ${renderHouseList(houses.houses)}
-        </section>
+          <section class="houses-list-section">
+            <div class="houses-list-header">
+              <h3>⌂ Список домов</h3>
 
-        ${renderHouseDetailsModal()}
+              <div class="houses-filter">
+                <button type="button" class="houses-filter-button" data-houses-filter-button>
+                  <span data-houses-filter-label>${FILTER_LABELS[getSavedFilter()]}</span>
+                  <b>⌄</b>
+                </button>
+
+                <div class="houses-filter-menu" hidden data-houses-filter-menu>
+                  <button type="button" data-houses-filter="all">Все дома</button>
+                  <button type="button" data-houses-filter="free">Свободные</button>
+                  <button type="button" data-houses-filter="owned">Купленные</button>
+                </div>
+              </div>
+            </div>
+
+            ${renderHouseList(houses.houses)}
+          </section>
+        </div>
 
         <footer class="houses-footer">
-          <span>ⓘ Покупка происходит у государства</span>
+          <span>ⓘ Сейчас доступен только раздел домов. Бизнесы и работы будут добавлены позже.</span>
           <button class="houses-close-button" type="button" data-houses-stats-close>
             Закрыть
           </button>
@@ -130,7 +142,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
   `;
 }
 
-export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
+export function enableHousesStatsModal(root) {
   let modal = root.querySelector('.houses-modal');
 
   if (modal && modal.parentElement !== document.body) {
@@ -146,18 +158,7 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
   const houseItems = Array.from(modal?.querySelectorAll('[data-house-state]') || []);
   const filterEmpty = modal?.querySelector('[data-house-filter-empty]');
 
-  const detailsController = createHouseDetailsController(modal, {
-    onBuy: onBuyHouse,
-  });
-
   let activeFilter = getSavedFilter();
-
-  function handleGlobalHouseAction(event) {
-    const house = event.detail?.house;
-    if (!house) return;
-
-    detailsController.open(house);
-  }
 
   function setFilterMenuOpen(nextOpen) {
     if (!filterMenu || !filterButton) return;
@@ -220,7 +221,6 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
     document.body.classList.remove('mn-houses-modal-open');
 
     setFilterMenuOpen(false);
-    detailsController.close();
   }
 
   function toggleFilterMenu(event) {
@@ -244,17 +244,21 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
   function handleHouseClick(event) {
     const item = event.target.closest('[data-house-id]');
-    if (!item || item.hidden || item.style.display === 'none') return;
+    if (!item) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    const houseId = String(item.dataset.houseId);
-    const house = window.__MN_HOUSES__?.get(houseId);
+    // ВАЖНО:
+    // В этой модалке дома только отображаются.
+    // Покупка/детальная карточка отсюда не открывается.
+  }
 
-    if (!house) return;
-
-    detailsController.open(house);
+  function handleGlobalHouseAction(event) {
+    // ВАЖНО:
+    // Клик по дому не должен открывать меню покупки из этой информационной модалки.
+    // Покупку будем выносить отдельно, когда будем полировать механику домов.
+    event?.preventDefault?.();
   }
 
   function handleOutsideClick(event) {
@@ -269,30 +273,6 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
       close(event);
     }
   }
-
-  window.__MN_HOUSES__ = window.__MN_HOUSES__ || new Map();
-
-  houseItems.forEach((item) => {
-    const houseId = String(item.dataset.houseId);
-    const houseElement = item;
-
-    const house = {
-      id: houseId,
-      name: houseElement.querySelector('.house-card-title-row b')?.textContent || 'Дом',
-      icon: houseElement.querySelector('.house-card-icon')?.textContent || '🏠',
-      payload: {
-        price: Number(
-          houseElement
-            .querySelector('.house-price')
-            ?.textContent
-            ?.replace(/\D/g, '') || 0
-        ),
-        ownerId: item.dataset.houseState === 'owned' ? 'player' : '',
-      },
-    };
-
-    window.__MN_HOUSES__.set(houseId, house);
-  });
 
   openButton?.addEventListener('click', open);
   window.addEventListener('mn:house-action', handleGlobalHouseAction);
@@ -323,7 +303,6 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
       button.removeEventListener('click', close);
     });
 
-    detailsController.cleanup();
     modal?.remove();
     modal = null;
   };
