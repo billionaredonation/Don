@@ -20,6 +20,10 @@ function getHouseId(house) {
   return house?.payload?.houseId || house?.houseId || house?.id;
 }
 
+function isHousesModalOpen() {
+  return document.body.classList.contains('mn-houses-modal-open');
+}
+
 export async function loadHousesFeature(cityId) {
   try {
     const rawState = await fetchCityHousesState(cityId);
@@ -85,12 +89,10 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     return result;
   }
 
-  async function mountModal({ keepOpen = false } = {}) {
+  async function mountModal({ reopenAfterRefresh = false } = {}) {
     if (destroyed) return;
 
-    const wasOpen =
-      keepOpen ||
-      document.body.classList.contains('mn-houses-modal-open');
+    const shouldReopen = Boolean(reopenAfterRefresh && isHousesModalOpen());
 
     cleanupModal?.();
 
@@ -110,16 +112,20 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
       onBuyHouse: handleBuyHouse,
     });
 
-    if (wasOpen) {
+    if (shouldReopen) {
       root.querySelector('.player-city-button')?.click();
     }
   }
 
   function scheduleRefresh() {
+    const wasOpenBeforeRefresh = isHousesModalOpen();
+
     clearTimeout(refreshTimer);
 
     refreshTimer = setTimeout(() => {
-      mountModal({ keepOpen: true });
+      mountModal({
+        reopenAfterRefresh: wasOpenBeforeRefresh,
+      });
     }, 250);
   }
 
