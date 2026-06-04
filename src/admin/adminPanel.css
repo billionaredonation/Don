@@ -594,3 +594,62 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
     0 0 0 2px rgba(255, 255, 255, 0.32),
     0 0 12px rgba(255, 255, 255, 0.38) !important;
 }
+
+
+
+.map-object.map-object-house {
+  width: calc(26px * var(--map-object-scale, 1));
+  height: calc(26px * var(--map-object-scale, 1));
+  display: grid;
+  place-items: center;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--map-object-rotation, 0deg));
+}
+
+.map-object.map-object-house::before,
+.map-object.map-object-house::after {
+  display: none !important;
+  content: none !important;
+}
+
+.map-house-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter:
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.75))
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.12));
+}
+
+.map-object.map-object-house.map-object-visual-comfort {
+  width: calc(30px * var(--map-object-scale, 1));
+  height: calc(30px * var(--map-object-scale, 1));
+}
+
+.map-object.map-object-house.map-object-visual-lux {
+  width: calc(34px * var(--map-object-scale, 1));
+  height: calc(34px * var(--map-object-scale, 1));
+}
+
+.map-object.map-object-house:hover {
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--map-object-rotation, 0deg))
+    scale(1.12);
+}
+
+.map-object-selected .map-house-svg {
+  filter:
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.9))
+    drop-shadow(0 0 10px rgba(170, 100, 255, 0.72));
+}
+
+.map-object-badge,
+.map-object-sub {
+  display: none !important;
+}
