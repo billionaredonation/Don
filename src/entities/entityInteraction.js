@@ -11,7 +11,7 @@ import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
 const INTERACTION_RADIUS_PX = 34;
-const INTERACTION_HINT_VISIBLE_MS = 2600;
+const INTERACTION_HINT_VISIBLE_MS = 2400;
 
 function getPurchasedHouseId(detail = {}) {
   return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
@@ -154,8 +154,6 @@ function showInteractionNotice(root, message) {
   if (!notice) {
     notice = document.createElement('div');
     notice.className = 'entity-interaction-notice';
-    notice.textContent = message;
-
     root.appendChild(notice);
   }
 
@@ -258,6 +256,10 @@ export function createEntityInteractionPanel(root) {
   return {
     open,
     close,
+
+    isOpen() {
+      return Boolean(selectedObject) && panel.hidden === false;
+    },
 
     getSelectedObject() {
       return selectedObject;
@@ -415,10 +417,10 @@ export function enableEntityInteraction({
 
     if (isMobileGameplayDevice()) {
       if (keyEl) keyEl.textContent = '🏠';
-      if (textEl) textEl.textContent = 'Нажми на дом для взаимодействия';
+      if (textEl) textEl.textContent = 'Нажми на дом';
     } else {
       if (keyEl) keyEl.textContent = 'E';
-      if (textEl) textEl.textContent = 'Нажми E для взаимодействия';
+      if (textEl) textEl.textContent = 'Взаимодействовать';
     }
 
     hint.hidden = false;
@@ -432,6 +434,12 @@ export function enableEntityInteraction({
 
   function updateInteractionHint() {
     if (destroyed) return;
+
+    if (panel?.isOpen?.()) {
+      hideInteractionHint();
+      rafId = requestAnimationFrame(updateInteractionHint);
+      return;
+    }
 
     const nearest = getNearestInteractableObject();
 
@@ -456,6 +464,8 @@ export function enableEntityInteraction({
 
       return false;
     }
+
+    hideInteractionHint();
 
     panel.open(object);
     return true;
