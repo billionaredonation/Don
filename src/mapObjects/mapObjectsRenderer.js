@@ -1,3 +1,5 @@
+const HOUSE_ICON_CACHE = new Map();
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -66,18 +68,32 @@ function normalizeHouseClass(value) {
   return 'standard';
 }
 
-function renderHouseSvgIcon(houseClass, state) {
-  const normalizedClass = normalizeHouseClass(houseClass);
+function getHouseColors(state) {
   const isOwned = state === 'owned';
   const isLocked = state === 'locked';
 
-  const main = isLocked ? '#9ca3af' : isOwned ? '#ff4d5e' : '#35e985';
-  const dark = isLocked ? '#4b5563' : isOwned ? '#8f1d2d' : '#0f8f52';
-  const soft = isLocked ? '#d1d5db' : isOwned ? '#ff9aaa' : '#93ffc4';
-  const roof = isLocked ? '#6b7280' : isOwned ? '#ff3148' : '#20d977';
+  return {
+    main: isLocked ? '#9ca3af' : isOwned ? '#ff4d5e' : '#35e985',
+    dark: isLocked ? '#4b5563' : isOwned ? '#8f1d2d' : '#0f8f52',
+    soft: isLocked ? '#d1d5db' : isOwned ? '#ff9aaa' : '#93ffc4',
+    roof: isLocked ? '#6b7280' : isOwned ? '#ff3148' : '#20d977',
+  };
+}
+
+function createHouseSvgIcon(houseClass, state) {
+  const normalizedClass = normalizeHouseClass(houseClass);
+  const cacheKey = `${normalizedClass}:${state}`;
+
+  if (HOUSE_ICON_CACHE.has(cacheKey)) {
+    return HOUSE_ICON_CACHE.get(cacheKey);
+  }
+
+  const { main, dark, soft, roof } = getHouseColors(state);
+
+  let svg = '';
 
   if (normalizedClass === 'lux') {
-    return `
+    svg = `
       <svg class="map-house-svg map-house-svg-lux" viewBox="0 0 64 64" aria-hidden="true">
         <path d="M8 54h48" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
         <path d="M16 28L32 12l16 16v26H16V28z" fill="${main}" stroke="${soft}" stroke-width="3"/>
@@ -88,10 +104,8 @@ function renderHouseSvgIcon(houseClass, state) {
         <circle cx="32" cy="26" r="4" fill="#ffffff" opacity="0.9"/>
       </svg>
     `;
-  }
-
-  if (normalizedClass === 'comfort') {
-    return `
+  } else if (normalizedClass === 'comfort') {
+    svg = `
       <svg class="map-house-svg map-house-svg-comfort" viewBox="0 0 64 64" aria-hidden="true">
         <path d="M10 54h44" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
         <path d="M14 30L32 14l18 16v24H14V30z" fill="${main}" stroke="${soft}" stroke-width="3"/>
@@ -101,17 +115,21 @@ function renderHouseSvgIcon(houseClass, state) {
         <path d="M45 22v-8h7v15" fill="${dark}"/>
       </svg>
     `;
+  } else {
+    svg = `
+      <svg class="map-house-svg map-house-svg-standard" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M12 54h40" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        <path d="M18 31L32 18l14 13v23H18V31z" fill="${main}" stroke="${soft}" stroke-width="3"/>
+        <path d="M14 32L32 15l18 17" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M26 54V39h12v15" fill="${dark}"/>
+        <path d="M21 35h8v8h-8zM36 35h8v8h-8z" fill="#ffffff" opacity="0.88"/>
+      </svg>
+    `;
   }
 
-  return `
-    <svg class="map-house-svg map-house-svg-standard" viewBox="0 0 64 64" aria-hidden="true">
-      <path d="M12 54h40" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
-      <path d="M18 31L32 18l14 13v23H18V31z" fill="${main}" stroke="${soft}" stroke-width="3"/>
-      <path d="M14 32L32 15l18 17" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M26 54V39h12v15" fill="${dark}"/>
-      <path d="M21 35h8v8h-8zM36 35h8v8h-8z" fill="#ffffff" opacity="0.88"/>
-    </svg>
-  `;
+  HOUSE_ICON_CACHE.set(cacheKey, svg);
+
+  return svg;
 }
 
 function getObjectMeta(object) {
@@ -123,6 +141,7 @@ function getObjectMeta(object) {
     const ownerId = getHouseOwnerId(object);
     const ownerName = getHouseOwnerName(object);
     const state = getHouseState(object);
+    const normalizedClass = normalizeHouseClass(houseClass);
 
     const statusText =
       state === 'owned'
@@ -132,11 +151,11 @@ function getObjectMeta(object) {
           : 'Свободен';
 
     return {
-      title: `${object.name || 'Дом'} · ${houseClass} · ${statusText}${ownerName ? ` · ${ownerName}` : ''}${priceText ? ` · ${priceText}` : ''}`,
-      visualClass: normalizeHouseClass(houseClass),
+      title: `${object.name || 'Дом'} · ${normalizedClass} · ${statusText}${ownerName ? ` · ${ownerName}` : ''}${priceText ? ` · ${priceText}` : ''}`,
+      visualClass: normalizedClass,
       state,
       ownerId,
-      iconHtml: renderHouseSvgIcon(houseClass, state),
+      iconHtml: createHouseSvgIcon(normalizedClass, state),
     };
   }
 
@@ -149,9 +168,69 @@ function getObjectMeta(object) {
   };
 }
 
+function createObjectHtml(object) {
+  const x = Number(object.x || 50);
+  const y = Number(object.y || 50);
+  const scale = Number(object.scale || 1);
+  const rotation = Number(object.rotation || 0);
+  const selectedClass = object.selected ? 'map-object-selected' : '';
+  const meta = getObjectMeta(object);
+
+  return `
+    <button
+      class="map-object map-object-${escapeHtml(object.category)} map-object-type-${escapeHtml(object.type)} map-object-visual-${escapeHtml(meta.visualClass)} map-object-state-${escapeHtml(meta.state)} ${selectedClass}"
+      data-map-object-id="${escapeHtml(object.id)}"
+      data-map-object-type="${escapeHtml(object.type)}"
+      data-map-object-category="${escapeHtml(object.category)}"
+      data-map-object-state="${escapeHtml(meta.state)}"
+      data-map-object-owner-id="${escapeHtml(meta.ownerId || '')}"
+      type="button"
+      tabindex="-1"
+      title="${escapeHtml(meta.title)}"
+      style="
+        left: ${x}%;
+        top: ${y}%;
+        --map-object-scale: ${scale};
+        --map-object-rotation: ${rotation}deg;
+      "
+    >
+      ${meta.iconHtml}
+    </button>
+  `;
+}
+
+function getObjectSignature(object) {
+  const payload = object?.payload || {};
+
+  return [
+    object?.id,
+    object?.x,
+    object?.y,
+    object?.scale,
+    object?.rotation,
+    object?.type,
+    object?.category,
+    object?.variant,
+    object?.selected ? 'selected' : 'idle',
+    payload.price,
+    payload.houseClass,
+    payload.houseClassLabel,
+    payload.ownerId,
+    payload.owner_id,
+    payload.ownerName,
+    payload.owner_name,
+    payload.owned,
+    payload.locked,
+    object?.owner_id,
+    object?.ownerId,
+    object?.ownerName,
+  ].join('|');
+}
+
 export function createMapObjectsLayer() {
   const layer = document.createElement('div');
   layer.className = 'map-objects-layer';
+  layer.__mnObjectSignatures = new Map();
 
   return layer;
 }
@@ -159,38 +238,55 @@ export function createMapObjectsLayer() {
 export function renderMapObjects(layer, objects = []) {
   if (!layer) return;
 
-  layer.innerHTML = objects
-    .map((object) => {
-      const x = Number(object.x || 50);
-      const y = Number(object.y || 50);
-      const scale = Number(object.scale || 1);
-      const rotation = Number(object.rotation || 0);
-      const selectedClass = object.selected ? 'map-object-selected' : '';
-      const meta = getObjectMeta(object);
+  if (!layer.__mnObjectSignatures) {
+    layer.__mnObjectSignatures = new Map();
+  }
 
-      return `
-        <button
-          class="map-object map-object-${escapeHtml(object.category)} map-object-type-${escapeHtml(object.type)} map-object-visual-${escapeHtml(meta.visualClass)} map-object-state-${escapeHtml(meta.state)} ${selectedClass}"
-          data-map-object-id="${escapeHtml(object.id)}"
-          data-map-object-type="${escapeHtml(object.type)}"
-          data-map-object-category="${escapeHtml(object.category)}"
-          data-map-object-state="${escapeHtml(meta.state)}"
-          data-map-object-owner-id="${escapeHtml(meta.ownerId || '')}"
-          type="button"
-          tabindex="-1"
-          title="${escapeHtml(meta.title)}"
-          style="
-            left: ${x}%;
-            top: ${y}%;
-            --map-object-scale: ${scale};
-            --map-object-rotation: ${rotation}deg;
-          "
-        >
-          ${meta.iconHtml}
-        </button>
-      `;
-    })
-    .join('');
+  const signatures = layer.__mnObjectSignatures;
+  const nextIds = new Set();
+
+  objects.forEach((object) => {
+    const id = String(object.id || '');
+    if (!id) return;
+
+    nextIds.add(id);
+
+    const nextSignature = getObjectSignature(object);
+    const oldSignature = signatures.get(id);
+
+    if (oldSignature === nextSignature) return;
+
+    const oldElement = layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`);
+    const wrapper = document.createElement('div');
+
+    wrapper.innerHTML = createObjectHtml(object).trim();
+
+    const nextElement = wrapper.firstElementChild;
+
+    if (!nextElement) return;
+
+    if (oldElement) {
+      oldElement.replaceWith(nextElement);
+    } else {
+      layer.appendChild(nextElement);
+    }
+
+    signatures.set(id, nextSignature);
+  });
+
+  Array.from(signatures.keys()).forEach((id) => {
+    if (nextIds.has(id)) return;
+
+    layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`)?.remove();
+    signatures.delete(id);
+  });
+}
+
+export function clearMapObjectsLayer(layer) {
+  if (!layer) return;
+
+  layer.innerHTML = '';
+  layer.__mnObjectSignatures?.clear?.();
 }
 
 export function findMapObjectElement(layer, objectId) {
