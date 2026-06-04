@@ -9,53 +9,76 @@ function escapeHtml(value) {
 
 function formatPrice(value) {
   const number = Number(value || 0);
-  if (!Number.isFinite(number) || number <= 0) return '';
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return '';
+  }
 
   return `${number.toLocaleString('ru-RU')}₴`;
 }
 
-function getHouseClassText(object, payload) {
+function getHouseOwnerId(object) {
   return (
-    payload.houseClassShortLabel ||
-    payload.houseClassLabel ||
-    payload.houseClass ||
-    object.class ||
-    object.variant ||
+    object?.owner_id ||
+    object?.ownerId ||
+    object?.payload?.ownerId ||
+    object?.payload?.owner_id ||
+    null
+  );
+}
+
+function getHouseOwnerName(object) {
+  return (
+    object?.ownerName ||
+    object?.owner_name ||
+    object?.payload?.ownerName ||
+    object?.payload?.owner_name ||
+    ''
+  );
+}
+
+function getHouseClass(object) {
+  return (
+    object?.payload?.houseClassLabel ||
+    object?.payload?.houseClass ||
+    object?.variant ||
     'standard'
   );
 }
 
-function getHouseOwnerId(object, payload) {
-  return object.owner_id || payload.ownerId || payload.owner_id || null;
+function getHousePrice(object) {
+  return object?.price || object?.payload?.price || 0;
 }
 
-function getHouseOwnerName(object, payload) {
-  return object.ownerName || payload.ownerName || payload.owner_name || null;
+function getHouseState(object) {
+  if (getHouseOwnerId(object) || object?.payload?.owned) return 'owned';
+  if (object?.payload?.locked) return 'locked';
+
+  return 'free';
 }
 
 function getObjectMeta(object) {
   const payload = object.payload || {};
 
-  if (object.category === 'house' || object.type === 'house') {
-    const priceText = formatPrice(payload.price || object.price);
-    const ownerId = getHouseOwnerId(object, payload);
-    const ownerName = getHouseOwnerName(object, payload);
-    const isOwned = Boolean(ownerId);
-    const isLocked = Boolean(payload.locked);
+  if (object.category === 'house') {
+    const houseClass = getHouseClass(object);
+    const priceText = formatPrice(getHousePrice(object));
+    const ownerId = getHouseOwnerId(object);
+    const ownerName = getHouseOwnerName(object);
+    const state = getHouseState(object);
 
-    const classText = getHouseClassText(object, payload);
-
-    const statusText = isOwned
-      ? 'Куплен'
-      : isLocked
-        ? 'Закрыт'
-        : 'Свободен';
+    const statusText =
+      state === 'owned'
+        ? 'Куплен'
+        : state === 'locked'
+          ? 'Закрыт'
+          : 'Свободен';
 
     return {
-      badge: classText,
-      sub: isOwned ? ownerName || 'Занят' : priceText || statusText,
-      title: `${object.name || 'Дом'} · ${classText} · ${statusText}${ownerName ? ` · ${ownerName}` : ''}${priceText ? ` · ${priceText}` : ''}`,
-      visualClass: payload.visualClass || object.variant || classText || 'standard',
+      title: `${object.name || 'Дом'} · ${houseClass} · ${statusText}${ownerName ? ` · ${ownerName}` : ''}${priceText ? ` · ${priceText}` : ''}`,
+      visualClass: payload.visualClass || object.variant || 'standard',
+      state,
+      ownerId,
     };
   }
 
@@ -66,42 +89,43 @@ function getObjectMeta(object) {
       : '';
 
     return {
-      badge: 'BUS',
-      sub: incomeText || priceText || 'Бизнес',
-      title: `${object.name || 'Бизнес'} · ${payload.businessLabel || object.type}${priceText ? ` · ${priceText}` : ''}`,
+      title: `${object.name || 'Бизнес'} · ${payload.businessLabel || object.type}${priceText ? ` · ${priceText}` : ''}${incomeText ? ` · ${incomeText}` : ''}`,
       visualClass: object.type || 'business',
+      state: 'business',
+      ownerId: null,
     };
   }
 
   if (object.category === 'npc') {
     return {
-      badge: 'NPC',
-      sub: object.type === 'quest_npc' ? 'Квест' : '',
       title: object.name || 'NPC',
       visualClass: object.type || 'npc',
+      state: 'default',
+      ownerId: null,
     };
   }
 
   if (object.category === 'decor') {
     return {
-      badge: '',
-      sub: '',
       title: object.name || 'Декор',
       visualClass: object.type || 'decor',
+      state: 'default',
+      ownerId: null,
     };
   }
 
   return {
-    badge: '',
-    sub: '',
     title: object.name || 'Маркер',
     visualClass: object.type || 'marker',
+    state: 'default',
+    ownerId: null,
   };
 }
 
 export function createMapObjectsLayer() {
   const layer = document.createElement('div');
   layer.className = 'map-objects-layer';
+
   return layer;
 }
 
@@ -120,21 +144,16 @@ export function renderMapObjects(layer, objects = []) {
       const categoryClass = `map-object-${escapeHtml(object.category)}`;
       const typeClass = `map-object-type-${escapeHtml(object.type)}`;
       const visualClass = `map-object-visual-${escapeHtml(meta.visualClass)}`;
-
-      const badgeHtml = meta.badge
-        ? `<span class="map-object-badge">${escapeHtml(meta.badge)}</span>`
-        : '';
-
-      const subHtml = meta.sub
-        ? `<span class="map-object-sub">${escapeHtml(meta.sub)}</span>`
-        : '';
+      const stateClass = `map-object-state-${escapeHtml(meta.state)}`;
 
       return `
         <button
-          class="map-object ${categoryClass} ${typeClass} ${visualClass} ${selectedClass}"
+          class="map-object ${categoryClass} ${typeClass} ${visualClass} ${stateClass} ${selectedClass}"
           data-map-object-id="${escapeHtml(object.id)}"
           data-map-object-type="${escapeHtml(object.type)}"
           data-map-object-category="${escapeHtml(object.category)}"
+          data-map-object-state="${escapeHtml(meta.state)}"
+          data-map-object-owner-id="${escapeHtml(meta.ownerId || '')}"
           type="button"
           tabindex="-1"
           title="${escapeHtml(meta.title)}"
@@ -146,8 +165,6 @@ export function renderMapObjects(layer, objects = []) {
           "
         >
           <span class="map-object-icon">${escapeHtml(object.icon || '◆')}</span>
-          ${badgeHtml}
-          ${subHtml}
         </button>
       `;
     })
@@ -156,6 +173,7 @@ export function renderMapObjects(layer, objects = []) {
 
 export function findMapObjectElement(layer, objectId) {
   if (!layer || !objectId) return null;
+
   return layer.querySelector(`[data-map-object-id="${CSS.escape(String(objectId))}"]`);
 }
 
