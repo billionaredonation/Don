@@ -10,8 +10,28 @@ const FILTER_LABELS = {
   owned: 'Купленные',
 };
 
+const HOUSES_FILTER_STORAGE_KEY = 'mn_houses_active_filter';
+
 function getValidFilter(value) {
   return Object.hasOwn(FILTER_LABELS, value) ? value : 'all';
+}
+
+function getSavedFilter() {
+  try {
+    return getValidFilter(
+      sessionStorage.getItem(HOUSES_FILTER_STORAGE_KEY) || 'all'
+    );
+  } catch {
+    return 'all';
+  }
+}
+
+function saveFilter(filter) {
+  try {
+    sessionStorage.setItem(HOUSES_FILTER_STORAGE_KEY, getValidFilter(filter));
+  } catch {
+    // ignore
+  }
 }
 
 export function renderHousesFeatureHtml({ city, houses }) {
@@ -82,7 +102,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
 
             <div class="houses-filter">
               <button type="button" class="houses-filter-button" data-houses-filter-button>
-                <span data-houses-filter-label>${FILTER_LABELS.all}</span>
+                <span data-houses-filter-label>${FILTER_LABELS[getSavedFilter()]}</span>
                 <b>⌄</b>
               </button>
 
@@ -126,29 +146,18 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
   const houseItems = Array.from(modal?.querySelectorAll('[data-house-state]') || []);
   const filterEmpty = modal?.querySelector('[data-house-filter-empty]');
 
-  const housesById = new Map();
-
-  houseItems.forEach((item) => {
-    housesById.set(String(item.dataset.houseId), item);
-  });
-
   const detailsController = createHouseDetailsController(modal, {
     onBuy: onBuyHouse,
   });
 
+  let activeFilter = getSavedFilter();
 
   function handleGlobalHouseAction(event) {
     const house = event.detail?.house;
     if (!house) return;
 
-    // ВАЖНО:
-    // не открываем большую модалку списка домов.
-    // Клик по дому на карте открывает только detail-модалку.
     detailsController.open(house);
   }
-
-  
-  let activeFilter = 'all';
 
   function setFilterMenuOpen(nextOpen) {
     if (!filterMenu || !filterButton) return;
@@ -159,13 +168,19 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
   function applyFilter(nextFilter = 'all') {
     const filter = getValidFilter(nextFilter);
+
     activeFilter = filter;
+    saveFilter(filter);
 
     let visibleCount = 0;
 
     houseItems.forEach((item) => {
-      const isVisible = filter === 'all' || item.dataset.houseState === filter;
+      const itemState = String(item.dataset.houseState || '');
+      const isVisible = filter === 'all' || itemState === filter;
+
       item.hidden = !isVisible;
+      item.style.display = isVisible ? '' : 'none';
+
       if (isVisible) visibleCount += 1;
     });
 
@@ -175,6 +190,7 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
     if (filterEmpty) {
       filterEmpty.hidden = visibleCount > 0;
+      filterEmpty.style.display = visibleCount > 0 ? 'none' : '';
     }
 
     setFilterMenuOpen(false);
@@ -228,7 +244,7 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
   function handleHouseClick(event) {
     const item = event.target.closest('[data-house-id]');
-    if (!item) return;
+    if (!item || item.hidden || item.style.display === 'none') return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -290,12 +306,13 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
     button.addEventListener('click', close);
   });
 
-  applyFilter('all');
+  applyFilter(activeFilter);
 
   return () => {
     close();
 
     openButton?.removeEventListener('click', open);
+    window.removeEventListener('mn:house-action', handleGlobalHouseAction);
     filterButton?.removeEventListener('click', toggleFilterMenu);
     filterMenu?.removeEventListener('click', handleFilterMenuClick);
     modal?.removeEventListener('click', handleHouseClick);
@@ -307,7 +324,6 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
     });
 
     detailsController.cleanup();
-    window.removeEventListener('mn:house-action', handleGlobalHouseAction);
     modal?.remove();
     modal = null;
   };
