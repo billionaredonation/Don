@@ -6,8 +6,7 @@ const TABLE_NAME = 'map_objects';
 
 function showAdminToast(message, duration = 3000) {
   const isAdmin =
-    localStorage.getItem('mn_is_admin') === 'true' ||
-    window.__MN_ADMIN__ === true;
+    document.body.classList.contains('admin-mode');
 
   if (!isAdmin) return;
 
@@ -48,12 +47,14 @@ function showAdminToast(message, duration = 3000) {
 
   requestAnimationFrame(() => {
     toast.style.opacity = '1';
-    toast.style.transform = 'translateX(-50%) translateY(0)';
+    toast.style.transform =
+      'translateX(-50%) translateY(0)';
   });
 
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translateX(-50%) translateY(-10px)';
+    toast.style.transform =
+      'translateX(-50%) translateY(-10px)';
 
     setTimeout(() => {
       toast.remove();
@@ -88,12 +89,15 @@ function createObjectId() {
 function toNumber(value, fallback = 0) {
   const number = Number(value);
 
-  return Number.isFinite(number) ? number : fallback;
+  return Number.isFinite(number)
+    ? number
+    : fallback;
 }
 
 function normalizeObject(object = {}) {
   const payload =
-    object.payload && typeof object.payload === 'object'
+    object.payload &&
+    typeof object.payload === 'object'
       ? object.payload
       : {};
 
@@ -108,7 +112,11 @@ function normalizeObject(object = {}) {
 
   return {
     id: String(object.id || createObjectId()),
-    cityId: String(object.cityId || object.city_id || ''),
+    cityId: String(
+      object.cityId ||
+        object.city_id ||
+        ''
+    ),
     type,
     category,
     name: String(
@@ -117,14 +125,27 @@ function normalizeObject(object = {}) {
         type ||
         'Объект'
     ),
-    icon: String(object.icon || payload.icon || '◆'),
-    asset: String(object.asset || payload.asset || ''),
+    icon: String(
+      object.icon ||
+        payload.icon ||
+        '◆'
+    ),
+    asset: String(
+      object.asset ||
+        payload.asset ||
+        ''
+    ),
     x: toNumber(object.x, 50),
     y: toNumber(object.y, 50),
-    rotation: toNumber(object.rotation, 0),
+    rotation: toNumber(
+      object.rotation,
+      0
+    ),
     scale: toNumber(object.scale, 1),
     variant: String(
-      object.variant || payload.variant || ''
+      object.variant ||
+        payload.variant ||
+        ''
     ),
     payload,
     createdAt:
@@ -205,7 +226,9 @@ async function adminMapObjectsRequest(payload) {
   const initData = getTelegramInitData();
 
   if (!initData) {
-    throw new Error('missing_telegram_init_data');
+    throw new Error(
+      'missing_telegram_init_data'
+    );
   }
 
   const { data, error } =
@@ -233,7 +256,6 @@ async function adminMapObjectsRequest(payload) {
   return data;
 }
 
-```js
 async function fetchRemoteObjects(cityId) {
   if (!cityId) {
     showAdminToast(
@@ -291,15 +313,17 @@ async function fetchRemoteObjects(cityId) {
     cityId
   );
 
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data)
+    ? data
+    : [];
 }
-```
 
 async function saveRemoteObject(object) {
-  const data = await adminMapObjectsRequest({
-    action: 'upsert',
-    object,
-  });
+  const data =
+    await adminMapObjectsRequest({
+      action: 'upsert',
+      object,
+    });
 
   return data?.object
     ? fromDbRow(data.object)
@@ -307,15 +331,19 @@ async function saveRemoteObject(object) {
 }
 
 async function syncHouseMapObject(object) {
-  if (object?.category !== 'house') return object;
+  if (object?.category !== 'house')
+    return object;
 
   try {
-    const { data, error } = await supabase.rpc(
-      'sync_house_map_object',
-      {
-        p_map_object_id: String(object.id),
-      }
-    );
+    const { data, error } =
+      await supabase.rpc(
+        'sync_house_map_object',
+        {
+          p_map_object_id: String(
+            object.id
+          ),
+        }
+      );
 
     if (error) {
       throw error;
@@ -383,7 +411,9 @@ async function clearRemoteCity(cityId) {
 }
 
 export async function getMapObjects(cityId) {
-  const normalizedCityId = String(cityId || '');
+  const normalizedCityId = String(
+    cityId || ''
+  );
 
   const localObjects =
     getLocalObjects(normalizedCityId);
@@ -414,7 +444,9 @@ export async function saveMapObjects(
   cityId,
   objects
 ) {
-  const normalizedCityId = String(cityId || '');
+  const normalizedCityId = String(
+    cityId || ''
+  );
 
   const normalized = Array.isArray(objects)
     ? objects.map((object) =>
@@ -465,21 +497,27 @@ export async function addMapObject(
   cityId,
   object
 ) {
-  const normalizedCityId = String(cityId || '');
+  const normalizedCityId = String(
+    cityId || ''
+  );
 
   const nextObject = normalizeObject({
     ...object,
-    id: object?.id || createObjectId(),
+    id:
+      object?.id ||
+      createObjectId(),
     cityId: normalizedCityId,
     createdAt:
       object?.createdAt ||
       new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    updatedAt:
+      new Date().toISOString(),
   });
 
-  const objects = await getMapObjects(
-    normalizedCityId
-  );
+  const objects =
+    await getMapObjects(
+      normalizedCityId
+    );
 
   const nextObjects = [
     ...objects,
@@ -493,20 +531,22 @@ export async function addMapObject(
 
   try {
     const savedObjectRaw =
-      await saveRemoteObject(nextObject);
+      await saveRemoteObject(
+        nextObject
+      );
 
     const savedObject =
       await syncHouseMapObject(
         savedObjectRaw
       );
 
-    const syncedObjects = nextObjects.map(
-      (item) =>
+    const syncedObjects =
+      nextObjects.map((item) =>
         String(item.id) ===
         String(savedObject.id)
           ? savedObject
           : item
-    );
+      );
 
     saveLocalObjects(
       normalizedCityId,
@@ -529,11 +569,14 @@ export async function updateMapObject(
   objectId,
   patch
 ) {
-  const normalizedCityId = String(cityId || '');
-
-  const objects = await getMapObjects(
-    normalizedCityId
+  const normalizedCityId = String(
+    cityId || ''
   );
+
+  const objects =
+    await getMapObjects(
+      normalizedCityId
+    );
 
   const nextObjects = objects.map(
     (object) => {
@@ -548,7 +591,8 @@ export async function updateMapObject(
         ...object,
         ...patch,
         id: object.id,
-        cityId: normalizedCityId,
+        cityId:
+          normalizedCityId,
         updatedAt:
           new Date().toISOString(),
       });
@@ -567,24 +611,28 @@ export async function updateMapObject(
     nextObjects
   );
 
-  if (!updatedObject) return null;
+  if (!updatedObject) {
+    return null;
+  }
 
   try {
     const savedObjectRaw =
-      await saveRemoteObject(updatedObject);
+      await saveRemoteObject(
+        updatedObject
+      );
 
     const savedObject =
       await syncHouseMapObject(
         savedObjectRaw
       );
 
-    const syncedObjects = nextObjects.map(
-      (item) =>
+    const syncedObjects =
+      nextObjects.map((item) =>
         String(item.id) ===
         String(savedObject.id)
           ? savedObject
           : item
-    );
+      );
 
     saveLocalObjects(
       normalizedCityId,
@@ -606,17 +654,21 @@ export async function deleteMapObject(
   cityId,
   objectId
 ) {
-  const normalizedCityId = String(cityId || '');
-
-  const objects = await getMapObjects(
-    normalizedCityId
+  const normalizedCityId = String(
+    cityId || ''
   );
 
-  const nextObjects = objects.filter(
-    (object) =>
-      String(object.id) !==
-      String(objectId)
-  );
+  const objects =
+    await getMapObjects(
+      normalizedCityId
+    );
+
+  const nextObjects =
+    objects.filter(
+      (object) =>
+        String(object.id) !==
+        String(objectId)
+    );
 
   saveLocalObjects(
     normalizedCityId,
@@ -638,10 +690,17 @@ export async function deleteMapObject(
   return nextObjects;
 }
 
-export async function clearMapObjects(cityId) {
-  const normalizedCityId = String(cityId || '');
+export async function clearMapObjects(
+  cityId
+) {
+  const normalizedCityId = String(
+    cityId || ''
+  );
 
-  saveLocalObjects(normalizedCityId, []);
+  saveLocalObjects(
+    normalizedCityId,
+    []
+  );
 
   try {
     await clearRemoteCity(
@@ -657,66 +716,3 @@ export async function clearMapObjects(cityId) {
   return [];
 }
 ```
-
-```js
-function showAdminToast(message, duration = 3000) {
-  const isAdmin =
-    document.body.classList.contains('admin-mode');
-
-  if (!isAdmin) return;
-
-  const existing = document.querySelector(
-    '.mn-admin-toast'
-  );
-
-  if (existing) {
-    existing.remove();
-  }
-
-  const toast = document.createElement('div');
-
-  toast.className = 'mn-admin-toast';
-  toast.textContent = message;
-
-  Object.assign(toast.style, {
-    position: 'fixed',
-    top: '18px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background:
-      'linear-gradient(135deg, rgba(18,18,30,0.96), rgba(32,32,48,0.96))',
-    color: '#ffffff',
-    padding: '12px 18px',
-    borderRadius: '14px',
-    fontSize: '14px',
-    fontWeight: '700',
-    zIndex: '999999',
-    boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    backdropFilter: 'blur(12px)',
-    opacity: '0',
-    transition: 'all 0.25s ease',
-    pointerEvents: 'none',
-    letterSpacing: '0.2px',
-  });
-
-  document.body.appendChild(toast);
-
-  requestAnimationFrame(() => {
-    toast.style.opacity = '1';
-    toast.style.transform =
-      'translateX(-50%) translateY(0)';
-  });
-
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform =
-      'translateX(-50%) translateY(-10px)';
-
-    setTimeout(() => {
-      toast.remove();
-    }, 250);
-  }, duration);
-}
-```
-
