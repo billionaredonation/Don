@@ -909,3 +909,23 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
   max-width: min(340px, calc(100vw - 28px));
   white-space: nowrap;
 }
+
+
+.entity-interaction-hint[hidden] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+.entity-interaction-hint {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.entity-interaction-hint.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
