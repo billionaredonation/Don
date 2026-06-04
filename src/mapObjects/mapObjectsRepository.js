@@ -3,63 +3,6 @@ import { supabase } from '../supabaseClient.js';
 const STORAGE_PREFIX = 'mn_map_objects';
 const TABLE_NAME = 'map_objects';
 
-function showAdminToast(message, duration = 3000) {
-  const isAdmin =
-    document.body.classList.contains('admin-mode');
-
-  if (!isAdmin) return;
-
-  const existing = document.querySelector('.mn-admin-toast');
-
-  if (existing) {
-    existing.remove();
-  }
-
-  const toast = document.createElement('div');
-
-  toast.className = 'mn-admin-toast';
-  toast.textContent = message;
-
-  Object.assign(toast.style, {
-    position: 'fixed',
-    top: '18px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background:
-      'linear-gradient(135deg, rgba(18,18,30,0.96), rgba(32,32,48,0.96))',
-    color: '#ffffff',
-    padding: '12px 18px',
-    borderRadius: '14px',
-    fontSize: '14px',
-    fontWeight: '700',
-    zIndex: '999999',
-    boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    backdropFilter: 'blur(12px)',
-    opacity: '0',
-    transition: 'all 0.25s ease',
-    pointerEvents: 'none',
-    letterSpacing: '0.2px',
-  });
-
-  document.body.appendChild(toast);
-
-  requestAnimationFrame(() => {
-    toast.style.opacity = '1';
-    toast.style.transform =
-      'translateX(-50%) translateY(0)';
-  });
-
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform =
-      'translateX(-50%) translateY(-10px)';
-
-    setTimeout(() => {
-      toast.remove();
-    }, 250);
-  }, duration);
-}
 
 function getStorageKey(cityId) {
   return `${STORAGE_PREFIX}_${cityId}`;
@@ -257,10 +200,13 @@ async function adminMapObjectsRequest(payload) {
 
 async function fetchRemoteObjects(cityId) {
   if (!cityId) {
-    showAdminToast(
-      'Ошибка: cityId отсутствует',
-      4000
-    );
+  window.dispatchEvent(
+    new CustomEvent('mn:toast', {
+      detail: {
+        message: 'Ошибка загрузки объектов',
+      },
+    })
+  );
 
     console.warn(
       '[mapObjectsRepository] fetch skipped: cityId missing'
@@ -299,13 +245,14 @@ async function fetchRemoteObjects(cityId) {
     throw error;
   }
 
-  showAdminToast(
-    `Загружено ${
-      data?.length || 0
-    } объектов`
+  window.dispatchEvent(
+    new CustomEvent('mn:toast', {
+      detail: {
+        message: `Загружено ${data?.length || 0} объектов`,
+      },
+    })
   );
-
-  console.log(
+    console.log(
     `[mapObjectsRepository] loaded ${
       data?.length || 0
     } objects for city:`,
