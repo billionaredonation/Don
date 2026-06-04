@@ -16,6 +16,10 @@ function getPlayerTgId() {
   );
 }
 
+function getHouseId(house) {
+  return house?.payload?.houseId || house?.houseId || house?.id;
+}
+
 export async function loadHousesFeature(cityId) {
   try {
     const rawState = await fetchCityHousesState(cityId);
@@ -28,38 +32,120 @@ export async function loadHousesFeature(cityId) {
 
 export { renderHousesFeatureHtml };
 
-export function enableHousesFeature(root, { cityId } = {}) {
-  return enableHousesStatsModal(root, {
-    async onBuyHouse(house) {
-      const tgId = getPlayerTgId();
+export function enableHousesFeature(root, { cityId, city } = {}) {
+  let cleanupModal = null;
+  let refreshTimer = null;
+  let destroyed = false;
 
-      if (!tgId) {
-        throw new Error('PLAYER_TG_ID_NOT_FOUND');
-      }
+  async function handleBuyHouse(house) {
+    const tgId = getPlayerTgId();
 
-      const result = await buyHouseFromState({
-        houseId: house?.payload?.houseId || house?.houseId || house?.id,
-        playerId: tgId,
-      });
+    if (!tgId) {
+      throw new Error('PLAYER_TG_ID_NOT_FOUND');
+    }
 
-      if (result?.newBalance !== undefined) {
-        state.player = {
-          ...(state.player || {}),
-          balance: Number(result.newBalance),
-        };
+    const result = await buyHouseFromState({
+      houseId: getHouseId(house),
+      playerId: tgId,
+    });
 
-        save();
-      }
+    if (result?.newBalance !== undefined) {
+      state.player = {
+        ...(state.player || {}),
+        balance: Number(result.newBalance),
+      };
 
-      window.dispatchEvent(new CustomEvent('mn:houses-updated', {
+      save();
+
+      window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
         detail: {
-          cityId,
-          houseId: house?.payload?.houseId || house?.houseId || house?.id,
-          result,
+          balance: Number(result.newBalance),
+          source: 'buy_house',
         },
       }));
+    }
 
-      return result;
-    },
-  });
+    window.dispatchEvent(new CustomEvent('mn:houses-updated', {
+      detail: {
+        cityId,
+        houseId: getHouseId(house),
+        result,
+      },
+    }));
+
+    window.dispatchEvent(new CustomEvent('mn:map-objects-changed', {
+      detail: {
+        cityId,
+        source: 'buy_house',
+        houseId: getHouseId(house),
+        result,
+      },
+    }));
+
+    return result;
+  }
+
+  async function mountModal({ keepOpen = false } = {}) {
+    if (destroyed) return;
+
+    const wasOpen =
+      keepOpen ||
+      document.body.classList.contains('mn-houses-modal-open');
+
+    cleanupModal?.();
+
+    const oldModal = document.body.querySelector('.houses-modal');
+    oldModal?.remove();
+
+    const houses = await loadHousesFeature(cityId);
+
+    if (destroyed) return;
+
+    root.insertAdjacentHTML('beforeend', renderHousesFeatureHtml({
+      city: city || { name: cityId || 'Город' },
+      houses,
+    }));
+
+    cleanupModal = enableHousesStatsModal(root, {
+      onBuyHouse: handleBuyHouse,
+    });
+
+    if (wasOpen) {
+      root.querySelector('.player-city-button')?.click();
+    }
+  }
+
+  function scheduleRefresh() {
+    clearTimeout(refreshTimer);
+
+    refreshTimer = setTimeout(() => {
+      mountModal({ keepOpen: true });
+    }, 250);
+  }
+
+  function handleRealtimeRefresh(event) {
+    if (
+      event?.detail?.cityId &&
+      String(event.detail.cityId) !== String(cityId)
+    ) {
+      return;
+    }
+
+    scheduleRefresh();
+  }
+
+  mountModal();
+
+  window.addEventListener('mn:map-objects-changed', handleRealtimeRefresh);
+  window.addEventListener('mn:houses-realtime-changed', handleRealtimeRefresh);
+
+  return () => {
+    destroyed = true;
+    clearTimeout(refreshTimer);
+
+    window.removeEventListener('mn:map-objects-changed', handleRealtimeRefresh);
+    window.removeEventListener('mn:houses-realtime-changed', handleRealtimeRefresh);
+
+    cleanupModal?.();
+  };
 }
