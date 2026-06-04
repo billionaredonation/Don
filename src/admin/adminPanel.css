@@ -966,3 +966,61 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
     z-index: 27000 !important;
   }
 }
+
+
+
+@media (hover: none) and (pointer: coarse) {
+  .house-selection-panel {
+    position: fixed !important;
+    left: 50% !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: 22px !important;
+
+    width: min(430px, calc(100svh - 34px)) !important;
+    min-height: 58px !important;
+
+    grid-template-columns: 38px minmax(0, 1fr) auto !important;
+    gap: 9px !important;
+
+    padding: 9px 11px !important;
+    border-radius: 16px !important;
+
+    transform:
+      translateX(-50%)
+      rotate(90deg) !important;
+
+    transform-origin: center center !important;
+    z-index: 26000 !important;
+  }
+
+  .house-selection-icon {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 12px !important;
+    font-size: 20px !important;
+  }
+
+  .house-selection-title {
+    font-size: 15px !important;
+    line-height: 1.05 !important;
+  }
+
+  .house-selection-meta {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    max-width: 230px !important;
+  }
+
+  .house-selection-action {
+    min-height: 34px !important;
+    padding: 0 14px !important;
+    border-radius: 12px !important;
+    font-size: 12px !important;
+  }
+
+  .house-selection-close {
+    right: 6px !important;
+    top: 6px !important;
+  }
+}
