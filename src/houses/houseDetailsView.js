@@ -13,8 +13,11 @@ function getHouseClass(house) {
 
   const labels = {
     standard: 'Стандарт',
+    std: 'Стандарт',
+    comfort: 'Комфорт',
     premium: 'Премиум',
     luxe: 'Люкс',
+    lux: 'Люкс',
     luxury: 'Люкс',
   };
 
@@ -26,24 +29,69 @@ function getHousePrice(house) {
 }
 
 function getHouseOwnerId(house) {
-  return house?.owner_id || house?.payload?.ownerId || null;
+  return (
+    house?.owner_id ||
+    house?.ownerId ||
+    house?.payload?.ownerId ||
+    house?.payload?.owner_id ||
+    null
+  );
 }
 
 function getHouseOwnerName(house) {
-  return house?.ownerName || house?.payload?.ownerName || null;
+  return (
+    house?.ownerName ||
+    house?.owner_name ||
+    house?.payload?.ownerName ||
+    house?.payload?.owner_name ||
+    null
+  );
+}
+
+function getHouseId(house) {
+  return (
+    house?.payload?.houseId ||
+    house?.payload?.house_id ||
+    house?.houseId ||
+    house?.house_id ||
+    house?.id ||
+    null
+  );
 }
 
 function getHouseStatus(house) {
-  if (getHouseOwnerId(house)) return 'Куплен';
+  if (getHouseOwnerId(house) || house?.payload?.owned) return 'Куплен';
   if (house?.payload?.locked) return 'Закрыт';
+
   return 'Свободен';
 }
 
+function isHouseOwned(house) {
+  return getHouseStatus(house) === 'Куплен';
+}
+
+function isHouseLocked(house) {
+  return Boolean(house?.payload?.locked);
+}
+
 function applyPurchasedState(house, result = {}) {
-  const ownerId = result?.ownerId || result?.playerId || house?.owner_id || house?.payload?.ownerId || 'player';
-  const ownerName = result?.ownerName || house?.ownerName || house?.payload?.ownerName || 'Игрок';
+  const ownerId =
+    result?.ownerId ||
+    result?.playerId ||
+    house?.owner_id ||
+    house?.ownerId ||
+    house?.payload?.ownerId ||
+    'player';
+
+  const ownerName =
+    result?.ownerName ||
+    house?.ownerName ||
+    house?.owner_name ||
+    house?.payload?.ownerName ||
+    'Игрок';
 
   house.owner_id = ownerId;
+  house.ownerId = ownerId;
   house.ownerName = ownerName;
 
   house.payload = {
@@ -57,6 +105,74 @@ function applyPurchasedState(house, result = {}) {
     ownerId,
     ownerName,
   };
+}
+
+function mergeRealtimeRowIntoHouse(house, row = {}) {
+  if (!house || !row) return house;
+
+  const payload = row.payload && typeof row.payload === 'object'
+    ? row.payload
+    : {};
+
+  house.id = row.id || house.id;
+  house.name = row.name || house.name;
+  house.icon = row.icon || house.icon;
+  house.price = row.price || payload.price || house.price;
+  house.class = row.class || payload.houseClass || house.class;
+  house.variant = row.variant || house.variant;
+
+  const ownerId =
+    row.owner_id ||
+    row.ownerId ||
+    payload.ownerId ||
+    payload.owner_id ||
+    null;
+
+  const ownerName =
+    row.ownerName ||
+    row.owner_name ||
+    payload.ownerName ||
+    payload.owner_name ||
+    null;
+
+  house.owner_id = ownerId;
+  house.ownerId = ownerId;
+  house.ownerName = ownerName;
+
+  house.payload = {
+    ...(house.payload || {}),
+    ...payload,
+    ownerId,
+    ownerName,
+    owned: Boolean(ownerId || payload.owned),
+  };
+
+  return house;
+}
+
+function isSameHouse(activeHouse, row = {}) {
+  if (!activeHouse || !row) return false;
+
+  const activeObjectId = String(activeHouse.id || '');
+  const rowObjectId = String(row.id || '');
+
+  const activeHouseId = String(getHouseId(activeHouse) || '');
+  const rowPayload = row.payload && typeof row.payload === 'object'
+    ? row.payload
+    : {};
+
+  const rowHouseId = String(
+    rowPayload.houseId ||
+    rowPayload.house_id ||
+    row.houseId ||
+    row.house_id ||
+    ''
+  );
+
+  return Boolean(
+    (activeObjectId && rowObjectId && activeObjectId === rowObjectId) ||
+    (activeHouseId && rowHouseId && activeHouseId === rowHouseId)
+  );
 }
 
 export function renderHouseDetailsModal() {
@@ -143,28 +259,65 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     message.dataset.type = type;
   }
 
+  function renderActiveHouse() {
+    if (!modal || !activeHouse) return;
+
+    const ownerId = getHouseOwnerId(activeHouse);
+    const ownerName = getHouseOwnerName(activeHouse);
+    const owned = isHouseOwned(activeHouse);
+    const locked = isHouseLocked(activeHouse);
+
+    title.textContent = activeHouse?.name || `Дом · ${getHouseClass(activeHouse)}`;
+    icon.textContent = activeHouse?.icon || '🏠';
+    price.textContent = formatMoney(getHousePrice(activeHouse));
+    status.textContent = getHouseStatus(activeHouse);
+    houseClass.textContent = getHouseClass(activeHouse);
+    owner.textContent = owned ? String(ownerName || ownerId || 'Игрок') : 'Государство';
+
+    if (buyButton) {
+      buyButton.hidden = owned || locked;
+      buyButton.disabled = owned || locked;
+    }
+  }
+
+  function markAsOwned(result = {}) {
+    if (!activeHouse) return;
+
+    const purchaseState = applyPurchasedState(activeHouse, result);
+
+    renderActiveHouse();
+
+    setMessage(
+      result?.alreadyOwned
+        ? 'Этот дом уже куплен.'
+        : 'Дом успешно куплен.',
+      result?.alreadyOwned ? 'error' : 'success'
+    );
+
+    if (buyButton) {
+      buyButton.hidden = true;
+      buyButton.disabled = true;
+    }
+
+    window.dispatchEvent(new CustomEvent('mn:house-purchased-local', {
+      detail: {
+        houseId: getHouseId(activeHouse),
+        mapObjectId: activeHouse.id,
+        house: activeHouse,
+        ownerId: purchaseState.ownerId,
+        ownerName: purchaseState.ownerName,
+        result,
+      },
+    }));
+  }
+
   function open(house) {
     if (!modal || !house) return;
 
     activeHouse = house;
     setMessage('');
 
-    const ownerId = getHouseOwnerId(house);
-    const ownerName = getHouseOwnerName(house);
-    const isOwned = Boolean(ownerId);
-    const isLocked = Boolean(house?.payload?.locked);
-
-    title.textContent = house?.name || `Дом · ${getHouseClass(house)}`;
-    icon.textContent = house?.icon || '🏠';
-    price.textContent = formatMoney(getHousePrice(house));
-    status.textContent = getHouseStatus(house);
-    houseClass.textContent = getHouseClass(house);
-    owner.textContent = isOwned ? String(ownerName || ownerId) : 'Государство';
-
-    if (buyButton) {
-      buyButton.hidden = isOwned || isLocked;
-      buyButton.disabled = isOwned || isLocked;
-    }
+    renderActiveHouse();
 
     modal.hidden = false;
     document.body.classList.add('mn-house-details-open');
@@ -193,26 +346,8 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
       setMessage('Покупка выполняется...', 'info');
 
       const result = await onBuy(activeHouse);
-      const purchaseState = applyPurchasedState(activeHouse, result);
 
-      status.textContent = 'Куплен';
-      owner.textContent = String(purchaseState.ownerName || purchaseState.ownerId);
-
-      setMessage('Дом успешно куплен.', 'success');
-
-      buyButton.hidden = true;
-      buyButton.disabled = true;
-
-      window.dispatchEvent(new CustomEvent('mn:house-purchased-local', {
-        detail: {
-          houseId: activeHouse.payload?.houseId || activeHouse.houseId || activeHouse.id,
-          mapObjectId: activeHouse.id,
-          house: activeHouse,
-          ownerId: purchaseState.ownerId,
-          ownerName: purchaseState.ownerName,
-          result,
-        },
-      }));
+      markAsOwned(result);
     } catch (error) {
       console.error('[houses] buy failed:', error);
 
@@ -220,21 +355,65 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
       if (code.includes('NOT_ENOUGH_MONEY')) {
         setMessage('Недостаточно денег для покупки дома.', 'error');
-      } else if (code.includes('HOUSE_ALREADY_OWNED')) {
-        setMessage('Этот дом уже куплен.', 'error');
-      } else if (code.includes('HOUSE_NOT_FOUND')) {
-        setMessage('Дом не найден в базе данных.', 'error');
-      } else if (code.includes('PLAYER_NOT_FOUND')) {
-        setMessage('Игрок не найден в базе данных.', 'error');
-      } else {
-        setMessage(`Не удалось купить дом: ${code || 'неизвестная ошибка'}`, 'error');
+        buyButton.disabled = false;
+        return;
       }
 
+      if (
+        code.includes('HOUSE_ALREADY_OWNED') ||
+        code.includes('already owned') ||
+        code.includes('already_owned')
+      ) {
+        markAsOwned({
+          alreadyOwned: true,
+        });
+
+        return;
+      }
+
+      if (code.includes('HOUSE_NOT_FOUND')) {
+        setMessage('Дом не найден в базе данных.', 'error');
+        buyButton.disabled = false;
+        return;
+      }
+
+      if (code.includes('HOUSE_ID_INVALID')) {
+        setMessage('Ошибка дома: некорректный houseId.', 'error');
+        buyButton.disabled = false;
+        return;
+      }
+
+      if (code.includes('PLAYER_NOT_FOUND')) {
+        setMessage('Игрок не найден в базе данных.', 'error');
+        buyButton.disabled = false;
+        return;
+      }
+
+      setMessage(`Не удалось купить дом: ${code || 'неизвестная ошибка'}`, 'error');
       buyButton.disabled = false;
     }
   }
 
+  function handleRealtimeHouseChanged(event) {
+    if (!activeHouse || !event?.detail?.payload) return;
+
+    const payload = event.detail.payload;
+    const row = payload.new || payload.old || null;
+
+    if (!row || !isSameHouse(activeHouse, row)) return;
+
+    if (payload.eventType === 'DELETE') {
+      close();
+      return;
+    }
+
+    mergeRealtimeRowIntoHouse(activeHouse, row);
+    renderActiveHouse();
+  }
+
   buyButton?.addEventListener('click', handleBuy);
+  window.addEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
+  window.addEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
 
   closeButtons.forEach((button) => {
     button.addEventListener('click', close);
@@ -248,6 +427,8 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
       close();
 
       buyButton?.removeEventListener('click', handleBuy);
+      window.removeEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
+      window.removeEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
 
       closeButtons.forEach((button) => {
         button.removeEventListener('click', close);
