@@ -790,6 +790,48 @@ function setEnabled(next) {
   viewport.addEventListener('mousemove', onMouseMove);
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('mn:admin-toggle', onAdminToggle);
+  window.addEventListener('mn:toast', (event) => {
+  const message = event.detail?.message;
+
+  if (!message) return;
+
+  let notice = document.querySelector('.admin-floating-notice');
+
+  if (!notice) {
+    notice = document.createElement('div');
+
+    notice.className = 'admin-floating-notice';
+
+    notice.style.cssText = `
+      position: fixed;
+      left: 50%;
+      top: 18px;
+      z-index: 100000;
+      transform: translateX(-50%);
+      max-width: min(520px, calc(100vw - 24px));
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 14px;
+      background: rgba(8, 12, 18, 0.92);
+      color: #fff;
+      font: 800 12px/1.35 system-ui, sans-serif;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.45);
+      backdrop-filter: blur(12px);
+      pointer-events: none;
+      text-align: center;
+    `;
+
+    document.body.appendChild(notice);
+  }
+
+  notice.textContent = message;
+
+  clearTimeout(notice._hideTimer);
+
+  notice._hideTimer = setTimeout(() => {
+    notice?.remove();
+  }, 3000);
+ });
 
   updateVariantVisibility();
   reloadObjects();
