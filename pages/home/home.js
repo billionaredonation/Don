@@ -3,6 +3,7 @@ import { state, save } from '../../src/state.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
 import { setupSessionGuard } from '../../src/network/sessionGuard.js';
+import { setupGameRealtime } from '../../src/realtime/gameRealtime.js';
 
 import {
   getLocalPlayerId,
@@ -320,9 +321,9 @@ register('home', async (root) => {
             <span class="player-profile-arrow">›</span>
           </button>
 
-          <div class="player-balance-card" aria-label="Баланс игрока">
+          <div class="player-balance-card" aria-label="Баланс игрока" data-player-balance-card>
             <span class="player-card-icon player-card-icon-green">₴</span>
-            <strong>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
+            <strong data-player-balance>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
           </div>
         </section>
 
@@ -342,8 +343,10 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
+
   const cleanupHousesFeature = enableHousesFeature(root, {
     cityId,
+    city,
   });
 
   const mapControls = enableMapControls(stage, viewport, {
@@ -367,6 +370,34 @@ register('home', async (root) => {
   let cleanupMobileJoystick = null;
   let cleanupAdminPanel = null;
   let cleanupEntityInteraction = null;
+  let cleanupGameRealtime = null;
+
+  const balanceEl = root.querySelector('[data-player-balance]');
+
+  function updateBalance(balance) {
+    const nextBalance = Number(balance || 0);
+
+    state.player = {
+      ...(state.player || {}),
+      balance: nextBalance,
+    };
+
+    save();
+
+    if (balanceEl) {
+      balanceEl.textContent = `${nextBalance.toLocaleString('ru-RU')} ₴`;
+    }
+  }
+
+  function handleBalanceChanged(event) {
+    const nextBalance =
+      event?.detail?.balance ??
+      event?.detail?.player?.balance;
+
+    if (nextBalance === undefined || nextBalance === null) return;
+
+    updateBalance(nextBalance);
+  }
 
   function enableMobileGameplayMode() {
     root.dataset.mobileControls = 'enabled';
@@ -415,6 +446,16 @@ register('home', async (root) => {
     viewport,
     cityId,
     panel: entityInteractionPanel,
+  });
+
+  window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
+
+  cleanupGameRealtime = setupGameRealtime({
+    cityId,
+    telegramId,
+    onBalanceChanged(player) {
+      updateBalance(player?.balance);
+    },
   });
 
   isCurrentPlayerAdmin()
@@ -521,12 +562,15 @@ register('home', async (root) => {
   root._cleanupHome = () => {
     root.dataset.destroyed = 'true';
 
+    window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
+
     cleanupHousesFeature?.();
     cleanupMovement?.();
     cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
     cleanupAdminPanel?.();
     cleanupEntityInteraction?.();
+    cleanupGameRealtime?.();
     entityInteractionPanel.cleanup();
     cleanupSessionGuard?.();
     mapControls?.cleanup?.();
