@@ -929,3 +929,40 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
   opacity: 1;
   visibility: visible;
 }
+
+
+
+.entity-interaction-hint[hidden],
+.entity-interaction-notice[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 932px) and (orientation: landscape) {
+  .entity-interaction-hint {
+    left: 50% !important;
+    bottom: max(78px, env(safe-area-inset-bottom)) !important;
+    max-width: min(280px, calc(100vw - 32px)) !important;
+    transform: translateX(-50%) !important;
+    padding: 7px 11px !important;
+    border-radius: 999px !important;
+    font-size: 11px !important;
+    z-index: 27000 !important;
+    white-space: nowrap !important;
+  }
+
+  .entity-interaction-hint b {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+  }
+
+  .entity-interaction-notice {
+    left: 50% !important;
+    bottom: max(112px, env(safe-area-inset-bottom)) !important;
+    transform: translateX(-50%) !important;
+    max-width: min(280px, calc(100vw - 32px)) !important;
+    font-size: 11px !important;
+    z-index: 27000 !important;
+  }
+}
