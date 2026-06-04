@@ -552,3 +552,45 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
     min-height: 30px;
   }
 }
+
+
+.map-object.map-object-house {
+  width: calc(18px * var(--map-object-scale, 1));
+  height: calc(18px * var(--map-object-scale, 1));
+  border-radius: 999px;
+  border: 2px solid rgba(42, 224, 133, 0.95);
+  background: rgba(8, 18, 14, 0.72);
+  box-shadow: none !important;
+}
+
+.map-object.map-object-house.map-object-state-owned {
+  border-color: rgba(255, 74, 74, 0.95);
+  background: rgba(24, 8, 10, 0.74);
+}
+
+.map-object.map-object-house.map-object-state-locked {
+  border-color: rgba(170, 170, 170, 0.9);
+  background: rgba(18, 18, 18, 0.78);
+}
+
+.map-object.map-object-house .map-object-icon {
+  font-size: calc(13px * var(--map-object-scale, 1));
+  line-height: 1;
+  filter: none;
+}
+
+.map-object-badge,
+.map-object-sub {
+  display: none !important;
+}
+
+.map-object.map-object-house:hover {
+  transform: scale(1.08);
+}
+
+.map-object-selected {
+  outline: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.32),
+    0 0 12px rgba(255, 255, 255, 0.38) !important;
+}
