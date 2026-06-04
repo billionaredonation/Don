@@ -233,6 +233,7 @@ async function adminMapObjectsRequest(payload) {
   return data;
 }
 
+```js
 async function fetchRemoteObjects(cityId) {
   if (!cityId) {
     showAdminToast(
@@ -292,6 +293,7 @@ async function fetchRemoteObjects(cityId) {
 
   return Array.isArray(data) ? data : [];
 }
+```
 
 async function saveRemoteObject(object) {
   const data = await adminMapObjectsRequest({
