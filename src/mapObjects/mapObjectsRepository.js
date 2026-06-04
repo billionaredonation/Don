@@ -129,19 +129,35 @@ async function adminMapObjectsRequest(payload) {
 }
 
 async function fetchRemoteObjects(cityId) {
+  if (!cityId) {
+    console.warn('[mapObjectsRepository] fetch skipped: cityId missing');
+    return [];
+  }
+
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('*')
-    .eq('city_id', cityId)
-    .order('created_at', { ascending: true });
+    .eq('city_id', cityId);
 
   if (error) {
+    console.error('[mapObjectsRepository] supabase fetch error:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      cityId,
+    });
+
     throw error;
   }
 
-  return Array.isArray(data) ? data.map(fromDbRow) : [];
-}
+  console.log(
+    `[mapObjectsRepository] loaded ${data?.length || 0} objects for city:`,
+    cityId
+  );
 
+  return Array.isArray(data) ? data : [];
+}
 async function saveRemoteObject(object) {
   const data = await adminMapObjectsRequest({
     action: 'upsert',
