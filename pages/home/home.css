@@ -2778,3 +2778,44 @@ body.mn-houses-modal-open .admin-status-dot {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+@media (max-width: 932px) and (orientation: landscape) {
+  .house-selection-panel {
+    left: 50% !important;
+    right: auto !important;
+    bottom: max(12px, env(safe-area-inset-bottom)) !important;
+    top: auto !important;
+    width: min(420px, calc(100vw - 32px)) !important;
+    min-height: 64px !important;
+    padding: 10px 12px !important;
+    border-radius: 18px !important;
+    transform: translateX(-50%) !important;
+    grid-template-columns: 42px minmax(0, 1fr) auto !important;
+    z-index: 26000 !important;
+  }
+
+  .house-selection-title {
+    font-size: 16px !important;
+    line-height: 1.1 !important;
+  }
+
+  .house-selection-meta {
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .house-selection-action {
+    min-height: 38px !important;
+    padding: 0 16px !important;
+    border-radius: 13px !important;
+    font-size: 13px !important;
+  }
+
+  .house-selection-close {
+    right: 7px !important;
+    top: 7px !important;
+  }
+}
