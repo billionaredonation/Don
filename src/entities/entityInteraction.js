@@ -11,6 +11,7 @@ import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
 const INTERACTION_RADIUS_PX = 34;
+const INTERACTION_HINT_VISIBLE_MS = 2600;
 
 function getPurchasedHouseId(detail = {}) {
   return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
@@ -83,14 +84,19 @@ function isInteractKey(event) {
   );
 }
 
+function isMobileGameplayDevice() {
+  const hasTouch = navigator.maxTouchPoints > 0;
+  const narrowScreen =
+    Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 820;
+
+  return hasTouch && narrowScreen;
+}
+
 function isMobilePointerEvent(event) {
   if (event?.pointerType === 'touch') return true;
   if (event?.pointerType === 'pen') return true;
 
-  const hasTouch = navigator.maxTouchPoints > 0;
-  const narrowScreen = Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 820;
-
-  return hasTouch && narrowScreen;
+  return isMobileGameplayDevice();
 }
 
 function getElementCenter(element) {
@@ -169,8 +175,8 @@ function createInteractionHint(root) {
   hint.className = 'entity-interaction-hint';
   hint.hidden = true;
   hint.innerHTML = `
-    <b>E</b>
-    <span>Взаимодействовать</span>
+    <b data-interaction-hint-key>E</b>
+    <span data-interaction-hint-text>Взаимодействовать</span>
   `;
 
   root.appendChild(hint);
@@ -295,6 +301,7 @@ export function enableEntityInteraction({
   let destroyed = false;
   let nearestObjectId = null;
   let lastHintObjectId = null;
+  let hintHideTimer = null;
   let rafId = 0;
 
   async function reloadObjects() {
@@ -384,6 +391,45 @@ export function enableEntityInteraction({
     }
   }
 
+  function hideInteractionHint({ reset = false } = {}) {
+    clearTimeout(hintHideTimer);
+
+    hint.hidden = true;
+
+    if (reset) {
+      lastHintObjectId = null;
+    }
+  }
+
+  function showInteractionHintOnce(object) {
+    if (!object?.id) return;
+
+    const objectId = String(object.id);
+
+    if (lastHintObjectId === objectId) return;
+
+    lastHintObjectId = objectId;
+
+    const keyEl = hint.querySelector('[data-interaction-hint-key]');
+    const textEl = hint.querySelector('[data-interaction-hint-text]');
+
+    if (isMobileGameplayDevice()) {
+      if (keyEl) keyEl.textContent = '🏠';
+      if (textEl) textEl.textContent = 'Нажми на дом для взаимодействия';
+    } else {
+      if (keyEl) keyEl.textContent = 'E';
+      if (textEl) textEl.textContent = 'Нажми E для взаимодействия';
+    }
+
+    hint.hidden = false;
+
+    clearTimeout(hintHideTimer);
+
+    hintHideTimer = setTimeout(() => {
+      hint.hidden = true;
+    }, INTERACTION_HINT_VISIBLE_MS);
+  }
+
   function updateInteractionHint() {
     if (destroyed) return;
 
@@ -392,11 +438,9 @@ export function enableEntityInteraction({
     setNearestVisual(nearest);
 
     if (nearest) {
-      hint.hidden = false;
-      lastHintObjectId = String(nearest.id);
+      showInteractionHintOnce(nearest);
     } else {
-      hint.hidden = true;
-      lastHintObjectId = null;
+      hideInteractionHint({ reset: true });
     }
 
     rafId = requestAnimationFrame(updateInteractionHint);
@@ -503,6 +547,7 @@ export function enableEntityInteraction({
   return () => {
     destroyed = true;
     clearTimeout(reloadTimer);
+    clearTimeout(hintHideTimer);
     cancelAnimationFrame(rafId);
 
     layer.removeEventListener('click', onClick, true);
