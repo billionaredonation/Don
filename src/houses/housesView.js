@@ -1,4 +1,8 @@
 import { renderHouseList } from './houseListView.js';
+import {
+  createHouseDetailsController,
+  renderHouseDetailsModal,
+} from './houseDetailsView.js';
 
 const FILTER_LABELS = {
   all: 'Все дома',
@@ -144,6 +148,8 @@ export function renderHousesFeatureHtml({ city, houses }) {
           </section>
         </div>
 
+        ${renderHouseDetailsModal()}
+
         <footer class="houses-footer">
           <span>ⓘ Сейчас активен только раздел домов. Бизнесы и работы будут добавлены позже.</span>
           <button class="houses-close-button" type="button" data-houses-stats-close>
@@ -155,7 +161,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
   `;
 }
 
-export function enableHousesStatsModal(root) {
+export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
   let modal = root.querySelector('.houses-modal');
 
   if (modal && modal.parentElement !== document.body) {
@@ -170,6 +176,10 @@ export function enableHousesStatsModal(root) {
   const filterLabel = modal?.querySelector('[data-houses-filter-label]');
   const houseItems = Array.from(modal?.querySelectorAll('[data-house-state]') || []);
   const filterEmpty = modal?.querySelector('[data-house-filter-empty]');
+
+  const detailsController = createHouseDetailsController(modal, {
+    onBuy: onBuyHouse,
+  });
 
   let activeFilter = getSavedFilter();
 
@@ -234,6 +244,7 @@ export function enableHousesStatsModal(root) {
     document.body.classList.remove('mn-houses-modal-open');
 
     setFilterMenuOpen(false);
+    detailsController.close();
   }
 
   function toggleFilterMenu(event) {
@@ -261,9 +272,20 @@ export function enableHousesStatsModal(root) {
 
     event.preventDefault();
     event.stopPropagation();
+
+    // Клик по дому внутри общего списка только показывает список.
+    // Детальная покупка отсюда не открывается.
   }
 
+  function handleGlobalHouseAction(event) {
+    const house = event.detail?.house;
+    if (!house) return;
 
+    // ВАЖНО:
+    // Клик по дому на карте открывает покупку.
+    // Клик по дому в списке выше НЕ открывает покупку.
+    detailsController.open(house);
+  }
 
   function handleOutsideClick(event) {
     if (!filterMenu || filterMenu.hidden) return;
@@ -278,7 +300,32 @@ export function enableHousesStatsModal(root) {
     }
   }
 
+  window.__MN_HOUSES__ = window.__MN_HOUSES__ || new Map();
+
+  houseItems.forEach((item) => {
+    const houseId = String(item.dataset.houseId);
+    const houseElement = item;
+
+    const house = {
+      id: houseId,
+      name: houseElement.querySelector('.house-card-title-row b')?.textContent || 'Дом',
+      icon: houseElement.querySelector('.house-card-icon')?.textContent || '🏠',
+      payload: {
+        price: Number(
+          houseElement
+            .querySelector('.house-price')
+            ?.textContent
+            ?.replace(/\D/g, '') || 0
+        ),
+        ownerId: item.dataset.houseState === 'owned' ? 'player' : '',
+      },
+    };
+
+    window.__MN_HOUSES__.set(houseId, house);
+  });
+
   openButton?.addEventListener('click', open);
+  window.addEventListener('mn:house-action', handleGlobalHouseAction);
   filterButton?.addEventListener('click', toggleFilterMenu);
   filterMenu?.addEventListener('click', handleFilterMenuClick);
   modal?.addEventListener('click', handleHouseClick);
@@ -295,6 +342,7 @@ export function enableHousesStatsModal(root) {
     close();
 
     openButton?.removeEventListener('click', open);
+    window.removeEventListener('mn:house-action', handleGlobalHouseAction);
     filterButton?.removeEventListener('click', toggleFilterMenu);
     filterMenu?.removeEventListener('click', handleFilterMenuClick);
     modal?.removeEventListener('click', handleHouseClick);
@@ -305,6 +353,7 @@ export function enableHousesStatsModal(root) {
       button.removeEventListener('click', close);
     });
 
+    detailsController.cleanup();
     modal?.remove();
     modal = null;
   };
