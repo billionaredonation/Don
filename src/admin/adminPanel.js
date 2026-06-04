@@ -449,37 +449,37 @@ export function enableAdminPanel({
     canShowPanel: () => enabled && !teleportMode,
   });
 
-  function setEnabled(next) {
-    enabled = Boolean(next);
+function setEnabled(next) {
+  enabled = Boolean(next);
 
-    if (teleportMode) {
-      root.dataset.adminMode = 'disabled';
-      panel.hidden = true;
-      enableAdminModeClass();
-      return;
-    }
+  if (teleportMode) {
+    root.dataset.adminMode = 'disabled';
+    panel.hidden = true;
+    enableAdminModeClass();
+    return;
+  }
 
-    root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
-    panel.hidden = !enabled;
+  root.dataset.adminMode = enabled ? 'enabled' : 'disabled';
+  panel.hidden = !enabled;
 
-    if (enabled) {
-      enableAdminModeClass();
-    } else {
-      disableAdminModeClass();
-    }
-
-    if (!enabled) {
-      placeMode = false;
-
-      objectMover?.resetMoveMode();
-
-      btnPlace.textContent = 'Клик: OFF';
-      return;
-    }
+  if (enabled) {
+    enableAdminModeClass();
 
     const point = getCurrentPlayerPoint(playerMarker, playerPosition);
     updateCoords(point.x, point.y);
+
+    reloadObjects();
+    return;
   }
+
+  disableAdminModeClass();
+
+  placeMode = false;
+
+  objectMover?.resetMoveMode();
+
+  btnPlace.textContent = 'Клик: OFF';
+}
 
   function togglePanel() {
     setEnabled(!enabled);
