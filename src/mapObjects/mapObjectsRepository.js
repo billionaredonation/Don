@@ -130,7 +130,10 @@ async function adminMapObjectsRequest(payload) {
 
 async function fetchRemoteObjects(cityId) {
   if (!cityId) {
+    alert('[mapObjects] cityId missing');
+
     console.warn('[mapObjectsRepository] fetch skipped: cityId missing');
+
     return [];
   }
 
@@ -140,6 +143,19 @@ async function fetchRemoteObjects(cityId) {
     .eq('city_id', cityId);
 
   if (error) {
+    const errorText = `
+[mapObjects ERROR]
+
+message: ${error.message}
+code: ${error.code}
+details: ${error.details || 'none'}
+hint: ${error.hint || 'none'}
+
+cityId: ${cityId}
+`;
+
+    alert(errorText);
+
     console.error('[mapObjectsRepository] supabase fetch error:', {
       message: error.message,
       details: error.details,
@@ -151,6 +167,12 @@ async function fetchRemoteObjects(cityId) {
     throw error;
   }
 
+  alert(
+    `[mapObjects] loaded ${data?.length || 0} objects for city: ${cityId}`
+  );
+
+  return Array.isArray(data) ? data : [];
+}
   console.log(
     `[mapObjectsRepository] loaded ${data?.length || 0} objects for city:`,
     cityId
