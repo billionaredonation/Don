@@ -812,6 +812,42 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
   transform: none !important;
 }
 
+
+.map-objects-layer .map-object.map-object-house,
+.map-objects-layer .map-object.map-object-house.map-object-visual-standard,
+.map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
+.map-objects-layer .map-object.map-object-house.map-object-visual-lux {
+  width: 11px !important;
+  height: 11px !important;
+  min-width: 11px !important;
+  min-height: 11px !important;
+  max-width: 11px !important;
+  max-height: 11px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--map-object-rotation, 0deg))
+    translateZ(0) !important;
+}
+
+.map-objects-layer .map-object.map-object-house .map-house-svg,
+.map-objects-layer .map-object.map-object-house.map-object-visual-standard .map-house-svg,
+.map-objects-layer .map-object.map-object-house.map-object-visual-comfort .map-house-svg,
+.map-objects-layer .map-object.map-object-house.map-object-visual-lux .map-house-svg {
+  width: 11px !important;
+  height: 11px !important;
+  min-width: 11px !important;
+  min-height: 11px !important;
+  max-width: 11px !important;
+  max-height: 11px !important;
+  display: block !important;
+  transform: none !important;
+}
 .map-object-badge,
 .map-object-sub {
   display: none !important;
