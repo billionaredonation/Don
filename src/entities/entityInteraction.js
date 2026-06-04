@@ -4,10 +4,13 @@ import {
   createMapObjectsLayer,
   renderMapObjects,
   getMapObjectIdFromEvent,
+  findMapObjectElement,
 } from '../mapObjects/mapObjectsRenderer.js';
 
 import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
+
+const INTERACTION_RADIUS_PX = 34;
 
 function getPurchasedHouseId(detail = {}) {
   return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
@@ -57,6 +60,122 @@ function markObjectAsPurchased(object, ownerId, ownerName) {
   };
 
   return object;
+}
+
+function isTypingTarget(target) {
+  const tagName = target?.tagName?.toLowerCase();
+
+  return (
+    tagName === 'input' ||
+    tagName === 'textarea' ||
+    tagName === 'select' ||
+    target?.isContentEditable === true
+  );
+}
+
+function isInteractKey(event) {
+  const key = String(event.key || '').toLowerCase();
+
+  return (
+    event.code === 'KeyE' ||
+    key === 'e' ||
+    key === 'у'
+  );
+}
+
+function isMobilePointerEvent(event) {
+  if (event?.pointerType === 'touch') return true;
+  if (event?.pointerType === 'pen') return true;
+
+  const hasTouch = navigator.maxTouchPoints > 0;
+  const narrowScreen = Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 820;
+
+  return hasTouch && narrowScreen;
+}
+
+function getElementCenter(element) {
+  if (!element) return null;
+
+  const rect = element.getBoundingClientRect();
+
+  if (!rect.width && !rect.height) return null;
+
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+}
+
+function getObjectDistancePx({
+  object,
+  objectElement,
+  playerMarker,
+  playerPosition,
+  viewport,
+}) {
+  const playerCenter = getElementCenter(playerMarker);
+  const objectCenter = getElementCenter(objectElement);
+
+  if (playerCenter && objectCenter) {
+    return Math.hypot(
+      objectCenter.x - playerCenter.x,
+      objectCenter.y - playerCenter.y
+    );
+  }
+
+  if (!object || !playerPosition || !viewport) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const rect = viewport.getBoundingClientRect();
+
+  const objectX = Number(object.x || 50);
+  const objectY = Number(object.y || 50);
+  const playerX = Number(playerPosition.x || 50);
+  const playerY = Number(playerPosition.y || 50);
+
+  const dx = ((objectX - playerX) / 100) * rect.width;
+  const dy = ((objectY - playerY) / 100) * rect.height;
+
+  return Math.hypot(dx, dy);
+}
+
+function showInteractionNotice(root, message) {
+  if (!root || !message) return;
+
+  let notice = root.querySelector('.entity-interaction-notice');
+
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.className = 'entity-interaction-notice';
+    notice.textContent = message;
+
+    root.appendChild(notice);
+  }
+
+  notice.textContent = message;
+  notice.hidden = false;
+
+  clearTimeout(notice._hideTimer);
+
+  notice._hideTimer = setTimeout(() => {
+    notice.hidden = true;
+  }, 1400);
+}
+
+function createInteractionHint(root) {
+  const hint = document.createElement('div');
+
+  hint.className = 'entity-interaction-hint';
+  hint.hidden = true;
+  hint.innerHTML = `
+    <b>E</b>
+    <span>Взаимодействовать</span>
+  `;
+
+  root.appendChild(hint);
+
+  return hint;
 }
 
 export function createEntityInteractionPanel(root) {
@@ -157,18 +276,26 @@ export function enableEntityInteraction({
   viewport,
   cityId,
   panel,
+  playerMarker,
+  playerPosition,
 }) {
   if (!root || !viewport || !cityId || !panel) return null;
 
   const layer = createMapObjectsLayer();
+
   layer.classList.add('map-objects-layer-public');
   layer.dataset.cityId = String(cityId);
 
   viewport.appendChild(layer);
 
+  const hint = createInteractionHint(root);
+
   let mapObjects = [];
   let reloadTimer = null;
   let destroyed = false;
+  let nearestObjectId = null;
+  let lastHintObjectId = null;
+  let rafId = 0;
 
   async function reloadObjects() {
     if (destroyed) return;
@@ -194,21 +321,138 @@ export function enableEntityInteraction({
     reloadTimer = setTimeout(reloadObjects, 250);
   }
 
+  function getObjectById(objectId) {
+    if (!objectId) return null;
+
+    return mapObjects.find((item) => String(item.id) === String(objectId)) || null;
+  }
+
+  function getDistanceToObject(object) {
+    if (!object) return Number.POSITIVE_INFINITY;
+
+    const objectElement = findMapObjectElement(layer, object.id);
+
+    return getObjectDistancePx({
+      object,
+      objectElement,
+      playerMarker,
+      playerPosition,
+      viewport,
+    });
+  }
+
+  function isObjectInInteractionRange(object) {
+    return getDistanceToObject(object) <= INTERACTION_RADIUS_PX;
+  }
+
+  function getNearestInteractableObject() {
+    let bestObject = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    mapObjects.forEach((object) => {
+      if (!object) return;
+
+      const distance = getDistanceToObject(object);
+
+      if (distance <= INTERACTION_RADIUS_PX && distance < bestDistance) {
+        bestObject = object;
+        bestDistance = distance;
+      }
+    });
+
+    return bestObject;
+  }
+
+  function clearNearestVisual() {
+    if (!nearestObjectId) return;
+
+    findMapObjectElement(layer, nearestObjectId)?.classList.remove('map-object-nearby');
+    nearestObjectId = null;
+  }
+
+  function setNearestVisual(object) {
+    const nextId = object?.id ? String(object.id) : null;
+
+    if (nearestObjectId === nextId) return;
+
+    clearNearestVisual();
+
+    nearestObjectId = nextId;
+
+    if (nearestObjectId) {
+      findMapObjectElement(layer, nearestObjectId)?.classList.add('map-object-nearby');
+    }
+  }
+
+  function updateInteractionHint() {
+    if (destroyed) return;
+
+    const nearest = getNearestInteractableObject();
+
+    setNearestVisual(nearest);
+
+    if (nearest) {
+      hint.hidden = false;
+      lastHintObjectId = String(nearest.id);
+    } else {
+      hint.hidden = true;
+      lastHintObjectId = null;
+    }
+
+    rafId = requestAnimationFrame(updateInteractionHint);
+  }
+
+  function tryOpenObject(object, { silent = false } = {}) {
+    if (!object) return false;
+
+    if (!isObjectInInteractionRange(object)) {
+      if (!silent) {
+        showInteractionNotice(root, 'Подойди ближе');
+      }
+
+      return false;
+    }
+
+    panel.open(object);
+    return true;
+  }
+
   function onClick(event) {
     const clickedObjectId = getMapObjectIdFromEvent(event);
     if (!clickedObjectId) return;
 
-    const object = mapObjects.find((item) => String(item.id) === String(clickedObjectId));
+    const object = getObjectById(clickedObjectId);
     if (!object) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    panel.open(object);
+    if (!isMobilePointerEvent(event)) {
+      showInteractionNotice(root, 'Подойди ближе и нажми E');
+      return;
+    }
+
+    tryOpenObject(object);
+  }
+
+  function onKeyDown(event) {
+    if (!isInteractKey(event)) return;
+    if (event.repeat) return;
+    if (isTypingTarget(event.target)) return;
+
+    const nearest = getNearestInteractableObject();
+
+    if (!nearest) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    tryOpenObject(nearest, { silent: true });
   }
 
   function onObjectsChanged(event) {
     if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
+
     scheduleReload();
   }
 
@@ -246,24 +490,31 @@ export function enableEntityInteraction({
     scheduleReload();
   }
 
-  layer.addEventListener('click', onClick);
-  layer.addEventListener('pointerdown', onClick);
+  layer.addEventListener('click', onClick, true);
+  layer.addEventListener('pointerdown', onClick, true);
+  window.addEventListener('keydown', onKeyDown, true);
 
   window.addEventListener('mn:map-objects-changed', onObjectsChanged);
   window.addEventListener('mn:house-purchased-local', onHousePurchased);
 
   reloadObjects();
+  rafId = requestAnimationFrame(updateInteractionHint);
 
   return () => {
     destroyed = true;
     clearTimeout(reloadTimer);
+    cancelAnimationFrame(rafId);
 
-    layer.removeEventListener('click', onClick);
-    layer.removeEventListener('pointerdown', onClick);
+    layer.removeEventListener('click', onClick, true);
+    layer.removeEventListener('pointerdown', onClick, true);
+    window.removeEventListener('keydown', onKeyDown, true);
 
     window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
     window.removeEventListener('mn:house-purchased-local', onHousePurchased);
 
+    clearNearestVisual();
+
+    hint.remove();
     layer.remove();
   };
 }
