@@ -1593,3 +1593,93 @@ body.mn-house-details-open .house-details-panel {
     font-size: 22px !important;
   }
 }
+
+
+@media (hover: none) and (pointer: coarse) {
+  .house-details-modal {
+    display: grid !important;
+    place-items: center !important;
+    padding: 10px !important;
+  }
+
+  .house-details-modal[hidden] {
+    display: none !important;
+  }
+
+  .house-details-panel {
+    width: min(430px, calc(100svh - 32px)) !important;
+    max-height: calc(100vw - 28px) !important;
+
+    overflow-y: auto !important;
+    padding: 14px !important;
+    border-radius: 22px !important;
+
+    transform: rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+
+  .house-details-header {
+    margin-bottom: 12px !important;
+  }
+
+  .house-details-header h3 {
+    font-size: 24px !important;
+    line-height: 1.05 !important;
+  }
+
+  .house-details-header button {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 13px !important;
+  }
+
+  .house-details-hero {
+    padding: 12px !important;
+    border-radius: 18px !important;
+    gap: 12px !important;
+  }
+
+  .house-details-icon {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 16px !important;
+  }
+
+  .house-details-hero strong {
+    font-size: 27px !important;
+  }
+
+  .house-details-grid {
+    gap: 10px !important;
+    margin-top: 12px !important;
+  }
+
+  .house-details-grid article {
+    padding: 11px 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .house-details-text {
+    margin: 12px 0 !important;
+    font-size: 13px !important;
+    line-height: 1.35 !important;
+  }
+
+  .house-details-actions button {
+    min-height: 42px !important;
+    border-radius: 15px !important;
+    font-size: 14px !important;
+  }
+
+  .houses-panel {
+    width: min(620px, calc(100svh - 32px)) !important;
+    max-height: calc(100vw - 28px) !important;
+    overflow-y: auto !important;
+
+    transform: rotate(90deg) !important;
+    transform-origin: center center !important;
+
+    padding: 12px !important;
+    border-radius: 20px !important;
+  }
+}
