@@ -41,8 +41,8 @@ export function renderHousesFeatureHtml({ city, houses }) {
             <span class="houses-title-icon">🏢</span>
 
             <div class="houses-title-text">
-              <h2>${city.name} — <span>недвижимость</span></h2>
-              <p>Дома, бизнесы, работы и городская экономика</p>
+              <h2>${city.name} — <span>город</span></h2>
+              <p>Недвижимость, бизнесы, работы и экономика города</p>
             </div>
           </div>
 
@@ -51,21 +51,34 @@ export function renderHousesFeatureHtml({ city, houses }) {
           </button>
         </header>
 
-        <nav class="houses-sections" aria-label="Разделы недвижимости">
-          <button type="button" class="houses-section-tab is-active" data-houses-section="houses">
-            🏠 Дома
+        <div class="houses-section-cards" aria-label="Разделы города">
+          <button type="button" class="houses-section-card houses-section-card-houses is-active" data-houses-section="houses">
+            <span class="houses-section-card-icon">🏠</span>
+            <span class="houses-section-card-text">
+              <strong>Дома</strong>
+              <small>Недвижимость игроков</small>
+            </span>
+            <b>${houses.housesTotal}</b>
           </button>
 
-          <button type="button" class="houses-section-tab is-disabled" data-houses-section="businesses" disabled>
-            🏪 Бизнесы
-            <span>скоро</span>
+          <button type="button" class="houses-section-card houses-section-card-business is-disabled" data-houses-section="businesses" disabled>
+            <span class="houses-section-card-icon">💵</span>
+            <span class="houses-section-card-text">
+              <strong>Бизнесы</strong>
+              <small>Доходные объекты · скоро</small>
+            </span>
+            <b>0</b>
           </button>
 
-          <button type="button" class="houses-section-tab is-disabled" data-houses-section="jobs" disabled>
-            💼 Работы
-            <span>скоро</span>
+          <button type="button" class="houses-section-card houses-section-card-jobs is-disabled" data-houses-section="jobs" disabled>
+            <span class="houses-section-card-icon">🤝</span>
+            <span class="houses-section-card-text">
+              <strong>Работы</strong>
+              <small>Заработок игрока · скоро</small>
+            </span>
+            <b>0</b>
           </button>
-        </nav>
+        </div>
 
         <div class="houses-section-content" data-houses-section-content="houses">
           <div class="houses-stats-grid">
@@ -132,7 +145,7 @@ export function renderHousesFeatureHtml({ city, houses }) {
         </div>
 
         <footer class="houses-footer">
-          <span>ⓘ Сейчас доступен только раздел домов. Бизнесы и работы будут добавлены позже.</span>
+          <span>ⓘ Сейчас активен только раздел домов. Бизнесы и работы будут добавлены позже.</span>
           <button class="houses-close-button" type="button" data-houses-stats-close>
             Закрыть
           </button>
@@ -248,16 +261,9 @@ export function enableHousesStatsModal(root) {
 
     event.preventDefault();
     event.stopPropagation();
-
-    // ВАЖНО:
-    // В этой модалке дома только отображаются.
-    // Покупка/детальная карточка отсюда не открывается.
   }
 
   function handleGlobalHouseAction(event) {
-    // ВАЖНО:
-    // Клик по дому не должен открывать меню покупки из этой информационной модалки.
-    // Покупку будем выносить отдельно, когда будем полировать механику домов.
     event?.preventDefault?.();
   }
 
