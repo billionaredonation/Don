@@ -10,9 +10,7 @@ function escapeHtml(value) {
 function formatPrice(value) {
   const number = Number(value || 0);
 
-  if (!Number.isFinite(number) || number <= 0) {
-    return '';
-  }
+  if (!Number.isFinite(number) || number <= 0) return '';
 
   return `${number.toLocaleString('ru-RU')}₴`;
 }
@@ -38,12 +36,13 @@ function getHouseOwnerName(object) {
 }
 
 function getHouseClass(object) {
-  return (
-    object?.payload?.houseClassLabel ||
+  return String(
     object?.payload?.houseClass ||
+    object?.payload?.houseClassLabel ||
     object?.variant ||
+    object?.class ||
     'standard'
-  );
+  ).toLowerCase();
 }
 
 function getHousePrice(object) {
@@ -55,6 +54,64 @@ function getHouseState(object) {
   if (object?.payload?.locked) return 'locked';
 
   return 'free';
+}
+
+function normalizeHouseClass(value) {
+  const raw = String(value || '').toLowerCase();
+
+  if (raw === 'std' || raw === 'standard' || raw === 'стандарт') return 'standard';
+  if (raw === 'comfort' || raw === 'комфорт') return 'comfort';
+  if (raw === 'lux' || raw === 'luxe' || raw === 'luxury' || raw === 'люкс') return 'lux';
+
+  return 'standard';
+}
+
+function renderHouseSvgIcon(houseClass, state) {
+  const normalizedClass = normalizeHouseClass(houseClass);
+  const isOwned = state === 'owned';
+  const isLocked = state === 'locked';
+
+  const main = isLocked ? '#9ca3af' : isOwned ? '#ff4d5e' : '#35e985';
+  const dark = isLocked ? '#4b5563' : isOwned ? '#8f1d2d' : '#0f8f52';
+  const soft = isLocked ? '#d1d5db' : isOwned ? '#ff9aaa' : '#93ffc4';
+  const roof = isLocked ? '#6b7280' : isOwned ? '#ff3148' : '#20d977';
+
+  if (normalizedClass === 'lux') {
+    return `
+      <svg class="map-house-svg map-house-svg-lux" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M8 54h48" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        <path d="M16 28L32 12l16 16v26H16V28z" fill="${main}" stroke="${soft}" stroke-width="3"/>
+        <path d="M12 29L32 8l20 21" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M24 54V36h16v18" fill="${dark}"/>
+        <path d="M21 31h8v8h-8zM35 31h8v8h-8z" fill="#ffffff" opacity="0.88"/>
+        <path d="M32 8l5 10h-10l5-10z" fill="${soft}"/>
+        <circle cx="32" cy="26" r="4" fill="#ffffff" opacity="0.9"/>
+      </svg>
+    `;
+  }
+
+  if (normalizedClass === 'comfort') {
+    return `
+      <svg class="map-house-svg map-house-svg-comfort" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M10 54h44" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        <path d="M14 30L32 14l18 16v24H14V30z" fill="${main}" stroke="${soft}" stroke-width="3"/>
+        <path d="M10 31L32 11l22 20" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M25 54V38h14v16" fill="${dark}"/>
+        <path d="M19 34h9v8h-9zM36 34h9v8h-9z" fill="#ffffff" opacity="0.9"/>
+        <path d="M45 22v-8h7v15" fill="${dark}"/>
+      </svg>
+    `;
+  }
+
+  return `
+    <svg class="map-house-svg map-house-svg-standard" viewBox="0 0 64 64" aria-hidden="true">
+      <path d="M12 54h40" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+      <path d="M18 31L32 18l14 13v23H18V31z" fill="${main}" stroke="${soft}" stroke-width="3"/>
+      <path d="M14 32L32 15l18 17" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M26 54V39h12v15" fill="${dark}"/>
+      <path d="M21 35h8v8h-8zM36 35h8v8h-8z" fill="#ffffff" opacity="0.88"/>
+    </svg>
+  `;
 }
 
 function getObjectMeta(object) {
@@ -76,41 +133,10 @@ function getObjectMeta(object) {
 
     return {
       title: `${object.name || 'Дом'} · ${houseClass} · ${statusText}${ownerName ? ` · ${ownerName}` : ''}${priceText ? ` · ${priceText}` : ''}`,
-      visualClass: payload.visualClass || object.variant || 'standard',
+      visualClass: normalizeHouseClass(houseClass),
       state,
       ownerId,
-    };
-  }
-
-  if (object.category === 'business') {
-    const priceText = formatPrice(payload.price);
-    const incomeText = Number(payload.incomePerHour || 0) > 0
-      ? `${Number(payload.incomePerHour).toLocaleString('ru-RU')}₴/ч`
-      : '';
-
-    return {
-      title: `${object.name || 'Бизнес'} · ${payload.businessLabel || object.type}${priceText ? ` · ${priceText}` : ''}${incomeText ? ` · ${incomeText}` : ''}`,
-      visualClass: object.type || 'business',
-      state: 'business',
-      ownerId: null,
-    };
-  }
-
-  if (object.category === 'npc') {
-    return {
-      title: object.name || 'NPC',
-      visualClass: object.type || 'npc',
-      state: 'default',
-      ownerId: null,
-    };
-  }
-
-  if (object.category === 'decor') {
-    return {
-      title: object.name || 'Декор',
-      visualClass: object.type || 'decor',
-      state: 'default',
-      ownerId: null,
+      iconHtml: renderHouseSvgIcon(houseClass, state),
     };
   }
 
@@ -119,6 +145,7 @@ function getObjectMeta(object) {
     visualClass: object.type || 'marker',
     state: 'default',
     ownerId: null,
+    iconHtml: `<span class="map-object-icon">${escapeHtml(object.icon || '◆')}</span>`,
   };
 }
 
@@ -141,14 +168,9 @@ export function renderMapObjects(layer, objects = []) {
       const selectedClass = object.selected ? 'map-object-selected' : '';
       const meta = getObjectMeta(object);
 
-      const categoryClass = `map-object-${escapeHtml(object.category)}`;
-      const typeClass = `map-object-type-${escapeHtml(object.type)}`;
-      const visualClass = `map-object-visual-${escapeHtml(meta.visualClass)}`;
-      const stateClass = `map-object-state-${escapeHtml(meta.state)}`;
-
       return `
         <button
-          class="map-object ${categoryClass} ${typeClass} ${visualClass} ${stateClass} ${selectedClass}"
+          class="map-object map-object-${escapeHtml(object.category)} map-object-type-${escapeHtml(object.type)} map-object-visual-${escapeHtml(meta.visualClass)} map-object-state-${escapeHtml(meta.state)} ${selectedClass}"
           data-map-object-id="${escapeHtml(object.id)}"
           data-map-object-type="${escapeHtml(object.type)}"
           data-map-object-category="${escapeHtml(object.category)}"
@@ -164,7 +186,7 @@ export function renderMapObjects(layer, objects = []) {
             --map-object-rotation: ${rotation}deg;
           "
         >
-          <span class="map-object-icon">${escapeHtml(object.icon || '◆')}</span>
+          ${meta.iconHtml}
         </button>
       `;
     })
