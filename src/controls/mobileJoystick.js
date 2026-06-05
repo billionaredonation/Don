@@ -32,12 +32,19 @@ function isRotatedMobileScene() {
   return isPortraitScreen();
 }
 
+/**
+ * Карта на мобилке повернута через CSS rotate(90deg).
+ * Поэтому экранный ввод надо компенсировать обратно.
+ */
 function rotateInputForMobileScene(inputX, inputY) {
   if (!isRotatedMobileScene()) {
     return { x: inputX, y: inputY };
   }
 
-  return { x: inputY, y: -inputX };
+  return {
+    x: -inputY,
+    y: inputX,
+  };
 }
 
 function getAngleFromMovement(moveX, moveY, fallback = 0) {
@@ -62,6 +69,28 @@ function getInitialPosition(playerPosition, marker, bounds) {
     x: clamp(px ?? mx ?? sx ?? 50, bounds.minX, bounds.maxX),
     y: clamp(py ?? my ?? sy ?? 50, bounds.minY, bounds.maxY),
   };
+}
+
+function forceShowMarker(marker) {
+  if (!marker) return;
+
+  marker.style.position = 'absolute';
+  marker.style.display = 'block';
+  marker.style.opacity = '1';
+  marker.style.visibility = 'visible';
+  marker.style.zIndex = '999';
+  marker.style.pointerEvents = 'none';
+  marker.style.transform = 'translate(-50%, -50%)';
+
+  const dot =
+    marker.querySelector('.gta-player-marker-dot') ||
+    marker.firstElementChild;
+
+  if (dot) {
+    dot.style.display = 'block';
+    dot.style.opacity = '1';
+    dot.style.visibility = 'visible';
+  }
 }
 
 export function enableMobileJoystick(
@@ -202,6 +231,7 @@ export function enableMobileJoystick(
     y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
 
     syncPlayerPosition();
+    forceShowMarker(marker);
 
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
@@ -307,8 +337,6 @@ export function enableMobileJoystick(
 
     const inputX = dx / rawDistance;
     const inputY = dy / rawDistance;
-
-    const rotatedInput = rotateInputForMobileScene(inputX, inputY);
     const power = distance / MAX_DISTANCE;
 
     if (power < DEADZONE) {
@@ -316,15 +344,20 @@ export function enableMobileJoystick(
       return;
     }
 
-    moveX = rotatedInput.x * power;
-    moveY = rotatedInput.y * power;
+    const movementInput = rotateInputForMobileScene(inputX, inputY);
+
+    moveX = movementInput.x * power;
+    moveY = movementInput.y * power;
 
     angle = getAngleFromMovement(moveX, moveY, angle);
     syncPlayerPosition();
 
-    const visualInput = rotateInputForMobileScene(inputX, inputY);
-    const stickX = visualInput.x * distance;
-    const stickY = visualInput.y * distance;
+    /*
+      Визуально стик должен двигаться туда, куда тянет палец.
+      Поэтому для stick НЕ используем rotateInputForMobileScene.
+    */
+    const stickX = inputX * distance;
+    const stickY = inputY * distance;
 
     stick.style.transform =
       `translate(-50%, -50%) translate3d(${stickX}px, ${stickY}px, 0)`;
@@ -353,6 +386,7 @@ export function enableMobileJoystick(
       savePositionToDb(false);
     } else {
       syncPlayerPosition();
+      renderPlayer();
     }
 
     animationId = requestAnimationFrame(loop);
