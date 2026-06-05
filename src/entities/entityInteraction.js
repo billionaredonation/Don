@@ -7,15 +7,6 @@ import {
   findMapObjectElement,
 } from '../mapObjects/mapObjectsRenderer.js';
 
-
-
-const gameplayRoot =
-  document.querySelector('.gta-map-stage') ||
-  document.querySelector('.home-gameplay') ||
-  document.body;
-
-gameplayRoot.appendChild(interactionHint);
-
 import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
@@ -108,6 +99,15 @@ function isMobilePointerEvent(event) {
   return isMobileGameplayDevice();
 }
 
+function getGameplayRoot(root) {
+  return (
+    document.querySelector('.gta-map-stage') ||
+    document.querySelector('.home-gameplay') ||
+    root ||
+    document.body
+  );
+}
+
 function getElementCenter(element) {
   if (!element) return null;
 
@@ -163,7 +163,7 @@ function showInteractionNotice(root, message) {
   if (!notice) {
     notice = document.createElement('div');
     notice.className = 'entity-interaction-notice';
-    root.appendChild(notice);
+    getGameplayRoot(root).appendChild(notice);
   }
 
   notice.textContent = message;
@@ -186,7 +186,7 @@ function createInteractionHint(root) {
     <span data-interaction-hint-text>Взаимодействовать</span>
   `;
 
-  root.appendChild(hint);
+  getGameplayRoot(root).appendChild(hint);
 
   return hint;
 }
@@ -206,7 +206,7 @@ export function createEntityInteractionPanel(root) {
     <button class="house-selection-action" type="button">Выбрать</button>
   `;
 
-  root.appendChild(panel);
+  getGameplayRoot(root).appendChild(panel);
 
   const closeButton = panel.querySelector('.house-selection-close');
   const titleEl = panel.querySelector('.house-selection-title');
@@ -587,11 +587,3 @@ export function enableEntityInteraction({
     layer.remove();
   };
 }
-
-
-const gameplayRoot =
-  document.querySelector('.gta-map-stage') ||
-  document.querySelector('.home-gameplay') ||
-  document.body;
-
-gameplayRoot.appendChild(selectionPanel);
