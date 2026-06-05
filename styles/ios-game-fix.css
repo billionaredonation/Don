@@ -457,3 +457,116 @@ body,
     -webkit-overflow-scrolling: touch !important;
   }
 }
+
+/* =========================================================
+   MOBILE FINAL PATCH
+   джойстик слева под Close, стамина под ним,
+   админка между профилем и балансом,
+   игрок поверх карты
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Игрок / объекты поверх карты */
+  .home[data-mobile-controls="enabled"] .gta-map-viewport {
+    isolation: isolate !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-image {
+    z-index: 10 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-entities {
+    position: absolute !important;
+    inset: 0 !important;
+
+    z-index: 120 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker {
+    z-index: 240 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker-dot {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* Джойстик слева под Close */
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    position: absolute !important;
+
+    left: 34px !important;
+    top: 118px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 104px !important;
+    height: 104px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 760 !important;
+    pointer-events: auto !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    width: 104px !important;
+    height: 104px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-stick {
+    width: 46px !important;
+    height: 46px !important;
+  }
+
+  /* Стамина под джойстиком */
+  .home[data-mobile-controls="enabled"] .pc-stamina,
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] .stamina-panel,
+  .home[data-mobile-controls="enabled"] [data-player-stamina] {
+    position: absolute !important;
+
+    left: 36px !important;
+    top: 236px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 104px !important;
+    height: 190px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 740 !important;
+  }
+
+  /* Админка между профилем и балансом */
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: absolute !important;
+
+    right: 28px !important;
+    top: 372px !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    width: 58px !important;
+    height: 58px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 780 !important;
+    pointer-events: auto !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .admin-status-dot > * {
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+}
