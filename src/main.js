@@ -12,6 +12,8 @@ import '../pages/home/home.js';
 
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
 
+import '../styles/ios-game-fix.css';
+
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
 
