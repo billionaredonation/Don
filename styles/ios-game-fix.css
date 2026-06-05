@@ -1,9 +1,5 @@
 /* styles/ios-game-fix.css */
 
-/* =========================================================
-   GLOBAL
-   ========================================================= */
-
 html,
 body,
 #app {
@@ -25,8 +21,9 @@ body,
 }
 
 /* =========================================================
-   PC FIX: разрешение не трогаем, карту возвращаем в норму
+   PC: карта дальше и темнее, разрешение не трогаем
    ========================================================= */
+
 @media (hover: hover) and (pointer: fine) {
   .home-gameplay,
   .gta-map-stage,
@@ -42,17 +39,14 @@ body,
     width: 100% !important;
     height: 100% !important;
 
-    object-fit: contain !important;
+    object-fit: cover !important;
     object-position: center center !important;
 
     filter:
       grayscale(1)
       saturate(0)
-      contrast(1.8)
-      brightness(0.42) !important;
-
-    transform: scale(0.72) !important;
-    transform-origin: center center !important;
+      contrast(1.55)
+      brightness(0.52) !important;
   }
 
   .gta-map-glow {
@@ -74,13 +68,18 @@ body,
   }
 
   .fog-of-war-canvas {
-    position: absolute !important;
-    inset: 0 !important;
-    z-index: 18 !important;
-    width: 100% !important;
-    height: 100% !important;
-    pointer-events: none !important;
     opacity: 0.42 !important;
+    pointer-events: none !important;
+  }
+
+  .gta-map-entities {
+    z-index: 90 !important;
+  }
+
+  .gta-player-marker {
+    z-index: 140 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   .admin-status-dot {
@@ -90,7 +89,7 @@ body,
 }
 
 /* =========================================================
-   MOBILE GAMEPLAY: карта остаётся боком
+   MOBILE: карта боком, но HUD и модалки читаемые
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
@@ -150,90 +149,137 @@ body,
   }
 
   .home[data-mobile-controls="enabled"] .gta-map-image {
+    opacity: 1 !important;
+    visibility: visible !important;
+
     filter:
       grayscale(1)
       saturate(0)
-      contrast(1.75)
-      brightness(1.05)
-      drop-shadow(0 0 1px rgba(255,255,255,0.55)) !important;
+      contrast(1.7)
+      brightness(0.82)
+      drop-shadow(0 0 1px rgba(255,255,255,0.45)) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-glow {
+    opacity: 0 !important;
+    display: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-sky-light {
+    opacity: 0 !important;
+    display: none !important;
   }
 
   .home[data-mobile-controls="enabled"] .fog-of-war-canvas {
-    position: absolute !important;
-    inset: 0 !important;
-    z-index: 18 !important;
-    width: 100% !important;
-    height: 100% !important;
+    opacity: 0.36 !important;
     pointer-events: none !important;
-    opacity: 0.72 !important;
   }
 
-  /* =======================================================
-     MOBILE HUD: чутка удобнее
-     ======================================================= */
+  .home[data-mobile-controls="enabled"] .gta-map-entities {
+    z-index: 120 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
 
+  .home[data-mobile-controls="enabled"] .gta-player-marker {
+    z-index: 220 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker-self {
+    z-index: 240 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker-dot {
+    width: 18px !important;
+    height: 18px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* HUD: делаем компактнее, чтобы не мешал */
   .home[data-mobile-controls="enabled"] .player-glass-hud {
-    top: 12px !important;
-    left: 16px !important;
-    right: 16px !important;
+    top: 10px !important;
+    left: 12px !important;
+    right: 12px !important;
 
-    height: 40px !important;
-    grid-template-columns: 126px 1fr 82px !important;
-    gap: 8px !important;
+    height: 38px !important;
+    grid-template-columns: 118px minmax(118px, 1fr) 86px !important;
+    gap: 7px !important;
 
-    z-index: 95 !important;
+    z-index: 500 !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-city-button,
   .home[data-mobile-controls="enabled"] .player-profile-card,
   .home[data-mobile-controls="enabled"] .player-balance-card {
     height: 38px !important;
+    min-height: 38px !important;
     border-radius: 14px !important;
-    background: rgba(6, 10, 16, 0.72) !important;
-    backdrop-filter: blur(14px) saturate(1.1) !important;
-    -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+
+    background: rgba(4, 8, 14, 0.72) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+
+    backdrop-filter: blur(14px) saturate(1.15) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button span {
+    font-size: 14px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info strong {
+    font-size: 12px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info small {
+    font-size: 8px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card strong {
+    font-size: 12px !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-weather-mini {
-    left: 16px !important;
-    top: 58px !important;
-    z-index: 96 !important;
-    background: rgba(6, 10, 16, 0.72) !important;
+    left: 14px !important;
+    top: 56px !important;
+    height: 26px !important;
+
+    z-index: 501 !important;
+
+    background: rgba(4, 8, 14, 0.72) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-network-card {
-    top: 58px !important;
-    z-index: 96 !important;
-    background: rgba(6, 10, 16, 0.72) !important;
+    top: 56px !important;
+    right: 14px !important;
+
+    z-index: 501 !important;
+
+    background: rgba(4, 8, 14, 0.72) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
   }
 
-  .home[data-mobile-controls="enabled"] .mobile-stamina,
-  .home[data-mobile-controls="enabled"] .pc-stamina {
-    left: 18px !important;
-    bottom: 18px !important;
-    z-index: 150 !important;
-  }
+  .home[data-mobile-controls="enabled"] .pc-stamina,
+  .home[data-mobile-controls="enabled"] .mobile-stamina {
+    left: 14px !important;
+    bottom: 14px !important;
 
-  .home[data-mobile-controls="enabled"] .admin-status-dot {
-    position: absolute !important;
+    width: 132px !important;
+    height: 38px !important;
 
-    right: 18px !important;
-    bottom: 96px !important;
+    z-index: 520 !important;
 
-    width: 44px !important;
-    height: 44px !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-
-    z-index: 850 !important;
+    background: rgba(4, 8, 14, 0.78) !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-controls-layer {
     position: absolute !important;
     inset: 0 !important;
 
-    z-index: 120 !important;
+    z-index: 530 !important;
     pointer-events: none !important;
 
     transform: none !important;
@@ -243,10 +289,13 @@ body,
   .home[data-mobile-controls="enabled"] .mobile-joystick {
     position: absolute !important;
 
-    left: 18px !important;
-    bottom: 18px !important;
+    left: 14px !important;
+    bottom: 62px !important;
 
-    z-index: 130 !important;
+    width: 86px !important;
+    height: 86px !important;
+
+    z-index: 540 !important;
     pointer-events: auto !important;
     touch-action: none !important;
 
@@ -257,51 +306,86 @@ body,
   .home[data-mobile-controls="enabled"] .mobile-control-toggle {
     position: absolute !important;
 
-    right: 18px !important;
-    bottom: 18px !important;
+    right: 14px !important;
+    bottom: 16px !important;
     left: auto !important;
+
+    width: 52px !important;
+    height: 52px !important;
+
+    z-index: 540 !important;
 
     transform: none !important;
     rotate: 0deg !important;
   }
 
-  /* Нижняя карточка дома остаётся в игровом боковом слое */
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: absolute !important;
+
+    right: 14px !important;
+    bottom: 82px !important;
+
+    width: 42px !important;
+    height: 42px !important;
+
+    z-index: 850 !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  /* Нижняя карточка дома */
   .home[data-mobile-controls="enabled"] .house-selection-panel {
     position: absolute !important;
 
     left: 50% !important;
-    right: auto !important;
-    top: auto !important;
-    bottom: 16px !important;
+    bottom: 14px !important;
 
-    width: min(430px, calc(100% - 34px)) !important;
-    min-height: 62px !important;
+    width: min(410px, calc(100% - 28px)) !important;
+    min-height: 58px !important;
 
-    grid-template-columns: 40px minmax(0, 1fr) auto !important;
-    gap: 10px !important;
+    grid-template-columns: 38px minmax(0, 1fr) auto !important;
+    gap: 9px !important;
 
-    padding: 10px 12px !important;
-    border-radius: 18px !important;
+    padding: 9px 11px !important;
+    border-radius: 17px !important;
 
     transform: translateX(-50%) !important;
     rotate: 0deg !important;
 
-    z-index: 26000 !important;
+    z-index: 700 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-title {
+    font-size: 15px !important;
+    line-height: 1.05 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-meta {
+    max-width: 220px !important;
+
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
 
   .home[data-mobile-controls="enabled"] .entity-interaction-hint,
   .home[data-mobile-controls="enabled"] .entity-interaction-notice {
     position: absolute !important;
+
     left: 50% !important;
     right: auto !important;
     top: auto !important;
 
-    max-width: min(340px, calc(100% - 28px)) !important;
+    max-width: min(330px, calc(100% - 28px)) !important;
 
     transform: translateX(-50%) !important;
     rotate: 0deg !important;
 
-    z-index: 27000 !important;
+    z-index: 760 !important;
   }
 
   .home[data-mobile-controls="enabled"] .entity-interaction-hint {
@@ -314,7 +398,7 @@ body,
 }
 
 /* =========================================================
-   MOBILE MODALS: модалки как на ПК, НЕ боком
+   MOBILE MODALS: НЕ боком, как нормальная мобильная модалка
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
@@ -328,10 +412,7 @@ body,
   body.mn-house-details-open .house-details-modal {
     position: fixed !important;
 
-    left: 0 !important;
-    top: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
+    inset: 0 !important;
 
     width: 100vw !important;
     height: var(--mn-vh, 100dvh) !important;
@@ -341,7 +422,7 @@ body,
     place-items: center !important;
 
     padding:
-      calc(env(safe-area-inset-top, 0px) + 56px)
+      calc(env(safe-area-inset-top, 0px) + 58px)
       14px
       calc(env(safe-area-inset-bottom, 0px) + 16px)
       14px !important;
@@ -369,11 +450,11 @@ body,
     inset: 0 !important;
 
     background:
-      radial-gradient(circle at 50% 35%, rgba(99, 58, 255, 0.22), transparent 42%),
-      rgba(0, 0, 0, 0.72) !important;
+      radial-gradient(circle at 50% 30%, rgba(99, 58, 255, 0.24), transparent 42%),
+      rgba(0, 0, 0, 0.76) !important;
 
-    backdrop-filter: blur(9px) !important;
-    -webkit-backdrop-filter: blur(9px) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
 
     transform: none !important;
     rotate: 0deg !important;
@@ -401,13 +482,7 @@ body,
   body.mn-houses-modal-open .houses-panel {
     width: min(560px, calc(100vw - 28px)) !important;
     max-width: calc(100vw - 28px) !important;
-    max-height:
-      calc(
-        var(--mn-vh, 100dvh)
-        - env(safe-area-inset-top, 0px)
-        - env(safe-area-inset-bottom, 0px)
-        - 86px
-      ) !important;
+    max-height: calc(var(--mn-vh, 100dvh) - 92px) !important;
 
     padding: 16px !important;
     border-radius: 26px !important;
@@ -416,30 +491,10 @@ body,
   body.mn-house-details-open .house-details-panel {
     width: min(440px, calc(100vw - 28px)) !important;
     max-width: calc(100vw - 28px) !important;
-    max-height:
-      calc(
-        var(--mn-vh, 100dvh)
-        - env(safe-area-inset-top, 0px)
-        - env(safe-area-inset-bottom, 0px)
-        - 90px
-      ) !important;
+    max-height: calc(var(--mn-vh, 100dvh) - 96px) !important;
 
     padding: 18px !important;
     border-radius: 26px !important;
-  }
-
-  body.mn-houses-modal-open .houses-header {
-    margin-bottom: 14px !important;
-  }
-
-  body.mn-houses-modal-open .houses-title-text h2 {
-    font-size: 22px !important;
-    line-height: 1.05 !important;
-  }
-
-  body.mn-houses-modal-open .houses-title-text p {
-    font-size: 12px !important;
-    line-height: 1.25 !important;
   }
 
   body.mn-houses-modal-open .houses-section-cards,
@@ -449,19 +504,19 @@ body,
   }
 
   body.mn-houses-modal-open .houses-section-card {
-    min-height: 72px !important;
+    min-height: 70px !important;
     padding: 12px !important;
     border-radius: 18px !important;
   }
 
   body.mn-houses-modal-open .houses-stat-card {
-    min-height: 92px !important;
+    min-height: 88px !important;
     padding: 13px !important;
     border-radius: 18px !important;
   }
 
   body.mn-houses-modal-open .houses-stat-card strong {
-    font-size: 26px !important;
+    font-size: 25px !important;
   }
 
   body.mn-houses-modal-open .house-list li {
@@ -476,11 +531,6 @@ body,
     line-height: 1.05 !important;
   }
 
-  body.mn-house-details-open .house-details-hero {
-    padding: 16px !important;
-    border-radius: 20px !important;
-  }
-
   body.mn-house-details-open .house-details-hero strong {
     font-size: 32px !important;
     line-height: 1 !important;
@@ -491,20 +541,9 @@ body,
     gap: 10px !important;
   }
 
-  body.mn-house-details-open .house-details-grid article {
-    padding: 12px !important;
-    border-radius: 16px !important;
-  }
-
   body.mn-house-details-open .house-details-text {
     font-size: 14px !important;
     line-height: 1.35 !important;
-  }
-
-  body.mn-house-details-open .house-details-actions button {
-    min-height: 46px !important;
-    border-radius: 16px !important;
-    font-size: 15px !important;
   }
 
   body.mn-houses-modal-open .player-glass-hud,
@@ -530,45 +569,5 @@ body,
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
-  }
-}
-
-/* =========================================================
-   SMALL MOBILE HEIGHT
-   ========================================================= */
-
-@media (hover: none) and (pointer: coarse) and (max-height: 430px) {
-  body.mn-houses-modal-open .houses-modal,
-  body.mn-house-details-open .house-details-modal {
-    padding:
-      calc(env(safe-area-inset-top, 0px) + 42px)
-      10px
-      calc(env(safe-area-inset-bottom, 0px) + 10px)
-      10px !important;
-  }
-
-  body.mn-houses-modal-open .houses-panel,
-  body.mn-house-details-open .house-details-panel {
-    max-height:
-      calc(
-        var(--mn-vh, 100dvh)
-        - env(safe-area-inset-top, 0px)
-        - env(safe-area-inset-bottom, 0px)
-        - 62px
-      ) !important;
-
-    padding: 14px !important;
-  }
-
-  body.mn-houses-modal-open .houses-title-text h2 {
-    font-size: 20px !important;
-  }
-
-  body.mn-house-details-open .house-details-header h3 {
-    font-size: 25px !important;
-  }
-
-  body.mn-house-details-open .house-details-hero strong {
-    font-size: 28px !important;
   }
 }
