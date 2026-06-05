@@ -1,8 +1,6 @@
-// src/main.js
 import { show } from './router.js';
-import { initRuntime, getState, loadRemote, resetLocalStateOnly } from './state.js';
+import { initRuntime, getState, loadRemote } from './state.js';
 
-// статические страницы
 import '../pages/auth/auth.js';
 import '../pages/welcome1/welcome1.js';
 import '../pages/welcome2/welcome2.js';
@@ -11,19 +9,19 @@ import '../pages/preload/preload.js';
 import '../pages/home/home.js';
 
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
+import { setupTelegramGameShell } from './telegram/telegramGameShell.js';
 
+/* ВАЖНО: ПОСЛЕДНИМ */
 import '../styles/ios-game-fix.css';
 
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
 
-  if (!root) {
-    return;
-  }
+  if (!root) return;
 
   root.innerHTML = `
     <main style="
-      min-height:100dvh;
+      min-height:100vh;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -39,7 +37,6 @@ function renderTelegramOnlyScreen() {
         border:1px solid rgba(255,255,255,.16);
         border-radius:22px;
         background:rgba(255,255,255,.06);
-        box-shadow:0 24px 90px rgba(0,0,0,.58);
       ">
         <h1 style="margin:0 0 12px;font-size:28px;">
           Запуск только через Telegram
@@ -47,7 +44,6 @@ function renderTelegramOnlyScreen() {
 
         <p style="margin:0;opacity:.75;line-height:1.45;font-size:15px;">
           Открой игру через Telegram Mini App.
-          В обычном браузере вход отключён.
         </p>
       </section>
     </main>
@@ -59,32 +55,6 @@ function isTelegramWebApp() {
     Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user);
 }
 
-function renderBootError(error) {
-  console.error(error);
-
-  const root = document.getElementById('app');
-
-  if (!root) {
-    return;
-  }
-
-  root.innerHTML = `
-    <div style="
-      min-height:100vh;
-      background:#050505;
-      color:#fff;
-      padding:20px;
-      font-family:Arial,sans-serif;
-      white-space:pre-wrap;
-      line-height:1.45;
-    ">
-      Ошибка запуска:
-
-      ${error?.stack || error?.message || error}
-    </div>
-  `;
-}
-
 async function boot() {
   try {
     if (!isTelegramWebApp()) {
@@ -94,25 +64,23 @@ async function boot() {
 
     await verifyTelegramAccess();
 
-    window.Telegram?.WebApp?.ready?.();
-    window.Telegram?.WebApp?.expand?.();
+    setupTelegramGameShell();
 
     initRuntime();
 
     await loadRemote();
 
-    const currentState = getState();
+    const state = getState();
 
     const nickname =
-      currentState.nickname ||
-      currentState.player?.nickname ||
+      state.nickname ||
+      state.player?.nickname ||
       '';
 
     const city =
-      currentState.city ||
-      currentState.cityId ||
-      currentState.player?.city ||
-      currentState.player?.cityId ||
+      state.city ||
+      state.cityId ||
+      state.player?.city ||
       '';
 
     if (!nickname) {
@@ -130,7 +98,20 @@ async function boot() {
       mode: 'return',
     });
   } catch (error) {
-    renderBootError(error);
+    console.error(error);
+
+    document.getElementById('app').innerHTML = `
+      <div style="
+        min-height:100vh;
+        background:#050505;
+        color:#fff;
+        padding:20px;
+        font-family:Arial,sans-serif;
+        white-space:pre-wrap;
+      ">
+        ${error?.stack || error}
+      </div>
+    `;
   }
 }
 
