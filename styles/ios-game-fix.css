@@ -1,50 +1,30 @@
-/* styles/ios-game-fix.css */
-
-/*
-  ВАЖНО:
-  - боковая игровая ориентация сохраняется;
-  - НЕ ломаем старый rotate .home-gameplay;
-  - фиксируем только системное сворачивание, размеры, модалки и лишние двойные повороты.
-*/
-
-html.mn-telegram-game-shell,
-body.mn-telegram-game-shell,
-html.mn-telegram-game-shell #app {
+html,
+body,
+#app {
   width: 100%;
-  height: var(--mn-vh, 100dvh);
-  min-height: var(--mn-vh, 100dvh);
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  overscroll-behavior: none;
-  touch-action: none;
-  background: #050607;
-  -webkit-text-size-adjust: 100%;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-html.mn-telegram-game-shell * {
-  -webkit-tap-highlight-color: transparent;
-}
-
-html.mn-telegram-game-shell .home {
-  width: 100vw !important;
-  height: var(--mn-vh, 100dvh) !important;
-  min-height: var(--mn-vh, 100dvh) !important;
+  height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden !important;
   overscroll-behavior: none !important;
   touch-action: none !important;
+  background: #050607;
 }
 
-/* Игровую боковую ориентацию НЕ трогаем */
-@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
-  html.mn-telegram-game-shell .home[data-mobile-controls="enabled"] .home-gameplay {
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] {
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  /* БОКОВУЮ ОРИЕНТАЦИЮ СОХРАНЯЕМ */
+  .home[data-mobile-controls="enabled"] .home-gameplay {
     position: fixed !important;
     left: 50% !important;
     top: 50% !important;
 
-    width: var(--mn-vh, 100svh) !important;
+    width: 100dvh !important;
     height: 100vw !important;
     min-height: 100vw !important;
 
@@ -52,323 +32,76 @@ html.mn-telegram-game-shell .home {
     transform-origin: center center !important;
 
     overflow: hidden !important;
-    will-change: transform !important;
-    backface-visibility: hidden !important;
   }
-}
 
-/* Если телефон реально повернули в landscape — без фейкового поворота */
-@media (orientation: landscape) and (hover: none) and (pointer: coarse) {
-  html.mn-telegram-game-shell .home[data-mobile-controls="enabled"] .home-gameplay {
+  .gta-map-stage {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* УБИРАЕМ ПОВТОРНЫЙ ROTATE С МОДАЛОК */
+  .houses-modal,
+  .house-details-modal {
     position: fixed !important;
     inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
 
-    width: 100vw !important;
-    height: var(--mn-vh, 100dvh) !important;
-    min-height: var(--mn-vh, 100dvh) !important;
+    display: grid !important;
+    place-items: center !important;
+
+    padding: 10px !important;
+    box-sizing: border-box !important;
 
     transform: none !important;
     rotate: 0deg !important;
 
+    z-index: 1000000 !important;
     overflow: hidden !important;
   }
-}
 
-/* Карта всегда занимает игровую область */
-html.mn-telegram-game-shell .gta-map-stage {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  overflow: hidden !important;
-  touch-action: none !important;
-}
-
-/* Модалки внутри уже повернутого gameplay. Поэтому второй rotate им запрещён */
-html.mn-telegram-game-shell .houses-modal,
-html.mn-telegram-game-shell .house-details-modal {
-  position: fixed !important;
-  inset: 0 !important;
-
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 100% !important;
-
-  display: grid !important;
-  place-items: center !important;
-
-  padding: 12px !important;
-  box-sizing: border-box !important;
-
-  transform: none !important;
-  rotate: 0deg !important;
-
-  z-index: 1000000 !important;
-  overflow: hidden !important;
-  touch-action: none !important;
-}
-
-html.mn-telegram-game-shell .houses-modal[hidden],
-html.mn-telegram-game-shell .house-details-modal[hidden] {
-  display: none !important;
-}
-
-/* Панели домов */
-html.mn-telegram-game-shell .houses-panel,
-html.mn-telegram-game-shell .house-details-panel {
-  transform: none !important;
-  rotate: 0deg !important;
-
-  box-sizing: border-box !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain !important;
-  touch-action: pan-y !important;
-}
-
-/* Общая панель города / домов */
-html.mn-telegram-game-shell .houses-panel {
-  width: min(620px, calc(100% - 24px)) !important;
-  max-width: calc(100% - 24px) !important;
-  max-height: calc(100% - 24px) !important;
-
-  padding: 12px !important;
-  border-radius: 22px !important;
-}
-
-/* Деталка конкретного дома */
-html.mn-telegram-game-shell .house-details-panel {
-  width: min(430px, calc(100% - 24px)) !important;
-  max-width: calc(100% - 24px) !important;
-  max-height: calc(100% - 24px) !important;
-
-  padding: 14px !important;
-  border-radius: 22px !important;
-}
-
-/* Карточки статистики — нормально влезают в боковой режим */
-html.mn-telegram-game-shell .houses-stats-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 8px !important;
-}
-
-html.mn-telegram-game-shell .houses-stat-card {
-  min-height: 88px !important;
-  padding: 10px !important;
-  border-radius: 16px !important;
-}
-
-html.mn-telegram-game-shell .houses-stat-card strong {
-  font-size: 22px !important;
-}
-
-html.mn-telegram-game-shell .houses-section-cards {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  gap: 8px !important;
-}
-
-html.mn-telegram-game-shell .houses-section-card {
-  min-height: 72px !important;
-  padding: 9px !important;
-  border-radius: 16px !important;
-}
-
-/* Список домов */
-html.mn-telegram-game-shell .house-list li {
-  grid-template-columns: 42px minmax(0, 1fr) auto !important;
-  gap: 9px !important;
-}
-
-html.mn-telegram-game-shell .house-list-main strong {
-  font-size: 14px !important;
-}
-
-html.mn-telegram-game-shell .house-list-main small {
-  font-size: 11px !important;
-}
-
-/* Нижняя карточка выбранного дома — без второго rotate */
-html.mn-telegram-game-shell .house-selection-panel {
-  position: fixed !important;
-
-  left: 50% !important;
-  right: auto !important;
-  top: auto !important;
-  bottom: 12px !important;
-
-  width: min(430px, calc(100% - 28px)) !important;
-  min-height: 58px !important;
-
-  grid-template-columns: 38px minmax(0, 1fr) auto !important;
-  gap: 9px !important;
-
-  padding: 9px 11px !important;
-  border-radius: 16px !important;
-
-  transform: translateX(-50%) !important;
-  rotate: 0deg !important;
-  transform-origin: center center !important;
-
-  z-index: 26000 !important;
-}
-
-html.mn-telegram-game-shell .house-selection-title {
-  font-size: 15px !important;
-  line-height: 1.05 !important;
-}
-
-html.mn-telegram-game-shell .house-selection-meta {
-  font-size: 11px !important;
-  line-height: 1.2 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-
-html.mn-telegram-game-shell .house-selection-action {
-  min-height: 38px !important;
-  padding: 0 14px !important;
-  border-radius: 13px !important;
-  font-size: 13px !important;
-}
-
-/* Подсказка "Нажми на дом" */
-html.mn-telegram-game-shell .entity-interaction-hint {
-  position: fixed !important;
-
-  left: 50% !important;
-  right: auto !important;
-  top: auto !important;
-  bottom: 14px !important;
-
-  width: max-content !important;
-  max-width: min(340px, calc(100% - 28px)) !important;
-
-  transform: translateX(-50%) !important;
-  rotate: 0deg !important;
-
-  z-index: 27000 !important;
-  white-space: nowrap !important;
-}
-
-html.mn-telegram-game-shell .entity-interaction-notice {
-  position: fixed !important;
-
-  left: 50% !important;
-  right: auto !important;
-  top: auto !important;
-  bottom: 58px !important;
-
-  max-width: min(340px, calc(100% - 28px)) !important;
-
-  transform: translateX(-50%) !important;
-  rotate: 0deg !important;
-
-  z-index: 27000 !important;
-}
-
-/* Джойстик и кнопки */
-html.mn-telegram-game-shell .mobile-controls-layer {
-  position: fixed !important;
-  inset: 0 !important;
-
-  z-index: 120 !important;
-  pointer-events: none !important;
-
-  transform: none !important;
-  rotate: 0deg !important;
-}
-
-html.mn-telegram-game-shell .mobile-joystick {
-  position: fixed !important;
-
-  left: 16px !important;
-  bottom: 16px !important;
-
-  z-index: 130 !important;
-  pointer-events: auto !important;
-  touch-action: none !important;
-
-  transform: none !important;
-  rotate: 0deg !important;
-}
-
-html.mn-telegram-game-shell .mobile-control-toggle {
-  position: fixed !important;
-
-  right: 14px !important;
-  bottom: 14px !important;
-  left: auto !important;
-
-  translate: 0 0 !important;
-  transform: none !important;
-  rotate: 0deg !important;
-}
-
-/* Админ-точка */
-html.mn-telegram-game-shell .admin-status-dot {
-  position: fixed !important;
-
-  left: auto !important;
-  top: auto !important;
-  right: 14px !important;
-  bottom: 86px !important;
-
-  width: 42px !important;
-  height: 42px !important;
-
-  z-index: 850 !important;
-
-  transform: none !important;
-  rotate: 0deg !important;
-}
-
-/* При открытых модалках лишний HUD скрываем */
-body.mn-houses-modal-open .admin-status-dot,
-body.mn-houses-modal-open .pc-stamina,
-body.mn-houses-modal-open .mobile-stamina,
-body.mn-houses-modal-open .mobile-controls-layer,
-body.mn-houses-modal-open .entity-interaction-hint,
-body.mn-houses-modal-open .entity-interaction-notice,
-body.mn-houses-modal-open .house-selection-panel {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
-/* Очень узкая игровая высота в боковом режиме */
-@media (hover: none) and (pointer: coarse) and (max-height: 430px) {
-  html.mn-telegram-game-shell .houses-panel {
-    width: min(620px, calc(100% - 18px)) !important;
-    max-height: calc(100% - 18px) !important;
-    padding: 10px !important;
+  .houses-modal[hidden],
+  .house-details-modal[hidden] {
+    display: none !important;
   }
 
-  html.mn-telegram-game-shell .house-details-panel {
-    width: min(430px, calc(100% - 18px)) !important;
-    max-height: calc(100% - 18px) !important;
-    padding: 12px !important;
+  .houses-panel,
+  .house-details-panel {
+    transform: none !important;
+    rotate: 0deg !important;
+
+    width: min(620px, calc(100% - 24px)) !important;
+    max-width: calc(100% - 24px) !important;
+    max-height: calc(100% - 24px) !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y !important;
   }
 
-  html.mn-telegram-game-shell .houses-header {
-    margin-bottom: 10px !important;
+  .house-details-panel {
+    width: min(430px, calc(100% - 24px)) !important;
   }
 
-  html.mn-telegram-game-shell .houses-title-text h2 {
-    font-size: 20px !important;
+  .house-selection-panel {
+    transform: translateX(-50%) !important;
+    rotate: 0deg !important;
+    width: min(430px, calc(100% - 28px)) !important;
   }
 
-  html.mn-telegram-game-shell .houses-title-text p {
-    font-size: 11px !important;
+  .admin-status-dot {
+    transform: none !important;
+    rotate: 0deg !important;
   }
 
-  html.mn-telegram-game-shell .houses-section-card {
-    min-height: 62px !important;
-  }
-
-  html.mn-telegram-game-shell .houses-stat-card {
-    min-height: 78px !important;
+  .entity-interaction-hint,
+  .entity-interaction-notice {
+    transform: translateX(-50%) !important;
+    rotate: 0deg !important;
   }
 }
