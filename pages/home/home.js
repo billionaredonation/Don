@@ -251,6 +251,7 @@ register('home', async (root) => {
   root.dataset.time = dayMode;
   root.dataset.weather = weather.type;
   root.dataset.performance = isLowPowerDevice() ? 'low' : 'normal';
+  root.dataset.mobileHud = isMobileGameplay ? 'enabled' : 'disabled';
 
   delete root.dataset.mobileControls;
 
@@ -295,48 +296,48 @@ register('home', async (root) => {
             fetchpriority="high"
           />
         </div>
-
-        <section class="player-glass-hud" aria-label="Игровой HUD">
-          <div class="player-hud-left">
-            <button class="player-city-button" type="button" aria-label="Открыть недвижимость города">
-              <span>${city.name}</span>
-              <b>›</b>
-            </button>
-
-            <div class="player-weather-mini" aria-label="Погода">
-              <span>${dayMode === 'day' ? '☀' : '☾'}</span>
-              <i></i>
-              <span>${displayWeather.icon}</span>
-              <i></i>
-              <span>${displayWeather.temperature}°</span>
-            </div>
-          </div>
-
-          <button class="player-profile-card" type="button" aria-label="Профиль игрока">
-            <span class="player-avatar">${String(nickname).charAt(0).toUpperCase()}</span>
-
-            <span class="player-profile-info">
-              <strong>${nickname}</strong>
-              <small>ID: ${telegramId}</small>
-            </span>
-
-            <span class="player-profile-arrow">›</span>
-          </button>
-
-          <div class="player-balance-card" aria-label="Баланс игрока" data-player-balance-card>
-            <span class="player-card-icon player-card-icon-green">₴</span>
-            <strong data-player-balance>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
-          </div>
-        </section>
-
-        ${renderHousesFeatureHtml({
-          city,
-          houses: housesFeature,
-        })}
-
-        <div class="mobile-controls-layer"></div>
       </section>
     </main>
+
+    <section class="player-glass-hud player-glass-hud-mobile-ready" aria-label="Игровой HUD">
+      <div class="player-hud-left">
+        <button class="player-city-button" type="button" aria-label="Открыть недвижимость города">
+          <span>${city.name}</span>
+          <b>›</b>
+        </button>
+
+        <div class="player-weather-mini" aria-label="Погода">
+          <span>${dayMode === 'day' ? '☀' : '☾'}</span>
+          <i></i>
+          <span>${displayWeather.icon}</span>
+          <i></i>
+          <span>${displayWeather.temperature}°</span>
+        </div>
+      </div>
+
+      <button class="player-profile-card" type="button" aria-label="Профиль игрока">
+        <span class="player-avatar">${String(nickname).charAt(0).toUpperCase()}</span>
+
+        <span class="player-profile-info">
+          <strong>${nickname}</strong>
+          <small>ID: ${telegramId}</small>
+        </span>
+
+        <span class="player-profile-arrow">›</span>
+      </button>
+
+      <div class="player-balance-card" aria-label="Баланс игрока" data-player-balance-card>
+        <span class="player-card-icon player-card-icon-green">₴</span>
+        <strong data-player-balance>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
+      </div>
+    </section>
+
+    <div class="mobile-controls-layer mobile-controls-layer-ui"></div>
+
+    ${renderHousesFeatureHtml({
+      city,
+      houses: housesFeature,
+    })}
   `;
 
   const stage = root.querySelector('.gta-map-stage');
@@ -355,7 +356,7 @@ register('home', async (root) => {
     focusX: playerPosition.x,
     focusY: playerPosition.y,
     startScale: isMobileGameplay
-      ? 3.05
+      ? 2.35
       : isLowPowerDevice()
         ? 1.95
         : 2.25,
@@ -585,5 +586,6 @@ register('home', async (root) => {
     network.cleanup?.();
 
     delete root.dataset.mobileControls;
+    delete root.dataset.mobileHud;
   };
 });
