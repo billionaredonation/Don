@@ -350,10 +350,19 @@ register('home', async (root) => {
     city,
   });
 
+
+
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
     focusY: playerPosition.y,
-    startScale: isLowPowerDevice() ? 2.65 : 4.95,
+
+    // ПК было 4.95 — из-за этого карта была слишком близко и белая.
+    // Мобилку тоже чуть отдаляем, чтобы игрок и дома нормально попадали в экран.
+    startScale: isMobileGameplay
+      ? 3.05
+      : isLowPowerDevice()
+        ? 1.95
+        : 2.25,
   });
 
   const network = setupPlayerNetwork({
@@ -364,7 +373,7 @@ register('home', async (root) => {
   });
 
   const cleanupSessionGuard = setupSessionGuard(root);
-  const isMobileGameplay = isMobileGameplayDevice();
+
 
   let cleanupMovement = null;
   let cleanupMobilePrompt = null;
