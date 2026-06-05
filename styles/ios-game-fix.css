@@ -570,3 +570,47 @@ body,
     rotate: 0deg !important;
   }
 }
+
+/* FIX: player marker above map on mobile */
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .gta-map-viewport {
+    isolation: isolate !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-image,
+  .home[data-mobile-controls="enabled"] .gta-map-glow {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 10 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-weather {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 20 !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-entities {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 300 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker {
+    position: absolute !important;
+    z-index: 350 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker-dot {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+  }
+}
