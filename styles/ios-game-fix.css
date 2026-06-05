@@ -614,3 +614,80 @@ body,
     display: block !important;
   }
 }
+
+
+/* =========================================================
+   MOBILE MICRO POSITION PATCH
+   стамина ниже, джойстик к ней, админка возле баланса
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Стамина ниже */
+  .home[data-mobile-controls="enabled"] .pc-stamina,
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] .stamina-panel,
+  .home[data-mobile-controls="enabled"] [data-player-stamina] {
+    position: absolute !important;
+
+    left: 28px !important;
+    top: 154px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 92px !important;
+    height: 164px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 740 !important;
+  }
+
+  /* Джойстик аккуратно рядом по высоте */
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    position: absolute !important;
+
+    left: 142px !important;
+    top: 172px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 96px !important;
+    height: 96px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 760 !important;
+    pointer-events: auto !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    width: 96px !important;
+    height: 96px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-stick {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  /* Админка возле баланса, с воздухом */
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: absolute !important;
+
+    right: 28px !important;
+    top: 468px !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    width: 54px !important;
+    height: 54px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 780 !important;
+    pointer-events: auto !important;
+  }
+}
