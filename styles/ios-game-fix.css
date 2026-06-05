@@ -26,40 +26,24 @@ body,
    ========================================================= */
 
 @media (hover: hover) and (pointer: fine) {
-  .home[data-time="day"] .gta-map-image {
-    filter:
-      grayscale(1)
-      saturate(0)
-      contrast(1.35)
-      brightness(1.18)
-      sepia(0.06)
-      drop-shadow(0 0 1px rgba(255,255,255,0.38)) !important;
-  }
-
-  .home[data-time="day"] .gta-map-glow {
-    opacity: 0.18 !important;
-    filter:
-      blur(3px)
-      brightness(1.15) !important;
-  }
-
-  .home[data-time="day"] .gta-sky-light {
-    opacity: 0.28 !important;
-  }
-
-  .home[data-time="day"] .gta-map-stage::before {
-    opacity: 0.35 !important;
-  }
-
-  .home[data-time="day"] .gta-map-viewport::before,
-  .home[data-time="day"] .gta-map-viewport::after {
-    opacity: 0.45 !important;
-  }
-
   .home-gameplay,
   .gta-map-stage,
   .gta-map-viewport {
     overflow: hidden !important;
+  }
+
+  .gta-map-image {
+    filter: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .gta-map-glow {
+    opacity: 0 !important;
+  }
+
+  .gta-sky-light {
+    pointer-events: none !important;
   }
 
   .admin-status-dot {
