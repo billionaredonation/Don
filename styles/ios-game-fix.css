@@ -1,34 +1,42 @@
-html,
-body,
-#app {
+html.mn-ios-shell,
+body.mn-ios-shell,
+html.mn-ios-shell #app {
   width: 100%;
-  height: 100dvh;
-  min-height: 100dvh;
+  height: var(--tg-vh, 100dvh);
+  min-height: var(--tg-vh, 100dvh);
+
   overflow: hidden !important;
   overscroll-behavior: none !important;
   touch-action: none !important;
+
   background: #050607;
 }
 
-@media (hover: none) and (pointer: coarse) {
-  .home[data-mobile-controls="enabled"] {
-    width: 100vw !important;
-    height: 100dvh !important;
-    min-height: 100dvh !important;
-    overflow: hidden !important;
-  }
+html.mn-ios-shell .home {
+  width: 100vw !important;
+  height: var(--tg-vh, 100dvh) !important;
+  min-height: var(--tg-vh, 100dvh) !important;
 
-  /* БОКОВУЮ ОРИЕНТАЦИЮ СОХРАНЯЕМ */
-  .home[data-mobile-controls="enabled"] .home-gameplay {
+  overflow: hidden !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+
+  /* СОХРАНЯЕМ БОКОВОЙ GAMEPLAY */
+
+  html.mn-ios-shell .home[data-mobile-controls="enabled"] .home-gameplay {
     position: fixed !important;
+
     left: 50% !important;
     top: 50% !important;
 
-    width: 100dvh !important;
+    width: var(--tg-vh, 100dvh) !important;
     height: 100vw !important;
-    min-height: 100vw !important;
 
-    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform:
+      translate3d(-50%, -50%, 0)
+      rotate(90deg) !important;
+
     transform-origin: center center !important;
 
     overflow: hidden !important;
@@ -37,35 +45,62 @@ body,
   .gta-map-stage {
     position: absolute !important;
     inset: 0 !important;
+
     width: 100% !important;
     height: 100% !important;
+
     overflow: hidden !important;
   }
 
-  /* УБИРАЕМ ПОВТОРНЫЙ ROTATE С МОДАЛОК */
+  /* ПАНЕЛЬ ДОМА */
+
+  .house-selection-panel {
+    position: fixed !important;
+
+    left: 50% !important;
+    bottom: 14px !important;
+
+    width: min(430px, calc(100% - 28px)) !important;
+
+    transform: translateX(-50%) !important;
+
+    rotate: 0deg !important;
+
+    z-index: 50000 !important;
+  }
+
+  /* ПОДСКАЗКА */
+
+  .entity-interaction-hint,
+  .entity-interaction-notice {
+    position: fixed !important;
+
+    left: 50% !important;
+    bottom: 14px !important;
+
+    transform: translateX(-50%) !important;
+
+    rotate: 0deg !important;
+
+    z-index: 50000 !important;
+  }
+
+  /* МОДАЛКИ */
+
   .houses-modal,
   .house-details-modal {
     position: fixed !important;
     inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
 
     display: grid !important;
     place-items: center !important;
 
     padding: 10px !important;
-    box-sizing: border-box !important;
 
     transform: none !important;
     rotate: 0deg !important;
 
-    z-index: 1000000 !important;
-    overflow: hidden !important;
-  }
-
-  .houses-modal[hidden],
-  .house-details-modal[hidden] {
-    display: none !important;
+    z-index: 999999 !important;
   }
 
   .houses-panel,
@@ -75,33 +110,22 @@ body,
 
     width: min(620px, calc(100% - 24px)) !important;
     max-width: calc(100% - 24px) !important;
+
     max-height: calc(100% - 24px) !important;
 
     overflow-y: auto !important;
-    overflow-x: hidden !important;
 
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-y !important;
   }
 
   .house-details-panel {
     width: min(430px, calc(100% - 24px)) !important;
   }
 
-  .house-selection-panel {
-    transform: translateX(-50%) !important;
-    rotate: 0deg !important;
-    width: min(430px, calc(100% - 28px)) !important;
-  }
+  /* АДМИНКА */
 
   .admin-status-dot {
     transform: none !important;
-    rotate: 0deg !important;
-  }
-
-  .entity-interaction-hint,
-  .entity-interaction-notice {
-    transform: translateX(-50%) !important;
     rotate: 0deg !important;
   }
 }
