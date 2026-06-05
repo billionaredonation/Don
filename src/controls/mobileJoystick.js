@@ -24,26 +24,31 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
-function isPortraitScreen() {
-  return window.matchMedia('(orientation: portrait)').matches;
-}
-
-function isRotatedMobileScene() {
-  return isPortraitScreen();
+function isPortraitViewport() {
+  return window.innerHeight >= window.innerWidth;
 }
 
 /**
- * Карта на мобилке повернута через CSS rotate(90deg).
- * Поэтому экранный ввод надо компенсировать обратно.
+ * Важно:
+ * home-gameplay на мобилке повернут rotate(90deg).
+ * Поэтому экранное движение надо переводить в координаты карты.
+ *
+ * Палец вправо  -> игрок вправо по экрану
+ * Палец влево  -> игрок влево по экрану
+ * Палец вверх  -> игрок вверх по экрану
+ * Палец вниз   -> игрок вниз по экрану
  */
-function rotateInputForMobileScene(inputX, inputY) {
-  if (!isRotatedMobileScene()) {
-    return { x: inputX, y: inputY };
+function mapScreenInputToWorld(inputX, inputY) {
+  if (!isPortraitViewport()) {
+    return {
+      x: inputX,
+      y: inputY,
+    };
   }
 
   return {
-    x: -inputY,
-    y: inputX,
+    x: inputY,
+    y: -inputX,
   };
 }
 
@@ -69,28 +74,6 @@ function getInitialPosition(playerPosition, marker, bounds) {
     x: clamp(px ?? mx ?? sx ?? 50, bounds.minX, bounds.maxX),
     y: clamp(py ?? my ?? sy ?? 50, bounds.minY, bounds.maxY),
   };
-}
-
-function forceShowMarker(marker) {
-  if (!marker) return;
-
-  marker.style.position = 'absolute';
-  marker.style.display = 'block';
-  marker.style.opacity = '1';
-  marker.style.visibility = 'visible';
-  marker.style.zIndex = '999';
-  marker.style.pointerEvents = 'none';
-  marker.style.transform = 'translate(-50%, -50%)';
-
-  const dot =
-    marker.querySelector('.gta-player-marker-dot') ||
-    marker.firstElementChild;
-
-  if (dot) {
-    dot.style.display = 'block';
-    dot.style.opacity = '1';
-    dot.style.visibility = 'visible';
-  }
 }
 
 export function enableMobileJoystick(
@@ -123,6 +106,7 @@ export function enableMobileJoystick(
   const joystick = container.querySelector('.mobile-joystick');
   const base = container.querySelector('.mobile-joystick-base');
   const stick = container.querySelector('.mobile-joystick-stick');
+  const stamina = container.querySelector('.mobile-stamina');
   const staminaFill = container.querySelector('.mobile-stamina-fill');
 
   const STAMINA = getStaminaConfig();
@@ -147,7 +131,7 @@ export function enableMobileJoystick(
     toFiniteNumber(marker.dataset.angle) ??
     0;
 
-  let stamina = STAMINA.max;
+  let currentStamina = STAMINA.max;
   let sprintLocked = false;
 
   let activePointerId = null;
@@ -173,7 +157,7 @@ export function enableMobileJoystick(
   function updateStaminaUi() {
     if (!staminaFill) return;
 
-    const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
+    const percent = clamp((currentStamina / STAMINA.max) * 100, 0, 100);
 
     staminaFill.style.width = `${percent}%`;
 
@@ -187,10 +171,7 @@ export function enableMobileJoystick(
   }
 
   function updateSprintState(isMoving) {
-    const joystickPower = Math.max(
-      Math.abs(moveX),
-      Math.abs(moveY)
-    );
+    const joystickPower = Math.max(Math.abs(moveX), Math.abs(moveY));
 
     const wantsSprint =
       isMoving &&
@@ -198,18 +179,24 @@ export function enableMobileJoystick(
       !sprintLocked;
 
     if (wantsSprint) {
-      stamina = Math.max(STAMINA.emptyAt, stamina - STAMINA.drainPerFrame);
+      currentStamina = Math.max(
+        STAMINA.emptyAt,
+        currentStamina - STAMINA.drainPerFrame
+      );
 
-      if (stamina <= STAMINA.emptyAt) {
+      if (currentStamina <= STAMINA.emptyAt) {
         sprintLocked = true;
-        stamina = STAMINA.emptyAt;
+        currentStamina = STAMINA.emptyAt;
       }
     } else {
-      stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
+      currentStamina = Math.min(
+        STAMINA.max,
+        currentStamina + STAMINA.recoverPerFrame
+      );
 
-      if (stamina >= STAMINA.recoveredAt) {
+      if (currentStamina >= STAMINA.recoveredAt) {
         sprintLocked = false;
-        stamina = STAMINA.max;
+        currentStamina = STAMINA.max;
       }
     }
 
@@ -231,7 +218,6 @@ export function enableMobileJoystick(
     y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
 
     syncPlayerPosition();
-    forceShowMarker(marker);
 
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
@@ -319,8 +305,7 @@ export function enableMobileJoystick(
     moveX = 0;
     moveY = 0;
 
-    stick.style.transform =
-      'translate(-50%, -50%) translate3d(0, 0, 0)';
+    stick.style.transform = 'translate(-50%, -50%) translate3d(0, 0, 0)';
   }
 
   function updateStick(clientX, clientY) {
@@ -344,17 +329,17 @@ export function enableMobileJoystick(
       return;
     }
 
-    const movementInput = rotateInputForMobileScene(inputX, inputY);
+    const worldInput = mapScreenInputToWorld(inputX, inputY);
 
-    moveX = movementInput.x * power;
-    moveY = movementInput.y * power;
+    moveX = worldInput.x * power;
+    moveY = worldInput.y * power;
 
     angle = getAngleFromMovement(moveX, moveY, angle);
     syncPlayerPosition();
 
     /*
-      Визуально стик должен двигаться туда, куда тянет палец.
-      Поэтому для stick НЕ используем rotateInputForMobileScene.
+      Визуально стик должен идти за пальцем.
+      Его НЕ крутим вместе с картой, иначе палец вправо выглядит как вниз/вверх.
     */
     const stickX = inputX * distance;
     const stickY = inputY * distance;
@@ -371,6 +356,7 @@ export function enableMobileJoystick(
       Math.abs(moveY) > DEADZONE;
 
     const isSprinting = updateSprintState(isMoving);
+
     const speed = isSprinting
       ? MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED
       : MOVEMENT_CONFIG.MOBILE_WALK_SPEED;
@@ -386,7 +372,6 @@ export function enableMobileJoystick(
       savePositionToDb(false);
     } else {
       syncPlayerPosition();
-      renderPlayer();
     }
 
     animationId = requestAnimationFrame(loop);
@@ -405,8 +390,6 @@ export function enableMobileJoystick(
     y = clamp(nextY, BOUNDS.minY, BOUNDS.maxY);
     angle = Number.isFinite(nextAngle) ? nextAngle : angle;
 
-    moveX = 0;
-    moveY = 0;
     activePointerId = null;
 
     resetStick();
@@ -488,6 +471,7 @@ export function enableMobileJoystick(
     updateStaminaUi();
 
     joystick?.remove();
+    stamina?.remove();
 
     broadcastMove(true);
     savePositionToDb(true);
