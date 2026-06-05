@@ -30,19 +30,38 @@ body,
   .gta-map-stage,
   .gta-map-viewport {
     overflow: hidden !important;
+    background: #050607 !important;
   }
 
   .gta-map-image {
-    filter: none !important;
     opacity: 1 !important;
     visibility: visible !important;
+
+    filter: none !important;
+
+    width: 100% !important;
+    height: 100% !important;
+
+    object-fit: contain !important;
+    object-position: center center !important;
+
+    transform: scale(0.72) !important;
+    transform-origin: center center !important;
   }
 
   .gta-map-glow {
     opacity: 0 !important;
   }
 
+  .gta-map-viewport::before,
+  .gta-map-viewport::after,
+  .gta-map-stage::before,
+  .gta-map-stage::after {
+    pointer-events: none !important;
+  }
+
   .gta-sky-light {
+    opacity: 0.08 !important;
     pointer-events: none !important;
   }
 
