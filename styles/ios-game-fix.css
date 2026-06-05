@@ -678,3 +678,178 @@ body,
     z-index: 2147483000 !important;
   }
 }
+
+
+/* =========================================================
+   MOBILE HUD TOP ROW FINAL
+   город / профиль / баланс сверху в одну линию
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .player-glass-hud {
+    position: absolute !important;
+
+    top: 64px !important;
+    left: 24px !important;
+    right: 24px !important;
+    bottom: auto !important;
+
+    width: auto !important;
+    height: 54px !important;
+
+    display: grid !important;
+    grid-template-columns: 160px minmax(210px, 1fr) 150px !important;
+    gap: 10px !important;
+
+    transform: none !important;
+    z-index: 520 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-hud-left {
+    display: contents !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button {
+    order: 1 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    order: 2 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    order: 3 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button,
+  .home[data-mobile-controls="enabled"] .player-profile-card,
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    width: 100% !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    max-height: 54px !important;
+
+    border-radius: 18px !important;
+    transform: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button {
+    padding: 0 14px !important;
+    justify-content: space-between !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button span {
+    max-width: 110px !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    padding: 0 14px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info strong {
+    font-size: 15px !important;
+    line-height: 1 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info small {
+    font-size: 9px !important;
+    line-height: 1.05 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    padding: 0 12px !important;
+    justify-content: center !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card strong {
+    font-size: 14px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Погода под верхней линией слева */
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    position: absolute !important;
+
+    top: 128px !important;
+    left: 24px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 118px !important;
+    height: 42px !important;
+
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+
+    transform: none !important;
+    z-index: 530 !important;
+  }
+
+  /* Админка / зелёная кнопка в ряд справа снизу */
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: absolute !important;
+
+    right: 24px !important;
+    bottom: 42px !important;
+    left: auto !important;
+    top: auto !important;
+
+    width: 62px !important;
+    height: 62px !important;
+
+    transform: none !important;
+    z-index: 560 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-control-toggle {
+    position: absolute !important;
+
+    right: 98px !important;
+    bottom: 42px !important;
+    left: auto !important;
+    top: auto !important;
+
+    width: 62px !important;
+    height: 62px !important;
+
+    transform: none !important;
+    z-index: 560 !important;
+  }
+
+  /* Джойстик ниже и чуть правее */
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    position: absolute !important;
+
+    left: 76px !important;
+    bottom: 38px !important;
+    right: auto !important;
+    top: auto !important;
+
+    width: 116px !important;
+    height: 116px !important;
+
+    transform: none !important;
+    z-index: 550 !important;
+  }
+
+  /* Стамина над джойстиком */
+  .home[data-mobile-controls="enabled"] .stamina-panel,
+  .home[data-mobile-controls="enabled"] .player-stamina,
+  .home[data-mobile-controls="enabled"] [data-player-stamina] {
+    position: absolute !important;
+
+    left: 76px !important;
+    bottom: 166px !important;
+    right: auto !important;
+    top: auto !important;
+
+    transform: none !important;
+    z-index: 540 !important;
+  }
+}
