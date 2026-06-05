@@ -578,3 +578,11 @@ export function enableEntityInteraction({
     layer.remove();
   };
 }
+
+
+const gameplayRoot =
+  document.querySelector('.gta-map-stage') ||
+  document.querySelector('.home-gameplay') ||
+  document.body;
+
+gameplayRoot.appendChild(selectionPanel);
