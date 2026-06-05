@@ -1,6 +1,9 @@
 /* styles/ios-game-fix.css */
 
-/* БАЗА */
+/* =========================================================
+   GLOBAL
+   ========================================================= */
+
 html,
 body,
 #app {
@@ -22,7 +25,7 @@ body,
 }
 
 /* =========================================================
-   ПК: РАЗРЕШЕНИЕ НЕ ТРОГАЕМ, ФИКСИМ ТОЛЬКО БЕЛУЮ КАРТУ
+   PC FIX: разрешение НЕ трогаем, только убираем белую карту
    ========================================================= */
 
 @media (hover: hover) and (pointer: fine) {
@@ -36,7 +39,6 @@ body,
   .gta-map-image {
     opacity: 1 !important;
     visibility: visible !important;
-
     filter: none !important;
 
     width: 100% !important;
@@ -45,7 +47,7 @@ body,
     object-fit: contain !important;
     object-position: center center !important;
 
-    transform: scale(0.90) !important;
+    transform: scale(0.82) !important;
     transform-origin: center center !important;
   }
 
@@ -53,15 +55,15 @@ body,
     opacity: 0 !important;
   }
 
+  .gta-sky-light {
+    opacity: 0.08 !important;
+    pointer-events: none !important;
+  }
+
   .gta-map-viewport::before,
   .gta-map-viewport::after,
   .gta-map-stage::before,
   .gta-map-stage::after {
-    pointer-events: none !important;
-  }
-
-  .gta-sky-light {
-    opacity: 0.08 !important;
     pointer-events: none !important;
   }
 
@@ -79,7 +81,7 @@ body,
 }
 
 /* =========================================================
-   МОБИЛКИ: БОКОВУЮ ОРИЕНТАЦИЮ СОХРАНЯЕМ
+   MOBILE GAMEPLAY: боковую ориентацию игры сохраняем
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
@@ -92,9 +94,11 @@ body,
   .home[data-mobile-controls="enabled"] {
     position: fixed !important;
     inset: 0 !important;
+
     width: 100vw !important;
     height: var(--mn-vh, 100dvh) !important;
     min-height: var(--mn-vh, 100dvh) !important;
+
     overflow: hidden !important;
     overscroll-behavior: none !important;
     touch-action: none !important;
@@ -102,6 +106,7 @@ body,
 
   .home[data-mobile-controls="enabled"] .home-gameplay {
     position: fixed !important;
+
     left: 50% !important;
     top: 50% !important;
     right: auto !important;
@@ -117,40 +122,113 @@ body,
     overflow: hidden !important;
     overscroll-behavior: none !important;
     touch-action: none !important;
+
     will-change: transform !important;
     backface-visibility: hidden !important;
   }
 
-  .home[data-mobile-controls="enabled"] .gta-map-stage {
+  .home[data-mobile-controls="enabled"] .gta-map-stage,
+  .home[data-mobile-controls="enabled"] .gta-map-viewport {
     position: absolute !important;
     inset: 0 !important;
+
     width: 100% !important;
     height: 100% !important;
+
     overflow: hidden !important;
     overscroll-behavior: none !important;
     touch-action: none !important;
   }
 
-  /* НЕ КРУТИМ UI ВТОРОЙ РАЗ */
-  .home[data-mobile-controls="enabled"] .house-selection-panel,
-  .home[data-mobile-controls="enabled"] .entity-interaction-hint,
-  .home[data-mobile-controls="enabled"] .entity-interaction-notice,
-  .home[data-mobile-controls="enabled"] .houses-modal,
-  .home[data-mobile-controls="enabled"] .house-details-modal,
-  .home[data-mobile-controls="enabled"] .houses-panel,
-  .home[data-mobile-controls="enabled"] .house-details-panel {
+  /* =======================================================
+     MOBILE HUD: чуть удобнее, не под Telegram
+     ======================================================= */
+
+  .home[data-mobile-controls="enabled"] .player-city-button {
+    top: 12px !important;
+    left: 16px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-button {
+    top: 12px !important;
+    left: 190px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-pill {
+    top: 12px !important;
+    right: 18px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] .pc-stamina {
+    left: 22px !important;
+    bottom: 18px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: absolute !important;
+
+    right: 18px !important;
+    bottom: 92px !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 850 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer {
+    position: absolute !important;
+    inset: 0 !important;
+
+    z-index: 120 !important;
+    pointer-events: none !important;
+
+    transform: none !important;
     rotate: 0deg !important;
   }
 
-  /* КАРТОЧКА ДОМА СНИЗУ */
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    position: absolute !important;
+
+    left: 18px !important;
+    bottom: 18px !important;
+
+    z-index: 130 !important;
+    pointer-events: auto !important;
+    touch-action: none !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-control-toggle {
+    position: absolute !important;
+
+    right: 18px !important;
+    bottom: 18px !important;
+    left: auto !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  /* =======================================================
+     MOBILE HOUSE SMALL PANEL: остаётся в игровом rotated-слое
+     ======================================================= */
+
   .home[data-mobile-controls="enabled"] .house-selection-panel {
     position: absolute !important;
+
     left: 50% !important;
     right: auto !important;
     top: auto !important;
     bottom: 16px !important;
 
-    width: min(440px, calc(100% - 32px)) !important;
+    width: min(440px, calc(100% - 34px)) !important;
     min-height: 62px !important;
 
     grid-template-columns: 40px minmax(0, 1fr) auto !important;
@@ -160,6 +238,7 @@ body,
     border-radius: 18px !important;
 
     transform: translateX(-50%) !important;
+    rotate: 0deg !important;
     transform-origin: center center !important;
 
     z-index: 26000 !important;
@@ -180,7 +259,9 @@ body,
   .home[data-mobile-controls="enabled"] .house-selection-meta {
     font-size: 11px !important;
     line-height: 1.2 !important;
+
     max-width: 235px !important;
+
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -198,70 +279,110 @@ body,
     top: 7px !important;
   }
 
-  /* ПОДСКАЗКА */
   .home[data-mobile-controls="enabled"] .entity-interaction-hint {
     position: absolute !important;
+
     left: 50% !important;
     right: auto !important;
     top: auto !important;
     bottom: 18px !important;
 
     max-width: min(340px, calc(100% - 28px)) !important;
+
     transform: translateX(-50%) !important;
+    rotate: 0deg !important;
 
     z-index: 27000 !important;
   }
 
   .home[data-mobile-controls="enabled"] .entity-interaction-notice {
     position: absolute !important;
+
     left: 50% !important;
     right: auto !important;
     top: auto !important;
     bottom: 72px !important;
 
     max-width: min(340px, calc(100% - 28px)) !important;
+
     transform: translateX(-50%) !important;
+    rotate: 0deg !important;
 
     z-index: 27000 !important;
   }
 
-  /* МОДАЛКИ */
-  .home[data-mobile-controls="enabled"] .houses-modal,
-  .home[data-mobile-controls="enabled"] .house-details-modal {
-    position: absolute !important;
-    inset: 0 !important;
+  /* =======================================================
+     MOBILE MODALS: как на ПК, НЕ rotated
+     ======================================================= */
 
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 100% !important;
-
-    display: grid !important;
-    place-items: center !important;
-
-    padding: 42px 10px 14px !important;
-    box-sizing: border-box !important;
-
-    transform: none !important;
-
-    z-index: 1000000 !important;
+  body.mn-houses-modal-open {
     overflow: hidden !important;
     touch-action: none !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-modal[hidden],
-  .home[data-mobile-controls="enabled"] .house-details-modal[hidden] {
+  body.mn-houses-modal-open .houses-modal,
+  body.mn-houses-modal-open .house-details-modal {
+    position: fixed !important;
+
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+
+    width: 100vw !important;
+    height: var(--mn-vh, 100dvh) !important;
+    min-height: var(--mn-vh, 100dvh) !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 54px)
+      14px
+      calc(env(safe-area-inset-bottom, 0px) + 16px)
+      14px !important;
+
+    box-sizing: border-box !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 2147483000 !important;
+
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+    touch-action: none !important;
+  }
+
+  body.mn-houses-modal-open .houses-modal[hidden],
+  body.mn-houses-modal-open .house-details-modal[hidden] {
     display: none !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-panel {
-    width: min(540px, calc(100% - 20px)) !important;
-    max-width: calc(100% - 20px) !important;
-    max-height: calc(100% - 58px) !important;
+  body.mn-houses-modal-open .houses-modal-backdrop,
+  body.mn-houses-modal-open .house-details-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
 
-    padding: 14px !important;
-    border-radius: 24px !important;
+    background:
+      radial-gradient(circle at 50% 35%, rgba(99, 58, 255, 0.22), transparent 42%),
+      rgba(0, 0, 0, 0.68) !important;
+
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
 
     transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  body.mn-houses-modal-open .houses-panel,
+  body.mn-houses-modal-open .house-details-panel {
+    position: relative !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    box-sizing: border-box !important;
 
     overflow-y: auto !important;
     overflow-x: hidden !important;
@@ -269,118 +390,156 @@ body,
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain !important;
     touch-action: pan-y !important;
+
+    z-index: 2 !important;
   }
 
-  .home[data-mobile-controls="enabled"] .house-details-panel {
-    width: min(430px, calc(100% - 22px)) !important;
-    max-width: calc(100% - 22px) !important;
-    max-height: calc(100% - 58px) !important;
+  body.mn-houses-modal-open .houses-panel {
+    width: min(560px, calc(100vw - 28px)) !important;
+    max-width: calc(100vw - 28px) !important;
+    max-height:
+      calc(
+        var(--mn-vh, 100dvh)
+        - env(safe-area-inset-top, 0px)
+        - env(safe-area-inset-bottom, 0px)
+        - 78px
+      ) !important;
+
+    padding: 16px !important;
+    border-radius: 26px !important;
+  }
+
+  body.mn-houses-modal-open .house-details-panel {
+    width: min(440px, calc(100vw - 28px)) !important;
+    max-width: calc(100vw - 28px) !important;
+    max-height:
+      calc(
+        var(--mn-vh, 100dvh)
+        - env(safe-area-inset-top, 0px)
+        - env(safe-area-inset-bottom, 0px)
+        - 82px
+      ) !important;
 
     padding: 18px !important;
-    border-radius: 24px !important;
-
-    transform: none !important;
-
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain !important;
-    touch-action: pan-y !important;
+    border-radius: 26px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-title-text h2 {
+  /* Удобная вертикальная сетка в модалке домов */
+  body.mn-houses-modal-open .houses-header {
+    margin-bottom: 14px !important;
+  }
+
+  body.mn-houses-modal-open .houses-title-text h2 {
     font-size: 22px !important;
     line-height: 1.05 !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-title-text p {
+  body.mn-houses-modal-open .houses-title-text p {
     font-size: 12px !important;
     line-height: 1.25 !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-section-cards {
+  body.mn-houses-modal-open .houses-section-cards {
     grid-template-columns: 1fr !important;
     gap: 10px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-section-card {
+  body.mn-houses-modal-open .houses-section-card {
     min-height: 72px !important;
     padding: 12px !important;
     border-radius: 18px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-stats-grid {
+  body.mn-houses-modal-open .houses-stats-grid {
     grid-template-columns: 1fr !important;
     gap: 10px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-stat-card {
-    min-height: 96px !important;
+  body.mn-houses-modal-open .houses-stat-card {
+    min-height: 92px !important;
     padding: 13px !important;
     border-radius: 18px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-stat-card strong {
+  body.mn-houses-modal-open .houses-stat-card strong {
     font-size: 26px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .house-list li {
+  body.mn-houses-modal-open .houses-list-header {
+    gap: 10px !important;
+    align-items: center !important;
+  }
+
+  body.mn-houses-modal-open .houses-list-header h3 {
+    font-size: 16px !important;
+  }
+
+  body.mn-houses-modal-open .houses-filter-button {
+    min-height: 40px !important;
+    padding: 0 12px !important;
+    border-radius: 14px !important;
+    font-size: 13px !important;
+  }
+
+  body.mn-houses-modal-open .house-list li {
     grid-template-columns: 44px minmax(0, 1fr) auto !important;
     gap: 10px !important;
     padding: 10px !important;
     border-radius: 16px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .house-list-main strong {
+  body.mn-houses-modal-open .house-list-main strong {
     font-size: 15px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .house-list-main small {
+  body.mn-houses-modal-open .house-list-main small {
     font-size: 11px !important;
   }
 
-  /* МОБИЛЬНЫЕ КНОПКИ */
-  .home[data-mobile-controls="enabled"] .mobile-controls-layer {
-    position: absolute !important;
-    inset: 0 !important;
-    z-index: 120 !important;
-    pointer-events: none !important;
-    transform: none !important;
+  /* Детальная модалка дома */
+  body.mn-houses-modal-open .house-details-header h3 {
+    font-size: 28px !important;
+    line-height: 1.05 !important;
   }
 
-  .home[data-mobile-controls="enabled"] .mobile-joystick {
-    position: absolute !important;
-    left: 16px !important;
-    bottom: 16px !important;
-    z-index: 130 !important;
-    pointer-events: auto !important;
-    touch-action: none !important;
-    transform: none !important;
+  body.mn-houses-modal-open .house-details-hero {
+    padding: 16px !important;
+    border-radius: 20px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .mobile-control-toggle {
-    position: absolute !important;
-    right: 16px !important;
-    bottom: 16px !important;
-    left: auto !important;
-    transform: none !important;
+  body.mn-houses-modal-open .house-details-hero strong {
+    font-size: 32px !important;
+    line-height: 1 !important;
   }
 
-  .home[data-mobile-controls="enabled"] .admin-status-dot {
-    position: absolute !important;
-    right: 16px !important;
-    bottom: 88px !important;
-
-    width: 42px !important;
-    height: 42px !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-
-    z-index: 850 !important;
+  body.mn-houses-modal-open .house-details-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
   }
 
+  body.mn-houses-modal-open .house-details-grid article {
+    padding: 12px !important;
+    border-radius: 16px !important;
+  }
+
+  body.mn-houses-modal-open .house-details-text {
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+  }
+
+  body.mn-houses-modal-open .house-details-actions {
+    display: flex !important;
+    gap: 10px !important;
+    flex-wrap: wrap !important;
+  }
+
+  body.mn-houses-modal-open .house-details-actions button {
+    min-height: 46px !important;
+    border-radius: 16px !important;
+    font-size: 15px !important;
+  }
+
+  /* Когда модалка открыта — HUD игры прячем */
   body.mn-houses-modal-open .admin-status-dot,
   body.mn-houses-modal-open .pc-stamina,
   body.mn-houses-modal-open .mobile-stamina,
@@ -394,29 +553,51 @@ body,
   }
 }
 
-/* Маленькие экраны iPhone */
+/* =========================================================
+   SMALL MOBILE HEIGHT
+   ========================================================= */
+
 @media (hover: none) and (pointer: coarse) and (max-height: 430px) {
-  .home[data-mobile-controls="enabled"] .houses-modal,
-  .home[data-mobile-controls="enabled"] .house-details-modal {
-    padding: 34px 8px 10px !important;
+  body.mn-houses-modal-open .houses-modal,
+  body.mn-houses-modal-open .house-details-modal {
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 42px)
+      10px
+      calc(env(safe-area-inset-bottom, 0px) + 10px)
+      10px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-panel,
-  .home[data-mobile-controls="enabled"] .house-details-panel {
-    max-height: calc(100% - 44px) !important;
-    padding: 12px !important;
+  body.mn-houses-modal-open .houses-panel,
+  body.mn-houses-modal-open .house-details-panel {
+    max-height:
+      calc(
+        var(--mn-vh, 100dvh)
+        - env(safe-area-inset-top, 0px)
+        - env(safe-area-inset-bottom, 0px)
+        - 58px
+      ) !important;
+
+    padding: 14px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-title-text h2 {
+  body.mn-houses-modal-open .houses-title-text h2 {
     font-size: 20px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-section-card {
+  body.mn-houses-modal-open .houses-section-card {
     min-height: 66px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .houses-stat-card {
+  body.mn-houses-modal-open .houses-stat-card {
     min-height: 84px !important;
+  }
+
+  body.mn-houses-modal-open .house-details-header h3 {
+    font-size: 25px !important;
+  }
+
+  body.mn-houses-modal-open .house-details-hero strong {
+    font-size: 28px !important;
   }
 
   .home[data-mobile-controls="enabled"] .house-selection-panel {
