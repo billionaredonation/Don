@@ -89,7 +89,7 @@ body,
 }
 
 /* =========================================================
-   MOBILE ONLY: карта боком, HUD под Telegram, без каши
+   MOBILE LANDSCAPE HUD — FINAL PLACEMENT
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
@@ -104,10 +104,8 @@ body,
     inset: 0 !important;
     width: 100vw !important;
     height: var(--mn-vh, 100dvh) !important;
-    min-height: var(--mn-vh, 100dvh) !important;
     overflow: hidden !important;
     background: #020407 !important;
-    touch-action: none !important;
   }
 
   .home[data-mobile-controls="enabled"] .home-gameplay {
@@ -116,11 +114,9 @@ body,
     top: 50% !important;
     width: var(--mn-vh, 100dvh) !important;
     height: 100vw !important;
-    min-height: 100vw !important;
     transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
     transform-origin: center center !important;
     overflow: hidden !important;
-    touch-action: none !important;
   }
 
   .home[data-mobile-controls="enabled"] .gta-map-stage,
@@ -130,7 +126,6 @@ body,
     width: 100% !important;
     height: 100% !important;
     overflow: hidden !important;
-    touch-action: none !important;
   }
 
   .home[data-mobile-controls="enabled"] .gta-map-image {
@@ -172,26 +167,26 @@ body,
     height: 18px !important;
   }
 
-  /* =======================================================
-     HUD: верхняя линия под Telegram
-     Внутри повернутой карты, поэтому компенсируем rotate(-90deg)
-     ======================================================= */
+  /* ===== HUD TOP: город сверху, погода под ним ===== */
 
   .home[data-mobile-controls="enabled"] .player-glass-hud {
     position: absolute !important;
 
-    left: 58px !important;
-    top: calc(100% - 22px) !important;
+    left: 52px !important;
+    top: 18px !important;
+    right: 22px !important;
+    bottom: auto !important;
 
-    width: min(560px, calc(100vw - 118px)) !important;
     height: 52px !important;
+    width: auto !important;
 
     display: grid !important;
-    grid-template-columns: 150px minmax(190px, 1fr) 148px !important;
+    grid-template-columns: 158px minmax(190px, 1fr) 64px 150px !important;
+    grid-template-rows: 52px 42px !important;
     gap: 10px !important;
 
-    transform: rotate(-90deg) translateY(-100%) !important;
-    transform-origin: 0 0 !important;
+    transform: none !important;
+    rotate: 0deg !important;
 
     z-index: 620 !important;
     pointer-events: auto !important;
@@ -206,19 +201,56 @@ body,
     grid-row: 1 !important;
   }
 
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+
+    position: static !important;
+
+    width: 158px !important;
+    height: 42px !important;
+    padding: 0 10px !important;
+
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 7px !important;
+  }
+
   .home[data-mobile-controls="enabled"] .player-profile-card {
     grid-column: 2 !important;
     grid-row: 1 !important;
   }
 
-  .home[data-mobile-controls="enabled"] .player-balance-card {
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: static !important;
+
     grid-column: 3 !important;
+    grid-row: 1 !important;
+
+    width: 52px !important;
+    height: 52px !important;
+
+    align-self: center !important;
+    justify-self: center !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 640 !important;
+    pointer-events: auto !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    grid-column: 4 !important;
     grid-row: 1 !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-city-button,
   .home[data-mobile-controls="enabled"] .player-profile-card,
-  .home[data-mobile-controls="enabled"] .player-balance-card {
+  .home[data-mobile-controls="enabled"] .player-balance-card,
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
     width: 100% !important;
     height: 52px !important;
     min-height: 52px !important;
@@ -237,6 +269,13 @@ body,
 
     transform: none !important;
     rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    border-radius: 16px !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-city-button {
@@ -286,56 +325,25 @@ body,
     white-space: nowrap !important;
   }
 
-  /* Погода под городом */
-  .home[data-mobile-controls="enabled"] .player-weather-mini {
-    position: absolute !important;
-
-    left: 0 !important;
-    top: 64px !important;
-
-    width: 150px !important;
-    height: 42px !important;
-    padding: 0 12px !important;
-
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 8px !important;
-
-    border-radius: 16px !important;
-    background: rgba(5, 8, 15, 0.84) !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-
-    z-index: 630 !important;
-  }
-
-  /* =======================================================
-     Mobile controls
-     ======================================================= */
+  /* ===== Controls ===== */
 
   .home[data-mobile-controls="enabled"] .mobile-controls-layer {
     position: absolute !important;
     inset: 0 !important;
     z-index: 700 !important;
     pointer-events: none !important;
-    transform: none !important;
-    rotate: 0deg !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-joystick {
     position: absolute !important;
 
-    left: calc(100% - 215px) !important;
-    top: 70px !important;
-    right: auto !important;
-    bottom: auto !important;
+    right: 34px !important;
+    bottom: 92px !important;
+    left: auto !important;
+    top: auto !important;
 
-    width: 120px !important;
-    height: 120px !important;
+    width: 92px !important;
+    height: 92px !important;
 
     pointer-events: auto !important;
     touch-action: none !important;
@@ -347,100 +355,71 @@ body,
   }
 
   .home[data-mobile-controls="enabled"] .mobile-joystick-base {
-    width: 120px !important;
-    height: 120px !important;
+    width: 92px !important;
+    height: 92px !important;
     border-radius: 50% !important;
-    background: radial-gradient(circle, rgba(255,255,255,0.18), rgba(255,255,255,0.055)) !important;
+    background:
+      radial-gradient(circle, rgba(255,255,255,0.18), rgba(255,255,255,0.055)) !important;
     border: 1px solid rgba(255, 255, 255, 0.22) !important;
     box-shadow: 0 18px 44px rgba(0,0,0,0.45) !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-joystick-stick {
-    width: 54px !important;
-    height: 54px !important;
+    width: 42px !important;
+    height: 42px !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-control-toggle {
-    position: fixed !important;
+    position: absolute !important;
 
-    right: 96px !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 26px) !important;
+    right: 38px !important;
+    bottom: 26px !important;
     left: auto !important;
     top: auto !important;
 
-    width: 62px !important;
-    height: 62px !important;
+    width: 58px !important;
+    height: 58px !important;
 
     transform: none !important;
     rotate: 0deg !important;
 
-    z-index: 900 !important;
+    z-index: 760 !important;
     pointer-events: auto !important;
   }
 
-  /* Админка рядом с кнопкой игрока, нормальная ориентация */
-  .home[data-mobile-controls="enabled"] .admin-status-dot {
-    position: fixed !important;
-
-    right: 24px !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 26px) !important;
-    left: auto !important;
-    top: auto !important;
-
-    width: 62px !important;
-    height: 62px !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-
-    z-index: 920 !important;
-    pointer-events: auto !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .admin-status-dot > * {
-    transform: none !important;
-    rotate: 0deg !important;
-  }
-
-  /* Стамина снизу по центру, не у Telegram-кнопок */
+  /* Стамина под джойстиком/рядом снизу */
   .home[data-mobile-controls="enabled"] .pc-stamina,
   .home[data-mobile-controls="enabled"] .mobile-stamina,
   .home[data-mobile-controls="enabled"] .stamina-panel,
   .home[data-mobile-controls="enabled"] [data-player-stamina] {
-    position: fixed !important;
+    position: absolute !important;
 
-    left: 50% !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 28px) !important;
-    right: auto !important;
+    right: 140px !important;
+    bottom: 34px !important;
+    left: auto !important;
     top: auto !important;
 
-    width: 230px !important;
-    height: 48px !important;
+    width: 190px !important;
+    height: 46px !important;
 
-    transform: translateX(-50%) !important;
+    transform: none !important;
     rotate: 0deg !important;
 
-    z-index: 880 !important;
+    z-index: 740 !important;
     background: rgba(5, 8, 15, 0.84) !important;
   }
 
-  /* Карточка дома снизу, поверх карты */
+  /* Карточка дома */
   .home[data-mobile-controls="enabled"] .house-selection-panel {
     position: absolute !important;
 
     left: 50% !important;
-    bottom: 24px !important;
+    bottom: 104px !important;
     right: auto !important;
     top: auto !important;
 
-    width: min(520px, calc(100% - 210px)) !important;
+    width: min(500px, calc(100% - 220px)) !important;
     min-height: 60px !important;
-
-    grid-template-columns: 42px minmax(0, 1fr) auto !important;
-    gap: 10px !important;
-
-    padding: 10px 12px !important;
-    border-radius: 18px !important;
 
     transform: translateX(-50%) !important;
     rotate: 0deg !important;
@@ -448,199 +427,33 @@ body,
     z-index: 760 !important;
   }
 
-  .home[data-mobile-controls="enabled"] .entity-interaction-hint,
-  .home[data-mobile-controls="enabled"] .entity-interaction-notice {
-    position: absolute !important;
-
-    left: 50% !important;
-    right: auto !important;
-    top: auto !important;
-
-    max-width: min(360px, calc(100% - 32px)) !important;
-
-    transform: translateX(-50%) !important;
-    rotate: 0deg !important;
-
-    z-index: 770 !important;
-  }
-
   .home[data-mobile-controls="enabled"] .entity-interaction-hint {
-    bottom: 92px !important;
+    bottom: 104px !important;
   }
 
   .home[data-mobile-controls="enabled"] .entity-interaction-notice {
-    bottom: 154px !important;
+    bottom: 166px !important;
   }
 
-  /* =======================================================
-     Модалки домов: всегда нормально, не боком
-     ======================================================= */
-
-  body.mn-houses-modal-open,
-  body.mn-house-details-open {
-    overflow: hidden !important;
-    touch-action: none !important;
-  }
-
+  /* Модалки */
   body.mn-houses-modal-open .houses-modal,
   body.mn-house-details-open .house-details-modal {
     position: fixed !important;
     inset: 0 !important;
-
     width: 100vw !important;
     height: var(--mn-vh, 100dvh) !important;
-    min-height: var(--mn-vh, 100dvh) !important;
-
     display: grid !important;
     place-items: center !important;
-
-    padding:
-      calc(env(safe-area-inset-top, 0px) + 58px)
-      14px
-      calc(env(safe-area-inset-bottom, 0px) + 16px)
-      14px !important;
-
-    box-sizing: border-box !important;
-
     transform: none !important;
     rotate: 0deg !important;
-
     z-index: 2147483000 !important;
-
-    overflow: hidden !important;
-    overscroll-behavior: none !important;
-    touch-action: none !important;
-  }
-
-  body.mn-houses-modal-open .houses-modal[hidden],
-  body.mn-house-details-open .house-details-modal[hidden] {
-    display: none !important;
-  }
-
-  body.mn-houses-modal-open .houses-modal-backdrop,
-  body.mn-house-details-open .house-details-backdrop {
-    position: fixed !important;
-    inset: 0 !important;
-
-    background:
-      radial-gradient(circle at 50% 30%, rgba(99, 58, 255, 0.24), transparent 42%),
-      rgba(0, 0, 0, 0.76) !important;
-
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
   }
 
   body.mn-houses-modal-open .houses-panel,
   body.mn-house-details-open .house-details-panel {
-    position: relative !important;
-
     transform: none !important;
     rotate: 0deg !important;
-
-    box-sizing: border-box !important;
-
     overflow-y: auto !important;
-    overflow-x: hidden !important;
-
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain !important;
-    touch-action: pan-y !important;
-
-    z-index: 2 !important;
-  }
-
-  body.mn-houses-modal-open .houses-panel {
-    width: min(560px, calc(100vw - 28px)) !important;
-    max-width: calc(100vw - 28px) !important;
-    max-height: calc(var(--mn-vh, 100dvh) - 92px) !important;
-
-    padding: 16px !important;
-    border-radius: 26px !important;
-  }
-
-  body.mn-house-details-open .house-details-panel {
-    width: min(440px, calc(100vw - 28px)) !important;
-    max-width: calc(100vw - 28px) !important;
-    max-height: calc(var(--mn-vh, 100dvh) - 96px) !important;
-
-    padding: 18px !important;
-    border-radius: 26px !important;
-  }
-
-  body.mn-houses-modal-open .houses-section-cards,
-  body.mn-houses-modal-open .houses-stats-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-
-  body.mn-houses-modal-open .houses-section-card {
-    min-height: 70px !important;
-    padding: 12px !important;
-    border-radius: 18px !important;
-  }
-
-  body.mn-houses-modal-open .houses-stat-card {
-    min-height: 88px !important;
-    padding: 13px !important;
-    border-radius: 18px !important;
-  }
-
-  body.mn-houses-modal-open .houses-stat-card strong {
-    font-size: 25px !important;
-  }
-
-  body.mn-houses-modal-open .house-list li {
-    grid-template-columns: 44px minmax(0, 1fr) auto !important;
-    gap: 10px !important;
-    padding: 10px !important;
-    border-radius: 16px !important;
-  }
-
-  body.mn-house-details-open .house-details-header h3 {
-    font-size: 28px !important;
-    line-height: 1.05 !important;
-  }
-
-  body.mn-house-details-open .house-details-hero strong {
-    font-size: 32px !important;
-    line-height: 1 !important;
-  }
-
-  body.mn-house-details-open .house-details-grid {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 10px !important;
-  }
-
-  body.mn-house-details-open .house-details-text {
-    font-size: 14px !important;
-    line-height: 1.35 !important;
-  }
-
-  body.mn-houses-modal-open .player-glass-hud,
-  body.mn-houses-modal-open .player-weather-mini,
-  body.mn-houses-modal-open .player-network-card,
-  body.mn-houses-modal-open .admin-status-dot,
-  body.mn-houses-modal-open .pc-stamina,
-  body.mn-houses-modal-open .mobile-stamina,
-  body.mn-houses-modal-open .mobile-controls-layer,
-  body.mn-houses-modal-open .entity-interaction-hint,
-  body.mn-houses-modal-open .entity-interaction-notice,
-  body.mn-houses-modal-open .house-selection-panel,
-  body.mn-house-details-open .player-glass-hud,
-  body.mn-house-details-open .player-weather-mini,
-  body.mn-house-details-open .player-network-card,
-  body.mn-house-details-open .admin-status-dot,
-  body.mn-house-details-open .pc-stamina,
-  body.mn-house-details-open .mobile-stamina,
-  body.mn-house-details-open .mobile-controls-layer,
-  body.mn-house-details-open .entity-interaction-hint,
-  body.mn-house-details-open .entity-interaction-notice,
-  body.mn-house-details-open .house-selection-panel {
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }
