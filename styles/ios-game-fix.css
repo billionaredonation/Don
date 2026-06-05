@@ -557,3 +557,200 @@ body,
     pointer-events: none !important;
   }
 }
+
+
+/* =========================================================
+   FINAL MOBILE FIX — normal UI, darker/farther map
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  html,
+  body,
+  #app {
+    width: 100vw !important;
+    height: var(--mn-vh, 100dvh) !important;
+    min-height: var(--mn-vh, 100dvh) !important;
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"],
+  .home[data-mobile-controls="enabled"] .home-gameplay {
+    position: fixed !important;
+    inset: 0 !important;
+
+    width: 100vw !important;
+    height: var(--mn-vh, 100dvh) !important;
+    min-height: var(--mn-vh, 100dvh) !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-stage,
+  .home[data-mobile-controls="enabled"] .gta-map-viewport {
+    position: absolute !important;
+    inset: 0 !important;
+
+    width: 100% !important;
+    height: 100% !important;
+
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-image {
+    opacity: 1 !important;
+    visibility: visible !important;
+
+    filter:
+      grayscale(1)
+      saturate(0)
+      contrast(1.55)
+      brightness(0.48) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-glow,
+  .home[data-mobile-controls="enabled"] .gta-sky-light {
+    display: none !important;
+    opacity: 0 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .fog-of-war-canvas {
+    opacity: 0.38 !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-glass-hud {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top, 0px) + 72px) !important;
+    left: 12px !important;
+    right: 12px !important;
+
+    height: 42px !important;
+    grid-template-columns: 118px minmax(0, 1fr) 96px !important;
+    gap: 8px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 800 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button,
+  .home[data-mobile-controls="enabled"] .player-profile-card,
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    height: 40px !important;
+    border-radius: 15px !important;
+    background: rgba(4, 8, 14, 0.82) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top, 0px) + 120px) !important;
+    left: 14px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 801 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-network-card {
+    position: fixed !important;
+    top: calc(env(safe-area-inset-top, 0px) + 120px) !important;
+    right: 14px !important;
+    left: auto !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 801 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer {
+    position: fixed !important;
+    inset: 0 !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    pointer-events: none !important;
+    z-index: 850 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    position: fixed !important;
+    left: 18px !important;
+    bottom: 82px !important;
+
+    width: 86px !important;
+    height: 86px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    pointer-events: auto !important;
+    z-index: 860 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-control-toggle {
+    position: fixed !important;
+    right: 18px !important;
+    bottom: 22px !important;
+    left: auto !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 860 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: fixed !important;
+    right: 18px !important;
+    bottom: 92px !important;
+    left: auto !important;
+    top: auto !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 900 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-panel,
+  .home[data-mobile-controls="enabled"] .entity-interaction-hint,
+  .home[data-mobile-controls="enabled"] .entity-interaction-notice {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+
+    transform: translateX(-50%) !important;
+    rotate: 0deg !important;
+
+    z-index: 880 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-panel {
+    bottom: 88px !important;
+    width: min(390px, calc(100vw - 28px)) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .entity-interaction-hint {
+    bottom: 96px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .entity-interaction-notice {
+    bottom: 154px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker {
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 260 !important;
+  }
+}
