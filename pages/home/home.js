@@ -342,9 +342,25 @@ register('home', async (root) => {
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
   const entities = root.querySelector('.gta-map-entities');
-  const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
+  let playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
+
+  if (!playerMarker && entities) {
+    playerMarker = document.createElement('div');
+    playerMarker.className = 'gta-player-marker gta-player-marker-local';
+    playerMarker.dataset.playerId = localPlayerId;
+    playerMarker.dataset.localPlayer = 'true';
+
+    playerMarker.style.left = `${playerPosition.x}%`;
+    playerMarker.style.top = `${playerPosition.y}%`;
+
+    playerMarker.innerHTML = `
+      <div class="gta-player-marker-dot"></div>
+    `;
+
+    entities.appendChild(playerMarker);
+  }
 
   const cleanupHousesFeature = enableHousesFeature(root, {
     cityId,
@@ -517,7 +533,7 @@ register('home', async (root) => {
 
         adminStatusButton.addEventListener('click', toggleAdminPanel);
 
-        root.appendChild(adminStatusButton);
+        stage.appendChild(adminStatusButton);
 
         cleanupAdminPanel = () => adminStatusButton.remove();
         return;
@@ -531,7 +547,7 @@ register('home', async (root) => {
 
       adminStatusButton.addEventListener('click', toggleAdminPanel);
 
-      root.appendChild(adminStatusButton);
+      stage.appendChild(adminStatusButton);
 
       const handleAdminHotkey = (event) => {
         if (!isAdminHotkey(event)) return;
