@@ -96,8 +96,6 @@ body,
     position: fixed !important;
     left: 50% !important;
     top: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
     width: var(--mn-vh, 100dvh) !important;
     height: 100vw !important;
     min-height: 100vw !important;
@@ -106,8 +104,6 @@ body,
     overflow: hidden !important;
     overscroll-behavior: none !important;
     touch-action: none !important;
-    will-change: transform !important;
-    backface-visibility: hidden !important;
   }
 
   .home[data-mobile-controls="enabled"] .gta-map-stage,
@@ -121,10 +117,10 @@ body,
     touch-action: none !important;
   }
 
-  .home[data-mobile-controls="enabled"] .gta-map-image {
-    z-index: 2 !important;
-    opacity: 1 !important;
-    visibility: visible !important;
+  .home[data-mobile-controls="enabled"] .gta-map-weather {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 4 !important;
     pointer-events: none !important;
   }
 
@@ -133,14 +129,17 @@ body,
     pointer-events: none !important;
   }
 
-  /* =======================================================
-     MOBILE PLAYER FIX
-     ======================================================= */
+  .home[data-mobile-controls="enabled"] .gta-map-image:not(.gta-map-glow) {
+    z-index: 2 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: none !important;
+  }
 
   .home[data-mobile-controls="enabled"] .gta-map-entities {
     position: absolute !important;
     inset: 0 !important;
-    z-index: 950 !important;
+    z-index: 5 !important;
     pointer-events: none !important;
     overflow: visible !important;
   }
@@ -150,7 +149,7 @@ body,
     display: grid !important;
     place-items: center !important;
     translate: -50% -50% !important;
-    z-index: 960 !important;
+    z-index: 6 !important;
     opacity: 1 !important;
     visibility: visible !important;
     pointer-events: none !important;
@@ -158,88 +157,101 @@ body,
   }
 
   .home[data-mobile-controls="enabled"] .gta-player-marker-self {
-    z-index: 970 !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .gta-player-marker-dot {
-    position: relative !important;
-    width: 9px !important;
-    height: 9px !important;
-    border-radius: 50% !important;
-    box-sizing: border-box !important;
-    background: #3a2605 !important;
-    border: 2px solid #e6b84a !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    box-shadow:
-      0 0 0 2px rgba(245, 252, 255, 0.75),
-      0 0 10px rgba(165, 225, 255, 0.55) !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .gta-player-marker-dot::before {
-    content: "" !important;
-    position: absolute !important;
-    left: 50% !important;
-    top: 50% !important;
-    width: 18px !important;
-    height: 18px !important;
-    translate: -50% -50% !important;
-    border-radius: 50% !important;
-    background: radial-gradient(
-      circle,
-      rgba(190, 235, 255, 0.28) 0%,
-      rgba(145, 220, 255, 0.12) 55%,
-      transparent 100%
-    ) !important;
-    pointer-events: none !important;
-    z-index: -1 !important;
+    z-index: 7 !important;
   }
 
   .home[data-mobile-controls="enabled"] .gta-player-marker-name {
     display: none !important;
   }
 
-  /* =======================================================
-     MOBILE HUD
-     ======================================================= */
+  .home[data-mobile-controls="enabled"] .mobile-self-player-indicator {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 34px !important;
+    height: 34px !important;
+    translate: -50% -50% !important;
+    z-index: 1180 !important;
+    pointer-events: none !important;
+    display: grid !important;
+    place-items: center !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-self-player-dot {
+    position: relative !important;
+    width: 13px !important;
+    height: 13px !important;
+    border-radius: 50% !important;
+    box-sizing: border-box !important;
+    background: #3a2605 !important;
+    border: 3px solid #e6b84a !important;
+    box-shadow:
+      0 0 0 3px rgba(245, 252, 255, 0.75),
+      0 0 16px rgba(165, 225, 255, 0.75) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-self-player-dot::before {
+    content: "" !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 28px !important;
+    height: 28px !important;
+    translate: -50% -50% !important;
+    border-radius: 50% !important;
+    background: radial-gradient(
+      circle,
+      rgba(190, 235, 255, 0.34) 0%,
+      rgba(145, 225, 255, 0.14) 52%,
+      transparent 100%
+    ) !important;
+    z-index: -1 !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-glass-hud {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 800 !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-glass-hud button,
+  .home[data-mobile-controls="enabled"] .player-glass-hud [role="button"] {
+    pointer-events: auto !important;
+  }
 
   .home[data-mobile-controls="enabled"] .player-city-button {
-    top: 12px !important;
-    left: 16px !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .player-profile-button,
-  .home[data-mobile-controls="enabled"] .player-profile-card {
-    top: 12px !important;
-    left: 190px !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .player-balance-pill,
-  .home[data-mobile-controls="enabled"] .player-balance-card {
-    top: 12px !important;
-    right: 18px !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .mobile-stamina,
-  .home[data-mobile-controls="enabled"] .pc-stamina {
-    left: 22px !important;
-    bottom: 18px !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .admin-status-dot {
     position: absolute !important;
-    right: 18px !important;
-    bottom: 92px !important;
-    width: 44px !important;
-    height: 44px !important;
+    left: 16px !important;
+    top: 14px !important;
     transform: none !important;
     rotate: 0deg !important;
-    z-index: 850 !important;
   }
 
-  /* =======================================================
-     MOBILE CONTROLS
-     ======================================================= */
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    position: absolute !important;
+    left: 16px !important;
+    top: 72px !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    position: absolute !important;
+    right: 18px !important;
+    top: 86px !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    position: absolute !important;
+    right: 18px !important;
+    bottom: 22px !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
 
   .home[data-mobile-controls="enabled"] .mobile-controls-layer {
     position: absolute !important;
@@ -256,9 +268,9 @@ body,
 
   .home[data-mobile-controls="enabled"] .mobile-joystick {
     position: absolute !important;
-    left: 18px !important;
-    bottom: 18px !important;
-    z-index: 1210 !important;
+    left: 72px !important;
+    bottom: 92px !important;
+    z-index: 1220 !important;
     pointer-events: auto !important;
     touch-action: none !important;
     transform: none !important;
@@ -270,19 +282,38 @@ body,
     touch-action: none !important;
   }
 
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] .pc-stamina {
+    position: absolute !important;
+    left: 78px !important;
+    bottom: 52px !important;
+    width: 132px !important;
+    z-index: 1210 !important;
+    pointer-events: none !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
   .home[data-mobile-controls="enabled"] .mobile-control-toggle {
     position: absolute !important;
     right: 18px !important;
-    bottom: 18px !important;
+    bottom: 92px !important;
     left: auto !important;
     z-index: 1220 !important;
     transform: none !important;
     rotate: 0deg !important;
   }
 
-  /* =======================================================
-     MOBILE HOUSE SMALL PANEL
-     ======================================================= */
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: absolute !important;
+    right: 18px !important;
+    bottom: 154px !important;
+    width: 44px !important;
+    height: 44px !important;
+    z-index: 850 !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
 
   .home[data-mobile-controls="enabled"] .house-selection-panel {
     position: absolute !important;
@@ -335,10 +366,6 @@ body,
     top: 7px !important;
   }
 
-  /* =======================================================
-     MOBILE ENTITY HINTS
-     ======================================================= */
-
   .home[data-mobile-controls="enabled"] .entity-interaction-hint {
     position: absolute !important;
     left: 50% !important;
@@ -362,10 +389,6 @@ body,
     rotate: 0deg !important;
     z-index: 27000 !important;
   }
-
-  /* =======================================================
-     MOBILE MODALS
-     ======================================================= */
 
   body.mn-houses-modal-open {
     overflow: hidden !important;
@@ -404,11 +427,6 @@ body,
   body.mn-houses-modal-open .house-details-backdrop {
     position: fixed !important;
     inset: 0 !important;
-    background:
-      radial-gradient(circle at 50% 35%, rgba(99, 58, 255, 0.22), transparent 42%),
-      rgba(0, 0, 0, 0.68) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
     transform: none !important;
     rotate: 0deg !important;
   }
@@ -501,12 +519,18 @@ body,
   body.mn-houses-modal-open .mobile-controls-layer,
   body.mn-houses-modal-open .entity-interaction-hint,
   body.mn-houses-modal-open .entity-interaction-notice,
-  body.mn-houses-modal-open .house-selection-panel {
+  body.mn-houses-modal-open .house-selection-panel,
+  body.mn-houses-modal-open .mobile-self-player-indicator {
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
   }
 }
+
+
+
+
+
 
 /* =========================================================
    SMALL MOBILE HEIGHT
