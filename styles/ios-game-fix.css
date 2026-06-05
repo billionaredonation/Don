@@ -27,7 +27,6 @@ body,
 /* =========================================================
    PC FIX: разрешение не трогаем, карту возвращаем в норму
    ========================================================= */
-
 @media (hover: hover) and (pointer: fine) {
   .home-gameplay,
   .gta-map-stage,
@@ -49,11 +48,11 @@ body,
     filter:
       grayscale(1)
       saturate(0)
-      contrast(1.45)
-      brightness(0.78) !important;
+      contrast(1.8)
+      brightness(0.42) !important;
 
-    transform: none !important;
-    scale: 1 !important;
+    transform: scale(0.72) !important;
+    transform-origin: center center !important;
   }
 
   .gta-map-glow {
@@ -62,15 +61,15 @@ body,
   }
 
   .gta-sky-light {
-    opacity: 0.04 !important;
-    pointer-events: none !important;
+    opacity: 0 !important;
+    display: none !important;
   }
 
   .gta-map-stage::before,
   .gta-map-stage::after,
   .gta-map-viewport::before,
   .gta-map-viewport::after {
-    opacity: 0.25 !important;
+    opacity: 0.08 !important;
     pointer-events: none !important;
   }
 
@@ -81,7 +80,7 @@ body,
     width: 100% !important;
     height: 100% !important;
     pointer-events: none !important;
-    opacity: 0.72 !important;
+    opacity: 0.42 !important;
   }
 
   .admin-status-dot {
