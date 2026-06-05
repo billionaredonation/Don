@@ -37,7 +37,6 @@ import {
 
 import '../../src/admin/adminPanel.css';
 import '../../src/houses/houses.css';
-import '../../styles/ios-game-fix.css';
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 
@@ -152,7 +151,6 @@ register('home', async (root) => {
   const dayMode = getUserDayMode();
   const nickname = state.nickname || 'Игрок';
   const localPlayerId = getLocalPlayerId();
-  const isMobileGameplay = isMobileGameplayDevice();
 
   let weather = getFallbackWeather();
 
@@ -273,6 +271,10 @@ register('home', async (root) => {
             <div class="gta-weather-heat"></div>
           </div>
 
+          <div class="gta-map-entities">
+            ${playersHtml}
+          </div>
+
           <img
             class="gta-map-image gta-map-glow"
             src="${mapSrc}"
@@ -290,10 +292,6 @@ register('home', async (root) => {
             decoding="async"
             fetchpriority="high"
           />
-
-          <div class="gta-map-entities">
-            ${playersHtml}
-          </div>
         </div>
 
         <section class="player-glass-hud" aria-label="Игровой HUD">
@@ -334,6 +332,10 @@ register('home', async (root) => {
           houses: housesFeature,
         })}
 
+        <div class="mobile-self-player-indicator" aria-hidden="true">
+          <div class="mobile-self-player-dot"></div>
+        </div>
+
         <div class="mobile-controls-layer"></div>
       </section>
     </main>
@@ -342,25 +344,9 @@ register('home', async (root) => {
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
   const entities = root.querySelector('.gta-map-entities');
-  let playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
+  const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
-
-  if (!playerMarker && entities) {
-    playerMarker = document.createElement('div');
-    playerMarker.className = 'gta-player-marker gta-player-marker-local';
-    playerMarker.dataset.playerId = localPlayerId;
-    playerMarker.dataset.localPlayer = 'true';
-
-    playerMarker.style.left = `${playerPosition.x}%`;
-    playerMarker.style.top = `${playerPosition.y}%`;
-
-    playerMarker.innerHTML = `
-      <div class="gta-player-marker-dot"></div>
-    `;
-
-    entities.appendChild(playerMarker);
-  }
 
   const cleanupHousesFeature = enableHousesFeature(root, {
     cityId,
@@ -370,11 +356,7 @@ register('home', async (root) => {
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
     focusY: playerPosition.y,
-    startScale: isMobileGameplay
-      ? 3.05
-      : isLowPowerDevice()
-        ? 1.95
-        : 2.25,
+    startScale: isLowPowerDevice() ? 2.65 : 4.95,
   });
 
   const network = setupPlayerNetwork({
@@ -385,6 +367,7 @@ register('home', async (root) => {
   });
 
   const cleanupSessionGuard = setupSessionGuard(root);
+  const isMobileGameplay = isMobileGameplayDevice();
 
   let cleanupMovement = null;
   let cleanupMobilePrompt = null;
@@ -533,7 +516,7 @@ register('home', async (root) => {
 
         adminStatusButton.addEventListener('click', toggleAdminPanel);
 
-        stage.appendChild(adminStatusButton);
+        root.appendChild(adminStatusButton);
 
         cleanupAdminPanel = () => adminStatusButton.remove();
         return;
@@ -547,7 +530,7 @@ register('home', async (root) => {
 
       adminStatusButton.addEventListener('click', toggleAdminPanel);
 
-      stage.appendChild(adminStatusButton);
+      root.appendChild(adminStatusButton);
 
       const handleAdminHotkey = (event) => {
         if (!isAdminHotkey(event)) return;
