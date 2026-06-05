@@ -773,3 +773,23 @@ body,
     pointer-events: auto !important;
   }
 }
+
+/* MICRO TUNE: joystick/stamina/admin чуть выше и правее */
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: 58px !important;
+    top: 288px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .pc-stamina,
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] .stamina-panel,
+  .home[data-mobile-controls="enabled"] [data-player-stamina] {
+    left: 58px !important;
+    top: 396px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    top: 392px !important;
+  }
+}
