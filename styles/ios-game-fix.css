@@ -691,3 +691,85 @@ body,
     pointer-events: auto !important;
   }
 }
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .gta-map-entities {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 500 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker,
+  .home[data-mobile-controls="enabled"] .gta-player-marker-local {
+    position: absolute !important;
+    z-index: 600 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    transform: translate(-50%, -50%) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker-dot {
+    width: 20px !important;
+    height: 20px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: 48px !important;
+    top: 300px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 96px !important;
+    height: 96px !important;
+    z-index: 760 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    width: 96px !important;
+    height: 96px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-stick {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .pc-stamina,
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] .stamina-panel,
+  .home[data-mobile-controls="enabled"] [data-player-stamina] {
+    left: 48px !important;
+    top: 410px !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 96px !important;
+    height: 170px !important;
+    z-index: 740 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: absolute !important;
+
+    right: 26px !important;
+    top: 410px !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    width: 56px !important;
+    height: 56px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+
+    z-index: 900 !important;
+    pointer-events: auto !important;
+  }
+}
