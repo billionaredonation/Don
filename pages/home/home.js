@@ -152,6 +152,7 @@ register('home', async (root) => {
   const dayMode = getUserDayMode();
   const nickname = state.nickname || 'Игрок';
   const localPlayerId = getLocalPlayerId();
+  const isMobileGameplay = isMobileGameplayDevice();
 
   let weather = getFallbackWeather();
 
@@ -350,14 +351,9 @@ register('home', async (root) => {
     city,
   });
 
-
-
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
     focusY: playerPosition.y,
-
-    // ПК было 4.95 — из-за этого карта была слишком близко и белая.
-    // Мобилку тоже чуть отдаляем, чтобы игрок и дома нормально попадали в экран.
     startScale: isMobileGameplay
       ? 3.05
       : isLowPowerDevice()
@@ -373,7 +369,6 @@ register('home', async (root) => {
   });
 
   const cleanupSessionGuard = setupSessionGuard(root);
-
 
   let cleanupMovement = null;
   let cleanupMobilePrompt = null;
