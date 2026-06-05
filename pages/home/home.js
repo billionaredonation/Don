@@ -37,6 +37,7 @@ import {
 
 import '../../src/admin/adminPanel.css';
 import '../../src/houses/houses.css';
+import '../../styles/ios-game-fix.css';
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 
