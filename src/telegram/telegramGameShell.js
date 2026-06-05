@@ -44,21 +44,11 @@ export function setupTelegramGameShell() {
 
   updateViewport();
 
-  window.addEventListener('resize', updateViewport, {
-    passive: true,
-  });
+  window.addEventListener('resize', updateViewport, { passive: true });
+  window.addEventListener('orientationchange', updateViewport, { passive: true });
 
-  window.addEventListener('orientationchange', updateViewport, {
-    passive: true,
-  });
-
-  window.visualViewport?.addEventListener?.('resize', updateViewport, {
-    passive: true,
-  });
-
-  window.visualViewport?.addEventListener?.('scroll', updateViewport, {
-    passive: true,
-  });
+  window.visualViewport?.addEventListener?.('resize', updateViewport, { passive: true });
+  window.visualViewport?.addEventListener?.('scroll', updateViewport, { passive: true });
 
   document.addEventListener(
     'touchmove',
@@ -68,16 +58,13 @@ export function setupTelegramGameShell() {
       const allowScroll =
         target?.closest?.('.houses-panel') ||
         target?.closest?.('.house-details-panel') ||
-        target?.closest?.('.admin-panel');
+        target?.closest?.('.admin-panel') ||
+        target?.closest?.('.houses-filter-menu');
 
-      if (allowScroll) {
-        return;
-      }
+      if (allowScroll) return;
 
       event.preventDefault();
     },
-    {
-      passive: false,
-    }
+    { passive: false }
   );
 }
