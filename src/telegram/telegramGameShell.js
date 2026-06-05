@@ -1,50 +1,45 @@
 export function setupTelegramGameShell() {
   const tg = window.Telegram?.WebApp;
 
-  if (!tg) return;
+  const safe = (callback) => {
+    try {
+      callback?.();
+    } catch {}
+  };
 
-  try {
-    tg.ready();
-  } catch {}
+  if (tg) {
+    safe(() => tg.ready());
+    safe(() => tg.expand());
 
-  try {
-    tg.expand();
-  } catch {}
+    safe(() => tg.disableVerticalSwipes?.());
+    safe(() => tg.enableClosingConfirmation?.());
 
-  try {
-    tg.disableVerticalSwipes();
-  } catch {}
+    safe(() => tg.requestFullscreen?.());
+    safe(() => tg.lockOrientation?.('landscape'));
 
-  try {
-    tg.enableClosingConfirmation();
-  } catch {}
-
-  try {
-    tg.requestFullscreen?.();
-  } catch {}
-
-  try {
-    tg.lockOrientation?.('landscape');
-  } catch {}
-
-  try {
-    tg.setHeaderColor?.('#050607');
-    tg.setBackgroundColor?.('#050607');
-    tg.setBottomBarColor?.('#050607');
-  } catch {}
+    safe(() => tg.setHeaderColor?.('#050607'));
+    safe(() => tg.setBackgroundColor?.('#050607'));
+    safe(() => tg.setBottomBarColor?.('#050607'));
+  }
 
   document.documentElement.classList.add('mn-ios-shell');
   document.body.classList.add('mn-ios-shell');
 
   const updateViewport = () => {
-    const vh =
-      window.visualViewport?.height ||
-      window.innerHeight;
+    const width =
+      window.visualViewport?.width ||
+      window.innerWidth ||
+      document.documentElement.clientWidth;
 
-    document.documentElement.style.setProperty(
-      '--tg-vh',
-      `${vh}px`
-    );
+    const height =
+      window.visualViewport?.height ||
+      window.innerHeight ||
+      document.documentElement.clientHeight;
+
+    document.documentElement.style.setProperty('--mn-vw', `${width}px`);
+    document.documentElement.style.setProperty('--mn-vh', `${height}px`);
+    document.documentElement.style.setProperty('--tg-vw', `${width}px`);
+    document.documentElement.style.setProperty('--tg-vh', `${height}px`);
   };
 
   updateViewport();
@@ -57,14 +52,23 @@ export function setupTelegramGameShell() {
     passive: true,
   });
 
+  window.visualViewport?.addEventListener?.('resize', updateViewport, {
+    passive: true,
+  });
+
+  window.visualViewport?.addEventListener?.('scroll', updateViewport, {
+    passive: true,
+  });
+
   document.addEventListener(
     'touchmove',
     (event) => {
       const target = event.target;
 
       const allowScroll =
-        target.closest('.houses-panel') ||
-        target.closest('.house-details-panel');
+        target?.closest?.('.houses-panel') ||
+        target?.closest?.('.house-details-panel') ||
+        target?.closest?.('.admin-panel');
 
       if (allowScroll) {
         return;
