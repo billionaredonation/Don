@@ -7,6 +7,15 @@ import {
   findMapObjectElement,
 } from '../mapObjects/mapObjectsRenderer.js';
 
+
+
+const gameplayRoot =
+  document.querySelector('.gta-map-stage') ||
+  document.querySelector('.home-gameplay') ||
+  document.body;
+
+gameplayRoot.appendChild(interactionHint);
+
 import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
