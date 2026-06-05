@@ -274,10 +274,6 @@ register('home', async (root) => {
             <div class="gta-weather-heat"></div>
           </div>
 
-          <div class="gta-map-entities">
-            ${playersHtml}
-          </div>
-
           <img
             class="gta-map-image gta-map-glow"
             src="${mapSrc}"
@@ -295,11 +291,15 @@ register('home', async (root) => {
             decoding="async"
             fetchpriority="high"
           />
+
+          <div class="gta-map-entities">
+            ${playersHtml}
+          </div>
         </div>
       </section>
     </main>
 
-    <section class="player-glass-hud player-glass-hud-mobile-ready" aria-label="Игровой HUD">
+    <section class="player-glass-hud" aria-label="Игровой HUD">
       <div class="player-hud-left">
         <button class="player-city-button" type="button" aria-label="Открыть недвижимость города">
           <span>${city.name}</span>
@@ -332,7 +332,7 @@ register('home', async (root) => {
       </div>
     </section>
 
-    <div class="mobile-controls-layer mobile-controls-layer-ui"></div>
+    <div class="mobile-controls-layer"></div>
 
     ${renderHousesFeatureHtml({
       city,
@@ -356,7 +356,7 @@ register('home', async (root) => {
     focusX: playerPosition.x,
     focusY: playerPosition.y,
     startScale: isMobileGameplay
-      ? 2.35
+      ? 3.05
       : isLowPowerDevice()
         ? 1.95
         : 2.25,
