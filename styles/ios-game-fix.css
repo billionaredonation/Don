@@ -89,7 +89,7 @@ body,
 }
 
 /* =========================================================
-   MOBILE: карта боком, но HUD и модалки читаемые
+   MOBILE ONLY: карта боком, HUD удобнее, модалки нормальные
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
@@ -160,11 +160,7 @@ body,
       drop-shadow(0 0 1px rgba(255,255,255,0.45)) !important;
   }
 
-  .home[data-mobile-controls="enabled"] .gta-map-glow {
-    opacity: 0 !important;
-    display: none !important;
-  }
-
+  .home[data-mobile-controls="enabled"] .gta-map-glow,
   .home[data-mobile-controls="enabled"] .gta-sky-light {
     opacity: 0 !important;
     display: none !important;
@@ -182,43 +178,38 @@ body,
   }
 
   .home[data-mobile-controls="enabled"] .gta-player-marker {
-    z-index: 220 !important;
+    z-index: 240 !important;
     opacity: 1 !important;
     visibility: visible !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .gta-player-marker-self {
-    z-index: 240 !important;
   }
 
   .home[data-mobile-controls="enabled"] .gta-player-marker-dot {
     width: 18px !important;
     height: 18px !important;
-    opacity: 1 !important;
-    visibility: visible !important;
   }
 
-  /* HUD: делаем компактнее, чтобы не мешал */
+  /* HUD ниже Telegram-кнопок */
   .home[data-mobile-controls="enabled"] .player-glass-hud {
-    top: 10px !important;
+    top: 74px !important;
     left: 12px !important;
     right: 12px !important;
 
-    height: 38px !important;
-    grid-template-columns: 118px minmax(118px, 1fr) 86px !important;
-    gap: 7px !important;
+    height: 40px !important;
+    grid-template-columns: 122px minmax(120px, 1fr) 88px !important;
+    gap: 8px !important;
 
-    z-index: 500 !important;
+    z-index: 520 !important;
+    pointer-events: auto !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-city-button,
   .home[data-mobile-controls="enabled"] .player-profile-card,
   .home[data-mobile-controls="enabled"] .player-balance-card {
-    height: 38px !important;
-    min-height: 38px !important;
-    border-radius: 14px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 15px !important;
 
-    background: rgba(4, 8, 14, 0.72) !important;
+    background: rgba(4, 8, 14, 0.76) !important;
     border-color: rgba(255, 255, 255, 0.12) !important;
 
     backdrop-filter: blur(14px) saturate(1.15) !important;
@@ -243,31 +234,32 @@ body,
 
   .home[data-mobile-controls="enabled"] .player-weather-mini {
     left: 14px !important;
-    top: 56px !important;
-    height: 26px !important;
+    top: 122px !important;
+    height: 28px !important;
+    padding: 0 9px !important;
 
-    z-index: 501 !important;
+    z-index: 521 !important;
 
-    background: rgba(4, 8, 14, 0.72) !important;
+    background: rgba(4, 8, 14, 0.76) !important;
     border-color: rgba(255, 255, 255, 0.12) !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-network-card {
-    top: 56px !important;
+    top: 122px !important;
     right: 14px !important;
 
-    z-index: 501 !important;
+    z-index: 521 !important;
 
-    background: rgba(4, 8, 14, 0.72) !important;
+    background: rgba(4, 8, 14, 0.76) !important;
     border-color: rgba(255, 255, 255, 0.12) !important;
   }
 
   .home[data-mobile-controls="enabled"] .pc-stamina,
   .home[data-mobile-controls="enabled"] .mobile-stamina {
     left: 14px !important;
-    bottom: 14px !important;
+    bottom: 18px !important;
 
-    width: 132px !important;
+    width: 130px !important;
     height: 38px !important;
 
     z-index: 520 !important;
@@ -290,10 +282,10 @@ body,
     position: absolute !important;
 
     left: 14px !important;
-    bottom: 62px !important;
+    bottom: 84px !important;
 
-    width: 86px !important;
-    height: 86px !important;
+    width: 78px !important;
+    height: 78px !important;
 
     z-index: 540 !important;
     pointer-events: auto !important;
@@ -307,7 +299,7 @@ body,
     position: absolute !important;
 
     right: 14px !important;
-    bottom: 16px !important;
+    bottom: 20px !important;
     left: auto !important;
 
     width: 52px !important;
@@ -322,8 +314,8 @@ body,
   .home[data-mobile-controls="enabled"] .admin-status-dot {
     position: absolute !important;
 
-    right: 14px !important;
-    bottom: 82px !important;
+    right: 16px !important;
+    bottom: 90px !important;
 
     width: 42px !important;
     height: 42px !important;
@@ -334,14 +326,13 @@ body,
     rotate: 0deg !important;
   }
 
-  /* Нижняя карточка дома */
   .home[data-mobile-controls="enabled"] .house-selection-panel {
     position: absolute !important;
 
     left: 50% !important;
-    bottom: 14px !important;
+    bottom: 78px !important;
 
-    width: min(410px, calc(100% - 28px)) !important;
+    width: min(400px, calc(100% - 28px)) !important;
     min-height: 58px !important;
 
     grid-template-columns: 38px minmax(0, 1fr) auto !important;
@@ -353,7 +344,7 @@ body,
     transform: translateX(-50%) !important;
     rotate: 0deg !important;
 
-    z-index: 700 !important;
+    z-index: 760 !important;
   }
 
   .home[data-mobile-controls="enabled"] .house-selection-title {
@@ -385,23 +376,18 @@ body,
     transform: translateX(-50%) !important;
     rotate: 0deg !important;
 
-    z-index: 760 !important;
+    z-index: 770 !important;
   }
 
   .home[data-mobile-controls="enabled"] .entity-interaction-hint {
-    bottom: 18px !important;
+    bottom: 78px !important;
   }
 
   .home[data-mobile-controls="enabled"] .entity-interaction-notice {
-    bottom: 74px !important;
+    bottom: 136px !important;
   }
-}
 
-/* =========================================================
-   MOBILE MODALS: НЕ боком, как нормальная мобильная модалка
-   ========================================================= */
-
-@media (hover: none) and (pointer: coarse) {
+  /* МОДАЛКИ: нормально, не боком */
   body.mn-houses-modal-open,
   body.mn-house-details-open {
     overflow: hidden !important;
