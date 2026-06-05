@@ -1,131 +1,423 @@
-html.mn-ios-shell,
-body.mn-ios-shell,
-html.mn-ios-shell #app {
-  width: 100%;
-  height: var(--tg-vh, 100dvh);
-  min-height: var(--tg-vh, 100dvh);
+/* styles/ios-game-fix.css */
 
+/* БАЗА */
+html,
+body,
+#app {
+  width: 100%;
+  height: var(--mn-vh, 100dvh);
+  min-height: var(--mn-vh, 100dvh);
+  margin: 0;
+  padding: 0;
   overflow: hidden !important;
   overscroll-behavior: none !important;
-  touch-action: none !important;
-
   background: #050607;
+  -webkit-text-size-adjust: 100%;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-html.mn-ios-shell .home {
-  width: 100vw !important;
-  height: var(--tg-vh, 100dvh) !important;
-  min-height: var(--tg-vh, 100dvh) !important;
-
-  overflow: hidden !important;
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
-@media (hover: none) and (pointer: coarse) {
+/* =========================================================
+   ПК: РАЗРЕШЕНИЕ НЕ ТРОГАЕМ, ФИКСИМ ТОЛЬКО БЕЛУЮ КАРТУ
+   ========================================================= */
 
-  /* СОХРАНЯЕМ БОКОВОЙ GAMEPLAY */
+@media (hover: hover) and (pointer: fine) {
+  .home[data-time="day"] .gta-map-image {
+    filter:
+      grayscale(1)
+      saturate(0)
+      contrast(1.35)
+      brightness(1.18)
+      sepia(0.06)
+      drop-shadow(0 0 1px rgba(255,255,255,0.38)) !important;
+  }
 
-  html.mn-ios-shell .home[data-mobile-controls="enabled"] .home-gameplay {
-    position: fixed !important;
+  .home[data-time="day"] .gta-map-glow {
+    opacity: 0.18 !important;
+    filter:
+      blur(3px)
+      brightness(1.15) !important;
+  }
 
-    left: 50% !important;
-    top: 50% !important;
+  .home[data-time="day"] .gta-sky-light {
+    opacity: 0.28 !important;
+  }
 
-    width: var(--tg-vh, 100dvh) !important;
-    height: 100vw !important;
+  .home[data-time="day"] .gta-map-stage::before {
+    opacity: 0.35 !important;
+  }
 
-    transform:
-      translate3d(-50%, -50%, 0)
-      rotate(90deg) !important;
+  .home[data-time="day"] .gta-map-viewport::before,
+  .home[data-time="day"] .gta-map-viewport::after {
+    opacity: 0.45 !important;
+  }
 
-    transform-origin: center center !important;
-
+  .home-gameplay,
+  .gta-map-stage,
+  .gta-map-viewport {
     overflow: hidden !important;
   }
 
-  .gta-map-stage {
+  .admin-status-dot {
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .house-selection-panel,
+  .entity-interaction-hint,
+  .entity-interaction-notice {
+    transform: translateX(-50%) !important;
+    rotate: 0deg !important;
+  }
+}
+
+/* =========================================================
+   МОБИЛКИ: БОКОВУЮ ОРИЕНТАЦИЮ СОХРАНЯЕМ
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  html,
+  body,
+  #app {
+    touch-action: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: var(--mn-vh, 100dvh) !important;
+    min-height: var(--mn-vh, 100dvh) !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+    touch-action: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .home-gameplay {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: var(--mn-vh, 100dvh) !important;
+    height: 100vw !important;
+    min-height: 100vw !important;
+
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
+
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+    touch-action: none !important;
+    will-change: transform !important;
+    backface-visibility: hidden !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-stage {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+    touch-action: none !important;
+  }
+
+  /* НЕ КРУТИМ UI ВТОРОЙ РАЗ */
+  .home[data-mobile-controls="enabled"] .house-selection-panel,
+  .home[data-mobile-controls="enabled"] .entity-interaction-hint,
+  .home[data-mobile-controls="enabled"] .entity-interaction-notice,
+  .home[data-mobile-controls="enabled"] .houses-modal,
+  .home[data-mobile-controls="enabled"] .house-details-modal,
+  .home[data-mobile-controls="enabled"] .houses-panel,
+  .home[data-mobile-controls="enabled"] .house-details-panel {
+    rotate: 0deg !important;
+  }
+
+  /* КАРТОЧКА ДОМА СНИЗУ */
+  .home[data-mobile-controls="enabled"] .house-selection-panel {
+    position: absolute !important;
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: 16px !important;
+
+    width: min(440px, calc(100% - 32px)) !important;
+    min-height: 62px !important;
+
+    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+
+    padding: 10px 12px !important;
+    border-radius: 18px !important;
+
+    transform: translateX(-50%) !important;
+    transform-origin: center center !important;
+
+    z-index: 26000 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-icon {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 13px !important;
+    font-size: 21px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-title {
+    font-size: 16px !important;
+    line-height: 1.05 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-meta {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    max-width: 235px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-action {
+    min-height: 36px !important;
+    padding: 0 14px !important;
+    border-radius: 13px !important;
+    font-size: 13px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-close {
+    right: 7px !important;
+    top: 7px !important;
+  }
+
+  /* ПОДСКАЗКА */
+  .home[data-mobile-controls="enabled"] .entity-interaction-hint {
+    position: absolute !important;
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: 18px !important;
+
+    max-width: min(340px, calc(100% - 28px)) !important;
+    transform: translateX(-50%) !important;
+
+    z-index: 27000 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .entity-interaction-notice {
+    position: absolute !important;
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: 72px !important;
+
+    max-width: min(340px, calc(100% - 28px)) !important;
+    transform: translateX(-50%) !important;
+
+    z-index: 27000 !important;
+  }
+
+  /* МОДАЛКИ */
+  .home[data-mobile-controls="enabled"] .houses-modal,
+  .home[data-mobile-controls="enabled"] .house-details-modal {
     position: absolute !important;
     inset: 0 !important;
 
     width: 100% !important;
     height: 100% !important;
-
-    overflow: hidden !important;
-  }
-
-  /* ПАНЕЛЬ ДОМА */
-
-  .house-selection-panel {
-    position: fixed !important;
-
-    left: 50% !important;
-    bottom: 14px !important;
-
-    width: min(430px, calc(100% - 28px)) !important;
-
-    transform: translateX(-50%) !important;
-
-    rotate: 0deg !important;
-
-    z-index: 50000 !important;
-  }
-
-  /* ПОДСКАЗКА */
-
-  .entity-interaction-hint,
-  .entity-interaction-notice {
-    position: fixed !important;
-
-    left: 50% !important;
-    bottom: 14px !important;
-
-    transform: translateX(-50%) !important;
-
-    rotate: 0deg !important;
-
-    z-index: 50000 !important;
-  }
-
-  /* МОДАЛКИ */
-
-  .houses-modal,
-  .house-details-modal {
-    position: fixed !important;
-    inset: 0 !important;
+    min-height: 100% !important;
 
     display: grid !important;
     place-items: center !important;
 
-    padding: 10px !important;
+    padding: 42px 10px 14px !important;
+    box-sizing: border-box !important;
 
     transform: none !important;
-    rotate: 0deg !important;
 
-    z-index: 999999 !important;
+    z-index: 1000000 !important;
+    overflow: hidden !important;
+    touch-action: none !important;
   }
 
-  .houses-panel,
-  .house-details-panel {
+  .home[data-mobile-controls="enabled"] .houses-modal[hidden],
+  .home[data-mobile-controls="enabled"] .house-details-modal[hidden] {
+    display: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-panel {
+    width: min(540px, calc(100% - 20px)) !important;
+    max-width: calc(100% - 20px) !important;
+    max-height: calc(100% - 58px) !important;
+
+    padding: 14px !important;
+    border-radius: 24px !important;
+
     transform: none !important;
-    rotate: 0deg !important;
-
-    width: min(620px, calc(100% - 24px)) !important;
-    max-width: calc(100% - 24px) !important;
-
-    max-height: calc(100% - 24px) !important;
 
     overflow-y: auto !important;
+    overflow-x: hidden !important;
 
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
   }
 
-  .house-details-panel {
-    width: min(430px, calc(100% - 24px)) !important;
+  .home[data-mobile-controls="enabled"] .house-details-panel {
+    width: min(430px, calc(100% - 22px)) !important;
+    max-width: calc(100% - 22px) !important;
+    max-height: calc(100% - 58px) !important;
+
+    padding: 18px !important;
+    border-radius: 24px !important;
+
+    transform: none !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
   }
 
-  /* АДМИНКА */
+  .home[data-mobile-controls="enabled"] .houses-title-text h2 {
+    font-size: 22px !important;
+    line-height: 1.05 !important;
+  }
 
-  .admin-status-dot {
+  .home[data-mobile-controls="enabled"] .houses-title-text p {
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-section-cards {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-section-card {
+    min-height: 72px !important;
+    padding: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-stat-card {
+    min-height: 96px !important;
+    padding: 13px !important;
+    border-radius: 18px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-stat-card strong {
+    font-size: 26px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-list li {
+    grid-template-columns: 44px minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+    padding: 10px !important;
+    border-radius: 16px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-list-main strong {
+    font-size: 15px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-list-main small {
+    font-size: 11px !important;
+  }
+
+  /* МОБИЛЬНЫЕ КНОПКИ */
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 120 !important;
+    pointer-events: none !important;
+    transform: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    position: absolute !important;
+    left: 16px !important;
+    bottom: 16px !important;
+    z-index: 130 !important;
+    pointer-events: auto !important;
+    touch-action: none !important;
+    transform: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-control-toggle {
+    position: absolute !important;
+    right: 16px !important;
+    bottom: 16px !important;
+    left: auto !important;
+    transform: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: absolute !important;
+    right: 16px !important;
+    bottom: 88px !important;
+
+    width: 42px !important;
+    height: 42px !important;
+
     transform: none !important;
     rotate: 0deg !important;
+
+    z-index: 850 !important;
+  }
+
+  body.mn-houses-modal-open .admin-status-dot,
+  body.mn-houses-modal-open .pc-stamina,
+  body.mn-houses-modal-open .mobile-stamina,
+  body.mn-houses-modal-open .mobile-controls-layer,
+  body.mn-houses-modal-open .entity-interaction-hint,
+  body.mn-houses-modal-open .entity-interaction-notice,
+  body.mn-houses-modal-open .house-selection-panel {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
+
+/* Маленькие экраны iPhone */
+@media (hover: none) and (pointer: coarse) and (max-height: 430px) {
+  .home[data-mobile-controls="enabled"] .houses-modal,
+  .home[data-mobile-controls="enabled"] .house-details-modal {
+    padding: 34px 8px 10px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-panel,
+  .home[data-mobile-controls="enabled"] .house-details-panel {
+    max-height: calc(100% - 44px) !important;
+    padding: 12px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-title-text h2 {
+    font-size: 20px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-section-card {
+    min-height: 66px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .houses-stat-card {
+    min-height: 84px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-panel {
+    bottom: 12px !important;
+    min-height: 56px !important;
   }
 }
