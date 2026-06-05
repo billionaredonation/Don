@@ -793,3 +793,71 @@ body,
     top: 392px !important;
   }
 }
+
+
+/* FINAL MICRO TUNE + PLAYER FORCE FIX */
+@media (hover: none) and (pointer: coarse) {
+  /* Стамину на 4px выше */
+  .home[data-mobile-controls="enabled"] .pc-stamina,
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] .stamina-panel,
+  .home[data-mobile-controls="enabled"] [data-player-stamina] {
+    top: 392px !important;
+  }
+
+  /* Игрок поверх всего слоя карты */
+  .home[data-mobile-controls="enabled"] .gta-map-viewport {
+    isolation: isolate !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-image,
+  .home[data-mobile-controls="enabled"] .gta-map-glow {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 10 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-weather {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 20 !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-entities {
+    position: absolute !important;
+    inset: 0 !important;
+    z-index: 900 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker,
+  .home[data-mobile-controls="enabled"] .gta-player-marker-local,
+  .home[data-mobile-controls="enabled"] [data-local-player="true"] {
+    position: absolute !important;
+    z-index: 950 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    width: 26px !important;
+    height: 26px !important;
+    transform: translate(-50%, -50%) !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker-dot {
+    width: 20px !important;
+    height: 20px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    background: #8b5cf6 !important;
+    border-radius: 50% !important;
+    box-shadow:
+      0 0 0 4px rgba(139, 92, 246, 0.24),
+      0 0 24px rgba(139, 92, 246, 0.9) !important;
+  }
+}
