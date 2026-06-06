@@ -24,22 +24,19 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
-function isPortraitViewport() {
-  return window.innerHeight >= window.innerWidth;
+function isPortraitScreen() {
+  return window.matchMedia('(orientation: portrait)').matches;
 }
 
-/**
- * Важно:
- * home-gameplay на мобилке повернут rotate(90deg).
- * Поэтому экранное движение надо переводить в координаты карты.
- *
- * Палец вправо  -> игрок вправо по экрану
- * Палец влево  -> игрок влево по экрану
- * Палец вверх  -> игрок вверх по экрану
- * Палец вниз   -> игрок вниз по экрану
- */
-function mapScreenInputToWorld(inputX, inputY) {
-  if (!isPortraitViewport()) {
+/*
+  На мобилке сама сцена повернута через CSS rotate(90deg).
+  Поэтому движение персонажа надо пересчитать под карту.
+
+  Но сам стик визуально НЕ поворачиваем.
+  Палец вправо = стик вправо.
+*/
+function rotateInputForMobileScene(inputX, inputY) {
+  if (!isPortraitScreen()) {
     return {
       x: inputX,
       y: inputY,
@@ -106,7 +103,7 @@ export function enableMobileJoystick(
   const joystick = container.querySelector('.mobile-joystick');
   const base = container.querySelector('.mobile-joystick-base');
   const stick = container.querySelector('.mobile-joystick-stick');
-  const stamina = container.querySelector('.mobile-stamina');
+  const staminaEl = container.querySelector('.mobile-stamina');
   const staminaFill = container.querySelector('.mobile-stamina-fill');
 
   const STAMINA = getStaminaConfig();
@@ -131,7 +128,7 @@ export function enableMobileJoystick(
     toFiniteNumber(marker.dataset.angle) ??
     0;
 
-  let currentStamina = STAMINA.max;
+  let stamina = STAMINA.max;
   let sprintLocked = false;
 
   let activePointerId = null;
@@ -157,7 +154,7 @@ export function enableMobileJoystick(
   function updateStaminaUi() {
     if (!staminaFill) return;
 
-    const percent = clamp((currentStamina / STAMINA.max) * 100, 0, 100);
+    const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
 
     staminaFill.style.width = `${percent}%`;
 
@@ -179,24 +176,18 @@ export function enableMobileJoystick(
       !sprintLocked;
 
     if (wantsSprint) {
-      currentStamina = Math.max(
-        STAMINA.emptyAt,
-        currentStamina - STAMINA.drainPerFrame
-      );
+      stamina = Math.max(STAMINA.emptyAt, stamina - STAMINA.drainPerFrame);
 
-      if (currentStamina <= STAMINA.emptyAt) {
+      if (stamina <= STAMINA.emptyAt) {
         sprintLocked = true;
-        currentStamina = STAMINA.emptyAt;
+        stamina = STAMINA.emptyAt;
       }
     } else {
-      currentStamina = Math.min(
-        STAMINA.max,
-        currentStamina + STAMINA.recoverPerFrame
-      );
+      stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
 
-      if (currentStamina >= STAMINA.recoveredAt) {
+      if (stamina >= STAMINA.recoveredAt) {
         sprintLocked = false;
-        currentStamina = STAMINA.max;
+        stamina = STAMINA.max;
       }
     }
 
@@ -313,15 +304,13 @@ export function enableMobileJoystick(
     const dy = clientY - centerY;
 
     const rawDistance = Math.hypot(dx, dy);
-    const distance = Math.min(rawDistance, MAX_DISTANCE);
 
     if (rawDistance <= 0.001) {
       resetStick();
       return;
     }
 
-    const inputX = dx / rawDistance;
-    const inputY = dy / rawDistance;
+    const distance = Math.min(rawDistance, MAX_DISTANCE);
     const power = distance / MAX_DISTANCE;
 
     if (power < DEADZONE) {
@@ -329,17 +318,21 @@ export function enableMobileJoystick(
       return;
     }
 
-    const worldInput = mapScreenInputToWorld(inputX, inputY);
+    const inputX = dx / rawDistance;
+    const inputY = dy / rawDistance;
 
-    moveX = worldInput.x * power;
-    moveY = worldInput.y * power;
+    const movementInput = rotateInputForMobileScene(inputX, inputY);
+
+    moveX = movementInput.x * power;
+    moveY = movementInput.y * power;
 
     angle = getAngleFromMovement(moveX, moveY, angle);
     syncPlayerPosition();
 
     /*
-      Визуально стик должен идти за пальцем.
-      Его НЕ крутим вместе с картой, иначе палец вправо выглядит как вниз/вверх.
+      Визуал стика не трогаем поворотом карты.
+      Палец вправо = стик вправо.
+      Палец вверх = стик вверх.
     */
     const stickX = inputX * distance;
     const stickY = inputY * distance;
@@ -471,7 +464,7 @@ export function enableMobileJoystick(
     updateStaminaUi();
 
     joystick?.remove();
-    stamina?.remove();
+    staminaEl?.remove();
 
     broadcastMove(true);
     savePositionToDb(true);
