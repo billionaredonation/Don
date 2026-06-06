@@ -15,7 +15,7 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function toFiniteNumber(value, fallback = null) {
+function number(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
@@ -24,73 +24,35 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
-function normalizeVector(x, y) {
-  const length = Math.hypot(x, y);
-  if (length <= 0.0001) return { x: 0, y: 0 };
-
-  return {
-    x: x / length,
-    y: y / length,
-  };
+function getAngleFromMovement(x, y, fallback = 0) {
+  if (Math.abs(x) < 0.001 && Math.abs(y) < 0.001) return fallback;
+  return Math.atan2(x, -y) * 180 / Math.PI;
 }
 
 /*
-  Главный фикс:
-  Джойстик считает направление по экрану.
-  Потом мы автоматически переводим это направление в координаты повернутого gameplay.
-  То есть больше не гадаем x/y, rotate, front-camera слева/справа.
+  Карта у тебя на мобилке повернута rotate(90deg).
+  Игрок двигается в координатах карты, а палец двигается в координатах экрана.
+  Эта формула переводит экранный джойстик в координаты карты.
 */
-function screenVectorToWorldVector(screenX, screenY, marker) {
-  const gameplay =
-    marker?.closest?.('.home-gameplay') ||
-    document.querySelector('.home-gameplay');
-
-  if (!gameplay) {
-    return normalizeVector(screenX, screenY);
-  }
-
-  const transform = getComputedStyle(gameplay).transform;
-
-  if (!transform || transform === 'none') {
-    return normalizeVector(screenX, screenY);
-  }
-
-  try {
-    const matrix = new DOMMatrixReadOnly(transform);
-    const inverse = matrix.inverse();
-
-    const worldX = inverse.a * screenX + inverse.c * screenY;
-    const worldY = inverse.b * screenX + inverse.d * screenY;
-
-    return normalizeVector(worldX, worldY);
-  } catch {
-    return normalizeVector(screenX, screenY);
-  }
-}
-
-function getAngleFromMovement(moveX, moveY, fallback = 0) {
-  if (Math.abs(moveX) < 0.001 && Math.abs(moveY) < 0.001) {
-    return fallback;
-  }
-
-  return Math.atan2(moveX, -moveY) * 180 / Math.PI;
+function joystickToMapVector(screenX, screenY) {
+  return {
+    x: screenY,
+    y: -screenX,
+  };
 }
 
 function getInitialPosition(playerPosition, marker, bounds) {
-  const px = toFiniteNumber(playerPosition?.x);
-  const py = toFiniteNumber(playerPosition?.y);
+  const x = clamp(
+    number(playerPosition?.x ?? marker?.dataset?.x, 50),
+    bounds.minX,
+    bounds.maxX
+  );
 
-  const mx = toFiniteNumber(marker?.dataset?.x);
-  const my = toFiniteNumber(marker?.dataset?.y);
-
-  const sx = toFiniteNumber(marker?.style?.left?.replace('%', ''));
-  const sy = toFiniteNumber(marker?.style?.top?.replace('%', ''));
-
-  let x = clamp(px ?? mx ?? sx ?? 50, bounds.minX, bounds.maxX);
-  let y = clamp(py ?? my ?? sy ?? 50, bounds.minY, bounds.maxY);
-
-  if (x <= bounds.minX + 0.5 || x >= bounds.maxX - 0.5) x = 50;
-  if (y <= bounds.minY + 0.5 || y >= bounds.maxY - 0.5) y = 50;
+  const y = clamp(
+    number(playerPosition?.y ?? marker?.dataset?.y, 50),
+    bounds.minY,
+    bounds.maxY
+  );
 
   return { x, y };
 }
@@ -107,51 +69,46 @@ export function enableMobileJoystick(
   if (!container || !marker || !playerPosition) return null;
   if (!isMobileDevice()) return null;
 
+  container.classList.add('mn-mobile-controls');
   container.dataset.joystickActive = 'false';
 
   container.innerHTML = `
-    <div class="mobile-joystick">
-      <div class="mobile-joystick-base">
-        <div class="mobile-joystick-stick"></div>
+    <div class="mn-mobile-joystick" data-mobile-joystick>
+      <div class="mn-mobile-joystick-base" data-mobile-joystick-base>
+        <div class="mn-mobile-joystick-stick" data-mobile-joystick-stick></div>
       </div>
     </div>
 
-    <div class="mobile-stamina">
-      <div class="mobile-stamina-label">STAMINA</div>
-      <div class="mobile-stamina-track">
-        <div class="mobile-stamina-fill"></div>
+    <div class="mn-mobile-stamina" data-mobile-stamina>
+      <div class="mn-mobile-stamina-label">STAMINA</div>
+      <div class="mn-mobile-stamina-track">
+        <div class="mn-mobile-stamina-fill" data-mobile-stamina-fill></div>
       </div>
     </div>
   `;
 
-  const joystick = container.querySelector('.mobile-joystick');
-  const staminaEl = container.querySelector('.mobile-stamina');
-  const base = container.querySelector('.mobile-joystick-base');
-  const stick = container.querySelector('.mobile-joystick-stick');
-  const staminaFill = container.querySelector('.mobile-stamina-fill');
+  const joystick = container.querySelector('[data-mobile-joystick]');
+  const base = container.querySelector('[data-mobile-joystick-base]');
+  const stick = container.querySelector('[data-mobile-joystick-stick]');
+  const staminaFill = container.querySelector('[data-mobile-stamina-fill]');
 
   const STAMINA = getStaminaConfig();
   const BOUNDS = getMovementBounds();
   const SYNC = getMovementSyncConfig();
 
   const MAX_DISTANCE = 46;
-  const DEADZONE = 0.075;
-  const SPRINT_POWER = 0.62;
-  const CAMERA_FOLLOW_LAG = 0.18;
+  const DEADZONE = 0.07;
+  const SPRINT_POWER = 0.64;
+  const CAMERA_LAG = 0.2;
 
-  const initial = getInitialPosition(playerPosition, marker, BOUNDS);
+  const start = getInitialPosition(playerPosition, marker, BOUNDS);
 
-  let x = initial.x;
-  let y = initial.y;
-
+  let x = start.x;
+  let y = start.y;
   let cameraX = x;
   let cameraY = y;
 
-  let angle =
-    toFiniteNumber(playerPosition.angle) ??
-    toFiniteNumber(playerPosition.direction) ??
-    toFiniteNumber(marker.dataset.angle) ??
-    0;
+  let angle = number(playerPosition?.angle ?? marker?.dataset?.angle, 0);
 
   let moveX = 0;
   let moveY = 0;
@@ -159,30 +116,24 @@ export function enableMobileJoystick(
   let stamina = STAMINA.max;
   let sprintLocked = false;
 
-  let activePointerId = null;
-
+  let pointerId = null;
   let centerX = 0;
   let centerY = 0;
 
-  let animationId = null;
+  let raf = null;
   let destroyed = false;
+  let lastFrame = performance.now();
 
-  let lastFrameAt = performance.now();
-  let lastBroadcastAt = 0;
-  let lastDbSaveAt = 0;
-
-  let dbSaveInFlight = false;
-  let dbSavePending = false;
+  let lastBroadcast = 0;
+  let lastDbSave = 0;
+  let dbSaving = false;
+  let dbPending = false;
 
   let lastSentX = x;
   let lastSentY = y;
   let lastSentAngle = angle;
 
-  function setJoystickActive(active) {
-    container.dataset.joystickActive = active ? 'true' : 'false';
-  }
-
-  function syncPlayerPosition() {
+  function syncPosition() {
     playerPosition.x = x;
     playerPosition.y = y;
     playerPosition.angle = angle;
@@ -192,7 +143,7 @@ export function enableMobileJoystick(
     x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
     y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
 
-    syncPlayerPosition();
+    syncPosition();
 
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
@@ -207,8 +158,8 @@ export function enableMobileJoystick(
       cameraX = x;
       cameraY = y;
     } else {
-      cameraX += (x - cameraX) * CAMERA_FOLLOW_LAG;
-      cameraY += (y - cameraY) * CAMERA_FOLLOW_LAG;
+      cameraX += (x - cameraX) * CAMERA_LAG;
+      cameraY += (y - cameraY) * CAMERA_LAG;
     }
 
     mapControls?.focusOnPlayer?.(cameraX, cameraY);
@@ -229,19 +180,19 @@ export function enableMobileJoystick(
     }
   }
 
-  function updateSprintState(isMoving, frameScale) {
+  function updateStamina(isMoving, frameScale) {
     const power = Math.hypot(moveX, moveY);
-    const wantsSprint = isMoving && power >= SPRINT_POWER && !sprintLocked;
+    const sprinting = isMoving && power >= SPRINT_POWER && !sprintLocked;
 
-    if (wantsSprint) {
+    if (sprinting) {
       stamina = Math.max(
         STAMINA.emptyAt,
         stamina - STAMINA.drainPerFrame * frameScale
       );
 
       if (stamina <= STAMINA.emptyAt) {
-        sprintLocked = true;
         stamina = STAMINA.emptyAt;
+        sprintLocked = true;
       }
     } else {
       stamina = Math.min(
@@ -250,17 +201,16 @@ export function enableMobileJoystick(
       );
 
       if (stamina >= STAMINA.recoveredAt) {
-        sprintLocked = false;
         stamina = STAMINA.max;
+        sprintLocked = false;
       }
     }
 
     updateStaminaUi();
-
-    return wantsSprint;
+    return sprinting;
   }
 
-  function hasPositionChangedEnough() {
+  function shouldBroadcast() {
     return (
       Math.abs(x - lastSentX) > 0.002 ||
       Math.abs(y - lastSentY) > 0.002 ||
@@ -268,19 +218,13 @@ export function enableMobileJoystick(
     );
   }
 
-  function markPositionSent() {
-    lastSentX = x;
-    lastSentY = y;
-    lastSentAngle = angle;
-  }
-
-  function broadcastMove(force = false) {
+  function broadcast(force = false) {
     const now = Date.now();
 
-    if (!force && now - lastBroadcastAt < SYNC.broadcastInterval) return;
-    if (!force && !hasPositionChangedEnough()) return;
+    if (!force && now - lastBroadcast < SYNC.broadcastInterval) return;
+    if (!force && !shouldBroadcast()) return;
 
-    lastBroadcastAt = now;
+    lastBroadcast = now;
 
     movementChannel?.sendMove?.({
       playerId: getLocalPlayerId(),
@@ -292,26 +236,26 @@ export function enableMobileJoystick(
       updatedAt: new Date().toISOString(),
     });
 
-    markPositionSent();
+    lastSentX = x;
+    lastSentY = y;
+    lastSentAngle = angle;
   }
 
-  async function savePositionToDb(force = false) {
+  async function saveToDb(force = false) {
     const now = Date.now();
 
-    if (!force && now - lastDbSaveAt < SYNC.dbSaveInterval) {
-      dbSavePending = true;
+    if (!force && now - lastDbSave < SYNC.dbSaveInterval) {
+      dbPending = true;
       return;
     }
 
-    if (dbSaveInFlight) {
-      dbSavePending = true;
+    if (dbSaving) {
+      dbPending = true;
       return;
     }
 
-    syncPlayerPosition();
-
-    dbSaveInFlight = true;
-    dbSavePending = false;
+    dbSaving = true;
+    dbPending = false;
 
     try {
       await updatePlayerPosition({
@@ -322,21 +266,20 @@ export function enableMobileJoystick(
         angle,
       });
 
-      lastDbSaveAt = Date.now();
+      lastDbSave = Date.now();
     } catch (error) {
       console.warn('[mobileJoystick] save failed:', error);
     } finally {
-      dbSaveInFlight = false;
+      dbSaving = false;
 
-      if (dbSavePending && !destroyed) {
-        savePositionToDb(false);
+      if (dbPending && !destroyed) {
+        saveToDb(false);
       }
     }
   }
 
-  function refreshJoystickCenter() {
+  function measure() {
     const rect = base.getBoundingClientRect();
-
     centerX = rect.left + rect.width / 2;
     centerY = rect.top + rect.height / 2;
   }
@@ -346,10 +289,10 @@ export function enableMobileJoystick(
     moveY = 0;
 
     stick.style.transform =
-      'translate(-50%, -50%) translate3d(0, 0, 0)';
+      'translate(-50%, -50%) translate3d(0px, 0px, 0)';
   }
 
-  function updateStickByClientPoint(clientX, clientY) {
+  function updateInput(clientX, clientY) {
     const dx = clientX - centerX;
     const dy = clientY - centerY;
 
@@ -371,7 +314,7 @@ export function enableMobileJoystick(
     const screenX = dx / rawDistance;
     const screenY = dy / rawDistance;
 
-    const world = screenVectorToWorldVector(screenX, screenY, marker);
+    const world = joystickToMapVector(screenX, screenY);
 
     moveX = world.x * power;
     moveY = world.y * power;
@@ -382,22 +325,22 @@ export function enableMobileJoystick(
       `translate(-50%, -50%) translate3d(${screenX * distance}px, ${screenY * distance}px, 0)`;
   }
 
-  function loop(now = performance.now()) {
+  function tick(now = performance.now()) {
     if (destroyed) return;
 
-    const delta = Math.min(34, Math.max(8, now - lastFrameAt));
+    const delta = Math.min(34, Math.max(8, now - lastFrame));
     const frameScale = delta / 16.6667;
 
-    lastFrameAt = now;
+    lastFrame = now;
 
-    const isMoving =
+    const moving =
       Math.abs(moveX) > DEADZONE ||
       Math.abs(moveY) > DEADZONE;
 
-    const isSprinting = updateSprintState(isMoving, frameScale);
+    const sprinting = updateStamina(moving, frameScale);
 
-    if (isMoving) {
-      const speed = isSprinting
+    if (moving) {
+      const speed = sprinting
         ? MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED
         : MOVEMENT_CONFIG.MOBILE_WALK_SPEED;
 
@@ -408,41 +351,71 @@ export function enableMobileJoystick(
 
       renderPlayer();
       updateCamera(false);
-      broadcastMove(false);
-      savePositionToDb(false);
+      broadcast(false);
+      saveToDb(false);
     } else {
-      syncPlayerPosition();
       updateCamera(false);
     }
 
-    animationId = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(tick);
   }
 
   function startLoop() {
-    if (animationId) return;
+    if (raf) return;
 
-    lastFrameAt = performance.now();
-    animationId = requestAnimationFrame(loop);
+    lastFrame = performance.now();
+    raf = requestAnimationFrame(tick);
   }
 
-  function finishInput() {
-    activePointerId = null;
+  function stopInput() {
+    pointerId = null;
+    container.dataset.joystickActive = 'false';
 
     resetStick();
     renderPlayer();
-    updateStaminaUi();
-
-    window.setTimeout(() => {
-      if (activePointerId === null && !destroyed) {
-        setJoystickActive(false);
-      }
-    }, 350);
-
-    broadcastMove(true);
-    savePositionToDb(true);
+    updateCamera(false);
+    broadcast(true);
+    saveToDb(true);
   }
 
-  function onExternalTeleport(event) {
+  function onPointerDown(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    pointerId = event.pointerId;
+    container.dataset.joystickActive = 'true';
+
+    measure();
+
+    try {
+      base.setPointerCapture(event.pointerId);
+    } catch {}
+
+    updateInput(event.clientX, event.clientY);
+    startLoop();
+  }
+
+  function onPointerMove(event) {
+    if (pointerId === null) return;
+    if (event.pointerId !== pointerId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    updateInput(event.clientX, event.clientY);
+  }
+
+  function onPointerEnd(event) {
+    if (pointerId === null) return;
+    if (event.pointerId !== pointerId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    stopInput();
+  }
+
+  function onTeleport(event) {
     const detail = event?.detail || {};
 
     const nextX = Number(detail.x);
@@ -455,51 +428,11 @@ export function enableMobileJoystick(
     y = clamp(nextY, BOUNDS.minY, BOUNDS.maxY);
     angle = Number.isFinite(nextAngle) ? nextAngle : angle;
 
-    cameraX = x;
-    cameraY = y;
-
     resetStick();
     renderPlayer();
     updateCamera(true);
-    broadcastMove(true);
-    savePositionToDb(true);
-  }
-
-  function onPointerDown(event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    activePointerId = event.pointerId;
-
-    setJoystickActive(true);
-    refreshJoystickCenter();
-
-    try {
-      base.setPointerCapture(event.pointerId);
-    } catch {}
-
-    updateStickByClientPoint(event.clientX, event.clientY);
-    startLoop();
-  }
-
-  function onPointerMove(event) {
-    if (activePointerId === null) return;
-    if (event.pointerId !== activePointerId) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    updateStickByClientPoint(event.clientX, event.clientY);
-  }
-
-  function onPointerEnd(event) {
-    if (activePointerId === null) return;
-    if (event.pointerId !== activePointerId) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    finishInput();
+    broadcast(true);
+    saveToDb(true);
   }
 
   base.addEventListener('pointerdown', onPointerDown, { passive: false });
@@ -507,12 +440,12 @@ export function enableMobileJoystick(
   window.addEventListener('pointerup', onPointerEnd, { passive: false });
   window.addEventListener('pointercancel', onPointerEnd, { passive: false });
 
-  window.addEventListener('mn:player-teleported', onExternalTeleport);
+  window.addEventListener('mn:player-teleported', onTeleport);
 
   renderPlayer();
   updateCamera(true);
   updateStaminaUi();
-  setJoystickActive(false);
+  resetStick();
 
   return () => {
     destroyed = true;
@@ -521,22 +454,20 @@ export function enableMobileJoystick(
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerEnd);
     window.removeEventListener('pointercancel', onPointerEnd);
+    window.removeEventListener('mn:player-teleported', onTeleport);
 
-    window.removeEventListener('mn:player-teleported', onExternalTeleport);
-
-    if (animationId) {
-      cancelAnimationFrame(animationId);
+    if (raf) {
+      cancelAnimationFrame(raf);
     }
 
     resetStick();
     renderPlayer();
     updateCamera(true);
-    updateStaminaUi();
+    broadcast(true);
+    saveToDb(true);
 
     joystick?.remove();
-    staminaEl?.remove();
-
-    broadcastMove(true);
-    savePositionToDb(true);
+    container.classList.remove('mn-mobile-controls');
+    container.innerHTML = '';
   };
 }
