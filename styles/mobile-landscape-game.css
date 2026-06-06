@@ -1,4 +1,5 @@
 :root {
+  --mn-vw: 100vw;
   --mn-vh: 100dvh;
   --mn-safe-left: env(safe-area-inset-left, 0px);
   --mn-safe-right: env(safe-area-inset-right, 0px);
@@ -14,81 +15,55 @@ body,
   touch-action: none !important;
 }
 
-/* Portrait: игру не крутим. Просто просим повернуть телефон. */
-@media (hover: none) and (pointer: coarse) and (orientation: portrait) {
-  .home[data-mobile-controls="enabled"] .mn-mobile-joystick,
-  .home[data-mobile-controls="enabled"] .mn-mobile-stamina {
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
-
-  .home[data-mobile-controls="enabled"]::after {
-    content: "Поверни телефон боком";
-    position: fixed;
-    inset: 0;
-    z-index: 2147483647;
-    display: grid;
-    place-items: center;
-    padding: 24px;
-    box-sizing: border-box;
-    background: rgba(3, 5, 8, 0.96);
-    color: #fff;
-    font-size: clamp(22px, 7vw, 34px);
-    font-weight: 1000;
-    text-align: center;
-  }
-}
-
-/* Главное: настоящий landscape без rotate(90deg). */
-@media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+@media (hover: none) and (pointer: coarse) {
   body.mn-landscape-game,
   body.mn-landscape-game #app,
   .home[data-mobile-controls="enabled"] {
     position: fixed !important;
     inset: 0 !important;
-    width: 100vw !important;
+    width: var(--mn-vw) !important;
     height: var(--mn-vh) !important;
     min-height: var(--mn-vh) !important;
     overflow: hidden !important;
     touch-action: none !important;
+    overscroll-behavior: none !important;
+    background: #020407 !important;
   }
 
   /*
-    Перебиваем старый styles/ios-game-fix.css,
-    где было rotate(90deg). Именно это ломало оси джойстика.
+    Важно: старые файлы ниже/выше могли крутить gameplay через rotate(90deg).
+    Здесь принудительно возвращаем нормальный landscape-слой.
+    Если где-то старый rotate всё же появится, mobileJoystick.js сам компенсирует оси.
   */
   .home[data-mobile-controls="enabled"] .home-gameplay {
     position: fixed !important;
+    inset: 0 !important;
     left: 0 !important;
     top: 0 !important;
     right: auto !important;
     bottom: auto !important;
-    inset: 0 !important;
-
-    width: 100vw !important;
+    width: var(--mn-vw) !important;
     height: var(--mn-vh) !important;
     min-height: var(--mn-vh) !important;
-
+    overflow: hidden !important;
     transform: none !important;
     rotate: 0deg !important;
     translate: 0 0 !important;
     transform-origin: center center !important;
-
-    overflow: hidden !important;
     touch-action: none !important;
   }
 
   .home[data-mobile-controls="enabled"] .gta-map-stage {
     position: absolute !important;
     inset: 0 !important;
-    width: 100vw !important;
+    width: var(--mn-vw) !important;
     height: var(--mn-vh) !important;
     min-height: var(--mn-vh) !important;
     overflow: hidden !important;
     transform: none !important;
     rotate: 0deg !important;
     touch-action: none !important;
+    background: #020407 !important;
   }
 
   .home[data-mobile-controls="enabled"] .gta-map-viewport {
@@ -113,11 +88,27 @@ body,
     visibility: visible !important;
   }
 
-  .home[data-mobile-controls="enabled"] .gta-map-entities {
+  .home[data-mobile-controls="enabled"] .gta-map-glow {
+    opacity: 0 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-map-entities,
+  .home[data-mobile-controls="enabled"] .map-objects-layer,
+  .home[data-mobile-controls="enabled"] .map-objects-layer-public {
     position: absolute !important;
     inset: 0 !important;
+    display: block !important;
     overflow: visible !important;
     pointer-events: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-objects-layer-public .map-object,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house {
+    display: grid !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   .home[data-mobile-controls="enabled"] .gta-player-marker {
@@ -130,11 +121,11 @@ body,
     visibility: visible !important;
   }
 
-  .home[data-mobile-controls="enabled"] .mobile-controls-layer,
-  .home[data-mobile-controls="enabled"] > .mobile-controls-layer {
+  .home[data-mobile-controls="enabled"] > .mobile-controls-layer,
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer {
     position: fixed !important;
     inset: 0 !important;
-    width: 100vw !important;
+    width: var(--mn-vw) !important;
     height: var(--mn-vh) !important;
     z-index: 2000 !important;
     pointer-events: none !important;
@@ -153,8 +144,8 @@ body,
 
   .home[data-mobile-controls="enabled"] .mn-mobile-joystick {
     position: fixed !important;
-    left: max(22px, calc(var(--mn-safe-left) + 20px)) !important;
-    bottom: max(18px, calc(var(--mn-safe-bottom) + 16px)) !important;
+    left: max(22px, calc(var(--mn-safe-left) + 18px)) !important;
+    bottom: max(56px, calc(var(--mn-safe-bottom) + 52px)) !important;
     width: 118px !important;
     height: 118px !important;
     z-index: 2020 !important;
@@ -180,14 +171,15 @@ body,
       inset 0 0 28px rgba(255, 255, 255, 0.06) !important;
     backdrop-filter: blur(14px) !important;
     -webkit-backdrop-filter: blur(14px) !important;
+    overflow: hidden !important;
   }
 
   .home[data-mobile-controls="enabled"] .mn-mobile-joystick-stick {
     position: absolute !important;
     left: 50% !important;
     top: 50% !important;
-    width: 50px !important;
-    height: 50px !important;
+    width: 52px !important;
+    height: 52px !important;
     border-radius: 999px !important;
     transform: translate(-50%, -50%) translate3d(0, 0, 0);
     background:
@@ -202,44 +194,75 @@ body,
 
   .home[data-mobile-controls="enabled"] .mn-mobile-stamina {
     position: fixed !important;
-    left: max(22px, calc(var(--mn-safe-left) + 20px)) !important;
-    bottom: max(142px, calc(var(--mn-safe-bottom) + 136px)) !important;
-    width: 148px !important;
+    left: max(16px, calc(var(--mn-safe-left) + 14px)) !important;
+    bottom: max(10px, calc(var(--mn-safe-bottom) + 8px)) !important;
+    width: 152px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 48px !important;
     padding: 8px 10px !important;
     border-radius: 14px !important;
     z-index: 2010 !important;
     pointer-events: none !important;
     display: block !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transform: translateY(8px) !important;
+    rotate: 0deg !important;
     background: rgba(8, 10, 14, 0.76) !important;
     border: 1px solid rgba(255, 255, 255, 0.14) !important;
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38) !important;
     backdrop-filter: blur(14px) !important;
     -webkit-backdrop-filter: blur(14px) !important;
+    overflow: hidden !important;
+    transition:
+      opacity 0.16s ease,
+      visibility 0.16s ease,
+      transform 0.16s ease !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] .mn-mobile-stamina,
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina[data-visible="true"] {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
   }
 
   .home[data-mobile-controls="enabled"] .mn-mobile-stamina-label {
+    display: block !important;
     margin: 0 0 6px 0 !important;
+    padding: 0 !important;
     font-size: 10px !important;
     line-height: 1 !important;
-    letter-spacing: 0.13em !important;
-    color: rgba(255, 255, 255, 0.62) !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.16em !important;
+    color: rgba(255, 255, 255, 0.72) !important;
   }
 
   .home[data-mobile-controls="enabled"] .mn-mobile-stamina-track {
+    display: block !important;
     width: 100% !important;
-    height: 7px !important;
-    overflow: hidden !important;
+    height: 8px !important;
     border-radius: 999px !important;
-    background: rgba(255, 255, 255, 0.14) !important;
+    overflow: hidden !important;
+    background: rgba(255, 255, 255, 0.13) !important;
   }
 
   .home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill {
     display: block !important;
-    height: 100% !important;
     width: 100% !important;
-    border-radius: inherit !important;
-    background: rgba(255, 255, 255, 0.82) !important;
-    transition: width 0.12s linear !important;
+    height: 100% !important;
+    border-radius: 999px !important;
+    background: linear-gradient(90deg, #ffd34d, #4dff86) !important;
+    transition: width 0.1s linear !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill[data-state="low"] {
+    background: linear-gradient(90deg, #ff8a3d, #ffd34d) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill[data-state="locked"] {
+    background: linear-gradient(90deg, #ff3737, #ff8a3d) !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-glass-hud {
@@ -252,161 +275,141 @@ body,
   }
 
   .home[data-mobile-controls="enabled"] .player-glass-hud button,
-  .home[data-mobile-controls="enabled"] .player-glass-hud [role="button"],
-  .home[data-mobile-controls="enabled"] .player-city-button,
-  .home[data-mobile-controls="enabled"] .player-weather-mini,
   .home[data-mobile-controls="enabled"] .player-profile-card,
   .home[data-mobile-controls="enabled"] .player-balance-card {
+    pointer-events: auto !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-hud-left {
+    position: absolute !important;
+    left: max(14px, calc(var(--mn-safe-left) + 12px)) !important;
+    top: max(12px, calc(var(--mn-safe-top) + 10px)) !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    position: absolute !important;
+    right: max(14px, calc(var(--mn-safe-right) + 12px)) !important;
+    top: max(12px, calc(var(--mn-safe-top) + 10px)) !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    position: absolute !important;
+    right: max(14px, calc(var(--mn-safe-right) + 12px)) !important;
+    bottom: max(14px, calc(var(--mn-safe-bottom) + 12px)) !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: fixed !important;
+    right: max(14px, calc(var(--mn-safe-right) + 12px)) !important;
+    bottom: max(76px, calc(var(--mn-safe-bottom) + 74px)) !important;
+    left: auto !important;
+    top: auto !important;
+    width: 42px !important;
+    height: 42px !important;
+    z-index: 2050 !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-control-toggle {
+    position: fixed !important;
+    right: max(16px, calc(var(--mn-safe-right) + 14px)) !important;
+    bottom: max(16px, calc(var(--mn-safe-bottom) + 14px)) !important;
+    left: auto !important;
+    top: auto !important;
+    z-index: 2030 !important;
     pointer-events: auto !important;
     transform: none !important;
     rotate: 0deg !important;
   }
 
-  .home[data-mobile-controls="enabled"] .mobile-self-player-indicator {
+  .home[data-mobile-controls="enabled"] .mobile-control-panel {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 2100 !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: 18px !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    pointer-events: auto !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-control-panel[hidden] {
     display: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-control-card {
+    width: min(440px, calc(var(--mn-vw) - 34px)) !important;
+    max-height: calc(var(--mn-vh) - 30px) !important;
+    overflow: auto !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-panel,
+  .home[data-mobile-controls="enabled"] .house-details-panel,
+  .home[data-mobile-controls="enabled"] .houses-panel,
+  .home[data-mobile-controls="enabled"] .entity-interaction-hint,
+  .home[data-mobile-controls="enabled"] .entity-interaction-notice {
+    transform: translateX(-50%) !important;
+    rotate: 0deg !important;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) and (orientation: portrait) {
+  .home[data-mobile-controls="enabled"] .mn-mobile-joystick,
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"]::after {
+    content: "Поверни телефон боком";
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    box-sizing: border-box;
+    background: rgba(3, 5, 8, 0.96);
+    color: #fff;
+    font-size: clamp(22px, 7vw, 34px);
+    font-weight: 1000;
+    text-align: center;
   }
 }
 
 @media (hover: none) and (pointer: coarse) and (orientation: landscape) and (max-height: 430px) {
   .home[data-mobile-controls="enabled"] .mn-mobile-joystick {
-    width: 104px !important;
-    height: 104px !important;
-    left: max(18px, calc(var(--mn-safe-left) + 16px)) !important;
-    bottom: max(14px, calc(var(--mn-safe-bottom) + 12px)) !important;
+    width: 108px !important;
+    height: 108px !important;
+    left: max(18px, calc(var(--mn-safe-left) + 14px)) !important;
+    bottom: max(50px, calc(var(--mn-safe-bottom) + 46px)) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-joystick-stick {
+    width: 48px !important;
+    height: 48px !important;
   }
 
   .home[data-mobile-controls="enabled"] .mn-mobile-stamina {
-    left: max(18px, calc(var(--mn-safe-left) + 16px)) !important;
-    bottom: max(124px, calc(var(--mn-safe-bottom) + 118px)) !important;
-    width: 136px !important;
+    width: 144px !important;
+    left: max(14px, calc(var(--mn-safe-left) + 12px)) !important;
+    bottom: max(8px, calc(var(--mn-safe-bottom) + 6px)) !important;
   }
 
-
-/* FIX: normal mobile landscape controls placement */
-
-@media (hover: none) and (pointer: coarse) {
-  .home[data-mobile-controls="enabled"] .mobile-controls-layer,
-  .home[data-mobile-controls="enabled"] > .mobile-controls-layer {
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: var(--mn-vh, 100dvh) !important;
-    z-index: 2000 !important;
-    pointer-events: none !important;
-    transform: none !important;
-    rotate: 0deg !important;
-    overflow: visible !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .mn-mobile-joystick {
-    position: fixed !important;
-
-    left: max(22px, calc(env(safe-area-inset-left, 0px) + 20px)) !important;
-    bottom: max(74px, calc(env(safe-area-inset-bottom, 0px) + 72px)) !important;
-
-    width: 118px !important;
-    height: 118px !important;
-
-    z-index: 2020 !important;
-    pointer-events: auto !important;
-
-    display: block !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .mn-mobile-stamina {
-    position: fixed !important;
-
-    left: max(22px, calc(env(safe-area-inset-left, 0px) + 20px)) !important;
-    bottom: max(18px, calc(env(safe-area-inset-bottom, 0px) + 16px)) !important;
-
-    width: 118px !important;
-    height: 38px !important;
-
-    padding: 7px 9px !important;
-    border-radius: 13px !important;
-
-    z-index: 2010 !important;
-    pointer-events: none !important;
-
-    display: block !important;
-
-    opacity: 0 !important;
-    visibility: hidden !important;
-
-    transform: translateY(10px) !important;
-    rotate: 0deg !important;
-
-    transition:
-      opacity 0.12s ease,
-      visibility 0.12s ease,
-      transform 0.12s ease !important;
-
-    background: rgba(8, 10, 14, 0.78) !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38) !important;
-
-    backdrop-filter: blur(14px) !important;
-    -webkit-backdrop-filter: blur(14px) !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] .mn-mobile-stamina,
-  .home[data-mobile-controls="enabled"] .mn-mobile-stamina[data-visible="true"] {
-    opacity: 1 !important;
-    visibility: visible !important;
-    transform: translateY(0) !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-label {
-    display: block !important;
-    margin: 0 0 5px 0 !important;
-
-    font-size: 9px !important;
-    line-height: 1 !important;
-    font-weight: 900 !important;
-    letter-spacing: 0.14em !important;
-
-    color: rgba(255, 255, 255, 0.7) !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-track {
-    width: 100% !important;
-    height: 7px !important;
-    overflow: hidden !important;
-    border-radius: 999px !important;
-    background: rgba(255, 255, 255, 0.12) !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill {
-    display: block !important;
-    height: 100% !important;
-    width: 100%;
-
-    border-radius: inherit !important;
-    background: rgba(255, 92, 64, 0.95) !important;
-
-    transition: width 0.12s linear !important;
-  }
-}
-
-@media (hover: none) and (pointer: coarse) and (max-height: 430px) {
-  .home[data-mobile-controls="enabled"] .mn-mobile-joystick {
-    width: 104px !important;
-    height: 104px !important;
-
-    left: max(18px, calc(env(safe-area-inset-left, 0px) + 16px)) !important;
-    bottom: max(64px, calc(env(safe-area-inset-bottom, 0px) + 62px)) !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .mn-mobile-stamina {
-    left: max(18px, calc(env(safe-area-inset-left, 0px) + 16px)) !important;
-    bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) + 12px)) !important;
-
-    width: 104px !important;
-    height: 36px !important;
+  .home[data-mobile-controls="enabled"] .player-city-button,
+  .home[data-mobile-controls="enabled"] .player-profile-card,
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    transform: scale(0.92) !important;
+    transform-origin: center !important;
   }
 }
