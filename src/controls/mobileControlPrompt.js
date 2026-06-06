@@ -37,10 +37,10 @@ function syncViewportSize() {
   }
 }
 
-async function requestLandscapeFullscreen() {
+async function requestGameFullscreen() {
   syncViewportSize();
 
-  document.body?.classList.add('mn-landscape-game');
+  document.body?.classList.add('mn-mobile-game-enabled');
 
   try {
     window.Telegram?.WebApp?.expand?.();
@@ -59,7 +59,7 @@ async function requestLandscapeFullscreen() {
   try {
     await screen.orientation?.lock?.('landscape');
   } catch {
-    // iOS/Telegram WebView часто не дают программно закрепить landscape.
+    // iOS и Telegram WebView часто не дают закрепить orientation.lock.
   }
 }
 
@@ -70,7 +70,9 @@ export function setupMobileControlPrompt({
 }) {
   if (!root || !layer) return null;
 
-  if (!isMobileDevice()) {
+  const mobile = isMobileDevice();
+
+  if (!mobile) {
     layer.innerHTML = '';
     return null;
   }
@@ -91,8 +93,7 @@ export function setupMobileControlPrompt({
         </p>
 
         <p class="mobile-control-hint">
-          Если Telegram не даст закрепить поворот автоматически,
-          просто держи телефон горизонтально.
+          Если Telegram не закрепит поворот автоматически, просто держи телефон горизонтально.
         </p>
 
         <div class="mobile-control-actions">
@@ -125,9 +126,9 @@ export function setupMobileControlPrompt({
     closePanel();
 
     root.dataset.mobileControls = 'enabled';
-    document.body?.classList.add('mn-landscape-game');
+    document.body?.classList.add('mn-mobile-game-enabled');
 
-    await requestLandscapeFullscreen();
+    await requestGameFullscreen();
 
     joystickCleanup?.();
     joystickCleanup = enableJoystick?.() || null;
@@ -139,6 +140,8 @@ export function setupMobileControlPrompt({
 
   window.addEventListener('resize', syncViewportSize, { passive: true });
   window.addEventListener('orientationchange', syncViewportSize, { passive: true });
+  window.visualViewport?.addEventListener?.('resize', syncViewportSize, { passive: true });
+
   syncViewportSize();
 
   return () => {
@@ -148,6 +151,7 @@ export function setupMobileControlPrompt({
 
     window.removeEventListener('resize', syncViewportSize);
     window.removeEventListener('orientationchange', syncViewportSize);
+    window.visualViewport?.removeEventListener?.('resize', syncViewportSize);
 
     joystickCleanup?.();
 
