@@ -3093,3 +3093,41 @@ body.mn-houses-modal-open .admin-status-dot {
 [data-admin-move-mode="enabled"] .map-objects-layer-public {
   display: block !important;
 }
+
+
+
+/* =========================================================
+   MOBILE MAP/UI SAFE RESET
+   ========================================================= */
+
+.home[data-mobile-controls="enabled"] .gta-map-stage {
+  overflow: hidden !important;
+  background: #020407 !important;
+}
+
+.home[data-mobile-controls="enabled"] .gta-map-viewport {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform-origin: center center !important;
+  overflow: visible !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-stamina {
+  width: 170px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 48px !important;
+  padding: 9px 11px !important;
+  overflow: hidden !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-joystick {
+  left: max(42px, calc(env(safe-area-inset-left) + 42px)) !important;
+  top: max(118px, calc(env(safe-area-inset-top) + 100px)) !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-stamina {
+  left: max(42px, calc(env(safe-area-inset-left) + 42px)) !important;
+  top: max(256px, calc(env(safe-area-inset-top) + 238px)) !important;
+}
