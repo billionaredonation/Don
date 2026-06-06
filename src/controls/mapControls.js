@@ -5,82 +5,97 @@ function clamp(value, min, max) {
 export function isLowPowerDevice() {
   const memory = navigator.deviceMemory || 4;
   const cores = navigator.hardwareConcurrency || 4;
-  const isSmallScreen = window.matchMedia('(max-width: 520px)').matches;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  return reducedMotion || memory <= 3 || cores <= 4 || isSmallScreen;
+  return reducedMotion || memory <= 3 || cores <= 4;
+}
+
+function isMobileGameplay() {
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
 export function enableMapControls(stage, viewport, options = {}) {
-  const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+  if (!stage || !viewport) {
+    return {
+      cleanup() {},
+      focusOnPlayer() {},
+      refresh() {},
+    };
+  }
 
-  const LOCKED_SCALE = isMobile
-    ? Number(options.startScale) || 2.55
-    : Number(options.startScale) || 3;
+  const mobile = isMobileGameplay();
 
-  const WORLD_FACTOR = isMobile ? 2.25 : 3.95;
+  const LOCKED_SCALE = Number(options.startScale) || (mobile ? 2.65 : 4.4);
+  const WORLD_FACTOR = mobile ? 2.35 : 3.7;
+  const MAP_RATIO = 0.72;
 
   let scale = LOCKED_SCALE;
-  let x = 0;
-  let y = 0;
+  let cameraX = 0;
+  let cameraY = 0;
 
   let worldWidth = 0;
   let worldHeight = 0;
 
   function measureWorld() {
     const rect = stage.getBoundingClientRect();
+    const base = Math.max(rect.width, rect.height);
 
-    worldWidth = Math.max(rect.width, rect.height) * WORLD_FACTOR;
-    worldHeight = worldWidth * 0.72;
+    worldWidth = base * WORLD_FACTOR;
+    worldHeight = worldWidth * MAP_RATIO;
 
     viewport.style.width = `${worldWidth}px`;
     viewport.style.height = `${worldHeight}px`;
+    viewport.style.left = '50%';
+    viewport.style.top = '50%';
+    viewport.style.position = 'absolute';
+    viewport.style.overflow = 'visible';
+    viewport.style.transformOrigin = 'center center';
   }
 
-  function getLimits() {
+  function getCameraLimits() {
     const rect = stage.getBoundingClientRect();
 
-    const w = worldWidth * scale;
-    const h = worldHeight * scale;
+    const scaledWidth = worldWidth * scale;
+    const scaledHeight = worldHeight * scale;
 
     return {
-      maxX: Math.max(0, (w - rect.width) / 2),
-      maxY: Math.max(0, (h - rect.height) / 2),
+      x: Math.max(0, (scaledWidth - rect.width) / 2),
+      y: Math.max(0, (scaledHeight - rect.height) / 2),
     };
   }
 
-  function applyTransform() {
+  function applyCamera() {
     scale = LOCKED_SCALE;
 
-    const limits = getLimits();
+    const limits = getCameraLimits();
 
-    x = clamp(x, -limits.maxX, limits.maxX);
-    y = clamp(y, -limits.maxY, limits.maxY);
+    cameraX = clamp(cameraX, -limits.x, limits.x);
+    cameraY = clamp(cameraY, -limits.y, limits.y);
 
     viewport.style.transform =
-      `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+      `translate(-50%, -50%) translate3d(${cameraX}px, ${cameraY}px, 0) scale(${scale})`;
 
     stage.style.setProperty('--zoom', scale.toFixed(2));
   }
 
   function focusOnPlayer(playerX, playerY) {
-    const focusX = Number(playerX);
-    const focusY = Number(playerY);
+    const px = Number(playerX);
+    const py = Number(playerY);
 
-    if (!Number.isFinite(focusX) || !Number.isFinite(focusY)) return;
+    if (!Number.isFinite(px) || !Number.isFinite(py)) return;
 
-    const fx = (focusX / 100 - 0.5) * worldWidth * scale;
-    const fy = (focusY / 100 - 0.5) * worldHeight * scale;
+    const mapX = (px / 100 - 0.5) * worldWidth * scale;
+    const mapY = (py / 100 - 0.5) * worldHeight * scale;
 
-    x = -fx;
-    y = -fy;
+    cameraX = -mapX;
+    cameraY = -mapY;
 
-    applyTransform();
+    applyCamera();
   }
 
   function refresh() {
     measureWorld();
-    focusOnPlayer(options.focusX, options.focusY);
+    focusOnPlayer(options.focusX ?? 50, options.focusY ?? 50);
   }
 
   function onResize() {
@@ -88,6 +103,12 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   window.addEventListener('resize', onResize);
+
+  const image = viewport.querySelector('.gta-map-image:not(.gta-map-glow)');
+
+  if (image && !image.complete) {
+    image.addEventListener('load', refresh, { once: true });
+  }
 
   refresh();
 
