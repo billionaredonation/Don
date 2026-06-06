@@ -2916,3 +2916,139 @@ body.mn-houses-modal-open .admin-status-dot {
   -webkit-user-select: none !important;
   -webkit-touch-callout: none !important;
 }
+
+/* =========================================================
+   MN MOBILE CONTROLS — FULL RESET
+   ========================================================= */
+
+.home[data-mobile-controls="enabled"] .mobile-controls-layer.mn-mobile-controls {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  pointer-events: none !important;
+  transform: none !important;
+  rotate: 0deg !important;
+  width: 100vw !important;
+  height: 100svh !important;
+  overflow: visible !important;
+}
+
+.home[data-mobile-controls="enabled"] .mobile-controls-layer.mn-mobile-controls,
+.home[data-mobile-controls="enabled"] .mobile-controls-layer.mn-mobile-controls * {
+  box-sizing: border-box !important;
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-joystick {
+  position: fixed !important;
+  left: max(42px, calc(env(safe-area-inset-left) + 42px)) !important;
+  top: max(134px, calc(env(safe-area-inset-top) + 120px)) !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 124px !important;
+  height: 124px !important;
+  z-index: 10000 !important;
+  pointer-events: auto !important;
+  transform: none !important;
+  rotate: 0deg !important;
+  display: block !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-joystick-base {
+  position: relative !important;
+  width: 124px !important;
+  height: 124px !important;
+  border-radius: 999px !important;
+  background:
+    radial-gradient(circle at 68% 34%, rgba(255,255,255,0.10), transparent 30%),
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), rgba(0,0,0,0.76) 68%) !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow:
+    0 18px 42px rgba(0,0,0,0.48),
+    inset 0 0 28px rgba(255,255,255,0.06) !important;
+  backdrop-filter: blur(14px) !important;
+  overflow: hidden !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-joystick-stick {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 999px !important;
+  transform: translate(-50%, -50%) translate3d(0, 0, 0);
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255,255,255,0.96), rgba(215,215,215,0.84) 38%, rgba(100,100,100,0.7) 100%) !important;
+  border: 1px solid rgba(255,255,255,0.34) !important;
+  box-shadow:
+    0 10px 24px rgba(0,0,0,0.42),
+    inset -8px -10px 18px rgba(0,0,0,0.22),
+    inset 8px 8px 16px rgba(255,255,255,0.28) !important;
+  will-change: transform !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-stamina {
+  position: fixed !important;
+  left: max(42px, calc(env(safe-area-inset-left) + 42px)) !important;
+  top: max(270px, calc(env(safe-area-inset-top) + 256px)) !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 170px !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 9px 11px !important;
+  border-radius: 14px !important;
+  z-index: 10000 !important;
+  pointer-events: none !important;
+  transform: none !important;
+  rotate: 0deg !important;
+  display: block !important;
+  background: rgba(8, 10, 14, 0.76) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.38) !important;
+  backdrop-filter: blur(14px) !important;
+  overflow: hidden !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-stamina-label {
+  display: block !important;
+  margin: 0 0 7px 0 !important;
+  padding: 0 !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.18em !important;
+  color: rgba(255,255,255,0.72) !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-stamina-track {
+  display: block !important;
+  width: 100% !important;
+  height: 9px !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  background: rgba(255,255,255,0.13) !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill {
+  display: block !important;
+  width: 100%;
+  height: 100% !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, #ffd34d, #4dff86) !important;
+  transition: width 0.1s linear !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill[data-state="low"] {
+  background: linear-gradient(90deg, #ff8a3d, #ffd34d) !important;
+}
+
+.home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill[data-state="locked"] {
+  background: linear-gradient(90deg, #ff3737, #ff8a3d) !important;
+}
