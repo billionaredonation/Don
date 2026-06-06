@@ -26,8 +26,8 @@ function isMobileDevice() {
 
 function screenInputToWorldInput(inputX, inputY) {
   return {
-    x: inputY,
-    y: -inputX,
+    x: inputX,
+    y: inputY,
   };
 }
 
