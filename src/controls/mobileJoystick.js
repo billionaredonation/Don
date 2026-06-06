@@ -25,25 +25,95 @@ function isMobileDevice() {
 }
 
 /*
-  Карта на мобилке повернута CSS rotate(90deg).
+  Универсальная конвертация экранного направления джойстика
+  в координаты игрока на карте.
 
-  Экранные оси:
-  - палец вправо/влево должен визуально двигать игрока вправо/влево
-  - палец вверх/вниз должен визуально двигать игрока вверх/вниз
-
-  Для повернутой карты:
-  - экранный X переводим в координату Y карты
-  - экранный Y переводим в координату X карты
-
-  Важно:
-  DOMMatrix тут специально НЕ используем.
-  На части iPhone/Telegram WebView он даёт кривую/нестабильную ось.
+  Почему так:
+  - карта/сцена на мобилке повернута CSS-transform'ом;
+  - на разных iPhone/Telegram WebView оси могут отдаваться по-разному;
+  - поэтому не угадываем формулу, а берем реальные transform-матрицы DOM.
 */
-function screenInputToWorldInput(inputX, inputY) {
+function getCssMatrix(element) {
+  if (!element) return new DOMMatrixReadOnly();
+
+  const transform = window.getComputedStyle(element).transform;
+
+  if (!transform || transform === 'none') {
+    return new DOMMatrixReadOnly();
+  }
+
+  try {
+    return new DOMMatrixReadOnly(transform);
+  } catch {
+    return new DOMMatrixReadOnly();
+  }
+}
+
+function normalizeVector(x, y, fallbackX = 0, fallbackY = 0) {
+  const length = Math.hypot(x, y);
+
+  if (!Number.isFinite(length) || length <= 0.000001) {
+    return {
+      x: fallbackX,
+      y: fallbackY,
+    };
+  }
+
   return {
-    x: inputY,
-    y: -inputX,
+    x: x / length,
+    y: y / length,
   };
+}
+
+function screenInputToWorldInput(inputX, inputY, marker) {
+  const viewport = marker?.closest?.('.gta-map-viewport');
+  const gameplay = marker?.closest?.('.home-gameplay');
+
+  const worldWidth = Number(viewport?.offsetWidth || 0);
+  const worldHeight = Number(viewport?.offsetHeight || 0);
+
+  if (!viewport || !gameplay || worldWidth <= 0 || worldHeight <= 0) {
+    return normalizeVector(inputY, -inputX, inputX, inputY);
+  }
+
+  try {
+    const gameplayMatrix = getCssMatrix(gameplay);
+    const viewportMatrix = getCssMatrix(viewport);
+    const matrix = gameplayMatrix.multiply(viewportMatrix);
+
+    const worldStepX = worldWidth / 100;
+    const worldStepY = worldHeight / 100;
+
+    const screenFromWorldX = {
+      x: matrix.a * worldStepX,
+      y: matrix.b * worldStepX,
+    };
+
+    const screenFromWorldY = {
+      x: matrix.c * worldStepY,
+      y: matrix.d * worldStepY,
+    };
+
+    const determinant =
+      screenFromWorldX.x * screenFromWorldY.y -
+      screenFromWorldY.x * screenFromWorldX.y;
+
+    if (!Number.isFinite(determinant) || Math.abs(determinant) <= 0.000001) {
+      return normalizeVector(inputY, -inputX, inputX, inputY);
+    }
+
+    const worldX =
+      (inputX * screenFromWorldY.y - screenFromWorldY.x * inputY) /
+      determinant;
+
+    const worldY =
+      (screenFromWorldX.x * inputY - inputX * screenFromWorldX.y) /
+      determinant;
+
+    return normalizeVector(worldX, worldY, inputY, -inputX);
+  } catch {
+    return normalizeVector(inputY, -inputX, inputX, inputY);
+  }
 }
 
 function getAngleFromMovement(moveX, moveY, fallback = 0) {
@@ -324,7 +394,7 @@ export function enableMobileJoystick(
     const inputX = dx / rawDistance;
     const inputY = dy / rawDistance;
 
-    const worldInput = screenInputToWorldInput(inputX, inputY);
+    const worldInput = screenInputToWorldInput(inputX, inputY, marker);
 
     moveX = worldInput.x * power;
     moveY = worldInput.y * power;
@@ -332,10 +402,6 @@ export function enableMobileJoystick(
     angle = getAngleFromMovement(moveX, moveY, angle);
     syncPlayerPosition();
 
-    /*
-      Визуал стика всегда идёт за пальцем.
-      Его не поворачиваем под карту.
-    */
     stick.style.transform =
       `translate(-50%, -50%) translate3d(${inputX * distance}px, ${inputY * distance}px, 0)`;
   }
