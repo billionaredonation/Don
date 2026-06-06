@@ -24,6 +24,26 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
+/*
+  ФИКС ПОД ТВОЙ РЕАЛЬНЫЙ ХВАТ:
+  Телефон боком, фронталка слева.
+
+  Экранный джойстик:
+  вверх  -> игрок вверх
+  вниз   -> игрок вниз
+  влево  -> игрок влево
+  вправо -> игрок вправо
+
+  CSS уже поворачивает сам gameplay.
+  Поэтому тут НЕ делаем старый кривой swap, который ломал 2 направления.
+*/
+function joystickToWorld(inputX, inputY) {
+  return {
+    x: inputY,
+    y: -inputX,
+  };
+}
+
 function getAngleFromMovement(moveX, moveY, fallback = 0) {
   if (Math.abs(moveX) < 0.001 && Math.abs(moveY) < 0.001) {
     return fallback;
@@ -187,7 +207,6 @@ export function enableMobileJoystick(
     }
 
     updateStaminaUi();
-
     return wantsSprint;
   }
 
@@ -245,7 +264,7 @@ export function enableMobileJoystick(
 
     lastBroadcastAt = now;
 
-    movementChannel?.sendMove({
+    movementChannel?.sendMove?.({
       playerId: getLocalPlayerId(),
       nickname,
       cityId,
@@ -299,7 +318,6 @@ export function enableMobileJoystick(
 
   function refreshJoystickCenter() {
     const rect = base.getBoundingClientRect();
-
     centerX = rect.left + rect.width / 2;
     centerY = rect.top + rect.height / 2;
   }
@@ -308,7 +326,8 @@ export function enableMobileJoystick(
     moveX = 0;
     moveY = 0;
 
-    stick.style.transform = 'translate(-50%, -50%) translate3d(0, 0, 0)';
+    stick.style.transform =
+      'translate(-50%, -50%) translate3d(0, 0, 0)';
   }
 
   function updateStickByClientPoint(clientX, clientY) {
@@ -333,17 +352,10 @@ export function enableMobileJoystick(
     const inputX = dx / rawDistance;
     const inputY = dy / rawDistance;
 
-    /*
-      ФИКС:
-      Движение теперь полноценное 4-стороннее.
-      Никаких swap x/y.
-      Никаких rotate-формул.
-      Джойстик отдаёт чистый 2D-вектор:
-      вправо/влево = X
-      вверх/низ = Y
-    */
-    moveX = inputX * power;
-    moveY = inputY * power;
+    const world = joystickToWorld(inputX, inputY);
+
+    moveX = world.x * power;
+    moveY = world.y * power;
 
     angle = getAngleFromMovement(moveX, moveY, angle);
 
@@ -388,10 +400,10 @@ export function enableMobileJoystick(
   }
 
   function startLoop() {
-    if (!animationId) {
-      lastFrameAt = performance.now();
-      animationId = requestAnimationFrame(loop);
-    }
+    if (animationId) return;
+
+    lastFrameAt = performance.now();
+    animationId = requestAnimationFrame(loop);
   }
 
   function finishInput() {
@@ -416,7 +428,7 @@ export function enableMobileJoystick(
 
     const nextX = Number(detail.x);
     const nextY = Number(detail.y);
-    const nextAngle = Number(detail.angle || angle);
+    const nextAngle = Number(detail.angle ?? angle);
 
     if (!Number.isFinite(nextX) || !Number.isFinite(nextY)) return;
 
@@ -427,9 +439,11 @@ export function enableMobileJoystick(
     cameraX = x;
     cameraY = y;
 
-    finishInput();
+    resetStick();
     renderPlayer();
     updateCamera(true);
+    broadcastMove(true);
+    savePositionToDb(true);
   }
 
   function onPointerDown(event) {
