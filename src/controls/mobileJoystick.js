@@ -26,7 +26,7 @@ function isMobileDevice() {
 
 /*
   Карта на мобилке повернута rotate(90deg).
-  UI-джойстик вынесен за повернутый слой, поэтому стик двигается по обычным экранным осям.
+  Поэтому экранное движение переводим в координаты карты.
 */
 function screenInputToWorldInput(inputX, inputY) {
   return {
@@ -56,18 +56,8 @@ function getInitialPosition(playerPosition, marker, bounds) {
   let x = clamp(px ?? mx ?? sx ?? 50, bounds.minX, bounds.maxX);
   let y = clamp(py ?? my ?? sy ?? 50, bounds.minY, bounds.maxY);
 
-  /*
-    Если после прошлых кривых тестов игрок оказался прямо на краю,
-    камера может визуально не двигаться по одной оси.
-    Мягко возвращаем в безопасную зону.
-  */
-  if (x <= bounds.minX + 0.2 || x >= bounds.maxX - 0.2) {
-    x = 50;
-  }
-
-  if (y <= bounds.minY + 0.2 || y >= bounds.maxY - 0.2) {
-    y = 50;
-  }
+  if (x <= bounds.minX + 0.5 || x >= bounds.maxX - 0.5) x = 50;
+  if (y <= bounds.minY + 0.5 || y >= bounds.maxY - 0.5) y = 50;
 
   return { x, y };
 }
@@ -114,6 +104,7 @@ export function enableMobileJoystick(
   const MAX_DISTANCE = 42;
   const DEADZONE = 0.08;
   const SPRINT_POWER = 0.62;
+  const CAMERA_FOLLOW_LAG = 0.16;
 
   const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
   const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
@@ -122,6 +113,9 @@ export function enableMobileJoystick(
 
   let x = initialPosition.x;
   let y = initialPosition.y;
+
+  let cameraX = x;
+  let cameraY = y;
 
   let angle =
     toFiniteNumber(playerPosition.angle) ??
@@ -162,7 +156,6 @@ export function enableMobileJoystick(
     if (!staminaFill) return;
 
     const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
-
     staminaFill.style.width = `${percent}%`;
 
     if (sprintLocked) {
@@ -207,8 +200,18 @@ export function enableMobileJoystick(
     playerPosition.x = x;
     playerPosition.y = y;
     playerPosition.angle = angle;
+  }
 
-    mapControls?.focusOnPlayer?.(x, y);
+  function updateCamera(force = false) {
+    if (force) {
+      cameraX = x;
+      cameraY = y;
+    } else {
+      cameraX += (x - cameraX) * CAMERA_FOLLOW_LAG;
+      cameraY += (y - cameraY) * CAMERA_FOLLOW_LAG;
+    }
+
+    mapControls?.focusOnPlayer?.(cameraX, cameraY);
   }
 
   function renderPlayer() {
@@ -301,7 +304,6 @@ export function enableMobileJoystick(
 
   function refreshJoystickCenter() {
     const rect = base.getBoundingClientRect();
-
     centerX = rect.left + rect.width / 2;
     centerY = rect.top + rect.height / 2;
   }
@@ -309,7 +311,6 @@ export function enableMobileJoystick(
   function resetStick() {
     moveX = 0;
     moveY = 0;
-
     stick.style.transform = 'translate(-50%, -50%) translate3d(0, 0, 0)';
   }
 
@@ -341,7 +342,6 @@ export function enableMobileJoystick(
     moveY = worldInput.y * power;
 
     angle = getAngleFromMovement(moveX, moveY, angle);
-    syncPlayerPosition();
 
     stick.style.transform =
       `translate(-50%, -50%) translate3d(${inputX * distance}px, ${inputY * distance}px, 0)`;
@@ -367,10 +367,12 @@ export function enableMobileJoystick(
       angle = getAngleFromMovement(moveX, moveY, angle);
 
       renderPlayer();
+      updateCamera(false);
       broadcastMove(false);
       savePositionToDb(false);
     } else {
       syncPlayerPosition();
+      updateCamera(false);
     }
 
     animationId = requestAnimationFrame(loop);
@@ -413,8 +415,12 @@ export function enableMobileJoystick(
     y = clamp(nextY, BOUNDS.minY, BOUNDS.maxY);
     angle = Number.isFinite(nextAngle) ? nextAngle : angle;
 
+    cameraX = x;
+    cameraY = y;
+
     finishInput();
     renderPlayer();
+    updateCamera(true);
   }
 
   function onPointerDown(event) {
@@ -429,9 +435,7 @@ export function enableMobileJoystick(
 
     try {
       base.setPointerCapture(event.pointerId);
-    } catch {
-      // iOS/Telegram WebView может не поддержать capture стабильно
-    }
+    } catch {}
 
     updateStickByClientPoint(event.clientX, event.clientY);
     startLoop();
@@ -459,13 +463,11 @@ export function enableMobileJoystick(
 
   function getActiveTouch(touches) {
     if (activeTouchId === null) return null;
-
     return Array.from(touches).find((touch) => touch.identifier === activeTouchId) || null;
   }
 
   function onTouchStart(event) {
     const touch = event.changedTouches?.[0];
-
     if (!touch) return;
 
     event.preventDefault();
@@ -483,7 +485,6 @@ export function enableMobileJoystick(
 
   function onTouchMove(event) {
     const touch = getActiveTouch(event.touches);
-
     if (!touch) return;
 
     event.preventDefault();
@@ -496,7 +497,6 @@ export function enableMobileJoystick(
     if (activeTouchId === null) return;
 
     const stillActive = getActiveTouch(event.touches);
-
     if (stillActive) return;
 
     event.preventDefault();
@@ -518,6 +518,7 @@ export function enableMobileJoystick(
   window.addEventListener('mn:player-teleported', onExternalTeleport);
 
   renderPlayer();
+  updateCamera(true);
   updateStaminaUi();
   setJoystickActive(false);
 
@@ -542,6 +543,7 @@ export function enableMobileJoystick(
 
     resetStick();
     renderPlayer();
+    updateCamera(true);
     updateStaminaUi();
 
     joystick?.remove();
