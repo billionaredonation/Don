@@ -25,14 +25,16 @@ function isMobileDevice() {
 }
 
 /*
-  ВАЖНО:
-  - UI-слой джойстика в CSS контр-повернут обратно.
-  - Поэтому палец/стик работают в нормальных экранных координатах.
-  - А движение игрока переводим в координаты повернутой карты.
+  Сцена на мобилке повернута.
+  Для экрана:
+  - палец вправо/влево двигает игрока визуально вправо/влево
+  - палец вверх/вниз двигает игрока визуально вверх/вниз
+
+  Визуал стика НЕ поворачиваем.
 */
 function screenInputToWorldInput(inputX, inputY) {
   return {
-    x: inputY,
+    x: -inputY,
     y: -inputX,
   };
 }
@@ -73,6 +75,8 @@ export function enableMobileJoystick(
   if (!container || !marker || !playerPosition) return null;
   if (!isMobileDevice()) return null;
 
+  container.dataset.joystickActive = 'false';
+
   container.innerHTML = `
     <div class="mobile-stamina">
       <div class="mobile-stamina-label">STAMINA</div>
@@ -99,7 +103,7 @@ export function enableMobileJoystick(
   const SYNC_CONFIG = getMovementSyncConfig();
 
   const MAX_DISTANCE = 42;
-  const DEADZONE = 0.18;
+  const DEADZONE = 0.16;
   const SPRINT_POWER = 0.62;
 
   const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
@@ -138,6 +142,10 @@ export function enableMobileJoystick(
   let lastSentX = x;
   let lastSentY = y;
   let lastSentAngle = angle;
+
+  function setJoystickActive(active) {
+    container.dataset.joystickActive = active ? 'true' : 'false';
+  }
 
   function updateStaminaUi() {
     if (!staminaFill) return;
@@ -385,6 +393,7 @@ export function enableMobileJoystick(
 
     activePointerId = event.pointerId;
 
+    setJoystickActive(true);
     refreshJoystickCenter();
     base.setPointerCapture(event.pointerId);
 
@@ -416,6 +425,12 @@ export function enableMobileJoystick(
     renderPlayer();
     updateStaminaUi();
 
+    setTimeout(() => {
+      if (!activePointerId && !destroyed) {
+        setJoystickActive(false);
+      }
+    }, 450);
+
     broadcastMove(true);
     savePositionToDb(true);
   }
@@ -428,6 +443,7 @@ export function enableMobileJoystick(
 
   renderPlayer();
   updateStaminaUi();
+  setJoystickActive(false);
 
   return () => {
     destroyed = true;
