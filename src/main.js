@@ -12,8 +12,6 @@ import { verifyTelegramAccess } from './auth/telegramAuth.js';
 import { setupTelegramGameShell } from './telegram/telegramGameShell.js';
 
 /* ВАЖНО: ПОСЛЕДНИМ */
-import '../styles/ios-game-fix.css';
-import '../styles/final-game-fixes.css';
 import '../styles/mobile-landscape-game.css';
 
 
