@@ -254,20 +254,12 @@ body,
   }
 
   .home[data-mobile-controls="enabled"] .mobile-controls-layer {
-    position: fixed !important;
-    left: 50% !important;
-    top: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
-
-    width: 100vw !important;
-    height: var(--mn-vh, 100dvh) !important;
-
+    position: absolute !important;
+    inset: 0 !important;
     z-index: 1200 !important;
     pointer-events: none !important;
-
-    transform: translate3d(-50%, -50%, 0) rotate(-90deg) !important;
-    transform-origin: center center !important;
+    transform: none !important;
+    rotate: 0deg !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-controls-layer * {
@@ -277,14 +269,15 @@ body,
 
   .home[data-mobile-controls="enabled"] .mobile-joystick {
     position: absolute !important;
-    left: 72px !important;
-    bottom: 92px !important;
+    left: 44px !important;
+    bottom: 118px !important;
     z-index: 1220 !important;
     pointer-events: auto !important;
     touch-action: none !important;
     transform: none !important;
     rotate: 0deg !important;
   }
+
 
   .home[data-mobile-controls="enabled"] .mobile-joystick-base,
   .home[data-mobile-controls="enabled"] .mobile-joystick-stick {
@@ -294,13 +287,24 @@ body,
   .home[data-mobile-controls="enabled"] .mobile-stamina,
   .home[data-mobile-controls="enabled"] .pc-stamina {
     position: absolute !important;
-    left: 78px !important;
-    bottom: 52px !important;
+    left: 48px !important;
+    bottom: 78px !important;
     width: 132px !important;
     z-index: 1210 !important;
     pointer-events: none !important;
     transform: none !important;
     rotate: 0deg !important;
+
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition:
+      opacity 0.18s ease,
+      visibility 0.18s ease !important;
+  }
+
+     .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] .mobile-stamina {
+    opacity: 1 !important;
+    visibility: visible !important;
   }
    
   .home[data-mobile-controls="enabled"] .mobile-control-toggle {
