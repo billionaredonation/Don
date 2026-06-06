@@ -3,7 +3,6 @@ import { supabase } from '../supabaseClient.js';
 const STORAGE_PREFIX = 'mn_map_objects';
 const TABLE_NAME = 'map_objects';
 
-
 function getStorageKey(cityId) {
   return `${STORAGE_PREFIX}_${cityId}`;
 }
@@ -23,27 +22,34 @@ function safeParse(value, fallback) {
 function createObjectId() {
   if (crypto?.randomUUID) return crypto.randomUUID();
 
-  return `obj_${Date.now()}_${Math.random()
-    .toString(16)
-    .slice(2)}`;
+  return `obj_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
 function toNumber(value, fallback = 0) {
-  const number = Number(value);
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
 
-  return Number.isFinite(number)
-    ? number
-    : fallback;
+function normalizePayload(value) {
+  if (!value) return {};
+
+  if (typeof value === 'object') return value;
+
+  if (typeof value === 'string') {
+    return safeParse(value, {});
+  }
+
+  return {};
 }
 
 function normalizeObject(object = {}) {
-  const payload =
-    object.payload &&
-    typeof object.payload === 'object'
-      ? object.payload
-      : {};
+  const payload = normalizePayload(object.payload);
 
-  const type = String(object.type || 'marker');
+  const type = String(
+    object.type ||
+      payload.type ||
+      'marker'
+  );
 
   const category = String(
     object.category ||
@@ -54,46 +60,84 @@ function normalizeObject(object = {}) {
 
   return {
     id: String(object.id || createObjectId()),
+
     cityId: String(
       object.cityId ||
         object.city_id ||
+        payload.cityId ||
+        payload.city_id ||
         ''
     ),
+
     type,
     category,
+
     name: String(
       object.name ||
         payload.name ||
         type ||
         'Объект'
     ),
+
     icon: String(
       object.icon ||
         payload.icon ||
         '◆'
     ),
+
     asset: String(
       object.asset ||
         payload.asset ||
         ''
     ),
-    x: toNumber(object.x, 50),
-    y: toNumber(object.y, 50),
+
+    x: toNumber(object.x ?? payload.x, 50),
+    y: toNumber(object.y ?? payload.y, 50),
+
     rotation: toNumber(
-      object.rotation,
+      object.rotation ?? payload.rotation,
       0
     ),
-    scale: toNumber(object.scale, 1),
+
+    scale: toNumber(
+      object.scale ?? payload.scale,
+      1
+    ),
+
     variant: String(
       object.variant ||
         payload.variant ||
+        payload.houseClass ||
+        payload.houseClassLabel ||
         ''
     ),
+
+    price:
+      object.price ??
+      payload.price ??
+      0,
+
+    owner_id:
+      object.owner_id ??
+      object.ownerId ??
+      payload.owner_id ??
+      payload.ownerId ??
+      null,
+
+    ownerName:
+      object.ownerName ??
+      object.owner_name ??
+      payload.ownerName ??
+      payload.owner_name ??
+      null,
+
     payload,
+
     createdAt:
       object.createdAt ||
       object.created_at ||
       new Date().toISOString(),
+
     updatedAt:
       object.updatedAt ||
       object.updated_at ||
@@ -101,7 +145,7 @@ function normalizeObject(object = {}) {
   };
 }
 
-function fromDbRow(row) {
+function fromDbRow(row = {}) {
   return normalizeObject({
     id: row.id,
     cityId: row.city_id,
@@ -123,10 +167,7 @@ function fromDbRow(row) {
 
 function getLocalObjects(cityId) {
   try {
-    const raw = localStorage.getItem(
-      getStorageKey(cityId)
-    );
-
+    const raw = localStorage.getItem(getStorageKey(cityId));
     const list = safeParse(raw, []);
 
     return Array.isArray(list)
@@ -157,119 +198,93 @@ function saveLocalObjects(cityId, objects) {
       getStorageKey(cityId),
       JSON.stringify(normalized)
     );
-  } catch {
-    // ignore
-  }
+  } catch {}
 
   return normalized;
+}
+
+function notifyObjectsLoaded(cityId, count) {
+  window.dispatchEvent(
+    new CustomEvent('mn:map-objects-loaded', {
+      detail: {
+        cityId,
+        count,
+      },
+    })
+  );
 }
 
 async function adminMapObjectsRequest(payload) {
   const initData = getTelegramInitData();
 
   if (!initData) {
-    throw new Error(
-      'missing_telegram_init_data'
-    );
+    throw new Error('missing_telegram_init_data');
   }
 
-  const { data, error } =
-    await supabase.functions.invoke(
-      'admin-map-objects',
-      {
-        body: {
-          initData,
-          ...payload,
-        },
-      }
-    );
+  const { data, error } = await supabase.functions.invoke(
+    'admin-map-objects',
+    {
+      body: {
+        initData,
+        ...payload,
+      },
+    }
+  );
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   if (!data?.ok) {
-    throw new Error(
-      data?.reason ||
-        'admin_map_objects_failed'
-    );
+    throw new Error(data?.reason || 'admin_map_objects_failed');
   }
 
   return data;
 }
 
 async function fetchRemoteObjects(cityId) {
-  if (!cityId) {
-  window.dispatchEvent(
-    new CustomEvent('mn:toast', {
-      detail: {
-        message: 'Ошибка загрузки объектов',
-      },
-    })
-  );
+  const normalizedCityId = String(cityId || '').trim();
 
-    console.warn(
-      '[mapObjectsRepository] fetch skipped: cityId missing'
-    );
-
+  if (!normalizedCityId) {
+    console.warn('[mapObjectsRepository] fetch skipped: cityId missing');
     return [];
   }
-
-  console.log(
-    '[mapObjectsRepository] loading city:',
-    cityId
-  );
 
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('*')
-    .eq('city_id', cityId);
+    .eq('city_id', normalizedCityId)
+    .order('created_at', { ascending: true });
 
   if (error) {
-    console.error(
-      '[mapObjectsRepository] supabase fetch error:',
-      {
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-        cityId,
-      }
-    );
-
-    showAdminToast(
-      'Ошибка загрузки объектов',
-      4000
-    );
+    console.error('[mapObjectsRepository] public load failed:', {
+      cityId: normalizedCityId,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
 
     throw error;
   }
 
-  window.dispatchEvent(
-    new CustomEvent('mn:toast', {
-      detail: {
-        message: `Загружено ${data?.length || 0} объектов`,
-      },
-    })
-  );
-    console.log(
-    `[mapObjectsRepository] loaded ${
-      data?.length || 0
-    } objects for city:`,
-    cityId
+  const objects = Array.isArray(data)
+    ? data.map(fromDbRow)
+    : [];
+
+  console.log(
+    `[mapObjectsRepository] loaded ${objects.length} objects for city:`,
+    normalizedCityId
   );
 
-  return Array.isArray(data)
-    ? data
-    : [];
+  notifyObjectsLoaded(normalizedCityId, objects.length);
+
+  return objects;
 }
 
 async function saveRemoteObject(object) {
-  const data =
-    await adminMapObjectsRequest({
-      action: 'upsert',
-      object,
-    });
+  const data = await adminMapObjectsRequest({
+    action: 'upsert',
+    object,
+  });
 
   return data?.object
     ? fromDbRow(data.object)
@@ -277,38 +292,36 @@ async function saveRemoteObject(object) {
 }
 
 async function syncHouseMapObject(object) {
-  if (object?.category !== 'house')
-    return object;
+  if (object?.category !== 'house') return object;
 
   try {
-    const { data, error } =
-      await supabase.rpc(
-        'sync_house_map_object',
-        {
-          p_map_object_id: String(
-            object.id
-          ),
-        }
-      );
+    const { data, error } = await supabase.rpc(
+      'sync_house_map_object',
+      {
+        p_map_object_id: String(object.id),
+      }
+    );
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     const syncedPayload = {
       ...(object.payload || {}),
+
       houseId:
         data?.houseId ||
         object.payload?.houseId ||
         null,
+
       ownerId:
         data?.ownerId ||
         object.payload?.ownerId ||
         null,
+
       ownerName:
         data?.ownerName ||
         object.payload?.ownerName ||
         null,
+
       owned: Boolean(
         data?.ownerId ||
           object.payload?.ownerId
@@ -320,8 +333,7 @@ async function syncHouseMapObject(object) {
     }
 
     if (data?.houseClass) {
-      syncedPayload.houseClass =
-        data.houseClass;
+      syncedPayload.houseClass = data.houseClass;
     }
 
     return normalizeObject({
@@ -329,19 +341,12 @@ async function syncHouseMapObject(object) {
       payload: syncedPayload,
     });
   } catch (error) {
-    console.warn(
-      '[mapObjectsRepository] house sync failed:',
-      error
-    );
-
+    console.warn('[mapObjectsRepository] house sync failed:', error);
     return object;
   }
 }
 
-async function deleteRemoteObject(
-  cityId,
-  objectId
-) {
+async function deleteRemoteObject(cityId, objectId) {
   return adminMapObjectsRequest({
     action: 'delete',
     cityId,
@@ -357,28 +362,19 @@ async function clearRemoteCity(cityId) {
 }
 
 export async function getMapObjects(cityId) {
-  const normalizedCityId = String(
-    cityId || ''
-  );
+  const normalizedCityId = String(cityId || '').trim();
 
-  const localObjects =
-    getLocalObjects(normalizedCityId);
+  const localObjects = getLocalObjects(normalizedCityId);
 
   try {
-    const remoteObjects =
-      await fetchRemoteObjects(
-        normalizedCityId
-      );
+    const remoteObjects = await fetchRemoteObjects(normalizedCityId);
 
-    saveLocalObjects(
-      normalizedCityId,
-      remoteObjects
-    );
+    saveLocalObjects(normalizedCityId, remoteObjects);
 
     return remoteObjects;
   } catch (error) {
     console.warn(
-      '[mapObjectsRepository] remote load failed, using local:',
+      '[mapObjectsRepository] remote load failed, using local cache:',
       error
     );
 
@@ -386,13 +382,8 @@ export async function getMapObjects(cityId) {
   }
 }
 
-export async function saveMapObjects(
-  cityId,
-  objects
-) {
-  const normalizedCityId = String(
-    cityId || ''
-  );
+export async function saveMapObjects(cityId, objects) {
+  const normalizedCityId = String(cityId || '').trim();
 
   const normalized = Array.isArray(objects)
     ? objects.map((object) =>
@@ -403,262 +394,145 @@ export async function saveMapObjects(
       )
     : [];
 
-  saveLocalObjects(
-    normalizedCityId,
-    normalized
-  );
+  saveLocalObjects(normalizedCityId, normalized);
 
   try {
     const savedObjects = [];
 
     for (const object of normalized) {
-      const savedObjectRaw =
-        await saveRemoteObject(object);
-
-      const savedObject =
-        await syncHouseMapObject(
-          savedObjectRaw
-        );
+      const savedObjectRaw = await saveRemoteObject(object);
+      const savedObject = await syncHouseMapObject(savedObjectRaw);
 
       savedObjects.push(savedObject);
     }
 
-    saveLocalObjects(
-      normalizedCityId,
-      savedObjects
-    );
+    saveLocalObjects(normalizedCityId, savedObjects);
 
     return savedObjects;
   } catch (error) {
-    console.warn(
-      '[mapObjectsRepository] admin remote save failed:',
-      error
-    );
-
+    console.warn('[mapObjectsRepository] admin remote save failed:', error);
     return normalized;
   }
 }
 
-export async function addMapObject(
-  cityId,
-  object
-) {
-  const normalizedCityId = String(
-    cityId || ''
-  );
+export async function addMapObject(cityId, object) {
+  const normalizedCityId = String(cityId || '').trim();
 
   const nextObject = normalizeObject({
     ...object,
-    id:
-      object?.id ||
-      createObjectId(),
+    id: object?.id || createObjectId(),
     cityId: normalizedCityId,
-    createdAt:
-      object?.createdAt ||
-      new Date().toISOString(),
-    updatedAt:
-      new Date().toISOString(),
+    createdAt: object?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
 
-  const objects =
-    await getMapObjects(
-      normalizedCityId
-    );
+  const objects = await getMapObjects(normalizedCityId);
 
   const nextObjects = [
     ...objects,
     nextObject,
   ];
 
-  saveLocalObjects(
-    normalizedCityId,
-    nextObjects
-  );
+  saveLocalObjects(normalizedCityId, nextObjects);
 
   try {
-    const savedObjectRaw =
-      await saveRemoteObject(
-        nextObject
-      );
+    const savedObjectRaw = await saveRemoteObject(nextObject);
+    const savedObject = await syncHouseMapObject(savedObjectRaw);
 
-    const savedObject =
-      await syncHouseMapObject(
-        savedObjectRaw
-      );
-
-    const syncedObjects =
-      nextObjects.map((item) =>
-        String(item.id) ===
-        String(savedObject.id)
-          ? savedObject
-          : item
-      );
-
-    saveLocalObjects(
-      normalizedCityId,
-      syncedObjects
+    const syncedObjects = nextObjects.map((item) =>
+      String(item.id) === String(savedObject.id)
+        ? savedObject
+        : item
     );
+
+    saveLocalObjects(normalizedCityId, syncedObjects);
 
     return savedObject;
   } catch (error) {
-    console.warn(
-      '[mapObjectsRepository] admin add failed:',
-      error
-    );
-
+    console.warn('[mapObjectsRepository] admin add failed:', error);
     return nextObject;
   }
 }
 
-export async function updateMapObject(
-  cityId,
-  objectId,
-  patch
-) {
-  const normalizedCityId = String(
-    cityId || ''
+export async function updateMapObject(cityId, objectId, patch) {
+  const normalizedCityId = String(cityId || '').trim();
+
+  const objects = await getMapObjects(normalizedCityId);
+
+  const nextObjects = objects.map((object) =>
+    String(object.id) === String(objectId)
+      ? normalizeObject({
+          ...object,
+          ...patch,
+          id: object.id,
+          cityId: normalizedCityId,
+          payload: {
+            ...(object.payload || {}),
+            ...(patch?.payload || {}),
+          },
+          updatedAt: new Date().toISOString(),
+        })
+      : object
   );
 
-  const objects =
-    await getMapObjects(
-      normalizedCityId
-    );
-
-  const nextObjects = objects.map(
-    (object) => {
-      if (
-        String(object.id) !==
-        String(objectId)
-      ) {
-        return object;
-      }
-
-      return normalizeObject({
-        ...object,
-        ...patch,
-        id: object.id,
-        cityId:
-          normalizedCityId,
-        updatedAt:
-          new Date().toISOString(),
-      });
-    }
-  );
+  saveLocalObjects(normalizedCityId, nextObjects);
 
   const updatedObject =
-    nextObjects.find(
-      (object) =>
-        String(object.id) ===
-        String(objectId)
-    ) || null;
-
-  saveLocalObjects(
-    normalizedCityId,
-    nextObjects
-  );
-
-  if (!updatedObject) {
-    return null;
-  }
+    nextObjects.find((object) => String(object.id) === String(objectId)) ||
+    null;
 
   try {
-    const savedObjectRaw =
-      await saveRemoteObject(
-        updatedObject
-      );
+    if (updatedObject) {
+      const savedObjectRaw = await saveRemoteObject(updatedObject);
+      const savedObject = await syncHouseMapObject(savedObjectRaw);
 
-    const savedObject =
-      await syncHouseMapObject(
-        savedObjectRaw
-      );
-
-    const syncedObjects =
-      nextObjects.map((item) =>
-        String(item.id) ===
-        String(savedObject.id)
+      const syncedObjects = nextObjects.map((item) =>
+        String(item.id) === String(savedObject.id)
           ? savedObject
           : item
       );
 
-    saveLocalObjects(
-      normalizedCityId,
-      syncedObjects
-    );
+      saveLocalObjects(normalizedCityId, syncedObjects);
 
-    return savedObject;
+      return savedObject;
+    }
   } catch (error) {
-    console.warn(
-      '[mapObjectsRepository] admin update failed:',
-      error
-    );
-
-    return updatedObject;
+    console.warn('[mapObjectsRepository] admin update failed:', error);
   }
+
+  return updatedObject;
 }
 
-export async function deleteMapObject(
-  cityId,
-  objectId
-) {
-  const normalizedCityId = String(
-    cityId || ''
+export async function deleteMapObject(cityId, objectId) {
+  const normalizedCityId = String(cityId || '').trim();
+
+  const objects = await getMapObjects(normalizedCityId);
+
+  const nextObjects = objects.filter(
+    (object) => String(object.id) !== String(objectId)
   );
 
-  const objects =
-    await getMapObjects(
-      normalizedCityId
-    );
-
-  const nextObjects =
-    objects.filter(
-      (object) =>
-        String(object.id) !==
-        String(objectId)
-    );
-
-  saveLocalObjects(
-    normalizedCityId,
-    nextObjects
-  );
+  saveLocalObjects(normalizedCityId, nextObjects);
 
   try {
-    await deleteRemoteObject(
-      normalizedCityId,
-      objectId
-    );
+    await deleteRemoteObject(normalizedCityId, objectId);
   } catch (error) {
-    console.warn(
-      '[mapObjectsRepository] admin delete failed:',
-      error
-    );
+    console.warn('[mapObjectsRepository] admin delete failed:', error);
   }
 
   return nextObjects;
 }
 
-export async function clearMapObjects(
-  cityId
-) {
-  const normalizedCityId = String(
-    cityId || ''
-  );
+export async function clearMapObjects(cityId) {
+  const normalizedCityId = String(cityId || '').trim();
 
-  saveLocalObjects(
-    normalizedCityId,
-    []
-  );
+  saveLocalObjects(normalizedCityId, []);
 
   try {
-    await clearRemoteCity(
-      normalizedCityId
-    );
+    await clearRemoteCity(normalizedCityId);
   } catch (error) {
-    console.warn(
-      '[mapObjectsRepository] admin clear failed:',
-      error
-    );
+    console.warn('[mapObjectsRepository] admin clear failed:', error);
   }
 
   return [];
 }
-
