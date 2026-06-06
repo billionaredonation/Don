@@ -25,95 +25,14 @@ function isMobileDevice() {
 }
 
 /*
-  Универсальная конвертация экранного направления джойстика
-  в координаты игрока на карте.
-
-  Почему так:
-  - карта/сцена на мобилке повернута CSS-transform'ом;
-  - на разных iPhone/Telegram WebView оси могут отдаваться по-разному;
-  - поэтому не угадываем формулу, а берем реальные transform-матрицы DOM.
+  Карта на мобилке повернута rotate(90deg).
+  UI-джойстик вынесен за повернутый слой, поэтому стик двигается по обычным экранным осям.
 */
-function getCssMatrix(element) {
-  if (!element) return new DOMMatrixReadOnly();
-
-  const transform = window.getComputedStyle(element).transform;
-
-  if (!transform || transform === 'none') {
-    return new DOMMatrixReadOnly();
-  }
-
-  try {
-    return new DOMMatrixReadOnly(transform);
-  } catch {
-    return new DOMMatrixReadOnly();
-  }
-}
-
-function normalizeVector(x, y, fallbackX = 0, fallbackY = 0) {
-  const length = Math.hypot(x, y);
-
-  if (!Number.isFinite(length) || length <= 0.000001) {
-    return {
-      x: fallbackX,
-      y: fallbackY,
-    };
-  }
-
+function screenInputToWorldInput(inputX, inputY) {
   return {
-    x: x / length,
-    y: y / length,
+    x: inputY,
+    y: -inputX,
   };
-}
-
-function screenInputToWorldInput(inputX, inputY, marker) {
-  const viewport = marker?.closest?.('.gta-map-viewport');
-  const gameplay = marker?.closest?.('.home-gameplay');
-
-  const worldWidth = Number(viewport?.offsetWidth || 0);
-  const worldHeight = Number(viewport?.offsetHeight || 0);
-
-  if (!viewport || !gameplay || worldWidth <= 0 || worldHeight <= 0) {
-    return normalizeVector(inputY, -inputX, inputX, inputY);
-  }
-
-  try {
-    const gameplayMatrix = getCssMatrix(gameplay);
-    const viewportMatrix = getCssMatrix(viewport);
-    const matrix = gameplayMatrix.multiply(viewportMatrix);
-
-    const worldStepX = worldWidth / 100;
-    const worldStepY = worldHeight / 100;
-
-    const screenFromWorldX = {
-      x: matrix.a * worldStepX,
-      y: matrix.b * worldStepX,
-    };
-
-    const screenFromWorldY = {
-      x: matrix.c * worldStepY,
-      y: matrix.d * worldStepY,
-    };
-
-    const determinant =
-      screenFromWorldX.x * screenFromWorldY.y -
-      screenFromWorldY.x * screenFromWorldX.y;
-
-    if (!Number.isFinite(determinant) || Math.abs(determinant) <= 0.000001) {
-      return normalizeVector(inputY, -inputX, inputX, inputY);
-    }
-
-    const worldX =
-      (inputX * screenFromWorldY.y - screenFromWorldY.x * inputY) /
-      determinant;
-
-    const worldY =
-      (screenFromWorldX.x * inputY - inputX * screenFromWorldX.y) /
-      determinant;
-
-    return normalizeVector(worldX, worldY, inputY, -inputX);
-  } catch {
-    return normalizeVector(inputY, -inputX, inputX, inputY);
-  }
 }
 
 function getAngleFromMovement(moveX, moveY, fallback = 0) {
@@ -134,10 +53,23 @@ function getInitialPosition(playerPosition, marker, bounds) {
   const sx = toFiniteNumber(marker?.style?.left?.replace('%', ''));
   const sy = toFiniteNumber(marker?.style?.top?.replace('%', ''));
 
-  return {
-    x: clamp(px ?? mx ?? sx ?? 50, bounds.minX, bounds.maxX),
-    y: clamp(py ?? my ?? sy ?? 50, bounds.minY, bounds.maxY),
-  };
+  let x = clamp(px ?? mx ?? sx ?? 50, bounds.minX, bounds.maxX);
+  let y = clamp(py ?? my ?? sy ?? 50, bounds.minY, bounds.maxY);
+
+  /*
+    Если после прошлых кривых тестов игрок оказался прямо на краю,
+    камера может визуально не двигаться по одной оси.
+    Мягко возвращаем в безопасную зону.
+  */
+  if (x <= bounds.minX + 0.2 || x >= bounds.maxX - 0.2) {
+    x = 50;
+  }
+
+  if (y <= bounds.minY + 0.2 || y >= bounds.maxY - 0.2) {
+    y = 50;
+  }
+
+  return { x, y };
 }
 
 export function enableMobileJoystick(
@@ -180,7 +112,7 @@ export function enableMobileJoystick(
   const SYNC_CONFIG = getMovementSyncConfig();
 
   const MAX_DISTANCE = 42;
-  const DEADZONE = 0.10;
+  const DEADZONE = 0.08;
   const SPRINT_POWER = 0.62;
 
   const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
@@ -201,6 +133,8 @@ export function enableMobileJoystick(
   let sprintLocked = false;
 
   let activePointerId = null;
+  let activeTouchId = null;
+
   let centerX = 0;
   let centerY = 0;
 
@@ -365,6 +299,13 @@ export function enableMobileJoystick(
     }
   }
 
+  function refreshJoystickCenter() {
+    const rect = base.getBoundingClientRect();
+
+    centerX = rect.left + rect.width / 2;
+    centerY = rect.top + rect.height / 2;
+  }
+
   function resetStick() {
     moveX = 0;
     moveY = 0;
@@ -372,7 +313,7 @@ export function enableMobileJoystick(
     stick.style.transform = 'translate(-50%, -50%) translate3d(0, 0, 0)';
   }
 
-  function updateStick(clientX, clientY) {
+  function updateStickByClientPoint(clientX, clientY) {
     const dx = clientX - centerX;
     const dy = clientY - centerY;
 
@@ -394,7 +335,7 @@ export function enableMobileJoystick(
     const inputX = dx / rawDistance;
     const inputY = dy / rawDistance;
 
-    const worldInput = screenInputToWorldInput(inputX, inputY, marker);
+    const worldInput = screenInputToWorldInput(inputX, inputY);
 
     moveX = worldInput.x * power;
     moveY = worldInput.y * power;
@@ -435,6 +376,30 @@ export function enableMobileJoystick(
     animationId = requestAnimationFrame(loop);
   }
 
+  function startLoop() {
+    if (!animationId) {
+      animationId = requestAnimationFrame(loop);
+    }
+  }
+
+  function finishInput() {
+    activePointerId = null;
+    activeTouchId = null;
+
+    resetStick();
+    renderPlayer();
+    updateStaminaUi();
+
+    window.setTimeout(() => {
+      if (!activePointerId && !activeTouchId && !destroyed) {
+        setJoystickActive(false);
+      }
+    }, 450);
+
+    broadcastMove(true);
+    savePositionToDb(true);
+  }
+
   function onExternalTeleport(event) {
     const detail = event?.detail || {};
 
@@ -448,74 +413,107 @@ export function enableMobileJoystick(
     y = clamp(nextY, BOUNDS.minY, BOUNDS.maxY);
     angle = Number.isFinite(nextAngle) ? nextAngle : angle;
 
-    activePointerId = null;
-
-    resetStick();
+    finishInput();
     renderPlayer();
-
-    broadcastMove(true);
-    savePositionToDb(true);
-  }
-
-  function refreshJoystickCenter() {
-    const rect = base.getBoundingClientRect();
-
-    centerX = rect.left + rect.width / 2;
-    centerY = rect.top + rect.height / 2;
   }
 
   function onPointerDown(event) {
     event.preventDefault();
     event.stopPropagation();
 
+    activeTouchId = null;
     activePointerId = event.pointerId;
 
     setJoystickActive(true);
     refreshJoystickCenter();
-    base.setPointerCapture(event.pointerId);
 
-    updateStick(event.clientX, event.clientY);
-
-    if (!animationId) {
-      animationId = requestAnimationFrame(loop);
+    try {
+      base.setPointerCapture(event.pointerId);
+    } catch {
+      // iOS/Telegram WebView может не поддержать capture стабильно
     }
+
+    updateStickByClientPoint(event.clientX, event.clientY);
+    startLoop();
   }
 
   function onPointerMove(event) {
+    if (activePointerId === null) return;
     if (event.pointerId !== activePointerId) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    updateStick(event.clientX, event.clientY);
+    updateStickByClientPoint(event.clientX, event.clientY);
   }
 
   function onPointerEnd(event) {
+    if (activePointerId === null) return;
     if (event.pointerId !== activePointerId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    finishInput();
+  }
+
+  function getActiveTouch(touches) {
+    if (activeTouchId === null) return null;
+
+    return Array.from(touches).find((touch) => touch.identifier === activeTouchId) || null;
+  }
+
+  function onTouchStart(event) {
+    const touch = event.changedTouches?.[0];
+
+    if (!touch) return;
 
     event.preventDefault();
     event.stopPropagation();
 
     activePointerId = null;
+    activeTouchId = touch.identifier;
 
-    resetStick();
-    renderPlayer();
-    updateStaminaUi();
+    setJoystickActive(true);
+    refreshJoystickCenter();
 
-    window.setTimeout(() => {
-      if (!activePointerId && !destroyed) {
-        setJoystickActive(false);
-      }
-    }, 450);
+    updateStickByClientPoint(touch.clientX, touch.clientY);
+    startLoop();
+  }
 
-    broadcastMove(true);
-    savePositionToDb(true);
+  function onTouchMove(event) {
+    const touch = getActiveTouch(event.touches);
+
+    if (!touch) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    updateStickByClientPoint(touch.clientX, touch.clientY);
+  }
+
+  function onTouchEnd(event) {
+    if (activeTouchId === null) return;
+
+    const stillActive = getActiveTouch(event.touches);
+
+    if (stillActive) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    finishInput();
   }
 
   base.addEventListener('pointerdown', onPointerDown);
-  base.addEventListener('pointermove', onPointerMove);
-  base.addEventListener('pointerup', onPointerEnd);
-  base.addEventListener('pointercancel', onPointerEnd);
+  window.addEventListener('pointermove', onPointerMove, { passive: false });
+  window.addEventListener('pointerup', onPointerEnd, { passive: false });
+  window.addEventListener('pointercancel', onPointerEnd, { passive: false });
+
+  base.addEventListener('touchstart', onTouchStart, { passive: false });
+  window.addEventListener('touchmove', onTouchMove, { passive: false });
+  window.addEventListener('touchend', onTouchEnd, { passive: false });
+  window.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
   window.addEventListener('mn:player-teleported', onExternalTeleport);
 
@@ -527,9 +525,14 @@ export function enableMobileJoystick(
     destroyed = true;
 
     base.removeEventListener('pointerdown', onPointerDown);
-    base.removeEventListener('pointermove', onPointerMove);
-    base.removeEventListener('pointerup', onPointerEnd);
-    base.removeEventListener('pointercancel', onPointerEnd);
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerEnd);
+    window.removeEventListener('pointercancel', onPointerEnd);
+
+    base.removeEventListener('touchstart', onTouchStart);
+    window.removeEventListener('touchmove', onTouchMove);
+    window.removeEventListener('touchend', onTouchEnd);
+    window.removeEventListener('touchcancel', onTouchEnd);
 
     window.removeEventListener('mn:player-teleported', onExternalTeleport);
 
