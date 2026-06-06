@@ -1,19 +1,36 @@
 function isMobileDevice() {
-  return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  return (
+    window.matchMedia('(hover: none) and (pointer: coarse)').matches ||
+    navigator.maxTouchPoints > 0
+  );
 }
 
-function getViewportHeight() {
-  return Math.round(
+function getViewportSize() {
+  const width = Math.round(
+    window.visualViewport?.width ||
+    window.innerWidth ||
+    document.documentElement.clientWidth ||
+    window.screen?.width ||
+    0
+  );
+
+  const height = Math.round(
     window.visualViewport?.height ||
     window.innerHeight ||
     document.documentElement.clientHeight ||
     window.screen?.height ||
     0
   );
+
+  return { width, height };
 }
 
 function syncViewportSize() {
-  const height = getViewportHeight();
+  const { width, height } = getViewportSize();
+
+  if (width > 0) {
+    document.documentElement.style.setProperty('--mn-vw', `${width}px`);
+  }
 
   if (height > 0) {
     document.documentElement.style.setProperty('--mn-vh', `${height}px`);
@@ -35,14 +52,14 @@ async function requestLandscapeFullscreen() {
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen();
     }
-  } catch (error) {
-    console.warn('[mobileControls] fullscreen failed:', error);
+  } catch {
+    // Fullscreen часто запрещён без пользовательского жеста.
   }
 
   try {
     await screen.orientation?.lock?.('landscape');
-  } catch (error) {
-    console.warn('[mobileControls] landscape lock failed:', error);
+  } catch {
+    // iOS/Telegram WebView часто не дают программно закрепить landscape.
   }
 }
 
@@ -70,13 +87,12 @@ export function setupMobileControlPrompt({
         <h3>Мобильное управление</h3>
 
         <p>
-          Включи landscape-режим и поверни телефон боком.
-          Управление будет работать напрямую: вверх — вверх, влево — влево.
+          Поверни телефон боком. Игра рассчитана на landscape-режим.
         </p>
 
         <p class="mobile-control-hint">
-          Если Telegram или браузер не даст зафиксировать поворот,
-          просто поверни телефон вручную.
+          Если Telegram не даст закрепить поворот автоматически,
+          просто держи телефон горизонтально.
         </p>
 
         <div class="mobile-control-actions">
@@ -121,8 +137,8 @@ export function setupMobileControlPrompt({
   cancel.addEventListener('click', closePanel);
   accept.addEventListener('click', enableMobileMode);
 
-  window.addEventListener('resize', syncViewportSize);
-  window.addEventListener('orientationchange', syncViewportSize);
+  window.addEventListener('resize', syncViewportSize, { passive: true });
+  window.addEventListener('orientationchange', syncViewportSize, { passive: true });
   syncViewportSize();
 
   return () => {
