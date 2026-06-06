@@ -575,4 +575,7 @@ body,
     bottom: 12px !important;
     min-height: 56px !important;
   }
+
+   .home[data-mobile-controls="enabled"] .mobile-self-player-indicator {
+  display: none !important;
 }
