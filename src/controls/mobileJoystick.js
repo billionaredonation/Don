@@ -24,25 +24,13 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
-function isPortraitScreen() {
-  return window.matchMedia('(orientation: portrait)').matches;
-}
-
 /*
-  На мобилке сама сцена повернута через CSS rotate(90deg).
-  Поэтому движение персонажа надо пересчитать под карту.
-
-  Но сам стик визуально НЕ поворачиваем.
-  Палец вправо = стик вправо.
+  ВАЖНО:
+  - UI-слой джойстика в CSS контр-повернут обратно.
+  - Поэтому палец/стик работают в нормальных экранных координатах.
+  - А движение игрока переводим в координаты повернутой карты.
 */
-function rotateInputForMobileScene(inputX, inputY) {
-  if (!isPortraitScreen()) {
-    return {
-      x: inputX,
-      y: inputY,
-    };
-  }
-
+function screenInputToWorldInput(inputX, inputY) {
   return {
     x: inputY,
     y: -inputX,
@@ -101,19 +89,18 @@ export function enableMobileJoystick(
   `;
 
   const joystick = container.querySelector('.mobile-joystick');
+  const staminaEl = container.querySelector('.mobile-stamina');
   const base = container.querySelector('.mobile-joystick-base');
   const stick = container.querySelector('.mobile-joystick-stick');
-  const staminaEl = container.querySelector('.mobile-stamina');
   const staminaFill = container.querySelector('.mobile-stamina-fill');
 
   const STAMINA = getStaminaConfig();
-
-  const MAX_DISTANCE = 42;
-  const DEADZONE = 0.22;
-  const SPRINT_POWER = 0.62;
-
   const BOUNDS = getMovementBounds();
   const SYNC_CONFIG = getMovementSyncConfig();
+
+  const MAX_DISTANCE = 42;
+  const DEADZONE = 0.18;
+  const SPRINT_POWER = 0.62;
 
   const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
   const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
@@ -122,6 +109,7 @@ export function enableMobileJoystick(
 
   let x = initialPosition.x;
   let y = initialPosition.y;
+
   let angle =
     toFiniteNumber(playerPosition.angle) ??
     toFiniteNumber(playerPosition.direction) ??
@@ -168,7 +156,7 @@ export function enableMobileJoystick(
   }
 
   function updateSprintState(isMoving) {
-    const joystickPower = Math.max(Math.abs(moveX), Math.abs(moveY));
+    const joystickPower = Math.hypot(moveX, moveY);
 
     const wantsSprint =
       isMoving &&
@@ -321,24 +309,16 @@ export function enableMobileJoystick(
     const inputX = dx / rawDistance;
     const inputY = dy / rawDistance;
 
-    const movementInput = rotateInputForMobileScene(inputX, inputY);
+    const worldInput = screenInputToWorldInput(inputX, inputY);
 
-    moveX = movementInput.x * power;
-    moveY = movementInput.y * power;
+    moveX = worldInput.x * power;
+    moveY = worldInput.y * power;
 
     angle = getAngleFromMovement(moveX, moveY, angle);
     syncPlayerPosition();
 
-    /*
-      Визуал стика не трогаем поворотом карты.
-      Палец вправо = стик вправо.
-      Палец вверх = стик вверх.
-    */
-    const stickX = inputX * distance;
-    const stickY = inputY * distance;
-
     stick.style.transform =
-      `translate(-50%, -50%) translate3d(${stickX}px, ${stickY}px, 0)`;
+      `translate(-50%, -50%) translate3d(${inputX * distance}px, ${inputY * distance}px, 0)`;
   }
 
   function loop() {
@@ -392,17 +372,20 @@ export function enableMobileJoystick(
     savePositionToDb(true);
   }
 
+  function refreshJoystickCenter() {
+    const rect = base.getBoundingClientRect();
+
+    centerX = rect.left + rect.width / 2;
+    centerY = rect.top + rect.height / 2;
+  }
+
   function onPointerDown(event) {
     event.preventDefault();
     event.stopPropagation();
 
     activePointerId = event.pointerId;
 
-    const rect = base.getBoundingClientRect();
-
-    centerX = rect.left + rect.width / 2;
-    centerY = rect.top + rect.height / 2;
-
+    refreshJoystickCenter();
     base.setPointerCapture(event.pointerId);
 
     updateStick(event.clientX, event.clientY);
