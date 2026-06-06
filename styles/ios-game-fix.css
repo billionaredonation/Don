@@ -579,3 +579,137 @@ body,
    .home[data-mobile-controls="enabled"] .mobile-self-player-indicator {
   display: none !important;
 }
+
+
+/* =========================================================
+   FINAL MAP / CAMERA / OBJECTS FIX
+   ========================================================= */
+
+.gta-map-stage {
+  overflow: hidden !important;
+  background: #020407 !important;
+}
+
+.gta-map-viewport {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  inset: auto !important;
+  overflow: visible !important;
+  transform-origin: center center !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.gta-map-image {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  pointer-events: none !important;
+}
+
+.gta-map-image:not(.gta-map-glow) {
+  z-index: 2 !important;
+}
+
+.gta-map-glow {
+  z-index: 1 !important;
+}
+
+.gta-map-weather {
+  z-index: 4 !important;
+  pointer-events: none !important;
+}
+
+.gta-map-entities {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 90 !important;
+  pointer-events: none !important;
+  overflow: visible !important;
+}
+
+.gta-player-marker {
+  position: absolute !important;
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  translate: -50% -50% !important;
+  z-index: 95 !important;
+  pointer-events: none !important;
+}
+
+.gta-player-marker-self {
+  z-index: 100 !important;
+}
+
+/* Убираем вторую фейковую точку по центру */
+.mobile-self-player-indicator {
+  display: none !important;
+}
+
+/* Дома / объекты всегда поверх карты */
+.map-objects-layer,
+.map-objects-layer-public,
+.map-objects-layer-admin {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+}
+
+.map-objects-layer-public {
+  z-index: 80 !important;
+  pointer-events: auto !important;
+}
+
+/* Даже в админке публичные дома не скрывать */
+[data-admin-mode="enabled"] .map-objects-layer-public,
+[data-admin-move-mode="enabled"] .map-objects-layer-public {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.map-object {
+  position: absolute !important;
+  display: grid !important;
+  place-items: center !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 85 !important;
+}
+
+.map-object.map-object-house {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.map-object.map-object-house .map-house-svg {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Джойстик не трогаем, только фикс слоя */
+.mobile-controls-layer.mn-mobile-controls {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  pointer-events: none !important;
+  transform: none !important;
+  rotate: 0deg !important;
+  width: 100vw !important;
+  height: 100svh !important;
+  overflow: visible !important;
+}
