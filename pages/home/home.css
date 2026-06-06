@@ -3052,3 +3052,44 @@ body.mn-houses-modal-open .admin-status-dot {
 .home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill[data-state="locked"] {
   background: linear-gradient(90deg, #ff3737, #ff8a3d) !important;
 }
+
+
+/* =========================================================
+   RESTORE MAP HOUSES / OBJECTS
+   ========================================================= */
+
+.gta-map-viewport .map-objects-layer,
+.gta-map-viewport .map-objects-layer-public {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 60 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  overflow: visible !important;
+}
+
+.gta-map-viewport .map-objects-layer-public .map-object {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.gta-map-viewport .map-object.map-object-house {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.gta-map-viewport .map-object.map-object-house .map-house-svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+[data-admin-mode="enabled"] .map-objects-layer-public,
+[data-admin-move-mode="enabled"] .map-objects-layer-public {
+  display: block !important;
+}
