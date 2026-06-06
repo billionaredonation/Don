@@ -81,7 +81,7 @@ async function requestLandscapeMode() {
   try {
     await screen.orientation?.lock?.('landscape');
   } catch {
-    // На iOS и в части Telegram WebView orientation.lock не работает.
+    // На iOS и в Telegram WebView orientation.lock часто не работает.
   }
 }
 
@@ -93,70 +93,27 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
   return Math.atan2(moveX, -moveY) * 180 / Math.PI;
 }
 
-function normalizeVector(x, y, fallbackX = 0, fallbackY = 0) {
-  const length = Math.hypot(x, y);
-
-  if (length <= 0.001) {
-    return { x: fallbackX, y: fallbackY };
-  }
-
-  return {
-    x: x / length,
-    y: y / length,
-  };
-}
-
-function getGameplayElement(container) {
-  const root = container?.closest?.('.home');
-
-  return root?.querySelector?.('.home-gameplay') || null;
-}
-
-function getGameplayTransformMatrix(container) {
-  const gameplay = getGameplayElement(container);
-
-  if (!gameplay) return null;
-
-  const transform = window.getComputedStyle(gameplay).transform;
-
-  if (!transform || transform === 'none') return null;
-
-  try {
-    return new DOMMatrixReadOnly(transform);
-  } catch {
-    return null;
-  }
-}
-
 /*
-  Управление для мобилки в landscape.
+  ВАЖНО.
 
-  Главная проблема старых версий: часть CSS крутила .home-gameplay через rotate(90deg),
-  а джойстик считал координаты как будто экран обычный. Из-за этого:
-  left мог стать up, right мог стать down.
+  Здесь специально НЕТ компенсации rotate через DOMMatrix.
 
-  Сейчас логика защищена от обоих вариантов:
-  1) телефон реально лежит боком, CSS не крутит сцену -> оси идут напрямую;
-  2) старый CSS всё-таки повернул gameplay -> вектор джойстика пересчитывается
-     через обратную матрицу поворота.
+  У тебя визуал уже повернут CSS-ом под телефон боком.
+  Если JS ещё раз пытается компенсировать transform карты,
+  вертикаль джойстика превращается в неправильную ось.
+
+  Сейчас логика простая:
+
+  джойстик вверх  -> moveY < 0 -> игрок идёт вверх
+  джойстик вниз   -> moveY > 0 -> игрок идёт вниз
+  джойстик влево  -> moveX < 0 -> игрок идёт влево
+  джойстик вправо -> moveX > 0 -> игрок идёт вправо
 */
-function joystickToMapVector(container, screenX, screenY) {
-  const matrix = getGameplayTransformMatrix(container);
-
-  if (!matrix) {
-    return { x: screenX, y: screenY };
-  }
-
-  const det = matrix.a * matrix.d - matrix.b * matrix.c;
-
-  if (!Number.isFinite(det) || Math.abs(det) <= 0.0001) {
-    return { x: screenX, y: screenY };
-  }
-
-  const localX = (matrix.d * screenX - matrix.c * screenY) / det;
-  const localY = (-matrix.b * screenX + matrix.a * screenY) / det;
-
-  return normalizeVector(localX, localY, screenX, screenY);
+function joystickToMapVector(_container, screenX, screenY) {
+  return {
+    x: screenX,
+    y: screenY,
+  };
 }
 
 function getInitialPosition(playerPosition, marker, bounds) {
