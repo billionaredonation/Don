@@ -24,50 +24,26 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
-function normalizeVector(x, y) {
-  const length = Math.hypot(x, y);
+/*
+  Карта на мобилке повернута CSS rotate(90deg).
 
-  if (length <= 0.001) {
-    return { x: 0, y: 0 };
-  }
+  Экранные оси:
+  - палец вправо/влево должен визуально двигать игрока вправо/влево
+  - палец вверх/вниз должен визуально двигать игрока вверх/вниз
 
-  return {
-    x: x / length,
-    y: y / length,
-  };
-}
+  Для повернутой карты:
+  - экранный X переводим в координату Y карты
+  - экранный Y переводим в координату X карты
 
-function getGameplayMatrix() {
-  const gameplay = document.querySelector('.home-gameplay');
-  if (!gameplay) return null;
-
-  const transform = window.getComputedStyle(gameplay).transform;
-
-  if (!transform || transform === 'none') return null;
-
-  try {
-    return new DOMMatrixReadOnly(transform);
-  } catch {
-    return null;
-  }
-}
-
+  Важно:
+  DOMMatrix тут специально НЕ используем.
+  На части iPhone/Telegram WebView он даёт кривую/нестабильную ось.
+*/
 function screenInputToWorldInput(inputX, inputY) {
-  const matrix = getGameplayMatrix();
-
-  if (!matrix) {
-    return normalizeVector(inputX, inputY);
-  }
-
-  try {
-    const inverse = matrix.inverse();
-    const origin = new DOMPoint(0, 0).matrixTransform(inverse);
-    const point = new DOMPoint(inputX, inputY).matrixTransform(inverse);
-
-    return normalizeVector(point.x - origin.x, point.y - origin.y);
-  } catch {
-    return normalizeVector(inputY, -inputX);
-  }
+  return {
+    x: inputY,
+    y: -inputX,
+  };
 }
 
 function getAngleFromMovement(moveX, moveY, fallback = 0) {
@@ -107,6 +83,7 @@ export function enableMobileJoystick(
   if (!isMobileDevice()) return null;
 
   container.dataset.joystickActive = 'false';
+
   container.innerHTML = `
     <div class="mobile-stamina">
       <div class="mobile-stamina-label">STAMINA</div>
@@ -133,7 +110,7 @@ export function enableMobileJoystick(
   const SYNC_CONFIG = getMovementSyncConfig();
 
   const MAX_DISTANCE = 42;
-  const DEADZONE = 0.14;
+  const DEADZONE = 0.10;
   const SPRINT_POWER = 0.62;
 
   const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
@@ -346,6 +323,7 @@ export function enableMobileJoystick(
 
     const inputX = dx / rawDistance;
     const inputY = dy / rawDistance;
+
     const worldInput = screenInputToWorldInput(inputX, inputY);
 
     moveX = worldInput.x * power;
@@ -354,6 +332,10 @@ export function enableMobileJoystick(
     angle = getAngleFromMovement(moveX, moveY, angle);
     syncPlayerPosition();
 
+    /*
+      Визуал стика всегда идёт за пальцем.
+      Его не поворачиваем под карту.
+    */
     stick.style.transform =
       `translate(-50%, -50%) translate3d(${inputX * distance}px, ${inputY * distance}px, 0)`;
   }
@@ -468,6 +450,7 @@ export function enableMobileJoystick(
   base.addEventListener('pointermove', onPointerMove);
   base.addEventListener('pointerup', onPointerEnd);
   base.addEventListener('pointercancel', onPointerEnd);
+
   window.addEventListener('mn:player-teleported', onExternalTeleport);
 
   renderPlayer();
@@ -481,6 +464,7 @@ export function enableMobileJoystick(
     base.removeEventListener('pointermove', onPointerMove);
     base.removeEventListener('pointerup', onPointerEnd);
     base.removeEventListener('pointercancel', onPointerEnd);
+
     window.removeEventListener('mn:player-teleported', onExternalTeleport);
 
     if (animationId) {
