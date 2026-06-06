@@ -413,3 +413,99 @@ body,
     transform-origin: center !important;
   }
 }
+
+
+/* =========================================================
+   FINAL MOBILE JOYSTICK AXIS + STAMINA POSITION FIX
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer.mn-mobile-controls {
+    position: fixed !important;
+    inset: 0 !important;
+    width: var(--mn-vw, 100vw) !important;
+    height: var(--mn-vh, 100svh) !important;
+    z-index: 99999 !important;
+    pointer-events: none !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    overflow: visible !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-joystick {
+    position: fixed !important;
+
+    left: max(42px, calc(env(safe-area-inset-left) + 42px)) !important;
+    top: max(112px, calc(env(safe-area-inset-top) + 100px)) !important;
+
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 124px !important;
+    height: 124px !important;
+
+    z-index: 100000 !important;
+    pointer-events: auto !important;
+
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-joystick-base {
+    width: 124px !important;
+    height: 124px !important;
+    touch-action: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-joystick-stick {
+    width: 56px !important;
+    height: 56px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina {
+    position: fixed !important;
+
+    /*
+      Стамина ровно под джойстиком.
+      left такой же, как у джойстика.
+      top = top джойстика + высота джойстика + небольшой отступ.
+    */
+    left: max(42px, calc(env(safe-area-inset-left) + 42px)) !important;
+    top: max(246px, calc(env(safe-area-inset-top) + 234px)) !important;
+
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 124px !important;
+    max-width: 124px !important;
+
+    padding: 8px 9px !important;
+    border-radius: 14px !important;
+
+    z-index: 100000 !important;
+    pointer-events: none !important;
+
+    display: block !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-label {
+    font-size: 9px !important;
+    letter-spacing: 0.14em !important;
+    margin-bottom: 6px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-track {
+    height: 8px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill {
+    height: 100% !important;
+  }
+}
