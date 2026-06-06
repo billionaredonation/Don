@@ -14,6 +14,8 @@ import { setupTelegramGameShell } from './telegram/telegramGameShell.js';
 /* ВАЖНО: ПОСЛЕДНИМ */
 import '../styles/ios-game-fix.css';
 
+import '../styles/ios-game-fix.css?v=joystick-fix-06-06-01';
+
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
 
