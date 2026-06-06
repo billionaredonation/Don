@@ -15,7 +15,7 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function num(value, fallback = 0) {
+function toNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
@@ -24,47 +24,16 @@ function isMobileDevice() {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 }
 
-function getAngleFromMovement(moveX, moveY, fallback = 0) {
-  if (Math.abs(moveX) < 0.001 && Math.abs(moveY) < 0.001) return fallback;
-  return Math.atan2(moveX, -moveY) * 180 / Math.PI;
-}
-
-/*
-  ВАЖНО:
-  На мобилке игровой экран у тебя повернут через CSS rotate(90deg).
-  Джойстик НЕ двигает карту.
-  Он двигает только координаты игрока: marker.style.left/top.
-*/
-function screenToWorld(inputX, inputY) {
-  const isPortrait = window.matchMedia('(orientation: portrait)').matches;
-
-  if (!isPortrait) {
-    return {
-      x: inputX,
-      y: inputY,
-    };
-  }
-
+function screenInputToWorldInput(inputX, inputY) {
   return {
     x: inputY,
     y: -inputX,
   };
 }
 
-function getStartPosition(playerPosition, marker, bounds) {
-  const x = clamp(
-    num(playerPosition?.x, num(marker?.dataset?.x, 50)),
-    bounds.minX,
-    bounds.maxX
-  );
-
-  const y = clamp(
-    num(playerPosition?.y, num(marker?.dataset?.y, 50)),
-    bounds.minY,
-    bounds.maxY
-  );
-
-  return { x, y };
+function getAngleFromMovement(moveX, moveY, fallback = 0) {
+  if (Math.abs(moveX) < 0.001 && Math.abs(moveY) < 0.001) return fallback;
+  return Math.atan2(moveX, -moveY) * 180 / Math.PI;
 }
 
 export function enableMobileJoystick(
@@ -78,6 +47,8 @@ export function enableMobileJoystick(
 ) {
   if (!container || !marker || !playerPosition) return null;
   if (!isMobileDevice()) return null;
+
+  container.dataset.joystickActive = 'false';
 
   container.innerHTML = `
     <div class="mobile-stamina">
@@ -94,26 +65,24 @@ export function enableMobileJoystick(
     </div>
   `;
 
-  const joystickBase = container.querySelector('.mobile-joystick-base');
-  const joystickStick = container.querySelector('.mobile-joystick-stick');
+  const base = container.querySelector('.mobile-joystick-base');
+  const stick = container.querySelector('.mobile-joystick-stick');
   const staminaFill = container.querySelector('.mobile-stamina-fill');
 
   const STAMINA = getStaminaConfig();
   const BOUNDS = getMovementBounds();
   const SYNC = getMovementSyncConfig();
 
-  const MAX_STICK_DISTANCE = 42;
-  const DEADZONE = 0.09;
-  const SPRINT_POWER = 0.68;
+  const MAX_DISTANCE = 42;
+  const DEADZONE = 0.08;
+  const SPRINT_POWER = 0.62;
 
-  const start = getStartPosition(playerPosition, marker, BOUNDS);
+  let x = clamp(toNumber(playerPosition.x ?? marker.dataset.x, 50), BOUNDS.minX, BOUNDS.maxX);
+  let y = clamp(toNumber(playerPosition.y ?? marker.dataset.y, 50), BOUNDS.minY, BOUNDS.maxY);
+  let angle = toNumber(playerPosition.angle ?? playerPosition.direction ?? marker.dataset.angle, 0);
 
-  let x = start.x;
-  let y = start.y;
-  let angle = num(playerPosition?.angle, num(marker?.dataset?.angle, 0));
-
-  let inputX = 0;
-  let inputY = 0;
+  let moveX = 0;
+  let moveY = 0;
 
   let stamina = STAMINA.max;
   let sprintLocked = false;
@@ -132,11 +101,7 @@ export function enableMobileJoystick(
   let dbSaveInFlight = false;
   let dbSavePending = false;
 
-  let lastSentX = x;
-  let lastSentY = y;
-  let lastSentAngle = angle;
-
-  function syncPositionObject() {
+  function syncPlayerPosition() {
     playerPosition.x = x;
     playerPosition.y = y;
     playerPosition.angle = angle;
@@ -146,23 +111,15 @@ export function enableMobileJoystick(
     x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
     y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
 
-    syncPositionObject();
-
-    marker.style.display = '';
-    marker.style.opacity = '1';
-    marker.style.visibility = 'visible';
+    syncPlayerPosition();
 
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
-
     marker.dataset.x = String(x);
     marker.dataset.y = String(y);
     marker.dataset.angle = String(angle);
-
     marker.style.setProperty('--player-angle', `${angle}deg`);
-  }
 
-  function centerCameraOnce() {
     mapControls?.focusOnPlayer?.(x, y);
   }
 
@@ -170,7 +127,6 @@ export function enableMobileJoystick(
     if (!staminaFill) return;
 
     const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
-
     staminaFill.style.width = `${percent}%`;
 
     if (sprintLocked) {
@@ -182,13 +138,9 @@ export function enableMobileJoystick(
     }
   }
 
-  function updateStamina(isMoving, frameScale) {
-    const power = Math.hypot(inputX, inputY);
-
-    const wantsSprint =
-      isMoving &&
-      power >= SPRINT_POWER &&
-      !sprintLocked;
+  function updateSprintState(isMoving, frameScale) {
+    const power = Math.hypot(moveX, moveY);
+    const wantsSprint = isMoving && power >= SPRINT_POWER && !sprintLocked;
 
     if (wantsSprint) {
       stamina = Math.max(
@@ -213,33 +165,17 @@ export function enableMobileJoystick(
     }
 
     updateStaminaUi();
-
     return wantsSprint;
-  }
-
-  function changedEnough() {
-    return (
-      Math.abs(x - lastSentX) > 0.002 ||
-      Math.abs(y - lastSentY) > 0.002 ||
-      Math.abs(angle - lastSentAngle) > 0.1
-    );
-  }
-
-  function markSent() {
-    lastSentX = x;
-    lastSentY = y;
-    lastSentAngle = angle;
   }
 
   function broadcastMove(force = false) {
     const now = Date.now();
 
     if (!force && now - lastBroadcastAt < SYNC.broadcastInterval) return;
-    if (!force && !changedEnough()) return;
 
     lastBroadcastAt = now;
 
-    movementChannel?.sendMove?.({
+    movementChannel?.sendMove({
       playerId: getLocalPlayerId(),
       nickname,
       cityId,
@@ -248,8 +184,6 @@ export function enableMobileJoystick(
       angle,
       updatedAt: new Date().toISOString(),
     });
-
-    markSent();
   }
 
   async function savePositionToDb(force = false) {
@@ -264,8 +198,6 @@ export function enableMobileJoystick(
       dbSavePending = true;
       return;
     }
-
-    syncPositionObject();
 
     dbSaveInFlight = true;
     dbSavePending = false;
@@ -292,51 +224,51 @@ export function enableMobileJoystick(
   }
 
   function measureJoystick() {
-    const rect = joystickBase.getBoundingClientRect();
+    const rect = base.getBoundingClientRect();
 
     centerX = rect.left + rect.width / 2;
     centerY = rect.top + rect.height / 2;
   }
 
-  function resetInput() {
-    inputX = 0;
-    inputY = 0;
+  function resetStick() {
+    moveX = 0;
+    moveY = 0;
 
-    joystickStick.style.transform =
+    stick.style.transform =
       'translate(-50%, -50%) translate3d(0, 0, 0)';
   }
 
-  function updateInput(clientX, clientY) {
+  function updateStick(clientX, clientY) {
     const dx = clientX - centerX;
     const dy = clientY - centerY;
 
-    const distance = Math.hypot(dx, dy);
+    const rawDistance = Math.hypot(dx, dy);
 
-    if (distance <= 0.001) {
-      resetInput();
+    if (rawDistance <= 0.001) {
+      resetStick();
       return;
     }
 
-    const limitedDistance = Math.min(distance, MAX_STICK_DISTANCE);
-    const power = limitedDistance / MAX_STICK_DISTANCE;
+    const distance = Math.min(rawDistance, MAX_DISTANCE);
+    const power = distance / MAX_DISTANCE;
 
     if (power < DEADZONE) {
-      resetInput();
+      resetStick();
       return;
     }
 
-    const screenX = dx / distance;
-    const screenY = dy / distance;
+    const inputX = dx / rawDistance;
+    const inputY = dy / rawDistance;
 
-    const world = screenToWorld(screenX, screenY);
+    const world = screenInputToWorldInput(inputX, inputY);
 
-    inputX = world.x * power;
-    inputY = world.y * power;
+    moveX = world.x * power;
+    moveY = world.y * power;
 
-    angle = getAngleFromMovement(inputX, inputY, angle);
+    angle = getAngleFromMovement(moveX, moveY, angle);
 
-    joystickStick.style.transform =
-      `translate(-50%, -50%) translate3d(${screenX * limitedDistance}px, ${screenY * limitedDistance}px, 0)`;
+    stick.style.transform =
+      `translate(-50%, -50%) translate3d(${inputX * distance}px, ${inputY * distance}px, 0)`;
   }
 
   function loop(now = performance.now()) {
@@ -348,33 +280,27 @@ export function enableMobileJoystick(
     lastFrameAt = now;
 
     const isMoving =
-      Math.abs(inputX) > DEADZONE ||
-      Math.abs(inputY) > DEADZONE;
+      Math.abs(moveX) > DEADZONE ||
+      Math.abs(moveY) > DEADZONE;
 
-    const isSprinting = updateStamina(isMoving, frameScale);
+    const isSprinting = updateSprintState(isMoving, frameScale);
 
     if (isMoving) {
       const speed = isSprinting
         ? MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED
         : MOVEMENT_CONFIG.MOBILE_WALK_SPEED;
 
-      x += inputX * speed * frameScale;
-      y += inputY * speed * frameScale;
+      x += moveX * speed * frameScale;
+      y += moveY * speed * frameScale;
 
-      angle = getAngleFromMovement(inputX, inputY, angle);
+      angle = getAngleFromMovement(moveX, moveY, angle);
 
       renderPlayer();
       broadcastMove(false);
       savePositionToDb(false);
-    } else {
-      syncPositionObject();
     }
 
-    if (isMoving || stamina < STAMINA.max || activePointerId !== null) {
-      animationId = requestAnimationFrame(loop);
-    } else {
-      animationId = null;
-    }
+    animationId = requestAnimationFrame(loop);
   }
 
   function startLoop() {
@@ -384,18 +310,15 @@ export function enableMobileJoystick(
     animationId = requestAnimationFrame(loop);
   }
 
-  function finishInput() {
+  function stopInput() {
     activePointerId = null;
-
     container.dataset.joystickActive = 'false';
 
-    resetInput();
+    resetStick();
     renderPlayer();
 
     broadcastMove(true);
     savePositionToDb(true);
-
-    startLoop();
   }
 
   function onPointerDown(event) {
@@ -408,10 +331,10 @@ export function enableMobileJoystick(
     measureJoystick();
 
     try {
-      joystickBase.setPointerCapture(event.pointerId);
+      base.setPointerCapture(event.pointerId);
     } catch {}
 
-    updateInput(event.clientX, event.clientY);
+    updateStick(event.clientX, event.clientY);
     startLoop();
   }
 
@@ -422,8 +345,7 @@ export function enableMobileJoystick(
     event.preventDefault();
     event.stopPropagation();
 
-    updateInput(event.clientX, event.clientY);
-    startLoop();
+    updateStick(event.clientX, event.clientY);
   }
 
   function onPointerEnd(event) {
@@ -433,7 +355,7 @@ export function enableMobileJoystick(
     event.preventDefault();
     event.stopPropagation();
 
-    finishInput();
+    stopInput();
   }
 
   function onExternalTeleport(event) {
@@ -449,15 +371,14 @@ export function enableMobileJoystick(
     y = clamp(nextY, BOUNDS.minY, BOUNDS.maxY);
     angle = Number.isFinite(nextAngle) ? nextAngle : angle;
 
-    resetInput();
+    resetStick();
     renderPlayer();
-    centerCameraOnce();
 
     broadcastMove(true);
     savePositionToDb(true);
   }
 
-  joystickBase.addEventListener('pointerdown', onPointerDown, { passive: false });
+  base.addEventListener('pointerdown', onPointerDown, { passive: false });
   window.addEventListener('pointermove', onPointerMove, { passive: false });
   window.addEventListener('pointerup', onPointerEnd, { passive: false });
   window.addEventListener('pointercancel', onPointerEnd, { passive: false });
@@ -465,14 +386,13 @@ export function enableMobileJoystick(
   window.addEventListener('mn:player-teleported', onExternalTeleport);
 
   renderPlayer();
-  centerCameraOnce();
   updateStaminaUi();
-  resetInput();
+  resetStick();
 
   return () => {
     destroyed = true;
 
-    joystickBase.removeEventListener('pointerdown', onPointerDown);
+    base.removeEventListener('pointerdown', onPointerDown);
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerEnd);
     window.removeEventListener('pointercancel', onPointerEnd);
@@ -483,7 +403,7 @@ export function enableMobileJoystick(
       cancelAnimationFrame(animationId);
     }
 
-    resetInput();
+    resetStick();
     renderPlayer();
 
     broadcastMove(true);
