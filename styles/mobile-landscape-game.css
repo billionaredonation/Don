@@ -280,3 +280,133 @@ body,
     bottom: max(124px, calc(var(--mn-safe-bottom) + 118px)) !important;
     width: 136px !important;
   }
+
+
+/* FIX: normal mobile landscape controls placement */
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer,
+  .home[data-mobile-controls="enabled"] > .mobile-controls-layer {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: var(--mn-vh, 100dvh) !important;
+    z-index: 2000 !important;
+    pointer-events: none !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    overflow: visible !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-joystick {
+    position: fixed !important;
+
+    left: max(22px, calc(env(safe-area-inset-left, 0px) + 20px)) !important;
+    bottom: max(74px, calc(env(safe-area-inset-bottom, 0px) + 72px)) !important;
+
+    width: 118px !important;
+    height: 118px !important;
+
+    z-index: 2020 !important;
+    pointer-events: auto !important;
+
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina {
+    position: fixed !important;
+
+    left: max(22px, calc(env(safe-area-inset-left, 0px) + 20px)) !important;
+    bottom: max(18px, calc(env(safe-area-inset-bottom, 0px) + 16px)) !important;
+
+    width: 118px !important;
+    height: 38px !important;
+
+    padding: 7px 9px !important;
+    border-radius: 13px !important;
+
+    z-index: 2010 !important;
+    pointer-events: none !important;
+
+    display: block !important;
+
+    opacity: 0 !important;
+    visibility: hidden !important;
+
+    transform: translateY(10px) !important;
+    rotate: 0deg !important;
+
+    transition:
+      opacity 0.12s ease,
+      visibility 0.12s ease,
+      transform 0.12s ease !important;
+
+    background: rgba(8, 10, 14, 0.78) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38) !important;
+
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] .mn-mobile-stamina,
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina[data-visible="true"] {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-label {
+    display: block !important;
+    margin: 0 0 5px 0 !important;
+
+    font-size: 9px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.14em !important;
+
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-track {
+    width: 100% !important;
+    height: 7px !important;
+    overflow: hidden !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina-fill {
+    display: block !important;
+    height: 100% !important;
+    width: 100%;
+
+    border-radius: inherit !important;
+    background: rgba(255, 92, 64, 0.95) !important;
+
+    transition: width 0.12s linear !important;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) and (max-height: 430px) {
+  .home[data-mobile-controls="enabled"] .mn-mobile-joystick {
+    width: 104px !important;
+    height: 104px !important;
+
+    left: max(18px, calc(env(safe-area-inset-left, 0px) + 16px)) !important;
+    bottom: max(64px, calc(env(safe-area-inset-bottom, 0px) + 62px)) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mn-mobile-stamina {
+    left: max(18px, calc(env(safe-area-inset-left, 0px) + 16px)) !important;
+    bottom: max(14px, calc(env(safe-area-inset-bottom, 0px) + 12px)) !important;
+
+    width: 104px !important;
+    height: 36px !important;
+  }
+}
