@@ -40,11 +40,7 @@ function getImageRatio(viewport) {
     viewport?.querySelector?.('.gta-map-image:not(.gta-map-glow)') ||
     viewport?.querySelector?.('.gta-map-image');
 
-  if (
-    image &&
-    image.naturalWidth > 0 &&
-    image.naturalHeight > 0
-  ) {
+  if (image?.naturalWidth > 0 && image?.naturalHeight > 0) {
     return image.naturalHeight / image.naturalWidth;
   }
 
@@ -72,15 +68,9 @@ export function enableMapControls(stage, viewport, options = {}) {
   const lowPower = isLowPowerDevice();
   const mobile = isCoarsePointer();
 
-  /*
-    ВАЖНО:
-    На мобилке не делаем слишком мелкий мир.
-    Если worldWidth/worldHeight становятся маленькими или 0,
-    карта исчезает, а остаются только фон/звёзды/игрок.
-  */
-  const LOCKED_SCALE = Number(options.startScale) || (mobile ? 3.1 : 4.4);
+  const LOCKED_SCALE = Number(options.startScale) || (mobile ? 3.2 : 4.4);
   const WORLD_FACTOR = mobile
-    ? (lowPower ? 3.1 : 3.45)
+    ? (lowPower ? 3.2 : 3.55)
     : (lowPower ? 2.6 : 3.95);
 
   let scale = LOCKED_SCALE;
@@ -93,11 +83,9 @@ export function enableMapControls(stage, viewport, options = {}) {
   let lastFocusX = Number(options.focusX) || 50;
   let lastFocusY = Number(options.focusY) || 50;
 
-  const mapImage =
-    viewport.querySelector('.gta-map-image:not(.gta-map-glow)') ||
-    viewport.querySelector('.gta-map-image');
+  const mapImages = Array.from(viewport.querySelectorAll('.gta-map-image'));
 
-  function forceBaseLayout() {
+  function forceVisibleMapLayer() {
     stage.style.position = 'absolute';
     stage.style.inset = '0';
     stage.style.width = '100%';
@@ -112,12 +100,53 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.right = 'auto';
     viewport.style.bottom = 'auto';
     viewport.style.display = 'block';
+    viewport.style.visibility = 'visible';
+    viewport.style.opacity = '1';
     viewport.style.overflow = 'visible';
     viewport.style.transformOrigin = 'center center';
     viewport.style.willChange = 'transform';
-    viewport.style.visibility = 'visible';
-    viewport.style.opacity = '1';
-    viewport.style.zIndex = '10';
+    viewport.style.zIndex = '50';
+    viewport.style.pointerEvents = 'none';
+
+    mapImages.forEach((image, index) => {
+      image.style.position = 'absolute';
+      image.style.inset = '0';
+      image.style.display = 'block';
+      image.style.visibility = 'visible';
+      image.style.opacity = index === 0 && image.classList.contains('gta-map-glow') ? '0.45' : '1';
+      image.style.width = '100%';
+      image.style.height = '100%';
+      image.style.objectFit = 'contain';
+      image.style.objectPosition = 'center center';
+      image.style.pointerEvents = 'none';
+      image.style.userSelect = 'none';
+      image.style.zIndex = image.classList.contains('gta-map-glow') ? '1' : '2';
+    });
+
+    const entities = viewport.querySelector('.gta-map-entities');
+
+    if (entities) {
+      entities.style.position = 'absolute';
+      entities.style.inset = '0';
+      entities.style.display = 'block';
+      entities.style.visibility = 'visible';
+      entities.style.opacity = '1';
+      entities.style.overflow = 'visible';
+      entities.style.zIndex = '90';
+      entities.style.pointerEvents = 'none';
+    }
+
+    const objectLayers = viewport.querySelectorAll(
+      '.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin'
+    );
+
+    objectLayers.forEach((layer) => {
+      layer.style.position = 'absolute';
+      layer.style.inset = '0';
+      layer.style.visibility = 'visible';
+      layer.style.opacity = '1';
+      layer.style.overflow = 'visible';
+    });
   }
 
   function getStageRect() {
@@ -142,16 +171,10 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function measureWorld() {
-    forceBaseLayout();
+    forceVisibleMapLayer();
 
     const rect = getStageRect();
     const ratio = getImageRatio(viewport);
-
-    /*
-      Берём большую сторону сцены.
-      В forced-landscape через rotate(90deg) размеры могут быть перевёрнуты,
-      поэтому max(width, height) безопаснее.
-    */
     const base = Math.max(rect.width, rect.height);
 
     worldWidth = Math.max(900, base * WORLD_FACTOR);
@@ -214,7 +237,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     refresh();
   }
 
-  function onImageLoaded() {
+  function onImageReady() {
     refresh();
   }
 
@@ -222,10 +245,10 @@ export function enableMapControls(stage, viewport, options = {}) {
   window.addEventListener('orientationchange', onResize, { passive: true });
   window.visualViewport?.addEventListener?.('resize', onResize, { passive: true });
 
-  if (mapImage && !mapImage.complete) {
-    mapImage.addEventListener('load', onImageLoaded, { passive: true });
-    mapImage.addEventListener('error', onImageLoaded, { passive: true });
-  }
+  mapImages.forEach((image) => {
+    image.addEventListener('load', onImageReady, { passive: true });
+    image.addEventListener('error', onImageReady, { passive: true });
+  });
 
   refresh();
 
@@ -235,10 +258,10 @@ export function enableMapControls(stage, viewport, options = {}) {
       window.removeEventListener('orientationchange', onResize);
       window.visualViewport?.removeEventListener?.('resize', onResize);
 
-      if (mapImage) {
-        mapImage.removeEventListener('load', onImageLoaded);
-        mapImage.removeEventListener('error', onImageLoaded);
-      }
+      mapImages.forEach((image) => {
+        image.removeEventListener('load', onImageReady);
+        image.removeEventListener('error', onImageReady);
+      });
     },
 
     focusOnPlayer,
