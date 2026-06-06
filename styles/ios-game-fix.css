@@ -254,17 +254,26 @@ body,
   }
 
   .home[data-mobile-controls="enabled"] .mobile-controls-layer {
-    position: absolute !important;
-    inset: 0 !important;
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 100vw !important;
+    height: var(--mn-vh, 100dvh) !important;
+
     z-index: 1200 !important;
     pointer-events: none !important;
-    transform: none !important;
-    rotate: 0deg !important;
+
+    transform: translate3d(-50%, -50%, 0) rotate(-90deg) !important;
+    transform-origin: center center !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-controls-layer * {
     pointer-events: auto;
   }
+
 
   .home[data-mobile-controls="enabled"] .mobile-joystick {
     position: absolute !important;
@@ -293,7 +302,7 @@ body,
     transform: none !important;
     rotate: 0deg !important;
   }
-
+   
   .home[data-mobile-controls="enabled"] .mobile-control-toggle {
     position: absolute !important;
     right: 18px !important;
