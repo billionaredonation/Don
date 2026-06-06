@@ -2,8 +2,18 @@ function isMobileDevice() {
   return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 }
 
+function getViewportHeight() {
+  return Math.round(
+    window.visualViewport?.height ||
+    window.innerHeight ||
+    document.documentElement.clientHeight ||
+    window.screen?.height ||
+    0
+  );
+}
+
 function syncViewportSize() {
-  const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+  const height = getViewportHeight();
 
   if (height > 0) {
     document.documentElement.style.setProperty('--mn-vh', `${height}px`);
@@ -11,19 +21,19 @@ function syncViewportSize() {
 }
 
 async function requestLandscapeFullscreen() {
-  const target = document.documentElement;
-
   syncViewportSize();
+
+  document.body?.classList.add('mn-landscape-game');
 
   try {
     window.Telegram?.WebApp?.expand?.();
   } catch {
-    // Telegram WebApp может быть недоступен вне Mini App.
+    // Telegram WebApp может быть недоступен вне Mini App
   }
 
   try {
-    if (!document.fullscreenElement && target.requestFullscreen) {
-      await target.requestFullscreen();
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
     }
   } catch (error) {
     console.warn('[mobileControls] fullscreen failed:', error);
@@ -43,9 +53,7 @@ export function setupMobileControlPrompt({
 }) {
   if (!root || !layer) return null;
 
-  const mobile = isMobileDevice();
-
-  if (!mobile) {
+  if (!isMobileDevice()) {
     layer.innerHTML = '';
     return null;
   }
@@ -62,22 +70,22 @@ export function setupMobileControlPrompt({
         <h3>Мобильное управление</h3>
 
         <p>
-          На телефоне управление включается в landscape-режиме.
-          Поверни телефон боком, чтобы карта, модалки и джойстик не расползались.
+          Включи landscape-режим и поверни телефон боком.
+          Управление будет работать напрямую: вверх — вверх, влево — влево.
         </p>
 
         <p class="mobile-control-hint">
-          Игра попробует открыть полноэкранный режим и зафиксировать landscape.
-          Если браузер не разрешит фиксацию — просто поверни телефон вручную.
+          Если Telegram или браузер не даст зафиксировать поворот,
+          просто поверни телефон вручную.
         </p>
 
         <div class="mobile-control-actions">
           <button class="mobile-control-cancel" type="button">
-            Оставить стандартное
+            Отмена
           </button>
 
           <button class="mobile-control-accept" type="button">
-            Включить landscape
+            Включить
           </button>
         </div>
       </div>
@@ -121,6 +129,7 @@ export function setupMobileControlPrompt({
     toggle.removeEventListener('click', openPanel);
     cancel.removeEventListener('click', closePanel);
     accept.removeEventListener('click', enableMobileMode);
+
     window.removeEventListener('resize', syncViewportSize);
     window.removeEventListener('orientationchange', syncViewportSize);
 
