@@ -11,9 +11,22 @@ import '../pages/home/home.js';
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
 import { setupTelegramGameShell } from './telegram/telegramGameShell.js';
 
-/* ВАЖНО: ПОСЛЕДНИМ */
-import '../styles/mobile-landscape-game.css';
+/*
+  ВАЖНО:
+  CSS фиксы мобилки НЕ импортируем отсюда.
 
+  Почему:
+  - src/main.js находится внутри папки src;
+  - если написать import './styles/final-game-fixes.css',
+    Vite будет искать файл здесь: src/styles/final-game-fixes.css;
+  - если файла нет, сборка падает.
+
+  Мобильный CSS подключай через index.html:
+
+  <link rel="stylesheet" href="./pages/home/mobile-game-fix.css?v=1" />
+
+  Так сборка не будет ломаться из-за неправильного пути в JS.
+*/
 
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
@@ -54,6 +67,28 @@ function renderTelegramOnlyScreen() {
 function isTelegramWebApp() {
   return Boolean(window.Telegram?.WebApp?.initData) ||
     Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user);
+}
+
+function renderFatalError(error) {
+  const root = document.getElementById('app');
+
+  if (!root) return;
+
+  const message = String(error?.stack || error?.message || error || 'Unknown error');
+
+  root.innerHTML = `
+    <div style="
+      min-height:100vh;
+      background:#050505;
+      color:#fff;
+      padding:20px;
+      font-family:Arial,sans-serif;
+      white-space:pre-wrap;
+      line-height:1.45;
+    ">
+      ${message}
+    </div>
+  `;
 }
 
 async function boot() {
@@ -100,19 +135,7 @@ async function boot() {
     });
   } catch (error) {
     console.error(error);
-
-    document.getElementById('app').innerHTML = `
-      <div style="
-        min-height:100vh;
-        background:#050505;
-        color:#fff;
-        padding:20px;
-        font-family:Arial,sans-serif;
-        white-space:pre-wrap;
-      ">
-        ${error?.stack || error}
-      </div>
-    `;
+    renderFatalError(error);
   }
 }
 
