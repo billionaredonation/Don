@@ -3,8 +3,10 @@ function clamp(value, min, max) {
 }
 
 function isCoarsePointer() {
-  return window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ||
-    navigator.maxTouchPoints > 0;
+  return (
+    window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ||
+    navigator.maxTouchPoints > 0
+  );
 }
 
 function getViewportSize() {
@@ -14,6 +16,7 @@ function getViewportSize() {
       window.visualViewport?.width ||
       window.innerWidth ||
       document.documentElement.clientWidth ||
+      window.screen?.width ||
       1
     )
   );
@@ -24,11 +27,28 @@ function getViewportSize() {
       window.visualViewport?.height ||
       window.innerHeight ||
       document.documentElement.clientHeight ||
+      window.screen?.height ||
       1
     )
   );
 
   return { width, height };
+}
+
+function getImageRatio(viewport) {
+  const image =
+    viewport?.querySelector?.('.gta-map-image:not(.gta-map-glow)') ||
+    viewport?.querySelector?.('.gta-map-image');
+
+  if (
+    image &&
+    image.naturalWidth > 0 &&
+    image.naturalHeight > 0
+  ) {
+    return image.naturalHeight / image.naturalWidth;
+  }
+
+  return 0.72;
 }
 
 export function isLowPowerDevice() {
@@ -52,21 +72,32 @@ export function enableMapControls(stage, viewport, options = {}) {
   const lowPower = isLowPowerDevice();
   const mobile = isCoarsePointer();
 
-  const LOCKED_SCALE = Number(options.startScale) || (mobile ? 3.15 : 4.4);
+  /*
+    ВАЖНО:
+    На мобилке не делаем слишком мелкий мир.
+    Если worldWidth/worldHeight становятся маленькими или 0,
+    карта исчезает, а остаются только фон/звёзды/игрок.
+  */
+  const LOCKED_SCALE = Number(options.startScale) || (mobile ? 3.1 : 4.4);
   const WORLD_FACTOR = mobile
-    ? (lowPower ? 2.65 : 3.15)
-    : (lowPower ? 2.25 : 3.65);
+    ? (lowPower ? 3.1 : 3.45)
+    : (lowPower ? 2.6 : 3.95);
 
   let scale = LOCKED_SCALE;
   let x = 0;
   let y = 0;
 
-  let worldWidth = 1;
-  let worldHeight = 1;
+  let worldWidth = 1200;
+  let worldHeight = 864;
+
   let lastFocusX = Number(options.focusX) || 50;
   let lastFocusY = Number(options.focusY) || 50;
 
-  function forceStageLayout() {
+  const mapImage =
+    viewport.querySelector('.gta-map-image:not(.gta-map-glow)') ||
+    viewport.querySelector('.gta-map-image');
+
+  function forceBaseLayout() {
     stage.style.position = 'absolute';
     stage.style.inset = '0';
     stage.style.width = '100%';
@@ -78,29 +109,53 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.position = 'absolute';
     viewport.style.left = '50%';
     viewport.style.top = '50%';
+    viewport.style.right = 'auto';
+    viewport.style.bottom = 'auto';
+    viewport.style.display = 'block';
     viewport.style.overflow = 'visible';
     viewport.style.transformOrigin = 'center center';
     viewport.style.willChange = 'transform';
+    viewport.style.visibility = 'visible';
+    viewport.style.opacity = '1';
+    viewport.style.zIndex = '10';
   }
 
   function getStageRect() {
     const rect = stage.getBoundingClientRect();
-    const viewportSize = getViewportSize();
+    const screen = getViewportSize();
 
-    const width = Math.max(1, rect.width || viewportSize.width);
-    const height = Math.max(1, rect.height || viewportSize.height);
+    let width = Number(rect.width);
+    let height = Number(rect.height);
 
-    return { width, height };
+    if (!Number.isFinite(width) || width < 20) {
+      width = screen.width;
+    }
+
+    if (!Number.isFinite(height) || height < 20) {
+      height = screen.height;
+    }
+
+    return {
+      width: Math.max(1, width),
+      height: Math.max(1, height),
+    };
   }
 
   function measureWorld() {
-    forceStageLayout();
+    forceBaseLayout();
 
     const rect = getStageRect();
+    const ratio = getImageRatio(viewport);
+
+    /*
+      Берём большую сторону сцены.
+      В forced-landscape через rotate(90deg) размеры могут быть перевёрнуты,
+      поэтому max(width, height) безопаснее.
+    */
     const base = Math.max(rect.width, rect.height);
 
-    worldWidth = Math.max(rect.width, base * WORLD_FACTOR);
-    worldHeight = Math.max(rect.height, worldWidth * 0.72);
+    worldWidth = Math.max(900, base * WORLD_FACTOR);
+    worldHeight = Math.max(620, worldWidth * ratio);
 
     viewport.style.width = `${worldWidth}px`;
     viewport.style.height = `${worldHeight}px`;
@@ -138,11 +193,11 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     if (!Number.isFinite(focusX) || !Number.isFinite(focusY)) return;
 
-    lastFocusX = focusX;
-    lastFocusY = focusY;
+    lastFocusX = clamp(focusX, 0, 100);
+    lastFocusY = clamp(focusY, 0, 100);
 
-    const fx = (focusX / 100 - 0.5) * worldWidth * scale;
-    const fy = (focusY / 100 - 0.5) * worldHeight * scale;
+    const fx = (lastFocusX / 100 - 0.5) * worldWidth * scale;
+    const fy = (lastFocusY / 100 - 0.5) * worldHeight * scale;
 
     x = -fx;
     y = -fy;
@@ -159,9 +214,18 @@ export function enableMapControls(stage, viewport, options = {}) {
     refresh();
   }
 
+  function onImageLoaded() {
+    refresh();
+  }
+
   window.addEventListener('resize', onResize, { passive: true });
   window.addEventListener('orientationchange', onResize, { passive: true });
   window.visualViewport?.addEventListener?.('resize', onResize, { passive: true });
+
+  if (mapImage && !mapImage.complete) {
+    mapImage.addEventListener('load', onImageLoaded, { passive: true });
+    mapImage.addEventListener('error', onImageLoaded, { passive: true });
+  }
 
   refresh();
 
@@ -170,6 +234,11 @@ export function enableMapControls(stage, viewport, options = {}) {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
       window.visualViewport?.removeEventListener?.('resize', onResize);
+
+      if (mapImage) {
+        mapImage.removeEventListener('load', onImageLoaded);
+        mapImage.removeEventListener('error', onImageLoaded);
+      }
     },
 
     focusOnPlayer,
