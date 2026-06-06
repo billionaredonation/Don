@@ -2876,3 +2876,43 @@ body.mn-houses-modal-open .admin-status-dot {
     top: 6px !important;
   }
 }
+
+
+/* FINAL MOBILE JOYSTICK FIX */
+
+.home[data-mobile-controls="enabled"] .mobile-controls-layer {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 999 !important;
+  pointer-events: none !important;
+  transform: none !important;
+}
+
+.home[data-mobile-controls="enabled"] .mobile-joystick {
+  position: fixed !important;
+  left: max(28px, env(safe-area-inset-left)) !important;
+  top: max(128px, calc(env(safe-area-inset-top) + 104px)) !important;
+  bottom: auto !important;
+  width: 124px !important;
+  height: 124px !important;
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+  touch-action: none !important;
+}
+
+.home[data-mobile-controls="enabled"] .mobile-stamina {
+  position: fixed !important;
+  left: max(28px, env(safe-area-inset-left)) !important;
+  top: max(262px, calc(env(safe-area-inset-top) + 238px)) !important;
+  bottom: auto !important;
+  z-index: 1000 !important;
+  pointer-events: none !important;
+}
+
+.home[data-mobile-controls="enabled"] .mobile-joystick-base,
+.home[data-mobile-controls="enabled"] .mobile-joystick-stick {
+  touch-action: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
