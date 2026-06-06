@@ -5,32 +5,20 @@ function clamp(value, min, max) {
 export function isLowPowerDevice() {
   const memory = navigator.deviceMemory || 4;
   const cores = navigator.hardwareConcurrency || 4;
+  const isSmallScreen = window.matchMedia('(max-width: 520px)').matches;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  return reducedMotion || memory <= 3 || cores <= 4;
-}
-
-function getMapRatio(viewport) {
-  const image = viewport?.querySelector?.('.gta-map-image:not(.gta-map-glow)');
-
-  if (!image) return 0.72;
-
-  const naturalWidth = Number(image.naturalWidth || 0);
-  const naturalHeight = Number(image.naturalHeight || 0);
-
-  if (!naturalWidth || !naturalHeight) return 0.72;
-
-  return naturalHeight / naturalWidth;
+  return reducedMotion || memory <= 3 || cores <= 4 || isSmallScreen;
 }
 
 export function enableMapControls(stage, viewport, options = {}) {
   const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 
   const LOCKED_SCALE = isMobile
-    ? Number(options.startScale) || 2.25
+    ? Number(options.startScale) || 2.55
     : Number(options.startScale) || 3;
 
-  const WORLD_FACTOR = isMobile ? 3.6 : 3.95;
+  const WORLD_FACTOR = isMobile ? 2.25 : 3.95;
 
   let scale = LOCKED_SCALE;
   let x = 0;
@@ -41,11 +29,9 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   function measureWorld() {
     const rect = stage.getBoundingClientRect();
-    const baseSize = Math.max(rect.width, rect.height);
-    const ratio = getMapRatio(viewport);
 
-    worldWidth = baseSize * WORLD_FACTOR;
-    worldHeight = worldWidth * ratio;
+    worldWidth = Math.max(rect.width, rect.height) * WORLD_FACTOR;
+    worldHeight = worldWidth * 0.72;
 
     viewport.style.width = `${worldWidth}px`;
     viewport.style.height = `${worldHeight}px`;
@@ -92,9 +78,9 @@ export function enableMapControls(stage, viewport, options = {}) {
     applyTransform();
   }
 
-  function refresh(focusX = options.focusX, focusY = options.focusY) {
+  function refresh() {
     measureWorld();
-    focusOnPlayer(focusX, focusY);
+    focusOnPlayer(options.focusX, options.focusY);
   }
 
   function onResize() {
@@ -102,12 +88,6 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   window.addEventListener('resize', onResize);
-
-  const image = viewport.querySelector('.gta-map-image:not(.gta-map-glow)');
-
-  if (image && !image.complete) {
-    image.addEventListener('load', () => refresh(), { once: true });
-  }
 
   refresh();
 
@@ -117,6 +97,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     },
 
     focusOnPlayer,
+
     refresh,
   };
 }
