@@ -347,6 +347,7 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
+  const isMobileGameplay = isMobileGameplayDevice();
 
   const cleanupHousesFeature = enableHousesFeature(root, {
     cityId,
@@ -356,7 +357,10 @@ register('home', async (root) => {
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
     focusY: playerPosition.y,
-    startScale: isLowPowerDevice() ? 2.65 : 4.95,
+    startScale: isMobileGameplay
+      ? (isLowPowerDevice() ? 2.1 : 2.45)
+      : (isLowPowerDevice() ? 2.65 : 4.95),
+    worldFactor: isMobileGameplay ? 2.45 : undefined,
   });
 
   const network = setupPlayerNetwork({
@@ -367,7 +371,6 @@ register('home', async (root) => {
   });
 
   const cleanupSessionGuard = setupSessionGuard(root);
-  const isMobileGameplay = isMobileGameplayDevice();
 
   let cleanupMovement = null;
   let cleanupMobilePrompt = null;
@@ -405,6 +408,7 @@ register('home', async (root) => {
 
   function enableMobileGameplayMode() {
     root.dataset.mobileControls = 'enabled';
+    document.body?.classList.add('mn-landscape-game');
 
     cleanupMobileJoystick?.();
 
@@ -584,5 +588,6 @@ register('home', async (root) => {
     network.cleanup?.();
 
     delete root.dataset.mobileControls;
+    document.body?.classList.remove('mn-landscape-game');
   };
 });
