@@ -21,11 +21,21 @@ function number(value, fallback = 0) {
 }
 
 function isMobileDevice() {
-  return window.matchMedia('(pointer: coarse), (max-width: 768px)').matches;
+  return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+}
+
+function getViewportHeight() {
+  return Math.round(
+    window.visualViewport?.height ||
+    window.innerHeight ||
+    document.documentElement.clientHeight ||
+    window.screen?.height ||
+    0
+  );
 }
 
 function syncViewportSize() {
-  const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+  const height = getViewportHeight();
 
   if (height > 0) {
     document.documentElement.style.setProperty('--mn-vh', `${height}px`);
@@ -34,12 +44,13 @@ function syncViewportSize() {
 
 async function requestLandscapeMode() {
   syncViewportSize();
+
   document.body?.classList.add('mn-landscape-game');
 
   try {
     window.Telegram?.WebApp?.expand?.();
   } catch {
-    // Telegram WebApp может быть недоступен вне Mini App.
+    // Telegram WebApp может быть недоступен вне Mini App
   }
 
   try {
@@ -47,22 +58,34 @@ async function requestLandscapeMode() {
       await document.documentElement.requestFullscreen();
     }
   } catch {
-    // Fullscreen/lock часто запрещены без пользовательского жеста.
+    // Fullscreen часто запрещён браузером без жеста пользователя
   }
 
   try {
     await screen.orientation?.lock?.('landscape');
   } catch {
-    // На iOS и части Android WebView ориентация не лочится программно.
+    // На iOS и части Telegram WebView orientation.lock не работает
   }
 }
 
+function getAngleFromMovement(moveX, moveY, fallback = 0) {
+  if (Math.abs(moveX) < 0.001 && Math.abs(moveY) < 0.001) {
+    return fallback;
+  }
 
-function getAngleFromMovement(x, y, fallback = 0) {
-  if (Math.abs(x) < 0.001 && Math.abs(y) < 0.001) return fallback;
-  return Math.atan2(x, -y) * 180 / Math.PI;
+  return Math.atan2(moveX, -moveY) * 180 / Math.PI;
 }
 
+/*
+  ВАЖНО:
+  Для нормального landscape НИЧЕГО НЕ ПОВОРАЧИВАЕМ.
+  Экранные координаты джойстика идут напрямую в координаты карты.
+
+  left  -> x -
+  right -> x +
+  up    -> y -
+  down  -> y +
+*/
 function joystickToMapVector(screenX, screenY) {
   return {
     x: screenX,
@@ -133,12 +156,13 @@ export function enableMobileJoystick(
   const MAX_DISTANCE = 46;
   const DEADZONE = 0.07;
   const SPRINT_POWER = 0.64;
-  const CAMERA_LAG = 0.2;
+  const CAMERA_LAG = 0.22;
 
   const start = getInitialPosition(playerPosition, marker, BOUNDS);
 
   let x = start.x;
   let y = start.y;
+
   let cameraX = x;
   let cameraY = y;
 
@@ -204,6 +228,7 @@ export function enableMobileJoystick(
     if (!staminaFill) return;
 
     const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
+
     staminaFill.style.width = `${percent}%`;
 
     if (sprintLocked) {
@@ -242,6 +267,7 @@ export function enableMobileJoystick(
     }
 
     updateStaminaUi();
+
     return sprinting;
   }
 
@@ -313,8 +339,9 @@ export function enableMobileJoystick(
     }
   }
 
-  function measure() {
+  function measureJoystick() {
     const rect = base.getBoundingClientRect();
+
     centerX = rect.left + rect.width / 2;
     centerY = rect.top + rect.height / 2;
   }
@@ -412,7 +439,7 @@ export function enableMobileJoystick(
       updateCamera(false);
       broadcast(true);
       saveToDb(true);
-    }, SYNC.heartbeatDelay || 1500);
+    }, SYNC.heartbeatDelay || 1000);
   }
 
   function stopInput() {
@@ -433,11 +460,13 @@ export function enableMobileJoystick(
     pointerId = event.pointerId;
     container.dataset.joystickActive = 'true';
 
-    measure();
+    measureJoystick();
 
     try {
       base.setPointerCapture(event.pointerId);
-    } catch {}
+    } catch {
+      // Не критично
+    }
 
     updateInput(event.clientX, event.clientY);
     startLoop();
@@ -487,7 +516,6 @@ export function enableMobileJoystick(
   window.addEventListener('pointermove', onPointerMove, { passive: false });
   window.addEventListener('pointerup', onPointerEnd, { passive: false });
   window.addEventListener('pointercancel', onPointerEnd, { passive: false });
-
   window.addEventListener('mn:player-teleported', onTeleport);
 
   renderPlayer();
@@ -505,11 +533,10 @@ export function enableMobileJoystick(
     window.removeEventListener('pointercancel', onPointerEnd);
     window.removeEventListener('mn:player-teleported', onTeleport);
 
-    clearInterval(heartbeatTimer);
-
     window.removeEventListener('resize', syncViewportSize);
     window.removeEventListener('orientationchange', syncViewportSize);
-    document.body?.classList.remove('mn-landscape-game');
+
+    clearInterval(heartbeatTimer);
 
     if (raf) {
       cancelAnimationFrame(raf);
@@ -522,7 +549,11 @@ export function enableMobileJoystick(
     saveToDb(true);
 
     joystick?.remove();
+
     container.classList.remove('mn-mobile-controls');
+    container.dataset.joystickActive = 'false';
     container.innerHTML = '';
+
+    document.body?.classList.remove('mn-landscape-game');
   };
 }
