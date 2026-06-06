@@ -21,23 +21,52 @@ function number(value, fallback = 0) {
 }
 
 function isMobileDevice() {
-  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+  return window.matchMedia('(pointer: coarse), (max-width: 768px)').matches;
 }
+
+function syncViewportSize() {
+  const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+
+  if (height > 0) {
+    document.documentElement.style.setProperty('--mn-vh', `${height}px`);
+  }
+}
+
+async function requestLandscapeMode() {
+  syncViewportSize();
+  document.body?.classList.add('mn-landscape-game');
+
+  try {
+    window.Telegram?.WebApp?.expand?.();
+  } catch {
+    // Telegram WebApp может быть недоступен вне Mini App.
+  }
+
+  try {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    }
+  } catch {
+    // Fullscreen/lock часто запрещены без пользовательского жеста.
+  }
+
+  try {
+    await screen.orientation?.lock?.('landscape');
+  } catch {
+    // На iOS и части Android WebView ориентация не лочится программно.
+  }
+}
+
 
 function getAngleFromMovement(x, y, fallback = 0) {
   if (Math.abs(x) < 0.001 && Math.abs(y) < 0.001) return fallback;
   return Math.atan2(x, -y) * 180 / Math.PI;
 }
 
-/*
-  Карта у тебя на мобилке повернута rotate(90deg).
-  Игрок двигается в координатах карты, а палец двигается в координатах экрана.
-  Эта формула переводит экранный джойстик в координаты карты.
-*/
 function joystickToMapVector(screenX, screenY) {
   return {
-    x: screenY,
-    y: -screenX,
+    x: screenX,
+    y: screenY,
   };
 }
 
@@ -68,6 +97,11 @@ export function enableMobileJoystick(
 ) {
   if (!container || !marker || !playerPosition) return null;
   if (!isMobileDevice()) return null;
+
+  requestLandscapeMode();
+
+  window.addEventListener('resize', syncViewportSize);
+  window.addEventListener('orientationchange', syncViewportSize);
 
   container.classList.add('mn-mobile-controls');
   container.dataset.joystickActive = 'false';
@@ -121,6 +155,7 @@ export function enableMobileJoystick(
   let centerY = 0;
 
   let raf = null;
+  let heartbeatTimer = null;
   let destroyed = false;
   let lastFrame = performance.now();
 
@@ -367,6 +402,19 @@ export function enableMobileJoystick(
     raf = requestAnimationFrame(tick);
   }
 
+  function startHeartbeat() {
+    clearInterval(heartbeatTimer);
+
+    heartbeatTimer = setInterval(() => {
+      if (destroyed) return;
+
+      renderPlayer();
+      updateCamera(false);
+      broadcast(true);
+      saveToDb(true);
+    }, SYNC.heartbeatDelay || 1500);
+  }
+
   function stopInput() {
     pointerId = null;
     container.dataset.joystickActive = 'false';
@@ -446,6 +494,7 @@ export function enableMobileJoystick(
   updateCamera(true);
   updateStaminaUi();
   resetStick();
+  startHeartbeat();
 
   return () => {
     destroyed = true;
@@ -455,6 +504,12 @@ export function enableMobileJoystick(
     window.removeEventListener('pointerup', onPointerEnd);
     window.removeEventListener('pointercancel', onPointerEnd);
     window.removeEventListener('mn:player-teleported', onTeleport);
+
+    clearInterval(heartbeatTimer);
+
+    window.removeEventListener('resize', syncViewportSize);
+    window.removeEventListener('orientationchange', syncViewportSize);
+    document.body?.classList.remove('mn-landscape-game');
 
     if (raf) {
       cancelAnimationFrame(raf);
