@@ -2,15 +2,37 @@ function isMobileDevice() {
   return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 }
 
-async function requestGameFullscreen() {
+function syncViewportSize() {
+  const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+
+  if (height > 0) {
+    document.documentElement.style.setProperty('--mn-vh', `${height}px`);
+  }
+}
+
+async function requestLandscapeFullscreen() {
   const target = document.documentElement;
 
+  syncViewportSize();
+
   try {
-    if (target.requestFullscreen) {
+    window.Telegram?.WebApp?.expand?.();
+  } catch {
+    // Telegram WebApp может быть недоступен вне Mini App.
+  }
+
+  try {
+    if (!document.fullscreenElement && target.requestFullscreen) {
       await target.requestFullscreen();
     }
   } catch (error) {
     console.warn('[mobileControls] fullscreen failed:', error);
+  }
+
+  try {
+    await screen.orientation?.lock?.('landscape');
+  } catch (error) {
+    console.warn('[mobileControls] landscape lock failed:', error);
   }
 }
 
@@ -31,8 +53,8 @@ export function setupMobileControlPrompt({
   let joystickCleanup = null;
 
   layer.innerHTML = `
-    <button class="mobile-control-toggle" type="button">
-      Мобильное управление
+    <button class="mobile-control-toggle" type="button" aria-label="Включить мобильное управление">
+      🎮
     </button>
 
     <div class="mobile-control-panel" hidden>
@@ -40,13 +62,13 @@ export function setupMobileControlPrompt({
         <h3>Мобильное управление</h3>
 
         <p>
-          Если вы играете с ПК — оставайтесь на стандартном управлении.
-          Если вы играете с телефона — рекомендуем включить мобильное управление.
+          На телефоне управление включается в landscape-режиме.
+          Поверни телефон боком, чтобы карта, модалки и джойстик не расползались.
         </p>
 
-        <p>
-          После включения игра попробует открыться на весь экран.
-          Поверните телефон на бок для нормальной игры.
+        <p class="mobile-control-hint">
+          Игра попробует открыть полноэкранный режим и зафиксировать landscape.
+          Если браузер не разрешит фиксацию — просто поверни телефон вручную.
         </p>
 
         <div class="mobile-control-actions">
@@ -55,7 +77,7 @@ export function setupMobileControlPrompt({
           </button>
 
           <button class="mobile-control-accept" type="button">
-            Включить
+            Включить landscape
           </button>
         </div>
       </div>
@@ -79,8 +101,9 @@ export function setupMobileControlPrompt({
     closePanel();
 
     root.dataset.mobileControls = 'enabled';
+    document.body?.classList.add('mn-landscape-game');
 
-    await requestGameFullscreen();
+    await requestLandscapeFullscreen();
 
     joystickCleanup?.();
     joystickCleanup = enableJoystick?.() || null;
@@ -90,10 +113,16 @@ export function setupMobileControlPrompt({
   cancel.addEventListener('click', closePanel);
   accept.addEventListener('click', enableMobileMode);
 
+  window.addEventListener('resize', syncViewportSize);
+  window.addEventListener('orientationchange', syncViewportSize);
+  syncViewportSize();
+
   return () => {
     toggle.removeEventListener('click', openPanel);
     cancel.removeEventListener('click', closePanel);
     accept.removeEventListener('click', enableMobileMode);
+    window.removeEventListener('resize', syncViewportSize);
+    window.removeEventListener('orientationchange', syncViewportSize);
 
     joystickCleanup?.();
 
