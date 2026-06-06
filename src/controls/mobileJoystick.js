@@ -21,21 +21,38 @@ function number(value, fallback = 0) {
 }
 
 function isMobileDevice() {
-  return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  return (
+    window.matchMedia('(hover: none) and (pointer: coarse)').matches ||
+    navigator.maxTouchPoints > 0
+  );
 }
 
-function getViewportHeight() {
-  return Math.round(
+function getViewportSize() {
+  const width = Math.round(
+    window.visualViewport?.width ||
+    window.innerWidth ||
+    document.documentElement.clientWidth ||
+    window.screen?.width ||
+    0
+  );
+
+  const height = Math.round(
     window.visualViewport?.height ||
     window.innerHeight ||
     document.documentElement.clientHeight ||
     window.screen?.height ||
     0
   );
+
+  return { width, height };
 }
 
 function syncViewportSize() {
-  const height = getViewportHeight();
+  const { width, height } = getViewportSize();
+
+  if (width > 0) {
+    document.documentElement.style.setProperty('--mn-vw', `${width}px`);
+  }
 
   if (height > 0) {
     document.documentElement.style.setProperty('--mn-vh', `${height}px`);
@@ -50,7 +67,7 @@ async function requestLandscapeMode() {
   try {
     window.Telegram?.WebApp?.expand?.();
   } catch {
-    // Telegram WebApp может быть недоступен вне Mini App
+    // Telegram WebApp может быть недоступен вне Mini App.
   }
 
   try {
@@ -58,13 +75,13 @@ async function requestLandscapeMode() {
       await document.documentElement.requestFullscreen();
     }
   } catch {
-    // Fullscreen часто запрещён браузером без жеста пользователя
+    // Fullscreen часто запрещён без пользовательского жеста.
   }
 
   try {
     await screen.orientation?.lock?.('landscape');
   } catch {
-    // На iOS и части Telegram WebView orientation.lock не работает
+    // На iOS и в части Telegram WebView orientation.lock не работает.
   }
 }
 
@@ -76,21 +93,70 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
   return Math.atan2(moveX, -moveY) * 180 / Math.PI;
 }
 
-/*
-  ВАЖНО:
-  Для нормального landscape НИЧЕГО НЕ ПОВОРАЧИВАЕМ.
-  Экранные координаты джойстика идут напрямую в координаты карты.
+function normalizeVector(x, y, fallbackX = 0, fallbackY = 0) {
+  const length = Math.hypot(x, y);
 
-  left  -> x -
-  right -> x +
-  up    -> y -
-  down  -> y +
-*/
-function joystickToMapVector(screenX, screenY) {
+  if (length <= 0.001) {
+    return { x: fallbackX, y: fallbackY };
+  }
+
   return {
-    x: screenX,
-    y: screenY,
+    x: x / length,
+    y: y / length,
   };
+}
+
+function getGameplayElement(container) {
+  const root = container?.closest?.('.home');
+
+  return root?.querySelector?.('.home-gameplay') || null;
+}
+
+function getGameplayTransformMatrix(container) {
+  const gameplay = getGameplayElement(container);
+
+  if (!gameplay) return null;
+
+  const transform = window.getComputedStyle(gameplay).transform;
+
+  if (!transform || transform === 'none') return null;
+
+  try {
+    return new DOMMatrixReadOnly(transform);
+  } catch {
+    return null;
+  }
+}
+
+/*
+  Управление для мобилки в landscape.
+
+  Главная проблема старых версий: часть CSS крутила .home-gameplay через rotate(90deg),
+  а джойстик считал координаты как будто экран обычный. Из-за этого:
+  left мог стать up, right мог стать down.
+
+  Сейчас логика защищена от обоих вариантов:
+  1) телефон реально лежит боком, CSS не крутит сцену -> оси идут напрямую;
+  2) старый CSS всё-таки повернул gameplay -> вектор джойстика пересчитывается
+     через обратную матрицу поворота.
+*/
+function joystickToMapVector(container, screenX, screenY) {
+  const matrix = getGameplayTransformMatrix(container);
+
+  if (!matrix) {
+    return { x: screenX, y: screenY };
+  }
+
+  const det = matrix.a * matrix.d - matrix.b * matrix.c;
+
+  if (!Number.isFinite(det) || Math.abs(det) <= 0.0001) {
+    return { x: screenX, y: screenY };
+  }
+
+  const localX = (matrix.d * screenX - matrix.c * screenY) / det;
+  const localY = (-matrix.b * screenX + matrix.a * screenY) / det;
+
+  return normalizeVector(localX, localY, screenX, screenY);
 }
 
 function getInitialPosition(playerPosition, marker, bounds) {
@@ -123,11 +189,9 @@ export function enableMobileJoystick(
 
   requestLandscapeMode();
 
-  window.addEventListener('resize', syncViewportSize);
-  window.addEventListener('orientationchange', syncViewportSize);
-
   container.classList.add('mn-mobile-controls');
   container.dataset.joystickActive = 'false';
+  container.dataset.playerMoving = 'false';
 
   container.innerHTML = `
     <div class="mn-mobile-joystick" data-mobile-joystick>
@@ -136,7 +200,7 @@ export function enableMobileJoystick(
       </div>
     </div>
 
-    <div class="mn-mobile-stamina" data-mobile-stamina>
+    <div class="mn-mobile-stamina" data-mobile-stamina data-visible="false">
       <div class="mn-mobile-stamina-label">STAMINA</div>
       <div class="mn-mobile-stamina-track">
         <div class="mn-mobile-stamina-fill" data-mobile-stamina-fill></div>
@@ -147,7 +211,10 @@ export function enableMobileJoystick(
   const joystick = container.querySelector('[data-mobile-joystick]');
   const base = container.querySelector('[data-mobile-joystick-base]');
   const stick = container.querySelector('[data-mobile-joystick-stick]');
+  const staminaBox = container.querySelector('[data-mobile-stamina]');
   const staminaFill = container.querySelector('[data-mobile-stamina-fill]');
+
+  if (!base || !stick) return null;
 
   const STAMINA = getStaminaConfig();
   const BOUNDS = getMovementBounds();
@@ -222,6 +289,16 @@ export function enableMobileJoystick(
     }
 
     mapControls?.focusOnPlayer?.(cameraX, cameraY);
+  }
+
+  function setMovingUi(isMoving) {
+    const next = isMoving ? 'true' : 'false';
+
+    container.dataset.playerMoving = next;
+
+    if (staminaBox) {
+      staminaBox.dataset.visible = next;
+    }
   }
 
   function updateStaminaUi() {
@@ -350,6 +427,8 @@ export function enableMobileJoystick(
     moveX = 0;
     moveY = 0;
 
+    setMovingUi(false);
+
     stick.style.transform =
       'translate(-50%, -50%) translate3d(0px, 0px, 0)';
   }
@@ -376,12 +455,13 @@ export function enableMobileJoystick(
     const screenX = dx / rawDistance;
     const screenY = dy / rawDistance;
 
-    const world = joystickToMapVector(screenX, screenY);
+    const world = joystickToMapVector(container, screenX, screenY);
 
     moveX = world.x * power;
     moveY = world.y * power;
 
     angle = getAngleFromMovement(moveX, moveY, angle);
+    setMovingUi(true);
 
     stick.style.transform =
       `translate(-50%, -50%) translate3d(${screenX * distance}px, ${screenY * distance}px, 0)`;
@@ -400,6 +480,8 @@ export function enableMobileJoystick(
       Math.abs(moveY) > DEADZONE;
 
     const sprinting = updateStamina(moving, frameScale);
+
+    setMovingUi(moving);
 
     if (moving) {
       const speed = sprinting
@@ -453,6 +535,16 @@ export function enableMobileJoystick(
     saveToDb(true);
   }
 
+  function handleViewportChange() {
+    syncViewportSize();
+    mapControls?.refresh?.();
+    updateCamera(true);
+
+    if (pointerId !== null) {
+      measureJoystick();
+    }
+  }
+
   function onPointerDown(event) {
     event.preventDefault();
     event.stopPropagation();
@@ -465,7 +557,7 @@ export function enableMobileJoystick(
     try {
       base.setPointerCapture(event.pointerId);
     } catch {
-      // Не критично
+      // Не критично.
     }
 
     updateInput(event.clientX, event.clientY);
@@ -516,8 +608,11 @@ export function enableMobileJoystick(
   window.addEventListener('pointermove', onPointerMove, { passive: false });
   window.addEventListener('pointerup', onPointerEnd, { passive: false });
   window.addEventListener('pointercancel', onPointerEnd, { passive: false });
+  window.addEventListener('resize', handleViewportChange, { passive: true });
+  window.addEventListener('orientationchange', handleViewportChange, { passive: true });
   window.addEventListener('mn:player-teleported', onTeleport);
 
+  syncViewportSize();
   renderPlayer();
   updateCamera(true);
   updateStaminaUi();
@@ -531,10 +626,9 @@ export function enableMobileJoystick(
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerEnd);
     window.removeEventListener('pointercancel', onPointerEnd);
+    window.removeEventListener('resize', handleViewportChange);
+    window.removeEventListener('orientationchange', handleViewportChange);
     window.removeEventListener('mn:player-teleported', onTeleport);
-
-    window.removeEventListener('resize', syncViewportSize);
-    window.removeEventListener('orientationchange', syncViewportSize);
 
     clearInterval(heartbeatTimer);
 
@@ -552,6 +646,7 @@ export function enableMobileJoystick(
 
     container.classList.remove('mn-mobile-controls');
     container.dataset.joystickActive = 'false';
+    container.dataset.playerMoving = 'false';
     container.innerHTML = '';
 
     document.body?.classList.remove('mn-landscape-game');
