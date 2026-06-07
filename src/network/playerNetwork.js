@@ -305,22 +305,13 @@ export function upsertPlayerMarker(
   const nextAngle = percentToNumber(player.angle, 0);
 
   const packetTime = getPacketTime(player);
-  const packetMaxAge =
-    NETWORK_CONFIG.movement.remotePacketMaxAge ?? 3500;
-
   const state = getRemoteState(marker, {
     ...player,
     playerId,
   });
 
-  if (!options.instant) {
-    if (packetTime < state.lastPacketTime) {
-      return;
-    }
-
-    if (Date.now() - packetTime > packetMaxAge) {
-      return;
-    }
+  if (!options.instant && packetTime < state.lastPacketTime) {
+    return;
   }
 
   state.lastPacketTime = Math.max(
