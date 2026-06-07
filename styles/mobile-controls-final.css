@@ -1,6 +1,7 @@
 /* =========================================================
-   MOBILE CONTROLS ONLY
-   Не трогает карту, дома, модалки, HUD.
+   MOBILE CONTROLS FINAL
+   Только джойстик + стамина + кнопка включения.
+   Карту, дома, модалки и HUD почти не трогаем.
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
@@ -32,16 +33,24 @@
     -webkit-tap-highlight-color: transparent !important;
   }
 
+  /* =========================
+     JOYSTICK
+     ========================= */
+
   .home[data-mobile-controls="enabled"] .mobile-joystick {
     position: fixed !important;
 
     left: 38px !important;
-    top: 106px !important;
+    top: 166px !important;
     right: auto !important;
     bottom: auto !important;
 
     width: 112px !important;
     height: 112px !important;
+    min-width: 112px !important;
+    min-height: 112px !important;
+    max-width: 112px !important;
+    max-height: 112px !important;
 
     z-index: 5100 !important;
     pointer-events: auto !important;
@@ -72,6 +81,10 @@
 
     width: 112px !important;
     height: 112px !important;
+    min-width: 112px !important;
+    min-height: 112px !important;
+    max-width: 112px !important;
+    max-height: 112px !important;
 
     border-radius: 999px !important;
     overflow: hidden !important;
@@ -97,6 +110,10 @@
 
     width: 50px !important;
     height: 50px !important;
+    min-width: 50px !important;
+    min-height: 50px !important;
+    max-width: 50px !important;
+    max-height: 50px !important;
 
     border-radius: 999px !important;
 
@@ -113,12 +130,20 @@
     will-change: transform !important;
   }
 
+  /* =========================
+     STAMINA — ЖЁСТКИЙ RESET
+     ========================= */
+
   .home[data-mobile-controls="enabled"] .mobile-stamina,
   .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
     position: fixed !important;
 
+    /*
+      Под джойстиком:
+      joystick top 166 + height 112 + gap 12 = 290
+    */
     left: 38px !important;
-    top: 228px !important;
+    top: 290px !important;
     right: auto !important;
     bottom: auto !important;
 
@@ -174,12 +199,22 @@
   .home[data-mobile-controls="enabled"] .mobile-stamina *,
   .home[data-mobile-controls="enabled"] [data-mobile-stamina] * {
     box-sizing: border-box !important;
+
     position: static !important;
     inset: auto !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+
     float: none !important;
+
     transform: none !important;
     rotate: 0deg !important;
     translate: 0 0 !important;
+
+    min-height: 0 !important;
+    max-height: none !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-stamina-label,
@@ -187,6 +222,9 @@
     display: block !important;
 
     width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
     height: 10px !important;
     min-height: 10px !important;
     max-height: 10px !important;
@@ -207,6 +245,9 @@
     display: block !important;
 
     width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+
     height: 8px !important;
     min-height: 8px !important;
     max-height: 8px !important;
@@ -225,6 +266,9 @@
     display: block !important;
 
     width: 100%;
+    min-width: 0 !important;
+    max-width: 100% !important;
+
     height: 8px !important;
     min-height: 8px !important;
     max-height: 8px !important;
@@ -243,6 +287,10 @@
   .home[data-mobile-controls="enabled"] .mobile-stamina-fill[data-state="locked"] {
     background: linear-gradient(90deg, #ff3737, #ff8a3d) !important;
   }
+
+  /* =========================
+     MOBILE CONTROL BUTTON
+     ========================= */
 
   .home[data-mobile-controls="enabled"] .mobile-control-toggle {
     position: fixed !important;
