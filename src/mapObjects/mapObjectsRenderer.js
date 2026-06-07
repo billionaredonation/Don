@@ -134,8 +134,9 @@ function createHouseSvgIcon(houseClass, state) {
 
 function getObjectMeta(object) {
   const payload = object.payload || {};
+  const category = String(object.category || payload.category || object.type || 'marker');
 
-  if (object.category === 'house') {
+  if (category === 'house') {
     const houseClass = getHouseClass(object);
     const priceText = formatPrice(getHousePrice(object));
     const ownerId = getHouseOwnerId(object);
@@ -173,25 +174,47 @@ function createObjectHtml(object) {
   const y = Number(object.y || 50);
   const scale = Number(object.scale || 1);
   const rotation = Number(object.rotation || 0);
+  const category = String(object.category || object.payload?.category || object.type || 'marker');
+  const type = String(object.type || object.payload?.type || category || 'marker');
   const selectedClass = object.selected ? 'map-object-selected' : '';
-  const meta = getObjectMeta(object);
+  const meta = getObjectMeta({
+    ...object,
+    category,
+    type,
+  });
 
   return `
     <button
-      class="map-object map-object-${escapeHtml(object.category)} map-object-type-${escapeHtml(object.type)} map-object-visual-${escapeHtml(meta.visualClass)} map-object-state-${escapeHtml(meta.state)} ${selectedClass}"
+      class="map-object map-object-${escapeHtml(category)} map-object-type-${escapeHtml(type)} map-object-visual-${escapeHtml(meta.visualClass)} map-object-state-${escapeHtml(meta.state)} ${selectedClass}"
       data-map-object-id="${escapeHtml(object.id)}"
-      data-map-object-type="${escapeHtml(object.type)}"
-      data-map-object-category="${escapeHtml(object.category)}"
+      data-map-object-type="${escapeHtml(type)}"
+      data-map-object-category="${escapeHtml(category)}"
       data-map-object-state="${escapeHtml(meta.state)}"
       data-map-object-owner-id="${escapeHtml(meta.ownerId || '')}"
       type="button"
       tabindex="-1"
       title="${escapeHtml(meta.title)}"
       style="
-        left: ${x}%;
-        top: ${y}%;
-        --map-object-scale: ${scale};
-        --map-object-rotation: ${rotation}deg;
+        position: absolute;
+        left: ${Number.isFinite(x) ? x : 50}%;
+        top: ${Number.isFinite(y) ? y : 50}%;
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        min-height: 34px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        transform:
+          translate(-50%, -50%)
+          rotate(${Number.isFinite(rotation) ? rotation : 0}deg)
+          scale(${Number.isFinite(scale) ? scale : 1});
+        transform-origin: center center;
+        z-index: 10;
+        pointer-events: auto;
+        cursor: pointer;
       "
     >
       ${meta.iconHtml}
@@ -227,16 +250,36 @@ function getObjectSignature(object) {
   ].join('|');
 }
 
+function applyLayerBaseStyle(layer) {
+  if (!layer) return;
+
+  layer.style.position = 'absolute';
+  layer.style.inset = '0';
+  layer.style.display = 'block';
+  layer.style.width = '100%';
+  layer.style.height = '100%';
+  layer.style.overflow = 'visible';
+  layer.style.visibility = 'visible';
+  layer.style.opacity = '1';
+  layer.style.pointerEvents = 'none';
+  layer.style.zIndex = '220';
+}
+
 export function createMapObjectsLayer() {
   const layer = document.createElement('div');
+
   layer.className = 'map-objects-layer';
   layer.__mnObjectSignatures = new Map();
+
+  applyLayerBaseStyle(layer);
 
   return layer;
 }
 
 export function renderMapObjects(layer, objects = []) {
   if (!layer) return;
+
+  applyLayerBaseStyle(layer);
 
   if (!layer.__mnObjectSignatures) {
     layer.__mnObjectSignatures = new Map();
@@ -245,7 +288,13 @@ export function renderMapObjects(layer, objects = []) {
   const signatures = layer.__mnObjectSignatures;
   const nextIds = new Set();
 
-  objects.forEach((object) => {
+  const safeObjects = Array.isArray(objects)
+    ? objects.filter(Boolean)
+    : [];
+
+  layer.dataset.objectsCount = String(safeObjects.length);
+
+  safeObjects.forEach((object) => {
     const id = String(object.id || '');
     if (!id) return;
 
@@ -280,6 +329,15 @@ export function renderMapObjects(layer, objects = []) {
     layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`)?.remove();
     signatures.delete(id);
   });
+
+  window.dispatchEvent(
+    new CustomEvent('mn:map-objects-dom-rendered', {
+      detail: {
+        count: safeObjects.length,
+        layerChildren: layer.children.length,
+      },
+    })
+  );
 }
 
 export function clearMapObjectsLayer(layer) {
@@ -287,6 +345,7 @@ export function clearMapObjectsLayer(layer) {
 
   layer.innerHTML = '';
   layer.__mnObjectSignatures?.clear?.();
+  layer.dataset.objectsCount = '0';
 }
 
 export function findMapObjectElement(layer, objectId) {
