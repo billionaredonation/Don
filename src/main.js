@@ -9,24 +9,7 @@ import '../pages/preload/preload.js';
 import '../pages/home/home.js';
 
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
-
-
-/*
-  ВАЖНО:
-  CSS фиксы мобилки НЕ импортируем отсюда.
-
-  Почему:
-  - src/main.js находится внутри папки src;
-  - если написать import './styles/final-game-fixes.css',
-    Vite будет искать файл здесь: src/styles/final-game-fixes.css;
-  - если файла нет, сборка падает.
-
-  Мобильный CSS подключай через index.html:
-
-  <link rel="stylesheet" href="./pages/home/mobile-game-fix.css?v=1" />
-
-  Так сборка не будет ломаться из-за неправильного пути в JS.
-*/
+import { setupTelegramGameShell } from './telegram/telegramGameShell.js';
 
 function renderTelegramOnlyScreen() {
   const root = document.getElementById('app');
@@ -69,12 +52,53 @@ function isTelegramWebApp() {
     Boolean(window.Telegram?.WebApp?.initDataUnsafe?.user);
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[<>&]/g, (char) => ({
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+  }[char]));
+}
+
+function stringifyError(error) {
+  if (!error) return 'Unknown error';
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  const parts = [];
+
+  if (error.name) {
+    parts.push(`Name: ${error.name}`);
+  }
+
+  if (error.message) {
+    parts.push(`Message: ${error.message}`);
+  }
+
+  if (error.stack) {
+    parts.push(`Stack:\n${error.stack}`);
+  }
+
+  try {
+    const json = JSON.stringify(error, null, 2);
+    if (json && json !== '{}') {
+      parts.push(`JSON:\n${json}`);
+    }
+  } catch {
+    // ignore
+  }
+
+  return parts.join('\n\n') || String(error);
+}
+
 function renderFatalError(error) {
   const root = document.getElementById('app');
 
   if (!root) return;
 
-  const message = String(error?.stack || error?.message || error || 'Unknown error');
+  const message = escapeHtml(stringifyError(error));
 
   root.innerHTML = `
     <div style="
@@ -85,7 +109,10 @@ function renderFatalError(error) {
       font-family:Arial,sans-serif;
       white-space:pre-wrap;
       line-height:1.45;
+      font-size:14px;
     ">
+      Ошибка загрузки:
+
       ${message}
     </div>
   `;
