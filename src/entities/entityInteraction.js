@@ -529,11 +529,6 @@ export function enableEntityInteraction({
     event.preventDefault();
     event.stopPropagation();
 
-    if (!isMobilePointerEvent(event)) {
-      showInteractionNotice(root, 'Подойди ближе и нажми E');
-      return;
-    }
-
     tryOpenObject(object);
   }
 
