@@ -1,0 +1,197 @@
+.admin-status-dot {
+  position: fixed;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 850;
+
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+
+  cursor: pointer;
+  pointer-events: auto;
+
+  background: rgba(12, 18, 28, 0.78);
+  backdrop-filter: blur(12px);
+
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.admin-status-dot-ok {
+  background: rgba(0, 155, 72, 0.82);
+}
+
+.admin-status-dot-error {
+  background: rgba(190, 30, 40, 0.86);
+}
+
+.admin-status-dot-ok::after,
+.admin-status-dot-error::after {
+  content: "";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+
+  width: 10px;
+  height: 10px;
+
+  border-radius: 999px;
+  border: 2px solid rgba(5, 7, 10, 0.9);
+}
+
+.admin-status-dot-ok::after {
+  background: #39ff7d;
+}
+
+.admin-status-dot-error::after {
+  background: #ff3b3b;
+}
+
+/* мобилка */
+@media (max-width: 800px) {
+  .admin-status-dot {
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+
+    width: 44px;
+    height: 44px;
+
+    font-size: 18px;
+    z-index: 850;
+  }
+}
+
+/* мобилка в горизонтальном режиме */
+@media (max-height: 500px) and (orientation: landscape) {
+  .admin-status-dot {
+    right: max(14px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+
+    width: 42px;
+    height: 42px;
+
+    font-size: 17px;
+  }
+}
+
+/* скрывать админ-кнопку, когда открыта модалка домов */
+body.mn-houses-modal-open .admin-status-dot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.mn-houses-modal-open .pc-stamina,
+body.mn-houses-modal-open .mobile-stamina {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+
+/* === mobile admin button position fix === */
+
+/* обычный телефон */
+@media (max-width: 800px) {
+  .admin-status-dot {
+    position: fixed !important;
+    right: max(14px, env(safe-area-inset-right)) !important;
+    bottom: max(16px, env(safe-area-inset-bottom)) !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    z-index: 850 !important;
+    transform: none !important;
+  }
+}
+
+
+/* если браузер реально в landscape */
+@media (max-height: 500px) and (orientation: landscape) {
+  .admin-status-dot {
+    right: max(16px, env(safe-area-inset-right)) !important;
+    bottom: max(14px, env(safe-area-inset-bottom)) !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    transform: none !important;
+  }
+}
+
+/* когда открыта модалка домов — админка прячется */
+body.mn-houses-modal-open .admin-status-dot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+
+/* === SAFE admin button reset === */
+
+.admin-status-dot {
+  position: fixed !important;
+  left: auto !important;
+  top: auto !important;
+
+  right: 14px !important;
+  bottom: 14px !important;
+
+  z-index: 850 !important;
+
+  width: 42px !important;
+  height: 42px !important;
+
+  transform: none !important;
+}
+
+/* ПК — обычный правый нижний угол */
+@media (min-width: 801px) {
+  .admin-status-dot {
+    right: 14px !important;
+    bottom: 14px !important;
+    transform: none !important;
+  }
+}
+
+/* Телефон — тоже безопасно, без поворота */
+@media (max-width: 800px) {
+  .admin-status-dot {
+    right: 14px !important;
+    bottom: 18px !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    transform: none !important;
+  }
+}
+
+/* При модалке домов скрываем */
+body.mn-houses-modal-open .admin-status-dot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+
+/* === final mobile admin button position === */
+
+/* === mobile admin button near balance === */
+
+/* === mobile admin button final position === */
+
+
+/* === mobile-only admin button final position === */
