@@ -10,9 +10,10 @@ import {
 import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
-const INTERACTION_RADIUS_PX = 78;
-const MOBILE_INTERACTION_RADIUS_PX = 138;
-const DIRECT_TAP_RADIUS_PX = 200;
+const INTERACTION_RADIUS_PX = 86;
+const MOBILE_INTERACTION_RADIUS_PX = 154;
+const DIRECT_TAP_RADIUS_PX = 220;
+const MOBILE_FREE_TAP_RADIUS_PX = 240;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 
 function getPurchasedHouseId(detail = {}) {
@@ -89,7 +90,7 @@ function isInteractKey(event) {
 function isMobileGameplayDevice() {
   const hasTouch = navigator.maxTouchPoints > 0;
   const narrowScreen =
-    Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 820;
+    Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 920;
 
   return hasTouch && narrowScreen;
 }
@@ -123,6 +124,29 @@ function getElementCenter(element) {
   };
 }
 
+function getObjectCenterFromPercent(object, viewport) {
+  if (!object || !viewport) return null;
+
+  const rect = viewport.getBoundingClientRect();
+
+  if (!rect.width || !rect.height) return null;
+
+  const objectX = Number(object.x || 50);
+  const objectY = Number(object.y || 50);
+
+  return {
+    x: rect.left + (objectX / 100) * rect.width,
+    y: rect.top + (objectY / 100) * rect.height,
+  };
+}
+
+function getObjectScreenCenter(object, objectElement, viewport) {
+  return (
+    getElementCenter(objectElement) ||
+    getObjectCenterFromPercent(object, viewport)
+  );
+}
+
 function getObjectDistancePx({
   object,
   objectElement,
@@ -131,7 +155,7 @@ function getObjectDistancePx({
   viewport,
 }) {
   const playerCenter = getElementCenter(playerMarker);
-  const objectCenter = getElementCenter(objectElement);
+  const objectCenter = getObjectScreenCenter(object, objectElement, viewport);
 
   if (playerCenter && objectCenter) {
     return Math.hypot(
@@ -155,6 +179,32 @@ function getObjectDistancePx({
   const dy = ((objectY - playerY) / 100) * rect.height;
 
   return Math.hypot(dx, dy);
+}
+
+function getPointerPoint(event) {
+  const touch =
+    event?.changedTouches?.[0] ||
+    event?.touches?.[0] ||
+    null;
+
+  if (touch) {
+    return {
+      x: touch.clientX,
+      y: touch.clientY,
+    };
+  }
+
+  if (
+    Number.isFinite(event?.clientX) &&
+    Number.isFinite(event?.clientY)
+  ) {
+    return {
+      x: event.clientX,
+      y: event.clientY,
+    };
+  }
+
+  return null;
 }
 
 function showInteractionNotice(root, message) {
@@ -273,8 +323,17 @@ export function createEntityInteractionPanel(root) {
   }
 
   closeButton.addEventListener('click', close);
+  closeButton.addEventListener('pointerup', close);
 
   actionButton.addEventListener('click', () => {
+    if (!selectedObject) return;
+    dispatchEntityAction(selectedObject);
+  });
+
+  actionButton.addEventListener('pointerup', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
     if (!selectedObject) return;
     dispatchEntityAction(selectedObject);
   });
@@ -427,6 +486,34 @@ export function enableEntityInteraction({
     return bestObject;
   }
 
+  function getNearestObjectToPoint(point, radius = MOBILE_FREE_TAP_RADIUS_PX) {
+    if (!point) return null;
+
+    let bestObject = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    mapObjects.forEach((object) => {
+      if (!object) return;
+
+      const element = findMapObjectElement(layer, object.id);
+      const center = getObjectScreenCenter(object, element, viewport);
+
+      if (!center) return;
+
+      const distance = Math.hypot(
+        center.x - point.x,
+        center.y - point.y
+      );
+
+      if (distance <= radius && distance < bestDistance) {
+        bestObject = object;
+        bestDistance = distance;
+      }
+    });
+
+    return bestObject;
+  }
+
   function clearNearestVisual() {
     if (!nearestObjectId) return;
 
@@ -514,10 +601,10 @@ export function enableEntityInteraction({
     rafId = requestAnimationFrame(updateInteractionHint);
   }
 
-  function tryOpenObject(object, { silent = false, directTap = false } = {}) {
+  function tryOpenObject(object, { silent = false, directTap = false, ignoreRange = false } = {}) {
     if (!object) return false;
 
-    if (!isObjectInInteractionRange(object, { directTap })) {
+    if (!ignoreRange && !isObjectInInteractionRange(object, { directTap })) {
       if (!silent) {
         showInteractionNotice(root, 'Подойди ближе');
       }
@@ -531,7 +618,7 @@ export function enableEntityInteraction({
     return true;
   }
 
-  function onClick(event) {
+  function onObjectClick(event) {
     const clickedObjectId = getMapObjectIdFromEvent(event);
     if (!clickedObjectId) return;
 
@@ -543,6 +630,45 @@ export function enableEntityInteraction({
 
     tryOpenObject(object, {
       directTap: isMobilePointerEvent(event),
+    });
+  }
+
+  function onViewportPointer(event) {
+    if (!isMobilePointerEvent(event)) return;
+    if (panel?.isOpen?.()) return;
+
+    const target = event.target;
+
+    if (
+      target?.closest?.('.houses-modal') ||
+      target?.closest?.('.house-details-modal') ||
+      target?.closest?.('.house-selection-panel') ||
+      target?.closest?.('.mobile-joystick') ||
+      target?.closest?.('.mobile-control-toggle') ||
+      target?.closest?.('.admin-panel') ||
+      target?.closest?.('.admin-status-dot') ||
+      target?.closest?.('.player-glass-hud')
+    ) {
+      return;
+    }
+
+    const point = getPointerPoint(event);
+    const nearest = getNearestObjectToPoint(point, MOBILE_FREE_TAP_RADIUS_PX);
+
+    if (!nearest) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    /*
+      ВАЖНО:
+      Это исправляет главный баг.
+      Даже если пользователь нажал не по самой иконке дома,
+      а рядом, мы всё равно вычисляем ближайший дом и открываем панель.
+    */
+    tryOpenObject(nearest, {
+      directTap: true,
+      ignoreRange: true,
     });
   }
 
@@ -601,8 +727,16 @@ export function enableEntityInteraction({
     scheduleReload();
   }
 
-  layer.addEventListener('click', onClick, true);
-  layer.addEventListener('pointerdown', onClick, true);
+  layer.addEventListener('click', onObjectClick, true);
+  layer.addEventListener('pointerdown', onObjectClick, true);
+
+  /*
+    Главный фикс для мобилки:
+    слушаем весь viewport, а не только маленькую иконку дома.
+  */
+  viewport.addEventListener('pointerdown', onViewportPointer, true);
+  viewport.addEventListener('touchstart', onViewportPointer, true);
+
   window.addEventListener('keydown', onKeyDown, true);
 
   window.addEventListener('mn:map-objects-changed', onObjectsChanged);
@@ -617,8 +751,12 @@ export function enableEntityInteraction({
     clearTimeout(hintHideTimer);
     cancelAnimationFrame(rafId);
 
-    layer.removeEventListener('click', onClick, true);
-    layer.removeEventListener('pointerdown', onClick, true);
+    layer.removeEventListener('click', onObjectClick, true);
+    layer.removeEventListener('pointerdown', onObjectClick, true);
+
+    viewport.removeEventListener('pointerdown', onViewportPointer, true);
+    viewport.removeEventListener('touchstart', onViewportPointer, true);
+
     window.removeEventListener('keydown', onKeyDown, true);
 
     window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
