@@ -10,17 +10,19 @@
 
   <title>Mn-game</title>
 
-  <link rel="stylesheet" href="./styles/base.css?v=104" />
-  <link rel="stylesheet" href="./pages/welcome1/welcome1.css?v=104" />
-  <link rel="stylesheet" href="./pages/welcome2/welcome2.css?v=104" />
-  <link rel="stylesheet" href="./pages/welcome3/welcome3.css?v=114" />
-  <link rel="stylesheet" href="./pages/preload/preload.css?v=3" />
-  <link rel="stylesheet" href="./pages/home/home.css?v=108" />
-  <link rel="stylesheet" href="./styles/map-lights.css?v=104" />
+  <link rel="stylesheet" href="./styles/base.css?v=105" />
+  <link rel="stylesheet" href="./pages/welcome1/welcome1.css?v=105" />
+  <link rel="stylesheet" href="./pages/welcome2/welcome2.css?v=105" />
+  <link rel="stylesheet" href="./pages/welcome3/welcome3.css?v=115" />
+  <link rel="stylesheet" href="./pages/preload/preload.css?v=4" />
 
-  <!-- Фиксы идут последними. Старый mobile-landscape-game.css НЕ подключать. -->
-  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=4" />
-  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=2" />
+  <!-- Основной стиль дома/карты/модалок. Его не перебиваем отдельными map-fix файлами. -->
+  <link rel="stylesheet" href="./pages/home/home.css?v=110" />
+  <link rel="stylesheet" href="./styles/map-lights.css?v=105" />
+  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=5" />
+
+  <!-- Только джойстик/стамина. Без вмешательства в карту и модалки. -->
+  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=4" />
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -109,6 +111,6 @@
     </div>
   </div>
 
-  <script type="module" src="./src/main.js?v=115"></script>
+  <script type="module" src="./src/main.js?v=117"></script>
 </body>
 </html>
