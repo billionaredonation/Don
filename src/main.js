@@ -9,7 +9,7 @@ import '../pages/preload/preload.js';
 import '../pages/home/home.js';
 
 import { verifyTelegramAccess } from './auth/telegramAuth.js';
-import { setupTelegramGameShell } from './telegram/telegramGameShell.js';
+
 
 /*
   ВАЖНО:
