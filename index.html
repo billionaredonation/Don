@@ -10,40 +10,94 @@
 
   <title>Mn-game</title>
 
-  <link rel="stylesheet" href="./styles/base.css?v=103" />
-  <link rel="stylesheet" href="./pages/welcome1/welcome1.css?v=103" />
-  <link rel="stylesheet" href="./pages/welcome2/welcome2.css?v=103" />
-  <link rel="stylesheet" href="./pages/welcome3/welcome3.css?v=113" />
-  <link rel="stylesheet" href="./pages/preload/preload.css?v=2" />
-  <link rel="stylesheet" href="./pages/home/home.css?v=105" />
-  <link rel="stylesheet" href="./styles/map-lights.css?v=103" />
+  <link rel="stylesheet" href="./styles/base.css?v=104" />
+  <link rel="stylesheet" href="./pages/welcome1/welcome1.css?v=104" />
+  <link rel="stylesheet" href="./pages/welcome2/welcome2.css?v=104" />
+  <link rel="stylesheet" href="./pages/welcome3/welcome3.css?v=114" />
+  <link rel="stylesheet" href="./pages/preload/preload.css?v=3" />
+  <link rel="stylesheet" href="./pages/home/home.css?v=108" />
+  <link rel="stylesheet" href="./styles/map-lights.css?v=104" />
 
-  <!-- ВАЖНО: эти фиксы должны идти ПОСЛЕ home.css и map-lights.css -->
-  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=3" />
-  <link rel="stylesheet" href="./pages/home/mobile-game-fix.css?v=3" />
-  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=1" />
+  <!-- Фиксы идут последними. Старый mobile-landscape-game.css НЕ подключать. -->
+  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=4" />
+  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=2" />
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <script>
-    function showFatalError(error) {
+    function escapeHtml(value) {
+      return String(value).replace(/[<>&]/g, function (char) {
+        return {
+          '<': '&lt;',
+          '>': '&gt;',
+          '&': '&amp;',
+        }[char];
+      });
+    }
+
+    function stringifyError(error) {
+      if (!error) return 'Unknown error';
+
+      if (typeof error === 'string') {
+        return error;
+      }
+
+      const parts = [];
+
+      if (error.name) {
+        parts.push('Name: ' + error.name);
+      }
+
+      if (error.message) {
+        parts.push('Message: ' + error.message);
+      }
+
+      if (error.stack) {
+        parts.push('Stack:\\n' + error.stack);
+      }
+
+      try {
+        const json = JSON.stringify(error, null, 2);
+        if (json && json !== '{}') {
+          parts.push('JSON:\\n' + json);
+        }
+      } catch {
+        // ignore
+      }
+
+      return parts.join('\\n\\n') || String(error);
+    }
+
+    function showFatalError(error, source) {
       const root = document.getElementById('app');
       if (!root) return;
 
-      const message = String(error?.stack || error?.message || error || 'Unknown error');
+      const message = stringifyError(error);
 
       root.innerHTML =
-        '<div style="min-height:100vh;background:#050505;color:#fff;padding:20px;font-family:Arial,sans-serif;white-space:pre-wrap;line-height:1.45;">' +
-        'Ошибка загрузки:\\n\\n' + message +
+        '<div style="' +
+          'min-height:100vh;' +
+          'background:#050505;' +
+          'color:#fff;' +
+          'padding:20px;' +
+          'font-family:Arial,sans-serif;' +
+          'white-space:pre-wrap;' +
+          'line-height:1.45;' +
+          'font-size:14px;' +
+        '">' +
+          'Ошибка загрузки' +
+          (source ? ' [' + source + ']' : '') +
+          ':\\n\\n' +
+          escapeHtml(message) +
         '</div>';
     }
 
-    window.addEventListener('error', (event) => {
-      showFatalError(event.error || event.message);
+    window.addEventListener('error', function (event) {
+      showFatalError(event.error || event.message, 'window.error');
     });
 
-    window.addEventListener('unhandledrejection', (event) => {
-      showFatalError(event.reason);
+    window.addEventListener('unhandledrejection', function (event) {
+      showFatalError(event.reason, 'unhandledrejection');
     });
   </script>
 </head>
@@ -55,6 +109,6 @@
     </div>
   </div>
 
-  <script type="module" src="./src/main.js?v=113"></script>
+  <script type="module" src="./src/main.js?v=115"></script>
 </body>
 </html>
