@@ -63,7 +63,9 @@ function normalizeHouseClass(value) {
 
   if (raw === 'std' || raw === 'standard' || raw === 'стандарт') return 'standard';
   if (raw === 'comfort' || raw === 'комфорт') return 'comfort';
+  if (raw === 'premium' || raw === 'prem' || raw === 'премиум') return 'premium';
   if (raw === 'lux' || raw === 'luxe' || raw === 'luxury' || raw === 'люкс') return 'lux';
+  if (raw === 'elite' || raw === 'vip' || raw === 'элита') return 'elite';
 
   return 'standard';
 }
@@ -92,7 +94,31 @@ function createHouseSvgIcon(houseClass, state) {
 
   let svg = '';
 
-  if (normalizedClass === 'lux') {
+  if (normalizedClass === 'elite') {
+    svg = `
+      <svg class="map-house-svg map-house-svg-elite" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M8 55h48" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        <path d="M15 29L32 10l17 19v26H15V29z" fill="${main}" stroke="${soft}" stroke-width="3"/>
+        <path d="M10 30L32 6l22 24" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M24 55V36h16v19" fill="${dark}"/>
+        <path d="M20 32h8v8h-8zM36 32h8v8h-8z" fill="#ffffff" opacity="0.9"/>
+        <path d="M32 7l6 12H26l6-12z" fill="${soft}" opacity="0.95"/>
+        <circle cx="32" cy="25" r="4" fill="#ffffff" opacity="0.92"/>
+      </svg>
+    `;
+  } else if (normalizedClass === 'premium') {
+    svg = `
+      <svg class="map-house-svg map-house-svg-premium" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M9 54h46" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        <path d="M15 29L32 12l17 17v25H15V29z" fill="${main}" stroke="${soft}" stroke-width="3"/>
+        <path d="M11 30L32 9l21 21" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M25 54V37h14v17" fill="${dark}"/>
+        <path d="M20 33h9v8h-9zM35 33h9v8h-9z" fill="#ffffff" opacity="0.9"/>
+        <path d="M45 22v-8h7v15" fill="${dark}"/>
+        <circle cx="32" cy="27" r="3" fill="#ffffff" opacity="0.85"/>
+      </svg>
+    `;
+  } else if (normalizedClass === 'lux') {
     svg = `
       <svg class="map-house-svg map-house-svg-lux" viewBox="0 0 64 64" aria-hidden="true">
         <path d="M8 54h48" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
@@ -198,10 +224,10 @@ function createObjectHtml(object) {
         position: absolute;
         left: ${Number.isFinite(x) ? x : 50}%;
         top: ${Number.isFinite(y) ? y : 50}%;
-        width: 34px;
-        height: 34px;
-        min-width: 34px;
-        min-height: 34px;
+        width: 14px;
+        height: 14px;
+        min-width: 14px;
+        min-height: 14px;
         display: grid;
         place-items: center;
         padding: 0;
