@@ -544,3 +544,56 @@
     overflow-y: auto !important;
   }
 }
+
+/* =========================================================
+   FINAL MOBILE SELF MARKER — HARD FIX
+   Рисует игрока на мобилке через .home::after.
+   Не зависит от DOM-маркера и не ломается от поворота карты.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"]::after {
+    content: "" !important;
+
+    position: fixed !important;
+
+    left: 50% !important;
+    top: 50% !important;
+
+    width: 14px !important;
+    height: 14px !important;
+
+    transform: translate(-50%, -50%) !important;
+    translate: 0 0 !important;
+    rotate: 0deg !important;
+
+    border-radius: 999px !important;
+    box-sizing: border-box !important;
+
+    background: #3a2605 !important;
+    border: 3px solid #e6b84a !important;
+
+    box-shadow:
+      0 0 0 3px rgba(245, 252, 255, 0.82),
+      0 0 16px rgba(165, 225, 255, 0.85),
+      0 0 30px rgba(255, 210, 80, 0.55) !important;
+
+    z-index: 2147482600 !important;
+
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-self-player-indicator {
+    display: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .gta-player-marker-self {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
