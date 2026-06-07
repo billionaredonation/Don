@@ -10,9 +10,9 @@ import {
 import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
-const INTERACTION_RADIUS_PX = 64;
-const MOBILE_INTERACTION_RADIUS_PX = 118;
-const DIRECT_TAP_RADIUS_PX = 170;
+const INTERACTION_RADIUS_PX = 78;
+const MOBILE_INTERACTION_RADIUS_PX = 138;
+const DIRECT_TAP_RADIUS_PX = 200;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 
 function getPurchasedHouseId(detail = {}) {
