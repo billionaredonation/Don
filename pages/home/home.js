@@ -178,6 +178,184 @@ function createMobileSelfMarkerHardOverlay() {
   };
 }
 
+function isVisibleHouseModal(element) {
+  if (!element) return false;
+  if (element.hidden) return false;
+  if (element.getAttribute('aria-hidden') === 'true') return false;
+
+  const styles = window.getComputedStyle(element);
+
+  return (
+    styles.display !== 'none' &&
+    styles.visibility !== 'hidden' &&
+    Number(styles.opacity || 1) !== 0
+  );
+}
+
+function hideHouseModal(element) {
+  if (!element) return;
+
+  element.hidden = true;
+  element.setAttribute('aria-hidden', 'true');
+
+  element.classList.remove(
+    'is-open',
+    'is-visible',
+    'active',
+    'open',
+    'show'
+  );
+}
+
+function showHouseModal(element) {
+  if (!element) return;
+
+  element.hidden = false;
+  element.removeAttribute('aria-hidden');
+}
+
+function closeHouseDetailsModals() {
+  document
+    .querySelectorAll('.house-details-modal')
+    .forEach((modal) => hideHouseModal(modal));
+}
+
+function closeHouseListModals() {
+  document
+    .querySelectorAll('.houses-modal')
+    .forEach((modal) => hideHouseModal(modal));
+}
+
+function closeHouseSelectionPanels() {
+  document
+    .querySelectorAll('.house-selection-panel')
+    .forEach((panel) => hideHouseModal(panel));
+}
+
+function getVisibleHouseListModal() {
+  return Array
+    .from(document.querySelectorAll('.houses-modal'))
+    .find(isVisibleHouseModal) || null;
+}
+
+function getVisibleHouseDetailsModal() {
+  return Array
+    .from(document.querySelectorAll('.house-details-modal'))
+    .find(isVisibleHouseModal) || null;
+}
+
+function enableSingleHouseModalMode(root) {
+  if (!root) return null;
+
+  let lastIntent = 'list';
+  let frameId = 0;
+  let timeoutId = 0;
+
+  function enforceSingleModal() {
+    const listModal = getVisibleHouseListModal();
+    const detailsModal = getVisibleHouseDetailsModal();
+
+    if (!listModal || !detailsModal) return;
+
+    if (lastIntent === 'list') {
+      hideHouseModal(detailsModal);
+      showHouseModal(listModal);
+      return;
+    }
+
+    hideHouseModal(listModal);
+    showHouseModal(detailsModal);
+  }
+
+  function scheduleEnforce() {
+    cancelAnimationFrame(frameId);
+    clearTimeout(timeoutId);
+
+    frameId = requestAnimationFrame(enforceSingleModal);
+    timeoutId = setTimeout(enforceSingleModal, 80);
+  }
+
+  function handleClick(event) {
+    const target = event.target;
+
+    /*
+      Клик по городу = нужен только список домов.
+      Старая карточка дома должна закрыться.
+    */
+    if (target?.closest?.('.player-city-button')) {
+      lastIntent = 'list';
+
+      closeHouseDetailsModals();
+      closeHouseSelectionPanels();
+
+      scheduleEnforce();
+      return;
+    }
+
+    /*
+      Клик внутри списка домов = нужна только карточка выбранного дома.
+      Список после открытия карточки не должен висеть вторым слоем.
+    */
+    if (
+      target?.closest?.('.house-list') ||
+      target?.closest?.('.houses-list') ||
+      target?.closest?.('.house-section-card') ||
+      target?.closest?.('.house-card') ||
+      target?.closest?.('[data-house-id]')
+    ) {
+      lastIntent = 'details';
+      scheduleEnforce();
+    }
+  }
+
+  function handleHouseDetailsIntent() {
+    lastIntent = 'details';
+    scheduleEnforce();
+  }
+
+  function handleHouseListIntent() {
+    lastIntent = 'list';
+    closeHouseDetailsModals();
+    closeHouseSelectionPanels();
+    scheduleEnforce();
+  }
+
+  const observer = new MutationObserver(scheduleEnforce);
+
+  root.addEventListener('click', handleClick, true);
+
+  window.addEventListener('mn:house-details-open', handleHouseDetailsIntent);
+  window.addEventListener('mn:house-details-opened', handleHouseDetailsIntent);
+  window.addEventListener('mn:houses-list-open', handleHouseListIntent);
+  window.addEventListener('mn:houses-list-opened', handleHouseListIntent);
+
+  observer.observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: [
+      'hidden',
+      'class',
+      'style',
+      'aria-hidden',
+    ],
+  });
+
+  return () => {
+    cancelAnimationFrame(frameId);
+    clearTimeout(timeoutId);
+
+    root.removeEventListener('click', handleClick, true);
+
+    window.removeEventListener('mn:house-details-open', handleHouseDetailsIntent);
+    window.removeEventListener('mn:house-details-opened', handleHouseDetailsIntent);
+    window.removeEventListener('mn:houses-list-open', handleHouseListIntent);
+    window.removeEventListener('mn:houses-list-opened', handleHouseListIntent);
+
+    observer.disconnect();
+  };
+}
+
 register('home', async (root) => {
   root._cleanupHome?.();
 
@@ -385,6 +563,8 @@ register('home', async (root) => {
     cityId,
     city,
   });
+
+  const cleanupSingleHouseModalMode = enableSingleHouseModalMode(root);
 
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
@@ -613,6 +793,7 @@ register('home', async (root) => {
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
 
     cleanupHousesFeature?.();
+    cleanupSingleHouseModalMode?.();
     cleanupMovement?.();
     cleanupMobileJoystick?.();
     cleanupMobilePrompt?.();
