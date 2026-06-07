@@ -1,14 +1,48 @@
 import { supabase } from '../supabaseClient.js';
+import { state } from '../state.js';
 import { getRandomSpawnPoint } from '../spawn/spawnPoints.js';
 
 const PLAYER_ID_KEY = 'mn_player_id';
 const SESSION_ID_KEY = 'mn_session_id';
+const STATE_KEY = 'mn-game-state';
 
 let cachedPlayerId = null;
 let cachedSessionId = null;
+let playerIdToRetire = null;
+
+function readSavedTelegramId() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) return null;
+
+    const saved = JSON.parse(raw);
+
+    return (
+      saved?.telegramId ||
+      saved?.player?.telegramId ||
+      saved?.player?.tg_id ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
 
 function getTelegramUserId() {
-  return window.Telegram?.WebApp?.initDataUnsafe?.user?.id || null;
+  const tgUserId =
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+    window.Telegram?.WebApp?.initDataUnsafe?.receiver?.id ||
+    null;
+
+  const value =
+    tgUserId ||
+    state.telegramId ||
+    state.player?.telegramId ||
+    state.player?.tg_id ||
+    readSavedTelegramId() ||
+    null;
+
+  return value ? String(value) : null;
 }
 
 function createLocalPlayerId() {
@@ -28,16 +62,49 @@ function isTruthyAdmin(value) {
   return value === true || value === 'true' || value === 1 || value === '1';
 }
 
-export function getLocalPlayerId() {
-  if (cachedPlayerId) return cachedPlayerId;
+function rememberPlayerIdToRetire(oldPlayerId, nextPlayerId) {
+  if (!oldPlayerId || !nextPlayerId) return;
+  if (String(oldPlayerId) === String(nextPlayerId)) return;
+  if (!String(oldPlayerId).startsWith('player_')) return;
 
+  playerIdToRetire = String(oldPlayerId);
+}
+
+async function retirePreviousPlayerIdIfNeeded() {
+  if (!playerIdToRetire) return;
+
+  const oldPlayerId = playerIdToRetire;
+  playerIdToRetire = null;
+
+  try {
+    await supabase
+      .from('player_positions')
+      .update({
+        is_online: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('player_id', oldPlayerId);
+  } catch (error) {
+    console.warn('[playerPosition] old local player retire failed:', error);
+  }
+}
+
+export function getLocalPlayerId() {
   const telegramId = getTelegramUserId();
 
   if (telegramId) {
-    cachedPlayerId = `tg_${telegramId}`;
-    localStorage.setItem(PLAYER_ID_KEY, cachedPlayerId);
+    const nextPlayerId = `tg_${telegramId}`;
+    const storedPlayerId = localStorage.getItem(PLAYER_ID_KEY);
+
+    rememberPlayerIdToRetire(storedPlayerId || cachedPlayerId, nextPlayerId);
+
+    cachedPlayerId = nextPlayerId;
+    localStorage.setItem(PLAYER_ID_KEY, nextPlayerId);
+
     return cachedPlayerId;
   }
+
+  if (cachedPlayerId) return cachedPlayerId;
 
   let playerId = localStorage.getItem(PLAYER_ID_KEY);
 
@@ -65,13 +132,21 @@ export function getSessionId() {
 }
 
 async function getPlayerAdminFlag(playerId, nickname) {
-  const safeNickname = getSafeNickname(nickname);
+  const safeNickname = getSafeNickname(nickname).replaceAll(',', '');
+  const telegramId = getTelegramUserId();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('players')
     .select('id, player_id, tg_id, nickname, is_admin')
-    .or(`player_id.eq.${playerId},nickname.ilike.${safeNickname}`)
-    .maybeSingle();
+    .limit(1);
+
+  if (telegramId) {
+    query = query.or(`tg_id.eq.${telegramId},player_id.eq.${playerId},nickname.ilike.${safeNickname}`);
+  } else {
+    query = query.or(`player_id.eq.${playerId},nickname.ilike.${safeNickname}`);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     console.warn('[playerPosition] admin flag loading failed:', error);
@@ -103,6 +178,9 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
   const playerId = getLocalPlayerId();
   const sessionId = getSessionId();
   const safeNickname = getSafeNickname(nickname);
+
+  await retirePreviousPlayerIdIfNeeded();
+
   const isAdmin = await getPlayerAdminFlag(playerId, safeNickname);
 
   const { data: currentPosition, error: selectError } = await supabase
@@ -190,6 +268,9 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
   const playerId = getLocalPlayerId();
   const sessionId = getSessionId();
   const safeNickname = getSafeNickname(nickname);
+
+  await retirePreviousPlayerIdIfNeeded();
+
   const isAdmin = await getPlayerAdminFlag(playerId, safeNickname);
 
   const nextPosition = {
@@ -219,12 +300,6 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
 }
 
 export async function getCityPlayers(cityId) {
-  /*
-    Не фильтруем игроков по updated_at на клиенте.
-    У разных телефонов время может отличаться на несколько секунд/минут,
-    и тогда один игрок видит второго, а второй первого — нет.
-    Актуальность держим через is_online + heartbeat + локальную очистку DOM.
-  */
   const { data, error } = await supabase
     .from('player_positions')
     .select('*')
@@ -285,6 +360,9 @@ export function subscribeCityPlayers(cityId, handlers = {}) {
 }
 
 export function createCityMovementChannel(cityId, handlers = {}) {
+  let subscribed = false;
+  const pendingPayloads = [];
+
   const channel = supabase.channel(`city_movement_${cityId}`, {
     config: {
       broadcast: {
@@ -297,10 +375,34 @@ export function createCityMovementChannel(cityId, handlers = {}) {
     handlers.onMove?.(payload.payload);
   });
 
-  channel.subscribe();
+  channel.subscribe((status) => {
+    if (status !== 'SUBSCRIBED') return;
+
+    subscribed = true;
+
+    while (pendingPayloads.length) {
+      const payload = pendingPayloads.shift();
+
+      channel.send({
+        type: 'broadcast',
+        event: 'player_move',
+        payload,
+      });
+    }
+  });
 
   return {
     sendMove(player) {
+      if (!subscribed) {
+        pendingPayloads.push(player);
+
+        if (pendingPayloads.length > 8) {
+          pendingPayloads.shift();
+        }
+
+        return;
+      }
+
       channel.send({
         type: 'broadcast',
         event: 'player_move',
@@ -309,6 +411,7 @@ export function createCityMovementChannel(cityId, handlers = {}) {
     },
 
     unsubscribe() {
+      pendingPayloads.length = 0;
       supabase.removeChannel(channel);
     },
   };
