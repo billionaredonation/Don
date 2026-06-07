@@ -1,0 +1,31 @@
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  height: 100svh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  background: #050607;
+}
+
+.home[data-mobile-controls="enabled"] .home-gameplay {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 100svh;
+  height: 100vw;
+  min-height: 100vw;
+  transform: translate3d(-50%, -50%, 0) rotate(90deg);
+  transform-origin: center center;
+  overflow: hidden;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.home[data-mobile-controls="enabled"] .mobile-joystick-base {
+  touch-action: none;
+}
