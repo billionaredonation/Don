@@ -1,0 +1,381 @@
+/* =========================================================
+   PLAYER HUD — COMPACT TOP ROW
+   ========================================================= */
+
+.player-glass-hud {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  top: max(8px, env(safe-area-inset-top));
+  z-index: 90;
+  height: 42px;
+  display: grid;
+  grid-template-columns: 126px 1fr 74px;
+  align-items: center;
+  gap: 7px;
+  pointer-events: none;
+  color: #f4f7fb;
+}
+
+.player-glass-hud * {
+  box-sizing: border-box;
+}
+
+.player-hud-left {
+  width: 126px;
+  pointer-events: auto;
+}
+
+.player-city-button {
+  pointer-events: auto; 
+  width: 126px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid rgba(215, 238, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(6, 12, 18, 0.46);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(12px) saturate(1.08);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.26),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.player-city-button span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.player-city-button b {
+  flex: 0 0 auto;
+  font-size: 19px;
+  line-height: 1;
+  font-weight: 300;
+  opacity: 0.72;
+}
+
+.player-weather-mini {
+  position: absolute;
+  left: 8px;
+  top: calc(max(8px, env(safe-area-inset-top)) + 43px);
+  height: 24px;
+  min-width: 82px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border-radius: 999px;
+  color: rgba(255,255,255,0.86);
+  background: rgba(6, 12, 18, 0.46);
+  border: 1px solid rgba(255,255,255,0.09);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.player-weather-mini span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.player-weather-mini i {
+  width: 1px;
+  height: 11px;
+  display: block;
+  flex: 0 0 1px;
+  background: rgba(255,255,255,0.18);
+}
+
+.player-profile-card {
+  justify-self: start;
+  width: min(176px, 100%);
+  height: 38px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 10px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  border: 1px solid rgba(215, 238, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(6, 12, 18, 0.46);
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(12px) saturate(1.08);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.26),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.player-avatar {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.14), rgba(255,255,255,0.03)),
+    rgba(16, 14, 30, 0.86);
+  border: 1px solid rgba(174, 112, 255, 0.7);
+  box-shadow: 0 0 14px rgba(170, 95, 255, 0.22);
+}
+
+.player-profile-info {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+}
+
+.player-profile-info strong,
+.player-profile-info small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.player-profile-info strong {
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 850;
+}
+
+.player-profile-info small {
+  color: rgba(255,255,255,0.54);
+  font-size: 7px;
+  font-weight: 700;
+}
+
+.player-profile-arrow {
+  font-size: 16px;
+  font-weight: 300;
+  color: rgba(255,255,255,0.65);
+}
+
+.player-balance-card {
+  justify-self: end;
+  width: 74px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 7px;
+  border: 1px solid rgba(215, 238, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(6, 12, 18, 0.46);
+  color: #fff;
+  pointer-events: auto;
+  backdrop-filter: blur(12px) saturate(1.08);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.26),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.player-card-icon {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.player-card-icon-green {
+  color: #7dff8b;
+  background: rgba(80, 255, 120, 0.08);
+}
+
+.player-balance-card strong {
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.player-network-card {
+  position: fixed;
+  left: 50%;
+  top: calc(max(8px, env(safe-area-inset-top)) + 49px);
+  transform: translateX(-50%);
+  height: 25px;
+  min-width: 108px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(6, 12, 18, 0.42);
+  border: 1px solid rgba(215, 238, 255, 0.09);
+  pointer-events: auto;
+  backdrop-filter: blur(11px) saturate(1.08);
+  box-shadow:
+    0 8px 22px rgba(0,0,0,0.24),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.player-network-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.player-network-separator {
+  width: 1px;
+  height: 13px;
+  background: rgba(255,255,255,0.11);
+}
+
+.player-signal {
+  width: 15px;
+  height: 12px;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+}
+
+.player-signal i {
+  width: 3px;
+  display: block;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.88);
+}
+
+.player-signal i:nth-child(1) { height: 4px; }
+.player-signal i:nth-child(2) { height: 8px; }
+.player-signal i:nth-child(3) { height: 12px; }
+
+.gta-map-header,
+.player-glass-bg,
+.player-mini-markers,
+.player-balance-info,
+.player-balance-arrow {
+  display: none !important;
+}
+
+/* desktop */
+@media (min-width: 769px) {
+  .player-glass-hud {
+    left: 14px;
+    right: 14px;
+    top: max(12px, env(safe-area-inset-top));
+    height: 48px;
+    grid-template-columns: 180px 240px 120px;
+    justify-content: start;
+    gap: 12px;
+  }
+
+  .player-hud-left,
+  .player-city-button {
+    width: 180px;
+  }
+
+  .player-city-button,
+  .player-profile-card,
+  .player-balance-card {
+    height: 44px;
+    border-radius: 14px;
+  }
+
+  .player-city-button span {
+    font-size: 22px;
+  }
+
+  .player-profile-card {
+    width: 240px;
+    grid-template-columns: 34px minmax(0, 1fr) 12px;
+  }
+
+  .player-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
+  }
+
+  .player-profile-info strong {
+    font-size: 14px;
+  }
+
+  .player-profile-info small {
+    font-size: 9px;
+  }
+
+  .player-balance-card {
+    width: 120px;
+  }
+
+  .player-balance-card strong {
+    font-size: 14px;
+  }
+
+  .player-network-card {
+    top: max(12px, env(safe-area-inset-top));
+    height: 44px;
+    min-width: 136px;
+    border-radius: 14px;
+  }
+
+  .player-network-item {
+    font-size: 12px;
+  }
+
+  .player-weather-mini {
+    left: 14px;
+    top: calc(max(12px, env(safe-area-inset-top)) + 52px);
+  }
+}
+
+/* small mobile */
+@media (max-width: 390px) {
+  .player-glass-hud {
+    grid-template-columns: 116px 1fr 66px;
+    gap: 5px;
+  }
+
+  .player-hud-left,
+  .player-city-button {
+    width: 116px;
+  }
+
+  .player-city-button span {
+    font-size: 14px;
+  }
+
+  .player-profile-card {
+    width: 160px;
+  }
+
+  .player-balance-card {
+    width: 66px;
+  }
+
+  .player-balance-card strong {
+    font-size: 10px;
+  }
+}
