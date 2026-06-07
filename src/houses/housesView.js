@@ -75,7 +75,7 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
   const onlinePlayers = getCityStatValue(cityStats, 'onlinePlayers', 0);
 
   return `
-    <div class="houses-modal" hidden aria-hidden="true">
+    <div class="houses-modal" hidden aria-hidden="true" data-houses-modal>
       <div class="houses-modal-backdrop" data-houses-stats-close></div>
 
       <section class="houses-panel" role="dialog" aria-modal="true" aria-label="${city.name} — город">
@@ -193,18 +193,23 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
 }
 
 export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
-  let modal = root.querySelector('.houses-modal');
+  let modal = root.querySelector('[data-houses-modal]') || root.querySelector('.houses-modal');
 
+  /*
+    ВАЖНО:
+    Модалка должна жить напрямую в body.
+    Если она внутри .home-gameplay или другого игрового слоя,
+    на мобилке она попадает под rotate/transform и выглядит боком.
+  */
   if (modal && modal.parentElement !== document.body) {
     document.body.appendChild(modal);
   }
 
   const openButton = root.querySelector('.player-city-button');
-  const closeButtons = modal?.querySelectorAll('[data-houses-stats-close]') || [];
   const sectionTabs = Array.from(modal?.querySelectorAll('[data-houses-section-tab]') || []);
   const sectionContents = Array.from(modal?.querySelectorAll('[data-houses-section-content]') || []);
 
-  const detailsController = createHouseDetailsController(modal, {
+  const detailsController = createHouseDetailsController(modal || root, {
     onBuy: onBuyHouse,
   });
 
@@ -236,6 +241,7 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
     modal.hidden = false;
     modal.removeAttribute('aria-hidden');
+
     root.dataset.housesStatsOpen = 'true';
 
     document.body.classList.add('mn-houses-modal-open');
@@ -254,6 +260,7 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
+
     delete root.dataset.housesStatsOpen;
 
     detailsController.close();
@@ -265,8 +272,8 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
   }
 
   function handleSectionClick(event) {
-    const button = event.target.closest('[data-houses-section-tab]');
-    if (!button) return;
+    const button = event.target?.closest?.('[data-houses-section-tab]');
+    if (!button || !modal?.contains(button)) return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -295,41 +302,67 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
         panel.setAttribute('aria-hidden', 'true');
       });
 
+    document.body.classList.remove('mn-houses-modal-open');
+    document.body.classList.add('mn-house-details-open');
+
     detailsController.open(house);
   }
 
   function handleKeydown(event) {
-    if (event.key === 'Escape') {
-      close(event);
-    }
+    if (event.key !== 'Escape') return;
+
+    close(event);
   }
 
-  openButton?.addEventListener('click', open);
+  function handleDocumentClose(event) {
+    const closeTarget = event.target?.closest?.('[data-houses-stats-close]');
+    if (!closeTarget) return;
+    if (!modal?.contains(closeTarget)) return;
+
+    close(event);
+  }
+
+  function handleOpenButton(event) {
+    open(event);
+  }
+
+  openButton?.addEventListener('click', handleOpenButton);
+  openButton?.addEventListener('pointerup', handleOpenButton);
+
   modal?.addEventListener('click', handleSectionClick);
+
+  /*
+    ВАЖНО:
+    Закрытие ловим на document capture.
+    В Telegram WebView click/pointerup иногда не доходит до кнопки,
+    если поверх есть blur/backdrop/rotated layer.
+  */
+  document.addEventListener('click', handleDocumentClose, true);
+  document.addEventListener('pointerup', handleDocumentClose, true);
+  document.addEventListener('touchend', handleDocumentClose, true);
+
   window.addEventListener('mn:house-action', handleGlobalHouseAction);
   document.addEventListener('keydown', handleKeydown);
-
-  closeButtons.forEach((button) => {
-    button.addEventListener('click', close);
-    button.addEventListener('pointerup', close);
-  });
 
   setActiveSection('city');
 
   return () => {
     close();
 
-    openButton?.removeEventListener('click', open);
+    openButton?.removeEventListener('click', handleOpenButton);
+    openButton?.removeEventListener('pointerup', handleOpenButton);
+
     modal?.removeEventListener('click', handleSectionClick);
+
+    document.removeEventListener('click', handleDocumentClose, true);
+    document.removeEventListener('pointerup', handleDocumentClose, true);
+    document.removeEventListener('touchend', handleDocumentClose, true);
+
     window.removeEventListener('mn:house-action', handleGlobalHouseAction);
     document.removeEventListener('keydown', handleKeydown);
 
-    closeButtons.forEach((button) => {
-      button.removeEventListener('click', close);
-      button.removeEventListener('pointerup', close);
-    });
-
     detailsController.cleanup();
+
     modal?.remove();
     modal = null;
   };
