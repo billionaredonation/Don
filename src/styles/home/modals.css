@@ -4,7 +4,6 @@
    Работает для всех регионов.
    ========================================================= */
 
-/* Модалки всегда поверх карты, игроков, джойстика, админки */
 .houses-modal,
 .house-details-modal {
   position: fixed !important;
@@ -12,7 +11,8 @@
 
   width: 100vw !important;
   height: 100vh !important;
-  height: 100svh !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
 
   display: grid !important;
   place-items: center !important;
@@ -46,6 +46,7 @@
   -webkit-backdrop-filter: blur(8px) !important;
 
   pointer-events: auto !important;
+  z-index: 0 !important;
 }
 
 .houses-panel,
@@ -59,13 +60,13 @@
   transform-origin: center center !important;
 
   pointer-events: auto !important;
-  z-index: 2147483601 !important;
+  z-index: 1 !important;
 }
 
 .houses-panel {
   width: min(560px, calc(100vw - 28px)) !important;
   max-width: calc(100vw - 28px) !important;
-  max-height: calc(100svh - 28px) !important;
+  max-height: calc(100dvh - 28px) !important;
 
   overflow-y: auto !important;
   overflow-x: hidden !important;
@@ -74,12 +75,13 @@
 .house-details-panel {
   width: min(470px, calc(100vw - 28px)) !important;
   max-width: calc(100vw - 28px) !important;
-  max-height: calc(100svh - 28px) !important;
+  max-height: calc(100dvh - 28px) !important;
 
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }
 
+/* Когда открыта модалка — скрываем игровые слои, включая hard-overlay маркера */
 body.mn-houses-modal-open .gta-player-marker,
 body.mn-houses-modal-open .gta-player-marker-self,
 body.mn-houses-modal-open .gta-player-marker-other,
@@ -93,8 +95,17 @@ body.mn-houses-modal-open .admin-status-dot,
 body.mn-houses-modal-open .entity-interaction-hint,
 body.mn-houses-modal-open .entity-interaction-notice,
 body.mn-house-details-open .gta-player-marker,
+body.mn-house-details-open .gta-player-marker-self,
+body.mn-house-details-open .gta-player-marker-other,
 body.mn-house-details-open .mobile-self-player-indicator,
-body.mn-house-details-open [data-mobile-self-marker-hard="true"] {
+body.mn-house-details-open [data-mobile-self-marker-hard="true"],
+body.mn-house-details-open .mobile-controls-layer,
+body.mn-house-details-open .mobile-joystick,
+body.mn-house-details-open .mobile-stamina,
+body.mn-house-details-open .pc-stamina,
+body.mn-house-details-open .admin-status-dot,
+body.mn-house-details-open .entity-interaction-hint,
+body.mn-house-details-open .entity-interaction-notice {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
@@ -108,9 +119,17 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
   opacity: 0 !important;
 }
 
+/* На телефоне модалка НЕ поворачивается вместе с игрой */
 @media (hover: none) and (pointer: coarse) {
   .houses-modal,
   .house-details-modal {
+    position: fixed !important;
+    inset: 0 !important;
+
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+
     padding: 10px !important;
     place-items: center !important;
 
@@ -123,7 +142,7 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
   .house-details-panel {
     width: min(430px, calc(100vw - 20px)) !important;
     max-width: calc(100vw - 20px) !important;
-    max-height: calc(100svh - 20px) !important;
+    max-height: calc(100dvh - 20px) !important;
 
     padding: 16px !important;
     border-radius: 22px !important;
@@ -131,6 +150,9 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     transform: none !important;
     rotate: 0deg !important;
     translate: 0 0 !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
 
   .houses-header {
@@ -226,7 +248,7 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
   .houses-panel,
   .house-details-panel {
-    max-height: calc(100svh - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
     overflow-y: auto !important;
   }
 
