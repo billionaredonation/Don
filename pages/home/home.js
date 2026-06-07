@@ -29,11 +29,7 @@ import {
   enableEntityInteraction,
 } from '../../src/entities/entityInteraction.js';
 
-import {
-  enableHousesFeature,
-  loadHousesFeature,
-  renderHousesFeatureHtml,
-} from '../../src/houses/housesFeature.js';
+import { enableHousesFeature } from '../../src/houses/housesFeature.js';
 
 import '../../src/admin/adminPanel.css';
 import '../../src/houses/houses.css';
@@ -224,7 +220,7 @@ register('home', async (root) => {
     });
   }
 
-const playersHtml = renderPlayersHtml(cityPlayers, localPlayerId, nickname);
+  const playersHtml = renderPlayersHtml(cityPlayers, localPlayerId, nickname);
 
   if (state.city !== cityId) {
     state.city = cityId;
@@ -242,8 +238,6 @@ const playersHtml = renderPlayersHtml(cityPlayers, localPlayerId, nickname);
     '123456789';
 
   const playerBalance = Number(state.player?.balance || 0);
-
-  const housesFeature = await loadHousesFeature(cityId);
 
   root.dataset.city = cityId;
   root.dataset.time = dayMode;
@@ -327,11 +321,6 @@ const playersHtml = renderPlayersHtml(cityPlayers, localPlayerId, nickname);
           </div>
         </section>
 
-        ${renderHousesFeatureHtml({
-          city,
-          houses: housesFeature,
-        })}
-
         <div class="mobile-self-player-indicator" aria-hidden="true">
           <div class="mobile-self-player-dot"></div>
         </div>
@@ -358,10 +347,10 @@ const playersHtml = renderPlayersHtml(cityPlayers, localPlayerId, nickname);
     focusX: playerPosition.x,
     focusY: playerPosition.y,
 
-  /*
-    На телефоне isLowPowerDevice часто true из-за маленького экрана,
-    из-за этого карта отдалялась. Для мобилки держим нормальный zoom.
-  */
+    /*
+      На телефоне isLowPowerDevice часто true из-за маленького экрана,
+      из-за этого карта отдалялась. Для мобилки держим нормальный zoom.
+    */
     startScale: isMobileGameplayDevice() ? 4.35 : (isLowPowerDevice() ? 2.85 : 4.95),
   });
   
