@@ -93,6 +93,30 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
   return Math.atan2(moveX, -moveY) * 180 / Math.PI;
 }
 
+/*
+  Фикс осей для твоего текущего forced-landscape.
+
+  По факту сейчас:
+  - тянешь вниз  -> игрок идёт влево
+  - тянешь вправо -> игрок идёт вверх
+
+  Значит визуальная сцена повернута относительно координат движения.
+  Чтобы игрок шёл туда, куда ты тянешь с экрана, нужен такой перевод:
+
+  screen down  -> world left
+  screen up    -> world right
+  screen right -> world up
+  screen left  -> world down
+
+  Да, выглядит странно, но именно так компенсируется текущий rotate(90deg).
+*/
+function joystickToMapVector(screenX, screenY) {
+  return {
+    x: -screenY,
+    y: -screenX,
+  };
+}
+
 function getInitialPosition(playerPosition, marker, bounds) {
   const px = toFiniteNumber(playerPosition?.x);
   const py = toFiniteNumber(playerPosition?.y);
@@ -171,6 +195,7 @@ export function enableMobileJoystick(
 
   let x = initialPosition.x;
   let y = initialPosition.y;
+
   let cameraX = x;
   let cameraY = y;
 
@@ -404,17 +429,24 @@ export function enableMobileJoystick(
       return;
     }
 
-    const inputX = dx / rawDistance;
-    const inputY = dy / rawDistance;
+    const screenX = dx / rawDistance;
+    const screenY = dy / rawDistance;
 
-    moveX = inputX * power;
-    moveY = inputY * power;
+    const corrected = joystickToMapVector(screenX, screenY);
+
+    moveX = corrected.x * power;
+    moveY = corrected.y * power;
 
     angle = getAngleFromMovement(moveX, moveY, angle);
     setMovingUi(true);
 
+    /*
+      ВАЖНО:
+      Стик двигаем по экранному направлению, а игрока двигаем по corrected.
+      Так палец видит нормальный джойстик, а координаты игры получают повернутый вектор.
+    */
     stick.style.transform =
-      `translate(-50%, -50%) translate3d(${inputX * distance}px, ${inputY * distance}px, 0)`;
+      `translate(-50%, -50%) translate3d(${screenX * distance}px, ${screenY * distance}px, 0)`;
   }
 
   function loop(now = performance.now()) {
@@ -430,6 +462,7 @@ export function enableMobileJoystick(
       Math.abs(moveY) > DEADZONE;
 
     const isSprinting = updateSprintState(isMoving, frameScale);
+
     const speed = isSprinting
       ? MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED
       : MOVEMENT_CONFIG.MOBILE_WALK_SPEED;
