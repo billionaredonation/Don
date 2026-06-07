@@ -165,7 +165,7 @@ function createMobileSelfMarkerHardOverlay() {
     '0 0 16px rgba(165, 225, 255, 0.85)',
     '0 0 30px rgba(255, 210, 80, 0.55)',
   ].join(', ');
-  marker.style.zIndex = '2147483647';
+  marker.style.zIndex = '300';
   marker.style.pointerEvents = 'none';
   marker.style.opacity = '1';
   marker.style.visibility = 'visible';
