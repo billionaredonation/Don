@@ -386,3 +386,90 @@ body,
     rotate: 0deg !important;
   }
 }
+
+/* =========================================================
+   MOBILE SELF PLAYER MARKER FIX
+   На телефоне показываем фиксированный маркер игрока по центру экрана.
+   Не трогает ПК.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .gta-player-marker-self {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-self-player-indicator {
+    position: fixed !important;
+
+    left: 50% !important;
+    top: 50% !important;
+
+    width: 34px !important;
+    height: 34px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    transform: translate(-50%, -50%) !important;
+    translate: 0 0 !important;
+    rotate: 0deg !important;
+
+    z-index: 6500 !important;
+
+    opacity: 1 !important;
+    visibility: visible !important;
+
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-self-player-dot {
+    position: relative !important;
+
+    width: 13px !important;
+    height: 13px !important;
+
+    display: block !important;
+
+    border-radius: 999px !important;
+    box-sizing: border-box !important;
+
+    background: #3a2605 !important;
+    border: 3px solid #e6b84a !important;
+
+    box-shadow:
+      0 0 0 3px rgba(245, 252, 255, 0.78),
+      0 0 16px rgba(165, 225, 255, 0.78),
+      0 0 28px rgba(255, 210, 80, 0.48) !important;
+
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-self-player-dot::before {
+    content: "" !important;
+
+    position: absolute !important;
+
+    left: 50% !important;
+    top: 50% !important;
+
+    width: 30px !important;
+    height: 30px !important;
+
+    transform: translate(-50%, -50%) !important;
+
+    border-radius: 999px !important;
+
+    background: radial-gradient(
+      circle,
+      rgba(190, 235, 255, 0.34) 0%,
+      rgba(145, 225, 255, 0.14) 52%,
+      transparent 100%
+    ) !important;
+
+    z-index: -1 !important;
+    pointer-events: none !important;
+  }
+}
