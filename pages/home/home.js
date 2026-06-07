@@ -220,12 +220,6 @@ function closeHouseDetailsModals() {
     .forEach((modal) => hideHouseModal(modal));
 }
 
-function closeHouseListModals() {
-  document
-    .querySelectorAll('.houses-modal')
-    .forEach((modal) => hideHouseModal(modal));
-}
-
 function closeHouseSelectionPanels() {
   document
     .querySelectorAll('.house-selection-panel')
@@ -242,6 +236,59 @@ function getVisibleHouseDetailsModal() {
   return Array
     .from(document.querySelectorAll('.house-details-modal'))
     .find(isVisibleHouseModal) || null;
+}
+
+function resetHouseModalsOnHomeEnter() {
+  document
+    .querySelectorAll('.houses-modal, .house-details-modal, .house-selection-panel')
+    .forEach((modal) => {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+
+      modal.classList.remove(
+        'is-open',
+        'is-visible',
+        'active',
+        'open',
+        'show'
+      );
+
+      modal.style.removeProperty('display');
+      modal.style.removeProperty('visibility');
+      modal.style.removeProperty('opacity');
+      modal.style.removeProperty('pointer-events');
+    });
+
+  document.body?.classList.remove('mn-houses-modal-open');
+}
+
+function hasVisibleHouseModal() {
+  return Array
+    .from(document.querySelectorAll('.houses-modal, .house-details-modal'))
+    .some((modal) => isVisibleHouseModal(modal));
+}
+
+function cleanupStuckHouseBackdrop() {
+  if (hasVisibleHouseModal()) return;
+
+  document.body?.classList.remove('mn-houses-modal-open');
+
+  document
+    .querySelectorAll('.houses-modal, .house-details-modal, .house-selection-panel')
+    .forEach((modal) => {
+      if (isVisibleHouseModal(modal)) return;
+
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+
+      modal.classList.remove(
+        'is-open',
+        'is-visible',
+        'active',
+        'open',
+        'show'
+      );
+    });
 }
 
 function enableSingleHouseModalMode(root) {
@@ -271,8 +318,15 @@ function enableSingleHouseModalMode(root) {
     cancelAnimationFrame(frameId);
     clearTimeout(timeoutId);
 
-    frameId = requestAnimationFrame(enforceSingleModal);
-    timeoutId = setTimeout(enforceSingleModal, 80);
+    frameId = requestAnimationFrame(() => {
+      enforceSingleModal();
+      cleanupStuckHouseBackdrop();
+    });
+
+    timeoutId = setTimeout(() => {
+      enforceSingleModal();
+      cleanupStuckHouseBackdrop();
+    }, 80);
   }
 
   function handleClick(event) {
@@ -358,6 +412,8 @@ function enableSingleHouseModalMode(root) {
 
 register('home', async (root) => {
   root._cleanupHome?.();
+
+  resetHouseModalsOnHomeEnter();
 
   delete root.dataset.destroyed;
 
@@ -551,6 +607,8 @@ register('home', async (root) => {
     <div class="mobile-controls-layer"></div>
   `;
 
+  resetHouseModalsOnHomeEnter();
+
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
   const entities = root.querySelector('.gta-map-entities');
@@ -563,6 +621,16 @@ register('home', async (root) => {
     cityId,
     city,
   });
+
+  resetHouseModalsOnHomeEnter();
+
+  setTimeout(() => {
+    resetHouseModalsOnHomeEnter();
+  }, 120);
+
+  setTimeout(() => {
+    cleanupStuckHouseBackdrop();
+  }, 450);
 
   const cleanupSingleHouseModalMode = enableSingleHouseModalMode(root);
 
@@ -806,6 +874,8 @@ register('home', async (root) => {
     mapControls?.cleanup?.();
     cleanupFogOfWar?.();
     network.cleanup?.();
+
+    resetHouseModalsOnHomeEnter();
 
     delete root.dataset.mobileControls;
     document.body?.classList.remove('mn-landscape-game');
