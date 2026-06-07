@@ -654,3 +654,109 @@ body.mn-landscape-game .houses-close-button {
     font-weight: 1000 !important;
   }
 }
+
+
+
+/* =========================================================
+   FORCE HOUSE SIZE + HITBOX
+   ========================================================= */
+
+.map-object.map-object-house,
+.map-objects-layer .map-object.map-object-house,
+.map-objects-layer .map-object.map-object-house.map-object-visual-standard {
+  width: 30px !important;
+  height: 30px !important;
+
+  min-width: 30px !important;
+  min-height: 30px !important;
+  max-width: 30px !important;
+  max-height: 30px !important;
+
+  overflow: visible !important;
+  pointer-events: auto !important;
+}
+
+.map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
+.map-objects-layer .map-object.map-object-house.map-object-visual-premium {
+  width: 32px !important;
+  height: 32px !important;
+
+  min-width: 32px !important;
+  min-height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
+}
+
+.map-objects-layer .map-object.map-object-house.map-object-visual-lux,
+.map-objects-layer .map-object.map-object-house.map-object-visual-elite {
+  width: 35px !important;
+  height: 35px !important;
+
+  min-width: 35px !important;
+  min-height: 35px !important;
+  max-width: 35px !important;
+  max-height: 35px !important;
+}
+
+.map-house-svg,
+.map-objects-layer .map-object.map-object-house .map-house-svg {
+  width: 100% !important;
+  height: 100% !important;
+
+  min-width: 100% !important;
+  min-height: 100% !important;
+
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.map-objects-layer .map-object.map-object-house::before {
+  content: "" !important;
+
+  position: absolute !important;
+  inset: -20px !important;
+
+  display: block !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+
+  pointer-events: auto !important;
+}
+
+body.mn-landscape-game .map-object.map-object-house,
+body.mn-landscape-game .map-object.map-object-house.map-object-visual-standard {
+  width: 34px !important;
+  height: 34px !important;
+
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+}
+
+body.mn-landscape-game .map-object.map-object-house.map-object-visual-comfort,
+body.mn-landscape-game .map-object.map-object-house.map-object-visual-premium {
+  width: 36px !important;
+  height: 36px !important;
+
+  min-width: 36px !important;
+  min-height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
+}
+
+body.mn-landscape-game .map-object.map-object-house.map-object-visual-lux,
+body.mn-landscape-game .map-object.map-object-house.map-object-visual-elite {
+  width: 39px !important;
+  height: 39px !important;
+
+  min-width: 39px !important;
+  min-height: 39px !important;
+  max-width: 39px !important;
+  max-height: 39px !important;
+}
+
+body.mn-landscape-game .map-objects-layer .map-object.map-object-house::before {
+  inset: -28px !important;
+}
