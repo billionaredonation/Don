@@ -10,7 +10,7 @@ import {
 import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
-const INTERACTION_RADIUS_PX = 34;
+const INTERACTION_RADIUS_PX = 46;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 
 function getPurchasedHouseId(detail = {}) {
@@ -50,17 +50,17 @@ function isSameHouseObject(object, purchasedHouseId, purchasedMapObjectId) {
 function markObjectAsPurchased(object, ownerId, ownerName) {
   if (!object || !ownerId) return object;
 
-  object.owner_id = ownerId;
-  object.ownerName = ownerName;
-
-  object.payload = {
-    ...(object.payload || {}),
-    ownerId,
+  return {
+    ...object,
+    owner_id: ownerId,
     ownerName,
-    owned: true,
+    payload: {
+      ...(object.payload || {}),
+      ownerId,
+      ownerName,
+      owned: true,
+    },
   };
-
-  return object;
 }
 
 function isTypingTarget(target) {
@@ -191,6 +191,23 @@ function createInteractionHint(root) {
   return hint;
 }
 
+function moveLayerAboveMap(viewport, layer) {
+  if (!viewport || !layer) return;
+
+  viewport.appendChild(layer);
+
+  layer.style.position = 'absolute';
+  layer.style.inset = '0';
+  layer.style.display = 'block';
+  layer.style.width = '100%';
+  layer.style.height = '100%';
+  layer.style.overflow = 'visible';
+  layer.style.visibility = 'visible';
+  layer.style.opacity = '1';
+  layer.style.zIndex = '240';
+  layer.style.pointerEvents = 'none';
+}
+
 export function createEntityInteractionPanel(root) {
   const panel = document.createElement('section');
   panel.className = 'house-selection-panel';
@@ -206,7 +223,7 @@ export function createEntityInteractionPanel(root) {
     <button class="house-selection-action" type="button">Выбрать</button>
   `;
 
-  getGameplayRoot(root).appendChild(panel);
+  root.appendChild(panel);
 
   const closeButton = panel.querySelector('.house-selection-close');
   const titleEl = panel.querySelector('.house-selection-title');
@@ -249,7 +266,7 @@ export function createEntityInteractionPanel(root) {
       return;
     }
 
-    markObjectAsPurchased(selectedObject, ownerId, ownerName);
+    selectedObject = markObjectAsPurchased(selectedObject, ownerId, ownerName);
     renderSelectedObject();
   }
 
@@ -303,7 +320,7 @@ export function enableEntityInteraction({
   layer.classList.add('map-objects-layer-public');
   layer.dataset.cityId = String(cityId);
 
-  viewport.appendChild(layer);
+  moveLayerAboveMap(viewport, layer);
 
   const hint = createInteractionHint(root);
 
@@ -318,18 +335,35 @@ export function enableEntityInteraction({
   async function reloadObjects() {
     if (destroyed) return;
 
-    const objects = await getMapObjects(cityId);
+    let objects = [];
+
+    try {
+      objects = await getMapObjects(cityId);
+    } catch (error) {
+      console.warn('[entityInteraction] map objects load failed:', error);
+      objects = [];
+    }
 
     if (destroyed) return;
 
-    mapObjects = Array.isArray(objects) ? objects.filter(Boolean) : [];
+    mapObjects = Array.isArray(objects)
+      ? objects.filter(Boolean)
+      : [];
 
+    moveLayerAboveMap(viewport, layer);
     renderMapObjects(layer, mapObjects);
+
+    console.log('[entityInteraction] rendered map objects:', {
+      cityId,
+      count: mapObjects.length,
+      layerChildren: layer.children.length,
+    });
 
     window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
       detail: {
         cityId,
         count: mapObjects.length,
+        layerChildren: layer.children.length,
       },
     }));
   }
