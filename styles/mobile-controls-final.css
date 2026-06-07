@@ -703,3 +703,30 @@
     pointer-events: none !important;
   }
 }
+
+
+/* FINAL MODAL OVERLAY FIX */
+
+body.mn-houses-modal-open [data-mobile-self-marker-hard="true"],
+body.mn-house-details-open [data-mobile-self-marker-hard="true"],
+body.mn-houses-modal-open .mobile-self-player-indicator,
+body.mn-house-details-open .mobile-self-player-indicator,
+body.mn-houses-modal-open .gta-player-marker,
+body.mn-house-details-open .gta-player-marker,
+body.mn-houses-modal-open .home[data-mobile-controls="enabled"]::after,
+body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.houses-modal,
+.house-details-modal {
+  z-index: 2147483600 !important;
+}
+
+.houses-panel,
+.house-details-panel {
+  z-index: 2147483601 !important;
+}
