@@ -23,6 +23,16 @@ function formatPercent(value) {
   return `${Math.max(0, Math.round(number))}%`;
 }
 
+function formatNumber(value) {
+  const number = Number(value || 0);
+
+  if (!Number.isFinite(number)) {
+    return '0';
+  }
+
+  return number.toLocaleString('ru-RU');
+}
+
 function getCityStatValue(cityStats, key, fallback = 0) {
   const value = cityStats?.[key];
 
@@ -68,6 +78,93 @@ function getSectionButtons(houses) {
   ];
 }
 
+function renderCityStatCards({
+  budget,
+  inflation,
+  registeredPlayers,
+  onlinePlayers,
+}) {
+  return `
+    <div class="city-stat-grid">
+      <article class="city-stat-card city-stat-card-budget">
+        <span class="city-stat-icon">💰</span>
+
+        <div class="city-stat-body">
+          <small>Бюджет города</small>
+          <strong>${formatMoney(budget)}</strong>
+          <em>Баланс городской экономики</em>
+        </div>
+      </article>
+
+      <article class="city-stat-card city-stat-card-inflation">
+        <span class="city-stat-icon">📈</span>
+
+        <div class="city-stat-body">
+          <small>Инфляция</small>
+          <strong>${formatPercent(inflation)}</strong>
+          <em>Текущий игровой показатель</em>
+        </div>
+      </article>
+
+      <article class="city-stat-card city-stat-card-players">
+        <span class="city-stat-icon">👥</span>
+
+        <div class="city-stat-body">
+          <small>Игроков зарегистрировано</small>
+          <strong>${formatNumber(registeredPlayers)}</strong>
+          <em>Всего в этом городе</em>
+        </div>
+      </article>
+
+      <article class="city-stat-card city-stat-card-online">
+        <span class="city-stat-icon">🟢</span>
+
+        <div class="city-stat-body">
+          <small>Сейчас онлайн</small>
+          <strong>${formatNumber(onlinePlayers)}</strong>
+          <em>Активные игроки города</em>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+function renderHousesSummaryCards(houses) {
+  return `
+    <div class="city-stat-grid houses-summary-grid">
+      <article class="city-stat-card city-stat-card-total">
+        <span class="city-stat-icon">🏘️</span>
+
+        <div class="city-stat-body">
+          <small>Всего домов</small>
+          <strong>${formatNumber(houses.housesTotal)}</strong>
+          <em>Общее количество объектов</em>
+        </div>
+      </article>
+
+      <article class="city-stat-card city-stat-card-free">
+        <span class="city-stat-icon">✅</span>
+
+        <div class="city-stat-body">
+          <small>Свободных</small>
+          <strong>${formatNumber(houses.housesFree)}</strong>
+          <em>Можно купить на карте</em>
+        </div>
+      </article>
+
+      <article class="city-stat-card city-stat-card-owned">
+        <span class="city-stat-icon">🔒</span>
+
+        <div class="city-stat-body">
+          <small>Купленных</small>
+          <strong>${formatNumber(houses.housesOwned)}</strong>
+          <em>Уже заняты игроками</em>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
 export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
   const budget = getCityStatValue(cityStats, 'budget', 0);
   const inflation = getCityStatValue(cityStats, 'inflation', 0);
@@ -100,10 +197,12 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
                 ${section.disabled ? 'aria-disabled="true"' : ''}
               >
                 <span class="houses-section-card-icon">${section.icon}</span>
+
                 <span class="houses-section-card-text">
                   <strong>${section.title}</strong>
                   <small>${section.text}</small>
                 </span>
+
                 <b>${section.count}</b>
               </button>
             `)
@@ -111,53 +210,16 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
         </nav>
 
         <div class="houses-section-content is-active" data-houses-section-content="city">
-          <div class="houses-mini-stats-grid houses-city-stats-grid">
-            <article class="houses-mini-stat houses-mini-stat-purple">
-              <span>Бюджет города</span>
-              <strong>${formatMoney(budget)}</strong>
-              <small>Баланс городской экономики</small>
-            </article>
-
-            <article class="houses-mini-stat houses-mini-stat-orange">
-              <span>Инфляция</span>
-              <strong>${formatPercent(inflation)}</strong>
-              <small>Текущий игровой показатель</small>
-            </article>
-
-            <article class="houses-mini-stat houses-mini-stat-green">
-              <span>Игроков зарегистрировано</span>
-              <strong>${Number(registeredPlayers || 0).toLocaleString('ru-RU')}</strong>
-              <small>Всего в этом городе</small>
-            </article>
-
-            <article class="houses-mini-stat">
-              <span>Сейчас онлайн</span>
-              <strong>${Number(onlinePlayers || 0).toLocaleString('ru-RU')}</strong>
-              <small>Активные игроки города</small>
-            </article>
-          </div>
+          ${renderCityStatCards({
+            budget,
+            inflation,
+            registeredPlayers,
+            onlinePlayers,
+          })}
         </div>
 
         <div class="houses-section-content" data-houses-section-content="houses" hidden>
-          <div class="houses-mini-stats-grid">
-            <article class="houses-mini-stat houses-mini-stat-purple">
-              <span>Всего домов</span>
-              <strong>${houses.housesTotal}</strong>
-              <small>Общее количество объектов</small>
-            </article>
-
-            <article class="houses-mini-stat houses-mini-stat-green">
-              <span>Свободных</span>
-              <strong>${houses.housesFree}</strong>
-              <small>Можно купить на карте</small>
-            </article>
-
-            <article class="houses-mini-stat houses-mini-stat-orange">
-              <span>Купленных</span>
-              <strong>${houses.housesOwned}</strong>
-              <small>Уже заняты игроками</small>
-            </article>
-          </div>
+          ${renderHousesSummaryCards(houses)}
 
           <p class="houses-section-note">
             Покупка работает через иконки домов на карте: подойди к дому и нажми на него.
@@ -195,12 +257,6 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
 export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
   let modal = root.querySelector('[data-houses-modal]') || root.querySelector('.houses-modal');
 
-  /*
-    ВАЖНО:
-    Модалка должна жить напрямую в body.
-    Если она внутри .home-gameplay или другого игрового слоя,
-    на мобилке она попадает под rotate/transform и выглядит боком.
-  */
   if (modal && modal.parentElement !== document.body) {
     document.body.appendChild(modal);
   }
@@ -331,12 +387,6 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
   modal?.addEventListener('click', handleSectionClick);
 
-  /*
-    ВАЖНО:
-    Закрытие ловим на document capture.
-    В Telegram WebView click/pointerup иногда не доходит до кнопки,
-    если поверх есть blur/backdrop/rotated layer.
-  */
   document.addEventListener('click', handleDocumentClose, true);
   document.addEventListener('pointerup', handleDocumentClose, true);
   document.addEventListener('touchend', handleDocumentClose, true);
