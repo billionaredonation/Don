@@ -3,10 +3,15 @@ export const PLAYER_STATS_CONFIG = {
     keyboardSpeed: 0.065,
     mobileSpeed: 0.065,
 
-    minX: 0,
-    maxX: 100,
-    minY: 0,
-    maxY: 100,
+    /*
+      Не ставим 0–100.
+      На PNG по краям много пустоты/воды/чёрного поля.
+      Из-за этого камера центрирует игрока в пустоте, и кажется, что карта пропала.
+    */
+    minX: 12,
+    maxX: 88,
+    minY: 10,
+    maxY: 90,
   },
 
   sync: {
