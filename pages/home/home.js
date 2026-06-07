@@ -364,6 +364,7 @@ const playersHtml = renderPlayersHtml(cityPlayers, localPlayerId, nickname);
   */
     startScale: isMobileGameplayDevice() ? 4.35 : (isLowPowerDevice() ? 2.85 : 4.95),
   });
+  
   const network = setupPlayerNetwork({
     cityId,
     playerId: localPlayerId,
