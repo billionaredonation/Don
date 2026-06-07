@@ -2,6 +2,7 @@ import {
   subscribeCityPlayers,
   createCityMovementChannel,
   setPlayerOffline,
+  getCityPlayers,
 } from '../player/playerPosition.js';
 
 import { NETWORK_CONFIG } from '../config/networkConfig.js';
@@ -424,6 +425,59 @@ export function setupPlayerNetwork({
     selfPlayerId
   );
 
+  let snapshotRefreshTimer = null;
+
+  async function refreshPlayersSnapshot() {
+    try {
+      const players = await getCityPlayers(cityId);
+
+      players.forEach((player) => {
+        if (!player) return;
+
+        if (
+          isLocalPlayerLike(
+            player,
+            selfPlayerId
+          )
+        ) {
+          cleanupLocalDuplicates(
+            entities,
+            selfPlayerId
+          );
+
+          return;
+        }
+
+        upsertPlayerMarker(
+          entities,
+          player,
+          selfPlayerId,
+          {
+            instant: true,
+          }
+        );
+      });
+    } catch (error) {
+      console.warn(
+        '[network] city players snapshot failed:',
+        error
+      );
+    }
+  }
+
+  function startSnapshotRefresh() {
+    refreshPlayersSnapshot();
+
+    snapshotRefreshTimer = setInterval(
+      refreshPlayersSnapshot,
+      5000
+    );
+
+    return () => {
+      clearInterval(snapshotRefreshTimer);
+    };
+  }
+
   const movementChannel =
     createCityMovementChannel(cityId, {
       onMove(player) {
@@ -459,6 +513,9 @@ export function setupPlayerNetwork({
       entities,
       selfPlayerId
     );
+
+  const cleanupSnapshotRefresh =
+    startSnapshotRefresh();
 
   const cleanupOffline =
     enableOfflineOnExit();
@@ -561,6 +618,7 @@ export function setupPlayerNetwork({
       cleanupRealtime?.();
 
       cleanupStalePlayers?.();
+      cleanupSnapshotRefresh?.();
       cleanupOffline?.();
 
       movementChannel?.unsubscribe?.();
