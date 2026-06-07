@@ -612,7 +612,7 @@ register('home', async (root) => {
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
   const entities = root.querySelector('.gta-map-entities');
-  const playerMarker = root.querySelector(`[data-player-id="${localPlayerId}"]`);
+  const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
   const isMobileGameplay = isMobileGameplayDevice();
@@ -632,7 +632,9 @@ register('home', async (root) => {
     cleanupStuckHouseBackdrop();
   }, 450);
 
-  const cleanupSingleHouseModalMode = enableSingleHouseModalMode(root);
+  // Вся логика домов теперь живёт в housesFeature.
+  // Второй guard из home конфликтовал с мобильными модалками и открывал два слоя.
+  const cleanupSingleHouseModalMode = null;
 
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
