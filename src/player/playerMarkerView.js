@@ -24,33 +24,9 @@ function getSafeNickname(player) {
   ).trim();
 }
 
-function isSameText(a, b) {
-  return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
-}
-
-function isLocalDuplicate(player, localPlayerId, localNickname) {
-  const playerId = getSafePlayerId(player);
-  const nickname = getSafeNickname(player);
-
-  if (playerId && String(playerId) === String(localPlayerId || '')) {
-    return false;
-  }
-
-  /*
-    Если в БД остался старый player_id, но ник тот же,
-    это твой же старый двойник. Его не рисуем.
-  */
-  if (localNickname && nickname && isSameText(nickname, localNickname)) {
-    return true;
-  }
-
-  return false;
-}
-
 function normalizePlayersForRender(players = [], localPlayerId, localNickname) {
   const result = [];
   const seenIds = new Set();
-  const seenNicknames = new Set();
 
   let selfPlayer = null;
 
@@ -62,6 +38,9 @@ function normalizePlayersForRender(players = [], localPlayerId, localNickname) {
 
     if (!playerId) continue;
 
+    if (seenIds.has(playerId)) continue;
+    seenIds.add(playerId);
+
     if (String(playerId) === String(localPlayerId || '')) {
       selfPlayer = {
         ...player,
@@ -72,23 +51,16 @@ function normalizePlayersForRender(players = [], localPlayerId, localNickname) {
       continue;
     }
 
-    if (isLocalDuplicate(player, localPlayerId, localNickname)) {
-      continue;
-    }
-
-    const idKey = String(playerId);
-    const nicknameKey = nickname.toLowerCase();
-
-    if (seenIds.has(idKey)) continue;
-    if (nicknameKey && seenNicknames.has(nicknameKey)) continue;
-
-    seenIds.add(idKey);
-
-    if (nicknameKey) {
-      seenNicknames.add(nicknameKey);
-    }
-
-    result.push(player);
+    /*
+      ВАЖНО:
+      По никнейму больше не фильтруем.
+      Только player_id. Иначе друг может исчезать у другого клиента.
+    */
+    result.push({
+      ...player,
+      playerId,
+      nickname,
+    });
   }
 
   if (selfPlayer) {
