@@ -48,7 +48,6 @@
   pointer-events: auto !important;
 }
 
-/* Панели не должны наследовать поворот игры */
 .houses-panel,
 .house-details-panel {
   position: relative !important;
@@ -63,7 +62,6 @@
   z-index: 2147483601 !important;
 }
 
-/* Городская модалка */
 .houses-panel {
   width: min(560px, calc(100vw - 28px)) !important;
   max-width: calc(100vw - 28px) !important;
@@ -73,7 +71,6 @@
   overflow-x: hidden !important;
 }
 
-/* Карточка конкретного дома */
 .house-details-panel {
   width: min(470px, calc(100vw - 28px)) !important;
   max-width: calc(100vw - 28px) !important;
@@ -83,7 +80,6 @@
   overflow-x: hidden !important;
 }
 
-/* Когда открыта модалка — скрываем ВСЕ игровые элементы поверх неё */
 body.mn-houses-modal-open .gta-player-marker,
 body.mn-houses-modal-open .gta-player-marker-self,
 body.mn-houses-modal-open .gta-player-marker-other,
@@ -105,17 +101,12 @@ body.mn-house-details-open [data-mobile-self-marker-hard="true"] {
   pointer-events: none !important;
 }
 
-/* Если маркер рисуется через ::after на .home */
 body.mn-houses-modal-open .home[data-mobile-controls="enabled"]::after,
 body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
 }
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
   .houses-modal,
@@ -128,19 +119,7 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     translate: 0 0 !important;
   }
 
-  .houses-panel {
-    width: min(430px, calc(100vw - 20px)) !important;
-    max-width: calc(100vw - 20px) !important;
-    max-height: calc(100svh - 20px) !important;
-
-    padding: 16px !important;
-    border-radius: 22px !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-    translate: 0 0 !important;
-  }
-
+  .houses-panel,
   .house-details-panel {
     width: min(430px, calc(100vw - 20px)) !important;
     max-width: calc(100vw - 20px) !important;
@@ -220,7 +199,6 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
   }
 }
 
-/* Узкие телефоны */
 @media (max-width: 390px) {
   .houses-panel,
   .house-details-panel {
@@ -238,7 +216,6 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
   }
 }
 
-/* Очень низкий экран / Telegram landscape-like viewport */
 @media (max-height: 520px) {
   .houses-modal,
   .house-details-modal {
