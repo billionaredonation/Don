@@ -219,14 +219,17 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
 }
 
 export async function getCityPlayers(cityId) {
-  const aliveSince = new Date(Date.now() - 5000).toISOString();
-
+  /*
+    Не фильтруем игроков по updated_at на клиенте.
+    У разных телефонов время может отличаться на несколько секунд/минут,
+    и тогда один игрок видит второго, а второй первого — нет.
+    Актуальность держим через is_online + heartbeat + локальную очистку DOM.
+  */
   const { data, error } = await supabase
     .from('player_positions')
     .select('*')
     .eq('city_id', cityId)
     .eq('is_online', true)
-    .gte('updated_at', aliveSince)
     .order('updated_at', { ascending: false })
     .limit(50);
 
