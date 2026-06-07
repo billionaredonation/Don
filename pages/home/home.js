@@ -224,7 +224,7 @@ register('home', async (root) => {
     });
   }
 
-  const playersHtml = renderPlayersHtml(cityPlayers, localPlayerId);
+const playersHtml = renderPlayersHtml(cityPlayers, localPlayerId, nickname);
 
   if (state.city !== cityId) {
     state.city = cityId;
@@ -357,16 +357,18 @@ register('home', async (root) => {
   const mapControls = enableMapControls(stage, viewport, {
     focusX: playerPosition.x,
     focusY: playerPosition.y,
-    startScale: isMobileGameplay
-      ? (isLowPowerDevice() ? 2.1 : 2.45)
-      : (isLowPowerDevice() ? 2.65 : 4.95),
-    worldFactor: isMobileGameplay ? 2.45 : undefined,
-  });
 
+  /*
+    На телефоне isLowPowerDevice часто true из-за маленького экрана,
+    из-за этого карта отдалялась. Для мобилки держим нормальный zoom.
+  */
+    startScale: isMobileGameplayDevice() ? 4.35 : (isLowPowerDevice() ? 2.85 : 4.95),
+  });
   const network = setupPlayerNetwork({
     cityId,
     playerId: localPlayerId,
     localPlayerId,
+    localNickname: nickname,
     entities,
   });
 
