@@ -351,7 +351,7 @@ register('home', async (root) => {
       На телефоне isLowPowerDevice часто true из-за маленького экрана,
       из-за этого карта отдалялась. Для мобилки держим нормальный zoom.
     */
-      startScale: isMobileGameplayDevice() ? 2.75 : 2.35,
+     startScale: isMobileGameplayDevice() ? 1.55 : 1.25,
   });
   
   const network = setupPlayerNetwork({
