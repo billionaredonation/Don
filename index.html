@@ -17,12 +17,12 @@
   <link rel="stylesheet" href="./pages/preload/preload.css?v=4" />
 
   <!-- Основной стиль дома/карты/модалок. Его не перебиваем отдельными map-fix файлами. -->
-  <link rel="stylesheet" href="./pages/home/home.css?v=110" />
+  <link rel="stylesheet" href="./pages/home/home.css?v=111" />
   <link rel="stylesheet" href="./styles/map-lights.css?v=105" />
-  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=7" />
+  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=8" />
 
   <!-- Только джойстик/стамина. Без вмешательства в карту и модалки. -->
-  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=4" />
+  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=5" />
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
@@ -55,19 +55,19 @@
       }
 
       if (error.stack) {
-        parts.push('Stack:\\n' + error.stack);
+        parts.push('Stack:\n' + error.stack);
       }
 
       try {
         const json = JSON.stringify(error, null, 2);
         if (json && json !== '{}') {
-          parts.push('JSON:\\n' + json);
+          parts.push('JSON:\n' + json);
         }
       } catch {
         // ignore
       }
 
-      return parts.join('\\n\\n') || String(error);
+      return parts.join('\n\n') || String(error);
     }
 
     function showFatalError(error, source) {
@@ -89,7 +89,7 @@
         '">' +
           'Ошибка загрузки' +
           (source ? ' [' + source + ']' : '') +
-          ':\\n\\n' +
+          ':\n\n' +
           escapeHtml(message) +
         '</div>';
     }
