@@ -123,6 +123,7 @@ export function createPlayerMarkerHtml(player, localPlayerId) {
       data-x="${Number.isFinite(x) ? x : 50}"
       data-y="${Number.isFinite(y) ? y : 50}"
       data-angle="${Number.isFinite(angle) ? angle : 0}"
+      data-updated-at="${Date.now()}"
       style="
         left: ${Number.isFinite(x) ? x : 50}%;
         top: ${Number.isFinite(y) ? y : 50}%;
@@ -167,6 +168,7 @@ export function updatePlayerMarkerView(marker, player) {
 
   const nickname = getSafeNickname(player);
   marker.dataset.nickname = nickname;
+  marker.dataset.updatedAt = String(Date.now());
 
   const name = marker.querySelector('.gta-player-marker-name');
 
