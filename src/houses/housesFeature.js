@@ -57,11 +57,17 @@ function showModal(element) {
 }
 
 function getHousesModal(root = document) {
-  return root.querySelector('.houses-modal');
+  return (
+    root.querySelector?.('.houses-modal') ||
+    document.querySelector('.houses-modal')
+  );
 }
 
 function getHouseDetailsModal(root = document) {
-  return root.querySelector('.house-details-modal');
+  return (
+    document.querySelector('.house-details-modal') ||
+    root.querySelector?.('.house-details-modal')
+  );
 }
 
 function hasAnyHouseModalOpen(root = document) {
@@ -135,8 +141,14 @@ function openHouseDetailsOnly(root = document) {
 }
 
 function resetHouseModals(root = document) {
-  root
-    .querySelectorAll('.houses-modal, .house-details-modal, .house-selection-panel')
+  const scope = root || document;
+
+  scope
+    .querySelectorAll?.('.houses-modal, .house-details-modal, .house-selection-panel')
+    .forEach((modal) => hideModal(modal));
+
+  document
+    .querySelectorAll('.house-details-modal')
     .forEach((modal) => hideModal(modal));
 
   document.body?.classList.remove('mn-houses-modal-open');
@@ -224,17 +236,11 @@ function enableHouseModalGuard(root) {
 
     if (
       target.closest('.house-list li') ||
-      target.closest('.house-section-card') ||
-      target.closest('.house-card') ||
-      target.closest('[data-house-id]')
+      target.closest('.house-card')
     ) {
-      mode = 'details';
-
-      /*
-        housesView сначала откроет detail.
-        Потом guard закроет список, чтобы не было двух модалок.
-      */
-      scheduleEnforce(140);
+      // Клик по элементу списка не должен принудительно открывать вторую модалку.
+      mode = 'list';
+      scheduleEnforce(40);
     }
   }
 
@@ -274,7 +280,6 @@ function enableHouseModalGuard(root) {
   });
 
   root.addEventListener('click', handleClick, true);
-  root.addEventListener('pointerup', handleClick, true);
   window.addEventListener('keydown', handleKeyDown, true);
 
   window.addEventListener('mn:houses-list-open', handleOpenList);
@@ -299,7 +304,6 @@ function enableHouseModalGuard(root) {
     clearTimeout(timeoutId);
 
     root.removeEventListener('click', handleClick, true);
-    root.removeEventListener('pointerup', handleClick, true);
     window.removeEventListener('keydown', handleKeyDown, true);
 
     window.removeEventListener('mn:houses-list-open', handleOpenList);
