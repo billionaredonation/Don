@@ -303,7 +303,8 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
   .houses-panel,
   .house-details-panel {
-    transform: rotate(-90deg) !important;
+    /* Поворот по стрелке: слева направо */
+    transform: rotate(90deg) !important;
     rotate: 0deg !important;
     translate: 0 0 !important;
 
@@ -311,7 +312,6 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
     width: min(500px, calc(100dvh - 22px)) !important;
     max-width: calc(100dvh - 22px) !important;
-
     max-height: calc(100vw - 22px) !important;
 
     padding: 11px !important;
@@ -327,6 +327,7 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     width: min(420px, calc(100dvh - 22px)) !important;
     max-width: calc(100dvh - 22px) !important;
   }
+}
 
   .houses-header {
     margin-bottom: 9px !important;
