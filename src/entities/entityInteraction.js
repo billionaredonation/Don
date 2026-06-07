@@ -10,7 +10,9 @@ import {
 import { dispatchEntityAction } from './entityActions.js';
 import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
-const INTERACTION_RADIUS_PX = 46;
+const INTERACTION_RADIUS_PX = 64;
+const MOBILE_INTERACTION_RADIUS_PX = 118;
+const DIRECT_TAP_RADIUS_PX = 170;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 
 function getPurchasedHouseId(detail = {}) {
@@ -393,8 +395,18 @@ export function enableEntityInteraction({
     });
   }
 
-  function isObjectInInteractionRange(object) {
-    return getDistanceToObject(object) <= INTERACTION_RADIUS_PX;
+  function getInteractionRadius() {
+    return isMobileGameplayDevice()
+      ? MOBILE_INTERACTION_RADIUS_PX
+      : INTERACTION_RADIUS_PX;
+  }
+
+  function isObjectInInteractionRange(object, { directTap = false } = {}) {
+    const radius = directTap && isMobileGameplayDevice()
+      ? DIRECT_TAP_RADIUS_PX
+      : getInteractionRadius();
+
+    return getDistanceToObject(object) <= radius;
   }
 
   function getNearestInteractableObject() {
@@ -406,7 +418,7 @@ export function enableEntityInteraction({
 
       const distance = getDistanceToObject(object);
 
-      if (distance <= INTERACTION_RADIUS_PX && distance < bestDistance) {
+      if (distance <= getInteractionRadius() && distance < bestDistance) {
         bestObject = object;
         bestDistance = distance;
       }
@@ -502,10 +514,10 @@ export function enableEntityInteraction({
     rafId = requestAnimationFrame(updateInteractionHint);
   }
 
-  function tryOpenObject(object, { silent = false } = {}) {
+  function tryOpenObject(object, { silent = false, directTap = false } = {}) {
     if (!object) return false;
 
-    if (!isObjectInInteractionRange(object)) {
+    if (!isObjectInInteractionRange(object, { directTap })) {
       if (!silent) {
         showInteractionNotice(root, 'Подойди ближе');
       }
@@ -529,7 +541,9 @@ export function enableEntityInteraction({
     event.preventDefault();
     event.stopPropagation();
 
-    tryOpenObject(object);
+    tryOpenObject(object, {
+      directTap: isMobilePointerEvent(event),
+    });
   }
 
   function onKeyDown(event) {
