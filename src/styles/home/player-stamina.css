@@ -1,0 +1,511 @@
+.gta-player-marker {
+  position: absolute;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.gta-player-marker-self .gta-player-lidar::before {
+  background: linear-gradient(
+    180deg,
+    rgba(235, 250, 255, 0.58) 0%,
+    rgba(130, 210, 255, 0.26) 54%,
+    rgba(80, 170, 255, 0) 100%
+  );
+  filter: drop-shadow(0 0 6px rgba(120, 210, 255, 0.45));
+}
+
+.gta-player-lidar::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: -21px !important;
+  width: 18px !important;
+  height: 28px !important;
+  translate: -50% 0 !important;
+  clip-path: polygon(50% 0%, 72% 100%, 28% 100%) !important;
+  border-radius: 14px 14px 8px 8px !important;
+}
+
+.gta-player-marker-other .gta-player-lidar::before {
+  background: linear-gradient(
+    180deg,
+    rgba(225, 230, 235, 0.34) 0%,
+    rgba(165, 170, 180, 0.22) 55%,
+    rgba(120, 125, 135, 0.03) 100%
+  );
+  box-shadow:
+    inset 0 0 0 1px rgba(230, 235, 240, 0.22),
+    0 0 8px rgba(180, 185, 195, 0.22);
+}
+
+.gta-player-marker {
+  position: absolute !important;
+  translate: -50% -50% !important;
+  display: grid !important;
+  place-items: center !important;
+  pointer-events: none !important;
+  z-index: 40 !important;
+}
+
+.gta-player-lidar {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 28px !important;
+  height: 28px !important;
+  translate: -50% -50% !important;
+  rotate: var(--player-angle, 0deg) !important;
+  transform-origin: center !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+.gta-player-lidar::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: -20px !important;
+  width: 16px !important;
+  height: 24px !important;
+  translate: -50% 0 !important;
+  clip-path: polygon(50% 0%, 82% 100%, 18% 100%) !important;
+  border-radius: 12px !important;
+}
+
+.gta-player-marker-self .gta-player-lidar::before {
+  background: linear-gradient(
+    180deg,
+    rgba(245, 252, 255, 0.72),
+    rgba(145, 220, 255, 0.26) 58%,
+    rgba(80, 170, 255, 0) 100%
+  ) !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 0 5px rgba(120, 210, 255, 0.38)) !important;
+}
+
+.gta-player-marker-other .gta-player-lidar::before {
+  background: linear-gradient(
+    180deg,
+    rgba(220, 225, 230, 0.44),
+    rgba(150, 155, 165, 0.18) 58%,
+    rgba(120, 125, 135, 0) 100%
+  ) !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 0 4px rgba(180, 185, 195, 0.22)) !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot {
+  background: #f1fbff !important;
+  box-shadow:
+    0 0 0 2px rgba(120, 210, 255, 0.12),
+    0 0 8px rgba(180, 235, 255, 0.66) !important;
+}
+
+.gta-player-marker-other .gta-player-marker-dot {
+  background: #eeeeee !important;
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.08),
+    0 0 7px rgba(220,225,235,0.36) !important;
+}
+
+.gta-player-marker {
+  overflow: visible !important;
+}
+
+.gta-player-lidar {
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  translate: -50% -50% !important;
+  rotate: var(--player-angle, 0deg) !important;
+  transform-origin: center !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+}
+
+.gta-player-lidar::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: -25px !important;
+  width: 24px !important;
+  height: 34px !important;
+  translate: -50% 0 !important;
+  clip-path: none !important;
+  border-radius: 70% 70% 18% 18% / 88% 88% 20% 20% !important;
+  transform: perspective(40px) rotateX(18deg) scaleX(0.72) !important;
+  transform-origin: 50% 100% !important;
+}
+
+.gta-player-marker-self .gta-player-lidar::before {
+  background:
+    radial-gradient(
+      ellipse at 50% 100%,
+      rgba(145, 220, 255, 0.06) 0%,
+      rgba(145, 220, 255, 0.18) 28%,
+      rgba(180, 235, 255, 0.42) 100%
+    ) !important;
+  filter: drop-shadow(0 0 5px rgba(120, 210, 255, 0.34)) !important;
+  box-shadow: none !important;
+}
+
+.gta-player-marker-other .gta-player-lidar::before {
+  background:
+    radial-gradient(
+      ellipse at 50% 100%,
+      rgba(160, 165, 175, 0.04) 0%,
+      rgba(165, 170, 180, 0.12) 32%,
+      rgba(220, 225, 230, 0.32) 100%
+    ) !important;
+  filter: drop-shadow(0 0 4px rgba(180, 185, 195, 0.18)) !important;
+  box-shadow: none !important;
+}
+
+.gta-player-lidar::before {
+  top: -27px !important;
+  width: 34px !important;
+  height: 36px !important;
+  translate: -50% 0 !important;
+  border-radius: 80% 80% 20% 20% / 90% 90% 22% 22% !important;
+  transform: perspective(42px) rotateX(18deg) scaleX(0.9) !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot {
+  background: #f3fbff !important;
+  box-shadow:
+    0 0 0 2px rgba(120, 210, 255, 0.10),
+    0 0 5px rgba(180, 235, 255, 0.46) !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot {
+  background: #3a2a0a !important;
+  border-color: #f0c65a !important;
+}
+
+.gta-player-marker-other .gta-player-marker-dot {
+  background: #242424 !important;
+  border-color: #a8a8a8 !important;
+}
+
+.gta-player-lidar::before {
+  top: -25px !important;
+  width: 26px !important;
+  height: 32px !important;
+  opacity: 0.46 !important;
+}
+
+.gta-player-marker-dot::before {
+  width: 15px !important;
+  height: 15px !important;
+  opacity: 0.55 !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot {
+  border-width: 2px !important;
+  box-shadow:
+    0 0 0 1px rgba(245, 252, 255, 0.72),
+    0 0 5px rgba(165, 225, 255, 0.38) !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot::before {
+  background: radial-gradient(
+    circle,
+    rgba(190, 235, 255, 0.22) 0%,
+    rgba(145, 220, 255, 0.10) 48%,
+    transparent 100%
+  ) !important;
+}
+
+.gta-player-marker {
+  position: absolute !important;
+  translate: -50% -50% !important;
+  display: grid !important;
+  place-items: center !important;
+  pointer-events: none !important;
+  z-index: 40 !important;
+  overflow: visible !important;
+}
+
+.gta-player-lidar {
+  display: none !important;
+}
+
+.gta-player-marker-dot {
+  position: relative !important;
+  width: 5px !important;
+  height: 5px !important;
+  border-radius: 50% !important;
+  box-sizing: border-box !important;
+  z-index: 4 !important;
+}
+
+.gta-player-marker-dot::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  width: 11px !important;
+  height: 11px !important;
+  translate: -50% -50% !important;
+  border-radius: 50% !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot {
+  background: #3a2605 !important;
+  border: 1.5px solid #e6b84a !important;
+  box-shadow:
+    0 0 0 1px rgba(245, 252, 255, 0.72),
+    0 0 4px rgba(165, 225, 255, 0.34) !important;
+}
+
+.gta-player-marker-self .gta-player-marker-dot::before {
+  background: radial-gradient(
+    circle,
+    rgba(190, 235, 255, 0.2) 0%,
+    rgba(145, 220, 255, 0.08) 52%,
+    transparent 100%
+  ) !important;
+}
+
+.gta-player-marker-other .gta-player-marker-dot {
+  background: #232323 !important;
+  border: 1.5px solid #a8a8a8 !important;
+  box-shadow:
+    0 0 0 1px rgba(235,235,235,0.5),
+    0 0 3px rgba(210,215,225,0.28) !important;
+}
+
+.gta-player-marker-other .gta-player-marker-dot::before {
+  background: radial-gradient(
+    circle,
+    rgba(220, 225, 235, 0.14) 0%,
+    rgba(180, 185, 195, 0.06) 55%,
+    transparent 100%
+  ) !important;
+}
+
+.gta-player-marker-name {
+  position: absolute !important;
+  top: 8px !important;
+  padding: 2px 5px !important;
+  border-radius: 999px !important;
+  color: rgba(255,255,255,0.94) !important;
+  background: rgba(5, 7, 10, 0.84) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  font-size: 7.5px !important;
+  font-weight: 1000 !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+  z-index: 5 !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3) !important;
+}
+
+.gta-map-viewport {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  overflow: hidden;
+  transform-origin: center center;
+}
+
+.fog-of-war-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  mix-blend-mode: normal;
+  filter: blur(0.4px);
+}
+
+.gta-map-entities {
+  z-index: 90;
+}
+
+.mobile-controls-layer,
+.gta-map-header {
+  z-index: 120;
+}
+
+.gta-player-marker-self .gta-player-marker-name {
+  display: none !important;
+}
+
+.gta-player-marker {
+  position: absolute;
+  z-index: 130;
+}
+
+html,
+body,
+#app,
+.home,
+.home-gameplay,
+.gta-map-stage,
+.mobile-controls-layer,
+.mobile-joystick,
+.mobile-joystick-base,
+.mobile-joystick-stick {
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+.mobile-joystick,
+.mobile-joystick-base,
+.mobile-joystick-stick {
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.gta-player-marker-dot {
+  width: 4px !important;
+  height: 4px !important;
+}
+
+.gta-player-marker-dot::before {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.gta-player-marker-name {
+  top: 7px !important;
+  font-size: 6.8px !important;
+  padding: 2px 4px !important;
+}
+
+.mobile-sprint-button {
+  position: fixed;
+  right: 22px;
+  bottom: 118px;
+  z-index: 80;
+
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 999px;
+
+  background: rgba(10, 12, 16, 0.72);
+  color: #fff;
+
+  font-size: 22px;
+  line-height: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+
+.mobile-sprint-button.is-active {
+  transform: scale(1.08);
+  border-color: rgba(255,255,255,0.55);
+}
+
+.mobile-sprint-button.is-locked {
+  opacity: 0.38;
+  filter: grayscale(1);
+}
+
+.mobile-stamina {
+  position: absolute;
+  left: 22px;
+  bottom: 170px;
+  z-index: 80;
+  width: 138px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(10, 12, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.mobile-stamina-label {
+  margin-bottom: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.mobile-stamina-track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mobile-stamina-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd24a, #58ff8a);
+  transition: width 0.12s linear, background 0.16s ease;
+}
+
+.mobile-stamina-fill[data-state="low"] {
+  background: linear-gradient(90deg, #ff8a3d, #ffd24a);
+}
+
+.mobile-stamina-fill[data-state="locked"] {
+  background: linear-gradient(90deg, #ff3d3d, #ff8a3d);
+}
+
+.pc-stamina {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  z-index: 999;
+  width: 180px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(10, 12, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.pc-stamina-label {
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pc-stamina-track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.pc-stamina-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd24a, #58ff8a);
+  transition: width 0.12s linear, background 0.16s ease;
+}
+
+.pc-stamina-fill[data-state="low"] {
+  background: linear-gradient(90deg, #ff8a3d, #ffd24a);
+}
+
+.pc-stamina-fill[data-state="locked"] {
+  background: linear-gradient(90deg, #ff3d3d, #ff8a3d);
+}
