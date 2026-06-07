@@ -18,10 +18,6 @@ function percentToNumber(value, fallback = 50) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function normalizeText(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
 function getPlayerId(player) {
   return String(
     player?.playerId ||
@@ -43,70 +39,42 @@ function isSamePlayer(a, b) {
   return String(a || '') === String(b || '');
 }
 
-function isSameNickname(a, b) {
-  const left = normalizeText(a);
-  const right = normalizeText(b);
-
-  return Boolean(left && right && left === right);
-}
-
-function isLocalPlayerLike(player, localPlayerId, localNickname) {
+function isLocalPlayerLike(player, localPlayerId) {
   if (!player) return false;
 
   const playerId = getPlayerId(player);
-  const nickname = getNickname(player);
-
-  if (isSamePlayer(playerId, localPlayerId)) {
-    return true;
-  }
-
-  /*
-    Если в Supabase осталась старая запись с тем же ником,
-    но другим playerId, считаем её локальным дублем.
-  */
-  if (isSameNickname(nickname, localNickname)) {
-    return true;
-  }
-
-  return false;
-}
-
-function cleanupLocalDuplicates(entities, localPlayerId, localNickname) {
-  if (!entities) return;
 
   /*
     ВАЖНО:
-    чистим только .gta-player-marker-other.
-    Свой .gta-player-marker-self не трогаем вообще.
+    Проверяем только player_id.
+    Ник НЕ используем для фильтрации, иначе один игрок может скрыть другого.
+  */
+  return isSamePlayer(playerId, localPlayerId);
+}
+
+function cleanupLocalDuplicates(entities, localPlayerId) {
+  if (!entities || !localPlayerId) return;
+
+  /*
+    Чистим только чужой DOM-маркер с тем же player_id.
+    По нику больше ничего не удаляем.
   */
   entities
     .querySelectorAll('.gta-player-marker-other')
     .forEach((marker) => {
       const markerPlayerId = marker.dataset.playerId;
-      const markerNickname = marker.dataset.nickname;
 
-      const isDuplicateById =
-        localPlayerId &&
-        isSamePlayer(markerPlayerId, localPlayerId);
-
-      const isDuplicateByNickname =
-        localNickname &&
-        isSameNickname(markerNickname, localNickname);
-
-      if (!isDuplicateById && !isDuplicateByNickname) {
+      if (!isSamePlayer(markerPlayerId, localPlayerId)) {
         return;
       }
 
-      if (markerPlayerId) {
-        const state = remoteMarkers.get(markerPlayerId);
+      const state = remoteMarkers.get(markerPlayerId);
 
-        if (state?.animationId) {
-          cancelAnimationFrame(state.animationId);
-        }
-
-        remoteMarkers.delete(markerPlayerId);
+      if (state?.animationId) {
+        cancelAnimationFrame(state.animationId);
       }
 
+      remoteMarkers.delete(markerPlayerId);
       marker.remove();
     });
 }
@@ -255,9 +223,8 @@ export function upsertPlayerMarker(
   if (!playerId) return;
 
   /*
-    ВАЖНО:
-    своего игрока тут не рисуем и не удаляем.
-    Своего игрока уже отрисовал renderPlayersHtml().
+    Свой marker не рисуем здесь.
+    Его рисует renderPlayersHtml().
   */
   if (isSamePlayer(playerId, localPlayerId)) {
     return;
@@ -269,7 +236,7 @@ export function upsertPlayerMarker(
   }
 
   const selector =
-    `[data-player-id="${CSS.escape(playerId)}"]`;
+    `.gta-player-marker-other[data-player-id="${CSS.escape(playerId)}"]`;
 
   let marker = entities.querySelector(selector);
 
@@ -375,10 +342,6 @@ export function removePlayerMarker(entities, playerId) {
 
   remoteMarkers.delete(safePlayerId);
 
-  /*
-    Удаляем только чужой маркер.
-    Свой .gta-player-marker-self не трогаем.
-  */
   const marker = entities.querySelector(
     `.gta-player-marker-other[data-player-id="${CSS.escape(safePlayerId)}"]`
   );
@@ -388,7 +351,7 @@ export function removePlayerMarker(entities, playerId) {
   }
 }
 
-function startStalePlayersCleanup(entities, localPlayerId, localNickname) {
+function startStalePlayersCleanup(entities, localPlayerId) {
   const staleAfter =
     NETWORK_CONFIG.movement.staleAfter;
 
@@ -398,7 +361,7 @@ function startStalePlayersCleanup(entities, localPlayerId, localNickname) {
   const timer = setInterval(() => {
     const now = Date.now();
 
-    cleanupLocalDuplicates(entities, localPlayerId, localNickname);
+    cleanupLocalDuplicates(entities, localPlayerId);
 
     entities
       .querySelectorAll('.gta-player-marker-other')
@@ -451,46 +414,30 @@ export function setupPlayerNetwork({
   cityId,
   playerId,
   localPlayerId,
-  localNickname = '',
   entities,
 }) {
   const selfPlayerId =
     localPlayerId || playerId;
 
-  /*
-    Стартовая чистка дублей.
-    Не удаляет своего игрока, потому что работает только по .gta-player-marker-other.
-  */
   cleanupLocalDuplicates(
     entities,
-    selfPlayerId,
-    localNickname
+    selfPlayerId
   );
 
   const movementChannel =
     createCityMovementChannel(cityId, {
       onMove(player) {
-        if (!player) {
-          return;
-        }
+        if (!player) return;
 
-        /*
-          КРИТИЧНЫЙ ФИКС:
-          если пришёл broadcast/realtime своего игрока,
-          НЕ вызываем removePlayerMarker().
-          Иначе свой персонаж появляется на секунду и исчезает.
-        */
         if (
           isLocalPlayerLike(
             player,
-            selfPlayerId,
-            localNickname
+            selfPlayerId
           )
         ) {
           cleanupLocalDuplicates(
             entities,
-            selfPlayerId,
-            localNickname
+            selfPlayerId
           );
 
           return;
@@ -510,8 +457,7 @@ export function setupPlayerNetwork({
   const cleanupStalePlayers =
     startStalePlayersCleanup(
       entities,
-      selfPlayerId,
-      localNickname
+      selfPlayerId
     );
 
   const cleanupOffline =
@@ -523,25 +469,17 @@ export function setupPlayerNetwork({
     cleanupRealtime =
       subscribeCityPlayers(cityId, {
         onInsert(player) {
-          if (!player) {
-            return;
-          }
+          if (!player) return;
 
-          /*
-            КРИТИЧНЫЙ ФИКС:
-            INSERT своего игрока игнорируем, не удаляем.
-          */
           if (
             isLocalPlayerLike(
               player,
-              selfPlayerId,
-              localNickname
+              selfPlayerId
             )
           ) {
             cleanupLocalDuplicates(
               entities,
-              selfPlayerId,
-              localNickname
+              selfPlayerId
             );
 
             return;
@@ -558,25 +496,17 @@ export function setupPlayerNetwork({
         },
 
         onUpdate(player) {
-          if (!player) {
-            return;
-          }
+          if (!player) return;
 
-          /*
-            КРИТИЧНЫЙ ФИКС:
-            UPDATE своего игрока игнорируем, не удаляем.
-          */
           if (
             isLocalPlayerLike(
               player,
-              selfPlayerId,
-              localNickname
+              selfPlayerId
             )
           ) {
             cleanupLocalDuplicates(
               entities,
-              selfPlayerId,
-              localNickname
+              selfPlayerId
             );
 
             return;
@@ -602,10 +532,6 @@ export function setupPlayerNetwork({
         },
 
         onDelete(playerId) {
-          /*
-            DELETE своего игрока игнорируем.
-            Локальный self-marker не должен удаляться realtime-сетью.
-          */
           if (
             isSamePlayer(
               playerId,
