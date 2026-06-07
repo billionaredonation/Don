@@ -1,7 +1,7 @@
 /* =========================================================
    HOME MODALS FINAL LAYER
    Модалки города/домов поверх игры.
-   Телефон: landscape-режим, фронталка слева.
+   Mobile: landscape-like, поворот по часовой стрелке.
    ========================================================= */
 
 .houses-modal,
@@ -78,6 +78,7 @@
   overflow-x: hidden !important;
 }
 
+/* Скрываем игровые слои при открытой модалке */
 body.mn-houses-modal-open .gta-player-marker,
 body.mn-houses-modal-open .gta-player-marker-self,
 body.mn-houses-modal-open .gta-player-marker-other,
@@ -278,7 +279,7 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
 /* =========================================================
    MOBILE LANDSCAPE
-   Телефон горизонтально, фронталка слева.
+   Поворот модалки по стрелке.
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
@@ -303,7 +304,6 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
   .houses-panel,
   .house-details-panel {
-    /* Поворот по стрелке: слева направо */
     transform: rotate(90deg) !important;
     rotate: 0deg !important;
     translate: 0 0 !important;
@@ -327,7 +327,6 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     width: min(420px, calc(100dvh - 22px)) !important;
     max-width: calc(100dvh - 22px) !important;
   }
-}
 
   .houses-header {
     margin-bottom: 9px !important;
@@ -460,90 +459,5 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
     font-size: 13px !important;
     font-weight: 1000 !important;
-  }
-
-  .houses-placeholder-section {
-    padding: 14px !important;
-    border-radius: 14px !important;
-  }
-
-  .houses-placeholder-section span {
-    font-size: 24px !important;
-  }
-
-  .houses-placeholder-section strong {
-    font-size: 16px !important;
-  }
-
-  .houses-placeholder-section p {
-    font-size: 11px !important;
-    line-height: 1.25 !important;
-  }
-
-  .house-details-header {
-    margin-bottom: 10px !important;
-  }
-
-  .house-details-header h3 {
-    font-size: 20px !important;
-    line-height: 1.05 !important;
-  }
-
-  .house-details-kicker {
-    font-size: 10px !important;
-  }
-
-  .house-details-hero {
-    padding: 10px !important;
-    border-radius: 14px !important;
-  }
-
-  .house-details-icon {
-    width: 42px !important;
-    height: 42px !important;
-    border-radius: 12px !important;
-    font-size: 22px !important;
-  }
-
-  .house-details-hero strong {
-    font-size: 22px !important;
-  }
-
-  .house-details-hero small {
-    font-size: 11px !important;
-  }
-
-  .house-details-grid {
-    gap: 8px !important;
-  }
-
-  .house-details-grid article {
-    padding: 9px !important;
-    border-radius: 13px !important;
-  }
-
-  .house-details-grid span {
-    font-size: 10px !important;
-  }
-
-  .house-details-grid strong {
-    font-size: 13px !important;
-  }
-
-  .house-details-text {
-    margin: 10px 0 !important;
-    font-size: 11px !important;
-    line-height: 1.3 !important;
-  }
-
-  .house-details-actions {
-    gap: 8px !important;
-  }
-
-  .house-secondary-button,
-  .house-buy-button {
-    min-height: 38px !important;
-    border-radius: 13px !important;
-    font-size: 13px !important;
   }
 }
