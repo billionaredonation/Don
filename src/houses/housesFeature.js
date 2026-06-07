@@ -1,4 +1,6 @@
 import { state, save } from '../state.js';
+import { supabase } from '../supabaseClient.js';
+import { getCityPlayers } from '../player/playerPosition.js';
 import { buyHouseFromState, fetchCityHousesState } from './housesRepository.js';
 import { getEmptyHousesState, normalizeHousesState } from './housesStats.js';
 import {
@@ -159,8 +161,49 @@ function isHousesModalOpen(root = document) {
   return isVisible(getHousesModal(root));
 }
 
-function isHouseDetailsOpen(root = document) {
-  return isVisible(getHouseDetailsModal(root));
+async function loadCitySummary(cityId) {
+  const runtime = state.citiesRuntime?.[cityId] || {};
+  const economy = runtime.economy || runtime;
+
+  const summary = {
+    budget:
+      economy.budget ??
+      economy.cityBudget ??
+      economy.moneySupply?.value ??
+      0,
+    inflation:
+      economy.inflation ??
+      economy.inflationPercent ??
+      0,
+    registeredPlayers: 0,
+    onlinePlayers: 0,
+  };
+
+  try {
+    const players = await getCityPlayers(cityId);
+    summary.onlinePlayers = Array.isArray(players) ? players.length : 0;
+  } catch (error) {
+    console.warn('[houses] online players count failed:', error);
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from('players')
+      .select('id', {
+        count: 'exact',
+        head: true,
+      })
+      .eq('city', cityId);
+
+    if (error) throw error;
+
+    summary.registeredPlayers = Number(count || 0);
+  } catch (error) {
+    console.warn('[houses] registered players count failed:', error);
+    summary.registeredPlayers = summary.onlinePlayers;
+  }
+
+  return summary;
 }
 
 function enableHouseModalGuard(root) {
@@ -238,7 +281,6 @@ function enableHouseModalGuard(root) {
       target.closest('.house-list li') ||
       target.closest('.house-card')
     ) {
-      // Клик по элементу списка не должен принудительно открывать вторую модалку.
       mode = 'list';
       scheduleEnforce(40);
     }
@@ -399,13 +441,17 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     document.body?.classList.remove('mn-houses-modal-open');
     document.body?.classList.remove('mn-house-details-open');
 
-    const houses = await loadHousesFeature(cityId);
+    const [houses, cityStats] = await Promise.all([
+      loadHousesFeature(cityId),
+      loadCitySummary(cityId),
+    ]);
 
     if (destroyed) return;
 
     root.insertAdjacentHTML('beforeend', renderHousesFeatureHtml({
       city: city || { name: cityId || 'Город' },
       houses,
+      cityStats,
     }));
 
     cleanupModal = enableHousesStatsModal(root, {
