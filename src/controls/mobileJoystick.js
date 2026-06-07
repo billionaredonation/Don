@@ -112,7 +112,7 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
 */
 function joystickToMapVector(screenX, screenY) {
   return {
-    x: -screenY,
+    x: screenY,
     y: screenX,
   };
 }
