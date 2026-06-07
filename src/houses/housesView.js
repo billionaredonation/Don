@@ -1,157 +1,188 @@
-import { renderHouseList } from './houseListView.js';
 import {
   createHouseDetailsController,
   renderHouseDetailsModal,
 } from './houseDetailsView.js';
 
-const FILTER_LABELS = {
-  all: 'Все дома',
-  free: 'Свободные',
-  owned: 'Купленные',
-};
+function formatMoney(value) {
+  const number = Number(value || 0);
 
-const HOUSES_FILTER_STORAGE_KEY = 'mn_houses_active_filter';
-
-function getValidFilter(value) {
-  return Object.hasOwn(FILTER_LABELS, value) ? value : 'all';
-}
-
-function getSavedFilter() {
-  try {
-    return getValidFilter(
-      sessionStorage.getItem(HOUSES_FILTER_STORAGE_KEY) || 'all'
-    );
-  } catch {
-    return 'all';
+  if (!Number.isFinite(number) || number <= 0) {
+    return '0 ₴';
   }
+
+  return `${number.toLocaleString('ru-RU')} ₴`;
 }
 
-function saveFilter(filter) {
-  try {
-    sessionStorage.setItem(HOUSES_FILTER_STORAGE_KEY, getValidFilter(filter));
-  } catch {
-    // ignore
+function formatPercent(value) {
+  const number = Number(value || 0);
+
+  if (!Number.isFinite(number)) {
+    return '0%';
   }
+
+  return `${Math.max(0, Math.round(number))}%`;
 }
 
-export function renderHousesFeatureHtml({ city, houses }) {
+function getCityStatValue(cityStats, key, fallback = 0) {
+  const value = cityStats?.[key];
+
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  return value;
+}
+
+function getSectionButtons(houses) {
+  return [
+    {
+      id: 'city',
+      icon: '📊',
+      title: 'Статистика',
+      text: 'Экономика города',
+      count: 'LIVE',
+    },
+    {
+      id: 'houses',
+      icon: '🏠',
+      title: 'Дома',
+      text: 'Недвижимость',
+      count: houses.housesTotal,
+    },
+    {
+      id: 'businesses',
+      icon: '💵',
+      title: 'Бизнесы',
+      text: 'Скоро',
+      count: 0,
+      disabled: true,
+    },
+    {
+      id: 'jobs',
+      icon: '🤝',
+      title: 'Работы',
+      text: 'Скоро',
+      count: 0,
+      disabled: true,
+    },
+  ];
+}
+
+export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
+  const budget = getCityStatValue(cityStats, 'budget', 0);
+  const inflation = getCityStatValue(cityStats, 'inflation', 0);
+  const registeredPlayers = getCityStatValue(cityStats, 'registeredPlayers', 0);
+  const onlinePlayers = getCityStatValue(cityStats, 'onlinePlayers', 0);
+
   return `
-    <div class="houses-modal" hidden>
+    <div class="houses-modal" hidden aria-hidden="true">
       <div class="houses-modal-backdrop" data-houses-stats-close></div>
 
-      <section class="houses-panel" role="dialog" aria-modal="true" aria-label="${city.name} — недвижимость">
-        <header class="houses-header">
+      <section class="houses-panel" role="dialog" aria-modal="true" aria-label="${city.name} — город">
+        <header class="houses-header houses-header-clean">
           <div class="houses-title-wrap">
-            <span class="houses-title-icon">🏢</span>
+            <span class="houses-title-icon">🏙️</span>
 
             <div class="houses-title-text">
-              <h2>${city.name} — <span>город</span></h2>
-              <p>Недвижимость, бизнесы, работы и экономика города</p>
+              <h2>${city.name}</h2>
+              <p>Городская статистика, недвижимость, бизнесы и работы</p>
             </div>
           </div>
-
-          <button class="houses-x-button" type="button" data-houses-stats-close aria-label="Закрыть">
-            ×
-          </button>
         </header>
 
-        <div class="houses-section-cards" aria-label="Разделы города">
-          <button type="button" class="houses-section-card houses-section-card-houses is-active" data-houses-section="houses">
-            <span class="houses-section-card-icon">🏠</span>
-            <span class="houses-section-card-text">
-              <strong>Дома</strong>
-              <small>Недвижимость игроков</small>
-            </span>
-            <b>${houses.housesTotal}</b>
-          </button>
+        <nav class="houses-section-cards houses-section-tabs" aria-label="Разделы города">
+          ${getSectionButtons(houses)
+            .map((section) => `
+              <button
+                type="button"
+                class="houses-section-card ${section.id === 'city' ? 'is-active' : ''} ${section.disabled ? 'is-disabled' : ''}"
+                data-houses-section-tab="${section.id}"
+                ${section.disabled ? 'aria-disabled="true"' : ''}
+              >
+                <span class="houses-section-card-icon">${section.icon}</span>
+                <span class="houses-section-card-text">
+                  <strong>${section.title}</strong>
+                  <small>${section.text}</small>
+                </span>
+                <b>${section.count}</b>
+              </button>
+            `)
+            .join('')}
+        </nav>
 
-          <button type="button" class="houses-section-card houses-section-card-business is-disabled" data-houses-section="businesses" disabled>
-            <span class="houses-section-card-icon">💵</span>
-            <span class="houses-section-card-text">
-              <strong>Бизнесы</strong>
-              <small>Доходные объекты · скоро</small>
-            </span>
-            <b>0</b>
-          </button>
+        <div class="houses-section-content is-active" data-houses-section-content="city">
+          <div class="houses-mini-stats-grid houses-city-stats-grid">
+            <article class="houses-mini-stat houses-mini-stat-purple">
+              <span>Бюджет города</span>
+              <strong>${formatMoney(budget)}</strong>
+              <small>Баланс городской экономики</small>
+            </article>
 
-          <button type="button" class="houses-section-card houses-section-card-jobs is-disabled" data-houses-section="jobs" disabled>
-            <span class="houses-section-card-icon">🤝</span>
-            <span class="houses-section-card-text">
-              <strong>Работы</strong>
-              <small>Заработок игрока · скоро</small>
-            </span>
-            <b>0</b>
-          </button>
+            <article class="houses-mini-stat houses-mini-stat-orange">
+              <span>Инфляция</span>
+              <strong>${formatPercent(inflation)}</strong>
+              <small>Текущий игровой показатель</small>
+            </article>
+
+            <article class="houses-mini-stat houses-mini-stat-green">
+              <span>Игроков зарегистрировано</span>
+              <strong>${Number(registeredPlayers || 0).toLocaleString('ru-RU')}</strong>
+              <small>Всего в этом городе</small>
+            </article>
+
+            <article class="houses-mini-stat">
+              <span>Сейчас онлайн</span>
+              <strong>${Number(onlinePlayers || 0).toLocaleString('ru-RU')}</strong>
+              <small>Активные игроки города</small>
+            </article>
+          </div>
         </div>
 
-        <div class="houses-section-content" data-houses-section-content="houses">
-          <div class="houses-stats-grid">
-            <article class="houses-stat-card houses-stat-purple">
-              <span class="houses-stat-icon">🏠</span>
-              <div class="houses-stat-main">
-                <em>Дома</em>
-                <strong>${houses.housesTotal}</strong>
-                <small>Всего объектов</small>
-              </div>
-              <div class="houses-progress">
-                <i style="width:100%"></i>
-                <b>${houses.housesTotal}</b>
-              </div>
+        <div class="houses-section-content" data-houses-section-content="houses" hidden>
+          <div class="houses-mini-stats-grid">
+            <article class="houses-mini-stat houses-mini-stat-purple">
+              <span>Всего домов</span>
+              <strong>${houses.housesTotal}</strong>
+              <small>Общее количество объектов</small>
             </article>
 
-            <article class="houses-stat-card houses-stat-green">
-              <span class="houses-stat-icon">✅</span>
-              <div class="houses-stat-main">
-                <em>Свободно</em>
-                <strong>${houses.housesFree}</strong>
-                <small>Можно купить</small>
-              </div>
-              <div class="houses-progress">
-                <i style="width:${houses.housesFreePercent}%"></i>
-                <b>${houses.housesFreePercent}%</b>
-              </div>
+            <article class="houses-mini-stat houses-mini-stat-green">
+              <span>Свободных</span>
+              <strong>${houses.housesFree}</strong>
+              <small>Можно купить на карте</small>
             </article>
 
-            <article class="houses-stat-card houses-stat-orange">
-              <span class="houses-stat-icon">🔒</span>
-              <div class="houses-stat-main">
-                <em>Куплено</em>
-                <strong>${houses.housesOwned}</strong>
-                <small>Уже занято</small>
-              </div>
-              <div class="houses-progress">
-                <i style="width:${houses.housesOwnedPercent}%"></i>
-                <b>${houses.housesOwnedPercent}%</b>
-              </div>
+            <article class="houses-mini-stat houses-mini-stat-orange">
+              <span>Купленных</span>
+              <strong>${houses.housesOwned}</strong>
+              <small>Уже заняты игроками</small>
             </article>
           </div>
 
-          <section class="houses-list-section">
-            <div class="houses-list-header">
-              <h3>⌂ Список домов</h3>
+          <p class="houses-section-note">
+            Покупка работает через иконки домов на карте: подойди к дому и нажми на него.
+          </p>
+        </div>
 
-              <div class="houses-filter">
-                <button type="button" class="houses-filter-button" data-houses-filter-button>
-                  <span data-houses-filter-label>${FILTER_LABELS[getSavedFilter()]}</span>
-                  <b>⌄</b>
-                </button>
+        <div class="houses-section-content" data-houses-section-content="businesses" hidden>
+          <div class="houses-placeholder-section">
+            <span>💵</span>
+            <strong>Бизнесы</strong>
+            <p>Раздел подготовлен под будущие доходные объекты. Сейчас активных бизнесов: <b>0</b>.</p>
+          </div>
+        </div>
 
-                <div class="houses-filter-menu" hidden data-houses-filter-menu>
-                  <button type="button" data-houses-filter="all">Все дома</button>
-                  <button type="button" data-houses-filter="free">Свободные</button>
-                  <button type="button" data-houses-filter="owned">Купленные</button>
-                </div>
-              </div>
-            </div>
-
-            ${renderHouseList(houses.houses)}
-          </section>
+        <div class="houses-section-content" data-houses-section-content="jobs" hidden>
+          <div class="houses-placeholder-section">
+            <span>🤝</span>
+            <strong>Работы</strong>
+            <p>Раздел подготовлен под будущие работы. Сейчас активных работ: <b>0</b>.</p>
+          </div>
         </div>
 
         ${renderHouseDetailsModal()}
 
-        <footer class="houses-footer">
-          <span>ⓘ Сейчас активен только раздел домов. Бизнесы и работы будут добавлены позже.</span>
+        <footer class="houses-footer houses-footer-clean">
           <button class="houses-close-button" type="button" data-houses-stats-close>
             Закрыть
           </button>
@@ -170,54 +201,29 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
   const openButton = root.querySelector('.player-city-button');
   const closeButtons = modal?.querySelectorAll('[data-houses-stats-close]') || [];
-
-  const filterButton = modal?.querySelector('[data-houses-filter-button]');
-  const filterMenu = modal?.querySelector('[data-houses-filter-menu]');
-  const filterLabel = modal?.querySelector('[data-houses-filter-label]');
-  const houseItems = Array.from(modal?.querySelectorAll('[data-house-state]') || []);
-  const filterEmpty = modal?.querySelector('[data-house-filter-empty]');
+  const sectionTabs = Array.from(modal?.querySelectorAll('[data-houses-section-tab]') || []);
+  const sectionContents = Array.from(modal?.querySelectorAll('[data-houses-section-content]') || []);
 
   const detailsController = createHouseDetailsController(modal, {
     onBuy: onBuyHouse,
   });
 
-  let activeFilter = getSavedFilter();
+  let activeSection = 'city';
 
-  function setFilterMenuOpen(nextOpen) {
-    if (!filterMenu || !filterButton) return;
+  function setActiveSection(sectionId = 'city') {
+    activeSection = sectionId;
 
-    filterMenu.hidden = !nextOpen;
-    filterButton.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
-  }
-
-  function applyFilter(nextFilter = 'all') {
-    const filter = getValidFilter(nextFilter);
-
-    activeFilter = filter;
-    saveFilter(filter);
-
-    let visibleCount = 0;
-
-    houseItems.forEach((item) => {
-      const itemState = String(item.dataset.houseState || '');
-      const isVisible = filter === 'all' || itemState === filter;
-
-      item.hidden = !isVisible;
-      item.style.display = isVisible ? '' : 'none';
-
-      if (isVisible) visibleCount += 1;
+    sectionTabs.forEach((button) => {
+      const isActive = button.dataset.housesSectionTab === sectionId;
+      button.classList.toggle('is-active', isActive);
+      button.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
 
-    if (filterLabel) {
-      filterLabel.textContent = FILTER_LABELS[filter];
-    }
-
-    if (filterEmpty) {
-      filterEmpty.hidden = visibleCount > 0;
-      filterEmpty.style.display = visibleCount > 0 ? 'none' : '';
-    }
-
-    setFilterMenuOpen(false);
+    sectionContents.forEach((content) => {
+      const isActive = content.dataset.housesSectionContent === sectionId;
+      content.hidden = !isActive;
+      content.classList.toggle('is-active', isActive);
+    });
   }
 
   function open(event) {
@@ -226,11 +232,18 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
 
     if (!modal) return;
 
-    modal.hidden = false;
-    root.dataset.housesStatsOpen = 'true';
-    document.body.classList.add('mn-houses-modal-open');
+    detailsController.close();
 
-    applyFilter(activeFilter);
+    modal.hidden = false;
+    modal.removeAttribute('aria-hidden');
+    root.dataset.housesStatsOpen = 'true';
+
+    document.body.classList.add('mn-houses-modal-open');
+    document.body.classList.remove('mn-house-details-open');
+
+    setActiveSection(activeSection || 'city');
+
+    window.dispatchEvent(new CustomEvent('mn:houses-list-opened'));
   }
 
   function close(event) {
@@ -240,58 +253,49 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
     if (!modal) return;
 
     modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
     delete root.dataset.housesStatsOpen;
-    document.body.classList.remove('mn-houses-modal-open');
 
-    setFilterMenuOpen(false);
     detailsController.close();
+
+    document.body.classList.remove('mn-houses-modal-open');
+    document.body.classList.remove('mn-house-details-open');
+
+    window.dispatchEvent(new CustomEvent('mn:houses-list-closed'));
   }
 
-  function toggleFilterMenu(event) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!filterMenu) return;
-
-    setFilterMenuOpen(filterMenu.hidden);
-  }
-
-  function handleFilterMenuClick(event) {
-    const button = event.target.closest('[data-houses-filter]');
+  function handleSectionClick(event) {
+    const button = event.target.closest('[data-houses-section-tab]');
     if (!button) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    applyFilter(button.dataset.housesFilter);
-  }
+    if (button.classList.contains('is-disabled') || button.disabled) {
+      return;
+    }
 
-  function handleHouseClick(event) {
-    const item = event.target.closest('[data-house-id]');
-    if (!item) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    // Клик по дому внутри общего списка только показывает список.
-    // Детальная покупка отсюда не открывается.
+    setActiveSection(button.dataset.housesSectionTab || 'city');
   }
 
   function handleGlobalHouseAction(event) {
     const house = event.detail?.house;
     if (!house) return;
 
-    // ВАЖНО:
-    // Клик по дому на карте открывает покупку.
-    // Клик по дому в списке выше НЕ открывает покупку.
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      delete root.dataset.housesStatsOpen;
+    }
+
+    document
+      .querySelectorAll('.house-selection-panel')
+      .forEach((panel) => {
+        panel.hidden = true;
+        panel.setAttribute('aria-hidden', 'true');
+      });
+
     detailsController.open(house);
-  }
-
-  function handleOutsideClick(event) {
-    if (!filterMenu || filterMenu.hidden) return;
-    if (event.target.closest('.houses-filter')) return;
-
-    setFilterMenuOpen(false);
   }
 
   function handleKeydown(event) {
@@ -300,57 +304,29 @@ export function enableHousesStatsModal(root, { onBuyHouse } = {}) {
     }
   }
 
-  window.__MN_HOUSES__ = window.__MN_HOUSES__ || new Map();
-
-  houseItems.forEach((item) => {
-    const houseId = String(item.dataset.houseId);
-    const houseElement = item;
-
-    const house = {
-      id: houseId,
-      name: houseElement.querySelector('.house-card-title-row b')?.textContent || 'Дом',
-      icon: houseElement.querySelector('.house-card-icon')?.textContent || '🏠',
-      payload: {
-        price: Number(
-          houseElement
-            .querySelector('.house-price')
-            ?.textContent
-            ?.replace(/\D/g, '') || 0
-        ),
-        ownerId: item.dataset.houseState === 'owned' ? 'player' : '',
-      },
-    };
-
-    window.__MN_HOUSES__.set(houseId, house);
-  });
-
   openButton?.addEventListener('click', open);
+  modal?.addEventListener('click', handleSectionClick);
   window.addEventListener('mn:house-action', handleGlobalHouseAction);
-  filterButton?.addEventListener('click', toggleFilterMenu);
-  filterMenu?.addEventListener('click', handleFilterMenuClick);
-  modal?.addEventListener('click', handleHouseClick);
-  document.addEventListener('click', handleOutsideClick);
   document.addEventListener('keydown', handleKeydown);
 
   closeButtons.forEach((button) => {
     button.addEventListener('click', close);
+    button.addEventListener('pointerup', close);
   });
 
-  applyFilter(activeFilter);
+  setActiveSection('city');
 
   return () => {
     close();
 
     openButton?.removeEventListener('click', open);
+    modal?.removeEventListener('click', handleSectionClick);
     window.removeEventListener('mn:house-action', handleGlobalHouseAction);
-    filterButton?.removeEventListener('click', toggleFilterMenu);
-    filterMenu?.removeEventListener('click', handleFilterMenuClick);
-    modal?.removeEventListener('click', handleHouseClick);
-    document.removeEventListener('click', handleOutsideClick);
     document.removeEventListener('keydown', handleKeydown);
 
     closeButtons.forEach((button) => {
       button.removeEventListener('click', close);
+      button.removeEventListener('pointerup', close);
     });
 
     detailsController.cleanup();
