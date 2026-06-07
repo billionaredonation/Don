@@ -2,9 +2,13 @@ export const NETWORK_CONFIG = {
   movement: {
     broadcastInterval: 50,
     dbSaveInterval: 1200,
-    heartbeatDelay: 1500,
 
-    staleAfter: 12000,
+    // Presence / online
+    heartbeatDelay: 1500,
+    presenceHeartbeatInterval: 4000,
+    onlineTtlMs: 18000,
+
+    staleAfter: 18000,
     staleCheckInterval: 2000,
 
     remoteSmoothing: 0.16,
