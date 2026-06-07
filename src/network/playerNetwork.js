@@ -18,8 +18,113 @@ function percentToNumber(value, fallback = 50) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getPlayerId(player) {
+  return String(
+    player?.playerId ||
+    player?.player_id ||
+    player?.id ||
+    ''
+  );
+}
+
+function getNickname(player) {
+  return String(
+    player?.nickname ||
+    player?.name ||
+    ''
+  ).trim();
+}
+
 function isSamePlayer(a, b) {
   return String(a || '') === String(b || '');
+}
+
+function isSameNickname(a, b) {
+  const left = normalizeText(a);
+  const right = normalizeText(b);
+
+  return Boolean(left && right && left === right);
+}
+
+function isLocalPlayerLike(player, localPlayerId, localNickname) {
+  if (!player) return false;
+
+  const playerId = getPlayerId(player);
+  const nickname = getNickname(player);
+
+  if (isSamePlayer(playerId, localPlayerId)) {
+    return true;
+  }
+
+  /*
+    Фикс двойника:
+    если в Supabase осталась старая запись с тем же ником,
+    но другим playerId, не рисуем её как чужого игрока.
+  */
+  if (isSameNickname(nickname, localNickname)) {
+    return true;
+  }
+
+  return false;
+}
+
+function removePlayerMarkerByNickname(entities, nickname) {
+  const target = normalizeText(nickname);
+
+  if (!entities || !target) return;
+
+  entities
+    .querySelectorAll('.gta-player-marker-other')
+    .forEach((marker) => {
+      const markerNickname = normalizeText(marker.dataset.nickname);
+
+      if (markerNickname === target) {
+        const playerId = marker.dataset.playerId;
+
+        if (playerId) {
+          remoteMarkers.delete(playerId);
+        }
+
+        marker.remove();
+      }
+    });
+}
+
+function cleanupLocalDuplicates(entities, localPlayerId, localNickname) {
+  if (!entities) return;
+
+  entities
+    .querySelectorAll('.gta-player-marker-other')
+    .forEach((marker) => {
+      const markerPlayerId = marker.dataset.playerId;
+      const markerNickname = marker.dataset.nickname;
+
+      const isDuplicateById =
+        localPlayerId &&
+        isSamePlayer(markerPlayerId, localPlayerId);
+
+      const isDuplicateByNickname =
+        localNickname &&
+        isSameNickname(markerNickname, localNickname);
+
+      if (isDuplicateById || isDuplicateByNickname) {
+        if (markerPlayerId) {
+          const state = remoteMarkers.get(markerPlayerId);
+
+          if (state?.animationId) {
+            cancelAnimationFrame(state.animationId);
+          }
+
+          remoteMarkers.delete(markerPlayerId);
+        }
+
+        marker.remove();
+      }
+    });
 }
 
 function getPacketTime(player) {
@@ -39,7 +144,7 @@ function shortestAngleDelta(from, to) {
 }
 
 function getRemoteState(marker, player) {
-  const playerId = player.playerId;
+  const playerId = getPlayerId(player);
 
   let state = remoteMarkers.get(playerId);
 
@@ -159,24 +264,35 @@ export function upsertPlayerMarker(
   localPlayerId,
   options = {}
 ) {
-  if (!entities || !player?.playerId) return;
+  if (!entities || !player) return;
 
-  if (isSamePlayer(player.playerId, localPlayerId)) return;
+  const playerId = getPlayerId(player);
+
+  if (!playerId) return;
+
+  if (isSamePlayer(playerId, localPlayerId)) return;
 
   if (player.isOnline === false) {
-    removePlayerMarker(entities, player.playerId);
+    removePlayerMarker(entities, playerId);
     return;
   }
 
   const selector =
-    `[data-player-id="${player.playerId}"]`;
+    `[data-player-id="${CSS.escape(playerId)}"]`;
 
   let marker = entities.querySelector(selector);
 
   if (!marker) {
     entities.insertAdjacentHTML(
       'beforeend',
-      createPlayerMarkerHtml(player, localPlayerId)
+      createPlayerMarkerHtml(
+        {
+          ...player,
+          playerId,
+          nickname: getNickname(player),
+        },
+        localPlayerId
+      )
     );
 
     marker = entities.querySelector(selector);
@@ -192,7 +308,10 @@ export function upsertPlayerMarker(
   const packetMaxAge =
     NETWORK_CONFIG.movement.remotePacketMaxAge ?? 3500;
 
-  const state = getRemoteState(marker, player);
+  const state = getRemoteState(marker, {
+    ...player,
+    playerId,
+  });
 
   if (!options.instant) {
     if (packetTime < state.lastPacketTime) {
@@ -210,8 +329,13 @@ export function upsertPlayerMarker(
   );
 
   marker.dataset.updatedAt = String(Date.now());
+  marker.dataset.nickname = getNickname(player);
 
-  updatePlayerMarkerView(marker, player);
+  updatePlayerMarkerView(marker, {
+    ...player,
+    playerId,
+    nickname: getNickname(player),
+  });
 
   if (options.instant) {
     if (state.animationId) {
@@ -251,7 +375,7 @@ export function upsertPlayerMarker(
   if (!state.animationId) {
     state.animationId =
       requestAnimationFrame(() =>
-        animateRemoteMarker(player.playerId)
+        animateRemoteMarker(playerId)
       );
   }
 }
@@ -259,16 +383,18 @@ export function upsertPlayerMarker(
 export function removePlayerMarker(entities, playerId) {
   if (!entities || !playerId) return;
 
-  const state = remoteMarkers.get(playerId);
+  const safePlayerId = String(playerId);
+
+  const state = remoteMarkers.get(safePlayerId);
 
   if (state?.animationId) {
     cancelAnimationFrame(state.animationId);
   }
 
-  remoteMarkers.delete(playerId);
+  remoteMarkers.delete(safePlayerId);
 
   const marker = entities.querySelector(
-    `[data-player-id="${playerId}"]`
+    `[data-player-id="${CSS.escape(safePlayerId)}"]`
   );
 
   if (marker) {
@@ -276,7 +402,7 @@ export function removePlayerMarker(entities, playerId) {
   }
 }
 
-function startStalePlayersCleanup(entities) {
+function startStalePlayersCleanup(entities, localPlayerId, localNickname) {
   const staleAfter =
     NETWORK_CONFIG.movement.staleAfter;
 
@@ -285,6 +411,8 @@ function startStalePlayersCleanup(entities) {
 
   const timer = setInterval(() => {
     const now = Date.now();
+
+    cleanupLocalDuplicates(entities, localPlayerId, localNickname);
 
     entities
       .querySelectorAll('.gta-player-marker-other')
@@ -337,21 +465,37 @@ export function setupPlayerNetwork({
   cityId,
   playerId,
   localPlayerId,
+  localNickname = '',
   entities,
 }) {
   const selfPlayerId =
     localPlayerId || playerId;
+
+  /*
+    Чистим уже нарисованных двойников сразу при запуске сети.
+  */
+  cleanupLocalDuplicates(
+    entities,
+    selfPlayerId,
+    localNickname
+  );
 
   const movementChannel =
     createCityMovementChannel(cityId, {
       onMove(player) {
         if (
           !player ||
-          isSamePlayer(
-            player.playerId,
-            selfPlayerId
+          isLocalPlayerLike(
+            player,
+            selfPlayerId,
+            localNickname
           )
         ) {
+          if (player) {
+            removePlayerMarker(entities, getPlayerId(player));
+            removePlayerMarkerByNickname(entities, localNickname);
+          }
+
           return;
         }
 
@@ -367,7 +511,11 @@ export function setupPlayerNetwork({
     });
 
   const cleanupStalePlayers =
-    startStalePlayersCleanup(entities);
+    startStalePlayersCleanup(
+      entities,
+      selfPlayerId,
+      localNickname
+    );
 
   const cleanupOffline =
     enableOfflineOnExit();
@@ -380,11 +528,17 @@ export function setupPlayerNetwork({
         onInsert(player) {
           if (
             !player ||
-            isSamePlayer(
-              player.playerId,
-              selfPlayerId
+            isLocalPlayerLike(
+              player,
+              selfPlayerId,
+              localNickname
             )
           ) {
+            if (player) {
+              removePlayerMarker(entities, getPlayerId(player));
+              removePlayerMarkerByNickname(entities, localNickname);
+            }
+
             return;
           }
 
@@ -401,18 +555,24 @@ export function setupPlayerNetwork({
         onUpdate(player) {
           if (
             !player ||
-            isSamePlayer(
-              player.playerId,
-              selfPlayerId
+            isLocalPlayerLike(
+              player,
+              selfPlayerId,
+              localNickname
             )
           ) {
+            if (player) {
+              removePlayerMarker(entities, getPlayerId(player));
+              removePlayerMarkerByNickname(entities, localNickname);
+            }
+
             return;
           }
 
           if (player.isOnline === false) {
             removePlayerMarker(
               entities,
-              player.playerId
+              getPlayerId(player)
             );
 
             return;
