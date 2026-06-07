@@ -1,0 +1,173 @@
+/* =========================================================
+   MAP OBJECTS / HOUSES
+   Общие размеры домов и hitbox для всех регионов.
+   ========================================================= */
+
+.map-objects-layer,
+.map-objects-layer-public,
+.map-objects-layer-admin {
+  position: absolute !important;
+  inset: 0 !important;
+
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+
+  visibility: visible !important;
+  opacity: 1 !important;
+
+  overflow: visible !important;
+  pointer-events: none !important;
+
+  z-index: 240 !important;
+}
+
+.map-object,
+.map-object-house,
+.map-object-business {
+  position: absolute !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  visibility: visible !important;
+  opacity: 1 !important;
+
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+
+  transform-origin: center center !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* База */
+.map-object {
+  width: 20px !important;
+  height: 20px !important;
+
+  min-width: 20px !important;
+  min-height: 20px !important;
+}
+
+/* Дома: чуть больше, но без перебора */
+.map-object.map-object-house,
+.map-objects-layer .map-object.map-object-house,
+.map-objects-layer .map-object.map-object-house.map-object-visual-standard {
+  width: 28px !important;
+  height: 28px !important;
+
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+
+  overflow: visible !important;
+  pointer-events: auto !important;
+}
+
+.map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
+.map-objects-layer .map-object.map-object-house.map-object-visual-premium {
+  width: 30px !important;
+  height: 30px !important;
+
+  min-width: 30px !important;
+  min-height: 30px !important;
+  max-width: 30px !important;
+  max-height: 30px !important;
+}
+
+.map-objects-layer .map-object.map-object-house.map-object-visual-lux,
+.map-objects-layer .map-object.map-object-house.map-object-visual-elite {
+  width: 33px !important;
+  height: 33px !important;
+
+  min-width: 33px !important;
+  min-height: 33px !important;
+  max-width: 33px !important;
+  max-height: 33px !important;
+}
+
+.map-house-svg,
+.map-objects-layer .map-object.map-object-house .map-house-svg {
+  display: block !important;
+
+  width: 100% !important;
+  height: 100% !important;
+
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+
+  visibility: visible !important;
+  opacity: 1 !important;
+
+  transform: none !important;
+
+  filter:
+    drop-shadow(0 0 2px rgba(0, 0, 0, 0.9))
+    drop-shadow(0 0 6px rgba(255, 255, 255, 0.2)) !important;
+}
+
+/* Увеличенная зона тапа/клика вокруг дома */
+.map-objects-layer .map-object.map-object-house::before {
+  content: "" !important;
+
+  position: absolute !important;
+  inset: -16px !important;
+
+  display: block !important;
+
+  border-radius: 999px !important;
+  background: transparent !important;
+
+  pointer-events: auto !important;
+}
+
+.map-object-nearby .map-house-svg {
+  filter:
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.82))
+    drop-shadow(0 0 10px rgba(158, 88, 255, 0.72)) !important;
+}
+
+/* Mobile: чуть больше и hitbox жирнее */
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-standard {
+    width: 32px !important;
+    height: 32px !important;
+
+    min-width: 32px !important;
+    min-height: 32px !important;
+    max-width: 32px !important;
+    max-height: 32px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-comfort,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-premium {
+    width: 34px !important;
+    height: 34px !important;
+
+    min-width: 34px !important;
+    min-height: 34px !important;
+    max-width: 34px !important;
+    max-height: 34px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-lux,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-elite {
+    width: 38px !important;
+    height: 38px !important;
+
+    min-width: 38px !important;
+    min-height: 38px !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before {
+    inset: -24px !important;
+  }
+}
