@@ -20,8 +20,295 @@ function getHouseId(house) {
   return house?.payload?.houseId || house?.houseId || house?.id;
 }
 
-function isHousesModalOpen() {
-  return document.body.classList.contains('mn-houses-modal-open');
+function isVisible(element) {
+  if (!element) return false;
+  if (element.hidden) return false;
+  if (element.getAttribute('aria-hidden') === 'true') return false;
+
+  const styles = window.getComputedStyle(element);
+
+  return (
+    styles.display !== 'none' &&
+    styles.visibility !== 'hidden' &&
+    Number(styles.opacity || 1) !== 0
+  );
+}
+
+function hideModal(element) {
+  if (!element) return;
+
+  element.hidden = true;
+  element.setAttribute('aria-hidden', 'true');
+
+  element.classList.remove(
+    'is-open',
+    'is-visible',
+    'active',
+    'open',
+    'show'
+  );
+}
+
+function showModal(element) {
+  if (!element) return;
+
+  element.hidden = false;
+  element.removeAttribute('aria-hidden');
+}
+
+function getHousesModal(root = document) {
+  return root.querySelector('.houses-modal');
+}
+
+function getHouseDetailsModal(root = document) {
+  return root.querySelector('.house-details-modal');
+}
+
+function hasAnyHouseModalOpen(root = document) {
+  return Boolean(
+    isVisible(getHousesModal(root)) ||
+    isVisible(getHouseDetailsModal(root))
+  );
+}
+
+function syncHouseBodyState(root = document) {
+  const hasOpenModal = hasAnyHouseModalOpen(root);
+
+  document.body?.classList.toggle('mn-houses-modal-open', hasOpenModal);
+
+  if (!isVisible(getHouseDetailsModal(root))) {
+    document.body?.classList.remove('mn-house-details-open');
+  }
+}
+
+function closeHouseSelectionPanels(root = document) {
+  root
+    .querySelectorAll('.house-selection-panel')
+    .forEach((panel) => hideModal(panel));
+}
+
+function closeHouseDetails(root = document) {
+  const detailsModal = getHouseDetailsModal(root);
+
+  hideModal(detailsModal);
+  document.body?.classList.remove('mn-house-details-open');
+
+  syncHouseBodyState(root);
+}
+
+function closeHousesList(root = document) {
+  const housesModal = getHousesModal(root);
+
+  hideModal(housesModal);
+  syncHouseBodyState(root);
+}
+
+function openHousesListOnly(root = document) {
+  closeHouseDetails(root);
+  closeHouseSelectionPanels(root);
+
+  const housesModal = getHousesModal(root);
+
+  if (housesModal) {
+    showModal(housesModal);
+  }
+
+  document.body?.classList.remove('mn-house-details-open');
+  syncHouseBodyState(root);
+}
+
+function openHouseDetailsOnly(root = document) {
+  const detailsModal = getHouseDetailsModal(root);
+
+  if (!detailsModal || !isVisible(detailsModal)) {
+    syncHouseBodyState(root);
+    return;
+  }
+
+  closeHousesList(root);
+  closeHouseSelectionPanels(root);
+
+  showModal(detailsModal);
+  document.body?.classList.add('mn-house-details-open');
+
+  syncHouseBodyState(root);
+}
+
+function resetHouseModals(root = document) {
+  root
+    .querySelectorAll('.houses-modal, .house-details-modal, .house-selection-panel')
+    .forEach((modal) => hideModal(modal));
+
+  document.body?.classList.remove('mn-houses-modal-open');
+  document.body?.classList.remove('mn-house-details-open');
+}
+
+function isHousesModalOpen(root = document) {
+  return isVisible(getHousesModal(root));
+}
+
+function isHouseDetailsOpen(root = document) {
+  return isVisible(getHouseDetailsModal(root));
+}
+
+function enableHouseModalGuard(root) {
+  if (!root) return null;
+
+  let mode = 'idle';
+  let frameId = 0;
+  let timeoutId = 0;
+
+  function enforce() {
+    if (mode === 'list') {
+      openHousesListOnly(root);
+      return;
+    }
+
+    if (mode === 'details') {
+      openHouseDetailsOnly(root);
+      return;
+    }
+
+    syncHouseBodyState(root);
+  }
+
+  function scheduleEnforce(delay = 80) {
+    cancelAnimationFrame(frameId);
+    clearTimeout(timeoutId);
+
+    frameId = requestAnimationFrame(enforce);
+    timeoutId = setTimeout(enforce, delay);
+  }
+
+  function handleClick(event) {
+    const target = event.target;
+
+    if (!target?.closest) return;
+
+    if (target.closest('.player-city-button')) {
+      mode = 'list';
+
+      closeHouseDetails(root);
+      closeHouseSelectionPanels(root);
+
+      scheduleEnforce(120);
+      return;
+    }
+
+    if (
+      target.closest('.house-details-backdrop') ||
+      target.closest('.house-details-header button') ||
+      target.closest('.house-secondary-button')
+    ) {
+      mode = 'idle';
+
+      closeHouseDetails(root);
+      scheduleEnforce(40);
+      return;
+    }
+
+    if (
+      target.closest('.houses-modal-backdrop') ||
+      target.closest('.houses-x-button') ||
+      target.closest('.houses-close-button')
+    ) {
+      mode = 'idle';
+
+      closeHouseDetails(root);
+      closeHousesList(root);
+      closeHouseSelectionPanels(root);
+
+      scheduleEnforce(40);
+      return;
+    }
+
+    if (
+      target.closest('.house-list li') ||
+      target.closest('.house-section-card') ||
+      target.closest('.house-card') ||
+      target.closest('[data-house-id]')
+    ) {
+      mode = 'details';
+
+      /*
+        housesView сначала откроет detail.
+        Потом guard закроет список, чтобы не было двух модалок.
+      */
+      scheduleEnforce(140);
+    }
+  }
+
+  function handleKeyDown(event) {
+    if (event.key !== 'Escape') return;
+
+    mode = 'idle';
+
+    closeHouseDetails(root);
+    closeHousesList(root);
+    closeHouseSelectionPanels(root);
+
+    scheduleEnforce(20);
+  }
+
+  function handleOpenList() {
+    mode = 'list';
+
+    closeHouseDetails(root);
+    closeHouseSelectionPanels(root);
+
+    scheduleEnforce(80);
+  }
+
+  function handleOpenDetails() {
+    mode = 'details';
+    scheduleEnforce(120);
+  }
+
+  const observer = new MutationObserver(() => {
+    if (mode === 'idle') {
+      syncHouseBodyState(root);
+      return;
+    }
+
+    scheduleEnforce(80);
+  });
+
+  root.addEventListener('click', handleClick, true);
+  root.addEventListener('pointerup', handleClick, true);
+  window.addEventListener('keydown', handleKeyDown, true);
+
+  window.addEventListener('mn:houses-list-open', handleOpenList);
+  window.addEventListener('mn:houses-list-opened', handleOpenList);
+  window.addEventListener('mn:house-details-open', handleOpenDetails);
+  window.addEventListener('mn:house-details-opened', handleOpenDetails);
+
+  observer.observe(root, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: [
+      'hidden',
+      'class',
+      'style',
+      'aria-hidden',
+    ],
+  });
+
+  return () => {
+    cancelAnimationFrame(frameId);
+    clearTimeout(timeoutId);
+
+    root.removeEventListener('click', handleClick, true);
+    root.removeEventListener('pointerup', handleClick, true);
+    window.removeEventListener('keydown', handleKeyDown, true);
+
+    window.removeEventListener('mn:houses-list-open', handleOpenList);
+    window.removeEventListener('mn:houses-list-opened', handleOpenList);
+    window.removeEventListener('mn:house-details-open', handleOpenDetails);
+    window.removeEventListener('mn:house-details-opened', handleOpenDetails);
+
+    observer.disconnect();
+  };
 }
 
 export async function loadHousesFeature(cityId) {
@@ -38,6 +325,7 @@ export { renderHousesFeatureHtml };
 
 export function enableHousesFeature(root, { cityId, city } = {}) {
   let cleanupModal = null;
+  let cleanupGuard = null;
   let refreshTimer = null;
   let destroyed = false;
 
@@ -92,12 +380,20 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
   async function mountModal({ reopenAfterRefresh = false } = {}) {
     if (destroyed) return;
 
-    const shouldReopen = Boolean(reopenAfterRefresh && isHousesModalOpen());
+    const shouldReopenList = Boolean(
+      reopenAfterRefresh &&
+      isHousesModalOpen(root)
+    );
 
     cleanupModal?.();
+    cleanupGuard?.();
 
-    const oldModal = document.body.querySelector('.houses-modal');
-    oldModal?.remove();
+    root
+      .querySelectorAll('.houses-modal, .house-details-modal')
+      .forEach((modal) => modal.remove());
+
+    document.body?.classList.remove('mn-houses-modal-open');
+    document.body?.classList.remove('mn-house-details-open');
 
     const houses = await loadHousesFeature(cityId);
 
@@ -112,19 +408,25 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
       onBuyHouse: handleBuyHouse,
     });
 
-    if (shouldReopen) {
-      root.querySelector('.player-city-button')?.click();
+    cleanupGuard = enableHouseModalGuard(root);
+
+    resetHouseModals(root);
+
+    if (shouldReopenList) {
+      requestAnimationFrame(() => {
+        root.querySelector('.player-city-button')?.click();
+      });
     }
   }
 
   function scheduleRefresh() {
-    const wasOpenBeforeRefresh = isHousesModalOpen();
+    const wasListOpenBeforeRefresh = isHousesModalOpen(root);
 
     clearTimeout(refreshTimer);
 
     refreshTimer = setTimeout(() => {
       mountModal({
-        reopenAfterRefresh: wasOpenBeforeRefresh,
+        reopenAfterRefresh: wasListOpenBeforeRefresh,
       });
     }, 250);
   }
@@ -140,6 +442,7 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     scheduleRefresh();
   }
 
+  resetHouseModals(root);
   mountModal();
 
   window.addEventListener('mn:map-objects-changed', handleRealtimeRefresh);
@@ -152,6 +455,9 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     window.removeEventListener('mn:map-objects-changed', handleRealtimeRefresh);
     window.removeEventListener('mn:houses-realtime-changed', handleRealtimeRefresh);
 
+    cleanupGuard?.();
     cleanupModal?.();
+
+    resetHouseModals(root);
   };
 }
