@@ -5,6 +5,7 @@ import {
   getCityPlayers,
 } from '../player/playerPosition.js';
 
+import { supabase } from '../supabaseClient.js';
 import { NETWORK_CONFIG } from '../config/networkConfig.js';
 
 import {
@@ -14,9 +15,29 @@ import {
 
 const remoteMarkers = new Map();
 
+const ONLINE_TTL_MS =
+  NETWORK_CONFIG.movement.onlineTtlMs || 18000;
+
+const STALE_OFFLINE_MS =
+  NETWORK_CONFIG.movement.staleOfflineMs || 24000;
+
+const SNAPSHOT_REFRESH_INTERVAL_MS = 5000;
+
 function percentToNumber(value, fallback = 50) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function isSamePlayer(a, b) {
+  return String(a || '') === String(b || '');
+}
+
+function escapeCss(value) {
+  if (window.CSS?.escape) {
+    return CSS.escape(String(value));
+  }
+
+  return String(value).replaceAll('"', '\\"');
 }
 
 function getPlayerId(player) {
@@ -36,30 +57,70 @@ function getNickname(player) {
   ).trim();
 }
 
-function isSamePlayer(a, b) {
-  return String(a || '') === String(b || '');
+function getUpdatedAtMs(player) {
+  const raw =
+    player?.updatedAt ||
+    player?.updated_at ||
+    player?.sentAt ||
+    player?.sent_at ||
+    null;
+
+  if (!raw) return Date.now();
+
+  const parsed = Date.parse(raw);
+
+  return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
-function isLocalPlayerLike(player, localPlayerId) {
+function isPlayerFresh(player) {
   if (!player) return false;
 
+  if (player.isOnline === false || player.is_online === false) {
+    return false;
+  }
+
+  const updatedAt = getUpdatedAtMs(player);
+
+  return Date.now() - updatedAt <= ONLINE_TTL_MS;
+}
+
+function getPacketTime(player) {
+  const raw =
+    player?.updatedAt ||
+    player?.updated_at ||
+    player?.sentAt ||
+    player?.sent_at;
+
+  const parsed = raw ? Date.parse(raw) : NaN;
+
+  return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function shortestAngleDelta(from, to) {
+  return ((to - from + 540) % 360) - 180;
+}
+
+function normalizeRemotePlayer(player) {
   const playerId = getPlayerId(player);
 
-  /*
-    ВАЖНО:
-    Проверяем только player_id.
-    Ник НЕ используем для фильтрации, иначе один игрок может скрыть другого.
-  */
-  return isSamePlayer(playerId, localPlayerId);
+  return {
+    ...player,
+    playerId,
+    nickname: getNickname(player) || 'Игрок',
+    x: percentToNumber(player?.x),
+    y: percentToNumber(player?.y),
+    angle: percentToNumber(player?.angle, 0),
+    isOnline: player?.isOnline ?? player?.is_online ?? true,
+    updatedAt:
+      player?.updatedAt ||
+      player?.updated_at ||
+      new Date().toISOString(),
+  };
 }
 
 function cleanupLocalDuplicates(entities, localPlayerId) {
   if (!entities || !localPlayerId) return;
 
-  /*
-    Чистим только чужой DOM-маркер с тем же player_id.
-    По нику больше ничего не удаляем.
-  */
   entities
     .querySelectorAll('.gta-player-marker-other')
     .forEach((marker) => {
@@ -80,24 +141,8 @@ function cleanupLocalDuplicates(entities, localPlayerId) {
     });
 }
 
-function getPacketTime(player) {
-  const raw =
-    player?.updatedAt ||
-    player?.updated_at ||
-    player?.sentAt ||
-    player?.sent_at;
-
-  const parsed = raw ? Date.parse(raw) : NaN;
-
-  return Number.isFinite(parsed) ? parsed : Date.now();
-}
-
-function shortestAngleDelta(from, to) {
-  return ((to - from + 540) % 360) - 180;
-}
-
 function getRemoteState(marker, player) {
-  const playerId = getPlayerId(player);
+  const playerId = player.playerId;
 
   let state = remoteMarkers.get(playerId);
 
@@ -213,45 +258,36 @@ function animateRemoteMarker(playerId) {
 
 export function upsertPlayerMarker(
   entities,
-  player,
+  rawPlayer,
   localPlayerId,
   options = {}
 ) {
-  if (!entities || !player) return;
+  if (!entities || !rawPlayer) return;
 
-  const playerId = getPlayerId(player);
+  const player = normalizeRemotePlayer(rawPlayer);
+  const playerId = player.playerId;
 
   if (!playerId) return;
 
-  /*
-    Свой marker не рисуем здесь.
-    Его рисует renderPlayersHtml().
-  */
   if (isSamePlayer(playerId, localPlayerId)) {
+    cleanupLocalDuplicates(entities, localPlayerId);
     return;
   }
 
-  if (player.isOnline === false) {
+  if (!isPlayerFresh(player)) {
     removePlayerMarker(entities, playerId);
     return;
   }
 
   const selector =
-    `.gta-player-marker-other[data-player-id="${CSS.escape(playerId)}"]`;
+    `.gta-player-marker-other[data-player-id="${escapeCss(playerId)}"]`;
 
   let marker = entities.querySelector(selector);
 
   if (!marker) {
     entities.insertAdjacentHTML(
       'beforeend',
-      createPlayerMarkerHtml(
-        {
-          ...player,
-          playerId,
-          nickname: getNickname(player),
-        },
-        localPlayerId
-      )
+      createPlayerMarkerHtml(player, localPlayerId)
     );
 
     marker = entities.querySelector(selector);
@@ -264,13 +300,20 @@ export function upsertPlayerMarker(
   const nextAngle = percentToNumber(player.angle, 0);
 
   const packetTime = getPacketTime(player);
-  const state = getRemoteState(marker, {
-    ...player,
-    playerId,
-  });
+  const packetMaxAge =
+    NETWORK_CONFIG.movement.remotePacketMaxAge ?? 3500;
 
-  if (!options.instant && packetTime < state.lastPacketTime) {
-    return;
+  const state = getRemoteState(marker, player);
+
+  if (!options.instant) {
+    if (packetTime < state.lastPacketTime) {
+      return;
+    }
+
+    if (Date.now() - packetTime > packetMaxAge) {
+      removePlayerMarker(entities, playerId);
+      return;
+    }
   }
 
   state.lastPacketTime = Math.max(
@@ -279,13 +322,10 @@ export function upsertPlayerMarker(
   );
 
   marker.dataset.updatedAt = String(Date.now());
-  marker.dataset.nickname = getNickname(player);
+  marker.dataset.playerId = playerId;
+  marker.dataset.nickname = player.nickname;
 
-  updatePlayerMarkerView(marker, {
-    ...player,
-    playerId,
-    nickname: getNickname(player),
-  });
+  updatePlayerMarkerView(marker, player);
 
   if (options.instant) {
     if (state.animationId) {
@@ -334,7 +374,6 @@ export function removePlayerMarker(entities, playerId) {
   if (!entities || !playerId) return;
 
   const safePlayerId = String(playerId);
-
   const state = remoteMarkers.get(safePlayerId);
 
   if (state?.animationId) {
@@ -344,7 +383,7 @@ export function removePlayerMarker(entities, playerId) {
   remoteMarkers.delete(safePlayerId);
 
   const marker = entities.querySelector(
-    `.gta-player-marker-other[data-player-id="${CSS.escape(safePlayerId)}"]`
+    `.gta-player-marker-other[data-player-id="${escapeCss(safePlayerId)}"]`
   );
 
   if (marker) {
@@ -354,10 +393,10 @@ export function removePlayerMarker(entities, playerId) {
 
 function startStalePlayersCleanup(entities, localPlayerId) {
   const staleAfter =
-    NETWORK_CONFIG.movement.staleAfter;
+    NETWORK_CONFIG.movement.staleAfter || ONLINE_TTL_MS;
 
   const checkInterval =
-    NETWORK_CONFIG.movement.staleCheckInterval || 1000;
+    NETWORK_CONFIG.movement.staleCheckInterval || 2000;
 
   const timer = setInterval(() => {
     const now = Date.now();
@@ -411,42 +450,99 @@ function enableOfflineOnExit() {
   };
 }
 
-export function setupPlayerNetwork({
-  cityId,
-  playerId,
-  localPlayerId,
-  entities,
-}) {
-  const selfPlayerId =
-    localPlayerId || playerId;
+function getStaleBeforeIso() {
+  return new Date(Date.now() - STALE_OFFLINE_MS).toISOString();
+}
 
-  cleanupLocalDuplicates(
-    entities,
-    selfPlayerId
+async function touchSelfOnline(selfPlayerId) {
+  if (!selfPlayerId) return;
+
+  const { error } = await supabase
+    .from('player_positions')
+    .update({
+      is_online: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('player_id', selfPlayerId);
+
+  if (error) throw error;
+}
+
+async function markStaleCityPlayersOffline(cityId) {
+  if (!cityId) return;
+
+  const { error } = await supabase
+    .from('player_positions')
+    .update({
+      is_online: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('city_id', cityId)
+    .eq('is_online', true)
+    .lt('updated_at', getStaleBeforeIso());
+
+  if (error) {
+    console.warn('[network] stale players cleanup failed:', error);
+  }
+}
+
+function startPresenceHeartbeat(cityId, selfPlayerId) {
+  let tick = 0;
+  let stopped = false;
+
+  async function runHeartbeat() {
+    if (stopped) return;
+
+    try {
+      await touchSelfOnline(selfPlayerId);
+
+      tick += 1;
+
+      if (tick % 3 === 0) {
+        await markStaleCityPlayersOffline(cityId);
+      }
+    } catch (error) {
+      console.warn('[network] presence heartbeat failed:', error);
+    }
+  }
+
+  runHeartbeat();
+
+  const timer = setInterval(
+    runHeartbeat,
+    NETWORK_CONFIG.movement.presenceHeartbeatInterval || 4000
   );
 
-  let snapshotRefreshTimer = null;
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+  };
+}
 
-  async function refreshPlayersSnapshot() {
+function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId) {
+  let stopped = false;
+
+  async function refreshSnapshot() {
+    if (stopped) return;
+
     try {
       const players = await getCityPlayers(cityId);
+      const liveIds = new Set();
 
-      players.forEach((player) => {
-        if (!player) return;
+      players.forEach((rawPlayer) => {
+        const player = normalizeRemotePlayer(rawPlayer);
+        const playerId = player.playerId;
 
-        if (
-          isLocalPlayerLike(
-            player,
-            selfPlayerId
-          )
-        ) {
-          cleanupLocalDuplicates(
-            entities,
-            selfPlayerId
-          );
-
+        if (!playerId || isSamePlayer(playerId, selfPlayerId)) {
           return;
         }
+
+        if (!isPlayerFresh(player)) {
+          removePlayerMarker(entities, playerId);
+          return;
+        }
+
+        liveIds.add(playerId);
 
         upsertPlayerMarker(
           entities,
@@ -457,49 +553,71 @@ export function setupPlayerNetwork({
           }
         );
       });
+
+      entities
+        .querySelectorAll('.gta-player-marker-other')
+        .forEach((marker) => {
+          const markerPlayerId = marker.dataset.playerId;
+
+          if (!markerPlayerId) return;
+
+          if (!liveIds.has(markerPlayerId)) {
+            removePlayerMarker(entities, markerPlayerId);
+          }
+        });
     } catch (error) {
-      console.warn(
-        '[network] city players snapshot failed:',
-        error
-      );
+      console.warn('[network] players snapshot refresh failed:', error);
     }
   }
 
-  function startSnapshotRefresh() {
-    refreshPlayersSnapshot();
+  refreshSnapshot();
 
-    snapshotRefreshTimer = setInterval(
-      refreshPlayersSnapshot,
-      5000
-    );
+  const timer = setInterval(
+    refreshSnapshot,
+    SNAPSHOT_REFRESH_INTERVAL_MS
+  );
 
-    return () => {
-      clearInterval(snapshotRefreshTimer);
-    };
-  }
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+  };
+}
+
+export function setupPlayerNetwork({
+  cityId,
+  playerId,
+  localPlayerId,
+  entities,
+}) {
+  const selfPlayerId =
+    localPlayerId || playerId;
+
+  cleanupLocalDuplicates(entities, selfPlayerId);
 
   const movementChannel =
     createCityMovementChannel(cityId, {
       onMove(player) {
-        if (!player) return;
+        const remotePlayer = normalizeRemotePlayer(player);
 
         if (
-          isLocalPlayerLike(
-            player,
+          !remotePlayer.playerId ||
+          isSamePlayer(
+            remotePlayer.playerId,
             selfPlayerId
           )
         ) {
-          cleanupLocalDuplicates(
-            entities,
-            selfPlayerId
-          );
+          cleanupLocalDuplicates(entities, selfPlayerId);
+          return;
+        }
 
+        if (!isPlayerFresh(remotePlayer)) {
+          removePlayerMarker(entities, remotePlayer.playerId);
           return;
         }
 
         upsertPlayerMarker(
           entities,
-          player,
+          remotePlayer,
           selfPlayerId,
           {
             instant: false,
@@ -509,13 +627,17 @@ export function setupPlayerNetwork({
     });
 
   const cleanupStalePlayers =
-    startStalePlayersCleanup(
-      entities,
-      selfPlayerId
-    );
+    startStalePlayersCleanup(entities, selfPlayerId);
+
+  const cleanupPresenceHeartbeat =
+    startPresenceHeartbeat(cityId, selfPlayerId);
 
   const cleanupSnapshotRefresh =
-    startSnapshotRefresh();
+    startPlayersSnapshotRefresh(
+      entities,
+      cityId,
+      selfPlayerId
+    );
 
   const cleanupOffline =
     enableOfflineOnExit();
@@ -526,25 +648,27 @@ export function setupPlayerNetwork({
     cleanupRealtime =
       subscribeCityPlayers(cityId, {
         onInsert(player) {
-          if (!player) return;
+          const remotePlayer = normalizeRemotePlayer(player);
 
           if (
-            isLocalPlayerLike(
-              player,
+            !remotePlayer.playerId ||
+            isSamePlayer(
+              remotePlayer.playerId,
               selfPlayerId
             )
           ) {
-            cleanupLocalDuplicates(
-              entities,
-              selfPlayerId
-            );
+            cleanupLocalDuplicates(entities, selfPlayerId);
+            return;
+          }
 
+          if (!isPlayerFresh(remotePlayer)) {
+            removePlayerMarker(entities, remotePlayer.playerId);
             return;
           }
 
           upsertPlayerMarker(
             entities,
-            player,
+            remotePlayer,
             selfPlayerId,
             {
               instant: true,
@@ -553,26 +677,23 @@ export function setupPlayerNetwork({
         },
 
         onUpdate(player) {
-          if (!player) return;
+          const remotePlayer = normalizeRemotePlayer(player);
 
           if (
-            isLocalPlayerLike(
-              player,
+            !remotePlayer.playerId ||
+            isSamePlayer(
+              remotePlayer.playerId,
               selfPlayerId
             )
           ) {
-            cleanupLocalDuplicates(
-              entities,
-              selfPlayerId
-            );
-
+            cleanupLocalDuplicates(entities, selfPlayerId);
             return;
           }
 
-          if (player.isOnline === false) {
+          if (!isPlayerFresh(remotePlayer)) {
             removePlayerMarker(
               entities,
-              getPlayerId(player)
+              remotePlayer.playerId
             );
 
             return;
@@ -580,7 +701,7 @@ export function setupPlayerNetwork({
 
           upsertPlayerMarker(
             entities,
-            player,
+            remotePlayer,
             selfPlayerId,
             {
               instant: false,
@@ -618,6 +739,7 @@ export function setupPlayerNetwork({
       cleanupRealtime?.();
 
       cleanupStalePlayers?.();
+      cleanupPresenceHeartbeat?.();
       cleanupSnapshotRefresh?.();
       cleanupOffline?.();
 
