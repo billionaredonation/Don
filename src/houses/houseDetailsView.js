@@ -320,7 +320,16 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     renderActiveHouse();
 
     modal.hidden = false;
+    modal.removeAttribute('aria-hidden');
+
+    document.body.classList.add('mn-houses-modal-open');
     document.body.classList.add('mn-house-details-open');
+
+    window.dispatchEvent(new CustomEvent('mn:house-details-opened', {
+      detail: {
+        house: activeHouse,
+      },
+    }));
   }
 
   function close(event) {
@@ -330,9 +339,15 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     if (!modal) return;
 
     modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+
     activeHouse = null;
     setMessage('');
+
     document.body.classList.remove('mn-house-details-open');
+    document.body.classList.remove('mn-houses-modal-open');
+
+    window.dispatchEvent(new CustomEvent('mn:house-details-closed'));
   }
 
   async function handleBuy(event) {
@@ -417,6 +432,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
   closeButtons.forEach((button) => {
     button.addEventListener('click', close);
+    button.addEventListener('pointerup', close);
   });
 
   return {
@@ -432,6 +448,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
       closeButtons.forEach((button) => {
         button.removeEventListener('click', close);
+        button.removeEventListener('pointerup', close);
       });
 
       modal?.remove();
