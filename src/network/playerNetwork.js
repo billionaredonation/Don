@@ -61,9 +61,8 @@ function isLocalPlayerLike(player, localPlayerId, localNickname) {
   }
 
   /*
-    Фикс двойника:
-    если в Supabase осталась старая запись с тем же ником,
-    но другим playerId, не рисуем её как чужого игрока.
+    Если в Supabase осталась старая запись с тем же ником,
+    но другим playerId, считаем её локальным дублем.
   */
   if (isSameNickname(nickname, localNickname)) {
     return true;
@@ -72,31 +71,14 @@ function isLocalPlayerLike(player, localPlayerId, localNickname) {
   return false;
 }
 
-function removePlayerMarkerByNickname(entities, nickname) {
-  const target = normalizeText(nickname);
-
-  if (!entities || !target) return;
-
-  entities
-    .querySelectorAll('.gta-player-marker-other')
-    .forEach((marker) => {
-      const markerNickname = normalizeText(marker.dataset.nickname);
-
-      if (markerNickname === target) {
-        const playerId = marker.dataset.playerId;
-
-        if (playerId) {
-          remoteMarkers.delete(playerId);
-        }
-
-        marker.remove();
-      }
-    });
-}
-
 function cleanupLocalDuplicates(entities, localPlayerId, localNickname) {
   if (!entities) return;
 
+  /*
+    ВАЖНО:
+    чистим только .gta-player-marker-other.
+    Свой .gta-player-marker-self не трогаем вообще.
+  */
   entities
     .querySelectorAll('.gta-player-marker-other')
     .forEach((marker) => {
@@ -111,19 +93,21 @@ function cleanupLocalDuplicates(entities, localPlayerId, localNickname) {
         localNickname &&
         isSameNickname(markerNickname, localNickname);
 
-      if (isDuplicateById || isDuplicateByNickname) {
-        if (markerPlayerId) {
-          const state = remoteMarkers.get(markerPlayerId);
+      if (!isDuplicateById && !isDuplicateByNickname) {
+        return;
+      }
 
-          if (state?.animationId) {
-            cancelAnimationFrame(state.animationId);
-          }
+      if (markerPlayerId) {
+        const state = remoteMarkers.get(markerPlayerId);
 
-          remoteMarkers.delete(markerPlayerId);
+        if (state?.animationId) {
+          cancelAnimationFrame(state.animationId);
         }
 
-        marker.remove();
+        remoteMarkers.delete(markerPlayerId);
       }
+
+      marker.remove();
     });
 }
 
@@ -270,7 +254,14 @@ export function upsertPlayerMarker(
 
   if (!playerId) return;
 
-  if (isSamePlayer(playerId, localPlayerId)) return;
+  /*
+    ВАЖНО:
+    своего игрока тут не рисуем и не удаляем.
+    Своего игрока уже отрисовал renderPlayersHtml().
+  */
+  if (isSamePlayer(playerId, localPlayerId)) {
+    return;
+  }
 
   if (player.isOnline === false) {
     removePlayerMarker(entities, playerId);
@@ -384,8 +375,12 @@ export function removePlayerMarker(entities, playerId) {
 
   remoteMarkers.delete(safePlayerId);
 
+  /*
+    Удаляем только чужой маркер.
+    Свой .gta-player-marker-self не трогаем.
+  */
   const marker = entities.querySelector(
-    `[data-player-id="${CSS.escape(safePlayerId)}"]`
+    `.gta-player-marker-other[data-player-id="${CSS.escape(safePlayerId)}"]`
   );
 
   if (marker) {
@@ -463,7 +458,8 @@ export function setupPlayerNetwork({
     localPlayerId || playerId;
 
   /*
-    Чистим уже нарисованных двойников сразу при запуске сети.
+    Стартовая чистка дублей.
+    Не удаляет своего игрока, потому что работает только по .gta-player-marker-other.
   */
   cleanupLocalDuplicates(
     entities,
@@ -474,18 +470,28 @@ export function setupPlayerNetwork({
   const movementChannel =
     createCityMovementChannel(cityId, {
       onMove(player) {
+        if (!player) {
+          return;
+        }
+
+        /*
+          КРИТИЧНЫЙ ФИКС:
+          если пришёл broadcast/realtime своего игрока,
+          НЕ вызываем removePlayerMarker().
+          Иначе свой персонаж появляется на секунду и исчезает.
+        */
         if (
-          !player ||
           isLocalPlayerLike(
             player,
             selfPlayerId,
             localNickname
           )
         ) {
-          if (player) {
-            removePlayerMarker(entities, getPlayerId(player));
-            removePlayerMarkerByNickname(entities, localNickname);
-          }
+          cleanupLocalDuplicates(
+            entities,
+            selfPlayerId,
+            localNickname
+          );
 
           return;
         }
@@ -517,18 +523,26 @@ export function setupPlayerNetwork({
     cleanupRealtime =
       subscribeCityPlayers(cityId, {
         onInsert(player) {
+          if (!player) {
+            return;
+          }
+
+          /*
+            КРИТИЧНЫЙ ФИКС:
+            INSERT своего игрока игнорируем, не удаляем.
+          */
           if (
-            !player ||
             isLocalPlayerLike(
               player,
               selfPlayerId,
               localNickname
             )
           ) {
-            if (player) {
-              removePlayerMarker(entities, getPlayerId(player));
-              removePlayerMarkerByNickname(entities, localNickname);
-            }
+            cleanupLocalDuplicates(
+              entities,
+              selfPlayerId,
+              localNickname
+            );
 
             return;
           }
@@ -544,18 +558,26 @@ export function setupPlayerNetwork({
         },
 
         onUpdate(player) {
+          if (!player) {
+            return;
+          }
+
+          /*
+            КРИТИЧНЫЙ ФИКС:
+            UPDATE своего игрока игнорируем, не удаляем.
+          */
           if (
-            !player ||
             isLocalPlayerLike(
               player,
               selfPlayerId,
               localNickname
             )
           ) {
-            if (player) {
-              removePlayerMarker(entities, getPlayerId(player));
-              removePlayerMarkerByNickname(entities, localNickname);
-            }
+            cleanupLocalDuplicates(
+              entities,
+              selfPlayerId,
+              localNickname
+            );
 
             return;
           }
@@ -580,6 +602,10 @@ export function setupPlayerNetwork({
         },
 
         onDelete(playerId) {
+          /*
+            DELETE своего игрока игнорируем.
+            Локальный self-marker не должен удаляться realtime-сетью.
+          */
           if (
             isSamePlayer(
               playerId,
