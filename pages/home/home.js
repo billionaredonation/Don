@@ -135,6 +135,49 @@ function isTypingTarget(target) {
   );
 }
 
+function createMobileSelfMarkerHardOverlay() {
+  const oldMarker = document.querySelector('[data-mobile-self-marker-hard="true"]');
+
+  if (oldMarker) {
+    oldMarker.remove();
+  }
+
+  const marker = document.createElement('div');
+
+  marker.dataset.mobileSelfMarkerHard = 'true';
+
+  marker.style.position = 'fixed';
+  marker.style.left = '50%';
+  marker.style.top = '50%';
+  marker.style.width = '14px';
+  marker.style.height = '14px';
+  marker.style.minWidth = '14px';
+  marker.style.minHeight = '14px';
+  marker.style.maxWidth = '14px';
+  marker.style.maxHeight = '14px';
+  marker.style.transform = 'translate(-50%, -50%)';
+  marker.style.borderRadius = '999px';
+  marker.style.boxSizing = 'border-box';
+  marker.style.background = '#3a2605';
+  marker.style.border = '3px solid #e6b84a';
+  marker.style.boxShadow = [
+    '0 0 0 3px rgba(245, 252, 255, 0.82)',
+    '0 0 16px rgba(165, 225, 255, 0.85)',
+    '0 0 30px rgba(255, 210, 80, 0.55)',
+  ].join(', ');
+  marker.style.zIndex = '2147483647';
+  marker.style.pointerEvents = 'none';
+  marker.style.opacity = '1';
+  marker.style.visibility = 'visible';
+  marker.style.display = 'block';
+
+  document.body.appendChild(marker);
+
+  return () => {
+    marker.remove();
+  };
+}
+
 register('home', async (root) => {
   root._cleanupHome?.();
 
@@ -348,12 +391,12 @@ register('home', async (root) => {
     focusY: playerPosition.y,
 
     /*
-      На телефоне isLowPowerDevice часто true из-за маленького экрана,
-      из-за этого карта отдалялась. Для мобилки держим нормальный zoom.
+      На ПК и телефоне держим карту не слишком близко.
+      Если будет слишком далеко/близко — меняется только это значение.
     */
-     startScale: isMobileGameplayDevice() ? 1.55 : 1.25,
+    startScale: isMobileGameplayDevice() ? 1.55 : 1.25,
   });
-  
+
   const network = setupPlayerNetwork({
     cityId,
     playerId: localPlayerId,
@@ -370,6 +413,7 @@ register('home', async (root) => {
   let cleanupAdminPanel = null;
   let cleanupEntityInteraction = null;
   let cleanupGameRealtime = null;
+  let cleanupMobileSelfMarker = null;
 
   const balanceEl = root.querySelector('[data-player-balance]');
 
@@ -418,6 +462,8 @@ register('home', async (root) => {
   }
 
   if (isMobileGameplay) {
+    cleanupMobileSelfMarker = createMobileSelfMarkerHardOverlay();
+
     if (hasMobileControlsAccepted()) {
       enableMobileGameplayMode();
     } else {
@@ -573,6 +619,7 @@ register('home', async (root) => {
     cleanupAdminPanel?.();
     cleanupEntityInteraction?.();
     cleanupGameRealtime?.();
+    cleanupMobileSelfMarker?.();
     entityInteractionPanel.cleanup();
     cleanupSessionGuard?.();
     mapControls?.cleanup?.();
