@@ -1,139 +1,9 @@
 /* =========================================================
-   MOBILE FINAL OVERRIDE
-   Последний CSS-файл. Должен идти ПОСЛЕ home.css, map-lights.css, ios-game-fix.css
+   MOBILE CONTROLS ONLY
+   Не трогает карту, дома, модалки, HUD.
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
-  html,
-  body,
-  #app {
-    width: 100vw !important;
-    height: 100svh !important;
-    min-height: 100svh !important;
-    overflow: hidden !important;
-    overscroll-behavior: none !important;
-    touch-action: none !important;
-  }
-
-  .home[data-mobile-controls="enabled"] {
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100vw !important;
-    height: 100svh !important;
-    min-height: 100svh !important;
-    overflow: hidden !important;
-    touch-action: none !important;
-  }
-
-  /*
-    Telegram у тебя визуально в portrait, а игра должна быть боком.
-    Поэтому игровой слой крутим, а слой управления НЕ крутим.
-  */
-  .home[data-mobile-controls="enabled"] .home-gameplay {
-    position: fixed !important;
-    left: 50% !important;
-    top: 50% !important;
-
-    width: 100svh !important;
-    height: 100vw !important;
-    min-height: 100vw !important;
-
-    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
-    transform-origin: center center !important;
-
-    overflow: hidden !important;
-    touch-action: none !important;
-    background: #020407 !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .gta-map-stage {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 100% !important;
-    overflow: hidden !important;
-    touch-action: none !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .gta-map-viewport {
-    position: absolute !important;
-    left: 50% !important;
-    top: 50% !important;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    overflow: visible !important;
-    transform-origin: center center !important;
-    will-change: transform !important;
-    z-index: 50 !important;
-    pointer-events: none !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .gta-map-image {
-    position: absolute !important;
-    inset: 0 !important;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: contain !important;
-    object-position: center center !important;
-    pointer-events: none !important;
-    user-select: none !important;
-    -webkit-user-drag: none !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .gta-map-entities,
-  .home[data-mobile-controls="enabled"] .map-objects-layer,
-  .home[data-mobile-controls="enabled"] .map-objects-layer-public,
-  .home[data-mobile-controls="enabled"] .map-objects-layer-admin {
-    position: absolute !important;
-    inset: 0 !important;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    overflow: visible !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .gta-map-entities {
-    z-index: 90 !important;
-    pointer-events: none !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .map-objects-layer-public {
-    z-index: 150 !important;
-    pointer-events: auto !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .map-objects-layer-admin {
-    z-index: 155 !important;
-    pointer-events: auto !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .map-object {
-    position: absolute !important;
-    display: grid !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .gta-player-marker {
-    position: absolute !important;
-    display: grid !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    z-index: 170 !important;
-    pointer-events: none !important;
-    translate: -50% -50% !important;
-  }
-
-  /*
-    Управление НЕ крутим.
-    Оно лежит поверх Telegram-экрана как обычный fixed UI.
-  */
   .home[data-mobile-controls="enabled"] .mobile-controls-layer {
     position: fixed !important;
     inset: 0 !important;
@@ -162,9 +32,6 @@
     -webkit-tap-highlight-color: transparent !important;
   }
 
-  /*
-    Джойстик.
-  */
   .home[data-mobile-controls="enabled"] .mobile-joystick {
     position: fixed !important;
 
@@ -246,9 +113,6 @@
     will-change: transform !important;
   }
 
-  /*
-    Стамина. Жёсткий reset против старой вертикальной панели.
-  */
   .home[data-mobile-controls="enabled"] .mobile-stamina,
   .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
     position: fixed !important;
@@ -378,24 +242,6 @@
 
   .home[data-mobile-controls="enabled"] .mobile-stamina-fill[data-state="locked"] {
     background: linear-gradient(90deg, #ff3737, #ff8a3d) !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .admin-status-dot {
-    position: fixed !important;
-
-    right: 20px !important;
-    bottom: 86px !important;
-    left: auto !important;
-    top: auto !important;
-
-    width: 42px !important;
-    height: 42px !important;
-
-    z-index: 5200 !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-    translate: 0 0 !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-control-toggle {
