@@ -3,6 +3,7 @@ import {
   createCityMovementChannel,
   setPlayerOffline,
   getCityPlayers,
+  getSessionId,
 } from '../player/playerPosition.js';
 
 import { supabase } from '../supabaseClient.js';
@@ -18,8 +19,8 @@ const remoteMarkers = new Map();
 const ONLINE_TTL_MS =
   NETWORK_CONFIG.movement.onlineTtlMs || 18000;
 
-const STALE_OFFLINE_MS =
-  NETWORK_CONFIG.movement.staleOfflineMs || 24000;
+const SNAPSHOT_PLAYER_MAX_AGE_MS =
+  NETWORK_CONFIG.movement.snapshotPlayerMaxAgeMs || 120000;
 
 const SNAPSHOT_REFRESH_INTERVAL_MS = 5000;
 
@@ -72,16 +73,28 @@ function getUpdatedAtMs(player) {
   return Number.isFinite(parsed) ? parsed : Date.now();
 }
 
-function isPlayerFresh(player) {
+function isPlayerOnlineFlagEnabled(player) {
   if (!player) return false;
 
-  if (player.isOnline === false || player.is_online === false) {
-    return false;
-  }
+  return !(player.isOnline === false || player.is_online === false);
+}
 
+function getPlayerAgeMs(player) {
   const updatedAt = getUpdatedAtMs(player);
 
-  return Date.now() - updatedAt <= ONLINE_TTL_MS;
+  return Math.max(0, Date.now() - updatedAt);
+}
+
+function isPlayerFresh(player, maxAgeMs = ONLINE_TTL_MS) {
+  if (!isPlayerOnlineFlagEnabled(player)) return false;
+
+  /*
+    Важно: updated_at прилетает с устройства игрока, а не гарантированно
+    с серверного времени БД. Если у одного телефона/ПК время уехало,
+    строгий TTL на 3-18 секунд ломает онлайн в одну сторону:
+    один игрок видит другого, второй — нет.
+  */
+  return getPlayerAgeMs(player) <= maxAgeMs;
 }
 
 function getPacketTime(player) {
@@ -274,7 +287,13 @@ export function upsertPlayerMarker(
     return;
   }
 
-  if (!isPlayerFresh(player)) {
+  const maxAgeMs =
+    options.maxAgeMs ?? ONLINE_TTL_MS;
+
+  if (
+    !options.skipFreshnessCheck &&
+    !isPlayerFresh(player, maxAgeMs)
+  ) {
     removePlayerMarker(entities, playerId);
     return;
   }
@@ -300,20 +319,10 @@ export function upsertPlayerMarker(
   const nextAngle = percentToNumber(player.angle, 0);
 
   const packetTime = getPacketTime(player);
-  const packetMaxAge =
-    NETWORK_CONFIG.movement.remotePacketMaxAge ?? 3500;
-
   const state = getRemoteState(marker, player);
 
-  if (!options.instant) {
-    if (packetTime < state.lastPacketTime) {
-      return;
-    }
-
-    if (Date.now() - packetTime > packetMaxAge) {
-      removePlayerMarker(entities, playerId);
-      return;
-    }
+  if (!options.instant && packetTime < state.lastPacketTime) {
+    return;
   }
 
   state.lastPacketTime = Math.max(
@@ -450,10 +459,6 @@ function enableOfflineOnExit() {
   };
 }
 
-function getStaleBeforeIso() {
-  return new Date(Date.now() - STALE_OFFLINE_MS).toISOString();
-}
-
 async function touchSelfOnline(selfPlayerId) {
   if (!selfPlayerId) return;
 
@@ -463,31 +468,13 @@ async function touchSelfOnline(selfPlayerId) {
       is_online: true,
       updated_at: new Date().toISOString(),
     })
-    .eq('player_id', selfPlayerId);
+    .eq('player_id', selfPlayerId)
+    .eq('session_id', getSessionId());
 
   if (error) throw error;
 }
 
-async function markStaleCityPlayersOffline(cityId) {
-  if (!cityId) return;
-
-  const { error } = await supabase
-    .from('player_positions')
-    .update({
-      is_online: false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('city_id', cityId)
-    .eq('is_online', true)
-    .lt('updated_at', getStaleBeforeIso());
-
-  if (error) {
-    console.warn('[network] stale players cleanup failed:', error);
-  }
-}
-
 function startPresenceHeartbeat(cityId, selfPlayerId) {
-  let tick = 0;
   let stopped = false;
 
   async function runHeartbeat() {
@@ -495,12 +482,6 @@ function startPresenceHeartbeat(cityId, selfPlayerId) {
 
     try {
       await touchSelfOnline(selfPlayerId);
-
-      tick += 1;
-
-      if (tick % 3 === 0) {
-        await markStaleCityPlayersOffline(cityId);
-      }
     } catch (error) {
       console.warn('[network] presence heartbeat failed:', error);
     }
@@ -537,7 +518,7 @@ function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId) {
           return;
         }
 
-        if (!isPlayerFresh(player)) {
+        if (!isPlayerFresh(player, SNAPSHOT_PLAYER_MAX_AGE_MS)) {
           removePlayerMarker(entities, playerId);
           return;
         }
@@ -550,6 +531,7 @@ function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId) {
           selfPlayerId,
           {
             instant: true,
+            maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
           }
         );
       });
@@ -610,7 +592,7 @@ export function setupPlayerNetwork({
           return;
         }
 
-        if (!isPlayerFresh(remotePlayer)) {
+        if (!isPlayerOnlineFlagEnabled(remotePlayer)) {
           removePlayerMarker(entities, remotePlayer.playerId);
           return;
         }
@@ -621,6 +603,7 @@ export function setupPlayerNetwork({
           selfPlayerId,
           {
             instant: false,
+            skipFreshnessCheck: true,
           }
         );
       },
@@ -661,7 +644,7 @@ export function setupPlayerNetwork({
             return;
           }
 
-          if (!isPlayerFresh(remotePlayer)) {
+          if (!isPlayerFresh(remotePlayer, SNAPSHOT_PLAYER_MAX_AGE_MS)) {
             removePlayerMarker(entities, remotePlayer.playerId);
             return;
           }
@@ -672,6 +655,7 @@ export function setupPlayerNetwork({
             selfPlayerId,
             {
               instant: true,
+              maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
             }
           );
         },
@@ -690,7 +674,7 @@ export function setupPlayerNetwork({
             return;
           }
 
-          if (!isPlayerFresh(remotePlayer)) {
+          if (!isPlayerFresh(remotePlayer, SNAPSHOT_PLAYER_MAX_AGE_MS)) {
             removePlayerMarker(
               entities,
               remotePlayer.playerId
@@ -705,6 +689,7 @@ export function setupPlayerNetwork({
             selfPlayerId,
             {
               instant: false,
+              maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
             }
           );
         },
