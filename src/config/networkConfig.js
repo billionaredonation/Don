@@ -11,10 +11,13 @@ export const NETWORK_CONFIG = {
     staleAfter: 18000,
     staleCheckInterval: 2000,
 
+    // Для снимка из БД даём запас, потому что updated_at сейчас
+    // пишет клиент. Жёсткие 3-18 секунд ломали видимость при рассинхроне часов.
+    snapshotPlayerMaxAgeMs: 120000,
+
     remoteSmoothing: 0.16,
     remoteSnapDistance: 18,
     remoteIdleThreshold: 0.03,
-    remotePacketMaxAge: 3500,
   },
 
   limits: {
