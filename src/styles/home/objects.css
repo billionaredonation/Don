@@ -136,38 +136,38 @@
 @media (hover: none) and (pointer: coarse) {
   .home[data-mobile-controls="enabled"] .map-object.map-object-house,
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-standard {
-    width: 46px !important;
-    height: 46px !important;
+    width: 30px !important;
+    height: 30px !important;
 
-    min-width: 46px !important;
-    min-height: 46px !important;
-    max-width: 46px !important;
-    max-height: 46px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    max-width: 30px !important;
+    max-height: 30px !important;
   }
 
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-comfort,
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-premium {
-    width: 50px !important;
-    height: 50px !important;
+    width: 33px !important;
+    height: 33px !important;
 
-    min-width: 50px !important;
-    min-height: 50px !important;
-    max-width: 50px !important;
-    max-height: 50px !important;
+    min-width: 33px !important;
+    min-height: 33px !important;
+    max-width: 33px !important;
+    max-height: 33px !important;
   }
 
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-lux,
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-elite {
-    width: 56px !important;
-    height: 56px !important;
+    width: 36px !important;
+    height: 36px !important;
 
-    min-width: 56px !important;
-    min-height: 56px !important;
-    max-width: 56px !important;
-    max-height: 56px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
   }
 
   .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before {
-    inset: -30px !important;
+    inset: -22px !important;
   }
 }
