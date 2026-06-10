@@ -82,10 +82,9 @@ function renderCityStatCards({
   budget,
   inflation,
   registeredPlayers,
-  onlinePlayers,
 }) {
   return `
-    <div class="city-stat-grid">
+    <div class="city-stat-grid city-stat-grid-clean">
       <article class="city-stat-card city-stat-card-budget">
         <span class="city-stat-icon">💰</span>
 
@@ -113,16 +112,6 @@ function renderCityStatCards({
           <small>Игроков зарегистрировано</small>
           <strong>${formatNumber(registeredPlayers)}</strong>
           <em>Всего в этом городе</em>
-        </div>
-      </article>
-
-      <article class="city-stat-card city-stat-card-online">
-        <span class="city-stat-icon">🟢</span>
-
-        <div class="city-stat-body">
-          <small>Сейчас онлайн</small>
-          <strong>${formatNumber(onlinePlayers)}</strong>
-          <em>Активные игроки города</em>
         </div>
       </article>
     </div>
@@ -169,7 +158,6 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
   const budget = getCityStatValue(cityStats, 'budget', 0);
   const inflation = getCityStatValue(cityStats, 'inflation', 0);
   const registeredPlayers = getCityStatValue(cityStats, 'registeredPlayers', 0);
-  const onlinePlayers = getCityStatValue(cityStats, 'onlinePlayers', 0);
 
   return `
     <div class="houses-modal" hidden aria-hidden="true" data-houses-modal>
@@ -214,7 +202,6 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
             budget,
             inflation,
             registeredPlayers,
-            onlinePlayers,
           })}
         </div>
 
