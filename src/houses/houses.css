@@ -1797,39 +1797,150 @@ body.mn-landscape-game .map-objects-layer .map-object.map-object-house,
 body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-standard,
 .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house,
 .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-standard {
-  width: 46px !important;
-  height: 46px !important;
-  min-width: 46px !important;
-  min-height: 46px !important;
-  max-width: 46px !important;
-  max-height: 46px !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  max-width: 30px !important;
+  max-height: 30px !important;
 }
 
 body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
 body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-premium,
 .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
 .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-premium {
-  width: 50px !important;
-  height: 50px !important;
-  min-width: 50px !important;
-  min-height: 50px !important;
-  max-width: 50px !important;
-  max-height: 50px !important;
+  width: 33px !important;
+  height: 33px !important;
+  min-width: 33px !important;
+  min-height: 33px !important;
+  max-width: 33px !important;
+  max-height: 33px !important;
 }
 
 body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-lux,
 body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-elite,
 .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-lux,
 .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-elite {
-  width: 56px !important;
-  height: 56px !important;
-  min-width: 56px !important;
-  min-height: 56px !important;
-  max-width: 56px !important;
-  max-height: 56px !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
 }
 
 body.mn-landscape-game .map-objects-layer .map-object.map-object-house::before,
 .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before {
-  inset: -30px !important;
+  inset: -22px !important;
+}
+
+
+/* =========================================================
+   FINAL MOBILE LANDSCAPE UI POLISH
+   Дома меньше, HUD выше объектов, карточка дома компактнее.
+   ========================================================= */
+
+body.mn-landscape-game .player-glass-hud,
+body.mn-landscape-game .player-weather-mini,
+body.mn-landscape-game .player-network-card {
+  z-index: 850 !important;
+}
+
+body.mn-landscape-game .map-objects-layer {
+  z-index: 260 !important;
+}
+
+body.mn-landscape-game .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house,
+body.mn-landscape-game .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-standard {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  max-width: 30px !important;
+  max-height: 30px !important;
+}
+
+body.mn-landscape-game .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
+body.mn-landscape-game .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-premium {
+  width: 33px !important;
+  height: 33px !important;
+  min-width: 33px !important;
+  min-height: 33px !important;
+  max-width: 33px !important;
+  max-height: 33px !important;
+}
+
+body.mn-landscape-game .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-lux,
+body.mn-landscape-game .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-elite {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
+}
+
+body.mn-landscape-game .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before {
+  inset: -22px !important;
+}
+
+body.mn-landscape-game .house-selection-panel {
+  position: fixed !important;
+  left: 50% !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: max(14px, env(safe-area-inset-bottom)) !important;
+
+  width: min(350px, calc(100svh - 52px)) !important;
+  max-width: calc(100svh - 52px) !important;
+  min-height: 48px !important;
+
+  grid-template-columns: 34px minmax(0, 1fr) minmax(92px, auto) !important;
+  align-items: center !important;
+  gap: 8px !important;
+
+  padding: 8px 10px !important;
+  border-radius: 15px !important;
+
+  transform: translateX(-50%) rotate(90deg) !important;
+  transform-origin: center center !important;
+
+  z-index: 2147482100 !important;
+}
+
+body.mn-landscape-game .house-selection-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 11px !important;
+  font-size: 18px !important;
+}
+
+body.mn-landscape-game .house-selection-body {
+  gap: 2px !important;
+  padding-right: 8px !important;
+}
+
+body.mn-landscape-game .house-selection-title {
+  font-size: 14px !important;
+  line-height: 1.05 !important;
+}
+
+body.mn-landscape-game .house-selection-meta {
+  font-size: 9.5px !important;
+  line-height: 1.12 !important;
+}
+
+body.mn-landscape-game .house-selection-action {
+  min-height: 32px !important;
+  padding: 0 10px !important;
+  border-radius: 11px !important;
+  font-size: 11px !important;
+}
+
+body.mn-landscape-game .house-selection-close {
+  right: 4px !important;
+  top: 4px !important;
+  width: 21px !important;
+  height: 21px !important;
+  font-size: 16px !important;
 }
