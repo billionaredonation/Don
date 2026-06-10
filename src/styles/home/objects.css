@@ -55,13 +55,13 @@
 .map-object.map-object-house,
 .map-objects-layer .map-object.map-object-house,
 .map-objects-layer .map-object.map-object-house.map-object-visual-standard {
-  width: 28px !important;
-  height: 28px !important;
+  width: 40px !important;
+  height: 40px !important;
 
-  min-width: 28px !important;
-  min-height: 28px !important;
-  max-width: 28px !important;
-  max-height: 28px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  max-width: 40px !important;
+  max-height: 40px !important;
 
   overflow: visible !important;
   pointer-events: auto !important;
@@ -69,24 +69,24 @@
 
 .map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
 .map-objects-layer .map-object.map-object-house.map-object-visual-premium {
-  width: 30px !important;
-  height: 30px !important;
+  width: 44px !important;
+  height: 44px !important;
 
-  min-width: 30px !important;
-  min-height: 30px !important;
-  max-width: 30px !important;
-  max-height: 30px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
 }
 
 .map-objects-layer .map-object.map-object-house.map-object-visual-lux,
 .map-objects-layer .map-object.map-object-house.map-object-visual-elite {
-  width: 33px !important;
-  height: 33px !important;
+  width: 48px !important;
+  height: 48px !important;
 
-  min-width: 33px !important;
-  min-height: 33px !important;
-  max-width: 33px !important;
-  max-height: 33px !important;
+  min-width: 48px !important;
+  min-height: 48px !important;
+  max-width: 48px !important;
+  max-height: 48px !important;
 }
 
 .map-house-svg,
@@ -116,7 +116,7 @@
   content: "" !important;
 
   position: absolute !important;
-  inset: -16px !important;
+  inset: -22px !important;
 
   display: block !important;
 
@@ -136,38 +136,38 @@
 @media (hover: none) and (pointer: coarse) {
   .home[data-mobile-controls="enabled"] .map-object.map-object-house,
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-standard {
-    width: 32px !important;
-    height: 32px !important;
+    width: 46px !important;
+    height: 46px !important;
 
-    min-width: 32px !important;
-    min-height: 32px !important;
-    max-width: 32px !important;
-    max-height: 32px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+    max-width: 46px !important;
+    max-height: 46px !important;
   }
 
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-comfort,
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-premium {
-    width: 34px !important;
-    height: 34px !important;
+    width: 50px !important;
+    height: 50px !important;
 
-    min-width: 34px !important;
-    min-height: 34px !important;
-    max-width: 34px !important;
-    max-height: 34px !important;
+    min-width: 50px !important;
+    min-height: 50px !important;
+    max-width: 50px !important;
+    max-height: 50px !important;
   }
 
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-lux,
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-elite {
-    width: 38px !important;
-    height: 38px !important;
+    width: 56px !important;
+    height: 56px !important;
 
-    min-width: 38px !important;
-    min-height: 38px !important;
-    max-width: 38px !important;
-    max-height: 38px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    max-width: 56px !important;
+    max-height: 56px !important;
   }
 
   .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before {
-    inset: -24px !important;
+    inset: -30px !important;
   }
 }
