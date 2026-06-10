@@ -195,11 +195,28 @@ function getObjectMeta(object) {
   };
 }
 
+function getObjectRenderSize(category, visualClass) {
+  if (category !== 'house') return 20;
+
+  const normalizedClass = normalizeHouseClass(visualClass);
+
+  if (normalizedClass === 'elite' || normalizedClass === 'lux') return 48;
+  if (normalizedClass === 'premium' || normalizedClass === 'comfort') return 44;
+
+  return 40;
+}
+
+function getSafeNumber(value, fallback) {
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : fallback;
+}
+
 function createObjectHtml(object) {
-  const x = Number(object.x || 50);
-  const y = Number(object.y || 50);
-  const scale = Number(object.scale || 1);
-  const rotation = Number(object.rotation || 0);
+  const x = getSafeNumber(object.x, 50);
+  const y = getSafeNumber(object.y, 50);
+  const scale = getSafeNumber(object.scale, 1);
+  const rotation = getSafeNumber(object.rotation, 0);
   const category = String(object.category || object.payload?.category || object.type || 'marker');
   const type = String(object.type || object.payload?.type || category || 'marker');
   const selectedClass = object.selected ? 'map-object-selected' : '';
@@ -208,6 +225,7 @@ function createObjectHtml(object) {
     category,
     type,
   });
+  const renderSize = getObjectRenderSize(category, meta.visualClass);
 
   return `
     <button
@@ -222,12 +240,14 @@ function createObjectHtml(object) {
       title="${escapeHtml(meta.title)}"
       style="
         position: absolute;
-        left: ${Number.isFinite(x) ? x : 50}%;
-        top: ${Number.isFinite(y) ? y : 50}%;
-        width: 14px;
-        height: 14px;
-        min-width: 14px;
-        min-height: 14px;
+        left: ${x}%;
+        top: ${y}%;
+        --map-object-scale: ${scale};
+        --map-object-rotation: ${rotation}deg;
+        width: ${renderSize}px;
+        height: ${renderSize}px;
+        min-width: ${renderSize}px;
+        min-height: ${renderSize}px;
         display: grid;
         place-items: center;
         padding: 0;
@@ -235,8 +255,8 @@ function createObjectHtml(object) {
         background: transparent;
         transform:
           translate(-50%, -50%)
-          rotate(${Number.isFinite(rotation) ? rotation : 0}deg)
-          scale(${Number.isFinite(scale) ? scale : 1});
+          rotate(var(--map-object-rotation, 0deg))
+          scale(var(--map-object-scale, 1));
         transform-origin: center center;
         z-index: 10;
         pointer-events: auto;
