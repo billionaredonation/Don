@@ -1944,3 +1944,223 @@ body.mn-landscape-game .house-selection-close {
   height: 21px !important;
   font-size: 16px !important;
 }
+
+/* =========================================================
+   FINAL MOBILE UI CLEANUP
+   1) Убираем карточку "Сейчас онлайн", если старый HTML ещё закеширован.
+   2) Делаем дома на мобилке меньше.
+   3) Выравниваем карточку выбранного дома.
+   4) Поднимаем HUD выше объектов.
+   ========================================================= */
+
+.city-stat-card-online {
+  display: none !important;
+}
+
+.city-stat-grid-clean {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 800px) {
+  .city-stat-grid-clean {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+body.mn-landscape-game .city-stat-grid-clean {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+/* HUD всегда выше домов */
+body.mn-landscape-game .player-glass-hud,
+body.mn-landscape-game .player-weather-mini,
+body.mn-landscape-game .player-network-card,
+.home[data-mobile-controls="enabled"] .player-glass-hud,
+.home[data-mobile-controls="enabled"] .player-weather-mini,
+.home[data-mobile-controls="enabled"] .player-network-card {
+  z-index: 2147481500 !important;
+}
+
+body.mn-landscape-game .map-objects-layer,
+body.mn-landscape-game .map-objects-layer-public,
+body.mn-landscape-game .map-objects-layer-admin,
+.home[data-mobile-controls="enabled"] .map-objects-layer,
+.home[data-mobile-controls="enabled"] .map-objects-layer-public,
+.home[data-mobile-controls="enabled"] .map-objects-layer-admin {
+  z-index: 260 !important;
+}
+
+/* Дома на мобилке: меньше, но кликабельность остаётся нормальной */
+body.mn-landscape-game .map-objects-layer .map-object.map-object-house,
+body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-standard,
+.home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house,
+.home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-standard {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+}
+
+body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
+body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-premium,
+.home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
+.home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-premium {
+  width: 31px !important;
+  height: 31px !important;
+  min-width: 31px !important;
+  min-height: 31px !important;
+  max-width: 31px !important;
+  max-height: 31px !important;
+}
+
+body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-lux,
+body.mn-landscape-game .map-objects-layer .map-object.map-object-house.map-object-visual-elite,
+.home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-lux,
+.home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house.map-object-visual-elite {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+}
+
+body.mn-landscape-game .map-objects-layer .map-object.map-object-house::before,
+.home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before {
+  inset: -20px !important;
+}
+
+/* Карточка выбранного дома: убираем вертикальную кашу */
+body.mn-landscape-game .house-selection-panel,
+.home[data-mobile-controls="enabled"] .house-selection-panel {
+  position: fixed !important;
+
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: max(10px, env(safe-area-inset-bottom)) !important;
+
+  width: min(360px, calc(100vw - 96px)) !important;
+  max-width: calc(100vw - 96px) !important;
+  min-height: 46px !important;
+
+  display: grid !important;
+  grid-template-columns: 32px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+
+  padding: 7px 9px !important;
+  border-radius: 15px !important;
+
+  transform: translateX(-50%) !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+  transform-origin: center center !important;
+
+  z-index: 2147482200 !important;
+  pointer-events: auto !important;
+}
+
+body.mn-landscape-game .house-selection-panel[hidden],
+.home[data-mobile-controls="enabled"] .house-selection-panel[hidden] {
+  display: none !important;
+}
+
+body.mn-landscape-game .house-selection-icon,
+.home[data-mobile-controls="enabled"] .house-selection-icon {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+
+  border-radius: 10px !important;
+  font-size: 17px !important;
+}
+
+body.mn-landscape-game .house-selection-body,
+.home[data-mobile-controls="enabled"] .house-selection-body {
+  min-width: 0 !important;
+  gap: 1px !important;
+  padding-right: 8px !important;
+}
+
+body.mn-landscape-game .house-selection-title,
+.home[data-mobile-controls="enabled"] .house-selection-title {
+  font-size: 13px !important;
+  line-height: 1.05 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.mn-landscape-game .house-selection-meta,
+.home[data-mobile-controls="enabled"] .house-selection-meta {
+  font-size: 9px !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.mn-landscape-game .house-selection-action,
+.home[data-mobile-controls="enabled"] .house-selection-action {
+  min-width: 78px !important;
+  min-height: 31px !important;
+
+  padding: 0 9px !important;
+  border-radius: 10px !important;
+
+  font-size: 10px !important;
+  line-height: 1 !important;
+}
+
+body.mn-landscape-game .house-selection-close,
+.home[data-mobile-controls="enabled"] .house-selection-close {
+  right: 3px !important;
+  top: 3px !important;
+
+  width: 19px !important;
+  height: 19px !important;
+
+  font-size: 14px !important;
+  line-height: 19px !important;
+}
+
+/* Очень узкие экраны */
+@media (max-width: 620px) {
+  body.mn-landscape-game .house-selection-panel,
+  .home[data-mobile-controls="enabled"] .house-selection-panel {
+    width: min(320px, calc(100vw - 72px)) !important;
+    max-width: calc(100vw - 72px) !important;
+    grid-template-columns: 30px minmax(0, 1fr) 74px !important;
+    gap: 6px !important;
+    padding: 6px 8px !important;
+  }
+
+  body.mn-landscape-game .house-selection-icon,
+  .home[data-mobile-controls="enabled"] .house-selection-icon {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    font-size: 16px !important;
+  }
+
+  body.mn-landscape-game .house-selection-title,
+  .home[data-mobile-controls="enabled"] .house-selection-title {
+    font-size: 12px !important;
+  }
+
+  body.mn-landscape-game .house-selection-meta,
+  .home[data-mobile-controls="enabled"] .house-selection-meta {
+    font-size: 8.5px !important;
+  }
+
+  body.mn-landscape-game .house-selection-action,
+  .home[data-mobile-controls="enabled"] .house-selection-action {
+    min-width: 70px !important;
+    font-size: 9.5px !important;
+  }
+}
