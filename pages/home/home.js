@@ -565,44 +565,45 @@ register('home', async (root) => {
           />
         </div>
 
-        <section class="player-glass-hud" aria-label="Игровой HUD">
-          <div class="player-hud-left">
-            <button class="player-city-button" type="button" aria-label="Открыть недвижимость города">
-              <span>${city.name}</span>
-              <b>›</b>
-            </button>
-
-            <div class="player-weather-mini" aria-label="Погода">
-              <span>${dayMode === 'day' ? '☀' : '☾'}</span>
-              <i></i>
-              <span>${displayWeather.icon}</span>
-              <i></i>
-              <span>${displayWeather.temperature}°</span>
-            </div>
-          </div>
-
-          <button class="player-profile-card" type="button" aria-label="Профиль игрока">
-            <span class="player-avatar">${String(nickname).charAt(0).toUpperCase()}</span>
-
-            <span class="player-profile-info">
-              <strong>${nickname}</strong>
-              <small>ID: ${telegramId}</small>
-            </span>
-
-            <span class="player-profile-arrow">›</span>
-          </button>
-
-          <div class="player-balance-card" aria-label="Баланс игрока" data-player-balance-card>
-            <span class="player-card-icon player-card-icon-green">₴</span>
-            <strong data-player-balance>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
-          </div>
-        </section>
 
         <div class="mobile-self-player-indicator" aria-hidden="true">
           <div class="mobile-self-player-dot"></div>
         </div>
       </section>
     </main>
+
+    <section class="player-glass-hud" aria-label="Игровой HUD">
+      <div class="player-hud-left">
+        <button class="player-city-button" type="button" aria-label="Открыть недвижимость города">
+          <span>${city.name}</span>
+          <b>›</b>
+        </button>
+
+        <div class="player-weather-mini" aria-label="Погода">
+          <span>${dayMode === 'day' ? '☀' : '☾'}</span>
+          <i></i>
+          <span>${displayWeather.icon}</span>
+          <i></i>
+          <span>${displayWeather.temperature}°</span>
+        </div>
+      </div>
+
+      <button class="player-profile-card" type="button" aria-label="Профиль игрока">
+        <span class="player-avatar">${String(nickname).charAt(0).toUpperCase()}</span>
+
+        <span class="player-profile-info">
+          <strong>${nickname}</strong>
+          <small>ID: ${telegramId}</small>
+        </span>
+
+        <span class="player-profile-arrow">›</span>
+      </button>
+
+      <div class="player-balance-card" aria-label="Баланс игрока" data-player-balance-card>
+        <span class="player-card-icon player-card-icon-green">₴</span>
+        <strong data-player-balance>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
+      </div>
+    </section>
 
     <div class="mobile-controls-layer"></div>
   `;
