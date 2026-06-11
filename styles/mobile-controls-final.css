@@ -843,3 +843,356 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     font-size: 16px !important;
   }
 }
+
+/* =========================================================
+   FINAL MOBILE GAME UI RESET — 2026-06-11
+   HUD вынесен из повернутой сцены в home.js, тут задаём нормальную
+   мобильную раскладку поверх старых правил.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .player-glass-hud {
+    position: fixed !important;
+    inset: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+
+    width: 100vw !important;
+    height: 100svh !important;
+
+    display: block !important;
+    pointer-events: none !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+
+    z-index: 2147481800 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-hud-left {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button,
+  .home[data-mobile-controls="enabled"] .player-profile-card,
+  .home[data-mobile-controls="enabled"] .player-balance-card,
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    position: fixed !important;
+    box-sizing: border-box !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+
+    pointer-events: auto !important;
+    backdrop-filter: blur(14px) saturate(1.15) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+  }
+
+  /* Кнопка города: ниже Telegram Close, не лезет в центр карты. */
+  .home[data-mobile-controls="enabled"] .player-city-button {
+    left: max(14px, env(safe-area-inset-left)) !important;
+    top: max(118px, calc(env(safe-area-inset-top) + 92px)) !important;
+
+    width: 118px !important;
+    height: 36px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+
+    padding: 0 9px !important;
+    border-radius: 13px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button span {
+    font-size: 14px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button b {
+    font-size: 18px !important;
+    line-height: 1 !important;
+  }
+
+  /* Профиль: компактная плашка справа, горизонтальная, без вертикального текста. */
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    right: max(12px, env(safe-area-inset-right)) !important;
+    top: max(118px, calc(env(safe-area-inset-top) + 92px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    width: 142px !important;
+    height: 42px !important;
+
+    display: grid !important;
+    grid-template-columns: 30px minmax(0, 1fr) 10px !important;
+    align-items: center !important;
+    gap: 7px !important;
+
+    padding: 0 8px !important;
+    border-radius: 14px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-avatar {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 13px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info strong {
+    font-size: 11px !important;
+    line-height: 1 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info small {
+    font-size: 7px !important;
+    line-height: 1 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-arrow {
+    font-size: 15px !important;
+    line-height: 1 !important;
+  }
+
+  /* Погода: маленький чип сверху по центру. */
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    left: 50% !important;
+    top: max(62px, calc(env(safe-area-inset-top) + 42px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: auto !important;
+    min-width: 76px !important;
+    max-width: 112px !important;
+    height: 25px !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+
+    padding: 0 8px !important;
+    border-radius: 999px !important;
+
+    transform: translateX(-50%) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-weather-mini span {
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-weather-mini i {
+    width: 1px !important;
+    height: 11px !important;
+  }
+
+  /* Баланс: внизу справа, читаемо, рядом с админкой. */
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    right: max(66px, calc(env(safe-area-inset-right) + 66px)) !important;
+    bottom: max(14px, env(safe-area-inset-bottom)) !important;
+    left: auto !important;
+    top: auto !important;
+
+    width: 110px !important;
+    height: 42px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+
+    padding: 0 9px !important;
+    border-radius: 14px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card strong {
+    font-size: 12px !important;
+    line-height: 1 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-card-icon {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    font-size: 11px !important;
+  }
+
+  /* Админка: отдельная круглая кнопка рядом с балансом, без наложения. */
+  .home[data-mobile-controls="enabled"] .admin-status-dot {
+    position: fixed !important;
+    right: max(14px, env(safe-area-inset-right)) !important;
+    bottom: max(14px, env(safe-area-inset-bottom)) !important;
+    left: auto !important;
+    top: auto !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+
+    z-index: 2147481850 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Джойстик: в нормальное игровое место, не под Telegram-шапку. */
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer {
+    z-index: 2147481700 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(18px, env(safe-area-inset-left)) !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: max(18px, env(safe-area-inset-bottom)) !important;
+
+    width: 96px !important;
+    height: 96px !important;
+    min-width: 96px !important;
+    min-height: 96px !important;
+    max-width: 96px !important;
+    max-height: 96px !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+
+    z-index: 2147481750 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    width: 96px !important;
+    height: 96px !important;
+    min-width: 96px !important;
+    min-height: 96px !important;
+    max-width: 96px !important;
+    max-height: 96px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-stick {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    max-width: 42px !important;
+    max-height: 42px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(118px, calc(env(safe-area-inset-left) + 118px)) !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: max(28px, calc(env(safe-area-inset-bottom) + 28px)) !important;
+
+    width: 122px !important;
+    min-width: 122px !important;
+    max-width: 122px !important;
+
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+
+    padding: 7px 9px !important;
+    border-radius: 13px !important;
+
+    z-index: 2147481740 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina-label,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] .mobile-stamina-label {
+    height: 9px !important;
+    min-height: 9px !important;
+    max-height: 9px !important;
+    margin-bottom: 5px !important;
+    font-size: 8px !important;
+    line-height: 9px !important;
+    letter-spacing: 0.13em !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina-track,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] .mobile-stamina-track {
+    height: 6px !important;
+    min-height: 6px !important;
+    max-height: 6px !important;
+  }
+
+  /* Центр игрока не должен перекрывать модалки и HUD. */
+  .home[data-mobile-controls="enabled"]::after {
+    z-index: 2147481200 !important;
+  }
+
+  /* Дома: нормальный размер, без огромных стрелок на весь квартал. */
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-standard,
+  body.mn-landscape-game .map-object.map-object-house,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-standard {
+    width: 25px !important;
+    height: 25px !important;
+    min-width: 25px !important;
+    min-height: 25px !important;
+    max-width: 25px !important;
+    max-height: 25px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-comfort,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-premium,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-comfort,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-premium {
+    width: 27px !important;
+    height: 27px !important;
+    min-width: 27px !important;
+    min-height: 27px !important;
+    max-width: 27px !important;
+    max-height: 27px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-lux,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-elite,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-lux,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-elite {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    max-width: 30px !important;
+    max-height: 30px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before,
+  body.mn-landscape-game .map-objects-layer .map-object.map-object-house::before {
+    inset: -18px !important;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) and (max-width: 620px) {
+  .home[data-mobile-controls="enabled"] .player-city-button {
+    width: 108px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    width: 132px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    width: 100px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+}
