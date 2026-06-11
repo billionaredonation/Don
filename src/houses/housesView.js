@@ -84,7 +84,7 @@ function renderCityStatCards({
   registeredPlayers,
 }) {
   return `
-    <div class="city-stat-grid city-stat-grid-clean">
+    <div class="city-stat-grid">
       <article class="city-stat-card city-stat-card-budget">
         <span class="city-stat-icon">💰</span>
 
