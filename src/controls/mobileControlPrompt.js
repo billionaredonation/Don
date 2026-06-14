@@ -48,19 +48,13 @@ async function requestGameFullscreen() {
     // Telegram WebApp может быть недоступен вне Mini App.
   }
 
-  try {
-    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-      await document.documentElement.requestFullscreen();
-    }
-  } catch {
-    // Fullscreen часто запрещён без пользовательского жеста.
-  }
+  /*
+    Не трогаем document.requestFullscreen() и screen.orientation.lock().
+    На части телефонов внутри Telegram это превращает рабочий экран в тёмный фон.
+    Размер и поворот сцены контролируются CSS-переменными --mn-vw / --mn-vh.
+  */
 
-  try {
-    await screen.orientation?.lock?.('landscape');
-  } catch {
-    // iOS и Telegram WebView часто не дают закрепить orientation.lock.
-  }
+  window.dispatchEvent(new Event('resize'));
 }
 
 export function setupMobileControlPrompt({
