@@ -1,3 +1,56 @@
+function getViewportSize() {
+  const width = Math.max(
+    1,
+    Math.round(
+      window.visualViewport?.width ||
+        window.innerWidth ||
+        document.documentElement.clientWidth ||
+        window.screen?.width ||
+        1
+    )
+  );
+
+  const height = Math.max(
+    1,
+    Math.round(
+      window.visualViewport?.height ||
+        window.innerHeight ||
+        document.documentElement.clientHeight ||
+        window.screen?.height ||
+        1
+    )
+  );
+
+  return { width, height };
+}
+
+function isTouchDevice() {
+  return (
+    window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ||
+    navigator.maxTouchPoints > 0
+  );
+}
+
+function syncViewportState() {
+  const { width, height } = getViewportSize();
+  const mobile = isTouchDevice();
+  const landscape = width >= height;
+  const portrait = height > width;
+
+  document.documentElement.style.setProperty('--mn-vw', `${width}px`);
+  document.documentElement.style.setProperty('--mn-vh', `${height}px`);
+  document.documentElement.style.setProperty('--tg-vw', `${width}px`);
+  document.documentElement.style.setProperty('--tg-vh', `${height}px`);
+
+  document.documentElement.classList.toggle('mn-real-landscape', mobile && landscape);
+  document.documentElement.classList.toggle('mn-force-rotate-landscape', mobile && portrait);
+  document.documentElement.classList.toggle('mn-real-portrait', mobile && portrait);
+
+  document.body?.classList.toggle('mn-real-landscape', mobile && landscape);
+  document.body?.classList.toggle('mn-force-rotate-landscape', mobile && portrait);
+  document.body?.classList.toggle('mn-real-portrait', mobile && portrait);
+}
+
 export function setupTelegramGameShell() {
   const tg = window.Telegram?.WebApp;
 
@@ -14,8 +67,15 @@ export function setupTelegramGameShell() {
     safe(() => tg.disableVerticalSwipes?.());
     safe(() => tg.enableClosingConfirmation?.());
 
-    safe(() => tg.requestFullscreen?.());
-    safe(() => tg.lockOrientation?.('landscape'));
+    /*
+      Не вызываем tg.requestFullscreen(), tg.lockOrientation(),
+      document.requestFullscreen() и screen.orientation.lock() автоматически.
+
+      На части Telegram WebView это даёт типичный баг:
+      интерфейс появляется на секунду, потом viewport пересчитывается,
+      повернутая сцена улетает за экран и остаётся тёмный фон.
+      Landscape теперь делается CSS-классами только тогда, когда viewport реально portrait.
+    */
 
     safe(() => tg.setHeaderColor?.('#050607'));
     safe(() => tg.setBackgroundColor?.('#050607'));
@@ -23,32 +83,15 @@ export function setupTelegramGameShell() {
   }
 
   document.documentElement.classList.add('mn-ios-shell');
-  document.body.classList.add('mn-ios-shell');
+  document.body?.classList.add('mn-ios-shell');
 
-  const updateViewport = () => {
-    const width =
-      window.visualViewport?.width ||
-      window.innerWidth ||
-      document.documentElement.clientWidth;
+  syncViewportState();
 
-    const height =
-      window.visualViewport?.height ||
-      window.innerHeight ||
-      document.documentElement.clientHeight;
+  window.addEventListener('resize', syncViewportState, { passive: true });
+  window.addEventListener('orientationchange', syncViewportState, { passive: true });
 
-    document.documentElement.style.setProperty('--mn-vw', `${width}px`);
-    document.documentElement.style.setProperty('--mn-vh', `${height}px`);
-    document.documentElement.style.setProperty('--tg-vw', `${width}px`);
-    document.documentElement.style.setProperty('--tg-vh', `${height}px`);
-  };
-
-  updateViewport();
-
-  window.addEventListener('resize', updateViewport, { passive: true });
-  window.addEventListener('orientationchange', updateViewport, { passive: true });
-
-  window.visualViewport?.addEventListener?.('resize', updateViewport, { passive: true });
-  window.visualViewport?.addEventListener?.('scroll', updateViewport, { passive: true });
+  window.visualViewport?.addEventListener?.('resize', syncViewportState, { passive: true });
+  window.visualViewport?.addEventListener?.('scroll', syncViewportState, { passive: true });
 
   document.addEventListener(
     'touchmove',
