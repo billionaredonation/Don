@@ -51,6 +51,30 @@ function syncViewportState() {
   document.body?.classList.toggle('mn-real-portrait', mobile && portrait);
 }
 
+
+async function requestFullscreenSafe() {
+  const tg = window.Telegram?.WebApp;
+
+  try {
+    tg?.requestFullscreen?.();
+  } catch {
+    // Telegram WebView may reject fullscreen. CSS fullscreen still works.
+  }
+
+  try {
+    const root = document.documentElement;
+    if (!document.fullscreenElement && root?.requestFullscreen) {
+      await root.requestFullscreen({ navigationUI: 'hide' });
+    }
+  } catch {
+    // Browser fullscreen is optional and can be blocked by WebView.
+  }
+
+  syncViewportState();
+  requestFullscreenSafe();
+  window.dispatchEvent(new Event('resize'));
+}
+
 export function setupTelegramGameShell() {
   const tg = window.Telegram?.WebApp;
 
@@ -84,6 +108,8 @@ export function setupTelegramGameShell() {
 
   document.documentElement.classList.add('mn-ios-shell');
   document.body?.classList.add('mn-ios-shell');
+  document.body?.classList.add('mn-landscape-game');
+  document.body?.classList.add('mn-mobile-game-enabled');
 
   syncViewportState();
 
