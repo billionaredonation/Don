@@ -70,19 +70,13 @@ async function requestLandscapeMode() {
     // Telegram WebApp может быть недоступен вне Mini App.
   }
 
-  try {
-    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-      await document.documentElement.requestFullscreen();
-    }
-  } catch {
-    // Fullscreen часто запрещён без пользовательского жеста.
-  }
+  /*
+    Не используем document.requestFullscreen() и screen.orientation.lock().
+    В Telegram WebView они нестабильны: у части устройств после первого рендера
+    остаётся только тёмный фон. Поворот делаем CSS-слоем, если viewport portrait.
+  */
 
-  try {
-    await screen.orientation?.lock?.('landscape');
-  } catch {
-    // iOS и Telegram WebView часто не дают закрепить landscape.
-  }
+  window.dispatchEvent(new Event('resize'));
 }
 
 function getAngleFromMovement(moveX, moveY, fallback = 0) {
