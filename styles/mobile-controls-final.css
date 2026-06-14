@@ -733,21 +733,100 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
 
 /* =========================================================
-   DEVICE-SAFE MOBILE LANDSCAPE
-   Fixes Telegram WebView where the screen flashes once and then only a dark
-   background remains. The game is rotated only when the viewport is portrait.
+   MOBILE LANDSCAPE + HUD FINAL REWRITE
+   2026-06-15
+   Files are rewritten directly; no extra overlay CSS file is needed.
    ========================================================= */
 
+:root {
+  --mn-vw: 100vw;
+  --mn-vh: 100vh;
+}
+
+/* Base object sizes: normal on desktop, moderate on mobile */
+.map-object.map-object-house,
+.map-object.map-object-house.map-object-visual-standard {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+}
+
+.map-object.map-object-house.map-object-visual-comfort,
+.map-object.map-object-house.map-object-visual-premium {
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+}
+
+.map-object.map-object-house.map-object-visual-lux,
+.map-object.map-object-house.map-object-visual-elite {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+  max-width: 42px !important;
+  max-height: 42px !important;
+}
+
 @media (hover: none) and (pointer: coarse) {
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] {
-    width: var(--mn-vw, 100vw) !important;
-    height: var(--mn-vh, 100vh) !important;
-    min-height: var(--mn-vh, 100vh) !important;
+  html,
+  body {
+    width: 100vw !important;
+    height: 100vh !important;
+    min-width: 100vw !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #050607 !important;
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+    touch-action: none !important;
+  }
+
+  body.mn-landscape-game,
+  body.mn-mobile-game-enabled {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
     background: #050607 !important;
   }
 
+  body.mn-landscape-game #app,
+  body.mn-mobile-game-enabled #app,
+  body.mn-landscape-game .page,
+  body.mn-mobile-game-enabled .page,
+  body.mn-landscape-game .home,
+  body.mn-mobile-game-enabled .home,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"],
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] {
+    position: fixed !important;
+    inset: 0 !important;
+    width: var(--mn-vw, 100vw) !important;
+    height: var(--mn-vh, 100vh) !important;
+    min-width: var(--mn-vw, 100vw) !important;
+    min-height: var(--mn-vh, 100vh) !important;
+    max-width: var(--mn-vw, 100vw) !important;
+    max-height: var(--mn-vh, 100vh) !important;
+    overflow: hidden !important;
+    background: #050607 !important;
+  }
+
+  /* Game layer:
+     - if Telegram viewport is already landscape, don't rotate;
+     - if Telegram viewport is portrait, rotate the gameplay area once.
+  */
   body.mn-landscape-game.mn-real-landscape .home[data-mobile-controls="enabled"] .home-gameplay,
-  html.mn-real-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .home-gameplay {
+  html.mn-real-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .home-gameplay,
+  body.mn-mobile-game-enabled.mn-real-landscape .home[data-mobile-controls="enabled"] .home-gameplay,
+  html.mn-real-landscape body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .home-gameplay {
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
@@ -763,14 +842,15 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     rotate: 0deg !important;
     translate: 0 0 !important;
     transform-origin: center center !important;
-
     overflow: hidden !important;
     opacity: 1 !important;
     visibility: visible !important;
   }
 
   body.mn-landscape-game.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .home-gameplay,
-  html.mn-force-rotate-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .home-gameplay {
+  html.mn-force-rotate-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .home-gameplay,
+  body.mn-mobile-game-enabled.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .home-gameplay,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .home-gameplay {
     position: fixed !important;
     left: 50% !important;
     top: 50% !important;
@@ -786,13 +866,13 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     rotate: 0deg !important;
     translate: 0 0 !important;
     transform-origin: center center !important;
-
     overflow: hidden !important;
     opacity: 1 !important;
     visibility: visible !important;
   }
 
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .gta-map-stage {
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .gta-map-stage,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .gta-map-stage {
     position: absolute !important;
     inset: 0 !important;
     width: 100% !important;
@@ -800,29 +880,33 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     min-width: 100% !important;
     min-height: 100% !important;
     display: block !important;
-    opacity: 1 !important;
-    visibility: visible !important;
     background: transparent !important;
     overflow: hidden !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   body.mn-landscape-game .home[data-mobile-controls="enabled"] .gta-map-bg,
   body.mn-landscape-game .home[data-mobile-controls="enabled"] .gta-water,
   body.mn-landscape-game .home[data-mobile-controls="enabled"] .gta-map-viewport,
   body.mn-landscape-game .home[data-mobile-controls="enabled"] .gta-map-image,
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .gta-map-entities {
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .gta-map-entities,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .gta-map-bg,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .gta-water,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .gta-map-viewport,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .gta-map-image,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .gta-map-entities {
     opacity: 1 !important;
     visibility: visible !important;
   }
-}
 
-/* =========================================================
-   MOBILE HUD DIRECT LAYOUT
-   This replaces the old scattered mobile HUD positioning inside this file.
-   No extra CSS file is required.
-   ========================================================= */
+  /* Fullscreen click shield should not cover controls */
+  .home[data-mobile-controls="enabled"]::after {
+    z-index: 1 !important;
+    pointer-events: none !important;
+  }
 
-@media (hover: none) and (pointer: coarse) {
+  /* HUD and controls use the same logical landscape coordinate system as gameplay */
   .home[data-mobile-controls="enabled"] .player-glass-hud,
   .home[data-mobile-controls="enabled"] .mobile-controls-layer {
     position: fixed !important;
@@ -835,11 +919,12 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     height: var(--mn-vh, 100vh) !important;
     min-width: var(--mn-vw, 100vw) !important;
     min-height: var(--mn-vh, 100vh) !important;
+    max-width: var(--mn-vw, 100vw) !important;
+    max-height: var(--mn-vh, 100vh) !important;
 
     display: block !important;
-    overflow: visible !important;
     pointer-events: none !important;
-
+    overflow: visible !important;
     transform: none !important;
     rotate: 0deg !important;
     translate: 0 0 !important;
@@ -848,8 +933,12 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
   body.mn-landscape-game.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-glass-hud,
   html.mn-force-rotate-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-glass-hud,
+  body.mn-mobile-game-enabled.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-glass-hud,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-glass-hud,
   body.mn-landscape-game.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer,
-  html.mn-force-rotate-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer {
+  html.mn-force-rotate-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer,
+  body.mn-mobile-game-enabled.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer {
     left: 50% !important;
     top: 50% !important;
 
@@ -857,6 +946,8 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     height: var(--mn-vw, 100vw) !important;
     min-width: var(--mn-vh, 100vh) !important;
     min-height: var(--mn-vw, 100vw) !important;
+    max-width: var(--mn-vh, 100vh) !important;
+    max-height: var(--mn-vw, 100vw) !important;
 
     transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
     rotate: 0deg !important;
@@ -866,19 +957,24 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
   body.mn-landscape-game.mn-real-landscape .home[data-mobile-controls="enabled"] .player-glass-hud,
   html.mn-real-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-glass-hud,
+  body.mn-mobile-game-enabled.mn-real-landscape .home[data-mobile-controls="enabled"] .player-glass-hud,
+  html.mn-real-landscape body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-glass-hud,
   body.mn-landscape-game.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer,
-  html.mn-real-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer {
+  html.mn-real-landscape body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer,
+  body.mn-mobile-game-enabled.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer,
+  html.mn-real-landscape body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer {
     left: 0 !important;
     top: 0 !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
 
     width: var(--mn-vw, 100vw) !important;
     height: var(--mn-vh, 100vh) !important;
     min-width: var(--mn-vw, 100vw) !important;
     min-height: var(--mn-vh, 100vh) !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-    translate: 0 0 !important;
+    max-width: var(--mn-vw, 100vw) !important;
+    max-height: var(--mn-vh, 100vh) !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-glass-hud {
@@ -886,7 +982,7 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
   }
 
   .home[data-mobile-controls="enabled"] .mobile-controls-layer {
-    z-index: 2147481800 !important;
+    z-index: 2147481850 !important;
     touch-action: none !important;
   }
 
@@ -897,18 +993,14 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     pointer-events: none !important;
   }
 
+  /* Top-right stack from the screenshot:
+     city above, nickname below, same width and height. */
   .home[data-mobile-controls="enabled"] .player-city-button,
   .home[data-mobile-controls="enabled"] .player-profile-card,
   .home[data-mobile-controls="enabled"] .player-balance-card,
   .home[data-mobile-controls="enabled"] .player-weather-mini {
-    position: absolute !important;
     box-sizing: border-box !important;
-
-    height: 42px !important;
-    min-height: 42px !important;
-    max-height: 42px !important;
-
-    border-radius: 14px !important;
+    position: absolute !important;
 
     transform: none !important;
     rotate: 0deg !important;
@@ -919,42 +1011,51 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
   }
 
-  .home[data-mobile-controls="enabled"] .player-profile-card {
-    right: max(14px, env(safe-area-inset-right)) !important;
-    top: max(12px, env(safe-area-inset-top)) !important;
-    left: auto !important;
-    bottom: auto !important;
-
-    width: 154px !important;
-    min-width: 154px !important;
-    max-width: 154px !important;
-
-    display: grid !important;
-    grid-template-columns: 30px minmax(0, 1fr) 10px !important;
-    align-items: center !important;
-    gap: 7px !important;
-    padding: 0 8px !important;
-  }
-
   .home[data-mobile-controls="enabled"] .player-city-button {
-    right: max(176px, calc(env(safe-area-inset-right) + 176px)) !important;
-    top: max(12px, env(safe-area-inset-top)) !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    top: max(210px, calc(env(safe-area-inset-top) + 210px)) !important;
     left: auto !important;
     bottom: auto !important;
 
-    width: 132px !important;
-    min-width: 132px !important;
-    max-width: 132px !important;
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
 
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    gap: 7px !important;
-    padding: 0 10px !important;
+    gap: 6px !important;
+    padding: 0 9px !important;
+    border-radius: 14px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    right: max(12px, env(safe-area-inset-right)) !important;
+    top: max(262px, calc(env(safe-area-inset-top) + 262px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+
+    display: grid !important;
+    grid-template-columns: 26px minmax(0, 1fr) 8px !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 0 7px !important;
+    border-radius: 14px !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-city-button span,
   .home[data-mobile-controls="enabled"] .player-profile-info strong,
+  .home[data-mobile-controls="enabled"] .player-profile-info small,
   .home[data-mobile-controls="enabled"] .player-balance-card strong {
     overflow: hidden !important;
     white-space: nowrap !important;
@@ -962,87 +1063,95 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
   }
 
   .home[data-mobile-controls="enabled"] .player-city-button span {
-    font-size: 14px !important;
+    font-size: 12px !important;
     line-height: 1 !important;
     font-weight: 900 !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-city-button b {
-    font-size: 18px !important;
+    font-size: 16px !important;
     line-height: 1 !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-avatar {
-    width: 28px !important;
-    height: 28px !important;
-    min-width: 28px !important;
-    min-height: 28px !important;
-    font-size: 13px !important;
+    width: 25px !important;
+    height: 25px !important;
+    min-width: 25px !important;
+    min-height: 25px !important;
+    max-width: 25px !important;
+    max-height: 25px !important;
+    font-size: 12px !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-profile-info strong {
-    font-size: 12px !important;
+    font-size: 11px !important;
     line-height: 1 !important;
+    font-weight: 900 !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-profile-info small {
-    font-size: 7px !important;
-    line-height: 1 !important;
+    font-size: 6.5px !important;
+    line-height: 1.1 !important;
+    opacity: 0.72 !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-profile-arrow {
-    font-size: 15px !important;
+    font-size: 13px !important;
     line-height: 1 !important;
   }
 
+  /* Weather small pill: middle-right, not covering gameplay too much. */
   .home[data-mobile-controls="enabled"] .player-weather-mini {
-    left: 50% !important;
-    top: max(16px, env(safe-area-inset-top)) !important;
-    right: auto !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    top: max(170px, calc(env(safe-area-inset-top) + 170px)) !important;
+    left: auto !important;
     bottom: auto !important;
 
-    width: auto !important;
-    min-width: 82px !important;
-    max-width: 116px !important;
-    height: 28px !important;
-    min-height: 28px !important;
-    max-height: 28px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
 
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 5px !important;
-    padding: 0 8px !important;
+    gap: 3px !important;
+    padding: 0 5px !important;
     border-radius: 999px !important;
-
-    transform: translateX(-50%) !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-weather-mini span {
-    font-size: 10px !important;
+    font-size: 8px !important;
     line-height: 1 !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-weather-mini i {
     width: 1px !important;
-    height: 11px !important;
+    height: 10px !important;
   }
 
+  /* Balance: bottom-left from the marked screenshot. */
   .home[data-mobile-controls="enabled"] .player-balance-card {
-    right: max(14px, env(safe-area-inset-right)) !important;
+    left: max(12px, env(safe-area-inset-left)) !important;
     bottom: max(14px, env(safe-area-inset-bottom)) !important;
-    left: auto !important;
+    right: auto !important;
     top: auto !important;
 
-    width: 128px !important;
-    min-width: 128px !important;
-    max-width: 128px !important;
+    width: 124px !important;
+    min-width: 124px !important;
+    max-width: 124px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
 
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 7px !important;
     padding: 0 10px !important;
+    border-radius: 14px !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-balance-card strong {
@@ -1056,47 +1165,54 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     height: 22px !important;
     min-width: 22px !important;
     min-height: 22px !important;
+    max-width: 22px !important;
+    max-height: 22px !important;
     font-size: 11px !important;
   }
 
+  /* Hide admin button on mobile. */
   .home[data-mobile-controls="enabled"] .admin-status-dot,
   body.mn-landscape-game .home[data-mobile-controls="enabled"] .admin-status-dot,
-  body.mn-landscape-game .admin-status-dot {
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .admin-status-dot,
+  body.mn-landscape-game .admin-status-dot,
+  body.mn-mobile-game-enabled .admin-status-dot {
     display: none !important;
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
   }
 
+  /* Joystick: upper-right from the marked screenshot. */
   .home[data-mobile-controls="enabled"] .mobile-joystick {
     position: absolute !important;
-    left: max(16px, env(safe-area-inset-left)) !important;
-    top: max(60px, calc(env(safe-area-inset-top) + 60px)) !important;
-    right: auto !important;
+    right: max(44px, calc(env(safe-area-inset-right) + 44px)) !important;
+    top: max(50px, calc(env(safe-area-inset-top) + 50px)) !important;
+    left: auto !important;
     bottom: auto !important;
 
-    width: 94px !important;
-    height: 94px !important;
-    min-width: 94px !important;
-    min-height: 94px !important;
-    max-width: 94px !important;
-    max-height: 94px !important;
+    width: 96px !important;
+    height: 96px !important;
+    min-width: 96px !important;
+    min-height: 96px !important;
+    max-width: 96px !important;
+    max-height: 96px !important;
 
     transform: none !important;
     rotate: 0deg !important;
     translate: 0 0 !important;
 
-    z-index: 2147481810 !important;
+    z-index: 2147481860 !important;
     pointer-events: auto !important;
+    touch-action: none !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-joystick-base {
-    width: 94px !important;
-    height: 94px !important;
-    min-width: 94px !important;
-    min-height: 94px !important;
-    max-width: 94px !important;
-    max-height: 94px !important;
+    width: 96px !important;
+    height: 96px !important;
+    min-width: 96px !important;
+    min-height: 96px !important;
+    max-width: 96px !important;
+    max-height: 96px !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-joystick-stick {
@@ -1111,33 +1227,31 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
   .home[data-mobile-controls="enabled"] .mobile-stamina,
   .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
     position: absolute !important;
-    left: max(16px, env(safe-area-inset-left)) !important;
-    top: max(162px, calc(env(safe-area-inset-top) + 162px)) !important;
-    right: auto !important;
+    right: max(24px, calc(env(safe-area-inset-right) + 24px)) !important;
+    top: max(154px, calc(env(safe-area-inset-top) + 154px)) !important;
+    left: auto !important;
     bottom: auto !important;
 
-    width: 132px !important;
-    min-width: 132px !important;
-    max-width: 132px !important;
-
-    height: 36px !important;
-    min-height: 36px !important;
-    max-height: 36px !important;
+    width: 122px !important;
+    min-width: 122px !important;
+    max-width: 122px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    max-height: 34px !important;
 
     padding: 7px 9px !important;
     border-radius: 13px !important;
-
-    z-index: 2147481805 !important;
+    z-index: 2147481855 !important;
   }
 
   .home[data-mobile-controls="enabled"] .mobile-stamina-label,
   .home[data-mobile-controls="enabled"] [data-mobile-stamina] .mobile-stamina-label {
-    height: 9px !important;
-    min-height: 9px !important;
-    max-height: 9px !important;
+    height: 8px !important;
+    min-height: 8px !important;
+    max-height: 8px !important;
     margin: 0 0 5px 0 !important;
-    font-size: 8px !important;
-    line-height: 9px !important;
+    font-size: 7px !important;
+    line-height: 8px !important;
     letter-spacing: 0.13em !important;
   }
 
@@ -1148,14 +1262,27 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     max-height: 6px !important;
   }
 
-  .home[data-mobile-controls="enabled"]::after {
-    z-index: 2147481200 !important;
-  }
-
+  /* Houses on mobile: readable but not giant. */
   .home[data-mobile-controls="enabled"] .map-object.map-object-house,
   .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-standard,
   body.mn-landscape-game .map-object.map-object-house,
-  body.mn-landscape-game .map-object.map-object-house.map-object-visual-standard {
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-standard,
+  body.mn-mobile-game-enabled .map-object.map-object-house,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-standard {
+    width: 23px !important;
+    height: 23px !important;
+    min-width: 23px !important;
+    min-height: 23px !important;
+    max-width: 23px !important;
+    max-height: 23px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-comfort,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-premium,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-comfort,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-premium,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-comfort,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-premium {
     width: 25px !important;
     height: 25px !important;
     min-width: 25px !important;
@@ -1164,10 +1291,12 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     max-height: 25px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-comfort,
-  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-premium,
-  body.mn-landscape-game .map-object.map-object-house.map-object-visual-comfort,
-  body.mn-landscape-game .map-object.map-object-house.map-object-visual-premium {
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-lux,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-elite,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-lux,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-elite,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-lux,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-elite {
     width: 27px !important;
     height: 27px !important;
     min-width: 27px !important;
@@ -1176,41 +1305,73 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     max-height: 27px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-lux,
-  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-elite,
-  body.mn-landscape-game .map-object.map-object-house.map-object-visual-lux,
-  body.mn-landscape-game .map-object.map-object-house.map-object-visual-elite {
-    width: 30px !important;
-    height: 30px !important;
-    min-width: 30px !important;
-    min-height: 30px !important;
-    max-width: 30px !important;
-    max-height: 30px !important;
+  .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before,
+  body.mn-landscape-game .map-objects-layer .map-object.map-object-house::before,
+  body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house::before {
+    inset: -18px !important;
   }
 
-  .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before,
-  body.mn-landscape-game .map-objects-layer .map-object.map-object-house::before {
-    inset: -18px !important;
+  .home[data-mobile-controls="enabled"] .interaction-hint {
+    z-index: 2147481700 !important;
   }
 }
 
-@media (hover: none) and (pointer: coarse) and (max-width: 760px) {
+/* Very narrow Telegram viewport compensation */
+@media (hover: none) and (pointer: coarse) and (max-width: 430px) {
+  .home[data-mobile-controls="enabled"] .player-city-button,
   .home[data-mobile-controls="enabled"] .player-profile-card {
-    width: 144px !important;
-    min-width: 144px !important;
-    max-width: 144px !important;
+    right: max(8px, env(safe-area-inset-right)) !important;
+    width: 106px !important;
+    min-width: 106px !important;
+    max-width: 106px !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-city-button {
-    right: max(166px, calc(env(safe-area-inset-right) + 166px)) !important;
-    width: 122px !important;
-    min-width: 122px !important;
-    max-width: 122px !important;
+    top: max(202px, calc(env(safe-area-inset-top) + 202px)) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    top: max(252px, calc(env(safe-area-inset-top) + 252px)) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    right: max(8px, env(safe-area-inset-right)) !important;
+    top: max(164px, calc(env(safe-area-inset-top) + 164px)) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    right: max(36px, calc(env(safe-area-inset-right) + 36px)) !important;
+    top: max(48px, calc(env(safe-area-inset-top) + 48px)) !important;
+    width: 90px !important;
+    height: 90px !important;
+    min-width: 90px !important;
+    min-height: 90px !important;
+    max-width: 90px !important;
+    max-height: 90px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    width: 90px !important;
+    height: 90px !important;
+    min-width: 90px !important;
+    min-height: 90px !important;
+    max-width: 90px !important;
+    max-height: 90px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    right: max(18px, calc(env(safe-area-inset-right) + 18px)) !important;
+    top: max(144px, calc(env(safe-area-inset-top) + 144px)) !important;
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
   }
 
   .home[data-mobile-controls="enabled"] .player-balance-card {
-    width: 118px !important;
-    min-width: 118px !important;
-    max-width: 118px !important;
+    left: max(8px, env(safe-area-inset-left)) !important;
+    width: 116px !important;
+    min-width: 116px !important;
+    max-width: 116px !important;
   }
 }
