@@ -22,7 +22,10 @@ function rootAsset(src) {
     return bundled;
   }
 
-  return new URL(`../../${cleanSrc}`, import.meta.url).href;
+  const base = String(import.meta.env.BASE_URL || './');
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+
+  return `${normalizedBase}${encodeURI(cleanSrc)}`;
 }
 
 const FALLBACK_MAP_SRC = 'UkraineMap.png';
@@ -173,7 +176,6 @@ function versionedAsset(src) {
 }
 
 
-
 function cityMapCandidates(cityId) {
   const normalizedCityId = normalizeCityId(cityId);
   const fallbackList = CITY_MAP_FALLBACKS[normalizedCityId];
@@ -289,7 +291,6 @@ async function fetchFirstSvg() {
 }
 
 
-
 register('welcome3', (root) => {
   root.className = 'page welcome-page welcome3';
 
@@ -299,7 +300,7 @@ register('welcome3', (root) => {
     <div class="welcome3-loader" id="welcome3Loader">
       <div class="loader-logo">MN</div>
       <div class="loader-title">Загрузка карты</div>
-            <div class="loader-text">Подготавливаем области Украины...</div>
+      <div class="loader-text">Подготавливаем области Украины...</div>
       <div class="loader-bar"><span></span></div>
     </div>
 
@@ -599,7 +600,7 @@ register('welcome3', (root) => {
       } else {
         nextBtn.disabled = true;
         nextBtn.classList.remove('active');
-                setMainText('Город пока не выбран');
+        setMainText('Город пока не выбран');
       }
 
       if (pendingRegion) {
@@ -891,7 +892,7 @@ function createSvgLayer(target, mode) {
       const centerY = (activePointers[0].clientY + activePointers[1].clientY) / 2;
 
       if (gesture.startDistance > 0) {
-                const nextScale = gesture.baseScale * (distance / gesture.startDistance);
+        const nextScale = gesture.baseScale * (distance / gesture.startDistance);
         setScaleAroundPoint(nextScale, centerX, centerY);
       }
     }
