@@ -25,7 +25,10 @@ function rootAsset(src) {
     return bundled;
   }
 
-  return new URL(`../../${cleanSrc}`, import.meta.url).href;
+  const base = String(import.meta.env.BASE_URL || './');
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+
+  return `${normalizedBase}${encodeURI(cleanSrc)}`;
 }
 
 const MIN_LOADING_TIME = 6200;
