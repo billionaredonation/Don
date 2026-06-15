@@ -1942,3 +1942,80 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     bottom: auto !important;
   }
 }
+
+/* =========================================================
+   DONATION MOBILE HUD MICRO-FIX — 2026-06-15
+   Only spacing/position tweaks. No map/rotation/modal logic touched.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Real landscape: joystick a bit more left and higher. */
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-joystick,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(14px, env(safe-area-inset-left)) !important;
+    bottom: max(34px, calc(env(safe-area-inset-bottom) + 34px)) !important;
+    top: auto !important;
+    right: auto !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-stamina,
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] [data-mobile-stamina],
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-stamina,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(10px, env(safe-area-inset-left)) !important;
+    bottom: max(132px, calc(env(safe-area-inset-bottom) + 132px)) !important;
+    top: auto !important;
+    right: auto !important;
+  }
+
+  /* Real landscape: more air between city / nickname / balance on the right. */
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-city-button {
+    top: max(54px, calc(env(safe-area-inset-top) + 54px)) !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-profile-card,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-profile-card {
+    top: max(108px, calc(env(safe-area-inset-top) + 108px)) !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    top: max(172px, calc(env(safe-area-inset-top) + 172px)) !important;
+  }
+
+  /* Forced landscape inside portrait Telegram: move joystick visually up/left. */
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-joystick,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(238px, calc(env(safe-area-inset-left) + 238px)) !important;
+    top: max(226px, calc(env(safe-area-inset-top) + 226px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-stamina,
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] [data-mobile-stamina],
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-stamina,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(196px, calc(env(safe-area-inset-left) + 196px)) !important;
+    top: max(226px, calc(env(safe-area-inset-top) + 226px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  /* Forced landscape: more air between right-side HUD cards. */
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-city-button {
+    left: max(160px, calc(env(safe-area-inset-left) + 160px)) !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-profile-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-profile-card {
+    left: max(216px, calc(env(safe-area-inset-left) + 216px)) !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: max(282px, calc(env(safe-area-inset-left) + 282px)) !important;
+  }
+}
