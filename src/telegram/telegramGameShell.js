@@ -72,7 +72,19 @@ async function requestFullscreenSafe() {
 
   syncViewportState();
   requestFullscreenSafe();
+  installFullscreenRetry();
   window.dispatchEvent(new Event('resize'));
+}
+
+
+function installFullscreenRetry() {
+  const retry = () => {
+    requestFullscreenSafe();
+  };
+
+  window.addEventListener('pointerdown', retry, { passive: true, once: true });
+  window.addEventListener('touchstart', retry, { passive: true, once: true });
+  window.addEventListener('click', retry, { passive: true, once: true });
 }
 
 export function setupTelegramGameShell() {
