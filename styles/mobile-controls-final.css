@@ -1988,3 +1988,324 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     max-width: 112px !important;
   }
 }
+
+
+/* =========================================================
+   MOBILE HUD POSITION CORRECTION — 2026-06-15 v7
+
+   Clean 2D game HUD logic:
+   - map center stays free;
+   - joystick is separated from Telegram Close/system UI;
+   - city/profile/balance/weather are compact on the edge;
+   - no extra foreign buttons/icons/styles.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /*
+    Important: in forced Telegram portrait mode the game/HUD layer is rotated.
+    Therefore left/top here are logical landscape coordinates.
+    The values below deliberately push controls to visual edges and keep the
+    center free.
+  */
+
+  .home[data-mobile-controls="enabled"] .player-city-button,
+  .home[data-mobile-controls="enabled"] .player-profile-card,
+  .home[data-mobile-controls="enabled"] .player-balance-card,
+  .home[data-mobile-controls="enabled"] .player-weather-mini,
+  .home[data-mobile-controls="enabled"] .mobile-joystick,
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+  }
+
+  /*
+    Joystick zone:
+    visually bottom-left / side zone, away from Telegram Close.
+  */
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(600px, calc(env(safe-area-inset-left) + 600px)) !important;
+    top: max(292px, calc(env(safe-area-inset-top) + 292px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 88px !important;
+    height: 88px !important;
+    min-width: 88px !important;
+    min-height: 88px !important;
+    max-width: 88px !important;
+    max-height: 88px !important;
+
+    z-index: 2147481860 !important;
+    pointer-events: auto !important;
+    touch-action: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    width: 88px !important;
+    height: 88px !important;
+    min-width: 88px !important;
+    min-height: 88px !important;
+    max-width: 88px !important;
+    max-height: 88px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-stick {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+  }
+
+  /*
+    Stamina near joystick, compact.
+  */
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(594px, calc(env(safe-area-inset-left) + 594px)) !important;
+    top: max(206px, calc(env(safe-area-inset-top) + 206px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+
+    padding: 7px 9px !important;
+    border-radius: 13px !important;
+    z-index: 2147481855 !important;
+  }
+
+  /*
+    Compact HUD edge row:
+    city -> profile -> balance in the same logical row.
+    On the rotated Telegram capture this appears as a compact edge stack,
+    not in the map center.
+  */
+  .home[data-mobile-controls="enabled"] .player-city-button {
+    left: max(128px, calc(env(safe-area-inset-left) + 128px)) !important;
+    top: max(56px, calc(env(safe-area-inset-top) + 56px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 7px !important;
+    padding: 0 10px !important;
+    border-radius: 14px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    left: max(248px, calc(env(safe-area-inset-left) + 248px)) !important;
+    top: max(56px, calc(env(safe-area-inset-top) + 56px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 136px !important;
+    min-width: 136px !important;
+    max-width: 136px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+
+    display: grid !important;
+    grid-template-columns: 25px minmax(0, 1fr) 8px !important;
+    align-items: center !important;
+    gap: 7px !important;
+    padding: 0 8px !important;
+    border-radius: 14px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: max(392px, calc(env(safe-area-inset-left) + 392px)) !important;
+    top: max(56px, calc(env(safe-area-inset-top) + 56px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 118px !important;
+    min-width: 118px !important;
+    max-width: 118px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    padding: 0 10px !important;
+    border-radius: 14px !important;
+  }
+
+  /*
+    Weather under city. Small and not in center.
+  */
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    left: max(128px, calc(env(safe-area-inset-left) + 128px)) !important;
+    top: max(104px, calc(env(safe-area-inset-top) + 104px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 58px !important;
+    min-width: 58px !important;
+    max-width: 58px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    padding: 0 6px !important;
+    border-radius: 999px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button span,
+  .home[data-mobile-controls="enabled"] .player-profile-info strong,
+  .home[data-mobile-controls="enabled"] .player-profile-info small,
+  .home[data-mobile-controls="enabled"] .player-balance-card strong {
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button span {
+    font-size: 11.5px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info strong {
+    font-size: 10.5px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info small {
+    font-size: 6px !important;
+    line-height: 1.05 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card strong {
+    font-size: 11.5px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-avatar {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+    font-size: 11px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-card-icon {
+    width: 21px !important;
+    height: 21px !important;
+    min-width: 21px !important;
+    min-height: 21px !important;
+    max-width: 21px !important;
+    max-height: 21px !important;
+    font-size: 10px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-weather-mini span {
+    font-size: 8px !important;
+    line-height: 1 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-weather-mini i {
+    width: 1px !important;
+    height: 10px !important;
+  }
+}
+
+/*
+  Current Telegram/iPhone portrait viewport correction.
+  More aggressive edge layout for narrow WebView capture.
+*/
+@media (hover: none) and (pointer: coarse) and (max-width: 430px) {
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(590px, calc(env(safe-area-inset-left) + 590px)) !important;
+    top: max(288px, calc(env(safe-area-inset-top) + 288px)) !important;
+
+    width: 86px !important;
+    height: 86px !important;
+    min-width: 86px !important;
+    min-height: 86px !important;
+    max-width: 86px !important;
+    max-height: 86px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    width: 86px !important;
+    height: 86px !important;
+    min-width: 86px !important;
+    min-height: 86px !important;
+    max-width: 86px !important;
+    max-height: 86px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(584px, calc(env(safe-area-inset-left) + 584px)) !important;
+    top: max(202px, calc(env(safe-area-inset-top) + 202px)) !important;
+    width: 108px !important;
+    min-width: 108px !important;
+    max-width: 108px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button {
+    left: max(118px, calc(env(safe-area-inset-left) + 118px)) !important;
+    top: max(50px, calc(env(safe-area-inset-top) + 50px)) !important;
+
+    width: 106px !important;
+    min-width: 106px !important;
+    max-width: 106px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    left: max(232px, calc(env(safe-area-inset-left) + 232px)) !important;
+    top: max(50px, calc(env(safe-area-inset-top) + 50px)) !important;
+
+    width: 126px !important;
+    min-width: 126px !important;
+    max-width: 126px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: max(366px, calc(env(safe-area-inset-left) + 366px)) !important;
+    top: max(50px, calc(env(safe-area-inset-top) + 50px)) !important;
+
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    left: max(118px, calc(env(safe-area-inset-left) + 118px)) !important;
+    top: max(96px, calc(env(safe-area-inset-top) + 96px)) !important;
+
+    width: 56px !important;
+    min-width: 56px !important;
+    max-width: 56px !important;
+  }
+}
