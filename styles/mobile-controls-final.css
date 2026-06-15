@@ -1926,7 +1926,7 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
   html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-joystick,
   body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-joystick {
-    left: max(670px, calc(env(safe-area-inset-left) + 670px)) !important;
+    left: max(260px, calc(env(safe-area-inset-left) + 260px)) !important;
     top: max(246px, calc(env(safe-area-inset-top) + 246px)) !important;
     right: auto !important;
     bottom: auto !important;
@@ -1936,7 +1936,7 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
   html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] [data-mobile-stamina],
   body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-stamina,
   body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
-    left: max(628px, calc(env(safe-area-inset-left) + 628px)) !important;
+    left: max(218px, calc(env(safe-area-inset-left) + 218px)) !important;
     top: max(246px, calc(env(safe-area-inset-top) + 246px)) !important;
     right: auto !important;
     bottom: auto !important;
