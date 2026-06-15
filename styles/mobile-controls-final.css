@@ -2237,3 +2237,29 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     bottom: auto !important;
   }
 }
+
+/* =========================================================
+   DONATION MOBILE HUD MICRO-FIX — 2026-06-15 v5
+   Only weather position is touched:
+   - weather is placed directly under the city block;
+   - gap is 3-4px;
+   - joystick, stamina, city, profile, balance, map and modals are untouched.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-weather-mini,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-weather-mini {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(96px, calc(env(safe-area-inset-top) + 96px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-weather-mini,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-weather-mini {
+    left: max(278px, calc(env(safe-area-inset-left) + 278px)) !important;
+    top: max(-38px, calc(env(safe-area-inset-top) - 38px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+}
