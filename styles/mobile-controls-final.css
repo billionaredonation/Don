@@ -2043,3 +2043,171 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     max-width: 136px !important;
   }
 }
+
+/* =========================================================
+   DONATION MOBILE HUD MICRO-FIX — 2026-06-15 v3
+   Touches only mobile HUD/control visuals:
+   - joystick position stays the same;
+   - joystick knob visual direction is corrected in forced landscape;
+   - stamina is placed under the joystick;
+   - city/weather/profile/balance get real 2-3px air, no overlap.
+   No map, camera, movement, modal or house logic touched.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /* REAL LANDSCAPE: keep joystick where v2 placed it. */
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-joystick,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(8px, env(safe-area-inset-left)) !important;
+    bottom: max(48px, calc(env(safe-area-inset-bottom) + 48px)) !important;
+    top: auto !important;
+    right: auto !important;
+    transform: none !important;
+    transform-origin: 50% 50% !important;
+  }
+
+  /* REAL LANDSCAPE: stamina directly under the joystick, not beside/above it. */
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-stamina,
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] [data-mobile-stamina],
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-stamina,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(8px, env(safe-area-inset-left)) !important;
+    bottom: max(12px, calc(env(safe-area-inset-bottom) + 12px)) !important;
+    top: auto !important;
+    right: auto !important;
+    transform: translateY(8px) !important;
+    transform-origin: 50% 50% !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] .mobile-stamina,
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] [data-mobile-stamina],
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] .mobile-stamina,
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] [data-mobile-stamina],
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-stamina[data-visible="true"],
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] [data-mobile-stamina][data-visible="true"],
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] .mobile-stamina,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] [data-mobile-stamina],
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] .mobile-stamina,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] [data-mobile-stamina],
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-stamina[data-visible="true"],
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] [data-mobile-stamina][data-visible="true"] {
+    transform: translateY(0) !important;
+  }
+
+  /* REAL LANDSCAPE: right HUD column — city, weather below city, profile, balance. */
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-city-button {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(52px, calc(env(safe-area-inset-top) + 52px)) !important;
+    width: 118px !important;
+    min-width: 118px !important;
+    max-width: 118px !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-weather-mini,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-weather-mini {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(95px, calc(env(safe-area-inset-top) + 95px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-profile-card,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-profile-card {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(126px, calc(env(safe-area-inset-top) + 126px)) !important;
+    width: 128px !important;
+    min-width: 128px !important;
+    max-width: 128px !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(169px, calc(env(safe-area-inset-top) + 169px)) !important;
+    width: 122px !important;
+    min-width: 122px !important;
+    max-width: 122px !important;
+  }
+
+  /* FORCED LANDSCAPE: joystick stays in the accepted place; only visual axis is corrected. */
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-joystick,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(188px, calc(env(safe-area-inset-left) + 188px)) !important;
+    top: max(256px, calc(env(safe-area-inset-top) + 256px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: rotate(-90deg) !important;
+    transform-origin: 50% 50% !important;
+  }
+
+  /* FORCED LANDSCAPE: stamina visually under joystick. */
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-stamina,
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] [data-mobile-stamina],
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-stamina,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(243px, calc(env(safe-area-inset-left) + 243px)) !important;
+    top: max(283px, calc(env(safe-area-inset-top) + 283px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateY(8px) rotate(-90deg) !important;
+    transform-origin: 50% 50% !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] .mobile-stamina,
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] [data-mobile-stamina],
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] .mobile-stamina,
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] [data-mobile-stamina],
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-stamina[data-visible="true"],
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] [data-mobile-stamina][data-visible="true"],
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] .mobile-stamina,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] [data-mobile-stamina],
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] .mobile-stamina,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] [data-mobile-stamina],
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-stamina[data-visible="true"],
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] [data-mobile-stamina][data-visible="true"] {
+    transform: translateY(0) rotate(-90deg) !important;
+  }
+
+  /* FORCED LANDSCAPE: no overlap. Right-side visual order: city -> weather -> nick -> balance. */
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-city-button {
+    left: max(156px, calc(env(safe-area-inset-left) + 156px)) !important;
+    top: max(-44px, calc(env(safe-area-inset-top) - 44px)) !important;
+    width: 118px !important;
+    min-width: 118px !important;
+    max-width: 118px !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-weather-mini,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-weather-mini {
+    left: max(277px, calc(env(safe-area-inset-left) + 277px)) !important;
+    top: max(-44px, calc(env(safe-area-inset-top) - 44px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-profile-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-profile-card {
+    left: max(336px, calc(env(safe-area-inset-left) + 336px)) !important;
+    top: max(-44px, calc(env(safe-area-inset-top) - 44px)) !important;
+    width: 128px !important;
+    min-width: 128px !important;
+    max-width: 128px !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: max(467px, calc(env(safe-area-inset-left) + 467px)) !important;
+    top: max(-44px, calc(env(safe-area-inset-top) - 44px)) !important;
+    width: 122px !important;
+    min-width: 122px !important;
+    max-width: 122px !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+}
