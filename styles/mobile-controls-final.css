@@ -1749,3 +1749,242 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     max-width: 112px !important;
   }
 }
+
+
+/* =========================================================
+   MOBILE HUD POSITION CORRECTION — 2026-06-15 v6
+
+   Normal gamepad layout for rotated Telegram:
+   - joystick is moved away from Telegram Close;
+   - city/profile row is shifted left and lower;
+   - weather is under city;
+   - balance is shifted left and placed on the same visual HUD line.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /*
+    Joystick:
+    Move it inward and lower so it does not sit under Telegram Close.
+  */
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(92px, calc(env(safe-area-inset-left) + 92px)) !important;
+    top: max(84px, calc(env(safe-area-inset-top) + 84px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 88px !important;
+    height: 88px !important;
+    min-width: 88px !important;
+    min-height: 88px !important;
+    max-width: 88px !important;
+    max-height: 88px !important;
+
+    z-index: 2147481860 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    width: 88px !important;
+    height: 88px !important;
+    min-width: 88px !important;
+    min-height: 88px !important;
+    max-width: 88px !important;
+    max-height: 88px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-stick {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    max-width: 38px !important;
+    max-height: 38px !important;
+  }
+
+  /*
+    Stamina follows joystick, but stays compact and below it.
+  */
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(76px, calc(env(safe-area-inset-left) + 76px)) !important;
+    top: max(180px, calc(env(safe-area-inset-top) + 180px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 120px !important;
+    min-width: 120px !important;
+    max-width: 120px !important;
+
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+  }
+
+  /*
+    Main HUD row:
+    keep order: city first, profile second.
+    Shift the whole row left and lower.
+  */
+  .home[data-mobile-controls="enabled"] .player-city-button {
+    left: max(228px, calc(env(safe-area-inset-left) + 228px)) !important;
+    top: max(108px, calc(env(safe-area-inset-top) + 108px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    left: max(348px, calc(env(safe-area-inset-left) + 348px)) !important;
+    top: max(108px, calc(env(safe-area-inset-top) + 108px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 136px !important;
+    min-width: 136px !important;
+    max-width: 136px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+
+    grid-template-columns: 25px minmax(0, 1fr) 8px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button span {
+    font-size: 11.5px !important;
+    line-height: 1 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info strong {
+    font-size: 10.5px !important;
+    line-height: 1 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-info small {
+    font-size: 6px !important;
+    line-height: 1.05 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-avatar {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+  }
+
+  /*
+    Weather under city block, not between joystick and top buttons.
+  */
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    left: max(228px, calc(env(safe-area-inset-left) + 228px)) !important;
+    top: max(154px, calc(env(safe-area-inset-top) + 154px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 58px !important;
+    min-width: 58px !important;
+    max-width: 58px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+
+    transform: none !important;
+  }
+
+  /*
+    Balance:
+    Move left and down to the same visual HUD zone as city/profile.
+  */
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: max(494px, calc(env(safe-area-inset-left) + 494px)) !important;
+    top: max(108px, calc(env(safe-area-inset-top) + 108px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: 118px !important;
+    min-width: 118px !important;
+    max-width: 118px !important;
+
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+  }
+}
+
+/*
+  Narrow Telegram viewport / iPhone Pro Max portrait screenshot correction.
+  These values are what matters for the current Telegram frame.
+*/
+@media (hover: none) and (pointer: coarse) and (max-width: 430px) {
+  .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(86px, calc(env(safe-area-inset-left) + 86px)) !important;
+    top: max(78px, calc(env(safe-area-inset-top) + 78px)) !important;
+
+    width: 86px !important;
+    height: 86px !important;
+    min-width: 86px !important;
+    min-height: 86px !important;
+    max-width: 86px !important;
+    max-height: 86px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-joystick-base {
+    width: 86px !important;
+    height: 86px !important;
+    min-width: 86px !important;
+    min-height: 86px !important;
+    max-width: 86px !important;
+    max-height: 86px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(72px, calc(env(safe-area-inset-left) + 72px)) !important;
+    top: max(170px, calc(env(safe-area-inset-top) + 170px)) !important;
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button {
+    left: max(208px, calc(env(safe-area-inset-left) + 208px)) !important;
+    top: max(104px, calc(env(safe-area-inset-top) + 104px)) !important;
+
+    width: 108px !important;
+    min-width: 108px !important;
+    max-width: 108px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-profile-card {
+    left: max(322px, calc(env(safe-area-inset-left) + 322px)) !important;
+    top: max(104px, calc(env(safe-area-inset-top) + 104px)) !important;
+
+    width: 126px !important;
+    min-width: 126px !important;
+    max-width: 126px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-weather-mini {
+    left: max(208px, calc(env(safe-area-inset-left) + 208px)) !important;
+    top: max(150px, calc(env(safe-area-inset-top) + 150px)) !important;
+
+    width: 56px !important;
+    min-width: 56px !important;
+    max-width: 56px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: max(454px, calc(env(safe-area-inset-left) + 454px)) !important;
+    top: max(104px, calc(env(safe-area-inset-top) + 104px)) !important;
+
+    width: 112px !important;
+    min-width: 112px !important;
+    max-width: 112px !important;
+  }
+}
