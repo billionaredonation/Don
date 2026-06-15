@@ -44,6 +44,7 @@ async function requestGameFullscreen() {
 
   try {
     window.Telegram?.WebApp?.expand?.();
+    window.Telegram?.WebApp?.requestFullscreen?.();
   } catch {
     // Telegram WebApp может быть недоступен вне Mini App.
   }
