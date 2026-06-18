@@ -2352,3 +2352,38 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     max-height: 44px !important;
   }
 }
+
+/* =========================================================
+   DONATION MOBILE JOYSTICK CLOSE MICRO-FIX — 2026-06-18
+   Only joystick is touched:
+   - moved a tiny bit toward Telegram Close in forced landscape;
+   - base is gray;
+   - knob is fully white;
+   - touch zone / auto-hide behavior stay unchanged.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-joystick,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(178px, calc(env(safe-area-inset-left) + 178px)) !important;
+    top: max(262px, calc(env(safe-area-inset-top) + 262px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-base {
+    background: rgba(132, 132, 132, 0.46) !important;
+    border: 1px solid rgba(255, 255, 255, 0.24) !important;
+    box-shadow:
+      0 16px 34px rgba(0, 0, 0, 0.42),
+      inset 0 0 22px rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.9) !important;
+    box-shadow:
+      0 8px 20px rgba(0, 0, 0, 0.34),
+      inset 0 0 0 rgba(255, 255, 255, 0) !important;
+  }
+}
