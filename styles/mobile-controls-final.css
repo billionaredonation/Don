@@ -2265,11 +2265,11 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 }
 
 /* =========================================================
-   DONATION MOBILE JOYSTICK VISUAL AUTO-HIDE — 2026-06-18
+   DONATION MOBILE JOYSTICK TOUCH-ACTIVE AUTO-HIDE — 2026-06-18
    Only joystick visuals are touched:
-   - joystick hit area stays active;
-   - base/knob are hidden while the player is not moving;
-   - base/knob appear immediately when movement starts.
+   - joystick hit area and base stay touchable while invisible;
+   - visuals are transparent in idle, not visibility:hidden;
+   - visuals appear immediately on touch or movement.
    ========================================================= */
 
 @media (hover: none) and (pointer: coarse) {
@@ -2280,20 +2280,34 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     touch-action: none !important;
   }
 
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-base {
+    visibility: visible !important;
+    pointer-events: auto !important;
+    touch-action: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick {
+    visibility: visible !important;
+    pointer-events: none !important;
+    touch-action: none !important;
+  }
+
   .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-base,
   .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick {
     transition:
-      opacity 90ms linear,
-      filter 90ms linear !important;
+      opacity 80ms linear,
+      filter 80ms linear !important;
   }
 
-  .home[data-mobile-controls="enabled"] .mobile-controls-layer:not([data-player-moving="true"]) .mobile-joystick-base,
-  .home[data-mobile-controls="enabled"] .mobile-controls-layer:not([data-player-moving="true"]) .mobile-joystick-stick {
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer:not([data-joystick-active="true"]):not([data-player-moving="true"]) .mobile-joystick-base,
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer:not([data-joystick-active="true"]):not([data-player-moving="true"]) .mobile-joystick-stick {
     opacity: 0 !important;
-    visibility: hidden !important;
+    visibility: visible !important;
     filter: blur(2px) !important;
   }
 
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] .mobile-joystick-base,
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-joystick-active="true"] .mobile-joystick-stick,
   .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] .mobile-joystick-base,
   .home[data-mobile-controls="enabled"] .mobile-controls-layer[data-player-moving="true"] .mobile-joystick-stick {
     opacity: 1 !important;
