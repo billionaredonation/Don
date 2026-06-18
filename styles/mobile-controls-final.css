@@ -2257,8 +2257,8 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 
   html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-weather-mini,
   body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-weather-mini {
-    left: max(278px, calc(env(safe-area-inset-left) + 278px)) !important;
-    top: max(-38px, calc(env(safe-area-inset-top) - 38px)) !important;
+    left: max(187px, calc(env(safe-area-inset-left) + 187px)) !important;
+    top: max(0px, calc(env(safe-area-inset-top) + 0px)) !important;
     right: auto !important;
     bottom: auto !important;
   }
