@@ -2648,3 +2648,189 @@ html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-contro
   background: linear-gradient(90deg, #ffd34d, #4dff86) !important;
   box-shadow: 0 0 8px rgba(77, 255, 134, 0.25) !important;
 }
+
+
+/* =========================================================
+   DONATION MOBILE STAMINA ARC AROUND JOYSTICK — v38
+   Стамина больше не плашка/полоска.
+   Теперь это аккуратная полукруглая завитушка вокруг джойстика.
+   ========================================================= */
+
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] {
+  width: 146px !important;
+  min-width: 146px !important;
+  max-width: 146px !important;
+
+  height: 146px !important;
+  min-height: 146px !important;
+  max-height: 146px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  box-shadow: none !important;
+
+  overflow: visible !important;
+  pointer-events: none !important;
+  z-index: 2147481864 !important;
+
+  --mobile-stamina-angle: 220deg;
+}
+
+/* forced rotated landscape — центрируем завитушку вокруг джойстика */
+html body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] {
+  left: max(147px, calc(env(safe-area-inset-left) + 147px)) !important;
+  top: max(225px, calc(env(safe-area-inset-top) + 225px)) !important;
+  right: auto !important;
+  bottom: auto !important;
+
+  transform: none !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+}
+
+/* real landscape */
+html body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] {
+  left: max(0px, calc(env(safe-area-inset-left) + 0px)) !important;
+  bottom: max(33px, calc(env(safe-area-inset-bottom) + 33px)) !important;
+  right: auto !important;
+  top: auto !important;
+
+  transform: none !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+}
+
+/* Убираем текст STAMINA */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-label,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-label,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-label,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-label,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-label,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-label,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-label,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-label {
+  display: none !important;
+}
+
+/* Сам полукруг/завитушка */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track {
+  position: absolute !important;
+  inset: 0 !important;
+
+  width: 146px !important;
+  min-width: 146px !important;
+  max-width: 146px !important;
+
+  height: 146px !important;
+  min-height: 146px !important;
+  max-height: 146px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border-radius: 50% !important;
+  overflow: hidden !important;
+
+  background:
+    conic-gradient(
+      from 145deg,
+      rgba(77, 255, 134, 0.95) 0deg,
+      rgba(255, 211, 77, 0.95) var(--mobile-stamina-angle),
+      rgba(255, 255, 255, 0.16) var(--mobile-stamina-angle),
+      rgba(255, 255, 255, 0.16) 220deg,
+      transparent 220deg,
+      transparent 360deg
+    ) !important;
+
+  -webkit-mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 9px),
+      #000 calc(100% - 8px),
+      #000 calc(100% - 2px),
+      transparent calc(100% - 1px)
+    ) !important;
+
+  mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 9px),
+      #000 calc(100% - 8px),
+      #000 calc(100% - 2px),
+      transparent calc(100% - 1px)
+    ) !important;
+
+  box-shadow:
+    0 0 10px rgba(77, 255, 134, 0.18),
+    0 0 18px rgba(255, 211, 77, 0.10) !important;
+}
+
+/* Старый fill больше не рисуем как полоску */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-fill,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-fill,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-fill,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-fill,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-fill,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-fill,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-fill,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-fill {
+  display: none !important;
+}
+
+/* Когда стамина низкая — завитушка становится более жёлто-красной */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="low"] .mobile-stamina-track,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="low"] .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="low"] .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="low"] .mobile-stamina-track {
+  background:
+    conic-gradient(
+      from 145deg,
+      rgba(255, 211, 77, 0.96) 0deg,
+      rgba(255, 92, 92, 0.96) var(--mobile-stamina-angle),
+      rgba(255, 255, 255, 0.14) var(--mobile-stamina-angle),
+      rgba(255, 255, 255, 0.14) 220deg,
+      transparent 220deg,
+      transparent 360deg
+    ) !important;
+}
+
+/* Когда спринт заблокирован */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="locked"] .mobile-stamina-track,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="locked"] .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="locked"] .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="locked"] .mobile-stamina-track {
+  background:
+    conic-gradient(
+      from 145deg,
+      rgba(255, 92, 92, 0.96) 0deg,
+      rgba(255, 92, 92, 0.96) var(--mobile-stamina-angle),
+      rgba(255, 255, 255, 0.12) var(--mobile-stamina-angle),
+      rgba(255, 255, 255, 0.12) 220deg,
+      transparent 220deg,
+      transparent 360deg
+    ) !important;
+}
