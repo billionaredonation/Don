@@ -2379,6 +2379,7 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
       inset 0 0 22px rgba(255, 255, 255, 0.08) !important;
   }
 
+   
   .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick {
     background: #ffffff !important;
     border: 1px solid rgba(255, 255, 255, 0.9) !important;
