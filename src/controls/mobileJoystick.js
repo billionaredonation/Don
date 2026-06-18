@@ -235,21 +235,39 @@ export function enableMobileJoystick(
     }
   }
 
-  function updateStaminaUi() {
-    if (!staminaFill) return;
+function updateStaminaUi() {
+  if (!staminaFill) return;
 
-    const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
+  const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
+  const arcAngle = (percent / 100) * 220;
 
-    staminaFill.style.width = `${percent}%`;
+  staminaFill.style.width = `${percent}%`;
 
-    if (sprintLocked) {
-      staminaFill.dataset.state = 'locked';
-    } else if (percent < 30) {
-      staminaFill.dataset.state = 'low';
-    } else {
-      staminaFill.dataset.state = 'normal';
+  if (staminaBox) {
+    staminaBox.style.setProperty('--mobile-stamina-percent', `${percent.toFixed(2)}%`);
+    staminaBox.style.setProperty('--mobile-stamina-angle', `${arcAngle.toFixed(2)}deg`);
+  }
+
+  if (sprintLocked) {
+    staminaFill.dataset.state = 'locked';
+
+    if (staminaBox) {
+      staminaBox.dataset.staminaState = 'locked';
+    }
+  } else if (percent < 30) {
+    staminaFill.dataset.state = 'low';
+
+    if (staminaBox) {
+      staminaBox.dataset.staminaState = 'low';
+    }
+  } else {
+    staminaFill.dataset.state = 'normal';
+
+    if (staminaBox) {
+      staminaBox.dataset.staminaState = 'normal';
     }
   }
+}
 
   function updateSprintState(isMoving, frameScale) {
     const joystickPower = getJoystickPower(moveX, moveY);
