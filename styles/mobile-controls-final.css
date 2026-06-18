@@ -2315,3 +2315,40 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     filter: none !important;
   }
 }
+
+/* =========================================================
+   DONATION MOBILE JOYSTICK TOUCH-ZONE MICRO-FIX — 2026-06-18
+   Only joystick touch area is slightly increased:
+   - idle auto-hide stays the same;
+   - joystick remains touchable while invisible;
+   - HUD/weather/stamina/map/modals are untouched.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick {
+    width: 112px !important;
+    height: 112px !important;
+    min-width: 112px !important;
+    min-height: 112px !important;
+    max-width: 112px !important;
+    max-height: 112px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-base {
+    width: 112px !important;
+    height: 112px !important;
+    min-width: 112px !important;
+    min-height: 112px !important;
+    max-width: 112px !important;
+    max-height: 112px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    max-width: 44px !important;
+    max-height: 44px !important;
+  }
+}
