@@ -2379,7 +2379,6 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
       inset 0 0 22px rgba(255, 255, 255, 0.08) !important;
   }
 
-   
   .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick {
     background: #ffffff !important;
     border: 1px solid rgba(255, 255, 255, 0.9) !important;
@@ -2387,4 +2386,265 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
       0 8px 20px rgba(0, 0, 0, 0.34),
       inset 0 0 0 rgba(255, 255, 255, 0) !important;
   }
+}
+
+/* =========================================================
+   DONATION MOBILE JOYSTICK + STAMINA COMBO MICRO-FIX — 2026-06-18
+   Only mobile joystick/stamina visuals are touched:
+   - joystick is moved a few px closer to Telegram Close in forced landscape;
+   - stamina becomes a compact helper strip instead of a large blocking card;
+   - joystick touch zone / HUD / weather / map / modals are untouched.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-joystick,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-joystick {
+    left: max(172px, calc(env(safe-area-inset-left) + 172px)) !important;
+    top: max(252px, calc(env(safe-area-inset-top) + 252px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    width: 98px !important;
+    min-width: 98px !important;
+    max-width: 98px !important;
+
+    height: 16px !important;
+    min-height: 16px !important;
+    max-height: 16px !important;
+
+    padding: 3px !important;
+    border-radius: 999px !important;
+
+    background: rgba(8, 10, 14, 0.34) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+
+    box-shadow:
+      0 8px 18px rgba(0, 0, 0, 0.26),
+      inset 0 0 12px rgba(255, 255, 255, 0.05) !important;
+
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina-label,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] .mobile-stamina-label {
+    display: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina-track,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] .mobile-stamina-track {
+    height: 8px !important;
+    min-height: 8px !important;
+    max-height: 8px !important;
+
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+
+    margin: 0 !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.13) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .mobile-stamina-fill,
+  .home[data-mobile-controls="enabled"] [data-mobile-stamina] .mobile-stamina-fill {
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+
+    border-radius: 999px !important;
+    box-shadow: 0 0 10px rgba(77, 255, 134, 0.26) !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-stamina,
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] [data-mobile-stamina],
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-stamina,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] [data-mobile-stamina] {
+    left: max(232px, calc(env(safe-area-inset-left) + 232px)) !important;
+    top: max(288px, calc(env(safe-area-inset-top) + 288px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+}
+
+/* =========================================================
+   DONATION MOBILE JOYSTICK + STAMINA HARD OVERRIDE — 2026-06-18 v2
+   Touches only mobile joystick/stamina visuals:
+   - stronger selectors because older lower rules were still winning on phone;
+   - joystick moves a tiny bit closer to Telegram Close;
+   - stamina becomes a thin helper strip near joystick, without the big STAMINA card.
+   ========================================================= */
+
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick {
+  width: 112px !important;
+  height: 112px !important;
+  min-width: 112px !important;
+  min-height: 112px !important;
+  max-width: 112px !important;
+  max-height: 112px !important;
+  pointer-events: auto !important;
+  touch-action: none !important;
+  z-index: 2147481865 !important;
+}
+
+html body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick,
+html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick {
+  left: max(164px, calc(env(safe-area-inset-left) + 164px)) !important;
+  top: max(242px, calc(env(safe-area-inset-top) + 242px)) !important;
+  right: auto !important;
+  bottom: auto !important;
+}
+
+html body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick,
+html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick {
+  left: max(6px, calc(env(safe-area-inset-left) + 6px)) !important;
+  bottom: max(50px, calc(env(safe-area-inset-bottom) + 50px)) !important;
+  right: auto !important;
+  top: auto !important;
+}
+
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-base,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-base,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-base,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-base {
+  width: 112px !important;
+  height: 112px !important;
+  min-width: 112px !important;
+  min-height: 112px !important;
+  max-width: 112px !important;
+  max-height: 112px !important;
+  background: rgba(132, 132, 132, 0.48) !important;
+  border: 1px solid rgba(255, 255, 255, 0.24) !important;
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.42),
+    inset 0 0 22px rgba(255, 255, 255, 0.08) !important;
+}
+
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-joystick-stick {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 rgba(255, 255, 255, 0) !important;
+}
+
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] {
+  width: 78px !important;
+  min-width: 78px !important;
+  max-width: 78px !important;
+  height: 10px !important;
+  min-height: 10px !important;
+  max-height: 10px !important;
+  padding: 2px !important;
+  margin: 0 !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.22) !important;
+  backdrop-filter: blur(7px) !important;
+  -webkit-backdrop-filter: blur(7px) !important;
+  pointer-events: none !important;
+  z-index: 2147481864 !important;
+}
+
+html body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] {
+  left: max(181px, calc(env(safe-area-inset-left) + 181px)) !important;
+  top: max(352px, calc(env(safe-area-inset-top) + 352px)) !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+}
+
+html body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] {
+  left: max(23px, calc(env(safe-area-inset-left) + 23px)) !important;
+  bottom: max(38px, calc(env(safe-area-inset-bottom) + 38px)) !important;
+  right: auto !important;
+  top: auto !important;
+  transform: none !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+}
+
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-label,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-label,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-label,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-label,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-label,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-label,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-label,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-label {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track {
+  display: block !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  background: rgba(0, 0, 0, 0.34) !important;
+}
+
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-fill,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-fill,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-fill,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-fill,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-fill,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-fill,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-fill,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-fill {
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, #ffd34d, #4dff86) !important;
+  box-shadow: 0 0 8px rgba(77, 255, 134, 0.25) !important;
 }
