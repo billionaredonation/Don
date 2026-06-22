@@ -4382,3 +4382,213 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     grid-template-columns: 54px minmax(0, 1fr) !important;
   }
 }
+
+/* =========================================================
+   DONATION PC HUD FINAL TWEAK — v55
+   Request:
+   - keep the desktop HUD, do not copy mobile layout;
+   - make top chips smaller;
+   - move weather closer under the city chip;
+   - move stamina down to the admin-button visual level.
+   ========================================================= */
+
+@media (hover: hover) and (pointer: fine) {
+  :root {
+    --mn-pc-hud-gap: 10px;
+    --mn-pc-chip-h: 34px;
+  }
+
+  .player-glass-hud {
+    grid-template-columns: 122px 138px 102px !important;
+    gap: var(--mn-pc-hud-gap) !important;
+  }
+
+  .player-city-button,
+  .player-profile-card,
+  .player-balance-card {
+    height: var(--mn-pc-chip-h) !important;
+    min-height: var(--mn-pc-chip-h) !important;
+    max-height: var(--mn-pc-chip-h) !important;
+    border-radius: 12px !important;
+  }
+
+  .player-city-button {
+    width: 122px !important;
+    min-width: 122px !important;
+    max-width: 122px !important;
+    gap: 6px !important;
+    padding: 0 8px 0 10px !important;
+  }
+
+  .player-city-button span {
+    font-size: 12px !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .player-city-button b,
+  .player-profile-arrow {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    font-size: 11px !important;
+  }
+
+  .player-profile-card {
+    width: 138px !important;
+    min-width: 138px !important;
+    max-width: 138px !important;
+    grid-template-columns: 24px minmax(0, 1fr) 18px !important;
+    gap: 6px !important;
+    padding: 0 7px !important;
+  }
+
+  .player-avatar {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+    font-size: 10.5px !important;
+  }
+
+  .player-profile-info strong {
+    font-size: 10.5px !important;
+  }
+
+  .player-profile-info small {
+    font-size: 7px !important;
+  }
+
+  .player-balance-card {
+    width: 102px !important;
+    min-width: 102px !important;
+    max-width: 102px !important;
+    gap: 5px !important;
+    padding: 0 7px !important;
+  }
+
+  .player-card-icon {
+    width: 19px !important;
+    height: 19px !important;
+    min-width: 19px !important;
+    min-height: 19px !important;
+    max-width: 19px !important;
+    max-height: 19px !important;
+    font-size: 10px !important;
+  }
+
+  .player-balance-card strong {
+    font-size: 10.5px !important;
+    letter-spacing: -0.035em !important;
+  }
+
+  .player-weather-mini {
+    top: calc(var(--mn-pc-chip-h) + 5px) !important;
+    width: 94px !important;
+    min-width: 94px !important;
+    max-width: 94px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    gap: 5px !important;
+    padding: 0 8px !important;
+  }
+
+  .player-weather-mini span {
+    font-size: 10px !important;
+  }
+
+  .player-weather-mini i {
+    height: 10px !important;
+  }
+
+  .pc-stamina {
+    bottom: 40px !important;
+    width: 176px !important;
+    min-width: 176px !important;
+    max-width: 176px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    grid-template-columns: 52px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 0 9px !important;
+  }
+
+  .pc-stamina-label {
+    font-size: 8px !important;
+    letter-spacing: 0.10em !important;
+  }
+
+  .pc-stamina-track {
+    height: 7px !important;
+    min-height: 7px !important;
+    max-height: 7px !important;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 520px) {
+  .player-glass-hud {
+    left: 16px !important;
+    top: 18px !important;
+    max-width: calc(100% - 32px) !important;
+    grid-template-columns: 116px 132px 100px !important;
+    gap: 10px !important;
+  }
+
+  .player-city-button {
+    width: 116px !important;
+    min-width: 116px !important;
+    max-width: 116px !important;
+  }
+
+  .player-city-button span {
+    font-size: 11.5px !important;
+  }
+
+  .player-profile-card {
+    width: 132px !important;
+    min-width: 132px !important;
+    max-width: 132px !important;
+    grid-template-columns: 24px minmax(0, 1fr) 18px !important;
+    gap: 6px !important;
+  }
+
+  .player-profile-info strong {
+    font-size: 10px !important;
+  }
+
+  .player-profile-info small {
+    font-size: 6.6px !important;
+  }
+
+  .player-balance-card {
+    width: 100px !important;
+    min-width: 100px !important;
+    max-width: 100px !important;
+  }
+
+  .player-balance-card strong {
+    font-size: 10.2px !important;
+  }
+
+  .player-weather-mini {
+    top: calc(var(--mn-pc-chip-h) + 5px) !important;
+    width: 92px !important;
+    min-width: 92px !important;
+    max-width: 92px !important;
+  }
+
+  .pc-stamina {
+    left: 24px !important;
+    bottom: 40px !important;
+    width: 170px !important;
+    min-width: 170px !important;
+    max-width: 170px !important;
+    grid-template-columns: 50px minmax(0, 1fr) !important;
+  }
+}
