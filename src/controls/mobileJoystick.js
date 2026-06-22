@@ -654,3 +654,4 @@ function updateStaminaUi() {
     container.innerHTML = '';
   };
 }
+
