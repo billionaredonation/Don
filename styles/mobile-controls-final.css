@@ -3710,3 +3710,85 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     bottom: auto !important;
   }
 }
+
+/* =========================================================
+   DONATION MOBILE HUD POSITION FIX — v46
+   Task:
+   - weather is attached under the city card, not between city and nickname;
+   - nickname/profile is moved closer to the city card without changing orientation;
+   - balance is moved to the opposite side at the same visual height;
+   - joystick, stamina, map, modals and mechanics are untouched.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /* REAL LANDSCAPE: city + nick stay near Telegram controls, balance goes opposite. */
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-city-button {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(42px, calc(env(safe-area-inset-top) + 42px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-profile-card,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-profile-card {
+    right: max(156px, calc(env(safe-area-inset-right) + 156px)) !important;
+    top: max(42px, calc(env(safe-area-inset-top) + 42px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-weather-mini,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-weather-mini {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(86px, calc(env(safe-area-inset-top) + 86px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: max(14px, env(safe-area-inset-left)) !important;
+    top: max(42px, calc(env(safe-area-inset-top) + 42px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  /*
+    FORCED LANDSCAPE:
+    HUD layer is rotated. Keep the city/profile orientation untouched:
+    - `left` controls visual vertical placement;
+    - `top` controls visual horizontal placement.
+  */
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-city-button {
+    left: max(112px, calc(env(safe-area-inset-left) + 112px)) !important;
+    top: max(-44px, calc(env(safe-area-inset-top) - 44px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-profile-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-profile-card {
+    left: max(242px, calc(env(safe-area-inset-left) + 242px)) !important;
+    top: max(-44px, calc(env(safe-area-inset-top) - 44px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-weather-mini,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-weather-mini {
+    left: max(112px, calc(env(safe-area-inset-left) + 112px)) !important;
+    top: max(4px, calc(env(safe-area-inset-top) + 4px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: max(112px, calc(env(safe-area-inset-left) + 112px)) !important;
+    top: max(256px, calc(env(safe-area-inset-top) + 256px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+}
