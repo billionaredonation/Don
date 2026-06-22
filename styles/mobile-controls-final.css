@@ -3646,3 +3646,67 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     max-width: 126px !important;
   }
 }
+
+/* =========================================================
+   DONATION MOBILE HUD POSITION TUNE — v45
+   Task:
+   - city and nick/profile cards are moved closer to Telegram three-dots zone;
+   - weather is placed directly under the city card;
+   - visual style, joystick, stamina, balance, map and mechanics are untouched.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /* REAL LANDSCAPE: compact right column near the top-right controls. */
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-city-button {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(42px, calc(env(safe-area-inset-top) + 42px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-weather-mini,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-weather-mini {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(86px, calc(env(safe-area-inset-top) + 86px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-profile-card,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-profile-card {
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(118px, calc(env(safe-area-inset-top) + 118px)) !important;
+    left: auto !important;
+    bottom: auto !important;
+  }
+
+  /*
+    FORCED LANDSCAPE:
+    The whole HUD layer is rotated, so `left` controls the visual vertical stack.
+    Smaller left = visually closer to the Telegram three-dots/top-right area.
+  */
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-city-button {
+    left: max(112px, calc(env(safe-area-inset-left) + 112px)) !important;
+    top: max(-44px, calc(env(safe-area-inset-top) - 44px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-weather-mini,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-weather-mini {
+    left: max(244px, calc(env(safe-area-inset-left) + 244px)) !important;
+    top: max(-44px, calc(env(safe-area-inset-top) - 44px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-profile-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-profile-card {
+    left: max(304px, calc(env(safe-area-inset-left) + 304px)) !important;
+    top: max(-44px, calc(env(safe-area-inset-top) - 44px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+}
