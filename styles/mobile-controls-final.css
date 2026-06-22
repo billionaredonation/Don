@@ -3792,3 +3792,26 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     bottom: auto !important;
   }
 }
+
+/* =========================================================
+   DONATION MOBILE HUD BALANCE POSITION — v47
+   Task:
+   - move only the balance card to the lower-right gameplay zone shown by the arrow;
+   - keep city, nickname/profile, weather, joystick, stamina, map and mechanics untouched.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /*
+    FORCED LANDSCAPE:
+    The HUD layer is rotated, so:
+    - bigger `left` = visually lower on the screen;
+    - smaller `top` = visually closer to the right edge.
+  */
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: calc(var(--mn-vh, 100vh) - 154px) !important;
+    top: max(-46px, calc(env(safe-area-inset-top) - 46px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+}
