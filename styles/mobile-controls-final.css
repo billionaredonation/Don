@@ -3815,3 +3815,440 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     bottom: auto !important;
   }
 }
+
+/* =========================================================
+   DONATION PC HUD ADAPT — v50 SINGLE FILE
+   Task:
+   - adapt desktop HUD in this existing override file only;
+   - do not touch mobile HUD v47;
+   - do not add or require hud.css / player-stamina.css edits;
+   - joystick is not touched.
+   ========================================================= */
+
+@media (hover: hover) and (pointer: fine) {
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-glass-hud {
+    position: fixed !important;
+    left: 18px !important;
+    right: 18px !important;
+    top: max(14px, env(safe-area-inset-top)) !important;
+
+    width: auto !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    max-height: 48px !important;
+
+    display: grid !important;
+    grid-template-columns: 150px minmax(170px, 230px) minmax(0, 1fr) 142px !important;
+    align-items: center !important;
+    gap: 10px !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+
+    pointer-events: none !important;
+    z-index: 2147481500 !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-hud-left {
+    width: 150px !important;
+    min-width: 150px !important;
+    max-width: 150px !important;
+    height: 44px !important;
+    pointer-events: auto !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-city-button,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-card,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-balance-card,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-weather-mini,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .pc-stamina {
+    box-sizing: border-box !important;
+
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.025) 42%, rgba(0, 0, 0, 0.22)),
+      rgba(8, 12, 18, 0.70) !important;
+
+    border: 1px solid rgba(205, 230, 255, 0.18) !important;
+    color: rgba(255, 255, 255, 0.96) !important;
+
+    box-shadow:
+      0 12px 34px rgba(0, 0, 0, 0.34),
+      0 0 0 1px rgba(255, 255, 255, 0.025),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 -14px 22px rgba(0, 0, 0, 0.26) !important;
+
+    backdrop-filter: blur(16px) saturate(1.18) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(1.18) !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-city-button,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-card,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-balance-card {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+
+    border-radius: 15px !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-city-button {
+    width: 150px !important;
+    min-width: 150px !important;
+    max-width: 150px !important;
+
+    display: grid !important;
+    grid-template-columns: 24px minmax(0, 1fr) 22px !important;
+    align-items: center !important;
+    gap: 8px !important;
+
+    padding: 0 9px !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-city-button::before {
+    content: "⌂" !important;
+
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    border-radius: 999px !important;
+
+    color: rgba(175, 220, 255, 0.98) !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+
+    background:
+      radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.04) 48%, rgba(0, 0, 0, 0.18)),
+      rgba(80, 160, 255, 0.12) !important;
+    border: 1px solid rgba(155, 210, 255, 0.26) !important;
+    box-shadow:
+      0 0 16px rgba(75, 165, 255, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+
+    pointer-events: none !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-city-button span {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+
+    color: rgba(255, 255, 255, 0.97) !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: -0.025em !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-city-button b,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-arrow {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    min-height: 22px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+
+    color: rgba(255, 255, 255, 0.82) !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+    opacity: 1 !important;
+
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13) !important;
+
+    pointer-events: none !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-card {
+    justify-self: start !important;
+
+    width: 220px !important;
+    min-width: 170px !important;
+    max-width: 230px !important;
+
+    display: grid !important;
+    grid-template-columns: 30px minmax(0, 1fr) 22px !important;
+    align-items: center !important;
+    gap: 8px !important;
+
+    padding: 0 9px !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-avatar {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    max-width: 30px !important;
+    max-height: 30px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    border-radius: 999px !important;
+
+    color: rgba(255, 255, 255, 0.98) !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+
+    background:
+      radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.05) 50%, rgba(0, 0, 0, 0.22)),
+      rgba(87, 114, 148, 0.25) !important;
+    border: 1px solid rgba(170, 220, 255, 0.25) !important;
+    box-shadow:
+      0 0 16px rgba(95, 180, 255, 0.13),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-info {
+    min-width: 0 !important;
+    display: grid !important;
+    gap: 2px !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-info strong,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-info small,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-balance-card strong {
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-info strong {
+    color: rgba(255, 255, 255, 0.98) !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: -0.012em !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-info small {
+    color: rgba(215, 235, 255, 0.58) !important;
+    font-size: 7px !important;
+    line-height: 1.05 !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-balance-card {
+    justify-self: end !important;
+
+    width: 142px !important;
+    min-width: 142px !important;
+    max-width: 142px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+
+    padding: 0 10px !important;
+    pointer-events: auto !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-card-icon {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    border-radius: 999px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+
+    background:
+      radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.04) 50%, rgba(0, 0, 0, 0.20)),
+      rgba(60, 255, 105, 0.10) !important;
+    border: 1px solid rgba(130, 255, 165, 0.20) !important;
+    box-shadow:
+      0 0 16px rgba(80, 255, 120, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-card-icon-green {
+    color: rgba(120, 255, 145, 0.98) !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-balance-card strong {
+    min-width: 0 !important;
+    color: rgba(255, 255, 255, 0.98) !important;
+    font-size: 13px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: -0.018em !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-weather-mini {
+    position: fixed !important;
+    left: 18px !important;
+    top: max(68px, calc(env(safe-area-inset-top) + 68px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+
+    width: auto !important;
+    min-width: 92px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 0 10px !important;
+
+    border-radius: 999px !important;
+    pointer-events: auto !important;
+    z-index: 2147481500 !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-weather-mini span {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    font-size: 10px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-weather-mini i {
+    width: 1px !important;
+    height: 12px !important;
+    flex: 0 0 1px !important;
+    background: rgba(255, 255, 255, 0.17) !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .pc-stamina {
+    position: fixed !important;
+    left: 18px !important;
+    bottom: 18px !important;
+    right: auto !important;
+    top: auto !important;
+
+    width: 210px !important;
+    min-width: 210px !important;
+    max-width: 210px !important;
+
+    height: 54px !important;
+    min-height: 54px !important;
+    max-height: 54px !important;
+
+    padding: 10px 12px !important;
+    border-radius: 17px !important;
+
+    pointer-events: none !important;
+    z-index: 2147481450 !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .pc-stamina-label {
+    margin: 0 0 7px 0 !important;
+    padding: 0 !important;
+
+    color: rgba(220, 235, 255, 0.70) !important;
+    font-size: 9px !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: 0.16em !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .pc-stamina-track {
+    position: relative !important;
+
+    width: 100% !important;
+    height: 9px !important;
+    min-height: 9px !important;
+    max-height: 9px !important;
+
+    overflow: hidden !important;
+    border-radius: 999px !important;
+
+    background:
+      repeating-linear-gradient(
+        90deg,
+        transparent 0 19px,
+        rgba(255, 255, 255, 0.17) 19px 20px
+      ),
+      linear-gradient(90deg, rgba(255, 75, 75, 0.18), rgba(255, 211, 77, 0.14) 48%, rgba(75, 255, 135, 0.16)),
+      rgba(255, 255, 255, 0.10) !important;
+
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.38),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.035) !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .pc-stamina-fill {
+    display: block !important;
+
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+
+    border-radius: 999px !important;
+
+    background:
+      linear-gradient(90deg, rgba(255, 211, 77, 0.98), rgba(105, 255, 145, 0.98)) !important;
+
+    box-shadow:
+      0 0 16px rgba(105, 255, 145, 0.20),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+
+    transition: width 0.10s linear, background 0.16s ease, box-shadow 0.16s ease !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .pc-stamina-fill[data-state="low"] {
+    background: linear-gradient(90deg, rgba(255, 126, 64, 0.98), rgba(255, 211, 77, 0.98)) !important;
+    box-shadow:
+      0 0 16px rgba(255, 150, 70, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .pc-stamina-fill[data-state="locked"] {
+    background: linear-gradient(90deg, rgba(255, 65, 65, 0.98), rgba(255, 126, 64, 0.96)) !important;
+    box-shadow:
+      0 0 16px rgba(255, 65, 65, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  }
+
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-city-button:hover,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-profile-card:hover,
+  body:not(.mn-mobile-game-enabled):not(.mn-landscape-game) .home .player-balance-card:hover {
+    filter: brightness(1.06) saturate(1.08) !important;
+    border-color: rgba(215, 238, 255, 0.24) !important;
+  }
+}
