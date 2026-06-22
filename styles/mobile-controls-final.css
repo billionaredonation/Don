@@ -4592,3 +4592,30 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     grid-template-columns: 50px minmax(0, 1fr) !important;
   }
 }
+
+
+/* =========================================================
+   DONATION PC HUD CENTER ALIGN — v56
+   Request:
+   - only center the desktop top HUD a little;
+   - keep v55 sizes, stamina, weather and mobile HUD untouched.
+   ========================================================= */
+
+@media (hover: hover) and (pointer: fine) {
+  .player-glass-hud {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    transform-origin: top center !important;
+    justify-content: center !important;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 520px) {
+  .player-glass-hud {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    max-width: calc(100% - 24px) !important;
+  }
+}
