@@ -3336,3 +3336,357 @@ html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-contro
     drop-shadow(0 0 11px rgba(255, 66, 66, 0.42))
     drop-shadow(0 0 20px rgba(255, 66, 66, 0.26)) !important;
 }
+
+/* =========================================================
+   DONATION MOBILE STAMINA PREMIUM ENERGY RING — v41
+   Visual-only polish over v40:
+   - keeps the readable drain/restore arc;
+   - adds a clean glass housing around the joystick;
+   - adds subtle limiter notches instead of a plain bar feel;
+   - adds current-value light cutter and premium inner glow;
+   - does NOT touch JS, stamina math, speed, drain or recovery.
+   ========================================================= */
+
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] {
+  --mobile-stamina-ring-size: 164px;
+  --mobile-stamina-arc-start: 145deg;
+  --mobile-stamina-arc-total: 220deg;
+
+  width: var(--mobile-stamina-ring-size) !important;
+  min-width: var(--mobile-stamina-ring-size) !important;
+  max-width: var(--mobile-stamina-ring-size) !important;
+
+  height: var(--mobile-stamina-ring-size) !important;
+  min-height: var(--mobile-stamina-ring-size) !important;
+  max-height: var(--mobile-stamina-ring-size) !important;
+
+  border-radius: 999px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+/* glass housing: makes the ring look like part of the joystick, not a random strip */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina::before,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina]::before,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina::before,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina]::before,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina::before,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina]::before,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina::before,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina]::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 18px !important;
+  display: block !important;
+  border-radius: 999px !important;
+  pointer-events: none !important;
+
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.10), transparent 33%),
+    radial-gradient(circle at 50% 54%, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.03) 58%, transparent 70%) !important;
+
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  box-shadow:
+    inset 0 0 22px rgba(255, 255, 255, 0.035),
+    inset 0 -16px 28px rgba(0, 0, 0, 0.20),
+    0 10px 26px rgba(0, 0, 0, 0.26) !important;
+
+  opacity: 0.82 !important;
+}
+
+/* premium arc: active stamina, dark spent zone, quiet rail and metal edge */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track {
+  position: absolute !important;
+  inset: 0 !important;
+
+  width: var(--mobile-stamina-ring-size) !important;
+  min-width: var(--mobile-stamina-ring-size) !important;
+  max-width: var(--mobile-stamina-ring-size) !important;
+
+  height: var(--mobile-stamina-ring-size) !important;
+  min-height: var(--mobile-stamina-ring-size) !important;
+  max-height: var(--mobile-stamina-ring-size) !important;
+
+  border-radius: 999px !important;
+  overflow: visible !important;
+
+  background:
+    /* live value cutter highlight */
+    conic-gradient(
+      from var(--mobile-stamina-arc-start),
+      transparent 0deg calc(var(--mobile-stamina-angle) - 2deg),
+      rgba(255, 255, 255, 0.98) calc(var(--mobile-stamina-angle) - 2deg) calc(var(--mobile-stamina-angle) + 3deg),
+      transparent calc(var(--mobile-stamina-angle) + 3deg) 360deg
+    ),
+    /* spent area: strong enough to see stamina draining */
+    conic-gradient(
+      from var(--mobile-stamina-arc-start),
+      transparent 0deg var(--mobile-stamina-angle),
+      rgba(2, 4, 7, 0.91) var(--mobile-stamina-angle) 220deg,
+      transparent 220deg 360deg
+    ),
+    /* active performance zones */
+    conic-gradient(
+      from var(--mobile-stamina-arc-start),
+      rgba(255, 48, 54, 1) 0deg 11deg,
+      rgba(255, 65, 55, 1) 11deg 22deg,
+      rgba(255, 112, 44, 1) 22deg 44deg,
+      rgba(255, 207, 62, 1) 44deg 88deg,
+      rgba(183, 255, 82, 1) 88deg 176deg,
+      rgba(64, 255, 139, 1) 176deg 220deg,
+      transparent 220deg 360deg
+    ),
+    /* thin outer metal rail */
+    conic-gradient(
+      from var(--mobile-stamina-arc-start),
+      rgba(255, 255, 255, 0.20) 0deg 220deg,
+      transparent 220deg 360deg
+    ) !important;
+
+  -webkit-mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 18px),
+      #000 calc(100% - 15px),
+      #000 calc(100% - 5px),
+      transparent calc(100% - 2px)
+    ) !important;
+
+  mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 18px),
+      #000 calc(100% - 15px),
+      #000 calc(100% - 5px),
+      transparent calc(100% - 2px)
+    ) !important;
+
+  filter:
+    drop-shadow(0 0 5px rgba(255, 255, 255, 0.12))
+    drop-shadow(0 0 10px rgba(76, 255, 143, 0.18))
+    drop-shadow(0 0 18px rgba(255, 204, 66, 0.11)) !important;
+}
+
+/* limiter teeth: readable thresholds without ugly full text spam */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track::before,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track::before,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track::before,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track::before,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track::before,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track::before,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track::before,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: -4px !important;
+  display: block !important;
+  border-radius: 999px !important;
+  pointer-events: none !important;
+
+  background:
+    conic-gradient(
+      from var(--mobile-stamina-arc-start),
+      rgba(255, 255, 255, 0.92) 0deg 2.4deg,
+      transparent 2.4deg 8.8deg,
+      rgba(255, 58, 58, 0.90) 8.8deg 12.4deg,
+      transparent 12.4deg 19.2deg,
+      rgba(255, 94, 55, 0.92) 19.2deg 23.2deg,
+      transparent 23.2deg 41.6deg,
+      rgba(255, 156, 54, 0.94) 41.6deg 45.8deg,
+      transparent 45.8deg 85.8deg,
+      rgba(255, 224, 84, 0.96) 85.8deg 90.2deg,
+      transparent 90.2deg 129.8deg,
+      rgba(196, 255, 92, 0.94) 129.8deg 134.2deg,
+      transparent 134.2deg 173.8deg,
+      rgba(117, 255, 155, 0.98) 173.8deg 178.8deg,
+      transparent 178.8deg 216.0deg,
+      rgba(255, 255, 255, 1) 216.0deg 220deg,
+      transparent 220deg 360deg
+    ) !important;
+
+  -webkit-mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 22px),
+      #000 calc(100% - 20px),
+      #000 calc(100% - 4px),
+      transparent calc(100% - 2px)
+    ) !important;
+
+  mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 22px),
+      #000 calc(100% - 20px),
+      #000 calc(100% - 4px),
+      transparent calc(100% - 2px)
+    ) !important;
+
+  opacity: 0.86 !important;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.35))
+    drop-shadow(0 0 7px rgba(0, 0, 0, 0.45)) !important;
+}
+
+/* value cutter: sharper but not fat */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track::after,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track::after,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track::after,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track::after,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track::after,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track::after,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina-track::after,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] .mobile-stamina-track::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: -6px !important;
+  display: block !important;
+  border-radius: 999px !important;
+  pointer-events: none !important;
+
+  background:
+    conic-gradient(
+      from var(--mobile-stamina-arc-start),
+      transparent 0deg calc(var(--mobile-stamina-angle) - 1.6deg),
+      rgba(255, 255, 255, 1) calc(var(--mobile-stamina-angle) - 1.6deg) calc(var(--mobile-stamina-angle) + 2.8deg),
+      transparent calc(var(--mobile-stamina-angle) + 2.8deg) 360deg
+    ) !important;
+
+  -webkit-mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 24px),
+      #000 calc(100% - 22px),
+      #000 calc(100% - 5px),
+      transparent calc(100% - 2px)
+    ) !important;
+
+  mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 24px),
+      #000 calc(100% - 22px),
+      #000 calc(100% - 5px),
+      transparent calc(100% - 2px)
+    ) !important;
+
+  opacity: 0.96 !important;
+  filter:
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.75))
+    drop-shadow(0 0 10px rgba(255, 213, 84, 0.42)) !important;
+}
+
+/* compact center badge: makes the system look intentional, not just a floating arc */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina::after,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina]::after,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina::after,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina]::after,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina::after,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina]::after,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina::after,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina]::after {
+  content: "BOOST" !important;
+  position: absolute !important;
+  left: 50% !important;
+  bottom: 24px !important;
+  display: block !important;
+
+  width: 48px !important;
+  height: 14px !important;
+  padding: 0 7px !important;
+  border-radius: 999px !important;
+
+  transform: translateX(-50%) !important;
+
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)),
+    rgba(4, 7, 10, 0.64) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+
+  color: rgba(236, 255, 241, 0.74) !important;
+  font-size: 6px !important;
+  line-height: 13px !important;
+  font-weight: 950 !important;
+  letter-spacing: 0.16em !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.82) !important;
+
+  opacity: 0.82 !important;
+  pointer-events: none !important;
+}
+
+/* low state: not a huge banner, more like a warning chip */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="low"]::after,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="low"]::after,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="low"]::after,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="low"]::after,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="low"]::after,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="low"]::after,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="low"]::after,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="low"]::after {
+  content: "LOW" !important;
+  width: 36px !important;
+  color: rgba(255, 226, 112, 0.96) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 226, 112, 0.16), rgba(255, 120, 52, 0.07)),
+    rgba(31, 18, 3, 0.72) !important;
+  border-color: rgba(255, 210, 84, 0.26) !important;
+  opacity: 0.96 !important;
+}
+
+/* locked/empty: clear rest signal, but still styled */
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="locked"]::after,
+html body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="locked"]::after,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="locked"]::after,
+html.mn-mobile-game-enabled body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="locked"]::after,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="locked"]::after,
+html body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="locked"]::after,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina[data-stamina-state="locked"]::after,
+html.mn-landscape-game body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina][data-stamina-state="locked"]::after {
+  content: "REST" !important;
+  width: 42px !important;
+  color: rgba(255, 248, 248, 0.98) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 94, 94, 0.18), rgba(255, 94, 94, 0.06)),
+    rgba(54, 6, 6, 0.78) !important;
+  border-color: rgba(255, 96, 96, 0.32) !important;
+  opacity: 1 !important;
+  animation: mn-mobile-stamina-text-pulse 0.92s ease-in-out infinite !important;
+}
+
+/* forced/real landscape offset compensation after v41 ring resize */
+html body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] {
+  left: max(138px, calc(env(safe-area-inset-left) + 138px)) !important;
+  top: max(216px, calc(env(safe-area-inset-top) + 216px)) !important;
+}
+
+html body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html body.mn-real-landscape .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina],
+html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer .mobile-stamina,
+html.mn-real-landscape body .home[data-mobile-controls="enabled"] .mobile-controls-layer [data-mobile-stamina] {
+  left: max(-11px, calc(env(safe-area-inset-left) - 11px)) !important;
+  bottom: max(24px, calc(env(safe-area-inset-bottom) + 24px)) !important;
+}
