@@ -181,6 +181,7 @@ export function enableMobileJoystick(
   const DEADZONE = 0.08;
   const SPRINT_POWER = 0.62;
   const CAMERA_LAG = 0.22;
+  const STAMINA_ARC_MAX_DEG = 165;
 
   const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
   const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
@@ -239,7 +240,7 @@ function updateStaminaUi() {
   if (!staminaFill) return;
 
   const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
-  const arcAngle = (percent / 100) * 220;
+  const arcAngle = (percent / 100) * STAMINA_ARC_MAX_DEG;
 
   staminaFill.style.width = `${percent}%`;
 
