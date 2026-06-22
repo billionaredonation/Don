@@ -3818,7 +3818,7 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
 
 
 /* =========================================================
-   DONATION PC HUD REAL ADAPT — v53
+   DONATION PC HUD REAL ADAPT — v54
    Desktop is NOT mobile. Keep compact PC layout:
    - no joystick changes;
    - no mobile ring/stamina transfer;
@@ -3831,7 +3831,7 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
   :root {
     --mn-pc-hud-left: 20px;
     --mn-pc-hud-top: 18px;
-    --mn-pc-hud-gap: 8px;
+    --mn-pc-hud-gap: 14px;
     --mn-pc-chip-h: 38px;
   }
 
@@ -3849,7 +3849,7 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     min-height: 0 !important;
 
     display: grid !important;
-    grid-template-columns: 150px 170px 118px !important;
+    grid-template-columns: 132px 152px 108px !important;
     grid-auto-rows: auto !important;
     align-items: start !important;
     justify-content: start !important;
@@ -3917,9 +3917,9 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     grid-column: 1 !important;
     grid-row: 1 !important;
 
-    width: 150px !important;
-    min-width: 150px !important;
-    max-width: 150px !important;
+    width: 132px !important;
+    min-width: 132px !important;
+    max-width: 132px !important;
 
     display: flex !important;
     align-items: center !important;
@@ -3984,9 +3984,9 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     grid-column: 2 !important;
     grid-row: 1 !important;
 
-    width: 170px !important;
-    min-width: 170px !important;
-    max-width: 170px !important;
+    width: 152px !important;
+    min-width: 152px !important;
+    max-width: 152px !important;
 
     display: grid !important;
     grid-template-columns: 28px minmax(0, 1fr) 20px !important;
@@ -4092,9 +4092,9 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     grid-column: 3 !important;
     grid-row: 1 !important;
 
-    width: 118px !important;
-    min-width: 118px !important;
-    max-width: 118px !important;
+    width: 108px !important;
+    min-width: 108px !important;
+    max-width: 108px !important;
 
     display: flex !important;
     align-items: center !important;
@@ -4208,7 +4208,7 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
   .pc-stamina {
     position: absolute !important;
     left: 24px !important;
-    bottom: 82px !important;
+    bottom: 58px !important;
     right: auto !important;
     top: auto !important;
 
@@ -4329,20 +4329,20 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     left: 16px !important;
     top: 18px !important;
     max-width: calc(100% - 32px) !important;
-    grid-template-columns: minmax(118px, 140px) minmax(130px, 158px) minmax(100px, 112px) !important;
-    gap: 7px !important;
+    grid-template-columns: 126px 146px 104px !important;
+    gap: 12px !important;
   }
 
   .player-city-button {
-    width: 140px !important;
-    min-width: 140px !important;
-    max-width: 140px !important;
+    width: 126px !important;
+    min-width: 126px !important;
+    max-width: 126px !important;
   }
 
   .player-profile-card {
-    width: 158px !important;
-    min-width: 158px !important;
-    max-width: 158px !important;
+    width: 146px !important;
+    min-width: 146px !important;
+    max-width: 146px !important;
     grid-template-columns: 26px minmax(0, 1fr) 18px !important;
     gap: 7px !important;
   }
@@ -4357,9 +4357,9 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
   }
 
   .player-balance-card {
-    width: 112px !important;
-    min-width: 112px !important;
-    max-width: 112px !important;
+    width: 104px !important;
+    min-width: 104px !important;
+    max-width: 104px !important;
     padding: 0 8px !important;
   }
 
@@ -4375,7 +4375,7 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
 
   .pc-stamina {
     left: 24px !important;
-    bottom: 80px !important;
+    bottom: 56px !important;
     width: 184px !important;
     min-width: 184px !important;
     max-width: 184px !important;
