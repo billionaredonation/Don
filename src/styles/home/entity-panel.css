@@ -273,3 +273,33 @@
     font-size: 10.5px !important;
   }
 }
+
+
+/* =========================================================
+   DONATION V60 — HOUSE SELECTION PANEL SOURCE FIX
+   Основной файл карточки выбранного объекта.
+   Дублирует ключевые размеры без зависимости от pointer/hover.
+   Last CSS override still lives in mobile-controls-final.css because it loads last.
+   ========================================================= */
+
+.home[data-mobile-controls="enabled"] .house-selection-panel,
+body.mn-mobile-game-enabled .house-selection-panel,
+body.mn-landscape-game .house-selection-panel {
+  bottom: max(102px, calc(env(safe-area-inset-bottom) + 92px)) !important;
+  width: min(338px, calc(100vw - 72px)) !important;
+  max-width: calc(100vw - 72px) !important;
+  grid-template-columns: minmax(0, 1fr) 24px !important;
+  grid-template-areas:
+    "body close"
+    "action action" !important;
+  gap: 7px 8px !important;
+  padding: 9px 10px 10px !important;
+  border-radius: 17px !important;
+  z-index: 2147484200 !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-icon,
+body.mn-mobile-game-enabled .house-selection-icon,
+body.mn-landscape-game .house-selection-icon {
+  display: none !important;
+}
