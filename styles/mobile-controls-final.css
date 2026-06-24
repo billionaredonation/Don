@@ -200,85 +200,7 @@
   display: none !important;
 }
 
-/* =========================================================
-   MODALS BASE
-   ========================================================= */
-
-.houses-modal,
-.house-details-modal {
-  position: fixed !important;
-
-  inset: 0 !important;
-
-  width: 100vw !important;
-  height: 100vh !important;
-  height: 100svh !important;
-
-  display: grid !important;
-  place-items: center !important;
-
-  padding: 14px !important;
-  box-sizing: border-box !important;
-
-  transform: none !important;
-  rotate: 0deg !important;
-  translate: 0 0 !important;
-
-  pointer-events: auto !important;
-  z-index: 2147482500 !important;
-}
-
-.houses-modal[hidden],
-.house-details-modal[hidden] {
-  display: none !important;
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
-.houses-panel,
-.house-details-panel {
-  transform: none !important;
-  rotate: 0deg !important;
-  translate: 0 0 !important;
-
-  transform-origin: center center !important;
-  pointer-events: auto !important;
-}
-
-.house-details-panel {
-  width: min(470px, calc(100vw - 28px)) !important;
-  max-width: calc(100vw - 28px) !important;
-  max-height: calc(100svh - 28px) !important;
-
-  overflow-y: auto !important;
-}
-
-.houses-panel {
-  width: min(680px, calc(100vw - 28px)) !important;
-  max-width: calc(100vw - 28px) !important;
-  max-height: calc(100svh - 28px) !important;
-
-  overflow-y: auto !important;
-}
-
-.house-details-backdrop,
-.houses-modal-backdrop {
-  position: absolute !important;
-  inset: 0 !important;
-
-  pointer-events: auto !important;
-}
-
-.house-details-header button,
-.houses-x-button,
-.houses-close-button,
-.house-secondary-button,
-.house-buy-button {
-  pointer-events: auto !important;
-  touch-action: manipulation !important;
-  -webkit-tap-highlight-color: transparent !important;
-}
+/* Modal layout lives in src/styles/home/modals.css and src/houses/houses.css. */
 
 /* =========================================================
    MOBILE ONLY
@@ -625,38 +547,7 @@
     top: 8px !important;
   }
 
-  body.mn-houses-modal-open .houses-modal,
-  body.mn-houses-modal-open .house-details-modal {
-    display: grid !important;
-    place-items: center !important;
-
-    padding: 10px !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-  }
-
-  body.mn-houses-modal-open .houses-panel {
-    width: min(620px, calc(100vw - 20px)) !important;
-    max-width: calc(100vw - 20px) !important;
-    max-height: calc(100svh - 20px) !important;
-
-    overflow-y: auto !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-  }
-
-  body.mn-houses-modal-open .house-details-panel {
-    width: min(450px, calc(100vw - 20px)) !important;
-    max-width: calc(100vw - 20px) !important;
-    max-height: calc(100svh - 20px) !important;
-
-    overflow-y: auto !important;
-
-    transform: none !important;
-    rotate: 0deg !important;
-  }
+  /* Modal sizing is handled by src/styles/home/modals.css + src/houses/houses.css. */
 
   .home[data-mobile-controls="enabled"]::after {
     content: "" !important;
@@ -705,31 +596,7 @@
 }
 
 
-/* FINAL MODAL OVERLAY FIX */
-
-body.mn-houses-modal-open [data-mobile-self-marker-hard="true"],
-body.mn-house-details-open [data-mobile-self-marker-hard="true"],
-body.mn-houses-modal-open .mobile-self-player-indicator,
-body.mn-house-details-open .mobile-self-player-indicator,
-body.mn-houses-modal-open .gta-player-marker,
-body.mn-house-details-open .gta-player-marker,
-body.mn-houses-modal-open .home[data-mobile-controls="enabled"]::after,
-body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-.houses-modal,
-.house-details-modal {
-  z-index: 2147483600 !important;
-}
-
-.houses-panel,
-.house-details-panel {
-  z-index: 2147483601 !important;
-}
+/* Modal z-index/overlay fixes moved to modal files. */
 
 /* =========================================================
    MOBILE LANDSCAPE + HUD FINAL CLEAN LAYOUT — v3
