@@ -760,3 +760,152 @@ body.mn-landscape-game .map-object.map-object-house.map-object-visual-elite {
 body.mn-landscape-game .map-objects-layer .map-object.map-object-house::before {
   inset: -28px !important;
 }
+
+/* =========================================================
+   V58 MOBILE GAME MODALS — orientation shell
+   Модалки живут здесь, не в mobile-controls-final.css.
+   ========================================================= */
+
+.houses-modal,
+.house-details-modal {
+  z-index: 2147483600 !important;
+}
+
+.houses-panel,
+.house-details-panel {
+  z-index: 2147483601 !important;
+}
+
+body.mn-houses-modal-open [data-mobile-self-marker-hard="true"],
+body.mn-house-details-open [data-mobile-self-marker-hard="true"],
+body.mn-houses-modal-open .mobile-self-player-indicator,
+body.mn-house-details-open .mobile-self-player-indicator,
+body.mn-houses-modal-open .gta-player-marker,
+body.mn-house-details-open .gta-player-marker,
+body.mn-houses-modal-open .mobile-controls-layer,
+body.mn-house-details-open .mobile-controls-layer,
+body.mn-houses-modal-open .mobile-joystick,
+body.mn-house-details-open .mobile-joystick,
+body.mn-houses-modal-open .mobile-stamina,
+body.mn-house-details-open .mobile-stamina,
+body.mn-houses-modal-open .home[data-mobile-controls="enabled"]::after,
+body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  body.mn-mobile-game-enabled .houses-modal,
+  body.mn-mobile-game-enabled .house-details-modal,
+  body.mn-landscape-game .houses-modal,
+  body.mn-landscape-game .house-details-modal {
+    position: fixed !important;
+    inset: 0 !important;
+
+    width: var(--mn-vw, 100vw) !important;
+    height: var(--mn-vh, 100dvh) !important;
+    min-width: var(--mn-vw, 100vw) !important;
+    min-height: var(--mn-vh, 100dvh) !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    padding: 0 !important;
+    overflow: hidden !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+
+    pointer-events: auto !important;
+    z-index: 2147483600 !important;
+  }
+
+  body.mn-mobile-game-enabled .houses-modal-backdrop,
+  body.mn-mobile-game-enabled .house-details-backdrop,
+  body.mn-landscape-game .houses-modal-backdrop,
+  body.mn-landscape-game .house-details-backdrop {
+    position: absolute !important;
+    inset: 0 !important;
+
+    background: rgba(0, 0, 0, 0.72) !important;
+    backdrop-filter: blur(10px) saturate(1.05) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(1.05) !important;
+
+    pointer-events: auto !important;
+    z-index: 0 !important;
+  }
+
+  body.mn-mobile-game-enabled .houses-panel,
+  body.mn-mobile-game-enabled .house-details-panel,
+  body.mn-landscape-game .houses-panel,
+  body.mn-landscape-game .house-details-panel {
+    position: relative !important;
+    z-index: 1 !important;
+
+    box-sizing: border-box !important;
+    pointer-events: auto !important;
+
+    transform-origin: center center !important;
+    translate: 0 0 !important;
+    rotate: 0deg !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Telegram portrait viewport, game visually rotated right. */
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .houses-panel,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .houses-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-details-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .houses-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .houses-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-details-panel {
+    transform: rotate(90deg) translateZ(0) !important;
+  }
+
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .houses-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .houses-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .houses-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .houses-panel {
+    width: min(680px, calc(var(--mn-vh, 100dvh) - 24px)) !important;
+    max-width: calc(var(--mn-vh, 100dvh) - 24px) !important;
+    max-height: calc(var(--mn-vw, 100vw) - 24px) !important;
+  }
+
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-details-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-details-panel {
+    width: min(500px, calc(var(--mn-vh, 100dvh) - 24px)) !important;
+    max-width: calc(var(--mn-vh, 100dvh) - 24px) !important;
+    max-height: calc(var(--mn-vw, 100vw) - 24px) !important;
+  }
+
+  /* Real landscape viewport: no rotation. */
+  html.mn-real-landscape body.mn-mobile-game-enabled .houses-panel,
+  html.mn-real-landscape body.mn-landscape-game .houses-panel,
+  body.mn-real-landscape.mn-mobile-game-enabled .houses-panel,
+  body.mn-real-landscape.mn-landscape-game .houses-panel {
+    transform: none !important;
+    width: min(720px, calc(var(--mn-vw, 100vw) - 28px)) !important;
+    max-width: calc(var(--mn-vw, 100vw) - 28px) !important;
+    max-height: calc(var(--mn-vh, 100dvh) - 28px) !important;
+  }
+
+  html.mn-real-landscape body.mn-mobile-game-enabled .house-details-panel,
+  html.mn-real-landscape body.mn-landscape-game .house-details-panel,
+  body.mn-real-landscape.mn-mobile-game-enabled .house-details-panel,
+  body.mn-real-landscape.mn-landscape-game .house-details-panel {
+    transform: none !important;
+    width: min(520px, calc(var(--mn-vw, 100vw) - 28px)) !important;
+    max-width: calc(var(--mn-vw, 100vw) - 28px) !important;
+    max-height: calc(var(--mn-vh, 100dvh) - 28px) !important;
+  }
+}
