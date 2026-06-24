@@ -285,6 +285,10 @@ export function createEntityInteractionPanel(root) {
 
   let selectedObject = null;
 
+  function setHouseSelectionOpen(isOpen) {
+    document.body?.classList.toggle('mn-house-selection-open', Boolean(isOpen));
+  }
+
   function renderSelectedObject() {
     if (!selectedObject) return;
 
@@ -300,12 +304,14 @@ export function createEntityInteractionPanel(root) {
   function close() {
     selectedObject = null;
     panel.hidden = true;
+    setHouseSelectionOpen(false);
   }
 
   function open(object) {
     selectedObject = object;
     renderSelectedObject();
     panel.hidden = false;
+    setHouseSelectionOpen(true);
   }
 
   function handleHousePurchased(event) {
@@ -361,6 +367,7 @@ export function createEntityInteractionPanel(root) {
 
     cleanup() {
       window.removeEventListener('mn:house-purchased-local', handleHousePurchased);
+      setHouseSelectionOpen(false);
       panel.remove();
     },
   };
