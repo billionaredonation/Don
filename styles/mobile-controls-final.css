@@ -4486,3 +4486,200 @@ body.mn-landscape-game .home[data-mobile-controls="enabled"] .mobile-controls-la
     max-width: calc(100% - 24px) !important;
   }
 }
+
+
+/* =========================================================
+   DONATION V60 — HOUSE SELECTION PANEL REAL FIX
+   Карточка выбранного дома.
+   Цель: не пересекаться со stamina/HUD и нормально жить в mobile game layer.
+   ========================================================= */
+
+/* Базовый фикс без media: нужен для Telegram Desktop / WebView,
+   где data-mobile-controls уже включен, но pointer может быть fine. */
+.home[data-mobile-controls="enabled"] .house-selection-panel,
+body.mn-mobile-game-enabled .house-selection-panel,
+body.mn-landscape-game .house-selection-panel {
+  position: fixed !important;
+
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: max(102px, calc(env(safe-area-inset-bottom) + 92px)) !important;
+
+  width: min(338px, calc(100vw - 72px)) !important;
+  min-width: 0 !important;
+  max-width: calc(100vw - 72px) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 24px !important;
+  grid-template-areas:
+    "body close"
+    "action action" !important;
+  align-items: center !important;
+  gap: 7px 8px !important;
+
+  padding: 9px 10px 10px !important;
+  border-radius: 17px !important;
+
+  color: rgba(255, 255, 255, 0.97) !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.10), transparent 36%),
+    linear-gradient(180deg, rgba(22, 28, 36, 0.96), rgba(6, 8, 12, 0.97)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.54),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+
+  transform: translateX(-50%) !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+  transform-origin: center center !important;
+
+  z-index: 2147484200 !important;
+  pointer-events: auto !important;
+
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-panel[hidden],
+body.mn-mobile-game-enabled .house-selection-panel[hidden],
+body.mn-landscape-game .house-selection-panel[hidden] {
+  display: none !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-icon,
+body.mn-mobile-game-enabled .house-selection-icon,
+body.mn-landscape-game .house-selection-icon {
+  display: none !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-body,
+body.mn-mobile-game-enabled .house-selection-body,
+body.mn-landscape-game .house-selection-body {
+  grid-area: body !important;
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 2px !important;
+  padding: 0 !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-title,
+body.mn-mobile-game-enabled .house-selection-title,
+body.mn-landscape-game .house-selection-title,
+.home[data-mobile-controls="enabled"] .house-selection-meta,
+body.mn-mobile-game-enabled .house-selection-meta,
+body.mn-landscape-game .house-selection-meta {
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-title,
+body.mn-mobile-game-enabled .house-selection-title,
+body.mn-landscape-game .house-selection-title {
+  font-size: 12px !important;
+  line-height: 1.05 !important;
+  font-weight: 950 !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-meta,
+body.mn-mobile-game-enabled .house-selection-meta,
+body.mn-landscape-game .house-selection-meta {
+  font-size: 9px !important;
+  line-height: 1.12 !important;
+  font-weight: 800 !important;
+  color: rgba(255, 255, 255, 0.70) !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-close,
+body.mn-mobile-game-enabled .house-selection-close,
+body.mn-landscape-game .house-selection-close {
+  grid-area: close !important;
+  position: static !important;
+
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  padding: 0 !important;
+  border-radius: 999px !important;
+
+  background: rgba(255, 255, 255, 0.10) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.86) !important;
+
+  font-size: 16px !important;
+  line-height: 1 !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-action,
+body.mn-mobile-game-enabled .house-selection-action,
+body.mn-landscape-game .house-selection-action {
+  grid-area: action !important;
+
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 31px !important;
+
+  padding: 0 12px !important;
+  border-radius: 12px !important;
+
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.115), rgba(255, 255, 255, 0.055)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: rgba(255, 255, 255, 0.96) !important;
+
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 950 !important;
+}
+
+/* Когда карточка дома открыта, stamina не должна торчать сквозь нее.
+   :has поддерживается текущими WebView/Safari/Chrome; если нет — позиция панели всё равно спасает. */
+body:has(.house-selection-panel:not([hidden])) .home[data-mobile-controls="enabled"] .mobile-stamina,
+body:has(.house-selection-panel:not([hidden])) .home[data-mobile-controls="enabled"] [data-mobile-stamina],
+body:has(.house-selection-panel:not([hidden])) .pc-stamina {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Forced landscape: если сам игровой слой повернут, карточка тоже держит игровую ориентацию. */
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel {
+  left: 50% !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+
+  width: min(338px, calc(var(--mn-vh, 100vh) - 72px)) !important;
+  max-width: calc(var(--mn-vh, 100vh) - 72px) !important;
+
+  transform: translate3d(-50%, 70%, 0) rotate(90deg) !important;
+  transform-origin: center center !important;
+}
+
+/* Real landscape: обычные координаты, просто выше stamina. */
+html.mn-real-landscape body.mn-mobile-game-enabled .house-selection-panel,
+html.mn-real-landscape body.mn-landscape-game .house-selection-panel,
+body.mn-real-landscape.mn-mobile-game-enabled .house-selection-panel,
+body.mn-real-landscape.mn-landscape-game .house-selection-panel {
+  left: 50% !important;
+  top: auto !important;
+  bottom: max(88px, calc(env(safe-area-inset-bottom) + 78px)) !important;
+
+  width: min(338px, calc(var(--mn-vw, 100vw) - 72px)) !important;
+  max-width: calc(var(--mn-vw, 100vw) - 72px) !important;
+
+  transform: translateX(-50%) !important;
+}
