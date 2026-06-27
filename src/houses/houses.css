@@ -2463,3 +2463,263 @@ body.mn-landscape-game .house-selection-close,
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+
+/* =========================================================
+   FINAL STAT CARDS POLISH
+   Карточки города/домов: нормальная сетка, без обрезанных подписей.
+   ========================================================= */
+
+.city-stat-grid,
+.houses-summary-grid,
+.city-stat-grid-clean {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin-top: 12px !important;
+}
+
+.city-stat-card {
+  position: relative !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 10px !important;
+
+  min-height: 86px !important;
+  padding: 12px !important;
+  border-radius: 18px !important;
+
+  border: 1px solid rgba(255, 255, 255, 0.13) !important;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(160, 100, 255, 0.20), transparent 34%),
+    radial-gradient(circle at 8% 100%, rgba(255, 255, 255, 0.06), transparent 36%),
+    linear-gradient(145deg, rgba(32, 39, 62, 0.88), rgba(10, 14, 24, 0.94)) !important;
+
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.city-stat-card::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 38%),
+    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.08), transparent 32%) !important;
+}
+
+.city-stat-card:nth-child(3):last-child {
+  grid-column: 1 / -1 !important;
+}
+
+.city-stat-icon {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  min-height: 42px !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  border-radius: 14px !important;
+  font-size: 21px !important;
+
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+.city-stat-body {
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-rows: auto auto auto !important;
+  gap: 3px !important;
+}
+
+.city-stat-body small,
+.city-stat-body strong,
+.city-stat-body em {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  text-overflow: clip !important;
+}
+
+.city-stat-body small {
+  display: block !important;
+  overflow: visible !important;
+  white-space: normal !important;
+
+  color: rgba(240, 244, 255, 0.70) !important;
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.city-stat-body strong {
+  display: block !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+
+  color: #ffffff !important;
+  font-size: clamp(22px, 5.2vw, 30px) !important;
+  line-height: 0.95 !important;
+  font-weight: 1000 !important;
+  letter-spacing: -0.055em !important;
+}
+
+.city-stat-body em {
+  display: block !important;
+  overflow: visible !important;
+  white-space: normal !important;
+
+  color: rgba(231, 237, 255, 0.54) !important;
+  font-size: 10px !important;
+  line-height: 1.15 !important;
+  font-style: normal !important;
+  font-weight: 800 !important;
+}
+
+.city-stat-card-budget {
+  border-color: rgba(255, 196, 84, 0.34) !important;
+}
+
+.city-stat-card-budget .city-stat-icon {
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.20), transparent 38%),
+    linear-gradient(135deg, #f0b640, #ad6419) !important;
+}
+
+.city-stat-card-inflation {
+  border-color: rgba(255, 125, 92, 0.34) !important;
+}
+
+.city-stat-card-inflation .city-stat-icon {
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.20), transparent 38%),
+    linear-gradient(135deg, #ff705d, #a43a3a) !important;
+}
+
+.city-stat-card-players,
+.city-stat-card-free {
+  border-color: rgba(61, 218, 132, 0.34) !important;
+}
+
+.city-stat-card-players .city-stat-icon,
+.city-stat-card-free .city-stat-icon {
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.20), transparent 38%),
+    linear-gradient(135deg, #42d984, #137a4d) !important;
+}
+
+.city-stat-card-total {
+  border-color: rgba(150, 96, 255, 0.36) !important;
+}
+
+.city-stat-card-total .city-stat-icon {
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.20), transparent 38%),
+    linear-gradient(135deg, #8d55ff, #4932bb) !important;
+}
+
+.city-stat-card-owned,
+.city-stat-card-online {
+  border-color: rgba(91, 160, 255, 0.34) !important;
+}
+
+.city-stat-card-owned .city-stat-icon,
+.city-stat-card-online .city-stat-icon {
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.20), transparent 38%),
+    linear-gradient(135deg, #539cff, #283fa8) !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  body.mn-mobile-game-enabled .city-stat-grid,
+  body.mn-mobile-game-enabled .city-stat-grid-clean,
+  body.mn-mobile-game-enabled .houses-summary-grid,
+  body.mn-landscape-game .city-stat-grid,
+  body.mn-landscape-game .city-stat-grid-clean,
+  body.mn-landscape-game .houses-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: 9px !important;
+  }
+
+  body.mn-mobile-game-enabled .city-stat-card,
+  body.mn-landscape-game .city-stat-card {
+    grid-template-columns: 36px minmax(0, 1fr) !important;
+    min-height: 74px !important;
+    padding: 9px !important;
+    gap: 8px !important;
+    border-radius: 15px !important;
+  }
+
+  body.mn-mobile-game-enabled .city-stat-card:nth-child(3):last-child,
+  body.mn-landscape-game .city-stat-card:nth-child(3):last-child {
+    grid-column: 1 / -1 !important;
+  }
+
+  body.mn-mobile-game-enabled .city-stat-icon,
+  body.mn-landscape-game .city-stat-icon {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    border-radius: 12px !important;
+    font-size: 18px !important;
+  }
+
+  body.mn-mobile-game-enabled .city-stat-body small,
+  body.mn-landscape-game .city-stat-body small {
+    overflow: visible !important;
+    white-space: normal !important;
+    font-size: 10px !important;
+    line-height: 1.08 !important;
+  }
+
+  body.mn-mobile-game-enabled .city-stat-body strong,
+  body.mn-landscape-game .city-stat-body strong {
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    font-size: 22px !important;
+    line-height: 0.95 !important;
+  }
+
+  body.mn-mobile-game-enabled .city-stat-body em,
+  body.mn-landscape-game .city-stat-body em {
+    overflow: visible !important;
+    white-space: normal !important;
+    font-size: 9px !important;
+    line-height: 1.12 !important;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) and (max-width: 430px) {
+  body.mn-mobile-game-enabled .city-stat-card,
+  body.mn-landscape-game .city-stat-card {
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    min-height: 70px !important;
+    padding: 8px !important;
+  }
+
+  body.mn-mobile-game-enabled .city-stat-icon,
+  body.mn-landscape-game .city-stat-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    font-size: 17px !important;
+  }
+
+  body.mn-mobile-game-enabled .city-stat-body strong,
+  body.mn-landscape-game .city-stat-body strong {
+    font-size: 20px !important;
+  }
+}
