@@ -1024,3 +1024,34 @@ body:has([data-admin-mode="enabled"]) .pc-stamina {
     top: 6px !important;
   }
 }
+
+/* =========================================================
+   ADMIN PANEL OVERLAY PRIORITY FIX
+   Админ-панель должна быть выше HUD/погоды/карточек, чтобы
+   верхняя строка интерфейса не перекрывала кнопки и заголовок.
+   ========================================================= */
+
+body.admin-mode .player-glass-hud,
+body.admin-mode .player-weather-mini,
+body.admin-mode .player-network-card,
+body.admin-mode .house-selection-panel,
+body.admin-mode .entity-interaction-hint,
+body.admin-mode .entity-interaction-notice,
+body.admin-mode .home[data-mobile-controls="enabled"]::after {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.admin-mode [data-admin-mode="enabled"]::before,
+[data-admin-mode="enabled"]::before {
+  z-index: 2147483400 !important;
+}
+
+body.admin-mode .admin-panel,
+.admin-panel {
+  z-index: 2147483401 !important;
+  isolation: isolate !important;
+}
+
