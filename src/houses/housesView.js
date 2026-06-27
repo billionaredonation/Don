@@ -89,9 +89,9 @@ function renderCityStatCards({
         <span class="city-stat-icon">💰</span>
 
         <div class="city-stat-body">
-          <small>Бюджет города</small>
+          <small>Бюджет</small>
           <strong>${formatMoney(budget)}</strong>
-          <em>Баланс городской экономики</em>
+          <em>Баланс города</em>
         </div>
       </article>
 
@@ -101,7 +101,7 @@ function renderCityStatCards({
         <div class="city-stat-body">
           <small>Инфляция</small>
           <strong>${formatPercent(inflation)}</strong>
-          <em>Текущий игровой показатель</em>
+          <em>Игровой индекс</em>
         </div>
       </article>
 
@@ -109,9 +109,9 @@ function renderCityStatCards({
         <span class="city-stat-icon">👥</span>
 
         <div class="city-stat-body">
-          <small>Игроков зарегистрировано</small>
+          <small>Игроки</small>
           <strong>${formatNumber(registeredPlayers)}</strong>
-          <em>Всего в этом городе</em>
+          <em>В этом городе</em>
         </div>
       </article>
     </div>
@@ -127,7 +127,7 @@ function renderHousesSummaryCards(houses) {
         <div class="city-stat-body">
           <small>Всего домов</small>
           <strong>${formatNumber(houses.housesTotal)}</strong>
-          <em>Общее количество объектов</em>
+          <em>Всего объектов</em>
         </div>
       </article>
 
@@ -137,7 +137,7 @@ function renderHousesSummaryCards(houses) {
         <div class="city-stat-body">
           <small>Свободных</small>
           <strong>${formatNumber(houses.housesFree)}</strong>
-          <em>Можно купить на карте</em>
+          <em>Доступно к покупке</em>
         </div>
       </article>
 
@@ -147,7 +147,7 @@ function renderHousesSummaryCards(houses) {
         <div class="city-stat-body">
           <small>Купленных</small>
           <strong>${formatNumber(houses.housesOwned)}</strong>
-          <em>Уже заняты игроками</em>
+          <em>Занято игроками</em>
         </div>
       </article>
     </div>
