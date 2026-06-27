@@ -909,3 +909,43 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
     max-height: calc(var(--mn-vh, 100dvh) - 28px) !important;
   }
 }
+
+/* =========================================================
+   MODAL OVERLAY PRIORITY FIX
+   Модалки города/домов должны открываться чисто: без HUD,
+   погоды, панели выбора объекта и игровых подсказок поверх них.
+   ========================================================= */
+
+body.mn-houses-modal-open .player-glass-hud,
+body.mn-houses-modal-open .player-weather-mini,
+body.mn-houses-modal-open .player-network-card,
+body.mn-houses-modal-open .house-selection-panel,
+body.mn-houses-modal-open .entity-interaction-hint,
+body.mn-houses-modal-open .entity-interaction-notice,
+body.mn-house-details-open .player-glass-hud,
+body.mn-house-details-open .player-weather-mini,
+body.mn-house-details-open .player-network-card,
+body.mn-house-details-open .house-selection-panel,
+body.mn-house-details-open .entity-interaction-hint,
+body.mn-house-details-open .entity-interaction-notice {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+body.mn-houses-modal-open .houses-modal,
+body.mn-house-details-open .house-details-modal,
+.houses-modal,
+.house-details-modal {
+  z-index: 2147483500 !important;
+}
+
+body.mn-houses-modal-open .houses-panel,
+body.mn-house-details-open .house-details-panel,
+.houses-panel,
+.house-details-panel {
+  z-index: 2147483501 !important;
+  isolation: isolate !important;
+}
+
