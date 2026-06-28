@@ -5402,3 +5402,315 @@ body.mn-session-blocked .gta-player-marker-self {
 }
 
 
+/* =========================================================
+   PC FULLSCREEN / MAP OBJECT SCALE FIX — v64
+   ПК не использует mobile body-классы; здесь финальный оверрайд
+   после старых глобальных размеров домов 34/38/42.
+   ========================================================= */
+@media (hover: hover) and (pointer: fine) {
+  html.mn-desktop-game-enabled,
+  body.mn-desktop-game-enabled,
+  body.mn-desktop-game-enabled #app {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    overflow: hidden !important;
+    background: #050607 !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]),
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .home-gameplay,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .gta-map-stage {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-standard,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-objects-layer .map-object.map-object-house,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-objects-layer .map-object.map-object-house.map-object-visual-standard {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    min-height: 22px !important;
+    max-width: 22px !important;
+    max-height: 22px !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-comfort,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-objects-layer .map-object.map-object-house.map-object-visual-comfort {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-premium,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-objects-layer .map-object.map-object-house.map-object-visual-premium {
+    width: 25px !important;
+    height: 25px !important;
+    min-width: 25px !important;
+    min-height: 25px !important;
+    max-width: 25px !important;
+    max-height: 25px !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-lux,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-objects-layer .map-object.map-object-house.map-object-visual-lux {
+    width: 27px !important;
+    height: 27px !important;
+    min-width: 27px !important;
+    min-height: 27px !important;
+    max-width: 27px !important;
+    max-height: 27px !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-elite,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-objects-layer .map-object.map-object-house.map-object-visual-elite {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    max-width: 28px !important;
+    max-height: 28px !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house {
+    transform:
+      translate(-50%, -50%)
+      rotate(var(--map-object-rotation, 0deg))
+      scale(calc(var(--map-object-scale, 1) * var(--map-entity-scale, 1))) !important;
+    transform-origin: center center !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house::before {
+    inset: -14px !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-house-svg {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .gta-player-marker {
+    transform: scale(var(--map-entity-scale, 1)) !important;
+    transform-origin: center center !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .gta-player-marker-dot {
+    width: 13px !important;
+    height: 13px !important;
+    min-width: 13px !important;
+    min-height: 13px !important;
+  }
+}
+
+/* =========================================================
+   DONATION FINAL — mobile house info prompt, no card block
+   Loaded after home.css, so this wins over older mobile fixes.
+   ========================================================= */
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .house-selection-panel,
+  body.mn-mobile-game-enabled .house-selection-panel,
+  body.mn-landscape-game .house-selection-panel,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: max(18px, calc(env(safe-area-inset-bottom) + 10px)) !important;
+
+    width: min(480px, calc(100vw - 28px)) !important;
+    max-width: calc(100vw - 28px) !important;
+    min-height: 70px !important;
+
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 42px !important;
+    grid-template-areas: "body keys" !important;
+    align-items: center !important;
+    gap: 10px !important;
+
+    padding: 15px 16px 17px !important;
+    box-sizing: border-box !important;
+
+    color: #fff !important;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08) 18%, transparent 46%),
+      linear-gradient(0deg, rgba(1, 3, 8, 0.94) 0%, rgba(5, 8, 14, 0.82) 58%, rgba(5, 8, 14, 0.22) 100%) !important;
+    border: 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+
+    box-shadow:
+      0 -18px 54px rgba(0, 0, 0, 0.46),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+
+    transform: translateX(-50%) !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+    transform-origin: center center !important;
+
+    z-index: 2147484200 !important;
+    pointer-events: auto !important;
+    overflow: hidden !important;
+    isolation: isolate !important;
+
+    backdrop-filter: blur(10px) saturate(1.08) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(1.08) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-panel::before,
+  body.mn-mobile-game-enabled .house-selection-panel::before,
+  body.mn-landscape-game .house-selection-panel::before {
+    content: "" !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 0 !important;
+    width: min(330px, 72%) !important;
+    height: 1px !important;
+    transform: translateX(-50%) !important;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.76), transparent) !important;
+    box-shadow: 0 0 18px rgba(255, 255, 255, 0.36) !important;
+    pointer-events: none !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-body,
+  body.mn-mobile-game-enabled .house-selection-body,
+  body.mn-landscape-game .house-selection-body {
+    grid-area: body !important;
+    min-width: 0 !important;
+    display: grid !important;
+    gap: 4px !important;
+    padding: 0 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-keys,
+  body.mn-mobile-game-enabled .house-selection-keys,
+  body.mn-landscape-game .house-selection-keys {
+    grid-area: keys !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-title,
+  body.mn-mobile-game-enabled .house-selection-title,
+  body.mn-landscape-game .house-selection-title,
+  .home[data-mobile-controls="enabled"] .house-selection-meta,
+  body.mn-mobile-game-enabled .house-selection-meta,
+  body.mn-landscape-game .house-selection-meta,
+  .home[data-mobile-controls="enabled"] .house-selection-timer,
+  body.mn-mobile-game-enabled .house-selection-timer,
+  body.mn-landscape-game .house-selection-timer {
+    display: block !important;
+    min-width: 0 !important;
+    color: #fff !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+    text-shadow:
+      0 2px 10px rgba(0, 0, 0, 0.78),
+      0 0 18px rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-title,
+  body.mn-mobile-game-enabled .house-selection-title,
+  body.mn-landscape-game .house-selection-title {
+    font-size: 13px !important;
+    line-height: 1.05 !important;
+    font-weight: 1000 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-meta,
+  body.mn-mobile-game-enabled .house-selection-meta,
+  body.mn-landscape-game .house-selection-meta {
+    color: rgba(244, 247, 255, 0.86) !important;
+    font-size: 11px !important;
+    line-height: 1.18 !important;
+    font-weight: 850 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-timer,
+  body.mn-mobile-game-enabled .house-selection-timer,
+  body.mn-landscape-game .house-selection-timer {
+    color: rgba(255, 255, 255, 0.58) !important;
+    font-size: 9px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-action,
+  body.mn-mobile-game-enabled .house-selection-action,
+  body.mn-landscape-game .house-selection-action,
+  .home[data-mobile-controls="enabled"] .house-selection-cancel,
+  body.mn-mobile-game-enabled .house-selection-cancel,
+  body.mn-landscape-game .house-selection-cancel {
+    grid-area: auto !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    padding: 0 !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+
+    color: #fff !important;
+    background:
+      radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.34), transparent 34%),
+      linear-gradient(180deg, rgba(120, 92, 255, 0.94), rgba(82, 51, 205, 0.94)) !important;
+    box-shadow:
+      0 0 22px rgba(126, 92, 255, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+
+    font-size: 17px !important;
+    line-height: 1 !important;
+    font-weight: 1000 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-cancel,
+  body.mn-mobile-game-enabled .house-selection-cancel,
+  body.mn-landscape-game .house-selection-cancel {
+    background:
+      radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.22), transparent 34%),
+      linear-gradient(180deg, rgba(58, 66, 82, 0.92), rgba(23, 29, 39, 0.94)) !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-close,
+  body.mn-mobile-game-enabled .house-selection-close,
+  body.mn-landscape-game .house-selection-close,
+  .home[data-mobile-controls="enabled"] .house-selection-icon,
+  body.mn-mobile-game-enabled .house-selection-icon,
+  body.mn-landscape-game .house-selection-icon {
+    display: none !important;
+  }
+}
+
+.house-selection-cancel[hidden] {
+  display: none !important;
+}
