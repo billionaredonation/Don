@@ -1,146 +1,39 @@
-.house-selection-panel {
-  position: fixed;
-  left: 50%;
-  bottom: max(18px, env(safe-area-inset-bottom));
-  z-index: 140;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  width: min(420px, calc(100vw - 28px));
-  padding: 12px;
-  border: 1px solid rgba(255,255,255,0.16);
-  border-radius: 18px;
-  background: rgba(7, 10, 14, 0.9);
-  color: #fff;
-  box-shadow: 0 18px 56px rgba(0,0,0,0.5);
-  transform: translateX(-50%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  pointer-events: auto;
-}
-
-.house-selection-panel[hidden] {
-  display: none;
-}
-
-.house-selection-close {
-  position: absolute;
-  right: 6px;
-  top: 6px;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.82);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.house-selection-icon {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border-radius: 12px;
-  background: rgba(40, 120, 255, 0.82);
-  box-shadow: 0 8px 24px rgba(40, 120, 255, 0.24);
-  font-size: 24px;
-}
-
-.house-selection-body {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-  padding-right: 20px;
-}
-
-.house-selection-title,
-.house-selection-meta {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.house-selection-title {
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.house-selection-meta {
-  color: rgba(255,255,255,0.66);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.house-selection-action {
-  min-height: 36px;
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 12px;
-  padding: 0 12px;
-  background: rgba(255,255,255,0.12);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.house-selection-action:active {
-  transform: translateY(1px);
-}
-
-@media (max-width: 520px) {
-  .house-selection-panel {
-    bottom: max(82px, env(safe-area-inset-bottom));
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .house-selection-action {
-    grid-column: 1 / -1;
-  }
-}
-
 /* =========================================================
-   DONATION V61 — HOUSE SELECTION PANEL VISUAL RESTORE
-   Возвращает нормальный визуал карточки выбранного дома.
-   Сама проблема наложения решается классом body.mn-house-selection-open:
-   stamina прячется, карта слегка затемняется.
+   ENTITY INFO PROMPT
+   Дом/объект не открывает карточку сразу: сначала короткая
+   текстовая подсказка с таймером, потом стандартная модалка.
    ========================================================= */
 
-.home[data-mobile-controls="enabled"] .house-selection-panel,
-body.mn-mobile-game-enabled .house-selection-panel,
-body.mn-landscape-game .house-selection-panel {
+.house-selection-panel {
   position: fixed !important;
-
   left: 50% !important;
   right: auto !important;
   top: auto !important;
-  bottom: max(54px, calc(env(safe-area-inset-bottom) + 46px)) !important;
+  bottom: max(18px, env(safe-area-inset-bottom)) !important;
 
-  width: min(420px, calc(100vw - 28px)) !important;
+  width: min(620px, calc(100vw - 28px)) !important;
   max-width: calc(100vw - 28px) !important;
-  min-height: 0 !important;
+  min-height: 76px !important;
 
   display: grid !important;
-  grid-template-columns: 42px minmax(0, 1fr) auto !important;
-  grid-template-areas: "icon body action" !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-areas: "body keys" !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 14px !important;
 
-  padding: 12px !important;
-  border-radius: 18px !important;
+  padding: 18px 20px 20px !important;
+  box-sizing: border-box !important;
 
   color: #fff !important;
   background:
-    radial-gradient(circle at 14% 0%, rgba(80, 145, 255, 0.18), transparent 34%),
-    linear-gradient(180deg, rgba(21, 27, 34, 0.94), rgba(7, 10, 14, 0.94)) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08) 18%, transparent 46%),
+    linear-gradient(0deg, rgba(1, 3, 8, 0.94) 0%, rgba(5, 8, 14, 0.82) 58%, rgba(5, 8, 14, 0.22) 100%) !important;
+  border: 0 !important;
+  border-radius: 22px 22px 0 0 !important;
+
   box-shadow:
-    0 18px 56px rgba(0, 0, 0, 0.54),
-    inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+    0 -18px 54px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
 
   transform: translateX(-50%) !important;
   rotate: 0deg !important;
@@ -149,283 +42,193 @@ body.mn-landscape-game .house-selection-panel {
 
   z-index: 2147484200 !important;
   pointer-events: auto !important;
-
-  overflow: visible !important;
-  box-sizing: border-box !important;
+  overflow: hidden !important;
   isolation: isolate !important;
 
-  backdrop-filter: blur(16px) saturate(1.15) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(1.15) !important;
+  backdrop-filter: blur(10px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.08) !important;
 }
 
-.home[data-mobile-controls="enabled"] .house-selection-panel[hidden],
-body.mn-mobile-game-enabled .house-selection-panel[hidden],
-body.mn-landscape-game .house-selection-panel[hidden] {
+.house-selection-panel::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 0 !important;
+  width: min(360px, 72%) !important;
+  height: 1px !important;
+  transform: translateX(-50%) !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.74), transparent) !important;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.36) !important;
+  pointer-events: none !important;
+}
+
+.house-selection-panel[hidden] {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
-.home[data-mobile-controls="enabled"] .house-selection-icon,
-body.mn-mobile-game-enabled .house-selection-icon,
-body.mn-landscape-game .house-selection-icon {
-  grid-area: icon !important;
-
-  width: 42px !important;
-  height: 42px !important;
-  min-width: 42px !important;
-  min-height: 42px !important;
-
-  display: grid !important;
-  place-items: center !important;
-
-  border-radius: 13px !important;
-  background:
-    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.34), rgba(54, 112, 255, 0.86) 42%, rgba(34, 76, 190, 0.92) 100%) !important;
-  box-shadow:
-    0 10px 24px rgba(39, 104, 255, 0.28),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
-
-  color: rgba(255, 255, 255, 0.96) !important;
-  font-size: 22px !important;
-  line-height: 1 !important;
-}
-
-.home[data-mobile-controls="enabled"] .house-selection-body,
-body.mn-mobile-game-enabled .house-selection-body,
-body.mn-landscape-game .house-selection-body {
+.house-selection-body {
   grid-area: body !important;
   min-width: 0 !important;
   display: grid !important;
-  gap: 3px !important;
-  padding: 0 20px 0 0 !important;
+  gap: 4px !important;
+  padding: 0 !important;
 }
 
-.home[data-mobile-controls="enabled"] .house-selection-title,
-body.mn-mobile-game-enabled .house-selection-title,
-body.mn-landscape-game .house-selection-title,
-.home[data-mobile-controls="enabled"] .house-selection-meta,
-body.mn-mobile-game-enabled .house-selection-meta,
-body.mn-landscape-game .house-selection-meta {
+.house-selection-title,
+.house-selection-meta,
+.house-selection-timer {
   display: block !important;
-  overflow: hidden !important;
-  white-space: nowrap !important;
-  text-overflow: ellipsis !important;
+  min-width: 0 !important;
+  color: #fff !important;
+  text-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.78),
+    0 0 18px rgba(255, 255, 255, 0.12) !important;
 }
 
-.home[data-mobile-controls="enabled"] .house-selection-title,
-body.mn-mobile-game-enabled .house-selection-title,
-body.mn-landscape-game .house-selection-title {
-  font-size: 14px !important;
+.house-selection-title {
+  font-size: 15px !important;
   line-height: 1.05 !important;
-  font-weight: 950 !important;
-  letter-spacing: -0.01em !important;
-  color: rgba(255, 255, 255, 0.98) !important;
+  font-weight: 1000 !important;
+  letter-spacing: -0.02em !important;
 }
 
-.home[data-mobile-controls="enabled"] .house-selection-meta,
-body.mn-mobile-game-enabled .house-selection-meta,
-body.mn-landscape-game .house-selection-meta {
-  font-size: 11px !important;
-  line-height: 1.12 !important;
-  font-weight: 800 !important;
-  color: rgba(255, 255, 255, 0.68) !important;
+.house-selection-meta {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+
+  color: rgba(244, 247, 255, 0.86) !important;
+  font-size: 13px !important;
+  line-height: 1.22 !important;
+  font-weight: 850 !important;
 }
 
-.home[data-mobile-controls="enabled"] .house-selection-action,
-body.mn-mobile-game-enabled .house-selection-action,
-body.mn-landscape-game .house-selection-action {
-  grid-area: action !important;
-
-  width: auto !important;
-  min-width: 116px !important;
-  min-height: 36px !important;
-
-  padding: 0 14px !important;
-  border-radius: 12px !important;
-
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.07)) !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
-  color: rgba(255, 255, 255, 0.96) !important;
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.10),
-    0 8px 18px rgba(0, 0, 0, 0.22) !important;
-
-  font-size: 12px !important;
+.house-selection-timer {
+  color: rgba(255, 255, 255, 0.58) !important;
+  font-size: 10px !important;
   line-height: 1 !important;
-  font-weight: 950 !important;
-  cursor: pointer !important;
+  font-weight: 900 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
 }
 
-.home[data-mobile-controls="enabled"] .house-selection-close,
-body.mn-mobile-game-enabled .house-selection-close,
-body.mn-landscape-game .house-selection-close {
-  position: absolute !important;
-  right: 7px !important;
-  top: 7px !important;
+.house-selection-keys {
+  grid-area: keys !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
 
-  width: 24px !important;
-  height: 24px !important;
-  min-width: 24px !important;
-  min-height: 24px !important;
+.house-selection-action,
+.house-selection-cancel {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
 
   display: grid !important;
   place-items: center !important;
 
   padding: 0 !important;
   border-radius: 999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
 
-  background: rgba(255, 255, 255, 0.10) !important;
-  border: 1px solid rgba(255, 255, 255, 0.11) !important;
-  color: rgba(255, 255, 255, 0.84) !important;
+  color: #fff !important;
+  background:
+    radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.34), transparent 34%),
+    linear-gradient(180deg, rgba(120, 92, 255, 0.94), rgba(82, 51, 205, 0.94)) !important;
+  box-shadow:
+    0 0 22px rgba(126, 92, 255, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
 
-  font-size: 16px !important;
+  font-size: 18px !important;
   line-height: 1 !important;
+  font-weight: 1000 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
 }
 
-@media (max-width: 520px) {
-  .home[data-mobile-controls="enabled"] .house-selection-panel,
-  body.mn-mobile-game-enabled .house-selection-panel,
-  body.mn-landscape-game .house-selection-panel {
-    width: min(430px, calc(100vw - 26px)) !important;
-    max-width: calc(100vw - 26px) !important;
-
-    grid-template-columns: 38px minmax(0, 1fr) !important;
-    grid-template-areas:
-      "icon body"
-      "action action" !important;
-    gap: 8px 10px !important;
-
-    padding: 11px !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .house-selection-icon,
-  body.mn-mobile-game-enabled .house-selection-icon,
-  body.mn-landscape-game .house-selection-icon {
-    width: 38px !important;
-    height: 38px !important;
-    min-width: 38px !important;
-    min-height: 38px !important;
-    font-size: 20px !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .house-selection-action,
-  body.mn-mobile-game-enabled .house-selection-action,
-  body.mn-landscape-game .house-selection-action {
-    width: 100% !important;
-    min-width: 0 !important;
-    min-height: 34px !important;
-  }
+.house-selection-cancel {
+  background:
+    radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(58, 66, 82, 0.92), rgba(23, 29, 39, 0.94)) !important;
+  box-shadow:
+    0 0 16px rgba(255, 255, 255, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
 }
 
-/* Forced landscape: карточка остаётся в игровой ориентации, но без ломания сетки. */
-html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel,
-html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel,
-body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel,
-body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel {
-  left: 50% !important;
-  top: 50% !important;
-  right: auto !important;
-  bottom: auto !important;
-
-  width: min(430px, calc(var(--mn-vh, 100vh) - 26px)) !important;
-  max-width: calc(var(--mn-vh, 100vh) - 26px) !important;
-
-  transform: translate3d(-50%, 78%, 0) rotate(90deg) !important;
-  transform-origin: center center !important;
-}
-
-html.mn-real-landscape body.mn-mobile-game-enabled .house-selection-panel,
-html.mn-real-landscape body.mn-landscape-game .house-selection-panel,
-body.mn-real-landscape.mn-mobile-game-enabled .house-selection-panel,
-body.mn-real-landscape.mn-landscape-game .house-selection-panel {
-  left: 50% !important;
-  top: auto !important;
-  bottom: max(54px, calc(env(safe-area-inset-bottom) + 46px)) !important;
-  transform: translateX(-50%) !important;
-}
-
-/* =========================================================
-   DONATION HOUSE SELECTION PANEL HARD FIX
-   - no tiny D... / St... text;
-   - no forced 90deg rotation for this card;
-   - stamina/joystick stays behind/hidden while panel is open.
-   ========================================================= */
-
-.house-selection-panel {
-  width: min(460px, calc(100vw - 24px)) !important;
-  grid-template-columns: minmax(0, 1fr) 28px !important;
-  grid-template-areas:
-    "body close"
-    "action action" !important;
-  gap: 10px !important;
-  padding: 12px !important;
-  overflow: visible !important;
-}
-
-.house-selection-icon {
-  display: none !important;
-}
-
-.house-selection-body {
-  grid-area: body !important;
-  min-width: 0 !important;
-  padding: 0 !important;
-}
-
-.house-selection-close {
-  grid-area: close !important;
-  position: static !important;
-  width: 28px !important;
-  height: 28px !important;
-  min-width: 28px !important;
-  min-height: 28px !important;
-  display: grid !important;
-  place-items: center !important;
-}
-
-.house-selection-action {
-  grid-area: action !important;
-  width: 100% !important;
-}
-
-.house-selection-title,
-.house-selection-meta {
-  overflow: visible !important;
-  text-overflow: clip !important;
-  white-space: nowrap !important;
-}
-
-.house-selection-title {
-  font-size: 14px !important;
-  line-height: 1.05 !important;
-}
-
-.house-selection-meta {
-  font-size: 11px !important;
-  line-height: 1.12 !important;
+.house-selection-action:active,
+.house-selection-cancel:active {
+  transform: translateY(1px) scale(0.98) !important;
 }
 
 body:has(.house-selection-panel:not([hidden])) .pc-stamina,
 body:has(.house-selection-panel:not([hidden])) .mobile-stamina,
 body:has(.house-selection-panel:not([hidden])) [data-mobile-stamina] {
-  display: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
 }
 
-html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel,
-html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel,
-body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel,
-body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel {
-  left: 50% !important;
-  top: auto !important;
-  right: auto !important;
-  bottom: max(82px, calc(env(safe-area-inset-bottom) + 72px)) !important;
-  width: min(460px, calc(100vw - 24px)) !important;
-  max-width: calc(100vw - 24px) !important;
-  transform: translateX(-50%) !important;
-  rotate: 0deg !important;
-  translate: 0 0 !important;
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .house-selection-panel,
+  body.mn-mobile-game-enabled .house-selection-panel,
+  body.mn-landscape-game .house-selection-panel,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel {
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: max(18px, calc(env(safe-area-inset-bottom) + 10px)) !important;
+
+    width: min(480px, calc(100vw - 28px)) !important;
+    max-width: calc(100vw - 28px) !important;
+    min-height: 70px !important;
+
+    grid-template-columns: minmax(0, 1fr) 42px !important;
+    grid-template-areas: "body keys" !important;
+    gap: 10px !important;
+
+    padding: 15px 16px 17px !important;
+    border-radius: 20px 20px 0 0 !important;
+
+    transform: translateX(-50%) !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-title,
+  body.mn-mobile-game-enabled .house-selection-title,
+  body.mn-landscape-game .house-selection-title {
+    font-size: 13px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-meta,
+  body.mn-mobile-game-enabled .house-selection-meta,
+  body.mn-landscape-game .house-selection-meta {
+    font-size: 11px !important;
+    line-height: 1.18 !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .house-selection-action,
+  body.mn-mobile-game-enabled .house-selection-action,
+  body.mn-landscape-game .house-selection-action,
+  .home[data-mobile-controls="enabled"] .house-selection-cancel,
+  body.mn-mobile-game-enabled .house-selection-cancel,
+  body.mn-landscape-game .house-selection-cancel {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    font-size: 17px !important;
+  }
+}
+
+.house-selection-cancel[hidden] {
+  display: none !important;
 }
