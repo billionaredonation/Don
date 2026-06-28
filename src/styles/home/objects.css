@@ -44,49 +44,67 @@
 
 /* База */
 .map-object {
-  width: 20px !important;
-  height: 20px !important;
+  width: 18px !important;
+  height: 18px !important;
 
-  min-width: 20px !important;
-  min-height: 20px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
 }
 
-/* Дома: чуть больше, но без перебора */
+/* ПК: дома меньше и соразмернее дорогам/игроку. */
 .map-object.map-object-house,
 .map-objects-layer .map-object.map-object-house,
 .map-objects-layer .map-object.map-object-house.map-object-visual-standard {
-  width: 40px !important;
-  height: 40px !important;
+  width: 26px !important;
+  height: 26px !important;
 
-  min-width: 40px !important;
-  min-height: 40px !important;
-  max-width: 40px !important;
-  max-height: 40px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  max-width: 26px !important;
+  max-height: 26px !important;
 
   overflow: visible !important;
   pointer-events: auto !important;
 }
 
-.map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
-.map-objects-layer .map-object.map-object-house.map-object-visual-premium {
-  width: 44px !important;
-  height: 44px !important;
+.map-objects-layer .map-object.map-object-house.map-object-visual-comfort {
+  width: 28px !important;
+  height: 28px !important;
 
-  min-width: 44px !important;
-  min-height: 44px !important;
-  max-width: 44px !important;
-  max-height: 44px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
 }
 
-.map-objects-layer .map-object.map-object-house.map-object-visual-lux,
-.map-objects-layer .map-object.map-object-house.map-object-visual-elite {
-  width: 48px !important;
-  height: 48px !important;
+.map-objects-layer .map-object.map-object-house.map-object-visual-premium {
+  width: 30px !important;
+  height: 30px !important;
 
-  min-width: 48px !important;
-  min-height: 48px !important;
-  max-width: 48px !important;
-  max-height: 48px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  max-width: 30px !important;
+  max-height: 30px !important;
+}
+
+.map-objects-layer .map-object.map-object-house.map-object-visual-lux {
+  width: 32px !important;
+  height: 32px !important;
+
+  min-width: 32px !important;
+  min-height: 32px !important;
+  max-width: 32px !important;
+  max-height: 32px !important;
+}
+
+.map-objects-layer .map-object.map-object-house.map-object-visual-elite {
+  width: 34px !important;
+  height: 34px !important;
+
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
 }
 
 .map-house-svg,
@@ -107,8 +125,8 @@
   transform: none !important;
 
   filter:
-    drop-shadow(0 0 2px rgba(0, 0, 0, 0.9))
-    drop-shadow(0 0 6px rgba(255, 255, 255, 0.2)) !important;
+    drop-shadow(0 1px 2px rgba(0, 0, 0, 0.88))
+    drop-shadow(0 0 4px rgba(255, 255, 255, 0.16)) !important;
 }
 
 /* Увеличенная зона тапа/клика вокруг дома */
@@ -116,7 +134,7 @@
   content: "" !important;
 
   position: absolute !important;
-  inset: -22px !important;
+  inset: -16px !important;
 
   display: block !important;
 
@@ -130,6 +148,32 @@
   filter:
     drop-shadow(0 0 4px rgba(255, 255, 255, 0.82))
     drop-shadow(0 0 10px rgba(158, 88, 255, 0.72)) !important;
+}
+
+
+/* ПК: карта теперь ближе, поэтому визуальные маркеры компенсируют zoom.
+   Координаты остаются на карте, но размер на экране не раздувается вместе с дорогами. */
+@media (hover: hover) and (pointer: fine) {
+  .home:not([data-mobile-controls="enabled"]) .gta-player-marker {
+    transform: scale(var(--map-entity-scale, 1)) !important;
+    transform-origin: center center !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house::before {
+    inset: -14px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .map-object-state-free .map-house-svg {
+    filter:
+      drop-shadow(0 1px 2px rgba(0, 0, 0, 0.88))
+      drop-shadow(0 0 5px rgba(53, 233, 133, 0.22)) !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .map-object-state-owned .map-house-svg {
+    filter:
+      drop-shadow(0 1px 2px rgba(0, 0, 0, 0.88))
+      drop-shadow(0 0 5px rgba(255, 77, 94, 0.22)) !important;
+  }
 }
 
 /* Mobile: чуть больше и hitbox жирнее */
