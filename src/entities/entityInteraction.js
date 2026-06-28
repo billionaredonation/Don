@@ -15,6 +15,7 @@ const MOBILE_INTERACTION_RADIUS_PX = 154;
 const DIRECT_TAP_RADIUS_PX = 220;
 const MOBILE_FREE_TAP_RADIUS_PX = 240;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
+const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = 1400;
 
 function getPurchasedHouseId(detail = {}) {
   return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
@@ -394,6 +395,7 @@ export function enableEntityInteraction({
 
   let mapObjects = [];
   let reloadTimer = null;
+  let snapshotTimer = null;
   let destroyed = false;
   let nearestObjectId = null;
   let lastHintObjectId = null;
@@ -436,9 +438,11 @@ export function enableEntityInteraction({
     }));
   }
 
-  function scheduleReload() {
+  function scheduleReload(delay = 250) {
+    if (destroyed) return;
+
     clearTimeout(reloadTimer);
-    reloadTimer = setTimeout(reloadObjects, 250);
+    reloadTimer = setTimeout(reloadObjects, delay);
   }
 
   function getObjectById(objectId) {
@@ -749,12 +753,17 @@ export function enableEntityInteraction({
   window.addEventListener('mn:map-objects-changed', onObjectsChanged);
   window.addEventListener('mn:house-purchased-local', onHousePurchased);
 
+  snapshotTimer = setInterval(() => {
+    scheduleReload(0);
+  }, MAP_OBJECTS_SNAPSHOT_INTERVAL_MS);
+
   reloadObjects();
   rafId = requestAnimationFrame(updateInteractionHint);
 
   return () => {
     destroyed = true;
     clearTimeout(reloadTimer);
+    clearInterval(snapshotTimer);
     clearTimeout(hintHideTimer);
     cancelAnimationFrame(rafId);
 
