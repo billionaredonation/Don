@@ -83,36 +83,36 @@ export function enableMapControls(stage, viewport, options = {}) {
     const minSide = Math.min(screen.width, screen.height);
 
     /*
-      ПК должен играться как карта, а не как превью всей картинки.
-      Поэтому desktop держим в заметном зуме даже в узком окне Telegram Desktop.
-      Mobile-профиль ниже не трогаем.
+      ПК: не показываем всю карту сразу, но и не выкручиваем zoom так,
+      чтобы дома и игрок выглядели как огромные кнопки.
+      Фактический fullscreen делает Telegram API/CSS-shell, а не грубый scale.
     */
-    const requested = getRequestedStartScale(lowPower ? 2.05 : 2.35);
+    const requested = getRequestedStartScale(lowPower ? 1.42 : 1.56);
 
     if (minSide <= 410) {
       return {
-        scale: Math.max(requested, lowPower ? 1.95 : 2.15),
-        worldFactor: lowPower ? 2.2 : 2.45,
+        scale: clamp(requested, lowPower ? 1.28 : 1.34, lowPower ? 1.42 : 1.52),
+        worldFactor: lowPower ? 2.02 : 2.18,
       };
     }
 
     if (minSide <= 520) {
       return {
-        scale: Math.max(requested, lowPower ? 2.05 : 2.28),
-        worldFactor: lowPower ? 2.45 : 2.75,
+        scale: clamp(requested, lowPower ? 1.34 : 1.42, lowPower ? 1.5 : 1.6),
+        worldFactor: lowPower ? 2.14 : 2.28,
       };
     }
 
     if (minSide <= 650) {
       return {
-        scale: Math.max(requested, lowPower ? 2.14 : 2.42),
-        worldFactor: lowPower ? 2.72 : 3.05,
+        scale: clamp(requested, lowPower ? 1.42 : 1.5, lowPower ? 1.58 : 1.68),
+        worldFactor: lowPower ? 2.28 : 2.48,
       };
     }
 
     return {
-      scale: Math.max(requested, lowPower ? 2.2 : 2.58),
-      worldFactor: lowPower ? 2.95 : 3.45,
+      scale: clamp(requested, lowPower ? 1.5 : 1.58, lowPower ? 1.7 : 1.82),
+      worldFactor: lowPower ? 2.42 : 2.68,
     };
   }
 
