@@ -379,3 +379,140 @@
     font-size: 10px;
   }
 }
+
+/* === realtime balance feedback === */
+.player-balance-card {
+  position: relative;
+  overflow: visible;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
+  will-change: transform, box-shadow;
+}
+
+.player-balance-card.is-balance-pulse {
+  animation: mn-balance-card-pulse 720ms ease both;
+}
+
+.player-balance-card.is-balance-plus {
+  border-color: rgba(83, 255, 139, 0.42);
+  background: rgba(20, 64, 39, 0.46);
+  box-shadow:
+    0 10px 26px rgba(0,0,0,0.28),
+    0 0 0 1px rgba(83, 255, 139, 0.14),
+    0 0 22px rgba(83, 255, 139, 0.24),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.player-balance-card.is-balance-minus {
+  border-color: rgba(255, 92, 92, 0.46);
+  background: rgba(74, 24, 28, 0.48);
+  box-shadow:
+    0 10px 26px rgba(0,0,0,0.28),
+    0 0 0 1px rgba(255, 92, 92, 0.14),
+    0 0 22px rgba(255, 92, 92, 0.23),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.player-balance-change {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 7px);
+  z-index: 20;
+  transform: translate(-50%, 0) scale(0.96);
+  min-width: max-content;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+  color: #fff;
+  pointer-events: none;
+  white-space: nowrap;
+  backdrop-filter: blur(10px) saturate(1.1);
+  animation: mn-balance-change-float 1180ms ease both;
+}
+
+.player-balance-change[hidden] {
+  display: none !important;
+}
+
+.player-balance-change[data-type="plus"] {
+  color: #baffc4;
+  border: 1px solid rgba(83, 255, 139, 0.34);
+  background: rgba(10, 34, 22, 0.82);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.28), 0 0 18px rgba(83, 255, 139, 0.17);
+}
+
+.player-balance-change[data-type="minus"] {
+  color: #ffd0d0;
+  border: 1px solid rgba(255, 92, 92, 0.36);
+  background: rgba(42, 12, 16, 0.84);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.28), 0 0 18px rgba(255, 92, 92, 0.16);
+}
+
+@keyframes mn-balance-card-pulse {
+  0% { transform: scale(1); }
+  34% { transform: scale(1.055); }
+  100% { transform: scale(1); }
+}
+
+@keyframes mn-balance-change-float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.92);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translate(-50%, -8px) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -16px) scale(0.98);
+  }
+}
+
+@media (max-width: 390px) {
+  .player-balance-change {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+}
+
+.home[data-mobile-controls="enabled"] .player-balance-change {
+  top: auto;
+  bottom: calc(100% + 7px);
+  animation-name: mn-balance-change-float-up-mobile;
+}
+
+@keyframes mn-balance-change-float-up-mobile {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.92);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translate(-50%, -8px) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -16px) scale(0.98);
+  }
+}
