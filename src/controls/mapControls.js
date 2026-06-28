@@ -230,7 +230,10 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     const rect = getStageRect();
     const ratio = getImageRatio(viewport);
-    const base = Math.max(rect.width, rect.height);
+    const isDesktopPortrait = !mobile && rect.height > rect.width * 1.18;
+    const base = isDesktopPortrait
+      ? Math.max(rect.width, Math.min(rect.height, rect.width * 1.28))
+      : Math.max(rect.width, rect.height);
     const { worldFactor } = getMapProfile();
 
     worldWidth = Math.max(mobile ? 900 : 760, base * worldFactor);
