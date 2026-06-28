@@ -68,12 +68,67 @@ export function enableMapControls(stage, viewport, options = {}) {
   const lowPower = isLowPowerDevice();
   const mobile = isCoarsePointer();
 
-  const LOCKED_SCALE = Number(options.startScale) || (mobile ? 3.2 : 4.4);
-  const WORLD_FACTOR = mobile
-    ? (lowPower ? 3.2 : 3.55)
-    : (lowPower ? 2.6 : 3.95);
+  function getRequestedStartScale(defaultScale) {
+    const requested = Number(options.startScale);
 
-  let scale = LOCKED_SCALE;
+    if (Number.isFinite(requested) && requested > 0) {
+      return requested;
+    }
+
+    return defaultScale;
+  }
+
+  function getDesktopMapProfile() {
+    const screen = getViewportSize();
+    const minSide = Math.min(screen.width, screen.height);
+
+    const baseScale = getRequestedStartScale(lowPower ? 1.15 : 1.25);
+    const baseWorldFactor = lowPower ? 2.6 : 3.95;
+
+    /*
+      Telegram Desktop can render the Mini App in a narrow window.
+      On those widths the old desktop map felt over-zoomed and visually heavy.
+      Keep mobile untouched; only soften desktop scaling when the actual viewport is compact.
+    */
+    if (minSide <= 410) {
+      return {
+        scale: Math.min(baseScale, lowPower ? 1.0 : 1.04),
+        worldFactor: lowPower ? 2.0 : 2.28,
+      };
+    }
+
+    if (minSide <= 520) {
+      return {
+        scale: Math.min(baseScale, lowPower ? 1.04 : 1.1),
+        worldFactor: lowPower ? 2.16 : 2.62,
+      };
+    }
+
+    if (minSide <= 650) {
+      return {
+        scale: Math.min(baseScale, lowPower ? 1.08 : 1.16),
+        worldFactor: lowPower ? 2.36 : 3.08,
+      };
+    }
+
+    return {
+      scale: baseScale,
+      worldFactor: baseWorldFactor,
+    };
+  }
+
+  function getMapProfile() {
+    if (mobile) {
+      return {
+        scale: getRequestedStartScale(3.2),
+        worldFactor: lowPower ? 3.2 : 3.55,
+      };
+    }
+
+    return getDesktopMapProfile();
+  }
+
+  let scale = getMapProfile().scale;
   let x = 0;
   let y = 0;
 
@@ -176,8 +231,9 @@ export function enableMapControls(stage, viewport, options = {}) {
     const rect = getStageRect();
     const ratio = getImageRatio(viewport);
     const base = Math.max(rect.width, rect.height);
+    const { worldFactor } = getMapProfile();
 
-    worldWidth = Math.max(900, base * WORLD_FACTOR);
+    worldWidth = Math.max(mobile ? 900 : 760, base * worldFactor);
     worldHeight = Math.max(620, worldWidth * ratio);
 
     viewport.style.width = `${worldWidth}px`;
@@ -197,7 +253,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function applyTransform() {
-    scale = LOCKED_SCALE;
+    scale = getMapProfile().scale;
 
     const limits = getLimits();
 
