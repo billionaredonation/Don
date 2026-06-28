@@ -687,10 +687,10 @@ register('home', async (root) => {
 
     /*
       Mobile оставляем как было.
-      ПК приближаем, чтобы игрок открывал карту постепенно,
-      а не видел весь город одним плоским превью.
+      ПК даём умеренный zoom: карта открывается постепенно,
+      но HUD/домики/игрок не раздуваются как отдельный web-app модуль.
     */
-    startScale: isMobileGameplayDevice() ? 1.55 : 2.35,
+    startScale: isMobileGameplay ? 1.55 : 1.56,
   });
 
   const network = setupPlayerNetwork({
