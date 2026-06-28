@@ -8,7 +8,6 @@ import {
 } from '../mapObjects/mapObjectsRenderer.js';
 
 import { dispatchEntityAction } from './entityActions.js';
-import { renderEntityPanelContent } from './panels/entityPanelView.js';
 
 const INTERACTION_RADIUS_PX = 86;
 const MOBILE_INTERACTION_RADIUS_PX = 154;
@@ -262,57 +261,167 @@ function moveLayerAboveMap(viewport, layer) {
 }
 
 export function createEntityInteractionPanel(root) {
+  const CONFIRM_VISIBLE_MS = 6000;
+
   const panel = document.createElement('section');
-  panel.className = 'house-selection-panel';
+  panel.className = 'house-selection-panel house-info-prompt';
   panel.hidden = true;
+  panel.setAttribute('aria-hidden', 'true');
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-live', 'polite');
 
   panel.innerHTML = `
-    <button class="house-selection-close" type="button" aria-label="Закрыть">×</button>
-    <div class="house-selection-icon">◆</div>
     <div class="house-selection-body">
-      <strong class="house-selection-title">Сущность</strong>
-      <span class="house-selection-meta"></span>
+      <strong class="house-selection-title">Информация о доме</strong>
+      <span class="house-selection-meta">Чтобы узнать информацию про дом нажмите на I</span>
+      <span class="house-selection-timer" data-house-selection-timer>6 сек</span>
     </div>
-    <button class="house-selection-action" type="button">Выбрать</button>
+
+    <div class="house-selection-keys">
+      <button class="house-selection-action" type="button" data-house-selection-confirm>I</button>
+      <button class="house-selection-cancel" type="button" data-house-selection-cancel hidden>N</button>
+    </div>
   `;
 
   root.appendChild(panel);
 
-  const closeButton = panel.querySelector('.house-selection-close');
   const titleEl = panel.querySelector('.house-selection-title');
   const metaEl = panel.querySelector('.house-selection-meta');
-  const iconEl = panel.querySelector('.house-selection-icon');
-  const actionButton = panel.querySelector('.house-selection-action');
+  const timerEl = panel.querySelector('[data-house-selection-timer]');
+  const confirmButton = panel.querySelector('[data-house-selection-confirm]');
+  const cancelButton = panel.querySelector('[data-house-selection-cancel]');
 
   let selectedObject = null;
+  let hideTimer = null;
+  let countdownTimer = null;
+  let openedAt = 0;
 
   function setHouseSelectionOpen(isOpen) {
     document.body?.classList.toggle('mn-house-selection-open', Boolean(isOpen));
   }
 
-  function renderSelectedObject() {
-    if (!selectedObject) return;
+  function isYesKey(event) {
+    const key = String(event.key || '').toLowerCase();
 
-    renderEntityPanelContent({
-      iconEl,
-      titleEl,
-      metaEl,
-      actionButton,
-      object: selectedObject,
-    });
+    return (
+      event.code === 'KeyY' ||
+      key === 'y' ||
+      key === 'н'
+    );
+  }
+
+  function isNoKey(event) {
+    const key = String(event.key || '').toLowerCase();
+
+    return (
+      event.code === 'KeyN' ||
+      key === 'n' ||
+      key === 'т'
+    );
+  }
+
+  function getObjectKind(object) {
+    return object?.category || object?.payload?.kind || object?.type || 'object';
+  }
+
+  function isHouseObject(object) {
+    return getObjectKind(object) === 'house';
+  }
+
+  function clearTimers() {
+    clearTimeout(hideTimer);
+    clearInterval(countdownTimer);
+    hideTimer = null;
+    countdownTimer = null;
+  }
+
+  function renderCountdown() {
+    if (!timerEl || !openedAt) return;
+
+    const elapsed = Date.now() - openedAt;
+    const leftMs = Math.max(0, CONFIRM_VISIBLE_MS - elapsed);
+    const secondsLeft = Math.max(0, Math.ceil(leftMs / 1000));
+
+    timerEl.textContent = `${secondsLeft} сек`;
   }
 
   function close() {
+    clearTimers();
+
     selectedObject = null;
+    openedAt = 0;
+
     panel.hidden = true;
+    panel.setAttribute('aria-hidden', 'true');
+    panel.classList.remove('is-visible');
+
     setHouseSelectionOpen(false);
   }
 
+  function confirm() {
+    if (!selectedObject) return;
+
+    const object = selectedObject;
+
+    close();
+    dispatchEntityAction(object);
+  }
+
+  function renderPrompt(object) {
+    const mobile = isMobileGameplayDevice();
+    const house = isHouseObject(object);
+
+    panel.dataset.device = mobile ? 'mobile' : 'pc';
+    panel.dataset.kind = house ? 'house' : 'object';
+
+    if (titleEl) {
+      titleEl.textContent = house ? 'Информация о доме' : 'Информация об объекте';
+    }
+
+    if (metaEl) {
+      metaEl.textContent = mobile
+        ? 'Чтобы узнать информацию про дом нажмите на I'
+        : 'Узнать информацию про дом можно, нажав Y / Н. Отмена — N / Т';
+    }
+
+    if (confirmButton) {
+      confirmButton.textContent = mobile ? 'I' : 'Y';
+      confirmButton.setAttribute(
+        'aria-label',
+        mobile ? 'Показать информацию о доме' : 'Да, показать информацию о доме'
+      );
+    }
+
+    if (cancelButton) {
+      cancelButton.hidden = mobile;
+      cancelButton.textContent = 'N';
+      cancelButton.setAttribute('aria-label', 'Нет, закрыть подсказку');
+    }
+
+    renderCountdown();
+  }
+
   function open(object) {
+    if (!object) return;
+
     selectedObject = object;
-    renderSelectedObject();
+    openedAt = Date.now();
+
+    renderPrompt(object);
+
     panel.hidden = false;
+    panel.removeAttribute('aria-hidden');
+    panel.classList.add('is-visible');
+
     setHouseSelectionOpen(true);
+
+    clearTimers();
+    renderCountdown();
+
+    countdownTimer = setInterval(renderCountdown, 250);
+    hideTimer = setTimeout(() => {
+      close();
+    }, CONFIRM_VISIBLE_MS);
   }
 
   function handleHousePurchased(event) {
@@ -326,30 +435,56 @@ export function createEntityInteractionPanel(root) {
     }
 
     selectedObject = markObjectAsPurchased(selectedObject, ownerId, ownerName);
-    renderSelectedObject();
+    renderPrompt(selectedObject);
   }
 
-  closeButton.addEventListener('click', close);
-  closeButton.addEventListener('pointerup', close);
-
-  actionButton.addEventListener('click', () => {
-    if (!selectedObject) return;
-    dispatchEntityAction(selectedObject);
-  });
-
-  actionButton.addEventListener('pointerup', (event) => {
+  function handleConfirmClick(event) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!selectedObject) return;
-    dispatchEntityAction(selectedObject);
-  });
+    confirm();
+  }
 
+  function handleCancelClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    close();
+  }
+
+  function handleKeyDown(event) {
+    if (!selectedObject || panel.hidden) return false;
+    if (isTypingTarget(event.target)) return false;
+
+    if (isYesKey(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      confirm();
+      return true;
+    }
+
+    if (isNoKey(event) || event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      return true;
+    }
+
+    return false;
+  }
+
+  confirmButton?.addEventListener('click', handleConfirmClick);
+  confirmButton?.addEventListener('pointerup', handleConfirmClick);
+  cancelButton?.addEventListener('click', handleCancelClick);
+  cancelButton?.addEventListener('pointerup', handleCancelClick);
+
+  window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('mn:house-purchased-local', handleHousePurchased);
 
   return {
     open,
     close,
+    handleKeyDown,
 
     isOpen() {
       return Boolean(selectedObject) && panel.hidden === false;
@@ -363,11 +498,14 @@ export function createEntityInteractionPanel(root) {
       if (!selectedObject || typeof updater !== 'function') return;
 
       selectedObject = updater(selectedObject) || selectedObject;
-      renderSelectedObject();
+      renderPrompt(selectedObject);
     },
 
     cleanup() {
+      window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('mn:house-purchased-local', handleHousePurchased);
+
+      clearTimers();
       setHouseSelectionOpen(false);
       panel.remove();
     },
