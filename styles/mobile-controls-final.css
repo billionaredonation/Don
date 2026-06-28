@@ -4685,199 +4685,182 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel {
 }
 
 /* =========================================================
-   DONATION HUD LARGE BALANCE FIX — v57
-   Goal:
-   - 7/8/9-digit balance stays readable;
-   - no ellipsis on balance;
-   - HUD does not break on PC or Telegram mobile landscape.
+   DONATION OVERRIDE v58 — session / house panel / large balance
+   This file is loaded after home.css, so these are final mobile overrides.
    ========================================================= */
 
-.player-balance-card strong,
-.home[data-mobile-controls="enabled"] .player-balance-card strong,
-body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card strong,
-body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card strong {
-  min-width: 0 !important;
-  flex: 1 1 auto !important;
+.player-glass-hud {
+  grid-template-columns: minmax(112px, .8fr) minmax(132px, 1fr) minmax(126px, max-content) !important;
+  gap: 7px !important;
+}
+
+.player-balance-card {
+  width: auto !important;
+  min-width: 126px !important;
+  max-width: min(176px, 38vw) !important;
+  justify-content: flex-start !important;
+  overflow: visible !important;
+}
+
+.player-balance-card strong {
   overflow: visible !important;
   text-overflow: clip !important;
   white-space: nowrap !important;
+  font-size: clamp(10px, 2.15vw, 12px) !important;
+  letter-spacing: -0.055em !important;
   font-variant-numeric: tabular-nums !important;
 }
 
-.player-balance-card,
-.home[data-mobile-controls="enabled"] .player-balance-card,
-body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card,
-body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card {
+html.mn-session-blocked .pc-stamina,
+html.mn-session-blocked .mobile-stamina,
+html.mn-session-blocked [data-mobile-stamina],
+html.mn-session-blocked .mobile-controls-layer,
+body.mn-session-blocked .pc-stamina,
+body.mn-session-blocked .mobile-stamina,
+body.mn-session-blocked [data-mobile-stamina],
+body.mn-session-blocked .mobile-controls-layer,
+body.mn-session-blocked .player-glass-hud,
+body.mn-session-blocked .admin-status-dot,
+body.mn-session-blocked .house-selection-panel,
+body.mn-session-blocked .entity-interaction-hint,
+body.mn-session-blocked .entity-interaction-notice {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+
+.home[data-mobile-controls="enabled"] .house-selection-panel,
+body.mn-mobile-game-enabled .house-selection-panel,
+body.mn-landscape-game .house-selection-panel,
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel {
+  left: 50% !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: max(82px, calc(env(safe-area-inset-bottom) + 72px)) !important;
+  width: min(460px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 28px !important;
+  grid-template-areas:
+    "body close"
+    "action action" !important;
+  gap: 10px !important;
+  transform: translateX(-50%) !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-icon,
+body.mn-mobile-game-enabled .house-selection-icon,
+body.mn-landscape-game .house-selection-icon {
+  display: none !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-body,
+body.mn-mobile-game-enabled .house-selection-body,
+body.mn-landscape-game .house-selection-body {
+  grid-area: body !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-close,
+body.mn-mobile-game-enabled .house-selection-close,
+body.mn-landscape-game .house-selection-close {
+  grid-area: close !important;
+  position: static !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-action,
+body.mn-mobile-game-enabled .house-selection-action,
+body.mn-landscape-game .house-selection-action {
+  grid-area: action !important;
+  width: 100% !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-title,
+body.mn-mobile-game-enabled .house-selection-title,
+body.mn-landscape-game .house-selection-title,
+.home[data-mobile-controls="enabled"] .house-selection-meta,
+body.mn-mobile-game-enabled .house-selection-meta,
+body.mn-landscape-game .house-selection-meta {
   overflow: visible !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
 }
 
-.player-card-icon,
-.home[data-mobile-controls="enabled"] .player-card-icon,
-body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-card-icon,
-body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-card-icon {
-  flex: 0 0 auto !important;
-}
-
-@media (hover: hover) and (pointer: fine) {
+@media (max-width: 430px) {
   .player-glass-hud {
-    grid-template-columns: 122px 138px 138px !important;
-    gap: var(--mn-pc-hud-gap, 10px) !important;
-  }
-
-  .player-balance-card {
-    width: 138px !important;
-    min-width: 138px !important;
-    max-width: 138px !important;
-    gap: 6px !important;
-    padding: 0 8px !important;
-  }
-
-  .player-card-icon {
-    width: 19px !important;
-    height: 19px !important;
-    min-width: 19px !important;
-    min-height: 19px !important;
-    max-width: 19px !important;
-    max-height: 19px !important;
-    font-size: 10px !important;
-  }
-
-  .player-balance-card strong {
-    font-size: 10.4px !important;
-    line-height: 1 !important;
-    letter-spacing: -0.065em !important;
-  }
-}
-
-@media (hover: hover) and (pointer: fine) and (max-width: 520px) {
-  .player-glass-hud {
-    grid-template-columns: 110px 120px 124px !important;
-    gap: 8px !important;
-    max-width: calc(100% - 24px) !important;
-  }
-
-  .player-city-button {
-    width: 110px !important;
-    min-width: 110px !important;
-    max-width: 110px !important;
-  }
-
-  .player-profile-card {
-    width: 120px !important;
-    min-width: 120px !important;
-    max-width: 120px !important;
-    grid-template-columns: 24px minmax(0, 1fr) 16px !important;
+    grid-template-columns: minmax(96px, .8fr) minmax(116px, 1fr) minmax(116px, max-content) !important;
     gap: 5px !important;
   }
 
   .player-balance-card {
-    width: 124px !important;
-    min-width: 124px !important;
-    max-width: 124px !important;
-    gap: 5px !important;
-    padding: 0 7px !important;
+    min-width: 116px !important;
+    max-width: 136px !important;
   }
 
   .player-balance-card strong {
-    font-size: 9.7px !important;
-    letter-spacing: -0.075em !important;
-  }
-}
-
-@media (hover: none) and (pointer: coarse) {
-  .home[data-mobile-controls="enabled"] .player-balance-card,
-  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card,
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card {
-    width: 142px !important;
-    min-width: 142px !important;
-    max-width: 142px !important;
-    gap: 6px !important;
-    padding: 0 9px !important;
-    justify-content: flex-start !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .player-card-icon,
-  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-card-icon,
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-card-icon {
-    width: 20px !important;
-    height: 20px !important;
-    min-width: 20px !important;
-    min-height: 20px !important;
-    max-width: 20px !important;
-    max-height: 20px !important;
     font-size: 10px !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .player-balance-card strong,
-  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card strong,
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card strong {
-    font-size: 10.5px !important;
-    line-height: 1 !important;
     letter-spacing: -0.065em !important;
   }
-
-  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
-  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
-    left: calc(var(--mn-vh, 100vh) - 154px) !important;
-  }
 }
 
-@media (hover: none) and (pointer: coarse) and (max-width: 430px) {
-  .home[data-mobile-controls="enabled"] .player-balance-card,
-  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card,
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card {
-    width: 130px !important;
-    min-width: 130px !important;
-    max-width: 130px !important;
-    gap: 5px !important;
-    padding: 0 8px !important;
-  }
 
-  .home[data-mobile-controls="enabled"] .player-balance-card strong,
-  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card strong,
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card strong {
-    font-size: 10px !important;
-    letter-spacing: -0.08em !important;
-  }
-
-  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
-  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
-    left: calc(var(--mn-vh, 100vh) - 142px) !important;
-  }
+/* SESSION BLOCKED FINAL: do not rotate/fix the warning card; only remove gameplay layers over it. */
+html.mn-session-blocked .pc-stamina,
+html.mn-session-blocked .mobile-stamina,
+html.mn-session-blocked [data-mobile-stamina],
+html.mn-session-blocked .mobile-controls-layer,
+html.mn-session-blocked .mobile-joystick,
+html.mn-session-blocked .mobile-self-player-indicator,
+html.mn-session-blocked .gta-player-marker,
+html.mn-session-blocked .gta-player-marker-self,
+html.mn-session-blocked .player-glass-hud,
+html.mn-session-blocked .player-weather-mini,
+html.mn-session-blocked .player-network-card,
+html.mn-session-blocked .admin-status-dot,
+html.mn-session-blocked .house-selection-panel,
+html.mn-session-blocked .entity-interaction-hint,
+html.mn-session-blocked .entity-interaction-notice,
+body.mn-session-blocked .pc-stamina,
+body.mn-session-blocked .mobile-stamina,
+body.mn-session-blocked [data-mobile-stamina],
+body.mn-session-blocked .mobile-controls-layer,
+body.mn-session-blocked .mobile-joystick,
+body.mn-session-blocked .mobile-self-player-indicator,
+body.mn-session-blocked .gta-player-marker,
+body.mn-session-blocked .gta-player-marker-self,
+body.mn-session-blocked .player-glass-hud,
+body.mn-session-blocked .player-weather-mini,
+body.mn-session-blocked .player-network-card,
+body.mn-session-blocked .admin-status-dot,
+body.mn-session-blocked .house-selection-panel,
+body.mn-session-blocked .entity-interaction-hint,
+body.mn-session-blocked .entity-interaction-notice {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
-@media (hover: none) and (pointer: coarse) and (max-width: 360px) {
-  .home[data-mobile-controls="enabled"] .player-balance-card,
-  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card,
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card {
-    width: 118px !important;
-    min-width: 118px !important;
-    max-width: 118px !important;
-    gap: 4px !important;
-    padding: 0 7px !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .player-card-icon,
-  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-card-icon,
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-card-icon {
-    width: 18px !important;
-    height: 18px !important;
-    min-width: 18px !important;
-    min-height: 18px !important;
-    max-width: 18px !important;
-    max-height: 18px !important;
-    font-size: 9px !important;
-  }
-
-  .home[data-mobile-controls="enabled"] .player-balance-card strong,
-  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card strong,
-  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card strong {
-    font-size: 9px !important;
-    letter-spacing: -0.09em !important;
-  }
-
-  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
-  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
-    left: calc(var(--mn-vh, 100vh) - 130px) !important;
-  }
+html.mn-session-blocked .home::before,
+html.mn-session-blocked .home::after,
+body.mn-session-blocked .home::before,
+body.mn-session-blocked .home::after,
+.mn-session-blocked-root::before,
+.mn-session-blocked-root::after {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
