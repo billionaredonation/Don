@@ -39,10 +39,10 @@ export function getHousePanelData(object) {
 
   return {
     icon: object?.icon || '🏠',
-    title: object?.name || `Дом · ${houseClass}`,
+    title: object?.name || 'Дом',
     meta: [
       houseClass,
-      ownerId ? `куплен · ${ownerName || 'игрок'}` : locked ? 'закрыт' : 'свободен',
+      ownerId ? `куплен: ${ownerName || 'игрок'}` : locked ? 'закрыт' : 'свободен',
       price,
     ].filter(Boolean).join(' · '),
     actionLabel: ownerId ? 'Информация' : locked ? 'Закрыто' : 'Купить дом',
