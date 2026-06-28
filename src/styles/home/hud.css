@@ -921,3 +921,15 @@ body.mn-session-blocked .gta-player-marker-self {
     letter-spacing: -0.065em !important;
   }
 }
+
+/* =========================================================
+   PC HUD AIR ONLY
+   Adds a little horizontal breathing room between city/profile/balance
+   without resizing cards or touching mobile layout.
+   ========================================================= */
+@media (min-width: 769px) {
+  .player-glass-hud {
+    gap: 18px !important;
+    column-gap: 18px !important;
+  }
+}
