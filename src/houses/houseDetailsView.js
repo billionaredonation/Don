@@ -77,6 +77,24 @@ function getHouseId(house) {
   );
 }
 
+function getHouseNumber(house) {
+  const number = (
+    house?.payload?.houseNumber ||
+    house?.payload?.house_number ||
+    house?.payload?.number ||
+    house?.number ||
+    getHouseId(house) ||
+    null
+  );
+
+  if (number === null || number === undefined || number === '') {
+    return '—';
+  }
+
+  return `№ ${String(number)}`;
+}
+
+
 function getHouseStatus(house) {
   if (getHouseOwnerId(house) || house?.payload?.owned) return 'Куплен';
   if (house?.payload?.locked) return 'Закрыт';
@@ -219,6 +237,11 @@ export function renderHouseDetailsModal() {
 
         <div class="house-details-grid">
           <article>
+            <span>Номер дома</span>
+            <strong data-house-details-number>№ —</strong>
+          </article>
+
+          <article>
             <span>Класс</span>
             <strong data-house-details-class>Стандарт</strong>
           </article>
@@ -264,6 +287,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
   const icon = modal?.querySelector('[data-house-details-icon]');
   const price = modal?.querySelector('[data-house-details-price]');
   const status = modal?.querySelector('[data-house-details-status]');
+  const houseNumber = modal?.querySelector('[data-house-details-number]');
   const houseClass = modal?.querySelector('[data-house-details-class]');
   const owner = modal?.querySelector('[data-house-details-owner]');
 
@@ -289,6 +313,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     icon.textContent = activeHouse?.icon || '🏠';
     price.textContent = formatMoney(getHousePrice(activeHouse));
     status.textContent = getHouseStatus(activeHouse);
+    houseNumber.textContent = getHouseNumber(activeHouse);
     houseClass.textContent = getHouseClass(activeHouse);
     owner.textContent = owned ? String(ownerName || ownerId || 'Игрок') : 'Государство';
 
