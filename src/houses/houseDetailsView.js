@@ -28,6 +28,24 @@ function getHousePrice(house) {
   return house?.price || house?.payload?.price || 0;
 }
 
+function formatPurchaseSplit(price, result = {}) {
+  const rawPrice = Number(price || result?.price || result?.housePrice || 0);
+
+  if (!Number.isFinite(rawPrice) || rawPrice <= 0) {
+    return '';
+  }
+
+  const cityIncome = Number.isFinite(Number(result?.cityIncome))
+    ? Number(result.cityIncome)
+    : Math.round(rawPrice * 0.8);
+
+  const taxBurned = Number.isFinite(Number(result?.taxBurned ?? result?.tax_burned))
+    ? Number(result.taxBurned ?? result.tax_burned)
+    : Math.max(0, rawPrice - cityIncome);
+
+  return ` В бюджет города: ${formatMoney(cityIncome)}. Налог 20% сожжён: ${formatMoney(taxBurned)}.`;
+}
+
 function getHouseOwnerId(house) {
   return (
     house?.owner_id ||
@@ -290,7 +308,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     setMessage(
       result?.alreadyOwned
         ? 'Этот дом уже куплен.'
-        : 'Дом успешно куплен.',
+        : `Дом успешно куплен.${formatPurchaseSplit(getHousePrice(activeHouse), result)}`,
       result?.alreadyOwned ? 'error' : 'success'
     );
 
