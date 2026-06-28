@@ -953,3 +953,123 @@ body.mn-mobile-game-enabled .houses-stat-card strong {
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
 }
+
+/* =========================================================
+   DONATION FINAL — mobile modal orientation fix
+   Модалки на телефоне центрируются и уменьшаются, без 90deg.
+   ========================================================= */
+@media (hover: none) and (pointer: coarse) {
+  body.mn-mobile-game-enabled .houses-modal,
+  body.mn-mobile-game-enabled .house-details-modal,
+  body.mn-landscape-game .houses-modal,
+  body.mn-landscape-game .house-details-modal,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .houses-modal,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-modal,
+  html.mn-force-rotate-landscape body.mn-landscape-game .houses-modal,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-details-modal,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .houses-modal,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-modal,
+  body.mn-force-rotate-landscape.mn-landscape-game .houses-modal,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal {
+    position: fixed !important;
+    inset: 0 !important;
+
+    width: var(--mn-vw, 100vw) !important;
+    height: var(--mn-vh, 100dvh) !important;
+    min-width: var(--mn-vw, 100vw) !important;
+    min-height: var(--mn-vh, 100dvh) !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)) !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+  }
+
+  body.mn-mobile-game-enabled .houses-panel,
+  body.mn-mobile-game-enabled .house-details-panel,
+  body.mn-landscape-game .houses-panel,
+  body.mn-landscape-game .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .houses-panel,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .houses-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-details-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .houses-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .houses-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-details-panel {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+    transform-origin: center center !important;
+
+    max-width: calc(var(--mn-vw, 100vw) - 28px) !important;
+    max-height: calc(var(--mn-vh, 100dvh) - 28px) !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  body.mn-mobile-game-enabled .houses-panel,
+  body.mn-landscape-game .houses-panel,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .houses-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .houses-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .houses-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .houses-panel {
+    width: min(430px, calc(var(--mn-vw, 100vw) - 28px)) !important;
+    padding: 12px !important;
+    border-radius: 20px !important;
+  }
+
+  body.mn-mobile-game-enabled .house-details-panel,
+  body.mn-landscape-game .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-details-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-details-panel {
+    width: min(390px, calc(var(--mn-vw, 100vw) - 28px)) !important;
+    padding: 13px !important;
+    border-radius: 20px !important;
+  }
+
+  body.mn-mobile-game-enabled .houses-section-cards,
+  body.mn-landscape-game .houses-section-cards {
+    gap: 8px !important;
+  }
+
+  body.mn-mobile-game-enabled .houses-section-card,
+  body.mn-landscape-game .houses-section-card {
+    min-height: 64px !important;
+    padding: 9px !important;
+    border-radius: 15px !important;
+  }
+
+  body.mn-mobile-game-enabled .houses-header,
+  body.mn-landscape-game .houses-header {
+    margin-bottom: 10px !important;
+  }
+
+  body.mn-mobile-game-enabled .houses-header h2,
+  body.mn-landscape-game .houses-header h2 {
+    font-size: 20px !important;
+  }
+
+  body.mn-mobile-game-enabled .houses-header p,
+  body.mn-landscape-game .houses-header p {
+    font-size: 10px !important;
+    line-height: 1.18 !important;
+  }
+}
