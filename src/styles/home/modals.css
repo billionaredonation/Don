@@ -911,41 +911,45 @@ body.mn-house-details-open .home[data-mobile-controls="enabled"]::after {
 }
 
 /* =========================================================
-   MODAL OVERLAY PRIORITY FIX
-   Модалки города/домов должны открываться чисто: без HUD,
-   погоды, панели выбора объекта и игровых подсказок поверх них.
+   DONATION CITY CARDS HARD FIT — no chopped budget values
    ========================================================= */
 
-body.mn-houses-modal-open .player-glass-hud,
-body.mn-houses-modal-open .player-weather-mini,
-body.mn-houses-modal-open .player-network-card,
-body.mn-houses-modal-open .house-selection-panel,
-body.mn-houses-modal-open .entity-interaction-hint,
-body.mn-houses-modal-open .entity-interaction-notice,
-body.mn-house-details-open .player-glass-hud,
-body.mn-house-details-open .player-weather-mini,
-body.mn-house-details-open .player-network-card,
-body.mn-house-details-open .house-selection-panel,
-body.mn-house-details-open .entity-interaction-hint,
-body.mn-house-details-open .entity-interaction-notice {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
+.city-stat-grid,
+.city-stat-grid-clean,
+.houses-summary-grid,
+.houses-stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 
-body.mn-houses-modal-open .houses-modal,
-body.mn-house-details-open .house-details-modal,
-.houses-modal,
-.house-details-modal {
-  z-index: 2147483500 !important;
+.city-stat-card,
+.houses-stat-card {
+  min-width: 0 !important;
+  overflow: hidden !important;
 }
 
-body.mn-houses-modal-open .houses-panel,
-body.mn-house-details-open .house-details-panel,
-.houses-panel,
-.house-details-panel {
-  z-index: 2147483501 !important;
-  isolation: isolate !important;
+.city-stat-body strong,
+.houses-stat-card strong {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+  font-size: clamp(18px, 4.6vw, 23px) !important;
+  line-height: .98 !important;
+  letter-spacing: -0.065em !important;
+  font-variant-numeric: tabular-nums !important;
 }
 
+body.mn-landscape-game .city-stat-body strong,
+body.mn-landscape-game .houses-stat-card strong,
+body.mn-mobile-game-enabled .city-stat-body strong,
+body.mn-mobile-game-enabled .houses-stat-card strong {
+  font-size: clamp(17px, 4.2vw, 21px) !important;
+  letter-spacing: -0.07em !important;
+}
+
+.city-stat-body small,
+.city-stat-body em,
+.houses-stat-card span {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
