@@ -31,9 +31,17 @@ function isTouchDevice() {
   );
 }
 
+function isDesktopDevice() {
+  return (
+    window.matchMedia?.('(hover: hover) and (pointer: fine)')?.matches &&
+    !isTouchDevice()
+  );
+}
+
 function syncViewportState() {
   const { width, height } = getViewportSize();
   const mobile = isTouchDevice();
+  const desktop = isDesktopDevice();
   const landscape = width >= height;
   const portrait = height > width;
 
@@ -45,50 +53,59 @@ function syncViewportState() {
   document.documentElement.classList.toggle('mn-real-landscape', mobile && landscape);
   document.documentElement.classList.toggle('mn-force-rotate-landscape', mobile && portrait);
   document.documentElement.classList.toggle('mn-real-portrait', mobile && portrait);
+  document.documentElement.classList.toggle('mn-desktop-game-enabled', desktop);
 
   document.body?.classList.toggle('mn-real-landscape', mobile && landscape);
   document.body?.classList.toggle('mn-force-rotate-landscape', mobile && portrait);
   document.body?.classList.toggle('mn-real-portrait', mobile && portrait);
+  document.body?.classList.toggle('mn-desktop-game-enabled', desktop);
 }
 
-
-async function requestFullscreenSafe() {
+async function requestFullscreenSafe(options = {}) {
+  const { browserFullscreen = false } = options;
   const tg = window.Telegram?.WebApp;
+
+  try {
+    tg?.expand?.();
+  } catch {
+    // Telegram may reject expand in some shells.
+  }
 
   try {
     tg?.requestFullscreen?.();
   } catch {
-    // Telegram WebView may reject fullscreen. CSS fullscreen still works.
+    // Telegram Desktop/Web can reject fullscreen depending on client/version.
   }
 
-  try {
-    const root = document.documentElement;
-    if (!document.fullscreenElement && root?.requestFullscreen) {
-      await root.requestFullscreen({ navigationUI: 'hide' });
+  if (browserFullscreen) {
+    try {
+      const root = document.documentElement;
+
+      if (!document.fullscreenElement && root?.requestFullscreen) {
+        await root.requestFullscreen({ navigationUI: 'hide' });
+      }
+    } catch {
+      // Browser fullscreen usually requires a user gesture; ignore rejection.
     }
-  } catch {
-    // Browser fullscreen is optional and can be blocked by WebView.
   }
 
   syncViewportState();
-  requestFullscreenSafe();
-  installFullscreenRetry();
   window.dispatchEvent(new Event('resize'));
 }
 
-
-function installFullscreenRetry() {
+function installDesktopFullscreenRetry() {
   const retry = () => {
-    requestFullscreenSafe();
+    requestFullscreenSafe({ browserFullscreen: true });
   };
 
   window.addEventListener('pointerdown', retry, { passive: true, once: true });
-  window.addEventListener('touchstart', retry, { passive: true, once: true });
   window.addEventListener('click', retry, { passive: true, once: true });
 }
 
 export function setupTelegramGameShell() {
   const tg = window.Telegram?.WebApp;
+  const mobile = isTouchDevice();
+  const desktop = isDesktopDevice();
 
   const safe = (callback) => {
     try {
@@ -103,15 +120,11 @@ export function setupTelegramGameShell() {
     safe(() => tg.disableVerticalSwipes?.());
     safe(() => tg.enableClosingConfirmation?.());
 
-    /*
-      Не вызываем tg.requestFullscreen(), tg.lockOrientation(),
-      document.requestFullscreen() и screen.orientation.lock() автоматически.
-
-      На части Telegram WebView это даёт типичный баг:
-      интерфейс появляется на секунду, потом viewport пересчитывается,
-      повернутая сцена улетает за экран и остаётся тёмный фон.
-      Landscape теперь делается CSS-классами только тогда, когда viewport реально portrait.
-    */
+    if (desktop) {
+      safe(() => tg.requestFullscreen?.());
+      setTimeout(() => requestFullscreenSafe({ browserFullscreen: false }), 60);
+      installDesktopFullscreenRetry();
+    }
 
     safe(() => tg.setHeaderColor?.('#050607'));
     safe(() => tg.setBackgroundColor?.('#050607'));
@@ -120,8 +133,11 @@ export function setupTelegramGameShell() {
 
   document.documentElement.classList.add('mn-ios-shell');
   document.body?.classList.add('mn-ios-shell');
-  document.body?.classList.add('mn-landscape-game');
-  document.body?.classList.add('mn-mobile-game-enabled');
+
+  document.body?.classList.toggle('mn-landscape-game', mobile);
+  document.body?.classList.toggle('mn-mobile-game-enabled', mobile);
+  document.body?.classList.toggle('mn-desktop-game-enabled', desktop);
+  document.documentElement.classList.toggle('mn-desktop-game-enabled', desktop);
 
   syncViewportState();
 
