@@ -5298,3 +5298,106 @@ body.mn-session-blocked .gta-player-marker-self {
   }
 }
 
+/* =========================================================
+   PC FULLSCREEN HUD SAFE — v63
+   Desktop fullscreen must not inherit old centered HUD transform.
+   Keeps the PC HUD inside the visible game area while preserving spacing.
+   Mobile controls/HUD are untouched because this is fine-pointer only
+   and excludes data-mobile-controls.
+   ========================================================= */
+@media (hover: hover) and (pointer: fine) {
+  .home:not([data-mobile-controls="enabled"]) {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .home-gameplay,
+  .home:not([data-mobile-controls="enabled"]) .gta-map-stage {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    position: fixed !important;
+    left: max(8px, env(safe-area-inset-left)) !important;
+    right: auto !important;
+    top: max(12px, env(safe-area-inset-top)) !important;
+    bottom: auto !important;
+
+    transform: none !important;
+    translate: 0 0 !important;
+    rotate: 0deg !important;
+    transform-origin: top left !important;
+
+    display: grid !important;
+    grid-template-columns: 128px 150px 128px !important;
+    align-items: center !important;
+    justify-content: start !important;
+    gap: 18px !important;
+    column-gap: 18px !important;
+
+    width: max-content !important;
+    max-width: calc(100vw - 16px) !important;
+    height: 48px !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+    z-index: 1200 !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-weather-mini {
+    position: absolute !important;
+    left: 0 !important;
+    top: calc(100% + 6px) !important;
+    transform: none !important;
+    translate: 0 0 !important;
+    rotate: 0deg !important;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 520px) {
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    left: max(8px, env(safe-area-inset-left)) !important;
+    grid-template-columns: 122px 144px 126px !important;
+    gap: 14px !important;
+    column-gap: 14px !important;
+    max-width: calc(100vw - 16px) !important;
+    transform: none !important;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 460px) {
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    left: max(6px, env(safe-area-inset-left)) !important;
+    grid-template-columns: 112px 130px 116px !important;
+    gap: 12px !important;
+    column-gap: 12px !important;
+    max-width: calc(100vw - 12px) !important;
+    transform: none !important;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 410px) {
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    left: max(5px, env(safe-area-inset-left)) !important;
+    grid-template-columns: 104px 118px 110px !important;
+    gap: 9px !important;
+    column-gap: 9px !important;
+    max-width: calc(100vw - 10px) !important;
+    transform: none !important;
+  }
+}
+
