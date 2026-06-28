@@ -1,5 +1,6 @@
 import { state, save } from '../state.js';
 import { supabase } from '../supabaseClient.js';
+import { fetchCityStats } from '../api/cityStats.js';
 import { getCityPlayers } from '../player/playerPosition.js';
 import { buyHouseFromState, fetchCityHousesState } from './housesRepository.js';
 import { getEmptyHousesState, normalizeHousesState } from './housesStats.js';
@@ -68,7 +69,23 @@ async function loadCitySummary(cityId) {
       0,
     registeredPlayers: 0,
     onlinePlayers: 0,
+    taxBurned:
+      economy.taxBurned ??
+      economy.tax_burned ??
+      economy.burnedTax ??
+      0,
   };
+
+  try {
+    const remoteStats = await fetchCityStats(cityId);
+
+    if (remoteStats) {
+      summary.budget = Number(remoteStats.budget ?? summary.budget ?? 0);
+      summary.taxBurned = Number(remoteStats.taxBurned ?? summary.taxBurned ?? 0);
+    }
+  } catch (error) {
+    console.warn('[houses] city economy stats failed:', error);
+  }
 
   try {
     const players = await getCityPlayers(cityId);
@@ -138,6 +155,38 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
         detail: {
           balance: Number(result.newBalance),
           source: 'buy_house',
+        },
+      }));
+    }
+
+    if (
+      result?.cityBudget !== undefined ||
+      result?.budget !== undefined ||
+      result?.taxBurned !== undefined ||
+      result?.tax_burned !== undefined
+    ) {
+      const cityRuntime = state.citiesRuntime?.[cityId] || {};
+      const cityBudget = Number(result.cityBudget ?? result.budget ?? cityRuntime.budget ?? 0);
+      const taxBurned = Number(result.taxBurned ?? result.tax_burned ?? cityRuntime.taxBurned ?? 0);
+
+      state.citiesRuntime = {
+        ...(state.citiesRuntime || {}),
+        [cityId]: {
+          ...cityRuntime,
+          budget: cityBudget,
+          taxBurned,
+        },
+      };
+
+      save();
+
+      window.dispatchEvent(new CustomEvent('mn:city-economy-changed', {
+        detail: {
+          cityId,
+          budget: cityBudget,
+          taxBurned,
+          source: 'buy_house',
+          result,
         },
       }));
     }
