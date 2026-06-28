@@ -4,6 +4,8 @@ import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
 import { setupSessionGuard } from '../../src/network/sessionGuard.js';
 import { setupGameRealtime } from '../../src/realtime/gameRealtime.js';
+import { supabase } from '../../src/supabaseClient.js';
+import { getPlayer } from '../../src/api/playerApi.js';
 
 import {
   getLocalPlayerId,
@@ -39,6 +41,8 @@ const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 const BALANCE_COUNT_DURATION_MS = 1650;
 const BALANCE_FEEDBACK_DURATION_MS = 1900;
 const BALANCE_PULSE_DURATION_MS = 1250;
+const BALANCE_SYNC_INTERVAL_MS = 900;
+const BALANCE_SYNC_MIN_GAP_MS = 550;
 
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
@@ -680,6 +684,10 @@ register('home', async (root) => {
   let balanceFrame = null;
   let balancePulseTimer = null;
   let balanceChangeTimer = null;
+  let balanceSyncTimer = null;
+  let balanceSyncBusy = false;
+  let lastBalanceSyncAt = 0;
+  let lastBalanceSyncErrorAt = 0;
 
   function formatBalance(value) {
     const number = Math.round(Number(value || 0));
@@ -735,7 +743,7 @@ register('home', async (root) => {
       'is-balance-pulse'
     );
 
-    balanceChangeEl.textContent = `${isPlus ? '+' : '−'} ${absDelta.toLocaleString('ru-RU')} ₴`;
+    balanceChangeEl.textContent = `${isPlus ? '+' : '−'}${absDelta.toLocaleString('ru-RU')}`;
     balanceChangeEl.dataset.type = isPlus ? 'plus' : 'minus';
     balanceChangeEl.hidden = false;
 
@@ -848,6 +856,102 @@ register('home', async (root) => {
     });
   }
 
+  function getNormalizedTelegramId() {
+    return telegramId === undefined || telegramId === null
+      ? ''
+      : String(telegramId).trim();
+  }
+
+  async function loadPlayerBalanceDirect() {
+    const normalizedTelegramId = getNormalizedTelegramId();
+
+    if (!normalizedTelegramId) return null;
+
+    const { data, error } = await supabase
+      .from('players')
+      .select('balance, updated_at')
+      .eq('tg_id', normalizedTelegramId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    return data;
+  }
+
+  async function loadPlayerBalanceFallback() {
+    const normalizedTelegramId = getNormalizedTelegramId();
+
+    if (!normalizedTelegramId) return null;
+
+    const data = await getPlayer(normalizedTelegramId);
+
+    return data?.player || null;
+  }
+
+  async function syncBalanceFromServer(source = 'server-sync', options = {}) {
+    if (root.dataset.destroyed === 'true') return;
+    if (balanceSyncBusy) return;
+
+    const now = Date.now();
+    const minGap = Number(options.minGapMs ?? BALANCE_SYNC_MIN_GAP_MS);
+
+    if (!options.force && now - lastBalanceSyncAt < minGap) {
+      return;
+    }
+
+    balanceSyncBusy = true;
+    lastBalanceSyncAt = now;
+
+    try {
+      let player = null;
+
+      try {
+        player = await loadPlayerBalanceDirect();
+      } catch (directError) {
+        player = await loadPlayerBalanceFallback();
+      }
+
+      if (!player || root.dataset.destroyed === 'true') return;
+
+      const nextBalance = Number(player.balance);
+
+      if (!Number.isFinite(nextBalance)) return;
+      if (nextBalance === currentBalance) return;
+
+      updateBalance(nextBalance, {
+        source,
+        durationMs: BALANCE_COUNT_DURATION_MS,
+      });
+    } catch (error) {
+      const errorNow = Date.now();
+
+      if (errorNow - lastBalanceSyncErrorAt > 5000) {
+        console.warn('[home] balance sync failed:', error);
+        lastBalanceSyncErrorAt = errorNow;
+      }
+    } finally {
+      balanceSyncBusy = false;
+    }
+  }
+
+  function startBalanceServerSync() {
+    syncBalanceFromServer('initial-sync', { force: true });
+
+    balanceSyncTimer = window.setInterval(() => {
+      syncBalanceFromServer('server-sync');
+    }, BALANCE_SYNC_INTERVAL_MS);
+  }
+
+  function handleBalanceFocusSync() {
+    syncBalanceFromServer('focus-sync', { force: true });
+  }
+
+  function handleBalanceVisibilitySync() {
+    if (document.visibilityState !== 'visible') return;
+
+    syncBalanceFromServer('visibility-sync', { force: true });
+  }
+
   function enableMobileGameplayMode() {
     root.dataset.mobileControls = 'enabled';
     document.body?.classList.add('mn-landscape-game');
@@ -908,6 +1012,10 @@ register('home', async (root) => {
     cityId,
     telegramId,
   });
+
+  startBalanceServerSync();
+  window.addEventListener('focus', handleBalanceFocusSync);
+  document.addEventListener('visibilitychange', handleBalanceVisibilitySync);
 
   isCurrentPlayerAdmin()
     .then((canUseAdminPanel) => {
@@ -1014,6 +1122,9 @@ register('home', async (root) => {
     root.dataset.destroyed = 'true';
 
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
+    window.removeEventListener('focus', handleBalanceFocusSync);
+    document.removeEventListener('visibilitychange', handleBalanceVisibilitySync);
+    window.clearInterval(balanceSyncTimer);
     cancelAnimationFrame(balanceFrame);
     clearTimeout(balancePulseTimer);
     clearTimeout(balanceChangeTimer);
