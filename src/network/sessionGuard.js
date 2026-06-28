@@ -3,51 +3,40 @@ import {
   getActivePlayerSession,
 } from '../player/playerPosition.js';
 
+function renderBlockedSession(root) {
+  if (!root) return;
+
+  document.body?.classList.add('mn-session-blocked');
+  document.documentElement?.classList.add('mn-session-blocked');
+
+  root.innerHTML = `
+    <main class="mn-session-blocked-screen" role="alert" aria-live="assertive">
+      <section class="mn-session-blocked-card">
+        <h2>Аккаунт открыт на другом устройстве</h2>
+        <p>
+          Играть можно только с одного устройства одновременно.
+          Обнови страницу здесь, если хочешь продолжить на этом устройстве.
+        </p>
+      </section>
+    </main>
+  `;
+}
+
 export function setupSessionGuard(root) {
   let destroyed = false;
+  let blocked = false;
 
   async function checkSession() {
-    if (destroyed) return;
+    if (destroyed || blocked) return;
 
     try {
       const localSessionId = getSessionId();
       const activeSessionId = await getActivePlayerSession();
 
       if (activeSessionId && activeSessionId !== localSessionId) {
+        blocked = true;
         destroyed = true;
-
-        root.innerHTML = `
-          <main class="home-gameplay">
-            <section class="gta-map-stage">
-              <div style="
-                position:absolute;
-                inset:0;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                padding:24px;
-                background:#050607;
-                color:white;
-                text-align:center;
-                z-index:9999;
-              ">
-                <div style="
-                  max-width:420px;
-                  padding:22px;
-                  border:1px solid rgba(255,255,255,.18);
-                  border-radius:18px;
-                  background:rgba(255,255,255,.06);
-                ">
-                  <h2 style="margin:0 0 10px;">Аккаунт открыт на другом устройстве</h2>
-                  <p style="margin:0; opacity:.8;">
-                    Играть можно только с одного устройства одновременно.
-                    Обнови страницу здесь, если хочешь продолжить на этом устройстве.
-                  </p>
-                </div>
-              </div>
-            </section>
-          </main>
-        `;
+        renderBlockedSession(root);
       }
     } catch (error) {
       console.warn('[sessionGuard] check failed:', error);
@@ -61,5 +50,10 @@ export function setupSessionGuard(root) {
   return () => {
     destroyed = true;
     clearInterval(timer);
+
+    if (!blocked) {
+      document.body?.classList.remove('mn-session-blocked');
+      document.documentElement?.classList.remove('mn-session-blocked');
+    }
   };
 }
