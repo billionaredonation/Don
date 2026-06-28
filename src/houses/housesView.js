@@ -13,6 +13,24 @@ function formatMoney(value) {
   return `${number.toLocaleString('ru-RU')} ₴`;
 }
 
+function formatCardMoney(value) {
+  const number = Math.round(Number(value || 0));
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return '0 ₴';
+  }
+
+  if (number >= 1000000000) {
+    return `${(number / 1000000000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} млрд ₴`;
+  }
+
+  if (number >= 10000000) {
+    return `${(number / 1000000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} млн ₴`;
+  }
+
+  return `${number.toLocaleString('ru-RU')} ₴`;
+}
+
 function formatPercent(value) {
   const number = Number(value || 0);
 
@@ -82,7 +100,6 @@ function renderCityStatCards({
   budget,
   inflation,
   registeredPlayers,
-  taxBurned,
 }) {
   return `
     <div class="city-stat-grid">
@@ -91,18 +108,8 @@ function renderCityStatCards({
 
         <div class="city-stat-body">
           <small>Бюджет</small>
-          <strong>${formatMoney(budget)}</strong>
+          <strong title="${formatMoney(budget)}">${formatCardMoney(budget)}</strong>
           <em>Баланс города</em>
-        </div>
-      </article>
-
-      <article class="city-stat-card city-stat-card-tax">
-        <span class="city-stat-icon">🔥</span>
-
-        <div class="city-stat-body">
-          <small>Налог 20%</small>
-          <strong>${formatMoney(taxBurned)}</strong>
-          <em>Выведено из игры</em>
         </div>
       </article>
 
@@ -138,7 +145,7 @@ function renderHousesSummaryCards(houses) {
         <div class="city-stat-body">
           <small>Всего домов</small>
           <strong>${formatNumber(houses.housesTotal)}</strong>
-          <em>Всего объектов</em>
+          <em>Общее количество объектов</em>
         </div>
       </article>
 
@@ -148,7 +155,7 @@ function renderHousesSummaryCards(houses) {
         <div class="city-stat-body">
           <small>Свободных</small>
           <strong>${formatNumber(houses.housesFree)}</strong>
-          <em>Доступно к покупке</em>
+          <em>Можно купить на карте</em>
         </div>
       </article>
 
@@ -158,7 +165,7 @@ function renderHousesSummaryCards(houses) {
         <div class="city-stat-body">
           <small>Купленных</small>
           <strong>${formatNumber(houses.housesOwned)}</strong>
-          <em>Занято игроками</em>
+          <em>Уже заняты игроками</em>
         </div>
       </article>
     </div>
@@ -169,7 +176,6 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
   const budget = getCityStatValue(cityStats, 'budget', 0);
   const inflation = getCityStatValue(cityStats, 'inflation', 0);
   const registeredPlayers = getCityStatValue(cityStats, 'registeredPlayers', 0);
-  const taxBurned = getCityStatValue(cityStats, 'taxBurned', 0);
 
   return `
     <div class="houses-modal" hidden aria-hidden="true" data-houses-modal>
@@ -214,7 +220,6 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
             budget,
             inflation,
             registeredPlayers,
-            taxBurned,
           })}
         </div>
 
