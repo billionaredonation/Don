@@ -354,28 +354,6 @@
 }
 
 /* small mobile */
-@keyframes mn-balance-change-float {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -4px) scale(0.96);
-  }
-
-  14% {
-    opacity: 1;
-    transform: translate(-50%, 0) scale(1);
-  }
-
-  78% {
-    opacity: 1;
-    transform: translate(-50%, 8px) scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate(-50%, 14px) scale(0.98);
-  }
-}
-
 @media (max-width: 390px) {
   .player-glass-hud {
     grid-template-columns: 116px 1fr 66px;
@@ -444,21 +422,20 @@
 .player-balance-change {
   position: absolute;
   left: 50%;
-  top: calc(100% + 13px);
+  top: calc(100% + 7px);
   z-index: 20;
-  transform: translate(-50%, 0) scale(0.98);
+  transform: translate(-50%, 0) scale(0.96);
   min-width: max-content;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  font-size: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 11px;
   line-height: 1;
-  font-weight: 900;
-  letter-spacing: -0.015em;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+  color: #fff;
   pointer-events: none;
   white-space: nowrap;
+  backdrop-filter: blur(10px) saturate(1.1);
   animation: mn-balance-change-float var(--mn-balance-change-ms, 1900ms) cubic-bezier(0.18, 0.84, 0.22, 1) both;
 }
 
@@ -467,133 +444,241 @@
 }
 
 .player-balance-change[data-type="plus"] {
-  color: #61ff8c;
-  text-shadow:
-    0 1px 2px rgba(0,0,0,0.55),
-    0 0 10px rgba(83, 255, 139, 0.34);
+  color: #baffc4;
+  border: 1px solid rgba(83, 255, 139, 0.34);
+  background: rgba(10, 34, 22, 0.82);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.28), 0 0 18px rgba(83, 255, 139, 0.17);
 }
 
 .player-balance-change[data-type="minus"] {
-  color: #ff6f6f;
-  text-shadow:
-    0 1px 2px rgba(0,0,0,0.62),
-    0 0 10px rgba(255, 92, 92, 0.34);
+  color: #ffd0d0;
+  border: 1px solid rgba(255, 92, 92, 0.36);
+  background: rgba(42, 12, 16, 0.84);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.28), 0 0 18px rgba(255, 92, 92, 0.16);
+}
+
+@keyframes mn-balance-card-pulse {
+  0% { transform: scale(1); }
+  34% { transform: scale(1.055); }
+  100% { transform: scale(1); }
 }
 
 @keyframes mn-balance-change-float {
   0% {
     opacity: 0;
-    transform: translate(-50%, -4px) scale(0.96);
+    transform: translate(-50%, 10px) scale(0.9);
   }
 
-  14% {
+  12% {
     opacity: 1;
     transform: translate(-50%, 0) scale(1);
   }
 
   78% {
     opacity: 1;
-    transform: translate(-50%, 8px) scale(1);
+    transform: translate(-50%, -9px) scale(1);
   }
 
   100% {
     opacity: 0;
-    transform: translate(-50%, 14px) scale(0.98);
+    transform: translate(-50%, -20px) scale(0.98);
   }
 }
 
 @media (max-width: 390px) {
   .player-balance-change {
     font-size: 10px;
-    padding: 0;
+    padding: 5px 8px;
   }
 }
 
 .home[data-mobile-controls="enabled"] .player-balance-change {
-  top: calc(100% + 13px);
-  bottom: auto;
+  top: auto;
+  bottom: calc(100% + 7px);
+  animation-name: mn-balance-change-float-up-mobile;
+}
+
+@keyframes mn-balance-change-float-up-mobile {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.9);
+  }
+
+  12% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  78% {
+    opacity: 1;
+    transform: translate(-50%, -9px) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -20px) scale(0.98);
+  }
 }
 
 /* =========================================================
-   MN HUD — LARGE BALANCE SAFE DISPLAY
-   7/8/9-digit balances must stay readable without breaking HUD.
+   DONATION HUD HARD FIX — LARGE BALANCE + SESSION SCREEN
+   - balance must fit 7–9 digit numbers without ellipsis;
+   - blocked-session screen must not show gameplay/stamina under it.
    ========================================================= */
 
 .player-glass-hud {
-  grid-template-columns: 126px minmax(126px, 1fr) minmax(112px, 132px);
+  grid-template-columns: minmax(112px, 0.8fr) minmax(132px, 1fr) minmax(126px, max-content) !important;
+  gap: 7px !important;
 }
 
 .player-balance-card {
-  width: clamp(112px, 27vw, 132px);
-  min-width: 112px;
-  max-width: 132px;
-  justify-content: flex-start;
-  overflow: visible;
-}
-
-.player-card-icon {
-  flex: 0 0 auto;
+  width: auto !important;
+  min-width: 126px !important;
+  max-width: min(176px, 38vw) !important;
+  justify-self: end !important;
+  justify-content: flex-start !important;
+  overflow: visible !important;
 }
 
 .player-balance-card strong {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: nowrap;
-  font-size: clamp(9.4px, 2.45vw, 11px);
-  letter-spacing: -0.055em;
-  font-variant-numeric: tabular-nums;
+  display: block !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+  font-size: clamp(10px, 2.15vw, 12px) !important;
+  line-height: 1 !important;
+  letter-spacing: -0.055em !important;
+  font-variant-numeric: tabular-nums !important;
 }
 
 @media (min-width: 769px) {
   .player-glass-hud {
-    grid-template-columns: 180px 240px 148px;
+    grid-template-columns: 180px 240px minmax(150px, max-content) !important;
+    width: max-content !important;
+    right: auto !important;
   }
 
   .player-balance-card {
-    width: 148px;
-    min-width: 148px;
-    max-width: 148px;
+    min-width: 150px !important;
+    max-width: 190px !important;
   }
 
   .player-balance-card strong {
-    font-size: 13px;
-    letter-spacing: -0.04em;
+    font-size: 13px !important;
+    letter-spacing: -0.045em !important;
   }
 }
 
 @media (max-width: 430px) {
   .player-glass-hud {
-    grid-template-columns: 112px minmax(108px, 1fr) minmax(108px, 118px);
-    gap: 5px;
+    grid-template-columns: minmax(96px, 0.8fr) minmax(116px, 1fr) minmax(116px, max-content) !important;
+    gap: 5px !important;
   }
 
   .player-hud-left,
   .player-city-button {
-    width: 112px;
+    width: auto !important;
+    min-width: 0 !important;
   }
 
   .player-profile-card {
-    width: min(150px, 100%);
+    width: auto !important;
+    min-width: 0 !important;
   }
 
   .player-balance-card {
-    width: 118px;
-    min-width: 108px;
-    max-width: 118px;
-    gap: 4px;
-    padding: 0 6px;
+    min-width: 116px !important;
+    max-width: 136px !important;
+    gap: 4px !important;
+    padding-inline: 6px !important;
   }
 
   .player-card-icon {
-    width: 20px;
-    height: 20px;
-    font-size: 10px;
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 10px !important;
   }
 
   .player-balance-card strong {
-    font-size: 9.7px;
-    letter-spacing: -0.07em;
+    font-size: 10px !important;
+    letter-spacing: -0.065em !important;
   }
+}
+
+.mn-session-blocked-screen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147484600 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 100vw !important;
+  min-height: 100vh !important;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)) !important;
+  background: #050607 !important;
+  color: #fff !important;
+  text-align: center !important;
+  transform: none !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.mn-session-blocked-card {
+  width: min(430px, calc(100vw - 40px)) !important;
+  max-width: 430px !important;
+  padding: 24px 22px !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 20px !important;
+  background: rgba(255,255,255,.065) !important;
+  box-shadow: 0 22px 64px rgba(0,0,0,.46) !important;
+  backdrop-filter: blur(14px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.08) !important;
+}
+
+.mn-session-blocked-card h2 {
+  margin: 0 0 12px !important;
+  font-size: clamp(24px, 5vw, 31px) !important;
+  line-height: 1.12 !important;
+  font-weight: 950 !important;
+  letter-spacing: -0.04em !important;
+}
+
+.mn-session-blocked-card p {
+  margin: 0 !important;
+  color: rgba(255,255,255,.74) !important;
+  font-size: clamp(15px, 3.4vw, 20px) !important;
+  line-height: 1.32 !important;
+  font-weight: 650 !important;
+}
+
+html.mn-session-blocked .pc-stamina,
+html.mn-session-blocked .mobile-stamina,
+html.mn-session-blocked [data-mobile-stamina],
+html.mn-session-blocked .mobile-controls-layer,
+body.mn-session-blocked .pc-stamina,
+body.mn-session-blocked .mobile-stamina,
+body.mn-session-blocked [data-mobile-stamina],
+body.mn-session-blocked .mobile-controls-layer,
+body.mn-session-blocked .player-glass-hud,
+body.mn-session-blocked .admin-status-dot,
+body.mn-session-blocked .house-selection-panel,
+body.mn-session-blocked .entity-interaction-hint,
+body.mn-session-blocked .entity-interaction-notice {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+html.mn-force-rotate-landscape body.mn-session-blocked .mn-session-blocked-screen,
+body.mn-force-rotate-landscape.mn-session-blocked .mn-session-blocked-screen,
+html.mn-force-rotate-landscape body.mn-session-blocked .mn-session-blocked-card,
+body.mn-force-rotate-landscape.mn-session-blocked .mn-session-blocked-card {
+  transform: none !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
 }
