@@ -1,11 +1,10 @@
 import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
+import { supabase } from '../../src/supabaseClient.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
 import { setupSessionGuard } from '../../src/network/sessionGuard.js';
 import { setupGameRealtime } from '../../src/realtime/gameRealtime.js';
-import { supabase } from '../../src/supabaseClient.js';
-import { getPlayer } from '../../src/api/playerApi.js';
 
 import {
   getLocalPlayerId,
@@ -41,8 +40,6 @@ const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 const BALANCE_COUNT_DURATION_MS = 1650;
 const BALANCE_FEEDBACK_DURATION_MS = 1900;
 const BALANCE_PULSE_DURATION_MS = 1250;
-const BALANCE_SYNC_INTERVAL_MS = 900;
-const BALANCE_SYNC_MIN_GAP_MS = 550;
 
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
@@ -674,6 +671,7 @@ register('home', async (root) => {
   let cleanupEntityInteraction = null;
   let cleanupGameRealtime = null;
   let cleanupMobileSelfMarker = null;
+  let cleanupBalanceDatabaseSync = null;
 
   const balanceCard = root.querySelector('[data-player-balance-card]');
   const balanceEl = root.querySelector('[data-player-balance]');
@@ -685,9 +683,7 @@ register('home', async (root) => {
   let balancePulseTimer = null;
   let balanceChangeTimer = null;
   let balanceSyncTimer = null;
-  let balanceSyncBusy = false;
-  let lastBalanceSyncAt = 0;
-  let lastBalanceSyncErrorAt = 0;
+  let balanceSyncInFlight = false;
 
   function formatBalance(value) {
     const number = Math.round(Number(value || 0));
@@ -743,7 +739,7 @@ register('home', async (root) => {
       'is-balance-pulse'
     );
 
-    balanceChangeEl.textContent = `${isPlus ? '+' : '−'}${absDelta.toLocaleString('ru-RU')}`;
+    balanceChangeEl.textContent = `${isPlus ? '+' : '−'} ${absDelta.toLocaleString('ru-RU')} ₴`;
     balanceChangeEl.dataset.type = isPlus ? 'plus' : 'minus';
     balanceChangeEl.hidden = false;
 
@@ -856,100 +852,62 @@ register('home', async (root) => {
     });
   }
 
-  function getNormalizedTelegramId() {
-    return telegramId === undefined || telegramId === null
-      ? ''
-      : String(telegramId).trim();
-  }
+  async function syncBalanceFromDatabase({ silent = false } = {}) {
+    if (balanceSyncInFlight || !telegramId) return;
 
-  async function loadPlayerBalanceDirect() {
-    const normalizedTelegramId = getNormalizedTelegramId();
-
-    if (!normalizedTelegramId) return null;
-
-    const { data, error } = await supabase
-      .from('players')
-      .select('balance, updated_at')
-      .eq('tg_id', normalizedTelegramId)
-      .maybeSingle();
-
-    if (error) throw error;
-
-    return data;
-  }
-
-  async function loadPlayerBalanceFallback() {
-    const normalizedTelegramId = getNormalizedTelegramId();
-
-    if (!normalizedTelegramId) return null;
-
-    const data = await getPlayer(normalizedTelegramId);
-
-    return data?.player || null;
-  }
-
-  async function syncBalanceFromServer(source = 'server-sync', options = {}) {
-    if (root.dataset.destroyed === 'true') return;
-    if (balanceSyncBusy) return;
-
-    const now = Date.now();
-    const minGap = Number(options.minGapMs ?? BALANCE_SYNC_MIN_GAP_MS);
-
-    if (!options.force && now - lastBalanceSyncAt < minGap) {
-      return;
-    }
-
-    balanceSyncBusy = true;
-    lastBalanceSyncAt = now;
+    balanceSyncInFlight = true;
 
     try {
-      let player = null;
+      const { data, error } = await supabase
+        .from('players')
+        .select('balance')
+        .eq('tg_id', String(telegramId))
+        .maybeSingle();
 
-      try {
-        player = await loadPlayerBalanceDirect();
-      } catch (directError) {
-        player = await loadPlayerBalanceFallback();
+      if (error) throw error;
+
+      if (!data || data.balance === undefined || data.balance === null) {
+        return;
       }
 
-      if (!player || root.dataset.destroyed === 'true') return;
+      const nextBalance = Number(data.balance || 0);
 
-      const nextBalance = Number(player.balance);
-
-      if (!Number.isFinite(nextBalance)) return;
-      if (nextBalance === currentBalance) return;
+      if (!Number.isFinite(nextBalance) || nextBalance === currentBalance) {
+        return;
+      }
 
       updateBalance(nextBalance, {
-        source,
+        source: silent ? 'db_sync' : 'db_poll',
         durationMs: BALANCE_COUNT_DURATION_MS,
       });
     } catch (error) {
-      const errorNow = Date.now();
-
-      if (errorNow - lastBalanceSyncErrorAt > 5000) {
-        console.warn('[home] balance sync failed:', error);
-        lastBalanceSyncErrorAt = errorNow;
-      }
+      console.warn('[home] balance db sync failed:', error);
     } finally {
-      balanceSyncBusy = false;
+      balanceSyncInFlight = false;
     }
   }
 
-  function startBalanceServerSync() {
-    syncBalanceFromServer('initial-sync', { force: true });
+  function startBalanceDatabaseSync() {
+    clearInterval(balanceSyncTimer);
 
-    balanceSyncTimer = window.setInterval(() => {
-      syncBalanceFromServer('server-sync');
-    }, BALANCE_SYNC_INTERVAL_MS);
-  }
+    balanceSyncTimer = setInterval(() => {
+      syncBalanceFromDatabase({ silent: true });
+    }, 1100);
 
-  function handleBalanceFocusSync() {
-    syncBalanceFromServer('focus-sync', { force: true });
-  }
+    const syncOnFocus = () => {
+      syncBalanceFromDatabase({ silent: false });
+    };
 
-  function handleBalanceVisibilitySync() {
-    if (document.visibilityState !== 'visible') return;
+    window.addEventListener('focus', syncOnFocus);
+    document.addEventListener('visibilitychange', syncOnFocus);
 
-    syncBalanceFromServer('visibility-sync', { force: true });
+    syncBalanceFromDatabase({ silent: true });
+
+    return () => {
+      clearInterval(balanceSyncTimer);
+      window.removeEventListener('focus', syncOnFocus);
+      document.removeEventListener('visibilitychange', syncOnFocus);
+    };
   }
 
   function enableMobileGameplayMode() {
@@ -1007,15 +965,12 @@ register('home', async (root) => {
   });
 
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
+  cleanupBalanceDatabaseSync = startBalanceDatabaseSync();
 
   cleanupGameRealtime = setupGameRealtime({
     cityId,
     telegramId,
   });
-
-  startBalanceServerSync();
-  window.addEventListener('focus', handleBalanceFocusSync);
-  document.addEventListener('visibilitychange', handleBalanceVisibilitySync);
 
   isCurrentPlayerAdmin()
     .then((canUseAdminPanel) => {
@@ -1122,12 +1077,11 @@ register('home', async (root) => {
     root.dataset.destroyed = 'true';
 
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
-    window.removeEventListener('focus', handleBalanceFocusSync);
-    document.removeEventListener('visibilitychange', handleBalanceVisibilitySync);
-    window.clearInterval(balanceSyncTimer);
     cancelAnimationFrame(balanceFrame);
     clearTimeout(balancePulseTimer);
     clearTimeout(balanceChangeTimer);
+    clearInterval(balanceSyncTimer);
+    cleanupBalanceDatabaseSync?.();
 
     cleanupHousesFeature?.();
     cleanupSingleHouseModalMode?.();
