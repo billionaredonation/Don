@@ -22,7 +22,7 @@ const ONLINE_TTL_MS =
 const SNAPSHOT_PLAYER_MAX_AGE_MS =
   NETWORK_CONFIG.movement.snapshotPlayerMaxAgeMs || 120000;
 
-const SNAPSHOT_REFRESH_INTERVAL_MS = 5000;
+const SNAPSHOT_REFRESH_INTERVAL_MS = 2500;
 
 function percentToNumber(value, fallback = 50) {
   const n = Number(value);
