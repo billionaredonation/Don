@@ -602,6 +602,7 @@ register('home', async (root) => {
       <div class="player-balance-card" aria-label="Баланс игрока" data-player-balance-card>
         <span class="player-card-icon player-card-icon-green">₴</span>
         <strong data-player-balance>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
+        <span class="player-balance-change" data-player-balance-change hidden></span>
       </div>
     </section>
 
@@ -666,10 +667,120 @@ register('home', async (root) => {
   let cleanupGameRealtime = null;
   let cleanupMobileSelfMarker = null;
 
+  const balanceCard = root.querySelector('[data-player-balance-card]');
   const balanceEl = root.querySelector('[data-player-balance]');
+  const balanceChangeEl = root.querySelector('[data-player-balance-change]');
 
-  function updateBalance(balance) {
+  let currentBalance = Number(playerBalance || 0);
+  let balanceFrame = null;
+  let balancePulseTimer = null;
+  let balanceChangeTimer = null;
+
+  function formatBalance(value) {
+    const number = Math.round(Number(value || 0));
+    return `${number.toLocaleString('ru-RU')} ₴`;
+  }
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  function setBalanceText(value) {
+    if (!balanceEl) return;
+    balanceEl.textContent = formatBalance(value);
+  }
+
+  function showBalanceChange(delta, source = 'realtime') {
+    if (!balanceCard || !balanceChangeEl || !Number.isFinite(delta) || delta === 0) {
+      return;
+    }
+
+    const isPlus = delta > 0;
+    const absDelta = Math.abs(Math.round(delta));
+
+    balanceCard.classList.remove(
+      'is-balance-plus',
+      'is-balance-minus',
+      'is-balance-pulse'
+    );
+
+    // Перезапускаем CSS-анимацию даже при серии быстрых операций.
+    void balanceCard.offsetWidth;
+
+    balanceCard.dataset.balanceSource = source || 'realtime';
+    balanceCard.classList.add(
+      isPlus ? 'is-balance-plus' : 'is-balance-minus',
+      'is-balance-pulse'
+    );
+
+    balanceChangeEl.hidden = false;
+    balanceChangeEl.textContent = `${isPlus ? '+' : '−'} ${absDelta.toLocaleString('ru-RU')} ₴`;
+    balanceChangeEl.dataset.type = isPlus ? 'plus' : 'minus';
+
+    clearTimeout(balancePulseTimer);
+    clearTimeout(balanceChangeTimer);
+
+    balancePulseTimer = setTimeout(() => {
+      balanceCard.classList.remove(
+        'is-balance-plus',
+        'is-balance-minus',
+        'is-balance-pulse'
+      );
+    }, 820);
+
+    balanceChangeTimer = setTimeout(() => {
+      balanceChangeEl.hidden = true;
+      balanceChangeEl.textContent = '';
+      delete balanceChangeEl.dataset.type;
+      delete balanceCard.dataset.balanceSource;
+    }, 1250);
+  }
+
+  function animateBalanceNumber(from, to) {
+    if (!balanceEl) return;
+
+    cancelAnimationFrame(balanceFrame);
+
+    const start = performance.now();
+    const duration = 640;
+    const delta = to - from;
+
+    if (!Number.isFinite(delta) || delta === 0) {
+      setBalanceText(to);
+      return;
+    }
+
+    const tick = (now) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = easeOutCubic(progress);
+      const value = from + delta * eased;
+
+      setBalanceText(value);
+
+      if (progress < 1) {
+        balanceFrame = requestAnimationFrame(tick);
+        return;
+      }
+
+      setBalanceText(to);
+      balanceFrame = null;
+    };
+
+    balanceFrame = requestAnimationFrame(tick);
+  }
+
+  function updateBalance(balance, options = {}) {
     const nextBalance = Number(balance || 0);
+
+    if (!Number.isFinite(nextBalance)) return;
+
+    const previousBalance = currentBalance;
+    const explicitDelta = Number(options.delta);
+    const delta = Number.isFinite(explicitDelta) && explicitDelta !== 0
+      ? explicitDelta
+      : nextBalance - previousBalance;
+
+    currentBalance = nextBalance;
 
     state.player = {
       ...(state.player || {}),
@@ -678,9 +789,13 @@ register('home', async (root) => {
 
     save();
 
-    if (balanceEl) {
-      balanceEl.textContent = `${nextBalance.toLocaleString('ru-RU')} ₴`;
+    if (delta !== 0) {
+      animateBalanceNumber(previousBalance, nextBalance);
+      showBalanceChange(delta, options.source || 'realtime');
+      return;
     }
+
+    setBalanceText(nextBalance);
   }
 
   function handleBalanceChanged(event) {
@@ -690,7 +805,10 @@ register('home', async (root) => {
 
     if (nextBalance === undefined || nextBalance === null) return;
 
-    updateBalance(nextBalance);
+    updateBalance(nextBalance, {
+      delta: event?.detail?.delta,
+      source: event?.detail?.source,
+    });
   }
 
   function enableMobileGameplayMode() {
@@ -862,6 +980,9 @@ register('home', async (root) => {
     root.dataset.destroyed = 'true';
 
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
+    cancelAnimationFrame(balanceFrame);
+    clearTimeout(balancePulseTimer);
+    clearTimeout(balanceChangeTimer);
 
     cleanupHousesFeature?.();
     cleanupSingleHouseModalMode?.();
