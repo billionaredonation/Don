@@ -1,7 +1,7 @@
 import { supabase } from '../supabaseClient.js';
 
 function normalizeTelegramId(value) {
-  return value === undefined || value === null ? '' : String(value);
+  return value === undefined || value === null ? '' : String(value).trim();
 }
 
 function getPlayerTelegramId(row = {}) {
@@ -43,6 +43,14 @@ function dispatchPlayerBalanceChanged(row, payload = {}) {
       payload,
     },
   }));
+
+  return {
+    balance,
+    oldBalance: hasOldBalance ? oldBalance : undefined,
+    delta,
+    source: 'realtime',
+    payload,
+  };
 }
 
 export function setupGameRealtime({
@@ -79,30 +87,33 @@ export function setupGameRealtime({
     }
   );
 
-  channel.on(
-    'postgres_changes',
-    {
-      event: 'UPDATE',
-      schema: 'public',
-      table: 'players',
-    },
-    (payload) => {
-      if (destroyed) return;
+  if (normalizedTelegramId) {
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'players',
+        filter: `tg_id=eq.${normalizedTelegramId}`,
+      },
+      (payload) => {
+        if (destroyed) return;
 
-      const row = payload?.new || {};
-      const changedTelegramId = getPlayerTelegramId(row);
+        const row = payload?.new || {};
+        const changedTelegramId = getPlayerTelegramId(row);
 
-      if (!normalizedTelegramId || changedTelegramId !== normalizedTelegramId) {
-        return;
+        if (changedTelegramId && changedTelegramId !== normalizedTelegramId) {
+          return;
+        }
+
+        const meta = dispatchPlayerBalanceChanged(row, payload);
+
+        if (typeof onBalanceChanged === 'function') {
+          onBalanceChanged(row, meta);
+        }
       }
-
-      dispatchPlayerBalanceChanged(row, payload);
-
-      if (typeof onBalanceChanged === 'function') {
-        onBalanceChanged(row);
-      }
-    }
-  );
+    );
+  }
 
   channel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
