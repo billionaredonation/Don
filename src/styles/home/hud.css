@@ -620,9 +620,6 @@
   background: #050607 !important;
   color: #fff !important;
   text-align: center !important;
-  transform: none !important;
-  rotate: 0deg !important;
-  translate: 0 0 !important;
   box-sizing: border-box !important;
   overflow: hidden !important;
 }
@@ -674,11 +671,53 @@ body.mn-session-blocked .entity-interaction-notice {
   pointer-events: none !important;
 }
 
-html.mn-force-rotate-landscape body.mn-session-blocked .mn-session-blocked-screen,
-body.mn-force-rotate-landscape.mn-session-blocked .mn-session-blocked-screen,
-html.mn-force-rotate-landscape body.mn-session-blocked .mn-session-blocked-card,
-body.mn-force-rotate-landscape.mn-session-blocked .mn-session-blocked-card {
-  transform: none !important;
-  rotate: 0deg !important;
-  translate: 0 0 !important;
+
+
+/* SESSION BLOCKED: keep the warning screen as-is, hide only gameplay leftovers over it. */
+html.mn-session-blocked .pc-stamina,
+html.mn-session-blocked .mobile-stamina,
+html.mn-session-blocked [data-mobile-stamina],
+html.mn-session-blocked .mobile-controls-layer,
+html.mn-session-blocked .mobile-joystick,
+html.mn-session-blocked .mobile-self-player-indicator,
+html.mn-session-blocked .gta-player-marker,
+html.mn-session-blocked .gta-player-marker-self,
+html.mn-session-blocked .player-glass-hud,
+html.mn-session-blocked .player-weather-mini,
+html.mn-session-blocked .player-network-card,
+html.mn-session-blocked .admin-status-dot,
+html.mn-session-blocked .house-selection-panel,
+html.mn-session-blocked .entity-interaction-hint,
+html.mn-session-blocked .entity-interaction-notice,
+body.mn-session-blocked .pc-stamina,
+body.mn-session-blocked .mobile-stamina,
+body.mn-session-blocked [data-mobile-stamina],
+body.mn-session-blocked .mobile-controls-layer,
+body.mn-session-blocked .mobile-joystick,
+body.mn-session-blocked .mobile-self-player-indicator,
+body.mn-session-blocked .gta-player-marker,
+body.mn-session-blocked .gta-player-marker-self,
+body.mn-session-blocked .player-glass-hud,
+body.mn-session-blocked .player-weather-mini,
+body.mn-session-blocked .player-network-card,
+body.mn-session-blocked .admin-status-dot,
+body.mn-session-blocked .house-selection-panel,
+body.mn-session-blocked .entity-interaction-hint,
+body.mn-session-blocked .entity-interaction-notice {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+html.mn-session-blocked .home::before,
+html.mn-session-blocked .home::after,
+body.mn-session-blocked .home::before,
+body.mn-session-blocked .home::after,
+.mn-session-blocked-root::before,
+.mn-session-blocked-root::after {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
