@@ -84,7 +84,7 @@ function getHouseColors(state) {
 
 function createHouseSvgIcon(houseClass, state) {
   const normalizedClass = normalizeHouseClass(houseClass);
-  const cacheKey = `${normalizedClass}:${state}`;
+  const cacheKey = `${normalizedClass}:${state}:pc-v2`;
 
   if (HOUSE_ICON_CACHE.has(cacheKey)) {
     return HOUSE_ICON_CACHE.get(cacheKey);
@@ -92,63 +92,83 @@ function createHouseSvgIcon(houseClass, state) {
 
   const { main, dark, soft, roof } = getHouseColors(state);
 
+  const baseShadow = `
+    <ellipse cx="36" cy="60" rx="21" ry="5" fill="rgba(0,0,0,0.42)"/>
+  `;
+
+  const door = `<path d="M29 58V43c0-2.4 1.8-4.2 4.2-4.2h5.6c2.4 0 4.2 1.8 4.2 4.2v15H29z" fill="${dark}"/>`;
+  const windowFill = 'rgba(255,255,255,0.92)';
+  const shine = `<path d="M18 35L36 18l18 17" fill="none" stroke="rgba(255,255,255,0.34)" stroke-width="2" stroke-linecap="round"/>`;
+
   let svg = '';
 
   if (normalizedClass === 'elite') {
     svg = `
-      <svg class="map-house-svg map-house-svg-elite" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M8 55h48" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
-        <path d="M15 29L32 10l17 19v26H15V29z" fill="${main}" stroke="${soft}" stroke-width="3"/>
-        <path d="M10 30L32 6l22 24" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M24 55V36h16v19" fill="${dark}"/>
-        <path d="M20 32h8v8h-8zM36 32h8v8h-8z" fill="#ffffff" opacity="0.9"/>
-        <path d="M32 7l6 12H26l6-12z" fill="${soft}" opacity="0.95"/>
-        <circle cx="32" cy="25" r="4" fill="#ffffff" opacity="0.92"/>
+      <svg class="map-house-svg map-house-svg-elite" viewBox="0 0 72 72" aria-hidden="true">
+        ${baseShadow}
+        <path d="M11 34L36 9l25 25" fill="none" stroke="${dark}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M14 36L36 13l22 23v23H14V36z" fill="${main}" stroke="${soft}" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M7 35L36 6l29 29" fill="none" stroke="${roof}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 29h28l-14-15-14 15z" fill="rgba(255,255,255,0.16)"/>
+        <path d="M17 36h9v9h-9zM46 36h9v9h-9z" fill="${windowFill}"/>
+        <path d="M28 31h16v7H28z" fill="${windowFill}" opacity="0.9"/>
+        ${door}
+        <path d="M36 6l6 13H30l6-13z" fill="${soft}"/>
+        <circle cx="36" cy="28" r="4.3" fill="${windowFill}"/>
+        ${shine}
       </svg>
     `;
   } else if (normalizedClass === 'premium') {
     svg = `
-      <svg class="map-house-svg map-house-svg-premium" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M9 54h46" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
-        <path d="M15 29L32 12l17 17v25H15V29z" fill="${main}" stroke="${soft}" stroke-width="3"/>
-        <path d="M11 30L32 9l21 21" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M25 54V37h14v17" fill="${dark}"/>
-        <path d="M20 33h9v8h-9zM35 33h9v8h-9z" fill="#ffffff" opacity="0.9"/>
-        <path d="M45 22v-8h7v15" fill="${dark}"/>
-        <circle cx="32" cy="27" r="3" fill="#ffffff" opacity="0.85"/>
+      <svg class="map-house-svg map-house-svg-premium" viewBox="0 0 72 72" aria-hidden="true">
+        ${baseShadow}
+        <path d="M15 36L36 15l21 21v23H15V36z" fill="${main}" stroke="${soft}" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M9 36L36 10l27 26" fill="none" stroke="${roof}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M50 25v-10h8v18" fill="${dark}" stroke="${soft}" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M20 39h10v8H20zM42 39h10v8H42z" fill="${windowFill}"/>
+        <path d="M30 31h12v7H30z" fill="${windowFill}" opacity="0.88"/>
+        ${door}
+        <path d="M18 56h36" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        ${shine}
       </svg>
     `;
   } else if (normalizedClass === 'lux') {
     svg = `
-      <svg class="map-house-svg map-house-svg-lux" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M8 54h48" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
-        <path d="M16 28L32 12l16 16v26H16V28z" fill="${main}" stroke="${soft}" stroke-width="3"/>
-        <path d="M12 29L32 8l20 21" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M24 54V36h16v18" fill="${dark}"/>
-        <path d="M21 31h8v8h-8zM35 31h8v8h-8z" fill="#ffffff" opacity="0.88"/>
-        <path d="M32 8l5 10h-10l5-10z" fill="${soft}"/>
-        <circle cx="32" cy="26" r="4" fill="#ffffff" opacity="0.9"/>
+      <svg class="map-house-svg map-house-svg-lux" viewBox="0 0 72 72" aria-hidden="true">
+        ${baseShadow}
+        <path d="M14 36L36 13l22 23v23H14V36z" fill="${main}" stroke="${soft}" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M9 36L36 9l27 27" fill="none" stroke="${roof}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M36 9l5 11H31l5-11z" fill="${soft}"/>
+        <path d="M19 39h10v8H19zM43 39h10v8H43z" fill="${windowFill}"/>
+        <circle cx="36" cy="31" r="4" fill="${windowFill}" opacity="0.92"/>
+        ${door}
+        <path d="M16 56h40" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        ${shine}
       </svg>
     `;
   } else if (normalizedClass === 'comfort') {
     svg = `
-      <svg class="map-house-svg map-house-svg-comfort" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M10 54h44" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
-        <path d="M14 30L32 14l18 16v24H14V30z" fill="${main}" stroke="${soft}" stroke-width="3"/>
-        <path d="M10 31L32 11l22 20" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M25 54V38h14v16" fill="${dark}"/>
-        <path d="M19 34h9v8h-9zM36 34h9v8h-9z" fill="#ffffff" opacity="0.9"/>
-        <path d="M45 22v-8h7v15" fill="${dark}"/>
+      <svg class="map-house-svg map-house-svg-comfort" viewBox="0 0 72 72" aria-hidden="true">
+        ${baseShadow}
+        <path d="M14 38L36 17l22 21v21H14V38z" fill="${main}" stroke="${soft}" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M9 38L36 13l27 25" fill="none" stroke="${roof}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M49 27v-9h8v17" fill="${dark}" stroke="${soft}" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M19 41h10v8H19zM43 41h10v8H43z" fill="${windowFill}"/>
+        ${door}
+        <path d="M18 57h36" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        ${shine}
       </svg>
     `;
   } else {
     svg = `
-      <svg class="map-house-svg map-house-svg-standard" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M12 54h40" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
-        <path d="M18 31L32 18l14 13v23H18V31z" fill="${main}" stroke="${soft}" stroke-width="3"/>
-        <path d="M14 32L32 15l18 17" fill="none" stroke="${roof}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M26 54V39h12v15" fill="${dark}"/>
-        <path d="M21 35h8v8h-8zM36 35h8v8h-8z" fill="#ffffff" opacity="0.88"/>
+      <svg class="map-house-svg map-house-svg-standard" viewBox="0 0 72 72" aria-hidden="true">
+        ${baseShadow}
+        <path d="M18 39L36 21l18 18v20H18V39z" fill="${main}" stroke="${soft}" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M13 39L36 17l23 22" fill="none" stroke="${roof}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M22 42h9v8h-9zM41 42h9v8h-9z" fill="${windowFill}"/>
+        <path d="M30 59V45h12v14H30z" fill="${dark}"/>
+        <path d="M20 57h32" stroke="${dark}" stroke-width="5" stroke-linecap="round"/>
+        ${shine}
       </svg>
     `;
   }
@@ -196,14 +216,16 @@ function getObjectMeta(object) {
 }
 
 function getObjectRenderSize(category, visualClass) {
-  if (category !== 'house') return 20;
+  if (category !== 'house') return 18;
 
   const normalizedClass = normalizeHouseClass(visualClass);
 
-  if (normalizedClass === 'elite' || normalizedClass === 'lux') return 48;
-  if (normalizedClass === 'premium' || normalizedClass === 'comfort') return 44;
+  if (normalizedClass === 'elite') return 34;
+  if (normalizedClass === 'lux') return 32;
+  if (normalizedClass === 'premium') return 30;
+  if (normalizedClass === 'comfort') return 28;
 
-  return 40;
+  return 26;
 }
 
 function getSafeNumber(value, fallback) {
@@ -256,7 +278,7 @@ function createObjectHtml(object) {
         transform:
           translate(-50%, -50%)
           rotate(var(--map-object-rotation, 0deg))
-          scale(var(--map-object-scale, 1));
+          scale(calc(var(--map-object-scale, 1) * var(--map-entity-scale, 1)));
         transform-origin: center center;
         z-index: 10;
         pointer-events: auto;
