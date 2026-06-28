@@ -933,3 +933,22 @@ body.mn-session-blocked .gta-player-marker-self {
     column-gap: 18px !important;
   }
 }
+
+/* =========================================================
+   PC HUD AIR — TELEGRAM DESKTOP NARROW WIDTH
+   Gives city/profile/balance cards more air on PC even when
+   the Telegram WebApp viewport is narrower than 769px.
+   Mobile controls layout stays untouched.
+   ========================================================= */
+.home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+  gap: 15px !important;
+  column-gap: 15px !important;
+}
+
+@media (min-width: 769px) {
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    gap: 18px !important;
+    column-gap: 18px !important;
+  }
+}
+
