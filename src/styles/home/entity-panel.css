@@ -344,3 +344,88 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel {
   bottom: max(54px, calc(env(safe-area-inset-bottom) + 46px)) !important;
   transform: translateX(-50%) !important;
 }
+
+/* =========================================================
+   DONATION HOUSE SELECTION PANEL HARD FIX
+   - no tiny D... / St... text;
+   - no forced 90deg rotation for this card;
+   - stamina/joystick stays behind/hidden while panel is open.
+   ========================================================= */
+
+.house-selection-panel {
+  width: min(460px, calc(100vw - 24px)) !important;
+  grid-template-columns: minmax(0, 1fr) 28px !important;
+  grid-template-areas:
+    "body close"
+    "action action" !important;
+  gap: 10px !important;
+  padding: 12px !important;
+  overflow: visible !important;
+}
+
+.house-selection-icon {
+  display: none !important;
+}
+
+.house-selection-body {
+  grid-area: body !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+
+.house-selection-close {
+  grid-area: close !important;
+  position: static !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  display: grid !important;
+  place-items: center !important;
+}
+
+.house-selection-action {
+  grid-area: action !important;
+  width: 100% !important;
+}
+
+.house-selection-title,
+.house-selection-meta {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}
+
+.house-selection-title {
+  font-size: 14px !important;
+  line-height: 1.05 !important;
+}
+
+.house-selection-meta {
+  font-size: 11px !important;
+  line-height: 1.12 !important;
+}
+
+body:has(.house-selection-panel:not([hidden])) .pc-stamina,
+body:has(.house-selection-panel:not([hidden])) .mobile-stamina,
+body:has(.house-selection-panel:not([hidden])) [data-mobile-stamina] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel {
+  left: 50% !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: max(82px, calc(env(safe-area-inset-bottom) + 72px)) !important;
+  width: min(460px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  transform: translateX(-50%) !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+}
