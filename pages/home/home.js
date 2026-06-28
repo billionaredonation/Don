@@ -686,10 +686,11 @@ register('home', async (root) => {
     focusY: playerPosition.y,
 
     /*
-      На ПК и телефоне держим карту не слишком близко.
-      Если будет слишком далеко/близко — меняется только это значение.
+      Mobile оставляем как было.
+      ПК приближаем, чтобы игрок открывал карту постепенно,
+      а не видел весь город одним плоским превью.
     */
-    startScale: isMobileGameplayDevice() ? 1.55 : 1.25,
+    startScale: isMobileGameplayDevice() ? 1.55 : 2.35,
   });
 
   const network = setupPlayerNetwork({
