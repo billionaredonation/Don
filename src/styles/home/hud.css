@@ -680,6 +680,7 @@ html.mn-session-blocked [data-mobile-stamina],
 html.mn-session-blocked .mobile-controls-layer,
 html.mn-session-blocked .mobile-joystick,
 html.mn-session-blocked .mobile-self-player-indicator,
+html.mn-session-blocked [data-mobile-self-marker-hard="true"],
 html.mn-session-blocked .gta-player-marker,
 html.mn-session-blocked .gta-player-marker-self,
 html.mn-session-blocked .player-glass-hud,
@@ -695,6 +696,7 @@ body.mn-session-blocked [data-mobile-stamina],
 body.mn-session-blocked .mobile-controls-layer,
 body.mn-session-blocked .mobile-joystick,
 body.mn-session-blocked .mobile-self-player-indicator,
+body.mn-session-blocked [data-mobile-self-marker-hard="true"],
 body.mn-session-blocked .gta-player-marker,
 body.mn-session-blocked .gta-player-marker-self,
 body.mn-session-blocked .player-glass-hud,
@@ -720,4 +722,202 @@ body.mn-session-blocked .home::after,
   display: none !important;
   opacity: 0 !important;
   visibility: hidden !important;
+}
+
+
+/* =========================================================
+   FINAL HUD COMPACT MONEY + SESSION MARKER CLEANUP
+   - HUD keeps large balances readable without making the top row huge.
+   - The hard mobile self marker must never render over the session-blocked screen.
+   ========================================================= */
+.player-glass-hud {
+  max-width: calc(100vw - 16px) !important;
+  grid-template-columns: minmax(104px, 0.85fr) minmax(126px, 1fr) minmax(94px, 112px) !important;
+  gap: 6px !important;
+}
+
+.player-balance-card {
+  width: 100% !important;
+  min-width: 94px !important;
+  max-width: 112px !important;
+  justify-self: end !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  padding: 0 7px !important;
+  overflow: visible !important;
+}
+
+.player-balance-card strong {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+  font-size: clamp(10px, 2vw, 11px) !important;
+  line-height: 1 !important;
+  letter-spacing: -0.045em !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+@media (min-width: 769px) {
+  .player-glass-hud {
+    width: auto !important;
+    max-width: calc(100vw - 28px) !important;
+    grid-template-columns: 180px 240px 124px !important;
+    justify-content: start !important;
+    right: auto !important;
+    gap: 12px !important;
+  }
+
+  .player-balance-card {
+    width: 124px !important;
+    min-width: 124px !important;
+    max-width: 124px !important;
+  }
+
+  .player-balance-card strong {
+    font-size: 12px !important;
+    letter-spacing: -0.04em !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .player-glass-hud {
+    grid-template-columns: minmax(92px, 0.86fr) minmax(112px, 1fr) minmax(88px, 104px) !important;
+    gap: 5px !important;
+  }
+
+  .player-balance-card {
+    min-width: 88px !important;
+    max-width: 104px !important;
+    padding-inline: 6px !important;
+    gap: 4px !important;
+  }
+
+  .player-balance-card strong {
+    font-size: 9.5px !important;
+    letter-spacing: -0.055em !important;
+  }
+}
+
+html.mn-session-blocked [data-mobile-self-marker-hard="true"],
+body.mn-session-blocked [data-mobile-self-marker-hard="true"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+
+/* =========================================================
+   FINAL REQUEST: SESSION MARKER + HUD AIR ONLY
+   - hide mobile self marker over session blocked screen;
+   - add small clean spacing between city/profile/balance cards;
+   - keep full balance text, no compact “млн/млрд” formatting.
+   ========================================================= */
+html.mn-session-blocked [data-mobile-self-marker-hard="true"],
+body.mn-session-blocked [data-mobile-self-marker-hard="true"],
+html.mn-session-blocked .mobile-self-player-indicator,
+body.mn-session-blocked .mobile-self-player-indicator,
+html.mn-session-blocked .mobile-self-player-dot,
+body.mn-session-blocked .mobile-self-player-dot,
+html.mn-session-blocked .gta-player-marker-self,
+body.mn-session-blocked .gta-player-marker-self {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.player-glass-hud {
+  max-width: calc(100vw - 16px) !important;
+  grid-template-columns: minmax(112px, 0.82fr) minmax(126px, 1fr) minmax(126px, max-content) !important;
+  gap: 9px !important;
+}
+
+.player-hud-left,
+.player-city-button,
+.player-profile-card,
+.player-balance-card {
+  min-width: 0 !important;
+}
+
+.player-balance-card {
+  width: auto !important;
+  min-width: 126px !important;
+  max-width: min(170px, 34vw) !important;
+  justify-self: end !important;
+  justify-content: flex-start !important;
+  gap: 5px !important;
+  padding-inline: 7px !important;
+  overflow: visible !important;
+}
+
+.player-balance-card strong {
+  min-width: 0 !important;
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+  font-size: clamp(9.5px, 2vw, 11px) !important;
+  line-height: 1 !important;
+  letter-spacing: -0.055em !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+@media (min-width: 769px) {
+  .player-glass-hud {
+    width: auto !important;
+    max-width: calc(100vw - 28px) !important;
+    grid-template-columns: 180px 240px minmax(150px, max-content) !important;
+    justify-content: start !important;
+    right: auto !important;
+    gap: 14px !important;
+  }
+
+  .player-balance-card {
+    min-width: 150px !important;
+    max-width: 190px !important;
+  }
+
+  .player-balance-card strong {
+    font-size: 13px !important;
+    letter-spacing: -0.045em !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .player-glass-hud {
+    grid-template-columns: minmax(96px, 0.78fr) minmax(110px, 1fr) minmax(116px, max-content) !important;
+    gap: 7px !important;
+  }
+
+  .player-balance-card {
+    min-width: 116px !important;
+    max-width: min(136px, 35vw) !important;
+    padding-inline: 6px !important;
+    gap: 4px !important;
+  }
+
+  .player-balance-card strong {
+    font-size: 9.5px !important;
+    letter-spacing: -0.06em !important;
+  }
+}
+
+@media (max-width: 370px) {
+  .player-glass-hud {
+    grid-template-columns: minmax(90px, 0.74fr) minmax(102px, 1fr) minmax(108px, max-content) !important;
+    gap: 6px !important;
+  }
+
+  .player-balance-card {
+    min-width: 108px !important;
+    max-width: 122px !important;
+  }
+
+  .player-balance-card strong {
+    font-size: 9px !important;
+    letter-spacing: -0.065em !important;
+  }
 }
