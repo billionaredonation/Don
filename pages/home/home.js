@@ -36,6 +36,10 @@ import '../../src/houses/houses.css';
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 
+const BALANCE_COUNT_DURATION_MS = 1650;
+const BALANCE_FEEDBACK_DURATION_MS = 1900;
+const BALANCE_PULSE_DURATION_MS = 1250;
+
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
   query: '?url',
@@ -672,6 +676,7 @@ register('home', async (root) => {
   const balanceChangeEl = root.querySelector('[data-player-balance-change]');
 
   let currentBalance = Number(playerBalance || 0);
+  let renderedBalance = currentBalance;
   let balanceFrame = null;
   let balancePulseTimer = null;
   let balanceChangeTimer = null;
@@ -681,12 +686,21 @@ register('home', async (root) => {
     return `${number.toLocaleString('ru-RU')} ₴`;
   }
 
-  function easeOutCubic(t) {
-    return 1 - Math.pow(1 - t, 3);
+  function easeInOutCubic(t) {
+    return t < 0.5
+      ? 4 * t * t * t
+      : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
   function setBalanceText(value) {
     if (!balanceEl) return;
+
+    const numericValue = Number(value || 0);
+
+    if (Number.isFinite(numericValue)) {
+      renderedBalance = numericValue;
+    }
+
     balanceEl.textContent = formatBalance(value);
   }
 
@@ -704,8 +718,16 @@ register('home', async (root) => {
       'is-balance-pulse'
     );
 
-    // Перезапускаем CSS-анимацию даже при серии быстрых операций.
+    balanceChangeEl.hidden = true;
+    balanceChangeEl.textContent = '';
+    delete balanceChangeEl.dataset.type;
+
+    balanceCard.style.setProperty('--mn-balance-pulse-ms', `${BALANCE_PULSE_DURATION_MS}ms`);
+    balanceChangeEl.style.setProperty('--mn-balance-change-ms', `${BALANCE_FEEDBACK_DURATION_MS}ms`);
+
+    // Перезапускаем CSS-анимации даже при серии быстрых операций.
     void balanceCard.offsetWidth;
+    void balanceChangeEl.offsetWidth;
 
     balanceCard.dataset.balanceSource = source || 'realtime';
     balanceCard.classList.add(
@@ -713,9 +735,9 @@ register('home', async (root) => {
       'is-balance-pulse'
     );
 
-    balanceChangeEl.hidden = false;
     balanceChangeEl.textContent = `${isPlus ? '+' : '−'} ${absDelta.toLocaleString('ru-RU')} ₴`;
     balanceChangeEl.dataset.type = isPlus ? 'plus' : 'minus';
+    balanceChangeEl.hidden = false;
 
     clearTimeout(balancePulseTimer);
     clearTimeout(balanceChangeTimer);
@@ -726,34 +748,45 @@ register('home', async (root) => {
         'is-balance-minus',
         'is-balance-pulse'
       );
-    }, 820);
+    }, BALANCE_PULSE_DURATION_MS + 120);
 
     balanceChangeTimer = setTimeout(() => {
       balanceChangeEl.hidden = true;
       balanceChangeEl.textContent = '';
       delete balanceChangeEl.dataset.type;
       delete balanceCard.dataset.balanceSource;
-    }, 1250);
+      balanceChangeEl.style.removeProperty('--mn-balance-change-ms');
+      balanceCard.style.removeProperty('--mn-balance-pulse-ms');
+    }, BALANCE_FEEDBACK_DURATION_MS + 180);
   }
 
-  function animateBalanceNumber(from, to) {
+  function animateBalanceNumber(from, to, options = {}) {
     if (!balanceEl) return;
 
     cancelAnimationFrame(balanceFrame);
 
-    const start = performance.now();
-    const duration = 640;
-    const delta = to - from;
+    const startValue = Number(from);
+    const finishValue = Number(to);
+    const duration = Number(options.durationMs || BALANCE_COUNT_DURATION_MS);
 
-    if (!Number.isFinite(delta) || delta === 0) {
-      setBalanceText(to);
+    if (!Number.isFinite(startValue) || !Number.isFinite(finishValue)) {
+      setBalanceText(finishValue);
       return;
     }
 
+    const delta = finishValue - startValue;
+
+    if (!Number.isFinite(delta) || delta === 0) {
+      setBalanceText(finishValue);
+      return;
+    }
+
+    const start = performance.now();
+
     const tick = (now) => {
-      const progress = Math.min(1, (now - start) / duration);
-      const eased = easeOutCubic(progress);
-      const value = from + delta * eased;
+      const progress = Math.min(1, (now - start) / Math.max(duration, 1));
+      const eased = easeInOutCubic(progress);
+      const value = startValue + delta * eased;
 
       setBalanceText(value);
 
@@ -762,7 +795,7 @@ register('home', async (root) => {
         return;
       }
 
-      setBalanceText(to);
+      setBalanceText(finishValue);
       balanceFrame = null;
     };
 
@@ -775,6 +808,7 @@ register('home', async (root) => {
     if (!Number.isFinite(nextBalance)) return;
 
     const previousBalance = currentBalance;
+    const visualStartBalance = Number.isFinite(renderedBalance) ? renderedBalance : previousBalance;
     const explicitDelta = Number(options.delta);
     const delta = Number.isFinite(explicitDelta) && explicitDelta !== 0
       ? explicitDelta
@@ -790,7 +824,9 @@ register('home', async (root) => {
     save();
 
     if (delta !== 0) {
-      animateBalanceNumber(previousBalance, nextBalance);
+      animateBalanceNumber(visualStartBalance, nextBalance, {
+        durationMs: options.durationMs || BALANCE_COUNT_DURATION_MS,
+      });
       showBalanceChange(delta, options.source || 'realtime');
       return;
     }
@@ -808,6 +844,7 @@ register('home', async (root) => {
     updateBalance(nextBalance, {
       delta: event?.detail?.delta,
       source: event?.detail?.source,
+      durationMs: BALANCE_COUNT_DURATION_MS,
     });
   }
 
@@ -870,9 +907,6 @@ register('home', async (root) => {
   cleanupGameRealtime = setupGameRealtime({
     cityId,
     telegramId,
-    onBalanceChanged(player) {
-      updateBalance(player?.balance);
-    },
   });
 
   isCurrentPlayerAdmin()
