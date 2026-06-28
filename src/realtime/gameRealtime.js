@@ -26,14 +26,21 @@ function dispatchMapObjectsChanged(cityId, payload) {
   }));
 }
 
-function dispatchPlayerBalanceChanged(row) {
+function dispatchPlayerBalanceChanged(row, payload = {}) {
   const balance = Number(row?.balance || 0);
+  const oldBalance = Number(payload?.old?.balance);
+  const hasOldBalance = Number.isFinite(oldBalance);
+  const delta = hasOldBalance ? balance - oldBalance : undefined;
 
   window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
     detail: {
       player: row,
+      oldPlayer: payload?.old || null,
       balance,
+      oldBalance: hasOldBalance ? oldBalance : undefined,
+      delta,
       source: 'realtime',
+      payload,
     },
   }));
 }
@@ -89,7 +96,7 @@ export function setupGameRealtime({
         return;
       }
 
-      dispatchPlayerBalanceChanged(row);
+      dispatchPlayerBalanceChanged(row, payload);
 
       if (typeof onBalanceChanged === 'function') {
         onBalanceChanged(row);
