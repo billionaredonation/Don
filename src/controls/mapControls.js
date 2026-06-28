@@ -82,38 +82,37 @@ export function enableMapControls(stage, viewport, options = {}) {
     const screen = getViewportSize();
     const minSide = Math.min(screen.width, screen.height);
 
-    const baseScale = getRequestedStartScale(lowPower ? 1.15 : 1.25);
-    const baseWorldFactor = lowPower ? 2.6 : 3.95;
-
     /*
-      Telegram Desktop can render the Mini App in a narrow window.
-      On those widths the old desktop map felt over-zoomed and visually heavy.
-      Keep mobile untouched; only soften desktop scaling when the actual viewport is compact.
+      ПК должен играться как карта, а не как превью всей картинки.
+      Поэтому desktop держим в заметном зуме даже в узком окне Telegram Desktop.
+      Mobile-профиль ниже не трогаем.
     */
+    const requested = getRequestedStartScale(lowPower ? 2.05 : 2.35);
+
     if (minSide <= 410) {
       return {
-        scale: Math.min(baseScale, lowPower ? 1.0 : 1.04),
-        worldFactor: lowPower ? 2.0 : 2.28,
+        scale: Math.max(requested, lowPower ? 1.95 : 2.15),
+        worldFactor: lowPower ? 2.2 : 2.45,
       };
     }
 
     if (minSide <= 520) {
       return {
-        scale: Math.min(baseScale, lowPower ? 1.04 : 1.1),
-        worldFactor: lowPower ? 2.16 : 2.62,
+        scale: Math.max(requested, lowPower ? 2.05 : 2.28),
+        worldFactor: lowPower ? 2.45 : 2.75,
       };
     }
 
     if (minSide <= 650) {
       return {
-        scale: Math.min(baseScale, lowPower ? 1.08 : 1.16),
-        worldFactor: lowPower ? 2.36 : 3.08,
+        scale: Math.max(requested, lowPower ? 2.14 : 2.42),
+        worldFactor: lowPower ? 2.72 : 3.05,
       };
     }
 
     return {
-      scale: baseScale,
-      worldFactor: baseWorldFactor,
+      scale: Math.max(requested, lowPower ? 2.2 : 2.58),
+      worldFactor: lowPower ? 2.95 : 3.45,
     };
   }
 
@@ -267,6 +266,7 @@ export function enableMapControls(stage, viewport, options = {}) {
       `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
 
     stage.style.setProperty('--zoom', scale.toFixed(2));
+    stage.style.setProperty('--map-entity-scale', (1 / Math.max(scale, 1)).toFixed(4));
   }
 
   function focusOnPlayer(playerX, playerY) {
