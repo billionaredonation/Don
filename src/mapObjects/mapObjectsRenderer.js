@@ -220,12 +220,12 @@ function getObjectRenderSize(category, visualClass) {
 
   const normalizedClass = normalizeHouseClass(visualClass);
 
-  if (normalizedClass === 'elite') return 34;
-  if (normalizedClass === 'lux') return 32;
-  if (normalizedClass === 'premium') return 30;
-  if (normalizedClass === 'comfort') return 28;
+  if (normalizedClass === 'elite') return 28;
+  if (normalizedClass === 'lux') return 27;
+  if (normalizedClass === 'premium') return 25;
+  if (normalizedClass === 'comfort') return 24;
 
-  return 26;
+  return 22;
 }
 
 function getSafeNumber(value, fallback) {
