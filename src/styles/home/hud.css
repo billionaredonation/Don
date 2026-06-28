@@ -952,3 +952,89 @@ body.mn-session-blocked .gta-player-marker-self {
   }
 }
 
+
+/* =========================================================
+   PC HUD AIR FIX — NO OVERLAP IN NARROW TELEGRAM DESKTOP
+   Separates city/profile/balance on PC without touching mobile controls.
+   ========================================================= */
+.home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 18px !important;
+  column-gap: 18px !important;
+  width: max-content !important;
+  max-width: calc(100vw - 18px) !important;
+  right: auto !important;
+  overflow: visible !important;
+}
+
+.home:not([data-mobile-controls="enabled"]) .player-hud-left,
+.home:not([data-mobile-controls="enabled"]) .player-city-button {
+  flex: 0 0 128px !important;
+  width: 128px !important;
+  min-width: 128px !important;
+  max-width: 128px !important;
+}
+
+.home:not([data-mobile-controls="enabled"]) .player-profile-card {
+  flex: 0 0 150px !important;
+  width: 150px !important;
+  min-width: 150px !important;
+  max-width: 150px !important;
+  grid-template-columns: 30px minmax(0, 1fr) 10px !important;
+}
+
+.home:not([data-mobile-controls="enabled"]) .player-balance-card {
+  flex: 0 0 136px !important;
+  width: 136px !important;
+  min-width: 136px !important;
+  max-width: 136px !important;
+  justify-self: auto !important;
+  justify-content: flex-start !important;
+  overflow: hidden !important;
+}
+
+.home:not([data-mobile-controls="enabled"]) .player-balance-card strong {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: clip !important;
+  font-size: 10.5px !important;
+  letter-spacing: -0.055em !important;
+}
+
+@media (max-width: 470px) {
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    gap: 14px !important;
+    column-gap: 14px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-hud-left,
+  .home:not([data-mobile-controls="enabled"]) .player-city-button {
+    flex-basis: 122px !important;
+    width: 122px !important;
+    min-width: 122px !important;
+    max-width: 122px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-profile-card {
+    flex-basis: 142px !important;
+    width: 142px !important;
+    min-width: 142px !important;
+    max-width: 142px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+    flex-basis: 128px !important;
+    width: 128px !important;
+    min-width: 128px !important;
+    max-width: 128px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card strong {
+    font-size: 10px !important;
+    letter-spacing: -0.065em !important;
+  }
+}
