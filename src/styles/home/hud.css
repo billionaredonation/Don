@@ -1038,3 +1038,237 @@ body.mn-session-blocked .gta-player-marker-self {
     letter-spacing: -0.065em !important;
   }
 }
+
+/* =========================================================
+   PC FINAL — HUD FIT + DESKTOP FULLSCREEN
+   - desktop-only: fine pointer / hover device;
+   - keeps city/profile/balance separated;
+   - prevents the balance card from leaving the visible viewport;
+   - does not touch the mobile-controls layout.
+   ========================================================= */
+@media (hover: hover) and (pointer: fine) {
+  .home:not([data-mobile-controls="enabled"]) {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .home-gameplay,
+  .home:not([data-mobile-controls="enabled"]) .gta-map-stage {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    overflow: hidden !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    position: fixed !important;
+    left: max(8px, env(safe-area-inset-left)) !important;
+    right: auto !important;
+    top: max(12px, env(safe-area-inset-top)) !important;
+
+    display: grid !important;
+    grid-template-columns: 128px 150px 128px !important;
+    align-items: center !important;
+    justify-content: start !important;
+    gap: 18px !important;
+    column-gap: 18px !important;
+
+    width: max-content !important;
+    max-width: calc(100vw - 16px) !important;
+    height: 48px !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-hud-left,
+  .home:not([data-mobile-controls="enabled"]) .player-city-button,
+  .home:not([data-mobile-controls="enabled"]) .player-profile-card,
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-hud-left,
+  .home:not([data-mobile-controls="enabled"]) .player-city-button {
+    width: 128px !important;
+    min-width: 128px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-profile-card {
+    width: 150px !important;
+    min-width: 150px !important;
+    grid-template-columns: 30px minmax(0, 1fr) 10px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+    width: 128px !important;
+    min-width: 128px !important;
+    justify-self: start !important;
+    justify-content: flex-start !important;
+    overflow: hidden !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-city-button span,
+  .home:not([data-mobile-controls="enabled"]) .player-profile-info strong,
+  .home:not([data-mobile-controls="enabled"]) .player-profile-info small,
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card strong {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card strong {
+    display: block !important;
+    max-width: 100% !important;
+    font-size: 10.5px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.06em !important;
+    font-variant-numeric: tabular-nums !important;
+    text-overflow: clip !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-weather-mini {
+    left: max(8px, env(safe-area-inset-left)) !important;
+    top: calc(max(12px, env(safe-area-inset-top)) + 54px) !important;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 520px) {
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    grid-template-columns: 122px 144px 126px !important;
+    gap: 14px !important;
+    column-gap: 14px !important;
+    max-width: calc(100vw - 12px) !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-hud-left,
+  .home:not([data-mobile-controls="enabled"]) .player-city-button {
+    width: 122px !important;
+    min-width: 122px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-profile-card {
+    width: 144px !important;
+    min-width: 144px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+    width: 126px !important;
+    min-width: 126px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-city-button span {
+    font-size: 15px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-profile-info strong {
+    font-size: 11px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-profile-info small {
+    font-size: 7px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card strong {
+    font-size: 10px !important;
+    letter-spacing: -0.065em !important;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 460px) {
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    grid-template-columns: 112px 130px 116px !important;
+    gap: 12px !important;
+    column-gap: 12px !important;
+    left: max(6px, env(safe-area-inset-left)) !important;
+    max-width: calc(100vw - 12px) !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-hud-left,
+  .home:not([data-mobile-controls="enabled"]) .player-city-button {
+    width: 112px !important;
+    min-width: 112px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-profile-card {
+    width: 130px !important;
+    min-width: 130px !important;
+    gap: 6px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+    width: 116px !important;
+    min-width: 116px !important;
+    gap: 4px !important;
+    padding-inline: 6px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-city-button span {
+    font-size: 14px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card strong {
+    font-size: 9.5px !important;
+    letter-spacing: -0.07em !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-weather-mini {
+    left: max(6px, env(safe-area-inset-left)) !important;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (max-width: 410px) {
+  .home:not([data-mobile-controls="enabled"]) .player-glass-hud {
+    grid-template-columns: 104px 118px 110px !important;
+    gap: 9px !important;
+    column-gap: 9px !important;
+    left: max(5px, env(safe-area-inset-left)) !important;
+    max-width: calc(100vw - 10px) !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-hud-left,
+  .home:not([data-mobile-controls="enabled"]) .player-city-button {
+    width: 104px !important;
+    min-width: 104px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-profile-card {
+    width: 118px !important;
+    min-width: 118px !important;
+    grid-template-columns: 28px minmax(0, 1fr) 8px !important;
+    padding-inline: 7px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-avatar {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 12px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+    width: 110px !important;
+    min-width: 110px !important;
+    padding-inline: 5px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-card-icon {
+    width: 19px !important;
+    height: 19px !important;
+    font-size: 9px !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card strong {
+    font-size: 9px !important;
+    letter-spacing: -0.075em !important;
+  }
+}
+
