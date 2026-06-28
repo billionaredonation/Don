@@ -41,6 +41,31 @@ const BALANCE_COUNT_DURATION_MS = 1650;
 const BALANCE_FEEDBACK_DURATION_MS = 1900;
 const BALANCE_PULSE_DURATION_MS = 1250;
 
+function formatFullMoney(value) {
+  const number = Math.round(Number(value || 0));
+
+  if (!Number.isFinite(number) || number <= 0) {
+    return '0 ₴';
+  }
+
+  return `${number.toLocaleString('ru-RU')} ₴`;
+}
+
+function formatCompactMoneyValue(number, divider, maximumFractionDigits) {
+  const factor = 10 ** maximumFractionDigits;
+  const compact = Math.floor((number / divider) * factor) / factor;
+
+  return compact.toLocaleString('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits,
+  });
+}
+
+function formatHudMoney(value) {
+  // HUD показывает реальную сумму полностью. Без “млн”, без сокращений.
+  return formatFullMoney(value);
+}
+
 const MAP_FILES = import.meta.glob('../../*.png', {
   eager: true,
   query: '?url',
@@ -141,6 +166,13 @@ function isTypingTarget(target) {
 }
 
 function createMobileSelfMarkerHardOverlay() {
+  if (window.__MN_SESSION_BLOCKED === true ||
+      document.documentElement?.classList?.contains('mn-session-blocked') ||
+      document.body?.classList?.contains('mn-session-blocked')) {
+    document.querySelector('[data-mobile-self-marker-hard="true"]')?.remove();
+    return () => {};
+  }
+
   const oldMarker = document.querySelector('[data-mobile-self-marker-hard="true"]');
 
   if (oldMarker) {
@@ -176,9 +208,15 @@ function createMobileSelfMarkerHardOverlay() {
   marker.style.visibility = 'visible';
   marker.style.display = 'block';
 
+  const removeMarker = () => {
+    marker.remove();
+  };
+
+  window.addEventListener('mn:session-blocked', removeMarker, { once: true });
   document.body.appendChild(marker);
 
   return () => {
+    window.removeEventListener('mn:session-blocked', removeMarker);
     marker.remove();
   };
 }
@@ -606,7 +644,7 @@ register('home', async (root) => {
 
       <div class="player-balance-card" aria-label="Баланс игрока" data-player-balance-card>
         <span class="player-card-icon player-card-icon-green">₴</span>
-        <strong data-player-balance>${playerBalance.toLocaleString('ru-RU')} ₴</strong>
+        <strong data-player-balance title="${formatFullMoney(playerBalance)}">${formatHudMoney(playerBalance)}</strong>
         <span class="player-balance-change" data-player-balance-change hidden></span>
       </div>
     </section>
@@ -686,8 +724,7 @@ register('home', async (root) => {
   let balanceSyncInFlight = false;
 
   function formatBalance(value) {
-    const number = Math.round(Number(value || 0));
-    return `${number.toLocaleString('ru-RU')} ₴`;
+    return formatHudMoney(value);
   }
 
   function easeInOutCubic(t) {
@@ -705,7 +742,11 @@ register('home', async (root) => {
       renderedBalance = numericValue;
     }
 
+    const fullBalanceLabel = formatFullMoney(value);
+
     balanceEl.textContent = formatBalance(value);
+    balanceEl.title = fullBalanceLabel;
+    balanceCard?.setAttribute('aria-label', `Баланс игрока: ${fullBalanceLabel}`);
   }
 
   function showBalanceChange(delta, source = 'realtime') {
@@ -964,6 +1005,13 @@ register('home', async (root) => {
     playerPosition,
   });
 
+  const handleSessionBlocked = () => {
+    cleanupMobileSelfMarker?.();
+    cleanupMobileSelfMarker = null;
+    document.querySelector('[data-mobile-self-marker-hard="true"]')?.remove();
+  };
+
+  window.addEventListener('mn:session-blocked', handleSessionBlocked);
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
   cleanupBalanceDatabaseSync = startBalanceDatabaseSync();
 
@@ -1076,6 +1124,7 @@ register('home', async (root) => {
   root._cleanupHome = () => {
     root.dataset.destroyed = 'true';
 
+    window.removeEventListener('mn:session-blocked', handleSessionBlocked);
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
     cancelAnimationFrame(balanceFrame);
     clearTimeout(balancePulseTimer);
