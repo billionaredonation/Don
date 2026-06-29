@@ -2667,3 +2667,253 @@ body.mn-landscape-game .house-selection-meta {
     grid-column: 1 / -1 !important;
   }
 }
+
+
+/* =========================================================
+   DONATION PC FIX — final override after JS-imported houses.css
+   Keeps prompt as readable bottom text, keeps stats as tiles.
+   ========================================================= */
+.house-selection-panel.house-info-prompt,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt,
+body.mn-landscape-game .house-selection-panel.house-info-prompt,
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt {
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: max(30px, env(safe-area-inset-bottom)) !important;
+
+  width: min(780px, calc(100vw - 48px)) !important;
+  max-width: calc(100vw - 48px) !important;
+  min-height: 88px !important;
+
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-areas: "body keys" !important;
+  align-items: center !important;
+  gap: 18px !important;
+
+  padding: 18px 22px 20px !important;
+  box-sizing: border-box !important;
+
+  color: #fff !important;
+  background:
+    radial-gradient(ellipse at 50% -8%, rgba(255,255,255,.34), rgba(255,255,255,.10) 18%, transparent 48%),
+    linear-gradient(180deg, rgba(6,9,15,.42) 0%, rgba(2,4,9,.88) 48%, rgba(0,0,0,.96) 100%) !important;
+  border: 0 !important;
+  border-radius: 24px 24px 0 0 !important;
+  box-shadow:
+    0 -28px 72px rgba(0,0,0,.54),
+    0 -1px 0 rgba(255,255,255,.26),
+    inset 0 1px 0 rgba(255,255,255,.14) !important;
+
+  transform: translateX(-50%) translateZ(0) !important;
+  rotate: 0deg !important;
+  translate: 0 0 !important;
+  transform-origin: center center !important;
+
+  overflow: hidden !important;
+  isolation: isolate !important;
+  z-index: 2147484200 !important;
+}
+
+.house-selection-panel.house-info-prompt::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 0 !important;
+  width: min(520px, 82%) !important;
+  height: 2px !important;
+  transform: translateX(-50%) !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.92), transparent) !important;
+  box-shadow: 0 0 18px rgba(255,255,255,.62), 0 0 42px rgba(162,191,255,.34) !important;
+}
+
+.house-selection-panel.house-info-prompt .house-selection-body,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-body,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-body,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-body {
+  grid-area: body !important;
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 5px !important;
+  padding: 0 !important;
+}
+
+.house-selection-panel.house-info-prompt .house-selection-title,
+.house-selection-panel.house-info-prompt .house-selection-meta,
+.house-selection-panel.house-info-prompt .house-selection-timer {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  color: #fff !important;
+  text-align: left !important;
+  text-shadow: 0 2px 12px rgba(0,0,0,.92) !important;
+}
+
+.house-selection-panel.house-info-prompt .house-selection-title {
+  font-size: 17px !important;
+  line-height: 1.08 !important;
+  font-weight: 1000 !important;
+  letter-spacing: -.025em !important;
+}
+
+.house-selection-panel.house-info-prompt .house-selection-meta {
+  color: rgba(245,248,255,.88) !important;
+  font-size: 14px !important;
+  line-height: 1.28 !important;
+  font-weight: 850 !important;
+}
+
+.house-selection-panel.house-info-prompt .house-selection-timer {
+  color: rgba(255,255,255,.58) !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  letter-spacing: .08em !important;
+  text-transform: uppercase !important;
+}
+
+.house-selection-panel.house-info-prompt .house-selection-keys,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-keys,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-keys,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-keys {
+  grid-area: keys !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+  min-width: max-content !important;
+}
+
+.house-selection-panel.house-info-prompt .house-selection-action,
+.house-selection-panel.house-info-prompt .house-selection-cancel,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-action,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-cancel,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-action,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-cancel,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-action,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-cancel {
+  position: static !important;
+  grid-area: auto !important;
+  width: 46px !important;
+  height: 46px !important;
+  min-width: 46px !important;
+  min-height: 46px !important;
+  max-width: 46px !important;
+  max-height: 46px !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+}
+
+.houses-panel .city-stat-grid,
+.houses-panel .city-stat-grid-clean,
+.houses-panel .houses-summary-grid,
+.houses-panel .houses-stats-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin: 12px 0 0 !important;
+}
+
+.houses-panel .city-stat-card,
+.houses-panel .houses-stat-card {
+  display: grid !important;
+  grid-template-columns: 38px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 9px !important;
+  min-width: 0 !important;
+  min-height: 86px !important;
+  padding: 11px !important;
+  border-radius: 17px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  background: radial-gradient(circle at 86% 14%, rgba(152,100,255,.18), transparent 36%), linear-gradient(145deg, rgba(28,36,58,.92), rgba(8,12,22,.96)) !important;
+}
+
+.houses-panel .city-stat-icon,
+.houses-panel .houses-stat-icon {
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  margin: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 13px !important;
+  font-size: 19px !important;
+  line-height: 1 !important;
+}
+
+.houses-panel .city-stat-body,
+.houses-panel .houses-stat-card {
+  min-width: 0 !important;
+}
+
+.houses-panel .city-stat-body small,
+.houses-panel .city-stat-body strong,
+.houses-panel .city-stat-body em,
+.houses-panel .houses-stat-card em,
+.houses-panel .houses-stat-card strong,
+.houses-panel .houses-stat-card small {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+.houses-panel .city-stat-body strong,
+.houses-panel .houses-stat-card strong {
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  font-size: clamp(18px, 2.1vw, 26px) !important;
+  line-height: .96 !important;
+  letter-spacing: -.055em !important;
+}
+
+.houses-panel .city-stat-body small,
+.houses-panel .city-stat-body em,
+.houses-panel .houses-stat-card em,
+.houses-panel .houses-stat-card small {
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+@media (max-width: 760px), (hover: none) and (pointer: coarse) {
+  .houses-panel .city-stat-grid,
+  .houses-panel .city-stat-grid-clean,
+  .houses-panel .houses-summary-grid,
+  .houses-panel .houses-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .houses-panel .city-stat-card,
+  .houses-panel .houses-stat-card {
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    min-height: 74px !important;
+    padding: 9px !important;
+  }
+
+  .houses-panel .city-stat-icon,
+  .houses-panel .houses-stat-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+  }
+}
