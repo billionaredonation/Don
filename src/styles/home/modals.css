@@ -1246,3 +1246,24 @@ body.mn-mobile-game-enabled .houses-stat-card strong {
     font-size: clamp(17px, 4vw, 21px) !important;
   }
 }
+
+/* DONATION FIX — hidden modals must stay hidden on mobile, even after no-rotate overrides */
+body.mn-mobile-game-enabled .houses-modal[hidden],
+body.mn-mobile-game-enabled .house-details-modal[hidden],
+body.mn-landscape-game .houses-modal[hidden],
+body.mn-landscape-game .house-details-modal[hidden],
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .houses-modal[hidden],
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-modal[hidden],
+html.mn-force-rotate-landscape body.mn-landscape-game .houses-modal[hidden],
+html.mn-force-rotate-landscape body.mn-landscape-game .house-details-modal[hidden],
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .houses-modal[hidden],
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-modal[hidden],
+body.mn-force-rotate-landscape.mn-landscape-game .houses-modal[hidden],
+body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
+.houses-modal[hidden],
+.house-details-modal[hidden] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
