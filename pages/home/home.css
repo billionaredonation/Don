@@ -2,11 +2,11 @@
 @import '../../src/styles/home/weather.css';
 @import '../../src/styles/home/players-base.css';
 @import '../../src/styles/home/performance.css';
-@import '../../src/styles/home/entity-panel.css?v=3';
+@import '../../src/styles/home/entity-panel.css?v=4';
 @import '../../src/styles/home/mobile-prompt.css';
 @import '../../src/styles/home/mobile-layout.css';
 @import '../../src/styles/home/player-stamina.css';
 @import '../../src/styles/home/hud.css?v=64';
 @import '../../src/styles/home/admin.css';
 @import '../../src/styles/home/objects.css?v=3';
-@import '../../src/styles/home/modals.css?v=3';
+@import '../../src/styles/home/modals.css?v=4';
