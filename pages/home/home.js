@@ -303,6 +303,7 @@ function resetHouseModalsOnHomeEnter() {
     });
 
   document.body?.classList.remove('mn-houses-modal-open');
+  document.body?.classList.remove('mn-house-details-open');
 }
 
 function hasVisibleHouseModal() {
@@ -315,6 +316,7 @@ function cleanupStuckHouseBackdrop() {
   if (hasVisibleHouseModal()) return;
 
   document.body?.classList.remove('mn-houses-modal-open');
+  document.body?.classList.remove('mn-house-details-open');
 
   document
     .querySelectorAll('.houses-modal, .house-details-modal, .house-selection-panel')
