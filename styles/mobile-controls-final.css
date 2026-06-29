@@ -5864,3 +5864,53 @@ body.mn-session-blocked .gta-player-marker-self {
     top: var(--mn-house-prompt-mobile-y, 57.5%) !important;
   }
 }
+
+
+/* =========================================================
+   DONATION HOTFIX — force mobile house prompt closer to joystick
+   ========================================================= */
+html.mn-force-rotate-landscape,
+body.mn-force-rotate-landscape,
+html.mn-real-landscape,
+body.mn-real-landscape,
+body.mn-mobile-game-enabled,
+body.mn-landscape-game {
+  --mn-house-prompt-mobile-y: 64% !important;
+}
+
+html.mn-force-rotate-landscape body .house-selection-panel.house-info-prompt.is-visible,
+html.mn-force-rotate-landscape body .house-selection-panel.house-info-prompt:not([hidden]),
+body.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible,
+body.mn-force-rotate-landscape .house-selection-panel.house-info-prompt:not([hidden]),
+html.mn-real-landscape body .house-selection-panel.house-info-prompt.is-visible,
+html.mn-real-landscape body .house-selection-panel.house-info-prompt:not([hidden]),
+body.mn-real-landscape .house-selection-panel.house-info-prompt.is-visible,
+body.mn-real-landscape .house-selection-panel.house-info-prompt:not([hidden]),
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt:not([hidden]),
+body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+body.mn-landscape-game .house-selection-panel.house-info-prompt:not([hidden]),
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt.is-visible,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt:not([hidden]) {
+  position: fixed !important;
+  left: 50% !important;
+  top: 64% !important;
+  right: auto !important;
+  bottom: auto !important;
+}
+
+html.mn-force-rotate-landscape body .house-selection-panel.house-info-prompt.is-visible,
+html.mn-force-rotate-landscape body .house-selection-panel.house-info-prompt:not([hidden]),
+body.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible,
+body.mn-force-rotate-landscape .house-selection-panel.house-info-prompt:not([hidden]) {
+  transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+  transform-origin: center center !important;
+}
+
+html.mn-real-landscape body .house-selection-panel.house-info-prompt.is-visible,
+html.mn-real-landscape body .house-selection-panel.house-info-prompt:not([hidden]),
+body.mn-real-landscape .house-selection-panel.house-info-prompt.is-visible,
+body.mn-real-landscape .house-selection-panel.house-info-prompt:not([hidden]) {
+  transform: translate3d(-50%, -50%, 0) !important;
+  transform-origin: center center !important;
+}
