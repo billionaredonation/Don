@@ -208,13 +208,18 @@ export function enableMobileJoystick(
   const MAX_DISTANCE = 46;
   const DEADZONE = 0.08;
   const SPRINT_POWER = 0.62;
-  const CAMERA_LAG = 0.22;
+  const CAMERA_LAG = 0.18;
+  const INPUT_SMOOTHING = 0.36;
   const STAMINA_ARC_MAX_DEG = 165;
 
-  // Mobile performance: меньше сетевых/DB-синков и меньше постоянного фонового rAF.
-  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 0, 95);
-  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 0, 2600);
-  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 0, 4500);
+  /*
+    Мобилка не должна спамить сетью/DB на каждом кадре.
+    Движение остаётся 60fps локально, а синхра уходит реже — так меньше
+    микрофризов и телефон меньше греется.
+  */
+  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 70);
+  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 2200);
+  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 1800);
 
   const initialPosition = getInitialPosition(playerPosition, marker, BOUNDS);
 
@@ -239,6 +244,8 @@ export function enableMobileJoystick(
 
   let moveX = 0;
   let moveY = 0;
+  let targetMoveX = 0;
+  let targetMoveY = 0;
 
   let animationId = null;
   let heartbeatTimer = null;
@@ -258,9 +265,11 @@ export function enableMobileJoystick(
   function setMovingUi(isMoving) {
     const next = isMoving ? 'true' : 'false';
 
-    container.dataset.playerMoving = next;
+    if (container.dataset.playerMoving !== next) {
+      container.dataset.playerMoving = next;
+    }
 
-    if (staminaBox) {
+    if (staminaBox && staminaBox.dataset.visible !== next) {
       staminaBox.dataset.visible = next;
     }
   }
@@ -444,6 +453,8 @@ function updateStaminaUi() {
   }
 
   function resetStick() {
+    targetMoveX = 0;
+    targetMoveY = 0;
     moveX = 0;
     moveY = 0;
 
@@ -451,22 +462,6 @@ function updateStaminaUi() {
 
     stick.style.transform =
       'translate(-50%, -50%) translate3d(0px, 0px, 0)';
-  }
-
-  function shouldSleepLoop(isMoving) {
-    return (
-      !isMoving &&
-      activePointerId === null &&
-      stamina >= STAMINA.max &&
-      !sprintLocked
-    );
-  }
-
-  function hasCameraSettled() {
-    return (
-      Math.abs(cameraX - x) < 0.01 &&
-      Math.abs(cameraY - y) < 0.01
-    );
   }
 
   function updateStick(clientX, clientY) {
@@ -493,10 +488,10 @@ function updateStaminaUi() {
 
     const corrected = joystickToMapVector(screenX, screenY);
 
-    moveX = corrected.x * power;
-    moveY = corrected.y * power;
+    targetMoveX = corrected.x * power;
+    targetMoveY = corrected.y * power;
 
-    angle = getAngleFromMovement(moveX, moveY, angle);
+    angle = getAngleFromMovement(targetMoveX, targetMoveY, angle);
     setMovingUi(true);
 
     /*
@@ -511,16 +506,24 @@ function updateStaminaUi() {
   function loop(now = performance.now()) {
     if (destroyed) return;
 
-    const delta = Math.min(34, Math.max(8, now - lastFrameAt));
+    const delta = Math.min(28, Math.max(8, now - lastFrameAt));
     const frameScale = delta / 16.6667;
 
     lastFrameAt = now;
 
-    const isMoving =
-      Math.abs(moveX) > DEADZONE ||
-      Math.abs(moveY) > DEADZONE;
+    moveX += (targetMoveX - moveX) * INPUT_SMOOTHING;
+    moveY += (targetMoveY - moveY) * INPUT_SMOOTHING;
 
-    const isSprinting = updateSprintState(isMoving, frameScale);
+    const wantsMove =
+      Math.abs(targetMoveX) > DEADZONE ||
+      Math.abs(targetMoveY) > DEADZONE;
+
+    const isMoving =
+      wantsMove ||
+      Math.abs(moveX) > 0.012 ||
+      Math.abs(moveY) > 0.012;
+
+    const isSprinting = updateSprintState(wantsMove, frameScale);
 
     const speed = isSprinting
       ? MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED
@@ -540,16 +543,7 @@ function updateStaminaUi() {
       savePositionToDb(false);
     } else {
       syncPlayerPosition();
-
-      if (!hasCameraSettled()) {
-        updateCamera(false);
-      }
-    }
-
-    if (shouldSleepLoop(isMoving) && hasCameraSettled()) {
-      animationId = null;
-      updateStaminaUi();
-      return;
+      updateCamera(false);
     }
 
     animationId = requestAnimationFrame(loop);
@@ -568,12 +562,6 @@ function updateStaminaUi() {
     heartbeatTimer = setInterval(() => {
       if (destroyed) return;
 
-      syncPlayerPosition();
-
-      if (!hasPositionChangedEnough() && activePointerId === null) {
-        return;
-      }
-
       renderPlayer();
       updateCamera(false);
       broadcastMove(true);
@@ -591,10 +579,6 @@ function updateStaminaUi() {
     updateStaminaUi();
     broadcastMove(true);
     savePositionToDb(true);
-
-    if (stamina < STAMINA.max || sprintLocked || !hasCameraSettled()) {
-      ensureLoopRunning();
-    }
   }
 
   function handleViewportChange() {
@@ -683,6 +667,7 @@ function updateStaminaUi() {
   updateStaminaUi();
   resetStick();
   startHeartbeat();
+  ensureLoopRunning();
 
   return () => {
     destroyed = true;
