@@ -273,7 +273,7 @@ export function createEntityInteractionPanel(root) {
   panel.innerHTML = `
     <div class="house-selection-body">
       <strong class="house-selection-title">Информация о доме</strong>
-      <span class="house-selection-meta">Чтобы узнать информацию про дом нажмите на I</span>
+      <span class="house-selection-meta">Чтобы узнать информацию про дом, нажмите на I</span>
       <span class="house-selection-timer" data-house-selection-timer>6 сек</span>
     </div>
 
@@ -380,7 +380,7 @@ export function createEntityInteractionPanel(root) {
 
     if (metaEl) {
       metaEl.textContent = mobile
-        ? 'Чтобы узнать информацию про дом нажмите на I'
+        ? 'Чтобы узнать информацию про дом, нажмите на I'
         : 'Узнать информацию про дом можно, нажав Y / Н. Отмена — N / Т';
     }
 
