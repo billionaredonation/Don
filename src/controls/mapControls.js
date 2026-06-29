@@ -138,6 +138,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   let lastFocusY = Number(options.focusY) || 50;
 
   const mapImages = Array.from(viewport.querySelectorAll('.gta-map-image'));
+  let resizeRefreshTimer = null;
 
   function forceVisibleMapLayer() {
     stage.style.position = 'absolute';
@@ -163,18 +164,20 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.pointerEvents = 'none';
 
     mapImages.forEach((image, index) => {
+      const isGlow = image.classList.contains('gta-map-glow');
+
       image.style.position = 'absolute';
       image.style.inset = '0';
-      image.style.display = 'block';
+      image.style.display = mobile && isGlow ? 'none' : 'block';
       image.style.visibility = 'visible';
-      image.style.opacity = index === 0 && image.classList.contains('gta-map-glow') ? '0.45' : '1';
+      image.style.opacity = isGlow ? (lowPower ? '0' : '0.18') : '1';
       image.style.width = '100%';
       image.style.height = '100%';
       image.style.objectFit = 'contain';
       image.style.objectPosition = 'center center';
       image.style.pointerEvents = 'none';
       image.style.userSelect = 'none';
-      image.style.zIndex = image.classList.contains('gta-map-glow') ? '1' : '2';
+      image.style.zIndex = isGlow ? '1' : '2';
     });
 
     const entities = viewport.querySelector('.gta-map-entities');
@@ -293,7 +296,8 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function onResize() {
-    refresh();
+    clearTimeout(resizeRefreshTimer);
+    resizeRefreshTimer = setTimeout(refresh, mobile ? 120 : 60);
   }
 
   function onImageReady() {
@@ -313,6 +317,8 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   return {
     cleanup() {
+      clearTimeout(resizeRefreshTimer);
+
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
       window.visualViewport?.removeEventListener?.('resize', onResize);
