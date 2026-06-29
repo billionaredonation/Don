@@ -211,9 +211,10 @@ export function enableMobileJoystick(
   const CAMERA_LAG = 0.22;
   const STAMINA_ARC_MAX_DEG = 165;
 
-  const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
-  const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
-  const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay || 1000;
+  // Mobile performance: меньше сетевых/DB-синков и меньше постоянного фонового rAF.
+  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 0, 95);
+  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 0, 2600);
+  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 0, 4500);
 
   const initialPosition = getInitialPosition(playerPosition, marker, BOUNDS);
 
@@ -452,6 +453,22 @@ function updateStaminaUi() {
       'translate(-50%, -50%) translate3d(0px, 0px, 0)';
   }
 
+  function shouldSleepLoop(isMoving) {
+    return (
+      !isMoving &&
+      activePointerId === null &&
+      stamina >= STAMINA.max &&
+      !sprintLocked
+    );
+  }
+
+  function hasCameraSettled() {
+    return (
+      Math.abs(cameraX - x) < 0.01 &&
+      Math.abs(cameraY - y) < 0.01
+    );
+  }
+
   function updateStick(clientX, clientY) {
     const dx = clientX - centerX;
     const dy = clientY - centerY;
@@ -523,7 +540,16 @@ function updateStaminaUi() {
       savePositionToDb(false);
     } else {
       syncPlayerPosition();
-      updateCamera(false);
+
+      if (!hasCameraSettled()) {
+        updateCamera(false);
+      }
+    }
+
+    if (shouldSleepLoop(isMoving) && hasCameraSettled()) {
+      animationId = null;
+      updateStaminaUi();
+      return;
     }
 
     animationId = requestAnimationFrame(loop);
@@ -542,6 +568,12 @@ function updateStaminaUi() {
     heartbeatTimer = setInterval(() => {
       if (destroyed) return;
 
+      syncPlayerPosition();
+
+      if (!hasPositionChangedEnough() && activePointerId === null) {
+        return;
+      }
+
       renderPlayer();
       updateCamera(false);
       broadcastMove(true);
@@ -559,6 +591,10 @@ function updateStaminaUi() {
     updateStaminaUi();
     broadcastMove(true);
     savePositionToDb(true);
+
+    if (stamina < STAMINA.max || sprintLocked || !hasCameraSettled()) {
+      ensureLoopRunning();
+    }
   }
 
   function handleViewportChange() {
@@ -647,7 +683,6 @@ function updateStaminaUi() {
   updateStaminaUi();
   resetStick();
   startHeartbeat();
-  ensureLoopRunning();
 
   return () => {
     destroyed = true;
