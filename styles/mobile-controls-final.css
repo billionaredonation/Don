@@ -1282,7 +1282,7 @@
   body.mn-mobile-game-enabled.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .home-gameplay {
     position: fixed !important;
     left: 50% !important;
-    top: 50% !important;
+    top: var(--mn-house-prompt-mobile-y, 57.5%) !important;
     right: auto !important;
     bottom: auto !important;
 
@@ -5725,7 +5725,7 @@ body.mn-session-blocked .gta-player-marker-self {
   body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible {
     position: fixed !important;
     left: 50% !important;
-    top: 50% !important;
+    top: var(--mn-house-prompt-mobile-y, 57.5%) !important;
     right: auto !important;
     bottom: auto !important;
 
@@ -5838,5 +5838,29 @@ body.mn-session-blocked .gta-player-marker-self {
   body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-cancel,
   body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-cancel {
     display: none !important;
+  }
+}
+
+
+/* =========================================================
+   DONATION FINAL — mobile house prompt lower to joystick side
+   ========================================================= */
+@media (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape,
+  body.mn-force-rotate-landscape,
+  html.mn-real-landscape,
+  body.mn-real-landscape {
+    --mn-house-prompt-mobile-y: 57.5%;
+  }
+
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+  html.mn-real-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+  html.mn-real-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-real-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible {
+    top: var(--mn-house-prompt-mobile-y, 57.5%) !important;
   }
 }
