@@ -14,7 +14,14 @@ const MOBILE_INTERACTION_RADIUS_PX = 154;
 const DIRECT_TAP_RADIUS_PX = 220;
 const MOBILE_FREE_TAP_RADIUS_PX = 240;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
-const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = 5200;
+const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 7200 : 5600;
+const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 180 : 110;
+const OBJECT_RENDER_RADIUS_PERCENT = 23;
+const MOBILE_OBJECT_RENDER_RADIUS_PERCENT = 18;
+const OBJECT_LOAD_RADIUS_PERCENT = 31;
+const MOBILE_OBJECT_LOAD_RADIUS_PERCENT = 25;
+const OBJECT_REGION_RELOAD_SHIFT_PERCENT = 7;
+const OBJECT_RENDER_MOVE_EPSILON_PERCENT = 0.25;
 
 function getPurchasedHouseId(detail = {}) {
   return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
@@ -186,6 +193,33 @@ function getObjectDistancePx({
   }
 
   return Number.POSITIVE_INFINITY;
+}
+
+function getPercentDistance(a, b) {
+  if (!a || !b) return Number.POSITIVE_INFINITY;
+
+  const ax = Number(a.x);
+  const ay = Number(a.y);
+  const bx = Number(b.x);
+  const by = Number(b.y);
+
+  if (
+    !Number.isFinite(ax) ||
+    !Number.isFinite(ay) ||
+    !Number.isFinite(bx) ||
+    !Number.isFinite(by)
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.hypot(ax - bx, ay - by);
+}
+
+function getCurrentPlayerPercent(playerPosition) {
+  return {
+    x: Number(playerPosition?.x || 50),
+    y: Number(playerPosition?.y || 50),
+  };
 }
 
 function getPointerPoint(event) {
@@ -582,6 +616,7 @@ export function enableEntityInteraction({
   const hint = createInteractionHint(root);
 
   let mapObjects = [];
+  let renderedObjects = [];
   let reloadTimer = null;
   let snapshotTimer = null;
   let destroyed = false;
@@ -589,6 +624,112 @@ export function enableEntityInteraction({
   let lastHintObjectId = null;
   let hintHideTimer = null;
   let interactionTimer = 0;
+  let lastRenderX = Number.NaN;
+  let lastRenderY = Number.NaN;
+  let lastRenderedIdsKey = '';
+  let loadedRegion = null;
+
+  function getRenderRadiusPercent() {
+    return isMobileGameplayDevice()
+      ? MOBILE_OBJECT_RENDER_RADIUS_PERCENT
+      : OBJECT_RENDER_RADIUS_PERCENT;
+  }
+
+  function getLoadRadiusPercent() {
+    return isMobileGameplayDevice()
+      ? MOBILE_OBJECT_LOAD_RADIUS_PERCENT
+      : OBJECT_LOAD_RADIUS_PERCENT;
+  }
+
+  function getObjectQueryOptions() {
+    const position = getCurrentPlayerPercent(playerPosition);
+
+    return {
+      centerX: position.x,
+      centerY: position.y,
+      radiusPercent: getLoadRadiusPercent(),
+    };
+  }
+
+  function rememberLoadedRegion() {
+    const position = getCurrentPlayerPercent(playerPosition);
+
+    loadedRegion = {
+      x: position.x,
+      y: position.y,
+      radius: getLoadRadiusPercent(),
+    };
+  }
+
+  function shouldReloadRegion() {
+    if (!loadedRegion) return true;
+
+    const position = getCurrentPlayerPercent(playerPosition);
+    const shift = getPercentDistance(position, loadedRegion);
+
+    return shift >= Math.min(
+      OBJECT_REGION_RELOAD_SHIFT_PERCENT,
+      Math.max(4, loadedRegion.radius * 0.34)
+    );
+  }
+
+  function getRenderableObjects() {
+    const position = getCurrentPlayerPercent(playerPosition);
+    const radius = getRenderRadiusPercent();
+    const keepIds = new Set();
+
+    if (nearestObjectId) keepIds.add(String(nearestObjectId));
+
+    const selectedObject = panel?.getSelectedObject?.();
+
+    if (selectedObject?.id) keepIds.add(String(selectedObject.id));
+
+    return mapObjects.filter((object) => {
+      if (!object) return false;
+      if (object.id && keepIds.has(String(object.id))) return true;
+
+      return getPercentDistance(object, position) <= radius;
+    });
+  }
+
+  function renderNearbyMapObjects(force = false) {
+    if (!layer) return;
+
+    const position = getCurrentPlayerPercent(playerPosition);
+    const movedEnough =
+      Math.abs(position.x - lastRenderX) >= OBJECT_RENDER_MOVE_EPSILON_PERCENT ||
+      Math.abs(position.y - lastRenderY) >= OBJECT_RENDER_MOVE_EPSILON_PERCENT;
+
+    const nextObjects = getRenderableObjects();
+    const nextIdsKey = nextObjects
+      .map((object) => String(object.id || ''))
+      .filter(Boolean)
+      .sort()
+      .join('|');
+
+    if (!force && !movedEnough && nextIdsKey === lastRenderedIdsKey) {
+      return;
+    }
+
+    renderedObjects = nextObjects;
+    lastRenderX = position.x;
+    lastRenderY = position.y;
+    lastRenderedIdsKey = nextIdsKey;
+
+    moveLayerAboveMap(viewport, layer);
+    renderMapObjects(layer, renderedObjects);
+
+    window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
+      detail: {
+        cityId,
+        count: mapObjects.length,
+        renderedCount: renderedObjects.length,
+        layerChildren: layer.children.length,
+        renderRadiusPercent: getRenderRadiusPercent(),
+        loadRadiusPercent: getLoadRadiusPercent(),
+      },
+    }));
+  }
 
   async function reloadObjects() {
     if (destroyed) return;
@@ -596,7 +737,7 @@ export function enableEntityInteraction({
     let objects = [];
 
     try {
-      objects = await getMapObjects(cityId);
+      objects = await getMapObjects(cityId, getObjectQueryOptions());
     } catch (error) {
       console.warn('[entityInteraction] map objects load failed:', error);
       objects = [];
@@ -608,29 +749,27 @@ export function enableEntityInteraction({
       ? objects.filter(Boolean)
       : [];
 
-    moveLayerAboveMap(viewport, layer);
-    renderMapObjects(layer, mapObjects);
-
-    window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
-      detail: {
-        cityId,
-        count: mapObjects.length,
-        layerChildren: layer.children.length,
-      },
-    }));
+    rememberLoadedRegion();
+    renderNearbyMapObjects(true);
   }
 
   function scheduleReload(delay = 250) {
-    if (destroyed) return;
+    if (destroyed || reloadTimer) return;
 
-    clearTimeout(reloadTimer);
-    reloadTimer = setTimeout(reloadObjects, delay);
+    reloadTimer = setTimeout(() => {
+      reloadTimer = null;
+      reloadObjects();
+    }, delay);
   }
 
   function getObjectById(objectId) {
     if (!objectId) return null;
 
-    return mapObjects.find((item) => String(item.id) === String(objectId)) || null;
+    return (
+      renderedObjects.find((item) => String(item.id) === String(objectId)) ||
+      mapObjects.find((item) => String(item.id) === String(objectId)) ||
+      null
+    );
   }
 
   function getDistanceToObject(object) {
@@ -665,7 +804,7 @@ export function enableEntityInteraction({
     let bestObject = null;
     let bestDistance = Number.POSITIVE_INFINITY;
 
-    mapObjects.forEach((object) => {
+    renderedObjects.forEach((object) => {
       if (!object) return;
 
       const distance = getDistanceToObject(object);
@@ -685,7 +824,7 @@ export function enableEntityInteraction({
     let bestObject = null;
     let bestDistance = Number.POSITIVE_INFINITY;
 
-    mapObjects.forEach((object) => {
+    renderedObjects.forEach((object) => {
       if (!object) return;
 
       const element = findMapObjectElement(layer, object.id);
@@ -775,12 +914,17 @@ export function enableEntityInteraction({
 
     clearTimeout(interactionTimer);
 
-    const fallbackDelay = isMobileGameplayDevice() ? 170 : 90;
-    interactionTimer = setTimeout(updateInteractionHint, delay ?? fallbackDelay);
+    interactionTimer = setTimeout(updateInteractionHint, delay ?? INTERACTION_SCAN_INTERVAL_MS);
   }
 
   function updateInteractionHint() {
     if (destroyed) return;
+
+    if (shouldReloadRegion()) {
+      scheduleReload(250);
+    }
+
+    renderNearbyMapObjects(false);
 
     if (panel?.isOpen?.()) {
       hideInteractionHint();
@@ -919,7 +1063,7 @@ export function enableEntityInteraction({
 
     if (!changed) return;
 
-    renderMapObjects(layer, mapObjects);
+    renderNearbyMapObjects(true);
 
     if (typeof panel.updateSelectedObject === 'function') {
       panel.updateSelectedObject((selectedObject) => {
