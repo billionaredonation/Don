@@ -57,6 +57,34 @@ function syncViewportSize() {
   if (height > 0) {
     document.documentElement.style.setProperty('--mn-vh', `${height}px`);
   }
+
+  syncMobileOrientationMode(width, height);
+}
+
+function syncMobileOrientationMode(width, height) {
+  const html = document.documentElement;
+  const body = document.body;
+
+  if (!html || !body) return;
+
+  const safeWidth = Number(width || 0);
+  const safeHeight = Number(height || 0);
+  const forceRotate = safeWidth > 0 && safeHeight > 0 && safeHeight >= safeWidth;
+  const realLandscape = safeWidth > safeHeight;
+
+  html.classList.toggle('mn-force-rotate-landscape', forceRotate);
+  body.classList.toggle('mn-force-rotate-landscape', forceRotate);
+
+  html.classList.toggle('mn-real-landscape', realLandscape);
+  body.classList.toggle('mn-real-landscape', realLandscape);
+}
+
+function clearMobileOrientationMode() {
+  const html = document.documentElement;
+  const body = document.body;
+
+  html?.classList.remove('mn-force-rotate-landscape', 'mn-real-landscape');
+  body?.classList.remove('mn-force-rotate-landscape', 'mn-real-landscape');
 }
 
 async function requestLandscapeMode() {
@@ -647,6 +675,8 @@ function updateStaminaUi() {
     savePositionToDb(true);
 
     joystick?.remove();
+
+    clearMobileOrientationMode();
 
     container.classList.remove('mn-mobile-controls');
     container.dataset.joystickActive = 'false';
