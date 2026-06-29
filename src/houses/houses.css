@@ -3076,3 +3076,103 @@ body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* =========================================================
+   DONATION MOBILE MODAL ORIENTATION FIX
+   Forced landscape: modal content follows the game side, not TikTok/portrait feed.
+   PC is untouched: this block works only on touch devices.
+   ========================================================= */
+@media (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .houses-modal:not([hidden]),
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-modal:not([hidden]),
+  html.mn-force-rotate-landscape body.mn-landscape-game .houses-modal:not([hidden]),
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-details-modal:not([hidden]),
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .houses-modal:not([hidden]),
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-modal:not([hidden]),
+  body.mn-force-rotate-landscape.mn-landscape-game .houses-modal:not([hidden]),
+  body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal:not([hidden]) {
+    position: fixed !important;
+    inset: 0 !important;
+    width: var(--mn-vw, 100vw) !important;
+    height: var(--mn-vh, 100dvh) !important;
+    min-width: var(--mn-vw, 100vw) !important;
+    min-height: var(--mn-vh, 100dvh) !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+  }
+
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .houses-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .houses-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .houses-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .houses-panel {
+    width: min(500px, calc(var(--mn-vh, 100dvh) - 28px)) !important;
+    max-width: calc(var(--mn-vh, 100dvh) - 28px) !important;
+    max-height: calc(var(--mn-vw, 100vw) - 28px) !important;
+    padding: 12px !important;
+    border-radius: 20px !important;
+    transform: rotate(90deg) translateZ(0) !important;
+    transform-origin: center center !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-details-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-details-panel {
+    width: min(390px, calc(var(--mn-vh, 100dvh) - 28px)) !important;
+    max-width: calc(var(--mn-vh, 100dvh) - 28px) !important;
+    max-height: calc(var(--mn-vw, 100vw) - 28px) !important;
+    padding: 13px !important;
+    border-radius: 20px !important;
+    transform: rotate(90deg) translateZ(0) !important;
+    transform-origin: center center !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-modal[data-mode="cef"] .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-details-modal[data-mode="cef"] .house-details-panel,
+  body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-modal[data-mode="cef"] .house-details-panel,
+  body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[data-mode="cef"] .house-details-panel {
+    width: min(390px, calc(var(--mn-vh, 100dvh) - 28px)) !important;
+    max-width: calc(var(--mn-vh, 100dvh) - 28px) !important;
+    max-height: calc(var(--mn-vw, 100vw) - 28px) !important;
+    transform: rotate(90deg) translateZ(0) !important;
+  }
+
+  html.mn-real-landscape body.mn-mobile-game-enabled .houses-panel,
+  html.mn-real-landscape body.mn-landscape-game .houses-panel,
+  body.mn-real-landscape.mn-mobile-game-enabled .houses-panel,
+  body.mn-real-landscape.mn-landscape-game .houses-panel {
+    width: min(560px, calc(var(--mn-vw, 100vw) - 28px)) !important;
+    max-width: calc(var(--mn-vw, 100vw) - 28px) !important;
+    max-height: calc(var(--mn-vh, 100dvh) - 28px) !important;
+    transform: none !important;
+  }
+
+  html.mn-real-landscape body.mn-mobile-game-enabled .house-details-panel,
+  html.mn-real-landscape body.mn-landscape-game .house-details-panel,
+  body.mn-real-landscape.mn-mobile-game-enabled .house-details-panel,
+  body.mn-real-landscape.mn-landscape-game .house-details-panel,
+  html.mn-real-landscape body.mn-mobile-game-enabled .house-details-modal[data-mode="cef"] .house-details-panel,
+  html.mn-real-landscape body.mn-landscape-game .house-details-modal[data-mode="cef"] .house-details-panel,
+  body.mn-real-landscape.mn-mobile-game-enabled .house-details-modal[data-mode="cef"] .house-details-panel,
+  body.mn-real-landscape.mn-landscape-game .house-details-modal[data-mode="cef"] .house-details-panel {
+    width: min(440px, calc(var(--mn-vw, 100vw) - 28px)) !important;
+    max-width: calc(var(--mn-vw, 100vw) - 28px) !important;
+    max-height: calc(var(--mn-vh, 100dvh) - 28px) !important;
+    transform: none !important;
+  }
+}
