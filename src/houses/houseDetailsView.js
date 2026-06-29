@@ -1,3 +1,5 @@
+import { state } from '../state.js';
+
 function formatMoney(value) {
   const number = Number(value || 0);
 
@@ -64,6 +66,23 @@ function getHouseOwnerName(house) {
     house?.payload?.owner_name ||
     null
   );
+}
+
+function getCurrentPlayerId() {
+  return (
+    state.telegramId ||
+    state.player?.tg_id ||
+    state.player?.telegramId ||
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+    null
+  );
+}
+
+function isCurrentPlayerHouseOwner(house) {
+  const ownerId = getHouseOwnerId(house);
+  const playerId = getCurrentPlayerId();
+
+  return Boolean(ownerId && playerId && String(ownerId) === String(playerId));
 }
 
 function getHouseId(house) {
@@ -258,13 +277,25 @@ export function renderHouseDetailsModal() {
 
         <div class="house-details-message" hidden data-house-details-message></div>
 
-        <footer class="house-details-actions">
+        <footer class="house-details-actions" data-house-details-actions>
           <button type="button" class="house-secondary-button" data-house-details-close>
             Назад
           </button>
 
           <button type="button" class="house-buy-button" data-house-buy-button>
             Купить дом
+          </button>
+
+          <button type="button" class="house-enter-button" data-house-enter-button hidden>
+            Войти в дом
+          </button>
+
+          <button type="button" class="house-locked-button" data-house-sell-player-button hidden disabled>
+            Продать игроку
+          </button>
+
+          <button type="button" class="house-locked-button" data-house-sell-state-button hidden disabled>
+            Продать в госс
           </button>
         </footer>
       </section>
@@ -281,6 +312,9 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
   const closeButtons = modal?.querySelectorAll('[data-house-details-close]') || [];
   const buyButton = modal?.querySelector('[data-house-buy-button]');
+  const enterButton = modal?.querySelector('[data-house-enter-button]');
+  const sellPlayerButton = modal?.querySelector('[data-house-sell-player-button]');
+  const sellStateButton = modal?.querySelector('[data-house-sell-state-button]');
   const message = modal?.querySelector('[data-house-details-message]');
 
   const title = modal?.querySelector('[data-house-details-title]');
@@ -308,18 +342,66 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     const ownerName = getHouseOwnerName(activeHouse);
     const owned = isHouseOwned(activeHouse);
     const locked = isHouseLocked(activeHouse);
+    const ownerIsCurrentPlayer = isCurrentPlayerHouseOwner(activeHouse);
+    const houseNumberText = getHouseNumber(activeHouse);
+    const classText = getHouseClass(activeHouse);
+    const priceText = formatMoney(getHousePrice(activeHouse));
 
-    title.textContent = activeHouse?.name || `Дом · ${getHouseClass(activeHouse)}`;
+    modal.dataset.mode = owned ? 'cef' : 'purchase';
+
+    title.textContent = owned
+      ? `${houseNumberText} · ${classText}`
+      : activeHouse?.name || `Дом · ${classText}`;
+
+    const kicker = modal.querySelector('.house-details-kicker');
+    if (kicker) {
+      kicker.textContent = owned ? 'CEF · Недвижимость' : 'Недвижимость';
+    }
+
     icon.textContent = activeHouse?.icon || '🏠';
-    price.textContent = formatMoney(getHousePrice(activeHouse));
-    status.textContent = getHouseStatus(activeHouse);
-    houseNumber.textContent = getHouseNumber(activeHouse);
-    houseClass.textContent = getHouseClass(activeHouse);
+    price.textContent = owned ? 'Дом куплен' : priceText;
+    status.textContent = owned
+      ? `Владелец: ${String(ownerName || ownerId || 'Игрок')}`
+      : getHouseStatus(activeHouse);
+
+    houseNumber.textContent = houseNumberText;
+    houseClass.textContent = classText;
     owner.textContent = owned ? String(ownerName || ownerId || 'Игрок') : 'Государство';
+
+    const textEl = modal.querySelector('.house-details-text');
+    if (textEl) {
+      if (owned) {
+        textEl.textContent = ownerIsCurrentPlayer
+          ? 'Кратко: это твой дом. Войти в дом пока недоступно — функционал интерьера будет добавлен позже. Продажа игроку и продажа в госс уже заложены в CEF, но пока заблокированы.'
+          : 'Кратко: дом уже куплен другим игроком. Войти в дом пока недоступно — функционал интерьера будет добавлен позже.';
+      } else if (locked) {
+        textEl.textContent = 'Этот дом сейчас закрыт. Покупка недоступна.';
+      } else {
+        textEl.textContent = 'Этот дом можно купить у государства. После покупки недвижимость будет закреплена за твоим игровым аккаунтом.';
+      }
+    }
 
     if (buyButton) {
       buyButton.hidden = owned || locked;
       buyButton.disabled = owned || locked;
+    }
+
+    if (enterButton) {
+      enterButton.hidden = !owned;
+      enterButton.disabled = false;
+      enterButton.title = 'Вход в дом пока недоступен';
+    }
+
+    if (sellPlayerButton) {
+      sellPlayerButton.hidden = !owned || !ownerIsCurrentPlayer;
+      sellPlayerButton.disabled = true;
+      sellPlayerButton.title = 'Продажа игроку пока заблокирована';
+    }
+
+    if (sellStateButton) {
+      sellStateButton.hidden = !owned || !ownerIsCurrentPlayer;
+      sellStateButton.disabled = true;
+      sellStateButton.title = 'Продажа в госс пока заблокирована';
     }
   }
 
@@ -391,6 +473,13 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     document.body.classList.remove('mn-houses-modal-open');
 
     window.dispatchEvent(new CustomEvent('mn:house-details-closed'));
+  }
+
+  function handleEnter(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setMessage('Войти в дом пока недоступно. Интерьер и вход будем доделывать отдельно.', 'info');
   }
 
   async function handleBuy(event) {
@@ -470,12 +559,16 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
   }
 
   buyButton?.addEventListener('click', handleBuy);
+  enterButton?.addEventListener('click', handleEnter);
+  enterButton?.addEventListener('pointerup', handleEnter);
+
   window.addEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
   window.addEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
 
   closeButtons.forEach((button) => {
     button.addEventListener('click', close);
     button.addEventListener('pointerup', close);
+    button.addEventListener('touchend', close, { passive: false });
   });
 
   return {
@@ -486,12 +579,16 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
       close();
 
       buyButton?.removeEventListener('click', handleBuy);
+      enterButton?.removeEventListener('click', handleEnter);
+      enterButton?.removeEventListener('pointerup', handleEnter);
+
       window.removeEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
       window.removeEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
 
       closeButtons.forEach((button) => {
         button.removeEventListener('click', close);
         button.removeEventListener('pointerup', close);
+        button.removeEventListener('touchend', close);
       });
 
       modal?.remove();
