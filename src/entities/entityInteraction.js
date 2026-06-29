@@ -328,6 +328,34 @@ export function createEntityInteractionPanel(root) {
     return getObjectKind(object) === 'house';
   }
 
+  function getOwnerId(object) {
+    return (
+      object?.owner_id ||
+      object?.ownerId ||
+      object?.payload?.ownerId ||
+      object?.payload?.owner_id ||
+      null
+    );
+  }
+
+  function isHouseOwned(object) {
+    return Boolean(
+      getOwnerId(object) ||
+      object?.payload?.owned
+    );
+  }
+
+  function isHouseLocked(object) {
+    return Boolean(object?.payload?.locked);
+  }
+
+  function shouldSkipPrompt(object) {
+    if (isMobileGameplayDevice()) return false;
+    if (!isHouseObject(object)) return false;
+
+    return isHouseOwned(object) || isHouseLocked(object);
+  }
+
   function clearTimers() {
     clearTimeout(hideTimer);
     clearInterval(countdownTimer);
@@ -370,25 +398,38 @@ export function createEntityInteractionPanel(root) {
   function renderPrompt(object) {
     const mobile = isMobileGameplayDevice();
     const house = isHouseObject(object);
+    const owned = house && isHouseOwned(object);
+    const locked = house && isHouseLocked(object);
+    const free = house && !owned && !locked;
 
     panel.dataset.device = mobile ? 'mobile' : 'pc';
     panel.dataset.kind = house ? 'house' : 'object';
+    panel.dataset.state = owned ? 'owned' : locked ? 'locked' : 'free';
 
     if (titleEl) {
-      titleEl.textContent = house ? 'Информация о доме' : 'Информация об объекте';
+      if (free) titleEl.textContent = 'Покупка дома';
+      else if (owned) titleEl.textContent = 'Дом уже куплен';
+      else if (locked) titleEl.textContent = 'Дом закрыт';
+      else titleEl.textContent = 'Информация об объекте';
     }
 
     if (metaEl) {
-      metaEl.textContent = mobile
-        ? 'Чтобы узнать информацию про дом, нажмите на I'
-        : 'Узнать информацию про дом можно, нажав Y / Н. Отмена — N / Т';
+      if (mobile) {
+        metaEl.textContent = free
+          ? 'Чтобы открыть покупку дома, нажмите на I'
+          : 'Чтобы узнать информацию про дом, нажмите на I';
+      } else if (free) {
+        metaEl.textContent = 'Дом свободен. Открыть покупку — Y / Н. Отмена — N / Т';
+      } else {
+        metaEl.textContent = 'Открыть информацию — Y / Н. Отмена — N / Т';
+      }
     }
 
     if (confirmButton) {
       confirmButton.textContent = mobile ? 'I' : 'Y';
       confirmButton.setAttribute(
         'aria-label',
-        mobile ? 'Показать информацию о доме' : 'Да, показать информацию о доме'
+        free ? 'Открыть покупку дома' : 'Показать информацию о доме'
       );
     }
 
@@ -485,6 +526,8 @@ export function createEntityInteractionPanel(root) {
     open,
     close,
     handleKeyDown,
+
+    shouldSkipPrompt,
 
     isOpen() {
       return Boolean(selectedObject) && panel.hidden === false;
@@ -763,6 +806,11 @@ export function enableEntityInteraction({
 
     hideInteractionHint();
 
+    if (panel?.shouldSkipPrompt?.(object)) {
+      dispatchEntityAction(object);
+      return true;
+    }
+
     panel.open(object);
     return true;
   }
@@ -774,11 +822,15 @@ export function enableEntityInteraction({
     const object = getObjectById(clickedObjectId);
     if (!object) return;
 
+    // На ПК дом открывается только через E/У, не кликом по карте.
+    // Это убирает случайное постоянное появление нижнего prompt.
+    if (!isMobilePointerEvent(event)) return;
+
     event.preventDefault();
     event.stopPropagation();
 
     tryOpenObject(object, {
-      directTap: isMobilePointerEvent(event),
+      directTap: true,
     });
   }
 
@@ -802,22 +854,19 @@ export function enableEntityInteraction({
     }
 
     const point = getPointerPoint(event);
-    const nearest = getNearestObjectToPoint(point, MOBILE_FREE_TAP_RADIUS_PX);
+    const nearest = getNearestObjectToPoint(point, 86);
 
     if (!nearest) return;
+
+    // Не открываем модалки от случайного тапа по экрану/старту Telegram.
+    // Мобильная логика срабатывает только возле самой иконки и в радиусе взаимодействия.
+    if (!isObjectInInteractionRange(nearest, { directTap: true })) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    /*
-      ВАЖНО:
-      Это исправляет главный баг.
-      Даже если пользователь нажал не по самой иконке дома,
-      а рядом, мы всё равно вычисляем ближайший дом и открываем панель.
-    */
     tryOpenObject(nearest, {
       directTap: true,
-      ignoreRange: true,
     });
   }
 
