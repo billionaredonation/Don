@@ -14,7 +14,8 @@ const MOBILE_INTERACTION_RADIUS_PX = 154;
 const DIRECT_TAP_RADIUS_PX = 220;
 const MOBILE_FREE_TAP_RADIUS_PX = 240;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
-const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = 1400;
+const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 8000 : 4200;
+const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 180 : 110;
 
 function getPurchasedHouseId(detail = {}) {
   return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
@@ -154,6 +155,28 @@ function getObjectDistancePx({
   playerPosition,
   viewport,
 }) {
+  /*
+    Performance note:
+    Во время движения эта функция вызывается постоянно. Сначала считаем
+    расстояние по процентам карты — без getBoundingClientRect() для каждого
+    дома. DOM-rect оставляем только как fallback, если координат игрока нет.
+  */
+  if (object && playerPosition && viewport) {
+    const rect = viewport.getBoundingClientRect();
+
+    if (rect.width && rect.height) {
+      const objectX = Number(object.x || 50);
+      const objectY = Number(object.y || 50);
+      const playerX = Number(playerPosition.x || 50);
+      const playerY = Number(playerPosition.y || 50);
+
+      const dx = ((objectX - playerX) / 100) * rect.width;
+      const dy = ((objectY - playerY) / 100) * rect.height;
+
+      return Math.hypot(dx, dy);
+    }
+  }
+
   const playerCenter = getElementCenter(playerMarker);
   const objectCenter = getObjectScreenCenter(object, objectElement, viewport);
 
@@ -164,21 +187,7 @@ function getObjectDistancePx({
     );
   }
 
-  if (!object || !playerPosition || !viewport) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  const rect = viewport.getBoundingClientRect();
-
-  const objectX = Number(object.x || 50);
-  const objectY = Number(object.y || 50);
-  const playerX = Number(playerPosition.x || 50);
-  const playerY = Number(playerPosition.y || 50);
-
-  const dx = ((objectX - playerX) / 100) * rect.width;
-  const dy = ((objectY - playerY) / 100) * rect.height;
-
-  return Math.hypot(dx, dy);
+  return Number.POSITIVE_INFINITY;
 }
 
 function getPointerPoint(event) {
@@ -582,6 +591,9 @@ export function enableEntityInteraction({
   let lastHintObjectId = null;
   let hintHideTimer = null;
   let rafId = 0;
+  let lastInteractionScanAt = 0;
+  let lastPlayerScanX = Number(playerPosition?.x || 50);
+  let lastPlayerScanY = Number(playerPosition?.y || 50);
 
   async function reloadObjects() {
     if (destroyed) return;
@@ -603,12 +615,6 @@ export function enableEntityInteraction({
 
     moveLayerAboveMap(viewport, layer);
     renderMapObjects(layer, mapObjects);
-
-    console.log('[entityInteraction] rendered map objects:', {
-      cityId,
-      count: mapObjects.length,
-      layerChildren: layer.children.length,
-    });
 
     window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
       detail: {
@@ -635,11 +641,9 @@ export function enableEntityInteraction({
   function getDistanceToObject(object) {
     if (!object) return Number.POSITIVE_INFINITY;
 
-    const objectElement = findMapObjectElement(layer, object.id);
-
     return getObjectDistancePx({
       object,
-      objectElement,
+      objectElement: null,
       playerMarker,
       playerPosition,
       viewport,
@@ -681,14 +685,21 @@ export function enableEntityInteraction({
   function getNearestObjectToPoint(point, radius = MOBILE_FREE_TAP_RADIUS_PX) {
     if (!point) return null;
 
+    const rect = viewport.getBoundingClientRect();
+    const canUsePercent = Boolean(rect.width && rect.height);
+
     let bestObject = null;
     let bestDistance = Number.POSITIVE_INFINITY;
 
     mapObjects.forEach((object) => {
       if (!object) return;
 
-      const element = findMapObjectElement(layer, object.id);
-      const center = getObjectScreenCenter(object, element, viewport);
+      const center = canUsePercent
+        ? {
+            x: rect.left + (Number(object.x || 50) / 100) * rect.width,
+            y: rect.top + (Number(object.y || 50) / 100) * rect.height,
+          }
+        : getObjectScreenCenter(object, findMapObjectElement(layer, object.id), viewport);
 
       if (!center) return;
 
@@ -769,8 +780,23 @@ export function enableEntityInteraction({
     }, INTERACTION_HINT_VISIBLE_MS);
   }
 
-  function updateInteractionHint() {
+  function updateInteractionHint(now = performance.now()) {
     if (destroyed) return;
+
+    const px = Number(playerPosition?.x || 50);
+    const py = Number(playerPosition?.y || 50);
+    const movedEnough =
+      Math.abs(px - lastPlayerScanX) >= 0.035 ||
+      Math.abs(py - lastPlayerScanY) >= 0.035;
+
+    if (!movedEnough && now - lastInteractionScanAt < INTERACTION_SCAN_INTERVAL_MS) {
+      rafId = requestAnimationFrame(updateInteractionHint);
+      return;
+    }
+
+    lastInteractionScanAt = now;
+    lastPlayerScanX = px;
+    lastPlayerScanY = py;
 
     if (panel?.isOpen?.()) {
       hideInteractionHint();
