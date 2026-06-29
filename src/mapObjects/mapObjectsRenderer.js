@@ -338,6 +338,7 @@ export function createMapObjectsLayer() {
 
   layer.className = 'map-objects-layer';
   layer.__mnObjectSignatures = new Map();
+  layer.__mnObjectElements = new Map();
 
   applyLayerBaseStyle(layer);
 
@@ -353,8 +354,14 @@ export function renderMapObjects(layer, objects = []) {
     layer.__mnObjectSignatures = new Map();
   }
 
+  if (!layer.__mnObjectElements) {
+    layer.__mnObjectElements = new Map();
+  }
+
   const signatures = layer.__mnObjectSignatures;
+  const elements = layer.__mnObjectElements;
   const nextIds = new Set();
+  const fragment = document.createDocumentFragment();
 
   const safeObjects = Array.isArray(objects)
     ? objects.filter(Boolean)
@@ -373,7 +380,7 @@ export function renderMapObjects(layer, objects = []) {
 
     if (oldSignature === nextSignature) return;
 
-    const oldElement = layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`);
+    const oldElement = elements.get(id) || layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`);
     const wrapper = document.createElement('div');
 
     wrapper.innerHTML = createObjectHtml(object).trim();
@@ -385,16 +392,23 @@ export function renderMapObjects(layer, objects = []) {
     if (oldElement) {
       oldElement.replaceWith(nextElement);
     } else {
-      layer.appendChild(nextElement);
+      fragment.appendChild(nextElement);
     }
 
+    elements.set(id, nextElement);
     signatures.set(id, nextSignature);
   });
+
+  if (fragment.childNodes.length > 0) {
+    layer.appendChild(fragment);
+  }
 
   Array.from(signatures.keys()).forEach((id) => {
     if (nextIds.has(id)) return;
 
-    layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`)?.remove();
+    const element = elements.get(id) || layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`);
+    element?.remove();
+    elements.delete(id);
     signatures.delete(id);
   });
 
@@ -413,13 +427,19 @@ export function clearMapObjectsLayer(layer) {
 
   layer.innerHTML = '';
   layer.__mnObjectSignatures?.clear?.();
+  layer.__mnObjectElements?.clear?.();
   layer.dataset.objectsCount = '0';
 }
 
 export function findMapObjectElement(layer, objectId) {
   if (!layer || !objectId) return null;
 
-  return layer.querySelector(`[data-map-object-id="${CSS.escape(String(objectId))}"]`);
+  const id = String(objectId);
+
+  return (
+    layer.__mnObjectElements?.get?.(id) ||
+    layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`)
+  );
 }
 
 export function getMapObjectIdFromEvent(event) {
