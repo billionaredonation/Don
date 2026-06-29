@@ -475,7 +475,8 @@ export function createEntityInteractionPanel(root) {
     }
 
     if (cancelButton) {
-      cancelButton.hidden = mobile;
+      // На мобилке тоже оставляем две кнопки: I открыть / N закрыть.
+      cancelButton.hidden = false;
       cancelButton.textContent = 'N';
       cancelButton.setAttribute('aria-label', 'Нет, закрыть подсказку');
     }
@@ -511,33 +512,27 @@ export function createEntityInteractionPanel(root) {
     panel.style.setProperty('right', 'auto', 'important');
     panel.style.setProperty('bottom', 'auto', 'important');
     panel.style.setProperty('transform-origin', 'center center', 'important');
-    panel.style.setProperty(
-      'background',
-      'radial-gradient(ellipse at 50% -8%, rgba(255,255,255,.10), rgba(255,255,255,.02) 34%, transparent 62%), linear-gradient(180deg, rgba(7,10,18,.18), rgba(1,3,8,.32) 62%, rgba(0,0,0,.42))',
-      'important'
-    );
-    panel.style.setProperty('border-color', 'rgba(255,255,255,.075)', 'important');
-    panel.style.setProperty(
-      'box-shadow',
-      '0 12px 32px rgba(0,0,0,.18), 0 0 0 1px rgba(255,255,255,.02), inset 0 1px 0 rgba(255,255,255,.06)',
-      'important'
-    );
-    panel.style.setProperty('backdrop-filter', 'blur(3.5px) saturate(1.01)', 'important');
-    panel.style.setProperty('-webkit-backdrop-filter', 'blur(3.5px) saturate(1.01)', 'important');
+    // Финальная мобилка: без фоновой карточки. Только текст + две кнопки.
+    panel.style.setProperty('background', 'transparent', 'important');
+    panel.style.setProperty('border-color', 'transparent', 'important');
+    panel.style.setProperty('box-shadow', 'none', 'important');
+    panel.style.setProperty('backdrop-filter', 'none', 'important');
+    panel.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
 
     if (forcedLandscape) {
-      panel.style.setProperty('left', '46.5%', 'important');
-      panel.style.setProperty('top', '60.5%', 'important');
+      // Центр экрана и чуть ниже игрока. Без ухода к балансу/джойстику.
+      panel.style.setProperty('left', '50%', 'important');
+      panel.style.setProperty('top', '56.5%', 'important');
       panel.style.setProperty(
         'transform',
-        'translate3d(-50%, -50%, 0) rotate(90deg) translateX(112px)',
+        'translate3d(-50%, -50%, 0) rotate(90deg)',
         'important'
       );
       return;
     }
 
     panel.style.setProperty('left', '50%', 'important');
-    panel.style.setProperty('top', '61%', 'important');
+    panel.style.setProperty('top', '56.5%', 'important');
     panel.style.setProperty('transform', 'translate3d(-50%, -50%, 0)', 'important');
   }
 
