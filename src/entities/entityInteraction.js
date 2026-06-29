@@ -483,6 +483,64 @@ export function createEntityInteractionPanel(root) {
     renderCountdown();
   }
 
+
+  function applyPromptInlinePlacement() {
+    const mobile = isMobileGameplayDevice();
+
+    panel.style.removeProperty('position');
+    panel.style.removeProperty('left');
+    panel.style.removeProperty('top');
+    panel.style.removeProperty('right');
+    panel.style.removeProperty('bottom');
+    panel.style.removeProperty('transform');
+    panel.style.removeProperty('transform-origin');
+    panel.style.removeProperty('background');
+    panel.style.removeProperty('border-color');
+    panel.style.removeProperty('box-shadow');
+    panel.style.removeProperty('backdrop-filter');
+    panel.style.removeProperty('-webkit-backdrop-filter');
+
+    if (!mobile) return;
+
+    const rootElement = document.documentElement;
+    const forcedLandscape =
+      rootElement?.classList?.contains('mn-force-rotate-landscape') ||
+      document.body?.classList?.contains('mn-force-rotate-landscape');
+
+    panel.style.setProperty('position', 'fixed', 'important');
+    panel.style.setProperty('right', 'auto', 'important');
+    panel.style.setProperty('bottom', 'auto', 'important');
+    panel.style.setProperty('transform-origin', 'center center', 'important');
+    panel.style.setProperty(
+      'background',
+      'radial-gradient(ellipse at 50% -8%, rgba(255,255,255,.12), rgba(255,255,255,.025) 34%, transparent 62%), linear-gradient(180deg, rgba(7,10,18,.22), rgba(1,3,8,.38) 62%, rgba(0,0,0,.48))',
+      'important'
+    );
+    panel.style.setProperty('border-color', 'rgba(255,255,255,.085)', 'important');
+    panel.style.setProperty(
+      'box-shadow',
+      '0 14px 38px rgba(0,0,0,.22), 0 0 0 1px rgba(255,255,255,.025), inset 0 1px 0 rgba(255,255,255,.07)',
+      'important'
+    );
+    panel.style.setProperty('backdrop-filter', 'blur(4px) saturate(1.02)', 'important');
+    panel.style.setProperty('-webkit-backdrop-filter', 'blur(4px) saturate(1.02)', 'important');
+
+    if (forcedLandscape) {
+      panel.style.setProperty('left', '50%', 'important');
+      panel.style.setProperty('top', '57.5%', 'important');
+      panel.style.setProperty(
+        'transform',
+        'translate3d(-50%, -50%, 0) rotate(90deg) translateX(112px)',
+        'important'
+      );
+      return;
+    }
+
+    panel.style.setProperty('left', '50%', 'important');
+    panel.style.setProperty('top', '61%', 'important');
+    panel.style.setProperty('transform', 'translate3d(-50%, -50%, 0)', 'important');
+  }
+
   function open(object) {
     if (!object) return;
 
@@ -490,6 +548,7 @@ export function createEntityInteractionPanel(root) {
     openedAt = Date.now();
 
     renderPrompt(object);
+    applyPromptInlinePlacement();
 
     panel.hidden = false;
     panel.removeAttribute('aria-hidden');
