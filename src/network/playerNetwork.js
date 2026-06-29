@@ -22,7 +22,9 @@ const ONLINE_TTL_MS =
 const SNAPSHOT_PLAYER_MAX_AGE_MS =
   NETWORK_CONFIG.movement.snapshotPlayerMaxAgeMs || 120000;
 
-const SNAPSHOT_REFRESH_INTERVAL_MS = 2500;
+const SNAPSHOT_REFRESH_INTERVAL_MS = 3200;
+const PLAYER_RENDER_RADIUS_PERCENT = 26;
+const MOBILE_PLAYER_RENDER_RADIUS_PERCENT = 22;
 
 function percentToNumber(value, fallback = 50) {
   const n = Number(value);
@@ -39,6 +41,79 @@ function escapeCss(value) {
   }
 
   return String(value).replaceAll('"', '\\"');
+}
+
+function isMobileGameplayDevice() {
+  const hasTouch = navigator.maxTouchPoints > 0;
+  const narrowScreen =
+    Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 920;
+
+  return hasTouch && narrowScreen;
+}
+
+function getPlayerRenderRadiusPercent(options = {}) {
+  const requested = Number(options.renderRadiusPercent);
+
+  if (Number.isFinite(requested) && requested > 0) {
+    return requested;
+  }
+
+  return isMobileGameplayDevice()
+    ? MOBILE_PLAYER_RENDER_RADIUS_PERCENT
+    : PLAYER_RENDER_RADIUS_PERCENT;
+}
+
+function getLocalPosition(localPlayerPosition) {
+  if (!localPlayerPosition) return null;
+
+  const x = Number(localPlayerPosition.x);
+  const y = Number(localPlayerPosition.y);
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+  return { x, y };
+}
+
+function getPercentDistance(a, b) {
+  if (!a || !b) return Number.POSITIVE_INFINITY;
+
+  const ax = Number(a.x);
+  const ay = Number(a.y);
+  const bx = Number(b.x);
+  const by = Number(b.y);
+
+  if (
+    !Number.isFinite(ax) ||
+    !Number.isFinite(ay) ||
+    !Number.isFinite(bx) ||
+    !Number.isFinite(by)
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.hypot(ax - bx, ay - by);
+}
+
+function isPlayerInsideRenderDistance(player, localPlayerPosition, options = {}) {
+  const localPosition = getLocalPosition(localPlayerPosition);
+
+  if (!localPosition) return true;
+
+  const radius = getPlayerRenderRadiusPercent(options);
+
+  return getPercentDistance(player, localPosition) <= radius;
+}
+
+function getPlayersQueryOptions(localPlayerPosition, options = {}) {
+  const localPosition = getLocalPosition(localPlayerPosition);
+
+  if (!localPosition) return {};
+
+  return {
+    centerX: localPosition.x,
+    centerY: localPosition.y,
+    radiusPercent: getPlayerRenderRadiusPercent(options),
+  };
 }
 
 function getPlayerId(player) {
@@ -298,6 +373,14 @@ export function upsertPlayerMarker(
     return;
   }
 
+  if (
+    !options.skipRenderDistance &&
+    !isPlayerInsideRenderDistance(player, options.localPlayerPosition, options)
+  ) {
+    removePlayerMarker(entities, playerId);
+    return;
+  }
+
   const selector =
     `.gta-player-marker-other[data-player-id="${escapeCss(playerId)}"]`;
 
@@ -500,14 +583,14 @@ function startPresenceHeartbeat(cityId, selfPlayerId) {
   };
 }
 
-function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId) {
+function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId, localPlayerPosition) {
   let stopped = false;
 
   async function refreshSnapshot() {
     if (stopped) return;
 
     try {
-      const players = await getCityPlayers(cityId);
+      const players = await getCityPlayers(cityId, getPlayersQueryOptions(localPlayerPosition));
       const liveIds = new Set();
 
       players.forEach((rawPlayer) => {
@@ -523,6 +606,11 @@ function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId) {
           return;
         }
 
+        if (!isPlayerInsideRenderDistance(player, localPlayerPosition)) {
+          removePlayerMarker(entities, playerId);
+          return;
+        }
+
         liveIds.add(playerId);
 
         upsertPlayerMarker(
@@ -532,6 +620,7 @@ function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId) {
           {
             instant: true,
             maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
+            localPlayerPosition,
           }
         );
       });
@@ -570,6 +659,7 @@ export function setupPlayerNetwork({
   playerId,
   localPlayerId,
   entities,
+  playerPosition,
 }) {
   const selfPlayerId =
     localPlayerId || playerId;
@@ -604,6 +694,7 @@ export function setupPlayerNetwork({
           {
             instant: false,
             skipFreshnessCheck: true,
+            localPlayerPosition: playerPosition,
           }
         );
       },
@@ -619,7 +710,8 @@ export function setupPlayerNetwork({
     startPlayersSnapshotRefresh(
       entities,
       cityId,
-      selfPlayerId
+      selfPlayerId,
+      playerPosition
     );
 
   const cleanupOffline =
@@ -656,6 +748,7 @@ export function setupPlayerNetwork({
             {
               instant: true,
               maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
+              localPlayerPosition: playerPosition,
             }
           );
         },
@@ -690,6 +783,7 @@ export function setupPlayerNetwork({
             {
               instant: false,
               maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
+              localPlayerPosition: playerPosition,
             }
           );
         },
