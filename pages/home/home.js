@@ -701,6 +701,7 @@ register('home', async (root) => {
     localPlayerId,
     localNickname: nickname,
     entities,
+    playerPosition,
   });
 
   const cleanupSessionGuard = setupSessionGuard(root);
