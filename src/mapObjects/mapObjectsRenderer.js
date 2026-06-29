@@ -361,7 +361,6 @@ export function renderMapObjects(layer, objects = []) {
   const signatures = layer.__mnObjectSignatures;
   const elements = layer.__mnObjectElements;
   const nextIds = new Set();
-  const fragment = document.createDocumentFragment();
 
   const safeObjects = Array.isArray(objects)
     ? objects.filter(Boolean)
@@ -392,22 +391,17 @@ export function renderMapObjects(layer, objects = []) {
     if (oldElement) {
       oldElement.replaceWith(nextElement);
     } else {
-      fragment.appendChild(nextElement);
+      layer.appendChild(nextElement);
     }
 
     elements.set(id, nextElement);
     signatures.set(id, nextSignature);
   });
 
-  if (fragment.childNodes.length > 0) {
-    layer.appendChild(fragment);
-  }
-
   Array.from(signatures.keys()).forEach((id) => {
     if (nextIds.has(id)) return;
 
-    const element = elements.get(id) || layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`);
-    element?.remove();
+    (elements.get(id) || layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`))?.remove();
     elements.delete(id);
     signatures.delete(id);
   });
@@ -435,11 +429,17 @@ export function findMapObjectElement(layer, objectId) {
   if (!layer || !objectId) return null;
 
   const id = String(objectId);
+  const cached = layer.__mnObjectElements?.get?.(id);
 
-  return (
-    layer.__mnObjectElements?.get?.(id) ||
-    layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`)
-  );
+  if (cached?.isConnected) return cached;
+
+  const found = layer.querySelector(`[data-map-object-id="${CSS.escape(id)}"]`);
+
+  if (found) {
+    layer.__mnObjectElements?.set?.(id, found);
+  }
+
+  return found;
 }
 
 export function getMapObjectIdFromEvent(event) {
