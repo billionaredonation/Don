@@ -2917,3 +2917,162 @@ body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection
     min-height: 34px !important;
   }
 }
+
+/* =========================================================
+   DONATION FIX — prompt opens only when active, mobile hidden fix, CEF panel
+   ========================================================= */
+.house-selection-panel.house-info-prompt[hidden],
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[hidden],
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt[hidden],
+body.mn-landscape-game .house-selection-panel.house-info-prompt[hidden],
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt[hidden],
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt[hidden] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.house-selection-panel.house-info-prompt:not(.is-visible) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.house-selection-panel.house-info-prompt.is-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-cancel {
+  display: none !important;
+}
+
+.house-selection-panel.house-info-prompt[data-state="free"] .house-selection-action {
+  background:
+    radial-gradient(circle at 36% 22%, rgba(255, 255, 255, 0.34), transparent 38%),
+    linear-gradient(180deg, rgba(54, 222, 128, 0.96), rgba(22, 139, 82, 0.98)) !important;
+  box-shadow:
+    0 0 24px rgba(65, 235, 145, 0.36),
+    0 12px 26px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+body.mn-mobile-game-enabled .houses-modal[hidden],
+body.mn-mobile-game-enabled .house-details-modal[hidden],
+body.mn-landscape-game .houses-modal[hidden],
+body.mn-landscape-game .house-details-modal[hidden],
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .houses-modal[hidden],
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-modal[hidden],
+html.mn-force-rotate-landscape body.mn-landscape-game .houses-modal[hidden],
+html.mn-force-rotate-landscape body.mn-landscape-game .house-details-modal[hidden],
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .houses-modal[hidden],
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-details-modal[hidden],
+body.mn-force-rotate-landscape.mn-landscape-game .houses-modal[hidden],
+body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
+.houses-modal[hidden],
+.house-details-modal[hidden] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.house-details-modal[data-mode="cef"] .house-details-panel {
+  width: min(520px, calc(100vw - 36px)) !important;
+  padding: 18px !important;
+  border-radius: 24px !important;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(132, 92, 255, 0.24), transparent 38%),
+    radial-gradient(circle at 88% 12%, rgba(46, 206, 142, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(13, 18, 29, 0.98), rgba(4, 7, 13, 0.98)) !important;
+  border: 1px solid rgba(170, 190, 255, 0.18) !important;
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.72),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+}
+
+.house-details-modal[data-mode="cef"] .house-details-kicker {
+  color: rgba(170, 190, 255, 0.92) !important;
+}
+
+.house-details-modal[data-mode="cef"] .house-details-header h3 {
+  font-size: 22px !important;
+  letter-spacing: -0.035em !important;
+}
+
+.house-details-modal[data-mode="cef"] .house-details-hero {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.house-details-modal[data-mode="cef"] .house-details-hero strong {
+  font-size: 22px !important;
+}
+
+.house-details-modal[data-mode="cef"] .house-details-text {
+  margin-top: 14px !important;
+  padding: 12px 13px !important;
+  border-radius: 16px !important;
+  color: rgba(245, 248, 255, 0.78) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  font-size: 13px !important;
+  line-height: 1.42 !important;
+}
+
+.house-details-modal[data-mode="cef"] .house-details-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.house-details-modal[data-mode="cef"] .house-details-actions:has(.house-locked-button:not([hidden])) {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.house-enter-button,
+.house-locked-button {
+  min-height: 44px !important;
+  padding: 12px 14px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  color: #fff !important;
+  font-size: 14px !important;
+  font-weight: 950 !important;
+}
+
+.house-enter-button {
+  background:
+    radial-gradient(circle at 25% 0%, rgba(255, 255, 255, 0.22), transparent 42%),
+    linear-gradient(135deg, rgba(56, 215, 134, 0.96), rgba(29, 141, 92, 0.98)) !important;
+  box-shadow: 0 12px 28px rgba(54, 210, 130, 0.22) !important;
+}
+
+.house-locked-button {
+  color: rgba(255, 255, 255, 0.46) !important;
+  background: rgba(255, 255, 255, 0.075) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  cursor: not-allowed !important;
+}
+
+.house-enter-button[hidden],
+.house-locked-button[hidden],
+.house-buy-button[hidden] {
+  display: none !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  body.mn-mobile-game-enabled .house-details-modal[data-mode="cef"] .house-details-panel,
+  body.mn-landscape-game .house-details-modal[data-mode="cef"] .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-details-modal[data-mode="cef"] .house-details-panel,
+  html.mn-force-rotate-landscape body.mn-landscape-game .house-details-modal[data-mode="cef"] .house-details-panel {
+    width: min(390px, calc(var(--mn-vw, 100vw) - 30px)) !important;
+    max-height: calc(var(--mn-vh, 100dvh) - 30px) !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  body.mn-mobile-game-enabled .house-details-modal[data-mode="cef"] .house-details-actions,
+  body.mn-landscape-game .house-details-modal[data-mode="cef"] .house-details-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
