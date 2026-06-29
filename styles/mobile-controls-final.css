@@ -6026,3 +6026,59 @@ body.mn-real-landscape .house-selection-panel.house-info-prompt:not([hidden]) {
     border-color: rgba(255, 255, 255, 0.095) !important;
   }
 }
+
+
+/* =========================================================
+   DONATION FINAL HOTFIX — mobile house prompt lower toward joystick
+   CSS fallback. JS also writes the same placement inline on open,
+   so this no longer depends on Telegram hover/pointer quirks.
+   ========================================================= */
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+body.mn-mobile-game-enabled.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible,
+body.mn-landscape-game.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"].is-visible {
+  position: fixed !important;
+  left: 50% !important;
+  top: 57.5% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate3d(-50%, -50%, 0) rotate(90deg) translateX(112px) !important;
+  transform-origin: center center !important;
+  background:
+    radial-gradient(ellipse at 50% -8%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.025) 34%, transparent 62%),
+    linear-gradient(180deg, rgba(7, 10, 18, 0.22), rgba(1, 3, 8, 0.38) 62%, rgba(0, 0, 0, 0.48)) !important;
+  border-color: rgba(255, 255, 255, 0.085) !important;
+  box-shadow:
+    0 14px 38px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.025),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: blur(4px) saturate(1.02) !important;
+  -webkit-backdrop-filter: blur(4px) saturate(1.02) !important;
+}
+
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible::before,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible::before,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible::before,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible::before,
+body.mn-mobile-game-enabled.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible::before,
+body.mn-landscape-game.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible::before,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"].is-visible::before {
+  opacity: 0.34 !important;
+}
+
+html.mn-real-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+html.mn-real-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+body.mn-real-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible {
+  left: 50% !important;
+  top: 61% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate3d(-50%, -50%, 0) !important;
+  background:
+    radial-gradient(ellipse at 50% -8%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.025) 34%, transparent 62%),
+    linear-gradient(180deg, rgba(7, 10, 18, 0.22), rgba(1, 3, 8, 0.38) 62%, rgba(0, 0, 0, 0.48)) !important;
+}
