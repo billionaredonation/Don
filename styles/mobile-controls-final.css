@@ -5958,3 +5958,71 @@ body.mn-real-landscape .house-selection-panel.house-info-prompt:not([hidden]) {
     transform-origin: center center !important;
   }
 }
+
+
+/* =========================================================
+   DONATION HOTFIX — mobile prompt to joystick side + transparency
+   Move is done in the rotated local axis, not by top/left, so it goes
+   visually toward the joystick side instead of the balance side.
+   ========================================================= */
+@media (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape,
+  body.mn-force-rotate-landscape,
+  body.mn-mobile-game-enabled,
+  body.mn-landscape-game {
+    --mn-house-prompt-mobile-x: 50% !important;
+    --mn-house-prompt-mobile-y: 57.5% !important;
+    --mn-house-prompt-joystick-shift: 58px !important;
+  }
+
+  html.mn-force-rotate-landscape body .house-selection-panel.house-info-prompt.is-visible,
+  html.mn-force-rotate-landscape body .house-selection-panel.house-info-prompt:not([hidden]),
+  body.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-force-rotate-landscape .house-selection-panel.house-info-prompt:not([hidden]),
+  body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt:not([hidden]),
+  body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-landscape-game .house-selection-panel.house-info-prompt:not([hidden]),
+  .home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt.is-visible,
+  .home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt:not([hidden]) {
+    position: fixed !important;
+    left: var(--mn-house-prompt-mobile-x, 50%) !important;
+    top: var(--mn-house-prompt-mobile-y, 57.5%) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) translateX(var(--mn-house-prompt-joystick-shift, 58px)) !important;
+    transform-origin: center center !important;
+
+    background:
+      radial-gradient(ellipse at 50% -6%, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.025) 30%, transparent 58%),
+      linear-gradient(180deg, rgba(7, 10, 18, 0.28), rgba(1, 3, 8, 0.46) 62%, rgba(0, 0, 0, 0.56)) !important;
+    border-color: rgba(255, 255, 255, 0.095) !important;
+    box-shadow:
+      0 16px 44px rgba(0, 0, 0, 0.26),
+      0 0 0 1px rgba(255, 255, 255, 0.025),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(5px) saturate(1.01) !important;
+    -webkit-backdrop-filter: blur(5px) saturate(1.01) !important;
+  }
+
+  html.mn-force-rotate-landscape body .house-selection-panel.house-info-prompt::before,
+  body.mn-force-rotate-landscape .house-selection-panel.house-info-prompt::before,
+  body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt::before,
+  body.mn-landscape-game .house-selection-panel.house-info-prompt::before,
+  .home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt::before {
+    opacity: 0.42 !important;
+  }
+
+  html.mn-real-landscape body .house-selection-panel.house-info-prompt.is-visible,
+  html.mn-real-landscape body .house-selection-panel.house-info-prompt:not([hidden]),
+  body.mn-real-landscape .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-real-landscape .house-selection-panel.house-info-prompt:not([hidden]) {
+    left: 50% !important;
+    top: 58.5% !important;
+    transform: translate3d(-50%, -50%, 0) !important;
+    background:
+      radial-gradient(ellipse at 50% -6%, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.025) 30%, transparent 58%),
+      linear-gradient(180deg, rgba(7, 10, 18, 0.28), rgba(1, 3, 8, 0.46) 62%, rgba(0, 0, 0, 0.56)) !important;
+    border-color: rgba(255, 255, 255, 0.095) !important;
+  }
+}
