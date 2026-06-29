@@ -1153,6 +1153,12 @@ register('home', async (root) => {
     resetHouseModalsOnHomeEnter();
 
     delete root.dataset.mobileControls;
-    document.body?.classList.remove('mn-landscape-game');
+    document.body?.classList.remove(
+      'mn-landscape-game',
+      'mn-mobile-game-enabled',
+      'mn-force-rotate-landscape',
+      'mn-real-landscape'
+    );
+    document.documentElement?.classList.remove('mn-force-rotate-landscape', 'mn-real-landscape');
   };
 });
