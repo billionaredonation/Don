@@ -58,6 +58,42 @@ function getSafeNickname(nickname) {
   return value || 'Игрок';
 }
 
+
+function clampPercent(value, fallback = 50) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return fallback;
+
+  return Math.min(100, Math.max(0, number));
+}
+
+function normalizeRangeOptions(options = {}) {
+  const centerX = Number(options.centerX);
+  const centerY = Number(options.centerY);
+  const radius = Number(options.radiusPercent ?? options.radius);
+
+  if (
+    !Number.isFinite(centerX) ||
+    !Number.isFinite(centerY) ||
+    !Number.isFinite(radius) ||
+    radius <= 0 ||
+    radius >= 100
+  ) {
+    return null;
+  }
+
+  const safeX = clampPercent(centerX);
+  const safeY = clampPercent(centerY);
+  const safeRadius = Math.min(100, Math.max(1, radius));
+
+  return {
+    minX: Math.max(0, safeX - safeRadius),
+    maxX: Math.min(100, safeX + safeRadius),
+    minY: Math.max(0, safeY - safeRadius),
+    maxY: Math.min(100, safeY + safeRadius),
+  };
+}
+
 function isTruthyAdmin(value) {
   return value === true || value === 'true' || value === 1 || value === '1';
 }
@@ -299,12 +335,24 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
   return normalizePosition(data);
 }
 
-export async function getCityPlayers(cityId) {
-  const { data, error } = await supabase
+export async function getCityPlayers(cityId, options = {}) {
+  const range = normalizeRangeOptions(options);
+
+  let query = supabase
     .from('player_positions')
     .select('*')
     .eq('city_id', cityId)
-    .eq('is_online', true)
+    .eq('is_online', true);
+
+  if (range) {
+    query = query
+      .gte('x', range.minX)
+      .lte('x', range.maxX)
+      .gte('y', range.minY)
+      .lte('y', range.maxY);
+  }
+
+  const { data, error } = await query
     .order('updated_at', { ascending: false })
     .limit(50);
 
