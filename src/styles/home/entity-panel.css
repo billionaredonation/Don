@@ -480,3 +480,18 @@ body:has(.house-selection-panel:not([hidden])) [data-mobile-stamina] {
     font-size: 17px !important;
   }
 }
+
+/* DONATION FIX — prompt is rendered only after E/I flow, never as permanent glow */
+.house-selection-panel.house-info-prompt[hidden],
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[hidden],
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt[hidden],
+body.mn-landscape-game .house-selection-panel.house-info-prompt[hidden] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-cancel {
+  display: none !important;
+}
