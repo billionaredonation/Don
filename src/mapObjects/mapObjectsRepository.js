@@ -30,6 +30,84 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+
+function clampPercent(value, fallback = 50) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return fallback;
+
+  return Math.min(100, Math.max(0, number));
+}
+
+function normalizeRangeOptions(options = {}) {
+  const centerX = Number(options.centerX);
+  const centerY = Number(options.centerY);
+  const radius = Number(options.radiusPercent ?? options.radius);
+
+  if (
+    !Number.isFinite(centerX) ||
+    !Number.isFinite(centerY) ||
+    !Number.isFinite(radius) ||
+    radius <= 0 ||
+    radius >= 100
+  ) {
+    return null;
+  }
+
+  const safeX = clampPercent(centerX);
+  const safeY = clampPercent(centerY);
+  const safeRadius = Math.min(100, Math.max(1, radius));
+
+  return {
+    centerX: safeX,
+    centerY: safeY,
+    radius: safeRadius,
+    minX: Math.max(0, safeX - safeRadius),
+    maxX: Math.min(100, safeX + safeRadius),
+    minY: Math.max(0, safeY - safeRadius),
+    maxY: Math.min(100, safeY + safeRadius),
+  };
+}
+
+function isObjectInsideRange(object, range) {
+  if (!range || !object) return true;
+
+  const x = Number(object.x);
+  const y = Number(object.y);
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return true;
+
+  return (
+    x >= range.minX &&
+    x <= range.maxX &&
+    y >= range.minY &&
+    y <= range.maxY
+  );
+}
+
+function filterObjectsByRange(objects, range) {
+  if (!range) return objects;
+
+  return Array.isArray(objects)
+    ? objects.filter((object) => isObjectInsideRange(object, range))
+    : [];
+}
+
+function mergeLocalObjects(cityId, nextObjects) {
+  const currentObjects = getLocalObjects(cityId);
+  const byId = new Map();
+
+  currentObjects.forEach((object) => {
+    if (object?.id) byId.set(String(object.id), object);
+  });
+
+  (Array.isArray(nextObjects) ? nextObjects : []).forEach((object) => {
+    if (object?.id) byId.set(String(object.id), object);
+  });
+
+  return saveLocalObjects(cityId, Array.from(byId.values()));
+}
+
 function normalizePayload(value) {
   if (!value) return {};
 
@@ -240,7 +318,7 @@ async function adminMapObjectsRequest(payload) {
   return data;
 }
 
-async function fetchRemoteObjects(cityId) {
+async function fetchRemoteObjects(cityId, options = {}) {
   const normalizedCityId = String(cityId || '').trim();
 
   if (!normalizedCityId) {
@@ -248,10 +326,22 @@ async function fetchRemoteObjects(cityId) {
     return [];
   }
 
-  const { data, error } = await supabase
+  const range = normalizeRangeOptions(options);
+
+  let query = supabase
     .from(TABLE_NAME)
     .select('*')
-    .eq('city_id', normalizedCityId)
+    .eq('city_id', normalizedCityId);
+
+  if (range) {
+    query = query
+      .gte('x', range.minX)
+      .lte('x', range.maxX)
+      .gte('y', range.minY)
+      .lte('y', range.maxY);
+  }
+
+  const { data, error } = await query
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -361,15 +451,23 @@ async function clearRemoteCity(cityId) {
   });
 }
 
-export async function getMapObjects(cityId) {
+export async function getMapObjects(cityId, options = {}) {
   const normalizedCityId = String(cityId || '').trim();
+  const range = normalizeRangeOptions(options);
 
-  const localObjects = getLocalObjects(normalizedCityId);
+  const localObjects = filterObjectsByRange(
+    getLocalObjects(normalizedCityId),
+    range
+  );
 
   try {
-    const remoteObjects = await fetchRemoteObjects(normalizedCityId);
+    const remoteObjects = await fetchRemoteObjects(normalizedCityId, options);
 
-    saveLocalObjects(normalizedCityId, remoteObjects);
+    if (range) {
+      mergeLocalObjects(normalizedCityId, remoteObjects);
+    } else {
+      saveLocalObjects(normalizedCityId, remoteObjects);
+    }
 
     return remoteObjects;
   } catch (error) {
