@@ -5914,3 +5914,47 @@ body.mn-real-landscape .house-selection-panel.house-info-prompt:not([hidden]) {
   transform: translate3d(-50%, -50%, 0) !important;
   transform-origin: center center !important;
 }
+
+/* =========================================================
+   DONATION HOTFIX — mobile house prompt correct axis
+   Previous top-only shift moved the prompt in the wrong visual direction
+   after rotate(90deg). This moves it toward the joystick side by X-axis.
+   ========================================================= */
+@media (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape,
+  body.mn-force-rotate-landscape,
+  body.mn-mobile-game-enabled,
+  body.mn-landscape-game {
+    --mn-house-prompt-mobile-x: 43.5% !important;
+    --mn-house-prompt-mobile-y: 57.5% !important;
+  }
+
+  html.mn-force-rotate-landscape body .house-selection-panel.house-info-prompt.is-visible,
+  html.mn-force-rotate-landscape body .house-selection-panel.house-info-prompt:not([hidden]),
+  body.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-force-rotate-landscape .house-selection-panel.house-info-prompt:not([hidden]),
+  body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt:not([hidden]),
+  body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-landscape-game .house-selection-panel.house-info-prompt:not([hidden]),
+  .home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt.is-visible,
+  .home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt:not([hidden]) {
+    position: fixed !important;
+    left: var(--mn-house-prompt-mobile-x, 43.5%) !important;
+    top: var(--mn-house-prompt-mobile-y, 57.5%) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+
+  html.mn-real-landscape body .house-selection-panel.house-info-prompt.is-visible,
+  html.mn-real-landscape body .house-selection-panel.house-info-prompt:not([hidden]),
+  body.mn-real-landscape .house-selection-panel.house-info-prompt.is-visible,
+  body.mn-real-landscape .house-selection-panel.house-info-prompt:not([hidden]) {
+    left: 46% !important;
+    top: 50% !important;
+    transform: translate3d(-50%, -50%, 0) !important;
+    transform-origin: center center !important;
+  }
+}
