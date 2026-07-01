@@ -6543,3 +6543,106 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+
+/* =========================================================
+   DONATION MOBILE HUD TEXT FIT — v88
+   - город показывается полностью: Запорожье, не Запоро...
+   - баланс показывается полностью, без обрезания
+   - логика, позиции карты, джойстик, модалки не трогаются
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  /* Город */
+  .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-city-button,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-city-button {
+    width: 154px !important;
+    min-width: 154px !important;
+    max-width: 154px !important;
+
+    gap: 5px !important;
+    padding: 0 8px 0 10px !important;
+
+    overflow: hidden !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button span,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-city-button span,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-city-button span {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
+    overflow: visible !important;
+    white-space: nowrap !important;
+    text-overflow: clip !important;
+
+    font-size: 10.2px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.035em !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-city-button b,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-city-button b,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-city-button b {
+    flex: 0 0 16px !important;
+    width: 16px !important;
+    min-width: 16px !important;
+    max-width: 16px !important;
+  }
+
+  /*
+    Forced landscape:
+    город стал шире, поэтому ник чуть отодвигаем,
+    чтобы карточки не налезали друг на друга.
+  */
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-profile-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-profile-card {
+    left: max(280px, calc(env(safe-area-inset-left) + 280px)) !important;
+  }
+
+  /* Баланс */
+  .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card {
+    width: 174px !important;
+    min-width: 174px !important;
+    max-width: 174px !important;
+
+    padding: 0 8px !important;
+    gap: 5px !important;
+
+    justify-content: flex-start !important;
+    overflow: visible !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-balance-card strong,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card strong,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card strong {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+
+    overflow: visible !important;
+    white-space: nowrap !important;
+    text-overflow: clip !important;
+
+    font-size: 9.4px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.075em !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-card-icon,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-card-icon,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-card-icon {
+    flex: 0 0 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+  }
+}
