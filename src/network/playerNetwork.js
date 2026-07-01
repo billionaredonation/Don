@@ -24,7 +24,17 @@ const SNAPSHOT_PLAYER_MAX_AGE_MS =
 
 const SNAPSHOT_REFRESH_INTERVAL_MS = 3200;
 const PLAYER_RENDER_RADIUS_PERCENT = 26;
+
+/*
+  Remote players streaming for mobile.
+  На телефоне не держим в DOM всех игроков города — только ближайших
+  вокруг локального игрока. Остальные сообщения/снапшоты отбрасываются
+  до создания DOM-маркера.
+*/
 const MOBILE_PLAYER_RENDER_RADIUS_PERCENT = 22;
+const MOBILE_PLAYER_RENDER_RADIUS_PX = 150;
+const MOBILE_PLAYER_RENDER_RADIUS_MIN_PERCENT = 4;
+const MOBILE_PLAYER_RENDER_RADIUS_MAX_PERCENT = 14;
 
 function percentToNumber(value, fallback = 50) {
   const n = Number(value);
@@ -51,6 +61,45 @@ function isMobileGameplayDevice() {
   return hasTouch && narrowScreen;
 }
 
+function clampNumber(value, min, max) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return min;
+
+  return Math.min(max, Math.max(min, number));
+}
+
+function getStreamingViewport(options = {}) {
+  return (
+    options.viewport ||
+    options.entities?.closest?.('.gta-map-viewport') ||
+    document.querySelector('.gta-map-viewport') ||
+    null
+  );
+}
+
+function getViewportPercentRadiusFromPx(
+  viewport,
+  radiusPx,
+  fallbackPercent,
+  { minPercent = 1, maxPercent = 100 } = {}
+) {
+  if (!isMobileGameplayDevice()) return fallbackPercent;
+
+  const rect = viewport?.getBoundingClientRect?.();
+  const width = Number(rect?.width);
+  const height = Number(rect?.height);
+
+  if (width > 0 && height > 0) {
+    const minSide = Math.max(1, Math.min(width, height));
+    const percent = (Number(radiusPx) / minSide) * 100;
+
+    return clampNumber(percent, minPercent, maxPercent);
+  }
+
+  return clampNumber(fallbackPercent, minPercent, maxPercent);
+}
+
 function getPlayerRenderRadiusPercent(options = {}) {
   const requested = Number(options.renderRadiusPercent);
 
@@ -58,9 +107,19 @@ function getPlayerRenderRadiusPercent(options = {}) {
     return requested;
   }
 
-  return isMobileGameplayDevice()
-    ? MOBILE_PLAYER_RENDER_RADIUS_PERCENT
-    : PLAYER_RENDER_RADIUS_PERCENT;
+  if (isMobileGameplayDevice()) {
+    return getViewportPercentRadiusFromPx(
+      getStreamingViewport(options),
+      MOBILE_PLAYER_RENDER_RADIUS_PX,
+      MOBILE_PLAYER_RENDER_RADIUS_PERCENT,
+      {
+        minPercent: MOBILE_PLAYER_RENDER_RADIUS_MIN_PERCENT,
+        maxPercent: MOBILE_PLAYER_RENDER_RADIUS_MAX_PERCENT,
+      }
+    );
+  }
+
+  return PLAYER_RENDER_RADIUS_PERCENT;
 }
 
 function getLocalPosition(localPlayerPosition) {
@@ -226,6 +285,47 @@ function cleanupLocalDuplicates(entities, localPlayerId) {
 
       remoteMarkers.delete(markerPlayerId);
       marker.remove();
+    });
+}
+
+function getPlayerFromMarker(marker) {
+  if (!marker) return null;
+
+  return {
+    playerId: marker.dataset.playerId,
+    x: percentToNumber(marker.dataset.x),
+    y: percentToNumber(marker.dataset.y),
+    angle: percentToNumber(marker.dataset.angle, 0),
+  };
+}
+
+function cleanupRemotePlayersOutsideRenderDistance(
+  entities,
+  localPlayerId,
+  localPlayerPosition,
+  options = {}
+) {
+  if (!entities || !isMobileGameplayDevice()) return;
+
+  entities
+    .querySelectorAll('.gta-player-marker-other')
+    .forEach((marker) => {
+      const markerPlayerId = marker.dataset.playerId;
+
+      if (!markerPlayerId || isSamePlayer(markerPlayerId, localPlayerId)) {
+        return;
+      }
+
+      const player = getPlayerFromMarker(marker);
+
+      if (isPlayerInsideRenderDistance(player, localPlayerPosition, {
+        ...options,
+        entities,
+      })) {
+        return;
+      }
+
+      removePlayerMarker(entities, markerPlayerId);
     });
 }
 
@@ -483,7 +583,7 @@ export function removePlayerMarker(entities, playerId) {
   }
 }
 
-function startStalePlayersCleanup(entities, localPlayerId) {
+function startStalePlayersCleanup(entities, localPlayerId, localPlayerPosition, options = {}) {
   const staleAfter =
     NETWORK_CONFIG.movement.staleAfter || ONLINE_TTL_MS;
 
@@ -494,6 +594,12 @@ function startStalePlayersCleanup(entities, localPlayerId) {
     const now = Date.now();
 
     cleanupLocalDuplicates(entities, localPlayerId);
+    cleanupRemotePlayersOutsideRenderDistance(
+      entities,
+      localPlayerId,
+      localPlayerPosition,
+      options
+    );
 
     entities
       .querySelectorAll('.gta-player-marker-other')
@@ -583,14 +689,17 @@ function startPresenceHeartbeat(cityId, selfPlayerId) {
   };
 }
 
-function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId, localPlayerPosition) {
+function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId, localPlayerPosition, options = {}) {
   let stopped = false;
 
   async function refreshSnapshot() {
     if (stopped) return;
 
     try {
-      const players = await getCityPlayers(cityId, getPlayersQueryOptions(localPlayerPosition));
+      const players = await getCityPlayers(cityId, getPlayersQueryOptions(localPlayerPosition, {
+        ...options,
+        entities,
+      }));
       const liveIds = new Set();
 
       players.forEach((rawPlayer) => {
@@ -606,7 +715,10 @@ function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId, localPlayer
           return;
         }
 
-        if (!isPlayerInsideRenderDistance(player, localPlayerPosition)) {
+        if (!isPlayerInsideRenderDistance(player, localPlayerPosition, {
+          ...options,
+          entities,
+        })) {
           removePlayerMarker(entities, playerId);
           return;
         }
@@ -621,6 +733,8 @@ function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId, localPlayer
             instant: true,
             maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
             localPlayerPosition,
+            entities,
+            ...options,
           }
         );
       });
@@ -664,7 +778,18 @@ export function setupPlayerNetwork({
   const selfPlayerId =
     localPlayerId || playerId;
 
+  const streamingOptions = {
+    entities,
+    viewport: entities?.closest?.('.gta-map-viewport') || null,
+  };
+
   cleanupLocalDuplicates(entities, selfPlayerId);
+  cleanupRemotePlayersOutsideRenderDistance(
+    entities,
+    selfPlayerId,
+    playerPosition,
+    streamingOptions
+  );
 
   const movementChannel =
     createCityMovementChannel(cityId, {
@@ -695,13 +820,19 @@ export function setupPlayerNetwork({
             instant: false,
             skipFreshnessCheck: true,
             localPlayerPosition: playerPosition,
+            ...streamingOptions,
           }
         );
       },
     });
 
   const cleanupStalePlayers =
-    startStalePlayersCleanup(entities, selfPlayerId);
+    startStalePlayersCleanup(
+      entities,
+      selfPlayerId,
+      playerPosition,
+      streamingOptions
+    );
 
   const cleanupPresenceHeartbeat =
     startPresenceHeartbeat(cityId, selfPlayerId);
@@ -711,7 +842,8 @@ export function setupPlayerNetwork({
       entities,
       cityId,
       selfPlayerId,
-      playerPosition
+      playerPosition,
+      streamingOptions
     );
 
   const cleanupOffline =
@@ -749,6 +881,7 @@ export function setupPlayerNetwork({
               instant: true,
               maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
               localPlayerPosition: playerPosition,
+              ...streamingOptions,
             }
           );
         },
@@ -784,6 +917,7 @@ export function setupPlayerNetwork({
               instant: false,
               maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
               localPlayerPosition: playerPosition,
+              ...streamingOptions,
             }
           );
         },
