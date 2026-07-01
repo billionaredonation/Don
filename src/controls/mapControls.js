@@ -139,6 +139,9 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   const mapImages = Array.from(viewport.querySelectorAll('.gta-map-image'));
   let resizeRefreshTimer = null;
+  let lastViewportTransform = '';
+  let lastZoomCssValue = '';
+  let lastEntityScaleCssValue = '';
 
   function forceVisibleMapLayer() {
     stage.style.position = 'absolute';
@@ -258,18 +261,42 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function applyTransform() {
-    scale = getMapProfile().scale;
+    /*
+      Мобилка:
+      getMapProfile() больше не вызывается на каждом кадре движения.
+      Scale обновляется через refresh(), а transform перерисовывается только
+      если реально изменился. Это снижает микрофризы в Telegram WebView.
+    */
 
     const limits = getLimits();
 
     x = clamp(x, -limits.maxX, limits.maxX);
     y = clamp(y, -limits.maxY, limits.maxY);
 
-    viewport.style.transform =
-      `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) scale(${scale})`;
+    const safeX = Math.round(x * 1000) / 1000;
+    const safeY = Math.round(y * 1000) / 1000;
+    const safeScale = Math.round(scale * 10000) / 10000;
 
-    stage.style.setProperty('--zoom', scale.toFixed(2));
-    stage.style.setProperty('--map-entity-scale', (1 / Math.max(scale, 1)).toFixed(4));
+    const nextTransform =
+      `translate(-50%, -50%) translate3d(${safeX}px, ${safeY}px, 0) scale(${safeScale})`;
+
+    if (nextTransform !== lastViewportTransform) {
+      viewport.style.transform = nextTransform;
+      lastViewportTransform = nextTransform;
+    }
+
+    const nextZoomValue = safeScale.toFixed(2);
+    const nextEntityScaleValue = (1 / Math.max(safeScale, 1)).toFixed(4);
+
+    if (nextZoomValue !== lastZoomCssValue) {
+      stage.style.setProperty('--zoom', nextZoomValue);
+      lastZoomCssValue = nextZoomValue;
+    }
+
+    if (nextEntityScaleValue !== lastEntityScaleCssValue) {
+      stage.style.setProperty('--map-entity-scale', nextEntityScaleValue);
+      lastEntityScaleCssValue = nextEntityScaleValue;
+    }
   }
 
   function focusOnPlayer(playerX, playerY) {
@@ -291,6 +318,12 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function refresh() {
+    scale = getMapProfile().scale;
+
+    lastViewportTransform = '';
+    lastZoomCssValue = '';
+    lastEntityScaleCssValue = '';
+
     measureWorld();
     focusOnPlayer(lastFocusX, lastFocusY);
   }
