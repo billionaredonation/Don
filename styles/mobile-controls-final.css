@@ -6280,3 +6280,266 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+
+/* =========================================================
+   DONATION ABSOLUTE FINAL — house prompt below player
+   Покупка/инфа дома: ниже игрока, без фона.
+   Сверху лёгкая белая подсветка, снизу тёмная тень.
+   Этот файл грузится последним, поэтому фикс должен быть здесь.
+   ========================================================= */
+
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+body.mn-mobile-game-enabled.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible,
+body.mn-landscape-game.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"].is-visible {
+  position: fixed !important;
+
+  left: 50% !important;
+  top: 70.5% !important;
+  right: auto !important;
+  bottom: auto !important;
+
+  width: min(360px, 62vh) !important;
+  max-width: min(360px, 62vh) !important;
+  min-height: 0 !important;
+
+  padding: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 16px !important;
+
+  transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+  transform-origin: center center !important;
+
+  background: transparent !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+
+  overflow: visible !important;
+  isolation: isolate !important;
+  z-index: 2147484200 !important;
+}
+
+/* Верхняя белая лёгкая подсветка */
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible::before,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible::before,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible::before,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible::before,
+body.mn-mobile-game-enabled.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible::before,
+body.mn-landscape-game.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible::before,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"].is-visible::before {
+  content: "" !important;
+  display: block !important;
+
+  position: absolute !important;
+  left: 50% !important;
+  top: -28px !important;
+
+  width: 82% !important;
+  height: 52px !important;
+
+  transform: translateX(-50%) !important;
+  border-radius: 999px !important;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.42) 0%,
+      rgba(255, 255, 255, 0.20) 34%,
+      rgba(255, 255, 255, 0.06) 58%,
+      rgba(255, 255, 255, 0.00) 78%
+    ) !important;
+
+  box-shadow:
+    0 0 18px rgba(255, 255, 255, 0.26),
+    0 0 34px rgba(255, 255, 255, 0.14) !important;
+
+  filter: blur(2px) !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+/* Нижняя тёмная мягкая тень */
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible::after,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible::after,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible::after,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible::after,
+body.mn-mobile-game-enabled.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible::after,
+body.mn-landscape-game.mn-force-rotate-landscape .house-selection-panel.house-info-prompt.is-visible::after,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"].is-visible::after {
+  content: "" !important;
+  display: block !important;
+
+  position: absolute !important;
+  left: 50% !important;
+  bottom: -34px !important;
+
+  width: 96% !important;
+  height: 92px !important;
+
+  transform: translateX(-50%) !important;
+  border-radius: 999px !important;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(0, 0, 0, 0.82) 0%,
+      rgba(0, 0, 0, 0.52) 38%,
+      rgba(0, 0, 0, 0.22) 62%,
+      rgba(0, 0, 0, 0.00) 82%
+    ) !important;
+
+  filter: blur(8px) !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+/* Текст и кнопки поверх подсветок */
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-body,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-body,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-body,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-body,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-body {
+  position: relative !important;
+  z-index: 2 !important;
+
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+
+  display: grid !important;
+  gap: 4px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-keys,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-keys,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-keys,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-keys,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-keys {
+  position: relative !important;
+  z-index: 2 !important;
+
+  display: flex !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Заголовок */
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-title,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-title,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-title,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-title,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-title {
+  color: #ffffff !important;
+  font-size: 19px !important;
+  line-height: 1.05 !important;
+  font-weight: 1000 !important;
+
+  text-shadow:
+    0 3px 8px rgba(0, 0, 0, 1),
+    0 0 16px rgba(0, 0, 0, 0.96),
+    0 0 22px rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Описание + таймер */
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-meta,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-meta,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-meta,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-meta,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-meta,
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-timer,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-timer,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-timer,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-timer,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-timer {
+  color: rgba(255, 255, 255, 0.94) !important;
+  font-size: 12px !important;
+  line-height: 1.14 !important;
+  font-weight: 900 !important;
+
+  text-shadow:
+    0 3px 8px rgba(0, 0, 0, 1),
+    0 0 14px rgba(0, 0, 0, 0.98) !important;
+}
+
+/* Кнопки I / N */
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-action,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-action,
+html.mn-force-rotate-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-cancel,
+html.mn-force-rotate-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-cancel,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-action,
+body.mn-force-rotate-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-cancel,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-action,
+body.mn-force-rotate-landscape.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-cancel,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-action,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-cancel {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+
+  width: 54px !important;
+  height: 54px !important;
+  min-width: 54px !important;
+  min-height: 54px !important;
+
+  align-items: center !important;
+  justify-content: center !important;
+
+  border-radius: 18px !important;
+
+  font-size: 22px !important;
+  font-weight: 1000 !important;
+  line-height: 1 !important;
+
+  color: #ffffff !important;
+}
+
+/* Реальный landscape, если телефон реально повернут, а не forced-rotate */
+html.mn-real-landscape body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+html.mn-real-landscape body.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible,
+body.mn-real-landscape.mn-mobile-game-enabled .house-selection-panel.house-info-prompt.is-visible,
+body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-prompt.is-visible {
+  left: 50% !important;
+  top: 66% !important;
+
+  width: min(360px, 62vw) !important;
+  max-width: min(360px, 62vw) !important;
+
+  transform: translate3d(-50%, -50%, 0) !important;
+
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
