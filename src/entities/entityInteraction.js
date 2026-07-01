@@ -496,10 +496,12 @@ export function createEntityInteractionPanel(root) {
     panel.style.removeProperty('transform');
     panel.style.removeProperty('transform-origin');
     panel.style.removeProperty('background');
+    panel.style.removeProperty('border');
     panel.style.removeProperty('border-color');
     panel.style.removeProperty('box-shadow');
     panel.style.removeProperty('backdrop-filter');
     panel.style.removeProperty('-webkit-backdrop-filter');
+    panel.style.removeProperty('overflow');
 
     if (!mobile) return;
 
@@ -509,20 +511,23 @@ export function createEntityInteractionPanel(root) {
       document.body?.classList?.contains('mn-force-rotate-landscape');
 
     panel.style.setProperty('position', 'fixed', 'important');
+    panel.style.setProperty('left', '50%', 'important');
     panel.style.setProperty('right', 'auto', 'important');
     panel.style.setProperty('bottom', 'auto', 'important');
     panel.style.setProperty('transform-origin', 'center center', 'important');
-    // Финальная мобилка: без фоновой карточки. Только текст + две кнопки.
+
+    // Полностью убираем карточку/фон. Остаются только текст, кнопки и мягкие тени из CSS.
     panel.style.setProperty('background', 'transparent', 'important');
+    panel.style.setProperty('border', '0', 'important');
     panel.style.setProperty('border-color', 'transparent', 'important');
     panel.style.setProperty('box-shadow', 'none', 'important');
     panel.style.setProperty('backdrop-filter', 'none', 'important');
     panel.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+    panel.style.setProperty('overflow', 'visible', 'important');
 
     if (forcedLandscape) {
-      // Центр экрана и чуть ниже игрока. Без ухода к балансу/джойстику.
-      panel.style.setProperty('left', '50%', 'important');
-      panel.style.setProperty('top', '56.5%', 'important');
+      // Под игроком, а не на игроке. Центр не уводим к балансу/джойстику.
+      panel.style.setProperty('top', '63.5%', 'important');
       panel.style.setProperty(
         'transform',
         'translate3d(-50%, -50%, 0) rotate(90deg)',
@@ -531,8 +536,8 @@ export function createEntityInteractionPanel(root) {
       return;
     }
 
-    panel.style.setProperty('left', '50%', 'important');
-    panel.style.setProperty('top', '56.5%', 'important');
+    // Обычная мобилка: тоже ниже игрока.
+    panel.style.setProperty('top', '63.5%', 'important');
     panel.style.setProperty('transform', 'translate3d(-50%, -50%, 0)', 'important');
   }
 
