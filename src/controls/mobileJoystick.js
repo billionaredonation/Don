@@ -205,21 +205,32 @@ export function enableMobileJoystick(
   const BOUNDS = getMovementBounds();
   const SYNC_CONFIG = getMovementSyncConfig();
 
-  const MAX_DISTANCE = 46;
-  const DEADZONE = 0.08;
+  const MAX_DISTANCE = 48;
+  const DEADZONE = 0.055;
   const SPRINT_POWER = 0.62;
-  const CAMERA_LAG = 0.18;
-  const INPUT_SMOOTHING = 0.36;
+
+  /*
+    Мобилка:
+    сглаживаем input, камера быстрее догоняет игрока,
+    а лишние DOM/DB обновления режем, чтобы убрать мини-телепорты.
+  */
+  const CAMERA_LAG = 0.28;
+  const CAMERA_PAINT_EPSILON = 0.0007;
+
+  const INPUT_SMOOTHING = 0.24;
+  const INPUT_STOP_EASING = 0.34;
+
   const STAMINA_ARC_MAX_DEG = 165;
+  const STAMINA_PAINT_INTERVAL = 85;
 
   /*
     Мобилка не должна спамить сетью/DB на каждом кадре.
     Движение остаётся 60fps локально, а синхра уходит реже — так меньше
     микрофризов и телефон меньше греется.
   */
-  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 70);
-  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 2200);
-  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 1800);
+  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 95);
+  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 2800);
+  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 2500);
 
   const initialPosition = getInitialPosition(playerPosition, marker, BOUNDS);
 
@@ -252,6 +263,13 @@ export function enableMobileJoystick(
   let destroyed = false;
   let lastFrameAt = performance.now();
 
+  let lastCameraPaintX = Number.NaN;
+  let lastCameraPaintY = Number.NaN;
+
+  let lastStaminaPaintAt = 0;
+  let lastStaminaPercent = Number.NaN;
+  let lastStaminaState = '';
+
   let lastBroadcastAt = 0;
   let lastDbSaveAt = 0;
 
@@ -274,39 +292,44 @@ export function enableMobileJoystick(
     }
   }
 
-function updateStaminaUi() {
-  if (!staminaFill) return;
+  function updateStaminaUi(force = false) {
+    if (!staminaFill) return;
 
-  const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
-  const arcAngle = (percent / 100) * STAMINA_ARC_MAX_DEG;
+    const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
+    const arcAngle = (percent / 100) * STAMINA_ARC_MAX_DEG;
 
-  staminaFill.style.width = `${percent}%`;
+    let state = 'normal';
 
-  if (staminaBox) {
-    staminaBox.style.setProperty('--mobile-stamina-percent', `${percent.toFixed(2)}%`);
-    staminaBox.style.setProperty('--mobile-stamina-angle', `${arcAngle.toFixed(2)}deg`);
+    if (sprintLocked) {
+      state = 'locked';
+    } else if (percent < 30) {
+      state = 'low';
+    }
+
+    const now = performance.now();
+
+    if (
+      !force &&
+      now - lastStaminaPaintAt < STAMINA_PAINT_INTERVAL &&
+      Math.abs(percent - lastStaminaPercent) < 0.25 &&
+      state === lastStaminaState
+    ) {
+      return;
+    }
+
+    lastStaminaPaintAt = now;
+    lastStaminaPercent = percent;
+    lastStaminaState = state;
+
+    staminaFill.style.width = `${percent}%`;
+    staminaFill.dataset.state = state;
+
+    if (staminaBox) {
+      staminaBox.style.setProperty('--mobile-stamina-percent', `${percent.toFixed(2)}%`);
+      staminaBox.style.setProperty('--mobile-stamina-angle', `${arcAngle.toFixed(2)}deg`);
+      staminaBox.dataset.staminaState = state;
+    }
   }
-
-  if (sprintLocked) {
-    staminaFill.dataset.state = 'locked';
-
-    if (staminaBox) {
-      staminaBox.dataset.staminaState = 'locked';
-    }
-  } else if (percent < 30) {
-    staminaFill.dataset.state = 'low';
-
-    if (staminaBox) {
-      staminaBox.dataset.staminaState = 'low';
-    }
-  } else {
-    staminaFill.dataset.state = 'normal';
-
-    if (staminaBox) {
-      staminaBox.dataset.staminaState = 'normal';
-    }
-  }
-}
 
   function updateSprintState(isMoving, frameScale) {
     const joystickPower = getJoystickPower(moveX, moveY);
@@ -353,6 +376,18 @@ function updateStaminaUi() {
       cameraX += (x - cameraX) * CAMERA_LAG;
       cameraY += (y - cameraY) * CAMERA_LAG;
     }
+
+    const shouldPaint =
+      force ||
+      Number.isNaN(lastCameraPaintX) ||
+      Number.isNaN(lastCameraPaintY) ||
+      Math.abs(cameraX - lastCameraPaintX) > CAMERA_PAINT_EPSILON ||
+      Math.abs(cameraY - lastCameraPaintY) > CAMERA_PAINT_EPSILON;
+
+    if (!shouldPaint) return;
+
+    lastCameraPaintX = cameraX;
+    lastCameraPaintY = cameraY;
 
     mapControls?.focusOnPlayer?.(cameraX, cameraY);
   }
@@ -445,6 +480,38 @@ function updateStaminaUi() {
     }
   }
 
+
+  function queuePositionSave(force = false) {
+    if (force) {
+      savePositionToDb(true);
+      return;
+    }
+
+    const now = Date.now();
+
+    if (now - lastDbSaveAt >= DB_SAVE_INTERVAL) {
+      savePositionToDb(false);
+    }
+  }
+
+  function isCameraSettled() {
+    return (
+      Math.abs(x - cameraX) <= CAMERA_PAINT_EPSILON &&
+      Math.abs(y - cameraY) <= CAMERA_PAINT_EPSILON
+    );
+  }
+
+  function shouldSleepLoop(isMoving, wantsMove) {
+    return (
+      !isMoving &&
+      !wantsMove &&
+      activePointerId === null &&
+      isCameraSettled() &&
+      stamina >= STAMINA.max &&
+      !sprintLocked
+    );
+  }
+
   function measureJoystick() {
     const rect = base.getBoundingClientRect();
 
@@ -506,22 +573,24 @@ function updateStaminaUi() {
   function loop(now = performance.now()) {
     if (destroyed) return;
 
-    const delta = Math.min(28, Math.max(8, now - lastFrameAt));
+    const delta = Math.min(24, Math.max(8, now - lastFrameAt));
     const frameScale = delta / 16.6667;
 
     lastFrameAt = now;
-
-    moveX += (targetMoveX - moveX) * INPUT_SMOOTHING;
-    moveY += (targetMoveY - moveY) * INPUT_SMOOTHING;
 
     const wantsMove =
       Math.abs(targetMoveX) > DEADZONE ||
       Math.abs(targetMoveY) > DEADZONE;
 
+    const inputLerp = wantsMove ? INPUT_SMOOTHING : INPUT_STOP_EASING;
+
+    moveX += (targetMoveX - moveX) * inputLerp;
+    moveY += (targetMoveY - moveY) * inputLerp;
+
     const isMoving =
       wantsMove ||
-      Math.abs(moveX) > 0.012 ||
-      Math.abs(moveY) > 0.012;
+      Math.abs(moveX) > 0.01 ||
+      Math.abs(moveY) > 0.01;
 
     const isSprinting = updateSprintState(wantsMove, frameScale);
 
@@ -540,10 +609,16 @@ function updateStaminaUi() {
       renderPlayer();
       updateCamera(false);
       broadcastMove(false);
-      savePositionToDb(false);
+      queuePositionSave(false);
     } else {
       syncPlayerPosition();
       updateCamera(false);
+    }
+
+    if (shouldSleepLoop(isMoving, wantsMove)) {
+      animationId = null;
+      updateStaminaUi(true);
+      return;
     }
 
     animationId = requestAnimationFrame(loop);
@@ -565,7 +640,7 @@ function updateStaminaUi() {
       renderPlayer();
       updateCamera(false);
       broadcastMove(true);
-      savePositionToDb(true);
+      queuePositionSave(true);
     }, HEARTBEAT_DELAY);
   }
 
@@ -578,7 +653,7 @@ function updateStaminaUi() {
     updateCamera(false);
     updateStaminaUi();
     broadcastMove(true);
-    savePositionToDb(true);
+    queuePositionSave(true);
   }
 
   function handleViewportChange() {
@@ -610,7 +685,7 @@ function updateStaminaUi() {
     renderPlayer();
     updateCamera(true);
     broadcastMove(true);
-    savePositionToDb(true);
+    queuePositionSave(true);
   }
 
   function onPointerDown(event) {
@@ -692,7 +767,7 @@ function updateStaminaUi() {
     updateCamera(true);
     updateStaminaUi();
     broadcastMove(true);
-    savePositionToDb(true);
+    queuePositionSave(true);
 
     joystick?.remove();
 
