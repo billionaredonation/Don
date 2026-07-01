@@ -134,6 +134,11 @@ export function enableMapControls(stage, viewport, options = {}) {
   let worldWidth = 1200;
   let worldHeight = 864;
 
+  // На мобилке нельзя читать getBoundingClientRect() каждый кадр движения.
+  // Читаем размер сцены только на refresh/resize, а в RAF используем кеш.
+  let cachedStageWidth = 1;
+  let cachedStageHeight = 1;
+
   let lastFocusX = Number(options.focusX) || 50;
   let lastFocusY = Number(options.focusY) || 50;
 
@@ -209,7 +214,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     });
   }
 
-  function getStageRect() {
+  function readStageRect() {
     const rect = stage.getBoundingClientRect();
     const screen = getViewportSize();
 
@@ -224,16 +229,26 @@ export function enableMapControls(stage, viewport, options = {}) {
       height = screen.height;
     }
 
+    cachedStageWidth = Math.max(1, width);
+    cachedStageHeight = Math.max(1, height);
+
     return {
-      width: Math.max(1, width),
-      height: Math.max(1, height),
+      width: cachedStageWidth,
+      height: cachedStageHeight,
+    };
+  }
+
+  function getCachedStageRect() {
+    return {
+      width: cachedStageWidth,
+      height: cachedStageHeight,
     };
   }
 
   function measureWorld() {
     forceVisibleMapLayer();
 
-    const rect = getStageRect();
+    const rect = readStageRect();
     const ratio = getImageRatio(viewport);
     const isDesktopPortrait = !mobile && rect.height > rect.width * 1.18;
     const base = isDesktopPortrait
@@ -249,7 +264,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function getLimits() {
-    const rect = getStageRect();
+    const rect = getCachedStageRect();
 
     const scaledWidth = worldWidth * scale;
     const scaledHeight = worldHeight * scale;
