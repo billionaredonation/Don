@@ -493,12 +493,22 @@ export function createEntityInteractionPanel(root) {
     panel.style.removeProperty('top');
     panel.style.removeProperty('right');
     panel.style.removeProperty('bottom');
+    panel.style.removeProperty('width');
+    panel.style.removeProperty('max-width');
+    panel.style.removeProperty('min-height');
+    panel.style.removeProperty('padding');
+    panel.style.removeProperty('display');
+    panel.style.removeProperty('align-items');
+    panel.style.removeProperty('justify-content');
+    panel.style.removeProperty('gap');
     panel.style.removeProperty('transform');
     panel.style.removeProperty('transform-origin');
     panel.style.removeProperty('background');
     panel.style.removeProperty('border');
     panel.style.removeProperty('border-color');
+    panel.style.removeProperty('border-radius');
     panel.style.removeProperty('box-shadow');
+    panel.style.removeProperty('outline');
     panel.style.removeProperty('backdrop-filter');
     panel.style.removeProperty('-webkit-backdrop-filter');
     panel.style.removeProperty('overflow');
@@ -514,31 +524,44 @@ export function createEntityInteractionPanel(root) {
     panel.style.setProperty('left', '50%', 'important');
     panel.style.setProperty('right', 'auto', 'important');
     panel.style.setProperty('bottom', 'auto', 'important');
-    panel.style.setProperty('transform-origin', 'center center', 'important');
 
-    // Полностью убираем карточку/фон. Остаются только текст, кнопки и мягкие тени из CSS.
+    /*
+      ВАЖНО:
+      Игрок стоит примерно в центре экрана.
+      Значит подсказку надо не на 56–63%, а ниже — около 70%.
+      Иначе длинный повернутый блок всё равно проходит через игрока.
+    */
+    panel.style.setProperty('top', forcedLandscape ? '70.5%' : '66%', 'important');
+
+    panel.style.setProperty('width', 'min(360px, 62vh)', 'important');
+    panel.style.setProperty('max-width', 'min(360px, 62vh)', 'important');
+    panel.style.setProperty('min-height', '0', 'important');
+
+    panel.style.setProperty('padding', '0', 'important');
+    panel.style.setProperty('display', 'flex', 'important');
+    panel.style.setProperty('align-items', 'center', 'important');
+    panel.style.setProperty('justify-content', 'center', 'important');
+    panel.style.setProperty('gap', '16px', 'important');
+
+    panel.style.setProperty('transform-origin', 'center center', 'important');
+    panel.style.setProperty(
+      'transform',
+      forcedLandscape
+        ? 'translate3d(-50%, -50%, 0) rotate(90deg)'
+        : 'translate3d(-50%, -50%, 0)',
+      'important'
+    );
+
+    // Полностью убираем карточку. Остаются только текст, кнопки и псевдо-подсветки из CSS.
     panel.style.setProperty('background', 'transparent', 'important');
     panel.style.setProperty('border', '0', 'important');
     panel.style.setProperty('border-color', 'transparent', 'important');
+    panel.style.setProperty('border-radius', '0', 'important');
     panel.style.setProperty('box-shadow', 'none', 'important');
+    panel.style.setProperty('outline', '0', 'important');
     panel.style.setProperty('backdrop-filter', 'none', 'important');
     panel.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
     panel.style.setProperty('overflow', 'visible', 'important');
-
-    if (forcedLandscape) {
-      // Под игроком, а не на игроке. Центр не уводим к балансу/джойстику.
-      panel.style.setProperty('top', '63.5%', 'important');
-      panel.style.setProperty(
-        'transform',
-        'translate3d(-50%, -50%, 0) rotate(90deg)',
-        'important'
-      );
-      return;
-    }
-
-    // Обычная мобилка: тоже ниже игрока.
-    panel.style.setProperty('top', '63.5%', 'important');
-    panel.style.setProperty('transform', 'translate3d(-50%, -50%, 0)', 'important');
   }
 
   function open(object) {
