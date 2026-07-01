@@ -521,10 +521,10 @@ export function createEntityInteractionPanel(root) {
       document.body?.classList?.contains('mn-force-rotate-landscape');
 
     panel.style.setProperty('position', 'fixed', 'important');
-    panel.style.setProperty('left', '45%', 'important');
+    panel.style.setProperty('left', '35%', 'important');
     panel.style.setProperty('right', 'auto', 'important');
     panel.style.setProperty('bottom', 'auto', 'important');
-    panel.style.setProperty('top', forcedLandscape ? '55.5%' : '66%', 'important');
+    panel.style.setProperty('top', forcedLandscape ? '50.0%' : '66%', 'important');
 
     panel.style.setProperty('width', 'min(360px, 62vh)', 'important');
     panel.style.setProperty('max-width', 'min(360px, 62vh)', 'important');
