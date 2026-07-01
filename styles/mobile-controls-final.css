@@ -6298,8 +6298,8 @@ body.mn-landscape-game.mn-force-rotate-landscape .house-selection-panel.house-in
 .home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt[data-device="mobile"].is-visible {
   position: fixed !important;
 
-  left: 50% !important;
-  top: 70.5% !important;
+  left: 45% !important;
+  top: 55.5% !important;
   right: auto !important;
   bottom: auto !important;
 
