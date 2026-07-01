@@ -521,17 +521,10 @@ export function createEntityInteractionPanel(root) {
       document.body?.classList?.contains('mn-force-rotate-landscape');
 
     panel.style.setProperty('position', 'fixed', 'important');
-    panel.style.setProperty('left', '50%', 'important');
+    panel.style.setProperty('left', '45%', 'important');
     panel.style.setProperty('right', 'auto', 'important');
     panel.style.setProperty('bottom', 'auto', 'important');
-
-    /*
-      ВАЖНО:
-      Игрок стоит примерно в центре экрана.
-      Значит подсказку надо не на 56–63%, а ниже — около 70%.
-      Иначе длинный повернутый блок всё равно проходит через игрока.
-    */
-    panel.style.setProperty('top', forcedLandscape ? '70.5%' : '66%', 'important');
+    panel.style.setProperty('top', forcedLandscape ? '55.5%' : '66%', 'important');
 
     panel.style.setProperty('width', 'min(360px, 62vh)', 'important');
     panel.style.setProperty('max-width', 'min(360px, 62vh)', 'important');
