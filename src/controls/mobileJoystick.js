@@ -214,14 +214,24 @@ export function enableMobileJoystick(
     сглаживаем input, камера быстрее догоняет игрока,
     а лишние DOM/DB обновления режем, чтобы убрать мини-телепорты.
   */
-  const CAMERA_LAG = 0.28;
-  const CAMERA_PAINT_EPSILON = 0.0007;
+  const CAMERA_LAG = 0.5;
+  const CAMERA_PAINT_EPSILON = 0.00045;
 
-  const INPUT_SMOOTHING = 0.24;
-  const INPUT_STOP_EASING = 0.34;
+  /*
+    Второй фикс плавности:
+    координата игрока теперь не прыгает напрямую за джойстиком.
+    Сначала сглаживаем input, потом velocity, потом отдельно render-позицию.
+  */
+  const INPUT_SMOOTHING = 0.18;
+  const INPUT_STOP_EASING = 0.28;
+  const VELOCITY_LERP = 0.16;
+  const VELOCITY_STOP_LERP = 0.22;
+  const RENDER_LAG = 0.42;
+  const POSITION_PAINT_EPSILON = 0.00018;
+  const MARKER_DATA_SYNC_INTERVAL = 180;
 
   const STAMINA_ARC_MAX_DEG = 165;
-  const STAMINA_PAINT_INTERVAL = 85;
+  const STAMINA_PAINT_INTERVAL = 95;
 
   /*
     Мобилка не должна спамить сетью/DB на каждом кадре.
@@ -236,6 +246,9 @@ export function enableMobileJoystick(
 
   let x = initialPosition.x;
   let y = initialPosition.y;
+
+  let renderX = x;
+  let renderY = y;
 
   let cameraX = x;
   let cameraY = y;
@@ -255,6 +268,8 @@ export function enableMobileJoystick(
 
   let moveX = 0;
   let moveY = 0;
+  let velocityX = 0;
+  let velocityY = 0;
   let targetMoveX = 0;
   let targetMoveY = 0;
 
@@ -265,6 +280,11 @@ export function enableMobileJoystick(
 
   let lastCameraPaintX = Number.NaN;
   let lastCameraPaintY = Number.NaN;
+
+  let lastMarkerPaintX = Number.NaN;
+  let lastMarkerPaintY = Number.NaN;
+  let lastMarkerPaintAngle = Number.NaN;
+  let lastMarkerDataSyncAt = 0;
 
   let lastStaminaPaintAt = 0;
   let lastStaminaPercent = Number.NaN;
@@ -369,12 +389,15 @@ export function enableMobileJoystick(
   }
 
   function updateCamera(force = false) {
+    const targetX = renderX;
+    const targetY = renderY;
+
     if (force) {
-      cameraX = x;
-      cameraY = y;
+      cameraX = targetX;
+      cameraY = targetY;
     } else {
-      cameraX += (x - cameraX) * CAMERA_LAG;
-      cameraY += (y - cameraY) * CAMERA_LAG;
+      cameraX += (targetX - cameraX) * CAMERA_LAG;
+      cameraY += (targetY - cameraY) * CAMERA_LAG;
     }
 
     const shouldPaint =
@@ -392,18 +415,45 @@ export function enableMobileJoystick(
     mapControls?.focusOnPlayer?.(cameraX, cameraY);
   }
 
-  function renderPlayer() {
+  function renderPlayer(force = false) {
     x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
     y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
+    renderX = clamp(renderX, BOUNDS.minX, BOUNDS.maxX);
+    renderY = clamp(renderY, BOUNDS.minY, BOUNDS.maxY);
 
     syncPlayerPosition();
 
-    marker.style.left = `${x}%`;
-    marker.style.top = `${y}%`;
-    marker.dataset.x = String(x);
-    marker.dataset.y = String(y);
-    marker.dataset.angle = String(angle);
-    marker.style.setProperty('--player-angle', `${angle}deg`);
+    const shouldPaintPosition =
+      force ||
+      Number.isNaN(lastMarkerPaintX) ||
+      Number.isNaN(lastMarkerPaintY) ||
+      Math.abs(renderX - lastMarkerPaintX) > POSITION_PAINT_EPSILON ||
+      Math.abs(renderY - lastMarkerPaintY) > POSITION_PAINT_EPSILON;
+
+    if (shouldPaintPosition) {
+      marker.style.left = `${renderX}%`;
+      marker.style.top = `${renderY}%`;
+      lastMarkerPaintX = renderX;
+      lastMarkerPaintY = renderY;
+    }
+
+    if (
+      force ||
+      Number.isNaN(lastMarkerPaintAngle) ||
+      Math.abs(angle - lastMarkerPaintAngle) > 0.08
+    ) {
+      marker.style.setProperty('--player-angle', `${angle}deg`);
+      lastMarkerPaintAngle = angle;
+    }
+
+    const now = performance.now();
+
+    if (force || now - lastMarkerDataSyncAt >= MARKER_DATA_SYNC_INTERVAL) {
+      marker.dataset.x = String(x);
+      marker.dataset.y = String(y);
+      marker.dataset.angle = String(angle);
+      lastMarkerDataSyncAt = now;
+    }
   }
 
   function hasPositionChangedEnough() {
@@ -496,8 +546,19 @@ export function enableMobileJoystick(
 
   function isCameraSettled() {
     return (
-      Math.abs(x - cameraX) <= CAMERA_PAINT_EPSILON &&
-      Math.abs(y - cameraY) <= CAMERA_PAINT_EPSILON
+      Math.abs(renderX - cameraX) <= CAMERA_PAINT_EPSILON &&
+      Math.abs(renderY - cameraY) <= CAMERA_PAINT_EPSILON
+    );
+  }
+
+  function isRenderSettled() {
+    return (
+      Math.abs(x - renderX) <= POSITION_PAINT_EPSILON &&
+      Math.abs(y - renderY) <= POSITION_PAINT_EPSILON &&
+      Math.abs(velocityX) <= 0.00005 &&
+      Math.abs(velocityY) <= 0.00005 &&
+      Math.abs(moveX) <= 0.0005 &&
+      Math.abs(moveY) <= 0.0005
     );
   }
 
@@ -506,6 +567,7 @@ export function enableMobileJoystick(
       !isMoving &&
       !wantsMove &&
       activePointerId === null &&
+      isRenderSettled() &&
       isCameraSettled() &&
       stamina >= STAMINA.max &&
       !sprintLocked
@@ -519,11 +581,18 @@ export function enableMobileJoystick(
     centerY = rect.top + rect.height / 2;
   }
 
-  function resetStick() {
+  function resetStick(hard = false) {
     targetMoveX = 0;
     targetMoveY = 0;
-    moveX = 0;
-    moveY = 0;
+
+    if (hard) {
+      moveX = 0;
+      moveY = 0;
+      velocityX = 0;
+      velocityY = 0;
+      renderX = x;
+      renderY = y;
+    }
 
     setMovingUi(false);
 
@@ -538,7 +607,7 @@ export function enableMobileJoystick(
     const rawDistance = Math.hypot(dx, dy);
 
     if (rawDistance <= 0.001) {
-      resetStick();
+      resetStick(false);
       return;
     }
 
@@ -546,7 +615,7 @@ export function enableMobileJoystick(
     const power = distance / MAX_DISTANCE;
 
     if (power < DEADZONE) {
-      resetStick();
+      resetStick(false);
       return;
     }
 
@@ -573,7 +642,7 @@ export function enableMobileJoystick(
   function loop(now = performance.now()) {
     if (destroyed) return;
 
-    const delta = Math.min(24, Math.max(8, now - lastFrameAt));
+    const delta = Math.min(34, Math.max(8, now - lastFrameAt));
     const frameScale = delta / 16.6667;
 
     lastFrameAt = now;
@@ -582,15 +651,10 @@ export function enableMobileJoystick(
       Math.abs(targetMoveX) > DEADZONE ||
       Math.abs(targetMoveY) > DEADZONE;
 
-    const inputLerp = wantsMove ? INPUT_SMOOTHING : INPUT_STOP_EASING;
+    const inputLerp = 1 - Math.pow(1 - (wantsMove ? INPUT_SMOOTHING : INPUT_STOP_EASING), frameScale);
 
     moveX += (targetMoveX - moveX) * inputLerp;
     moveY += (targetMoveY - moveY) * inputLerp;
-
-    const isMoving =
-      wantsMove ||
-      Math.abs(moveX) > 0.01 ||
-      Math.abs(moveY) > 0.01;
 
     const isSprinting = updateSprintState(wantsMove, frameScale);
 
@@ -598,26 +662,60 @@ export function enableMobileJoystick(
       ? MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED
       : MOVEMENT_CONFIG.MOBILE_WALK_SPEED;
 
+    const targetVelocityX = moveX * speed;
+    const targetVelocityY = moveY * speed;
+    const velocityLerp = 1 - Math.pow(1 - (wantsMove ? VELOCITY_LERP : VELOCITY_STOP_LERP), frameScale);
+
+    velocityX += (targetVelocityX - velocityX) * velocityLerp;
+    velocityY += (targetVelocityY - velocityY) * velocityLerp;
+
+    if (!wantsMove && Math.abs(velocityX) < 0.00008) velocityX = 0;
+    if (!wantsMove && Math.abs(velocityY) < 0.00008) velocityY = 0;
+
+    const isMoving =
+      wantsMove ||
+      Math.abs(moveX) > 0.004 ||
+      Math.abs(moveY) > 0.004 ||
+      Math.abs(velocityX) > 0.00008 ||
+      Math.abs(velocityY) > 0.00008 ||
+      !isRenderSettled();
+
     setMovingUi(isMoving);
 
     if (isMoving) {
-      x += moveX * speed * frameScale;
-      y += moveY * speed * frameScale;
+      x += velocityX * frameScale;
+      y += velocityY * frameScale;
+      x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
+      y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
 
-      angle = getAngleFromMovement(moveX, moveY, angle);
+      if (x <= BOUNDS.minX || x >= BOUNDS.maxX) velocityX = 0;
+      if (y <= BOUNDS.minY || y >= BOUNDS.maxY) velocityY = 0;
 
-      renderPlayer();
+      const renderLerp = 1 - Math.pow(1 - RENDER_LAG, frameScale);
+      renderX += (x - renderX) * renderLerp;
+      renderY += (y - renderY) * renderLerp;
+
+      if (Math.abs(renderX - x) <= POSITION_PAINT_EPSILON) renderX = x;
+      if (Math.abs(renderY - y) <= POSITION_PAINT_EPSILON) renderY = y;
+
+      angle = getAngleFromMovement(velocityX || moveX, velocityY || moveY, angle);
+
+      renderPlayer(false);
       updateCamera(false);
       broadcastMove(false);
       queuePositionSave(false);
     } else {
-      syncPlayerPosition();
+      renderX = x;
+      renderY = y;
+      renderPlayer(false);
       updateCamera(false);
     }
 
     if (shouldSleepLoop(isMoving, wantsMove)) {
       animationId = null;
       updateStaminaUi(true);
+      renderPlayer(true);
+      updateCamera(true);
       return;
     }
 
@@ -648,12 +746,13 @@ export function enableMobileJoystick(
     activePointerId = null;
     container.dataset.joystickActive = 'false';
 
-    resetStick();
-    renderPlayer();
+    resetStick(false);
+    renderPlayer(false);
     updateCamera(false);
     updateStaminaUi();
     broadcastMove(true);
     queuePositionSave(true);
+    ensureLoopRunning();
   }
 
   function handleViewportChange() {
@@ -681,8 +780,8 @@ export function enableMobileJoystick(
 
     activePointerId = null;
 
-    resetStick();
-    renderPlayer();
+    resetStick(true);
+    renderPlayer(true);
     updateCamera(true);
     broadcastMove(true);
     queuePositionSave(true);
@@ -737,10 +836,10 @@ export function enableMobileJoystick(
   window.addEventListener('mn:player-teleported', onExternalTeleport);
 
   syncViewportSize();
-  renderPlayer();
+  renderPlayer(true);
   updateCamera(true);
   updateStaminaUi();
-  resetStick();
+  resetStick(true);
   startHeartbeat();
   ensureLoopRunning();
 
@@ -762,8 +861,8 @@ export function enableMobileJoystick(
       cancelAnimationFrame(animationId);
     }
 
-    resetStick();
-    renderPlayer();
+    resetStick(true);
+    renderPlayer(true);
     updateCamera(true);
     updateStaminaUi();
     broadcastMove(true);
