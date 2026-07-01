@@ -495,3 +495,123 @@ body.mn-landscape-game .house-selection-panel.house-info-prompt[hidden] {
 .house-selection-panel.house-info-prompt[data-device="mobile"] .house-selection-cancel {
   display: none !important;
 }
+
+
+/* =========================================================
+   DONATION MOBILE PROMPT FIX
+   Покупка/информация дома: не на игроке, фон прозрачный,
+   сверху лёгкая белая подсветка, снизу тёмная тень.
+   ========================================================= */
+
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt,
+body.mn-landscape-game .house-selection-panel.house-info-prompt {
+  background: transparent !important;
+  border: 0 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  overflow: visible !important;
+  border-radius: 0 !important;
+  isolation: isolate !important;
+}
+
+/* Верхняя белая лёгкая подсветка над текстом */
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt::before,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt::before,
+body.mn-landscape-game .house-selection-panel.house-info-prompt::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: -13px !important;
+
+  width: min(300px, 92%) !important;
+  height: 34px !important;
+
+  transform: translateX(-50%) !important;
+  border-radius: 999px !important;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.42) 0%,
+      rgba(255, 255, 255, 0.18) 34%,
+      rgba(255, 255, 255, 0.00) 72%
+    ) !important;
+
+  box-shadow:
+    0 0 18px rgba(255, 255, 255, 0.30),
+    0 0 34px rgba(255, 255, 255, 0.16) !important;
+
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Нижняя тёмная мягкая тень под текстом */
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt::after,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt::after,
+body.mn-landscape-game .house-selection-panel.house-info-prompt::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: auto !important;
+  bottom: -24px !important;
+
+  width: min(340px, 104%) !important;
+  height: 78px !important;
+
+  transform: translateX(-50%) !important;
+  border-radius: 999px !important;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(0, 0, 0, 0.82) 0%,
+      rgba(0, 0, 0, 0.48) 42%,
+      rgba(0, 0, 0, 0.00) 76%
+    ) !important;
+
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Текст и кнопки поверх подсветок */
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-body,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-keys,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-body,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-keys,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-body,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-keys {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* Без фона у самого текстового блока */
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-body,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-body,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-body {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Читаемость текста на карте */
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-title,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-title,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-title {
+  color: #ffffff !important;
+  text-shadow:
+    0 3px 12px rgba(0, 0, 0, 0.95),
+    0 0 16px rgba(255, 255, 255, 0.22) !important;
+}
+
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-meta,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-meta,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-meta,
+.home[data-mobile-controls="enabled"] .house-selection-panel.house-info-prompt .house-selection-timer,
+body.mn-mobile-game-enabled .house-selection-panel.house-info-prompt .house-selection-timer,
+body.mn-landscape-game .house-selection-panel.house-info-prompt .house-selection-timer {
+  text-shadow:
+    0 3px 12px rgba(0, 0, 0, 0.95),
+    0 0 12px rgba(255, 255, 255, 0.12) !important;
+}
