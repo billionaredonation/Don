@@ -10,16 +10,32 @@ import {
 import { dispatchEntityAction } from './entityActions.js';
 
 const INTERACTION_RADIUS_PX = 86;
-const MOBILE_INTERACTION_RADIUS_PX = 154;
-const DIRECT_TAP_RADIUS_PX = 220;
-const MOBILE_FREE_TAP_RADIUS_PX = 240;
+const MOBILE_INTERACTION_RADIUS_PX = 112;
+const DIRECT_TAP_RADIUS_PX = 132;
+const MOBILE_FREE_TAP_RADIUS_PX = 150;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 7200 : 5600;
-const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 180 : 110;
+const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 220 : 110;
+
+/*
+  ПК оставляем широким: там железо выдерживает много DOM-объектов.
+  Мобилка работает через streaming-window вокруг игрока:
+  - в DOM попадают только ближайшие объекты;
+  - из БД/кеша подтягивается только небольшой запас вокруг игрока;
+  - всё вне окна не рендерится и не висит в DOM.
+*/
 const OBJECT_RENDER_RADIUS_PERCENT = 23;
-const MOBILE_OBJECT_RENDER_RADIUS_PERCENT = 18;
 const OBJECT_LOAD_RADIUS_PERCENT = 31;
-const MOBILE_OBJECT_LOAD_RADIUS_PERCENT = 25;
+
+const MOBILE_OBJECT_RENDER_RADIUS_PX = 92;
+const MOBILE_OBJECT_LOAD_RADIUS_PX = 260;
+const MOBILE_OBJECT_REGION_RELOAD_SHIFT_PX = 110;
+const MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX = 30;
+
+const MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT = 3.2;
+const MOBILE_OBJECT_RENDER_RADIUS_MAX_PERCENT = 9.5;
+const MOBILE_OBJECT_LOAD_RADIUS_MIN_PERCENT = 7;
+const MOBILE_OBJECT_LOAD_RADIUS_MAX_PERCENT = 18;
 const OBJECT_REGION_RELOAD_SHIFT_PERCENT = 7;
 const OBJECT_RENDER_MOVE_EPSILON_PERCENT = 0.25;
 
@@ -100,6 +116,41 @@ function isMobileGameplayDevice() {
     Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 920;
 
   return hasTouch && narrowScreen;
+}
+
+function clampNumber(value, min, max) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return min;
+
+  return Math.min(max, Math.max(min, number));
+}
+
+function getViewportPercentRadiusFromPx(
+  viewport,
+  radiusPx,
+  fallbackPercent,
+  { minPercent = 1, maxPercent = 100 } = {}
+) {
+  if (!isMobileGameplayDevice()) return fallbackPercent;
+
+  const rect = viewport?.getBoundingClientRect?.();
+  const width = Number(rect?.width);
+  const height = Number(rect?.height);
+
+  if (width > 0 && height > 0) {
+    /*
+      getBoundingClientRect() уже учитывает текущий zoom карты.
+      Поэтому 92px реально остаются около 92 экранных пикселей,
+      а не превращаются в огромный процент карты.
+    */
+    const minSide = Math.max(1, Math.min(width, height));
+    const percent = (Number(radiusPx) / minSide) * 100;
+
+    return clampNumber(percent, minPercent, maxPercent);
+  }
+
+  return clampNumber(fallbackPercent, minPercent, maxPercent);
 }
 
 function isMobilePointerEvent(event) {
@@ -493,25 +544,13 @@ export function createEntityInteractionPanel(root) {
     panel.style.removeProperty('top');
     panel.style.removeProperty('right');
     panel.style.removeProperty('bottom');
-    panel.style.removeProperty('width');
-    panel.style.removeProperty('max-width');
-    panel.style.removeProperty('min-height');
-    panel.style.removeProperty('padding');
-    panel.style.removeProperty('display');
-    panel.style.removeProperty('align-items');
-    panel.style.removeProperty('justify-content');
-    panel.style.removeProperty('gap');
     panel.style.removeProperty('transform');
     panel.style.removeProperty('transform-origin');
     panel.style.removeProperty('background');
-    panel.style.removeProperty('border');
     panel.style.removeProperty('border-color');
-    panel.style.removeProperty('border-radius');
     panel.style.removeProperty('box-shadow');
-    panel.style.removeProperty('outline');
     panel.style.removeProperty('backdrop-filter');
     panel.style.removeProperty('-webkit-backdrop-filter');
-    panel.style.removeProperty('overflow');
 
     if (!mobile) return;
 
@@ -521,40 +560,31 @@ export function createEntityInteractionPanel(root) {
       document.body?.classList?.contains('mn-force-rotate-landscape');
 
     panel.style.setProperty('position', 'fixed', 'important');
-    panel.style.setProperty('left', '35%', 'important');
     panel.style.setProperty('right', 'auto', 'important');
     panel.style.setProperty('bottom', 'auto', 'important');
-    panel.style.setProperty('top', forcedLandscape ? '50.0%' : '66%', 'important');
-
-    panel.style.setProperty('width', 'min(360px, 62vh)', 'important');
-    panel.style.setProperty('max-width', 'min(360px, 62vh)', 'important');
-    panel.style.setProperty('min-height', '0', 'important');
-
-    panel.style.setProperty('padding', '0', 'important');
-    panel.style.setProperty('display', 'flex', 'important');
-    panel.style.setProperty('align-items', 'center', 'important');
-    panel.style.setProperty('justify-content', 'center', 'important');
-    panel.style.setProperty('gap', '16px', 'important');
-
     panel.style.setProperty('transform-origin', 'center center', 'important');
-    panel.style.setProperty(
-      'transform',
-      forcedLandscape
-        ? 'translate3d(-50%, -50%, 0) rotate(90deg)'
-        : 'translate3d(-50%, -50%, 0)',
-      'important'
-    );
-
-    // Полностью убираем карточку. Остаются только текст, кнопки и псевдо-подсветки из CSS.
+    // Финальная мобилка: без фоновой карточки. Только текст + две кнопки.
     panel.style.setProperty('background', 'transparent', 'important');
-    panel.style.setProperty('border', '0', 'important');
     panel.style.setProperty('border-color', 'transparent', 'important');
-    panel.style.setProperty('border-radius', '0', 'important');
     panel.style.setProperty('box-shadow', 'none', 'important');
-    panel.style.setProperty('outline', '0', 'important');
     panel.style.setProperty('backdrop-filter', 'none', 'important');
     panel.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
-    panel.style.setProperty('overflow', 'visible', 'important');
+
+    if (forcedLandscape) {
+      // Центр экрана и чуть ниже игрока. Без ухода к балансу/джойстику.
+      panel.style.setProperty('left', '50%', 'important');
+      panel.style.setProperty('top', '56.5%', 'important');
+      panel.style.setProperty(
+        'transform',
+        'translate3d(-50%, -50%, 0) rotate(90deg)',
+        'important'
+      );
+      return;
+    }
+
+    panel.style.setProperty('left', '50%', 'important');
+    panel.style.setProperty('top', '56.5%', 'important');
+    panel.style.setProperty('transform', 'translate3d(-50%, -50%, 0)', 'important');
   }
 
   function open(object) {
@@ -706,14 +736,52 @@ export function enableEntityInteraction({
 
   function getRenderRadiusPercent() {
     return isMobileGameplayDevice()
-      ? MOBILE_OBJECT_RENDER_RADIUS_PERCENT
+      ? getViewportPercentRadiusFromPx(
+          viewport,
+          MOBILE_OBJECT_RENDER_RADIUS_PX,
+          MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT,
+          {
+            minPercent: MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT,
+            maxPercent: MOBILE_OBJECT_RENDER_RADIUS_MAX_PERCENT,
+          }
+        )
       : OBJECT_RENDER_RADIUS_PERCENT;
   }
 
   function getLoadRadiusPercent() {
     return isMobileGameplayDevice()
-      ? MOBILE_OBJECT_LOAD_RADIUS_PERCENT
+      ? getViewportPercentRadiusFromPx(
+          viewport,
+          MOBILE_OBJECT_LOAD_RADIUS_PX,
+          MOBILE_OBJECT_LOAD_RADIUS_MIN_PERCENT,
+          {
+            minPercent: MOBILE_OBJECT_LOAD_RADIUS_MIN_PERCENT,
+            maxPercent: MOBILE_OBJECT_LOAD_RADIUS_MAX_PERCENT,
+          }
+        )
       : OBJECT_LOAD_RADIUS_PERCENT;
+  }
+
+  function getRegionReloadShiftPercent() {
+    return isMobileGameplayDevice()
+      ? getViewportPercentRadiusFromPx(
+          viewport,
+          MOBILE_OBJECT_REGION_RELOAD_SHIFT_PX,
+          3.6,
+          { minPercent: 2.2, maxPercent: 8 }
+        )
+      : OBJECT_REGION_RELOAD_SHIFT_PERCENT;
+  }
+
+  function getRenderMoveEpsilonPercent() {
+    return isMobileGameplayDevice()
+      ? getViewportPercentRadiusFromPx(
+          viewport,
+          MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX,
+          0.9,
+          { minPercent: 0.45, maxPercent: 2 }
+        )
+      : OBJECT_RENDER_MOVE_EPSILON_PERCENT;
   }
 
   function getObjectQueryOptions() {
@@ -742,9 +810,11 @@ export function enableEntityInteraction({
     const position = getCurrentPlayerPercent(playerPosition);
     const shift = getPercentDistance(position, loadedRegion);
 
+    const reloadShift = getRegionReloadShiftPercent();
+
     return shift >= Math.min(
-      OBJECT_REGION_RELOAD_SHIFT_PERCENT,
-      Math.max(4, loadedRegion.radius * 0.34)
+      reloadShift,
+      Math.max(2.2, loadedRegion.radius * 0.42)
     );
   }
 
@@ -771,9 +841,10 @@ export function enableEntityInteraction({
     if (!layer) return;
 
     const position = getCurrentPlayerPercent(playerPosition);
+    const renderMoveEpsilon = getRenderMoveEpsilonPercent();
     const movedEnough =
-      Math.abs(position.x - lastRenderX) >= OBJECT_RENDER_MOVE_EPSILON_PERCENT ||
-      Math.abs(position.y - lastRenderY) >= OBJECT_RENDER_MOVE_EPSILON_PERCENT;
+      Math.abs(position.x - lastRenderX) >= renderMoveEpsilon ||
+      Math.abs(position.y - lastRenderY) >= renderMoveEpsilon;
 
     const nextObjects = getRenderableObjects();
     const nextIdsKey = nextObjects
@@ -802,6 +873,8 @@ export function enableEntityInteraction({
         layerChildren: layer.children.length,
         renderRadiusPercent: getRenderRadiusPercent(),
         loadRadiusPercent: getLoadRadiusPercent(),
+        mobileRenderRadiusPx: isMobileGameplayDevice() ? MOBILE_OBJECT_RENDER_RADIUS_PX : null,
+        mobileLoadRadiusPx: isMobileGameplayDevice() ? MOBILE_OBJECT_LOAD_RADIUS_PX : null,
       },
     }));
   }
