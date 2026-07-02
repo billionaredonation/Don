@@ -552,3 +552,113 @@
 .regions-svg .map-region {
   pointer-events: auto !important;
 }
+
+/* =========================================================
+   DONATION WELCOME3 PERFORMANCE PATCH
+   Быстрее выбор города: меньше тяжёлых перерисовок,
+   ленивая загрузка превью городов, нормальная работа WebView.
+   ========================================================= */
+
+.welcome3,
+.welcome3-card,
+.compact-map-card,
+.map-modal-panel,
+.city-preview-card {
+  contain: layout paint style;
+}
+
+.compact-map,
+.full-map-viewport,
+.city-preview-map,
+.city-preview-image {
+  contain: layout paint;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.compact-map-image,
+.full-map-image,
+.city-preview-map-img {
+  image-rendering: auto;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.full-regions-layer:empty::before,
+.compact-regions-layer:empty::before {
+  content: "Загрузка...";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  opacity: 0.64;
+}
+
+.city-preview-badge {
+  display: grid;
+  place-items: center;
+}
+
+.city-preview-badge span {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #050505;
+  font-size: 18px;
+  font-weight: 1000;
+  letter-spacing: -0.04em;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.city-preview-map.is-loading::before {
+  content: "Загрузка карты города...";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.66);
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 58%),
+    rgba(0,0,0,0.26);
+}
+
+.city-preview-map.is-loading .city-preview-map-img {
+  opacity: 0;
+}
+
+.city-preview-map.is-loaded .city-preview-map-img {
+  opacity: 1;
+}
+
+.city-preview-map-img {
+  transition: opacity 0.16s ease;
+}
+
+/* SVG большой, поэтому ховеры и анимации оставляем только там, где есть мышь. */
+@media (hover: none), (pointer: coarse) {
+  .regions-svg .map-region {
+    transition: none !important;
+  }
+
+  .welcome3-card,
+  .map-modal-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome3-loader,
+  .loader-bar span,
+  .regions-svg .map-region,
+  .city-preview-map-img {
+    animation: none !important;
+    transition: none !important;
+  }
+}
