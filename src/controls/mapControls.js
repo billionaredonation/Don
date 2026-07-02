@@ -5,9 +5,9 @@ const MOBILE_MAP_TILE_ASSETS = import.meta.glob('../../map-tiles/**/*.{png,jpg,j
 });
 
 const MOBILE_TILE_GRID = 8;
-const MOBILE_TILE_KEEP_RADIUS = 1;
-const MOBILE_TILE_PRELOAD_RADIUS = 2;
-const MOBILE_TILE_IDLE_DELAY = 90;
+const MOBILE_TILE_KEEP_RADIUS = 2;
+const MOBILE_TILE_PRELOAD_RADIUS = 3;
+const MOBILE_TILE_IDLE_DELAY = 140;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -480,7 +480,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     x = clamp(x, -limits.maxX, limits.maxX);
     y = clamp(y, -limits.maxY, limits.maxY);
 
-    const precision = mobile ? 100 : 1000;
+    const precision = 1000;
     const safeX = Math.round(x * precision) / precision;
     const safeY = Math.round(y * precision) / precision;
     const safeScale = Math.round(scale * 10000) / 10000;
@@ -567,9 +567,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     });
   }
 
-  function updateMobileTiles() {
-    if (!tileMode || !tileLayer) return;
-
+  function getFocusedTileCenter() {
     const tileX = clamp(
       Math.floor((lastFocusX / 100) * MOBILE_TILE_GRID),
       0,
@@ -582,7 +580,17 @@ export function enableMapControls(stage, viewport, options = {}) {
       MOBILE_TILE_GRID - 1
     );
 
-    const centerKey = `${tileX}:${tileY}`;
+    return {
+      tileX,
+      tileY,
+      centerKey: `${tileX}:${tileY}`,
+    };
+  }
+
+  function updateMobileTiles() {
+    if (!tileMode || !tileLayer) return;
+
+    const { tileX, tileY, centerKey } = getFocusedTileCenter();
 
     if (centerKey === lastTileCenterKey) return;
 
@@ -620,12 +628,21 @@ export function enableMapControls(stage, viewport, options = {}) {
       });
 
       window.clearTimeout(tileCleanupTimer);
-      tileCleanupTimer = window.setTimeout(() => unloadFarTiles(keepKeys), 420);
+      tileCleanupTimer = window.setTimeout(() => unloadFarTiles(keepKeys), 2400);
     }, MOBILE_TILE_IDLE_DELAY);
   }
 
-  function scheduleTileUpdate() {
+  function scheduleTileUpdate(force = false) {
     if (!tileMode) return;
+
+    if (!force) {
+      const { centerKey } = getFocusedTileCenter();
+
+      if (centerKey === lastTileCenterKey) {
+        return;
+      }
+    }
+
     if (tileUpdateFrame) return;
 
     tileUpdateFrame = requestAnimationFrame(() => {
