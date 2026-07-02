@@ -238,7 +238,7 @@ export function enableMobileJoystick(
     Движение остаётся 60fps локально, а синхра уходит реже — так меньше
     микрофризов и телефон меньше греется.
   */
-  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 120);
+  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 220);
 
   /*
     Самый важный фикс микрофризов:
@@ -246,9 +246,9 @@ export function enableMobileJoystick(
     стоп кадра в Telegram WebView. Локальное движение и broadcast остаются живыми,
     а БД обновляется реже: при остановке/телепорте и страховочно раз в 12–22 сек.
   */
-  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 12000);
-  const HARD_DB_SAVE_INTERVAL = 22000;
-  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 9000);
+  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 22000);
+  const HARD_DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.hardDbSaveInterval || 0, 45000);
+  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 16000);
 
   const initialPosition = getInitialPosition(playerPosition, marker, BOUNDS);
 
@@ -312,6 +312,17 @@ export function enableMobileJoystick(
   let lastDbSavedY = y;
   let lastDbSavedAngle = angle;
 
+  function setMobileRuntimeBusy(isMoving) {
+    const now = performance.now();
+
+    window.__MN_MOBILE_PLAYER_MOVING__ = Boolean(isMoving);
+    window.__MN_MOBILE_PLAYER_LAST_ACTIVE_AT__ = now;
+
+    if (isMoving) {
+      window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = now + 900;
+    }
+  }
+
   function setMovingUi(isMoving) {
     const next = isMoving ? 'true' : 'false';
 
@@ -322,6 +333,8 @@ export function enableMobileJoystick(
     if (staminaBox && staminaBox.dataset.visible !== next) {
       staminaBox.dataset.visible = next;
     }
+
+    setMobileRuntimeBusy(isMoving);
   }
 
   function updateStaminaUi(force = false) {
@@ -508,9 +521,9 @@ export function enableMobileJoystick(
       playerId: getLocalPlayerId(),
       nickname,
       cityId,
-      x,
-      y,
-      angle,
+      x: Math.round(x * 10000) / 10000,
+      y: Math.round(y * 10000) / 10000,
+      angle: Math.round(angle * 10) / 10,
       updatedAt: new Date().toISOString(),
     });
 
@@ -776,12 +789,23 @@ export function enableMobileJoystick(
     heartbeatTimer = setInterval(() => {
       if (destroyed) return;
 
+      const now = performance.now();
+      const playerIsActivelyMoving =
+        window.__MN_MOBILE_PLAYER_MOVING__ === true ||
+        Number(window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ || 0) > now;
+
       renderPlayer();
       updateCamera(false);
-      broadcastMove(true);
 
-      // Страховочное сохранение в БД, но не каждые 2–3 секунды.
+      // Во время активного движения не делаем тяжёлый force-broadcast/DB tick.
+      // Обычный broadcastMove(false) уже идёт из игрового loop с throttling.
+      if (!playerIsActivelyMoving) {
+        broadcastMove(true);
+      }
+
+      // Страховочное сохранение в БД, но только когда игрок не двигается.
       if (
+        !playerIsActivelyMoving &&
         Date.now() - lastDbSaveAt >= HARD_DB_SAVE_INTERVAL &&
         hasDbPositionChangedEnough()
       ) {
@@ -800,6 +824,8 @@ export function enableMobileJoystick(
     updateStaminaUi();
     broadcastMove(true);
     queuePositionSave(true);
+    window.__MN_MOBILE_PLAYER_MOVING__ = false;
+    window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = performance.now() + 350;
     ensureLoopRunning();
   }
 
@@ -893,6 +919,8 @@ export function enableMobileJoystick(
 
   return () => {
     destroyed = true;
+    window.__MN_MOBILE_PLAYER_MOVING__ = false;
+    window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = 0;
 
     base.removeEventListener('pointerdown', onPointerDown);
     window.removeEventListener('pointermove', onPointerMove);
