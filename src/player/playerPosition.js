@@ -10,6 +10,9 @@ let cachedPlayerId = null;
 let cachedSessionId = null;
 let playerIdToRetire = null;
 
+const ADMIN_FLAG_CACHE_TTL_MS = 5 * 60 * 1000;
+const adminFlagCache = new Map();
+
 function readSavedTelegramId() {
   try {
     const raw = localStorage.getItem(STATE_KEY);
@@ -96,6 +99,26 @@ function normalizeRangeOptions(options = {}) {
 
 function isTruthyAdmin(value) {
   return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function rememberAdminFlag(playerId, value) {
+  if (!playerId) return;
+
+  adminFlagCache.set(String(playerId), {
+    value: isTruthyAdmin(value),
+    savedAt: Date.now(),
+  });
+}
+
+function readCachedAdminFlag(playerId) {
+  const safePlayerId = String(playerId || '');
+  const cached = adminFlagCache.get(safePlayerId);
+
+  if (cached && Date.now() - cached.savedAt <= ADMIN_FLAG_CACHE_TTL_MS) {
+    return cached.value;
+  }
+
+  return isTruthyAdmin(state.player?.is_admin || state.player?.isAdmin);
 }
 
 function rememberPlayerIdToRetire(oldPlayerId, nextPlayerId) {
@@ -189,7 +212,10 @@ async function getPlayerAdminFlag(playerId, nickname) {
     return false;
   }
 
-  return isTruthyAdmin(data?.is_admin);
+  const isAdmin = isTruthyAdmin(data?.is_admin);
+  rememberAdminFlag(playerId, isAdmin);
+
+  return isAdmin;
 }
 
 function normalizePosition(row, extra = {}) {
@@ -307,32 +333,37 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
 
   await retirePreviousPlayerIdIfNeeded();
 
-  const isAdmin = await getPlayerAdminFlag(playerId, safeNickname);
+  /*
+    ВАЖНО ДЛЯ МОБИЛКИ:
+    раньше каждый save позиции делал дополнительный SELECT в players,
+    чтобы перечитать is_admin, а потом ещё upsert + select. Это легко давало
+    микрофриз раз в несколько секунд. Во время движения админ-флаг не меняется,
+    поэтому берём его из кеша, который заполняется при входе/создании позиции.
+  */
+  const isAdmin = readCachedAdminFlag(playerId);
 
   const nextPosition = {
     player_id: playerId,
     nickname: safeNickname,
     city_id: cityId,
-    x,
-    y,
-    angle,
+    x: clampPercent(x),
+    y: clampPercent(y),
+    angle: Number.isFinite(Number(angle)) ? Number(angle) : 0,
     is_online: true,
     is_admin: isAdmin,
     session_id: sessionId,
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('player_positions')
     .upsert(nextPosition, {
       onConflict: 'player_id',
-    })
-    .select('*')
-    .single();
+    });
 
   if (error) throw error;
 
-  return normalizePosition(data);
+  return normalizePosition(nextPosition);
 }
 
 export async function getCityPlayers(cityId, options = {}) {
@@ -409,7 +440,13 @@ export function subscribeCityPlayers(cityId, handlers = {}) {
 
 export function createCityMovementChannel(cityId, handlers = {}) {
   let subscribed = false;
+  let destroyed = false;
+  let lastSendAt = 0;
+  let sendTimer = null;
+  let queuedPayload = null;
+
   const pendingPayloads = [];
+  const MIN_CHANNEL_SEND_INTERVAL_MS = 45;
 
   const channel = supabase.channel(`city_movement_${cityId}`, {
     config: {
@@ -420,46 +457,99 @@ export function createCityMovementChannel(cityId, handlers = {}) {
   });
 
   channel.on('broadcast', { event: 'player_move' }, (payload) => {
+    if (destroyed) return;
     handlers.onMove?.(payload.payload);
   });
 
-  channel.subscribe((status) => {
-    if (status !== 'SUBSCRIBED') return;
+  function safeSend(payload) {
+    if (destroyed || !payload) return;
 
-    subscribed = true;
-
-    while (pendingPayloads.length) {
-      const payload = pendingPayloads.shift();
-
-      channel.send({
+    try {
+      const result = channel.send({
         type: 'broadcast',
         event: 'player_move',
         payload,
       });
+
+      if (result?.catch) {
+        result.catch((error) => {
+          console.warn('[playerPosition] movement broadcast failed:', error);
+        });
+      }
+    } catch (error) {
+      console.warn('[playerPosition] movement broadcast crashed:', error);
     }
+  }
+
+  function flushQueuedSend() {
+    if (destroyed) return;
+
+    sendTimer = null;
+
+    const payload = queuedPayload;
+    queuedPayload = null;
+
+    if (!payload) return;
+
+    lastSendAt = Date.now();
+    safeSend(payload);
+  }
+
+  channel.subscribe((status) => {
+    if (destroyed || status !== 'SUBSCRIBED') return;
+
+    subscribed = true;
+
+    while (pendingPayloads.length) {
+      queuedPayload = pendingPayloads.shift();
+    }
+
+    flushQueuedSend();
   });
 
   return {
     sendMove(player) {
+      if (destroyed || !player) return;
+
       if (!subscribed) {
         pendingPayloads.push(player);
 
-        if (pendingPayloads.length > 8) {
+        if (pendingPayloads.length > 3) {
           pendingPayloads.shift();
         }
 
         return;
       }
 
-      channel.send({
-        type: 'broadcast',
-        event: 'player_move',
-        payload: player,
-      });
+      const now = Date.now();
+      const elapsed = now - lastSendAt;
+
+      if (elapsed >= MIN_CHANNEL_SEND_INTERVAL_MS) {
+        lastSendAt = now;
+        safeSend(player);
+        return;
+      }
+
+      queuedPayload = player;
+
+      if (!sendTimer) {
+        sendTimer = window.setTimeout(
+          flushQueuedSend,
+          MIN_CHANNEL_SEND_INTERVAL_MS - elapsed
+        );
+      }
     },
 
     unsubscribe() {
+      destroyed = true;
       pendingPayloads.length = 0;
+      queuedPayload = null;
+
+      if (sendTimer) {
+        clearTimeout(sendTimer);
+        sendTimer = null;
+      }
+
       supabase.removeChannel(channel);
     },
   };
