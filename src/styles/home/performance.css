@@ -141,3 +141,94 @@
     left 0.16s linear,
     top 0.16s linear;
 }
+
+/* =========================================================
+   MOBILE MAP RENDER NO-JANK
+   - на телефоне убираем тяжёлые фильтры/маски с карты;
+   - если есть map-tiles/<cityId>/..., грузим только тайлы рядом с игроком;
+   - если тайлов нет, остаётся single fallback без glow-дубликата.
+   ========================================================= */
+
+.gta-map-mobile-tile-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  contain: layout paint size style;
+  pointer-events: none;
+  user-select: none;
+  transform: translateZ(0);
+}
+
+.gta-map-mobile-tile {
+  position: absolute;
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 100% 100%;
+  opacity: 0;
+  contain: layout paint size style;
+  pointer-events: none;
+  user-select: none;
+  transform: translateZ(0);
+  transition: opacity 0.12s linear;
+}
+
+.gta-map-mobile-tile.is-loaded {
+  opacity: 1;
+}
+
+.home[data-map-render-mode="tiles"] .gta-map-image,
+.gta-map-stage[data-map-render-mode="tiles"] .gta-map-image {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-performance="low"] .gta-map-viewport::before,
+  .home[data-performance="low"] .gta-map-viewport::after,
+  body.mn-mobile-game-enabled .gta-map-viewport::before,
+  body.mn-mobile-game-enabled .gta-map-viewport::after {
+    display: none !important;
+  }
+
+  body.mn-mobile-game-enabled .gta-map-glow,
+  .home[data-map-render-mode="single-mobile-fallback"] .gta-map-glow {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+
+  body.mn-mobile-game-enabled .gta-map-image,
+  .home[data-map-render-mode="single-mobile-fallback"] .gta-map-image,
+  .gta-map-mobile-placeholder {
+    filter: none !important;
+    mix-blend-mode: normal !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    box-shadow: none !important;
+    image-rendering: auto !important;
+    transform: translateZ(0);
+    contain: layout paint size style;
+  }
+
+  body.mn-mobile-game-enabled .gta-stars,
+  body.mn-mobile-game-enabled .gta-weather-heat,
+  body.mn-mobile-game-enabled .gta-water::before,
+  body.mn-mobile-game-enabled .gta-water::after,
+  body.mn-mobile-game-enabled .gta-player-marker span {
+    animation: none !important;
+  }
+
+  body.mn-mobile-game-enabled .gta-sky-light,
+  body.mn-mobile-game-enabled .gta-weather-clouds,
+  body.mn-mobile-game-enabled .gta-weather-rain {
+    filter: none !important;
+  }
+
+  body.mn-mobile-game-enabled .gta-water::before,
+  body.mn-mobile-game-enabled .gta-water::after {
+    opacity: 0.12 !important;
+  }
+}
