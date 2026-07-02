@@ -612,6 +612,10 @@ register('welcome3', (root) => {
       </div>
 
       <div class="city-preview-map is-loading">
+        <div class="city-map-loader" aria-hidden="true">
+          <span></span>
+          <b>Грузим карту города</b>
+        </div>
         <img class="city-preview-map-img" alt="Карта города ${safeTitle}" />
       </div>
 
@@ -747,6 +751,14 @@ register('welcome3', (root) => {
     pendingRegion = regionInfo;
     renderCityPreview(pendingRegion);
     updateVisualState();
+
+    // На телефоне после выбора области сразу показываем превью и кнопку подтверждения.
+    // Иначе пользователь видит карту/превью, но не может нормально добраться до OK.
+    if (isTouchDevice && !mapModal.classList.contains('hidden')) {
+      requestAnimationFrame(() => {
+        confirmCityBtn?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+      });
+    }
 
     if (options.animate) {
       animateRegionChoice(regionInfo);
@@ -955,7 +967,8 @@ register('welcome3', (root) => {
       const safeX = Math.round(view.x * 100) / 100;
       const safeY = Math.round(view.y * 100) / 100;
       const safeScale = Math.round(view.scale * 1000) / 1000;
-      const nextTransform = `translate3d(${safeX}px, ${safeY}px, 0) scale(${safeScale})`;
+      const nextTransform =
+        `translate(-50%, -50%) translate3d(${safeX}px, ${safeY}px, 0) scale(${safeScale})`;
 
       if (nextTransform !== lastTransformValue) {
         fullMapContent.style.transform = nextTransform;
@@ -972,11 +985,13 @@ register('welcome3', (root) => {
     const scaledWidth = contentWidth * view.scale;
     const scaledHeight = contentHeight * view.scale;
 
-    const minX = Math.min(0, viewportRect.width - scaledWidth);
-    const minY = Math.min(0, viewportRect.height - scaledHeight);
+    const overflowX = Math.max(0, (scaledWidth - viewportRect.width) / 2);
+    const overflowY = Math.max(0, (scaledHeight - viewportRect.height) / 2);
 
-    view.x = Math.max(minX - 80, Math.min(80, view.x));
-    view.y = Math.max(minY - 80, Math.min(80, view.y));
+    const elasticPadding = isTouchDevice ? 18 : 42;
+
+    view.x = Math.max(-overflowX - elasticPadding, Math.min(overflowX + elasticPadding, view.x));
+    view.y = Math.max(-overflowY - elasticPadding, Math.min(overflowY + elasticPadding, view.y));
   }
 
   function setScaleAroundPoint(nextScale, clientX, clientY) {
@@ -984,15 +999,18 @@ register('welcome3', (root) => {
     const px = clientX - viewportRect.left;
     const py = clientY - viewportRect.top;
 
+    const contentWidth = viewportRect.width;
+    const contentHeight = viewportRect.width * 0.669;
+
     const oldScale = view.scale;
     const clampedScale = Math.max(1, Math.min(MAX_ZOOM, nextScale));
 
-    const mapX = (px - view.x) / oldScale;
-    const mapY = (py - view.y) / oldScale;
+    const mapX = ((px - viewportRect.width / 2 - view.x) / oldScale) + contentWidth / 2;
+    const mapY = ((py - viewportRect.height / 2 - view.y) / oldScale) + contentHeight / 2;
 
     view.scale = clampedScale;
-    view.x = px - mapX * clampedScale;
-    view.y = py - mapY * clampedScale;
+    view.x = px - viewportRect.width / 2 - (mapX - contentWidth / 2) * clampedScale;
+    view.y = py - viewportRect.height / 2 - (mapY - contentHeight / 2) * clampedScale;
 
     clampView();
     scheduleTransform();
@@ -1000,12 +1018,13 @@ register('welcome3', (root) => {
 
   function resetView() {
     invalidateViewportRect();
+    getViewportRect();
 
-    const viewportRect = getViewportRect();
-
-    view.scale = isTouchDevice ? 1.42 : 1.55;
-    view.x = viewportRect.width * -0.18;
-    view.y = viewportRect.height * -0.03;
+    // На старте модалки карта должна быть в центре.
+    // Увеличение оставляем минимальным, чтобы не приходилось таскать её руками.
+    view.scale = isTouchDevice ? 1 : 1.08;
+    view.x = 0;
+    view.y = 0;
 
     clampView();
     lastTransformValue = '';
