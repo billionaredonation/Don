@@ -1,3 +1,14 @@
+const MOBILE_MAP_TILE_ASSETS = import.meta.glob('../../map-tiles/**/*.{png,jpg,jpeg,webp,avif}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+
+const MOBILE_TILE_GRID = 8;
+const MOBILE_TILE_KEEP_RADIUS = 1;
+const MOBILE_TILE_PRELOAD_RADIUS = 2;
+const MOBILE_TILE_IDLE_DELAY = 90;
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -36,6 +47,12 @@ function getViewportSize() {
 }
 
 function getImageRatio(viewport) {
+  const explicitRatio = Number(viewport?.dataset?.mapRatio);
+
+  if (Number.isFinite(explicitRatio) && explicitRatio > 0.2 && explicitRatio < 2.5) {
+    return explicitRatio;
+  }
+
   const image =
     viewport?.querySelector?.('.gta-map-image:not(.gta-map-glow)') ||
     viewport?.querySelector?.('.gta-map-image');
@@ -44,7 +61,97 @@ function getImageRatio(viewport) {
     return image.naturalHeight / image.naturalWidth;
   }
 
-  return 0.72;
+  return 0.6697;
+}
+
+function normalizeTilePart(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\.\//, '')
+    .replace(/^\//, '')
+    .replace(/[^a-z0-9_-]+/g, '-');
+}
+
+function getTileAssetValue(key) {
+  return MOBILE_MAP_TILE_ASSETS[key] || null;
+}
+
+function findMobileTileSrc(cityId, grid, tileX, tileY) {
+  const city = normalizeTilePart(cityId);
+
+  if (!city) return null;
+
+  const extensions = ['avif', 'webp', 'png', 'jpg', 'jpeg'];
+  const names = [
+    `${tileX}_${tileY}`,
+    `${tileX}-${tileY}`,
+    `tile_${tileX}_${tileY}`,
+    `tile-${tileX}-${tileY}`,
+    `x${tileX}_y${tileY}`,
+    `x${tileX}-y${tileY}`,
+  ];
+
+  const roots = [
+    `../../map-tiles/${city}/${grid}`,
+    `../../map-tiles/${city}`,
+  ];
+
+  for (const root of roots) {
+    for (const name of names) {
+      for (const ext of extensions) {
+        const direct = getTileAssetValue(`${root}/${name}.${ext}`);
+
+        if (direct) return direct;
+      }
+    }
+  }
+
+  const cityNeedle = `/map-tiles/${city}/`;
+  const xyNeedles = names.map((name) => `/${name}.`);
+
+  const matched = Object.entries(MOBILE_MAP_TILE_ASSETS).find(([key]) => {
+    const cleanKey = String(key).toLowerCase().replaceAll('\\', '/');
+
+    return (
+      cleanKey.includes(cityNeedle) &&
+      (cleanKey.includes(`/${grid}/`) || cleanKey.includes(`/grid-${grid}/`) || cleanKey.includes(`/g${grid}/`) || true) &&
+      xyNeedles.some((needle) => cleanKey.includes(needle))
+    );
+  });
+
+  return matched?.[1] || null;
+}
+
+function hasMobileTilesForCity(cityId) {
+  const city = normalizeTilePart(cityId);
+
+  if (!city) return false;
+
+  const cityNeedle = `/map-tiles/${city}/`;
+
+  return Object.keys(MOBILE_MAP_TILE_ASSETS).some((key) => {
+    return String(key).toLowerCase().replaceAll('\\', '/').includes(cityNeedle);
+  });
+}
+
+function scheduleIdle(callback, timeout = 220) {
+  if ('requestIdleCallback' in window) {
+    return window.requestIdleCallback(callback, { timeout });
+  }
+
+  return window.setTimeout(callback, Math.min(timeout, 80));
+}
+
+function cancelIdle(id) {
+  if (!id) return;
+
+  if ('cancelIdleCallback' in window) {
+    window.cancelIdleCallback(id);
+    return;
+  }
+
+  window.clearTimeout(id);
 }
 
 export function isLowPowerDevice() {
@@ -67,6 +174,19 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   const lowPower = isLowPowerDevice();
   const mobile = isCoarsePointer();
+  const cityId =
+    options.cityId ||
+    viewport.dataset.cityId ||
+    stage.closest?.('.home')?.dataset.city ||
+    '';
+
+  const fallbackMapSrc =
+    options.mapSrc ||
+    viewport.dataset.mapSrc ||
+    viewport.querySelector?.('.gta-map-image:not(.gta-map-glow)')?.dataset?.mapSrc ||
+    viewport.querySelector?.('.gta-map-image:not(.gta-map-glow)')?.currentSrc ||
+    viewport.querySelector?.('.gta-map-image:not(.gta-map-glow)')?.src ||
+    '';
 
   function getRequestedStartScale(defaultScale) {
     const requested = Number(options.startScale);
@@ -82,11 +202,6 @@ export function enableMapControls(stage, viewport, options = {}) {
     const screen = getViewportSize();
     const minSide = Math.min(screen.width, screen.height);
 
-    /*
-      ПК: не показываем всю карту сразу, но и не выкручиваем zoom так,
-      чтобы дома и игрок выглядели как огромные кнопки.
-      Фактический fullscreen делает Telegram API/CSS-shell, а не грубый scale.
-    */
     const requested = getRequestedStartScale(lowPower ? 1.42 : 1.56);
 
     if (minSide <= 410) {
@@ -118,9 +233,13 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   function getMapProfile() {
     if (mobile) {
+      /*
+        Мобильный профиль щадящий: меньше огромного полотна, меньше памяти GPU,
+        меньше работы на каждом translate/scale кадре.
+      */
       return {
-        scale: getRequestedStartScale(3.2),
-        worldFactor: lowPower ? 3.2 : 3.55,
+        scale: getRequestedStartScale(lowPower ? 1.46 : 1.55),
+        worldFactor: lowPower ? 2.02 : 2.18,
       };
     }
 
@@ -134,8 +253,6 @@ export function enableMapControls(stage, viewport, options = {}) {
   let worldWidth = 1200;
   let worldHeight = 864;
 
-  // На мобилке нельзя читать getBoundingClientRect() каждый кадр движения.
-  // Читаем размер сцены только на refresh/resize, а в RAF используем кеш.
   let cachedStageWidth = 1;
   let cachedStageHeight = 1;
 
@@ -147,6 +264,86 @@ export function enableMapControls(stage, viewport, options = {}) {
   let lastViewportTransform = '';
   let lastZoomCssValue = '';
   let lastEntityScaleCssValue = '';
+
+  let tileLayer = null;
+  let tileMode = false;
+  let tileIdleId = null;
+  let tileUpdateFrame = null;
+  let lastTileCenterKey = '';
+  let tileCleanupTimer = null;
+  const activeTiles = new Map();
+
+  function setRenderMode(mode) {
+    stage.dataset.mapRenderMode = mode;
+
+    const home = stage.closest?.('.home');
+
+    if (home) {
+      home.dataset.mapRenderMode = mode;
+    }
+  }
+
+  function setupFallbackSingleImage() {
+    setRenderMode('single-mobile-fallback');
+
+    mapImages.forEach((image) => {
+      const isGlow = image.classList.contains('gta-map-glow');
+
+      if (mobile && isGlow) {
+        image.style.display = 'none';
+        return;
+      }
+
+      image.style.display = 'block';
+      image.style.visibility = 'visible';
+      image.style.opacity = '1';
+      image.style.backgroundImage = fallbackMapSrc ? `url("${fallbackMapSrc}")` : '';
+      image.style.backgroundSize = '100% 100%';
+      image.style.backgroundRepeat = 'no-repeat';
+      image.style.backgroundPosition = 'center center';
+
+      if (image.tagName === 'IMG' && fallbackMapSrc && !image.getAttribute('src')) {
+        image.src = fallbackMapSrc;
+      }
+    });
+  }
+
+  function setupMobileTileLayer() {
+    if (!mobile) {
+      setRenderMode('single-desktop');
+      return;
+    }
+
+    if (!hasMobileTilesForCity(cityId)) {
+      setupFallbackSingleImage();
+      return;
+    }
+
+    tileMode = true;
+    setRenderMode('tiles');
+
+    mapImages.forEach((image) => {
+      image.style.display = 'none';
+      image.style.visibility = 'hidden';
+      image.style.opacity = '0';
+
+      if (image.tagName === 'IMG') {
+        image.removeAttribute('src');
+        image.removeAttribute('srcset');
+      }
+    });
+
+    tileLayer = viewport.querySelector('.gta-map-mobile-tile-layer');
+
+    if (!tileLayer) {
+      tileLayer = document.createElement('div');
+      tileLayer.className = 'gta-map-mobile-tile-layer';
+      tileLayer.setAttribute('aria-hidden', 'true');
+
+      const entities = viewport.querySelector('.gta-map-entities');
+      viewport.insertBefore(tileLayer, entities || viewport.firstChild);
+    }
+  }
 
   function forceVisibleMapLayer() {
     stage.style.position = 'absolute';
@@ -171,22 +368,24 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.zIndex = '50';
     viewport.style.pointerEvents = 'none';
 
-    mapImages.forEach((image, index) => {
-      const isGlow = image.classList.contains('gta-map-glow');
+    if (!tileMode) {
+      mapImages.forEach((image) => {
+        const isGlow = image.classList.contains('gta-map-glow');
 
-      image.style.position = 'absolute';
-      image.style.inset = '0';
-      image.style.display = mobile && isGlow ? 'none' : 'block';
-      image.style.visibility = 'visible';
-      image.style.opacity = isGlow ? (lowPower ? '0' : '0.18') : '1';
-      image.style.width = '100%';
-      image.style.height = '100%';
-      image.style.objectFit = 'contain';
-      image.style.objectPosition = 'center center';
-      image.style.pointerEvents = 'none';
-      image.style.userSelect = 'none';
-      image.style.zIndex = isGlow ? '1' : '2';
-    });
+        image.style.position = 'absolute';
+        image.style.inset = '0';
+        image.style.display = mobile && isGlow ? 'none' : 'block';
+        image.style.visibility = 'visible';
+        image.style.opacity = isGlow ? (lowPower || mobile ? '0' : '0.18') : '1';
+        image.style.width = '100%';
+        image.style.height = '100%';
+        image.style.objectFit = 'contain';
+        image.style.objectPosition = 'center center';
+        image.style.pointerEvents = 'none';
+        image.style.userSelect = 'none';
+        image.style.zIndex = isGlow ? '1' : '2';
+      });
+    }
 
     const entities = viewport.querySelector('.gta-map-entities');
 
@@ -256,11 +455,11 @@ export function enableMapControls(stage, viewport, options = {}) {
       : Math.max(rect.width, rect.height);
     const { worldFactor } = getMapProfile();
 
-    worldWidth = Math.max(mobile ? 900 : 760, base * worldFactor);
-    worldHeight = Math.max(620, worldWidth * ratio);
+    worldWidth = Math.max(mobile ? 760 : 760, base * worldFactor);
+    worldHeight = Math.max(mobile ? 520 : 620, worldWidth * ratio);
 
-    viewport.style.width = `${worldWidth}px`;
-    viewport.style.height = `${worldHeight}px`;
+    viewport.style.width = `${Math.round(worldWidth)}px`;
+    viewport.style.height = `${Math.round(worldHeight)}px`;
   }
 
   function getLimits() {
@@ -276,20 +475,14 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function applyTransform() {
-    /*
-      Мобилка:
-      getMapProfile() больше не вызывается на каждом кадре движения.
-      Scale обновляется через refresh(), а transform перерисовывается только
-      если реально изменился. Это снижает микрофризы в Telegram WebView.
-    */
-
     const limits = getLimits();
 
     x = clamp(x, -limits.maxX, limits.maxX);
     y = clamp(y, -limits.maxY, limits.maxY);
 
-    const safeX = Math.round(x * 1000) / 1000;
-    const safeY = Math.round(y * 1000) / 1000;
+    const precision = mobile ? 100 : 1000;
+    const safeX = Math.round(x * precision) / precision;
+    const safeY = Math.round(y * precision) / precision;
     const safeScale = Math.round(scale * 10000) / 10000;
 
     const nextTransform =
@@ -314,6 +507,133 @@ export function enableMapControls(stage, viewport, options = {}) {
     }
   }
 
+  function getTileSetAround(tileX, tileY, radius) {
+    const result = [];
+
+    for (let yIndex = tileY - radius; yIndex <= tileY + radius; yIndex += 1) {
+      for (let xIndex = tileX - radius; xIndex <= tileX + radius; xIndex += 1) {
+        if (
+          xIndex < 0 ||
+          yIndex < 0 ||
+          xIndex >= MOBILE_TILE_GRID ||
+          yIndex >= MOBILE_TILE_GRID
+        ) {
+          continue;
+        }
+
+        result.push({ x: xIndex, y: yIndex });
+      }
+    }
+
+    return result;
+  }
+
+  function createTileElement(tileX, tileY, src) {
+    const tile = document.createElement('div');
+    const size = 100 / MOBILE_TILE_GRID;
+
+    tile.className = 'gta-map-mobile-tile';
+    tile.dataset.tileX = String(tileX);
+    tile.dataset.tileY = String(tileY);
+    tile.style.left = `${tileX * size}%`;
+    tile.style.top = `${tileY * size}%`;
+    tile.style.width = `${size + 0.08}%`;
+    tile.style.height = `${size + 0.08}%`;
+    tile.style.backgroundImage = `url("${src}")`;
+
+    const probe = new Image();
+
+    probe.onload = () => {
+      tile.classList.add('is-loaded');
+    };
+
+    probe.onerror = () => {
+      tile.remove();
+    };
+
+    probe.decoding = 'async';
+    probe.loading = 'eager';
+    probe.src = src;
+
+    return tile;
+  }
+
+  function unloadFarTiles(keepKeys) {
+    activeTiles.forEach((tile, key) => {
+      if (keepKeys.has(key)) return;
+
+      activeTiles.delete(key);
+      tile.remove();
+    });
+  }
+
+  function updateMobileTiles() {
+    if (!tileMode || !tileLayer) return;
+
+    const tileX = clamp(
+      Math.floor((lastFocusX / 100) * MOBILE_TILE_GRID),
+      0,
+      MOBILE_TILE_GRID - 1
+    );
+
+    const tileY = clamp(
+      Math.floor((lastFocusY / 100) * MOBILE_TILE_GRID),
+      0,
+      MOBILE_TILE_GRID - 1
+    );
+
+    const centerKey = `${tileX}:${tileY}`;
+
+    if (centerKey === lastTileCenterKey) return;
+
+    lastTileCenterKey = centerKey;
+
+    if (tileIdleId) {
+      cancelIdle(tileIdleId);
+      tileIdleId = null;
+    }
+
+    tileIdleId = scheduleIdle(() => {
+      tileIdleId = null;
+
+      const keepTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_KEEP_RADIUS);
+      const preloadTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_PRELOAD_RADIUS);
+      const keepKeys = new Set(preloadTiles.map((tile) => `${tile.x}:${tile.y}`));
+
+      keepTiles.forEach((tilePosition) => {
+        const key = `${tilePosition.x}:${tilePosition.y}`;
+
+        if (activeTiles.has(key)) return;
+
+        const src = findMobileTileSrc(
+          cityId,
+          MOBILE_TILE_GRID,
+          tilePosition.x,
+          tilePosition.y
+        );
+
+        if (!src) return;
+
+        const tile = createTileElement(tilePosition.x, tilePosition.y, src);
+        activeTiles.set(key, tile);
+        tileLayer.appendChild(tile);
+      });
+
+      window.clearTimeout(tileCleanupTimer);
+      tileCleanupTimer = window.setTimeout(() => unloadFarTiles(keepKeys), 420);
+    }, MOBILE_TILE_IDLE_DELAY);
+  }
+
+  function scheduleTileUpdate() {
+    if (!tileMode) return;
+    if (tileUpdateFrame) return;
+
+    tileUpdateFrame = requestAnimationFrame(() => {
+      tileUpdateFrame = null;
+      updateMobileTiles();
+    });
+  }
+
   function focusOnPlayer(playerX, playerY) {
     const focusX = Number(playerX);
     const focusY = Number(playerY);
@@ -330,6 +650,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     y = -fy;
 
     applyTransform();
+    scheduleTileUpdate();
   }
 
   function refresh() {
@@ -345,27 +666,43 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   function onResize() {
     clearTimeout(resizeRefreshTimer);
-    resizeRefreshTimer = setTimeout(refresh, mobile ? 120 : 60);
+    resizeRefreshTimer = setTimeout(refresh, mobile ? 180 : 60);
   }
 
   function onImageReady() {
     refresh();
   }
 
+  setupMobileTileLayer();
+
   window.addEventListener('resize', onResize, { passive: true });
   window.addEventListener('orientationchange', onResize, { passive: true });
   window.visualViewport?.addEventListener?.('resize', onResize, { passive: true });
 
-  mapImages.forEach((image) => {
-    image.addEventListener('load', onImageReady, { passive: true });
-    image.addEventListener('error', onImageReady, { passive: true });
-  });
+  if (!tileMode) {
+    mapImages.forEach((image) => {
+      image.addEventListener('load', onImageReady, { passive: true });
+      image.addEventListener('error', onImageReady, { passive: true });
+    });
+  }
 
   refresh();
 
   return {
     cleanup() {
       clearTimeout(resizeRefreshTimer);
+      window.clearTimeout(tileCleanupTimer);
+
+      if (tileUpdateFrame) {
+        cancelAnimationFrame(tileUpdateFrame);
+      }
+
+      if (tileIdleId) {
+        cancelIdle(tileIdleId);
+      }
+
+      activeTiles.clear();
+      tileLayer?.remove();
 
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
@@ -381,4 +718,3 @@ export function enableMapControls(stage, viewport, options = {}) {
     refresh,
   };
 }
-
