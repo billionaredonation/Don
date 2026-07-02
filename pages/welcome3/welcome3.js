@@ -247,49 +247,165 @@ function getCityMeta(regionInfo) {
   });
 }
 
-function preloadImage(src) {
-  return new Promise((resolve, reject) => {
+const SVG_TEXT_CACHE = new Map();
+let regionsSvgPromise = null;
+
+function preloadImage(src, options = {}) {
+  if (!src) {
+    return Promise.resolve(null);
+  }
+
+  const cacheKey = String(src);
+  const cached = IMAGE_PRELOAD_CACHE.get(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  const promise = new Promise((resolve, reject) => {
     const img = new Image();
 
-    img.onload = resolve;
+    img.decoding = 'async';
+    img.loading = options.loading || 'eager';
+
+    if ('fetchPriority' in img) {
+      img.fetchPriority = options.fetchPriority || 'low';
+    }
+
+    img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
   });
+
+  IMAGE_PRELOAD_CACHE.set(cacheKey, promise);
+
+  return promise;
+}
+
+const IMAGE_PRELOAD_CACHE = new Map();
+const SVG_PARSER = new DOMParser();
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, (char) => {
+    switch (char) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case "'": return '&#39;';
+      case '"': return '&quot;';
+      default: return char;
+    }
+  });
+}
+
+function getCityInitials(title) {
+  return String(title || 'MN')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0] || '')
+    .join('')
+    .toUpperCase() || 'MN';
+}
+
+function setImageAttributes(img, options = {}) {
+  if (!img) {
+    return;
+  }
+
+  img.decoding = 'async';
+  img.loading = options.loading || 'lazy';
+
+  if ('fetchPriority' in img) {
+    img.fetchPriority = options.fetchPriority || 'low';
+  }
+}
+
+function setOptimizedFallbackImage(img, cityId) {
+  const candidates = cityMapCandidates(cityId);
+  const nextIndex = Number(img.dataset.fallbackIndex || '0') + 1;
+
+  if (nextIndex < candidates.length) {
+    img.dataset.fallbackIndex = String(nextIndex);
+    img.src = versionedAsset(candidates[nextIndex]);
+    return;
+  }
+
+  img.onerror = null;
+  img.src = versionedAsset(FALLBACK_MAP_SRC);
+}
+
+function setCityPreviewImage(img, cityId, options = {}) {
+  if (!img) {
+    return;
+  }
+
+  const candidates = cityMapCandidates(cityId);
+  const src = versionedAsset(candidates[0]);
+
+  setImageAttributes(img, options);
+
+  if (img.dataset.currentSrc === src && img.src) {
+    return;
+  }
+
+  img.dataset.currentSrc = src;
+  img.dataset.fallbackIndex = '0';
+
+  img.onload = () => {
+    img.closest('.city-preview-map')?.classList.remove('is-loading');
+    img.closest('.city-preview-map')?.classList.add('is-loaded');
+  };
+
+  img.onerror = () => setOptimizedFallbackImage(img, cityId);
+  img.src = src;
 }
 
 async function fetchFirstSvg() {
-  const errors = [];
-
-  for (const svgSrc of REGIONS_SVG_CANDIDATES) {
-    const url = svgSrc;
-
-    try {
-      const response = await fetch(url, {
-        cache: 'no-store',
-      });
-
-      if (!response.ok) {
-        errors.push(`${url}: ${response.status}`);
-        continue;
-      }
-
-      const text = await response.text();
-
-      if (!text || !text.includes('<svg')) {
-        errors.push(`${url}: invalid svg body`);
-        continue;
-      }
-
-      console.log('[welcome3] SVG loaded:', url);
-      return text;
-    } catch (error) {
-      errors.push(`${url}: ${error?.message || error}`);
-    }
+  if (regionsSvgPromise) {
+    return regionsSvgPromise;
   }
 
-  throw new Error(`Не удалось загрузить SVG карту. Проверенные пути: ${errors.join(' | ')}`);
-}
+  regionsSvgPromise = (async () => {
+    const errors = [];
 
+    for (const svgSrc of REGIONS_SVG_CANDIDATES) {
+      const url = svgSrc;
+      const cachedSvg = SVG_TEXT_CACHE.get(url);
+
+      if (cachedSvg) {
+        return cachedSvg;
+      }
+
+      try {
+        const response = await fetch(url, {
+          cache: 'force-cache'
+        });
+
+        if (!response.ok) {
+          errors.push(`${url}: ${response.status}`);
+          continue;
+        }
+
+        const text = await response.text();
+
+        if (!text || !text.includes('<svg')) {
+          errors.push(`${url}: invalid svg body`);
+          continue;
+        }
+
+        SVG_TEXT_CACHE.set(url, text);
+        return text;
+      } catch (error) {
+        errors.push(`${url}: ${error?.message || error}`);
+      }
+    }
+
+    throw new Error(`Не удалось загрузить SVG карту. Проверенные пути: ${errors.join(' | ')}`);
+  })();
+
+  return regionsSvgPromise;
+}
 
 register('welcome3', (root) => {
   root.className = 'page welcome-page welcome3';
@@ -317,7 +433,14 @@ register('welcome3', (root) => {
 
       <div class="compact-map-card">
         <div class="compact-map">
-          <img class="compact-map-image" src="${MAP_IMG}" alt="Карта Украины" />
+          <img
+            class="compact-map-image"
+            src="${MAP_IMG}"
+            alt="Карта Украины"
+            decoding="async"
+            fetchpriority="high"
+            loading="eager"
+          />
           <div class="compact-regions-layer" id="compactRegionsLayer">
             <div class="map-loading">Загрузка...</div>
           </div>
@@ -354,7 +477,14 @@ register('welcome3', (root) => {
 
         <div class="full-map-viewport" id="fullMapViewport">
           <div class="full-map-content" id="fullMapContent">
-            <img class="full-map-image" src="${MAP_IMG}" alt="Карта Украины" />
+            <img
+              class="full-map-image"
+              data-src="${MAP_IMG}"
+              alt="Карта Украины"
+              decoding="async"
+              fetchpriority="low"
+              loading="lazy"
+            />
             <div class="full-regions-layer" id="fullRegionsLayer">
               <div class="map-loading">Загрузка областей...</div>
             </div>
@@ -387,16 +517,21 @@ register('welcome3', (root) => {
   const fullMapViewport = root.querySelector('#fullMapViewport');
   const fullMapContent = root.querySelector('#fullMapContent');
   const compactMap = root.querySelector('.compact-map');
+  const fullMapImage = root.querySelector('.full-map-image');
 
   let svgTextCache = '';
+  let svgTemplate = null;
   let selectedRegion = null;
   let pendingRegion = null;
   let compactRegionElements = [];
   let fullRegionElements = [];
+  let fullLayerReady = false;
   let visualFrame = null;
   let transformFrame = null;
+  let lastTransformValue = '';
   let lastVisualRegionId = null;
   let lastVisualMode = '';
+  let cachedViewportRect = null;
 
   const isTouchDevice =
     window.matchMedia('(pointer: coarse)').matches ||
@@ -459,80 +594,74 @@ register('welcome3', (root) => {
 
     const cityId = normalizeCityId(regionInfo.cityId);
     const meta = getCityMeta(regionInfo);
-    const imageSrc = meta.image || cityMapSrc(cityId);
+    const safeTitle = escapeHtml(meta.title);
+    const safeSubtitle = escapeHtml(meta.subtitle);
+    const safeEconomy = escapeHtml(meta.economy);
+    const initials = escapeHtml(getCityInitials(meta.title));
 
     cityPreviewCard.innerHTML = `
       <div class="city-preview-top">
-        <div class="city-preview-image">
-          <img class="city-preview-thumb-img" src="${imageSrc}" alt="${meta.title}" />
+        <div class="city-preview-image city-preview-badge" aria-hidden="true">
+          <span>${initials}</span>
         </div>
 
         <div class="city-preview-main">
-          <h4>${meta.title}</h4>
-          <p>${meta.subtitle}</p>
+          <h4>${safeTitle}</h4>
+          <p>${safeSubtitle}</p>
         </div>
       </div>
 
-      <div class="city-preview-map">
-        <img class="city-preview-map-img" src="${imageSrc}" alt="Карта города ${meta.title}" />
+      <div class="city-preview-map is-loading">
+        <img class="city-preview-map-img" alt="Карта города ${safeTitle}" />
       </div>
 
       <div class="city-preview-grid">
         <div class="city-preview-stat">
           <span>Имущество</span>
-          <strong>${meta.property}</strong>
+          <strong>${escapeHtml(meta.property)}</strong>
         </div>
 
         <div class="city-preview-stat">
           <span>Машины</span>
-          <strong>${meta.cars}</strong>
+          <strong>${escapeHtml(meta.cars)}</strong>
         </div>
 
         <div class="city-preview-stat">
           <span>Дома</span>
-          <strong>${meta.houses}</strong>
+          <strong>${escapeHtml(meta.houses)}</strong>
         </div>
 
         <div class="city-preview-stat">
           <span>Инфляция</span>
-          <strong>${meta.inflation}</strong>
+          <strong>${escapeHtml(meta.inflation)}</strong>
         </div>
       </div>
 
       <div class="city-preview-jobs">
         <span>Работы региона</span>
         <div>
-          ${meta.jobs.map((job) => `<b>${job}</b>`).join('')}
+          ${meta.jobs.map((job) => `<b>${escapeHtml(job)}</b>`).join('')}
         </div>
       </div>
 
       <div class="city-preview-economy">
         <span>Экономика</span>
-        <p>${meta.economy}</p>
+        <p>${safeEconomy}</p>
       </div>
 
       <div class="city-preview-warning">
-        Девальвация: ${meta.devaluation}
+        Девальвация: ${escapeHtml(meta.devaluation)}
       </div>
     `;
 
-    const thumbImg = cityPreviewCard.querySelector('.city-preview-thumb-img');
     const mapImg = cityPreviewCard.querySelector('.city-preview-map-img');
 
-    if (thumbImg) {
-      thumbImg.dataset.fallbackIndex = '0';
-      thumbImg.addEventListener('load', () => fitPreviewThumb(thumbImg), { once: true });
-      thumbImg.addEventListener('error', () => setFallbackImage(thumbImg, cityId));
-
-      if (thumbImg.complete && thumbImg.naturalWidth) {
-        fitPreviewThumb(thumbImg);
-      }
-    }
-
-    if (mapImg) {
-      mapImg.dataset.fallbackIndex = '0';
-      mapImg.addEventListener('error', () => setFallbackImage(mapImg, cityId));
-    }
+    // Картинка города грузится только после выбора области и только один раз.
+    // Раньше здесь было два <img> с одной и той же тяжёлой картой.
+    setCityPreviewImage(mapImg, cityId, {
+      loading: 'eager',
+      fetchPriority: 'high'
+    });
 
     requestAnimationFrame(() => {
       cityPreviewCard.classList.add('is-refreshed');
@@ -540,12 +669,7 @@ register('welcome3', (root) => {
   }
 
   async function preloadAssets() {
-    const loadedSvgText = await fetchFirstSvg();
-    svgTextCache = loadedSvgText;
-
-    preloadImage(MAP_IMG).catch((error) => {
-      console.warn('UkraineMap.png не загрузился, SVG карта всё равно будет работать', error);
-    });
+    svgTextCache = await fetchFirstSvg();
   }
 
   function animateRegionChoice(regionInfo) {
@@ -629,146 +753,197 @@ register('welcome3', (root) => {
     }
   }
 
-function confirmCity() {
-  if (!pendingRegion) {
-    return;
-  }
-
-  selectedRegion = {
-    regionId: pendingRegion.regionId,
-    cityId: normalizeCityId(pendingRegion.cityId),
-    cityName: pendingRegion.cityName
-  };
-
-  const finalCityId = normalizeCityId(selectedRegion.cityId);
-
-  state.city = finalCityId;
-  state.cityId = finalCityId;
-  state.cityName = selectedRegion.cityName;
-  state.regionId = selectedRegion.regionId;
-
-  if (!state.player) {
-    state.player = {};
-  }
-
-  state.player.city = finalCityId;
-  state.player.cityId = finalCityId;
-  state.player.cityName = selectedRegion.cityName;
-  state.player.regionId = selectedRegion.regionId;
-
-  save();
-
-  mapModal.classList.add('hidden');
-  updateVisualState();
-}
-function createSvgLayer(target, mode) {
-  if (!svgTextCache) {
-    target.innerHTML = `<div class="map-error">Ошибка загрузки SVG</div>`;
-    return [];
-  }
-
-  target.innerHTML = '';
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgTextCache, 'image/svg+xml');
-  const svg = doc.querySelector('svg');
-
-  if (!svg) {
-    target.innerHTML = `<div class="map-error">Ошибка чтения SVG</div>`;
-    return [];
-  }
-
-  svg.setAttribute('viewBox', svg.getAttribute('viewBox') || REGIONS_VIEW_BOX);
-  svg.removeAttribute('width');
-  svg.removeAttribute('height');
-
-  svg.classList.add(
-    'regions-svg',
-    mode === 'compact' ? 'compact-svg' : 'full-svg'
-  );
-
-  const allSvgElements = Array.from(
-    svg.querySelectorAll('path, polygon, polyline, g')
-  );
-
-  allSvgElements.forEach((el) => {
-    el.style.pointerEvents = 'none';
-  });
-
-  const validRegions = [];
-
-  Object.keys(REGION_DATA).forEach((regionId) => {
-    const regionEl =
-      svg.querySelector(`#${CSS.escape(regionId)}`) ||
-      svg.querySelector(`[id="${regionId}"]`) ||
-      svg.querySelector(`[data-id="${regionId}"]`) ||
-      svg.querySelector(`[data-region="${regionId}"]`);
-
-    if (!regionEl) {
-      console.warn('[welcome3] region not found in svg:', regionId);
+  function confirmCity() {
+    if (!pendingRegion) {
       return;
     }
 
-    const clickableEl =
-      regionEl.matches('path, polygon, polyline')
-        ? regionEl
-        : regionEl.querySelector('path, polygon, polyline');
+    selectedRegion = {
+      regionId: pendingRegion.regionId,
+      cityId: normalizeCityId(pendingRegion.cityId),
+      cityName: pendingRegion.cityName
+    };
 
-    if (!clickableEl) {
-      console.warn('[welcome3] region has no clickable shape:', regionId);
-      return;
+    const finalCityId = normalizeCityId(selectedRegion.cityId);
+
+    state.city = finalCityId;
+    state.cityId = finalCityId;
+    state.cityName = selectedRegion.cityName;
+    state.regionId = selectedRegion.regionId;
+
+    if (!state.player) {
+      state.player = {};
     }
 
-    clickableEl.id = regionId;
-    clickableEl.dataset.regionId = regionId;
-    clickableEl.style.pointerEvents = 'auto';
+    state.player.city = finalCityId;
+    state.player.cityId = finalCityId;
+    state.player.cityName = selectedRegion.cityName;
+    state.player.regionId = selectedRegion.regionId;
 
-    validRegions.push(clickableEl);
-  });
+    save();
 
-  validRegions.forEach((regionEl) => {
-    const info = makeRegionInfo(regionEl.id);
+    mapModal.classList.add('hidden');
+    updateVisualState();
+  }
 
-    if (!info) {
-      return;
+  function prepareSvgTemplate() {
+    if (svgTemplate) {
+      return svgTemplate;
     }
 
-    regionEl.classList.add('map-region');
-    regionEl.setAttribute('role', 'button');
-    regionEl.setAttribute('tabindex', '0');
-    regionEl.setAttribute('aria-label', info.cityName);
+    if (!svgTextCache) {
+      return null;
+    }
 
-    regionEl.dataset.cityId = info.cityId;
-    regionEl.dataset.cityName = info.cityName;
+    const doc = SVG_PARSER.parseFromString(svgTextCache, 'image/svg+xml');
+    const svg = doc.querySelector('svg');
 
-    regionEl.addEventListener('pointerdown', (event) => {
-      event.stopPropagation();
+    if (!svg) {
+      return null;
+    }
+
+    svg.setAttribute('viewBox', svg.getAttribute('viewBox') || REGIONS_VIEW_BOX);
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.removeAttribute('style');
+
+    Object.keys(REGION_DATA).forEach((regionId) => {
+      const regionEl =
+        svg.querySelector(`#${CSS.escape(regionId)}`) ||
+        svg.querySelector(`[id="${regionId}"]`) ||
+        svg.querySelector(`[data-id="${regionId}"]`) ||
+        svg.querySelector(`[data-region="${regionId}"]`);
+
+      if (!regionEl) {
+        console.warn('[welcome3] region not found in svg:', regionId);
+        return;
+      }
+
+      const clickableEl =
+        regionEl.matches('path, polygon, polyline')
+          ? regionEl
+          : regionEl.querySelector('path, polygon, polyline');
+
+      if (!clickableEl) {
+        console.warn('[welcome3] region has no clickable shape:', regionId);
+        return;
+      }
+
+      const info = makeRegionInfo(regionId);
+
+      clickableEl.id = regionId;
+      clickableEl.dataset.regionId = regionId;
+      clickableEl.dataset.cityId = info.cityId;
+      clickableEl.dataset.cityName = info.cityName;
+      clickableEl.classList.add('map-region');
+      clickableEl.setAttribute('role', 'button');
+      clickableEl.setAttribute('tabindex', '0');
+      clickableEl.setAttribute('aria-label', info.cityName);
     });
 
-    regionEl.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      pickRegion(regionEl.id, { animate: true });
-    });
+    svgTemplate = svg;
 
-    regionEl.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        pickRegion(regionEl.id, { animate: true });
+    return svgTemplate;
+  }
+
+  function createSvgLayer(target, mode) {
+    const template = prepareSvgTemplate();
+
+    if (!template) {
+      target.innerHTML = `<div class="map-error">Ошибка чтения SVG</div>`;
+      return [];
+    }
+
+    target.textContent = '';
+
+    const svg = template.cloneNode(true);
+
+    svg.classList.add(
+      'regions-svg',
+      mode === 'compact' ? 'compact-svg' : 'full-svg'
+    );
+
+    const validRegions = Array.from(svg.querySelectorAll('.map-region'));
+
+    target.appendChild(svg);
+
+    return validRegions;
+  }
+
+  function renderCompactLayer() {
+    compactRegionElements = createSvgLayer(compactRegionsLayer, 'compact');
+    updateVisualState();
+  }
+
+  function ensureFullLayer() {
+    if (fullLayerReady) {
+      return;
+    }
+
+    if (fullMapImage && !fullMapImage.src) {
+      setImageAttributes(fullMapImage, {
+        loading: 'eager',
+        fetchPriority: 'high'
+      });
+      fullMapImage.src = fullMapImage.dataset.src || MAP_IMG;
+    }
+
+    fullRegionElements = createSvgLayer(fullRegionsLayer, 'full');
+    fullLayerReady = true;
+    updateVisualState();
+  }
+
+  function resolveRegionFromEvent(event) {
+    const target = event.target?.closest?.('.map-region');
+
+    if (!target) {
+      return null;
+    }
+
+    return target.dataset.regionId || target.id || null;
+  }
+
+  function bindRegionLayer(layer) {
+    layer.addEventListener('pointerdown', (event) => {
+      if (resolveRegionFromEvent(event)) {
+        event.stopPropagation();
       }
     });
-  });
 
-  target.appendChild(svg);
+    layer.addEventListener('click', (event) => {
+      const regionId = resolveRegionFromEvent(event);
 
-  console.log('[welcome3] regions mounted:', mode, validRegions.length);
+      if (!regionId) {
+        return;
+      }
 
-  return validRegions;
-}
-  function renderLayers() {
-    compactRegionElements = createSvgLayer(compactRegionsLayer, 'compact');
-    fullRegionElements = createSvgLayer(fullRegionsLayer, 'full');
-    updateVisualState();
+      event.preventDefault();
+      event.stopPropagation();
+      pickRegion(regionId, { animate: true });
+    });
+
+    layer.addEventListener('keydown', (event) => {
+      const regionId = resolveRegionFromEvent(event);
+
+      if (!regionId || (event.key !== 'Enter' && event.key !== ' ')) {
+        return;
+      }
+
+      event.preventDefault();
+      pickRegion(regionId, { animate: true });
+    });
+  }
+
+  function invalidateViewportRect() {
+    cachedViewportRect = null;
+  }
+
+  function getViewportRect() {
+    if (!cachedViewportRect) {
+      cachedViewportRect = fullMapViewport.getBoundingClientRect();
+    }
+
+    return cachedViewportRect;
   }
 
   function scheduleTransform() {
@@ -777,12 +952,20 @@ function createSvgLayer(target, mode) {
     }
 
     transformFrame = requestAnimationFrame(() => {
-      fullMapContent.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`;
+      const safeX = Math.round(view.x * 100) / 100;
+      const safeY = Math.round(view.y * 100) / 100;
+      const safeScale = Math.round(view.scale * 1000) / 1000;
+      const nextTransform = `translate3d(${safeX}px, ${safeY}px, 0) scale(${safeScale})`;
+
+      if (nextTransform !== lastTransformValue) {
+        fullMapContent.style.transform = nextTransform;
+        lastTransformValue = nextTransform;
+      }
     });
   }
 
   function clampView() {
-    const viewportRect = fullMapViewport.getBoundingClientRect();
+    const viewportRect = getViewportRect();
     const contentWidth = viewportRect.width;
     const contentHeight = viewportRect.width * 0.669;
 
@@ -797,7 +980,7 @@ function createSvgLayer(target, mode) {
   }
 
   function setScaleAroundPoint(nextScale, clientX, clientY) {
-    const viewportRect = fullMapViewport.getBoundingClientRect();
+    const viewportRect = getViewportRect();
     const px = clientX - viewportRect.left;
     const py = clientY - viewportRect.top;
 
@@ -816,13 +999,16 @@ function createSvgLayer(target, mode) {
   }
 
   function resetView() {
-    const viewportRect = fullMapViewport.getBoundingClientRect();
+    invalidateViewportRect();
+
+    const viewportRect = getViewportRect();
 
     view.scale = isTouchDevice ? 1.42 : 1.55;
     view.x = viewportRect.width * -0.18;
     view.y = viewportRect.height * -0.03;
 
     clampView();
+    lastTransformValue = '';
     scheduleTransform();
   }
 
@@ -838,6 +1024,7 @@ function createSvgLayer(target, mode) {
       return;
     }
 
+    invalidateViewportRect();
     fullMapViewport.setPointerCapture(event.pointerId);
     pointers.set(event.pointerId, event);
 
@@ -903,6 +1090,7 @@ function createSvgLayer(target, mode) {
 
     if (pointers.size === 0) {
       gesture.mode = 'none';
+      invalidateViewportRect();
     }
 
     if (pointers.size === 1) {
@@ -917,11 +1105,11 @@ function createSvgLayer(target, mode) {
   }
 
   function bindMapControls() {
-    fullMapViewport.addEventListener('pointerdown', onPointerDown);
-    fullMapViewport.addEventListener('pointermove', onPointerMove);
-    fullMapViewport.addEventListener('pointerup', onPointerUp);
-    fullMapViewport.addEventListener('pointercancel', onPointerUp);
-    fullMapViewport.addEventListener('lostpointercapture', onPointerUp);
+    fullMapViewport.addEventListener('pointerdown', onPointerDown, { passive: true });
+    fullMapViewport.addEventListener('pointermove', onPointerMove, { passive: true });
+    fullMapViewport.addEventListener('pointerup', onPointerUp, { passive: true });
+    fullMapViewport.addEventListener('pointercancel', onPointerUp, { passive: true });
+    fullMapViewport.addEventListener('lostpointercapture', onPointerUp, { passive: true });
 
     fullMapViewport.addEventListener('wheel', (event) => {
       event.preventDefault();
@@ -929,6 +1117,7 @@ function createSvgLayer(target, mode) {
       const direction = event.deltaY > 0 ? -1 : 1;
       const factor = direction > 0 ? 1.12 : 0.88;
 
+      invalidateViewportRect();
       setScaleAroundPoint(view.scale * factor, event.clientX, event.clientY);
     }, { passive: false });
   }
@@ -938,6 +1127,7 @@ function createSvgLayer(target, mode) {
 
     pendingRegion = selectedRegion;
     renderCityPreview(pendingRegion);
+    ensureFullLayer();
     updateVisualState();
 
     requestAnimationFrame(() => {
@@ -957,55 +1147,61 @@ function createSvgLayer(target, mode) {
 
   confirmCityBtn.addEventListener('click', confirmCity);
 
-nextBtn.addEventListener('click', async () => {
-  if (!selectedRegion) {
-    return;
-  }
+  nextBtn.addEventListener('click', async () => {
+    if (!selectedRegion) {
+      return;
+    }
 
-  const nickname =
-    state.nickname ||
-    state.player?.nickname ||
-    '';
+    const nickname =
+      state.nickname ||
+      state.player?.nickname ||
+      '';
 
-  if (!nickname) {
-    show('welcome2');
-    return;
-  }
+    if (!nickname) {
+      show('welcome2');
+      return;
+    }
 
-  const finalCityId = normalizeCityId(selectedRegion.cityId);
+    const finalCityId = normalizeCityId(selectedRegion.cityId);
 
-  nextBtn.disabled = true;
-  nextBtn.classList.remove('active');
-  nextBtn.textContent = 'Сохраняем...';
+    nextBtn.disabled = true;
+    nextBtn.classList.remove('active');
+    nextBtn.textContent = 'Сохраняем...';
 
-  try {
-    await createAndSavePlayer({
-      nickname,
-      city: finalCityId,
-      cityId: finalCityId,
-      cityName: selectedRegion.cityName,
-      regionId: selectedRegion.regionId,
-    });
+    try {
+      await createAndSavePlayer({
+        nickname,
+        city: finalCityId,
+        cityId: finalCityId,
+        cityName: selectedRegion.cityName,
+        regionId: selectedRegion.regionId,
+      });
 
-    show('preload', {
-      next: 'home',
-      mode: 'first-start',
-    });
-  } catch (error) {
-    console.warn('[welcome3] create player failed:', error);
+      show('preload', {
+        next: 'home',
+        mode: 'first-start',
+      });
+    } catch (error) {
+      console.warn('[welcome3] create player failed:', error);
 
-    nextBtn.disabled = false;
-    nextBtn.classList.add('active');
-    nextBtn.textContent = 'Далее';
+      nextBtn.disabled = false;
+      nextBtn.classList.add('active');
+      nextBtn.textContent = 'Далее';
 
-    alert('Не удалось сохранить игрока. Проверь интернет и попробуй ещё раз.');
-  }
-});
+      alert('Не удалось сохранить игрока. Проверь интернет и попробуй ещё раз.');
+    }
+  });
+
   compactMap.addEventListener('click', () => {
     openMapBtn.click();
   });
 
+  bindRegionLayer(compactRegionsLayer);
+  bindRegionLayer(fullRegionsLayer);
   bindMapControls();
+
+  window.addEventListener('resize', invalidateViewportRect, { passive: true });
+  window.addEventListener('orientationchange', invalidateViewportRect, { passive: true });
 
   const savedRegionId = getState().regionId;
   const savedCityId = getState().cityId || getState().city;
@@ -1036,12 +1232,12 @@ nextBtn.addEventListener('click', async () => {
 
     window.setTimeout(() => {
       loader.style.display = 'none';
-    }, 350);
+    }, 260);
   }
 
   preloadAssets()
     .then(() => {
-      renderLayers();
+      renderCompactLayer();
       updateVisualState();
     })
     .catch((error) => {
@@ -1051,10 +1247,10 @@ nextBtn.addEventListener('click', async () => {
       fullRegionsLayer.innerHTML = `<div class="map-error">Ошибка загрузки карты областей</div>`;
     })
     .finally(() => {
-      window.setTimeout(hideLoader, 450);
+      window.setTimeout(hideLoader, 120);
     });
 
-  window.setTimeout(hideLoader, 3500);
+  window.setTimeout(hideLoader, 1800);
 
   updateVisualState();
 });
