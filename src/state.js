@@ -17,6 +17,9 @@ const defaultState = {
   regionId: null,
   player: {},
   citiesRuntime: {},
+  backendPlayerVerified: false,
+  backendPlayerMissing: false,
+  lastRemoteCheckAt: null,
 };
 
 function clone(obj) {
@@ -40,6 +43,56 @@ function sameTelegramId(a, b) {
   return String(a) === String(b);
 }
 
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function isRemotePlayerNotFoundError(error) {
+  const raw = [
+    error?.code,
+    error?.status,
+    error?.name,
+    error?.message,
+    error?.details,
+    error?.hint,
+    String(error || ''),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return (
+    raw.includes('pgrst116') ||
+    raw.includes('no rows') ||
+    raw.includes('0 rows') ||
+    raw.includes('not found') ||
+    raw.includes('row not found') ||
+    raw.includes('player not found')
+  );
+}
+
+function makeBlankRegistrationState(telegramId = getTelegramId()) {
+  const cleanState = clone(defaultState);
+
+  cleanState.telegramId = telegramId || null;
+  cleanState.backendPlayerVerified = false;
+  cleanState.backendPlayerMissing = true;
+  cleanState.lastRemoteCheckAt = nowIso();
+
+  if (telegramId) {
+    cleanState.player = {
+      telegramId,
+      tg_id: telegramId,
+    };
+  }
+
+  return cleanState;
+}
+
+function resetRegistrationState(telegramId = getTelegramId()) {
+  state = makeBlankRegistrationState(telegramId);
+}
+
 function normalizeLoadedState(loaded) {
   loaded.player = loaded.player || {};
   loaded.citiesRuntime = loaded.citiesRuntime || {};
@@ -50,6 +103,10 @@ function normalizeLoadedState(loaded) {
     loaded.player.tg_id ||
     getTelegramId() ||
     null;
+
+  loaded.backendPlayerVerified = loaded.backendPlayerVerified === true;
+  loaded.backendPlayerMissing = loaded.backendPlayerMissing === true;
+  loaded.lastRemoteCheckAt = loaded.lastRemoteCheckAt || null;
 
   loaded.nickname =
     loaded.nickname ||
@@ -121,6 +178,10 @@ function applyRemotePlayer(player) {
     player.regionId ||
     state.regionId ||
     null;
+
+  state.backendPlayerVerified = true;
+  state.backendPlayerMissing = false;
+  state.lastRemoteCheckAt = nowIso();
 
   state.player = {
     ...state.player,
@@ -218,35 +279,22 @@ export async function loadRemote() {
       );
 
       localStorage.removeItem(LS_KEY);
-
-      state = clone(defaultState);
-      state.telegramId = telegramId;
-      state.player = {
-        telegramId,
-        tg_id: telegramId,
-      };
+      resetRegistrationState(telegramId);
     }
 
     const player = await loadPlayer();
 
     if (!player) {
-      console.log('[Backend] player not found. New registration flow required.');
+      console.log('[Backend] player not found. Local registration cache cleared.');
 
-      if (telegramId) {
-        state.telegramId = telegramId;
-        state.player = state.player || {};
-        state.player.telegramId = telegramId;
-        state.player.tg_id = telegramId;
-      }
-
-      state.nickname = null;
-      state.city = null;
-      state.cityId = null;
-      state.cityName = null;
-      state.regionId = null;
-
+      resetRegistrationState(telegramId);
       saveLocal();
-      return;
+
+      return {
+        ok: true,
+        playerFound: false,
+        reason: 'player_not_found',
+      };
     }
 
     const remoteTelegramId =
@@ -268,8 +316,39 @@ export async function loadRemote() {
     saveLocal();
 
     console.log('[Backend] remote player applied:', state);
+
+    return {
+      ok: true,
+      playerFound: true,
+      reason: 'player_loaded',
+    };
   } catch (error) {
-    console.warn('[Backend] Remote load crashed. Local state used.', error);
+    if (isRemotePlayerNotFoundError(error)) {
+      console.log('[Backend] player not found by remote error. Local registration cache cleared.', error);
+
+      resetRegistrationState(getTelegramId());
+      saveLocal();
+
+      return {
+        ok: true,
+        playerFound: false,
+        reason: 'player_not_found',
+      };
+    }
+
+    console.warn('[Backend] Remote load crashed. Local registration cache is not trusted.', error);
+
+    state.backendPlayerVerified = false;
+    state.backendPlayerMissing = false;
+    state.lastRemoteCheckAt = nowIso();
+    saveLocal();
+
+    return {
+      ok: false,
+      playerFound: false,
+      reason: 'remote_load_failed',
+      error,
+    };
   }
 }
 
@@ -308,6 +387,9 @@ export async function createAndSavePlayer({
   state.cityId = finalCity;
   state.cityName = cityName || player.city || finalCity;
   state.regionId = regionId || state.regionId || null;
+  state.backendPlayerVerified = true;
+  state.backendPlayerMissing = false;
+  state.lastRemoteCheckAt = nowIso();
 
   state.player = {
     ...state.player,
@@ -389,4 +471,9 @@ export function initRuntime() {
 export function resetLocalStateOnly() {
   localStorage.removeItem(LS_KEY);
   state = clone(defaultState);
+}
+
+export function resetRegistrationStateOnly() {
+  resetRegistrationState(getTelegramId());
+  saveLocal();
 }
