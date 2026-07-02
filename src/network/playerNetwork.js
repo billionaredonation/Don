@@ -22,7 +22,30 @@ const ONLINE_TTL_MS =
 const SNAPSHOT_PLAYER_MAX_AGE_MS =
   NETWORK_CONFIG.movement.snapshotPlayerMaxAgeMs || 120000;
 
-const SNAPSHOT_REFRESH_INTERVAL_MS = 3200;
+const DESKTOP_SNAPSHOT_REFRESH_INTERVAL_MS = 4200;
+const MOBILE_SNAPSHOT_REFRESH_INTERVAL_MS = 8500;
+const SNAPSHOT_REFRESH_INTERVAL_MS = DESKTOP_SNAPSHOT_REFRESH_INTERVAL_MS;
+
+const DESKTOP_STALE_CHECK_INTERVAL_MS = 3200;
+const MOBILE_STALE_CHECK_INTERVAL_MS = 5200;
+
+const DESKTOP_PRESENCE_HEARTBEAT_INTERVAL_MS = 5500;
+const MOBILE_PRESENCE_HEARTBEAT_INTERVAL_MS = 9500;
+
+const DESKTOP_REMOTE_PACKET_FLUSH_INTERVAL_MS = 34;
+const MOBILE_REMOTE_PACKET_FLUSH_INTERVAL_MS = 72;
+
+const DESKTOP_MAX_REMOTE_MARKERS = 64;
+const MOBILE_MAX_REMOTE_MARKERS = 10;
+
+/*
+  На мобильном Telegram WebView postgres-realtime + broadcast + snapshot
+  часто дают двойные/тройные апдейты одних и тех же игроков.
+  Для телефона оставляем movement broadcast + редкий snapshot.
+  Для ПК postgres realtime оставлен.
+*/
+const MOBILE_POSTGRES_REALTIME_ENABLED = false;
+
 const PLAYER_RENDER_RADIUS_PERCENT = 26;
 
 /*
@@ -122,6 +145,98 @@ function getPlayerRenderRadiusPercent(options = {}) {
   return PLAYER_RENDER_RADIUS_PERCENT;
 }
 
+function getPlayerUnloadRadiusPercent(options = {}) {
+  const requested = Number(options.unloadRadiusPercent);
+
+  if (Number.isFinite(requested) && requested > 0) {
+    return requested;
+  }
+
+  const renderRadius = getPlayerRenderRadiusPercent(options);
+
+  // Hysteresis: не удаляем игрока сразу у границы радиуса, чтобы не было
+  // постоянного create/remove при поиске друга на краю стриминг-зоны.
+  return renderRadius * (isMobileGameplayDevice() ? 1.55 : 1.25);
+}
+
+function getMaxRemoteMarkers(options = {}) {
+  const requested = Number(options.maxRemoteMarkers);
+
+  if (Number.isFinite(requested) && requested > 0) {
+    return Math.max(1, Math.floor(requested));
+  }
+
+  return isMobileGameplayDevice()
+    ? MOBILE_MAX_REMOTE_MARKERS
+    : DESKTOP_MAX_REMOTE_MARKERS;
+}
+
+function getSnapshotRefreshInterval(options = {}) {
+  const requested = Number(options.snapshotRefreshIntervalMs);
+
+  if (Number.isFinite(requested) && requested > 0) {
+    return requested;
+  }
+
+  const configValue = Number(NETWORK_CONFIG.movement.snapshotRefreshInterval);
+
+  if (Number.isFinite(configValue) && configValue > 0) {
+    return isMobileGameplayDevice()
+      ? Math.max(configValue, MOBILE_SNAPSHOT_REFRESH_INTERVAL_MS)
+      : Math.max(configValue, DESKTOP_SNAPSHOT_REFRESH_INTERVAL_MS);
+  }
+
+  return isMobileGameplayDevice()
+    ? MOBILE_SNAPSHOT_REFRESH_INTERVAL_MS
+    : SNAPSHOT_REFRESH_INTERVAL_MS;
+}
+
+function getStaleCheckInterval(options = {}) {
+  const requested = Number(options.staleCheckIntervalMs);
+
+  if (Number.isFinite(requested) && requested > 0) {
+    return requested;
+  }
+
+  const configValue = Number(NETWORK_CONFIG.movement.staleCheckInterval);
+
+  if (Number.isFinite(configValue) && configValue > 0) {
+    return isMobileGameplayDevice()
+      ? Math.max(configValue, MOBILE_STALE_CHECK_INTERVAL_MS)
+      : Math.max(configValue, DESKTOP_STALE_CHECK_INTERVAL_MS);
+  }
+
+  return isMobileGameplayDevice()
+    ? MOBILE_STALE_CHECK_INTERVAL_MS
+    : DESKTOP_STALE_CHECK_INTERVAL_MS;
+}
+
+function getPresenceHeartbeatInterval(options = {}) {
+  const requested = Number(options.presenceHeartbeatIntervalMs);
+
+  if (Number.isFinite(requested) && requested > 0) {
+    return requested;
+  }
+
+  const configValue = Number(NETWORK_CONFIG.movement.presenceHeartbeatInterval);
+
+  if (Number.isFinite(configValue) && configValue > 0) {
+    return isMobileGameplayDevice()
+      ? Math.max(configValue, MOBILE_PRESENCE_HEARTBEAT_INTERVAL_MS)
+      : Math.max(configValue, DESKTOP_PRESENCE_HEARTBEAT_INTERVAL_MS);
+  }
+
+  return isMobileGameplayDevice()
+    ? MOBILE_PRESENCE_HEARTBEAT_INTERVAL_MS
+    : DESKTOP_PRESENCE_HEARTBEAT_INTERVAL_MS;
+}
+
+function getRemotePacketFlushInterval() {
+  return isMobileGameplayDevice()
+    ? MOBILE_REMOTE_PACKET_FLUSH_INTERVAL_MS
+    : DESKTOP_REMOTE_PACKET_FLUSH_INTERVAL_MS;
+}
+
 function getLocalPosition(localPlayerPosition) {
   if (!localPlayerPosition) return null;
 
@@ -161,6 +276,90 @@ function isPlayerInsideRenderDistance(player, localPlayerPosition, options = {})
   const radius = getPlayerRenderRadiusPercent(options);
 
   return getPercentDistance(player, localPosition) <= radius;
+}
+
+function isPlayerInsideUnloadDistance(player, localPlayerPosition, options = {}) {
+  const localPosition = getLocalPosition(localPlayerPosition);
+
+  if (!localPosition) return true;
+
+  const radius = getPlayerUnloadRadiusPercent(options);
+
+  return getPercentDistance(player, localPosition) <= radius;
+}
+
+function getMarkerDistanceToLocal(marker, localPlayerPosition) {
+  const player = getPlayerFromMarker(marker);
+
+  return getPercentDistance(player, getLocalPosition(localPlayerPosition));
+}
+
+function getRemoteMarkerCount(entities) {
+  if (!entities) return 0;
+
+  return entities.querySelectorAll('.gta-player-marker-other').length;
+}
+
+function getFarthestRemoteMarker(entities, localPlayerPosition) {
+  if (!entities) return null;
+
+  let farthestMarker = null;
+  let farthestDistance = -1;
+
+  entities
+    .querySelectorAll('.gta-player-marker-other')
+    .forEach((marker) => {
+      const distance = getMarkerDistanceToLocal(marker, localPlayerPosition);
+
+      if (distance > farthestDistance) {
+        farthestDistance = distance;
+        farthestMarker = marker;
+      }
+    });
+
+  return {
+    marker: farthestMarker,
+    distance: farthestDistance,
+  };
+}
+
+function prepareRemoteMarkerSlot(entities, player, localPlayerPosition, options = {}) {
+  const maxMarkers = getMaxRemoteMarkers(options);
+  const markerCount = getRemoteMarkerCount(entities);
+
+  if (markerCount < maxMarkers) {
+    return true;
+  }
+
+  const localPosition = getLocalPosition(localPlayerPosition);
+
+  if (!localPosition) {
+    return false;
+  }
+
+  const incomingDistance = getPercentDistance(player, localPosition);
+  const farthest = getFarthestRemoteMarker(entities, localPlayerPosition);
+
+  if (!farthest?.marker || incomingDistance >= farthest.distance) {
+    return false;
+  }
+
+  removePlayerMarker(entities, farthest.marker.dataset.playerId);
+  return true;
+}
+
+function sortPlayersByDistance(players, localPlayerPosition) {
+  const localPosition = getLocalPosition(localPlayerPosition);
+
+  if (!localPosition) {
+    return players;
+  }
+
+  return players
+    .slice()
+    .sort((a, b) => {
+      return getPercentDistance(a, localPosition) - getPercentDistance(b, localPosition);
+    });
 }
 
 function getPlayersQueryOptions(localPlayerPosition, options = {}) {
@@ -318,7 +517,7 @@ function cleanupRemotePlayersOutsideRenderDistance(
 
       const player = getPlayerFromMarker(marker);
 
-      if (isPlayerInsideRenderDistance(player, localPlayerPosition, {
+      if (isPlayerInsideUnloadDistance(player, localPlayerPosition, {
         ...options,
         entities,
       })) {
@@ -484,9 +683,16 @@ export function upsertPlayerMarker(
   const selector =
     `.gta-player-marker-other[data-player-id="${escapeCss(playerId)}"]`;
 
-  let marker = entities.querySelector(selector);
+  const existingState = remoteMarkers.get(playerId);
+  let marker = existingState?.marker?.isConnected
+    ? existingState.marker
+    : entities.querySelector(selector);
 
   if (!marker) {
+    if (!prepareRemoteMarkerSlot(entities, player, options.localPlayerPosition, options)) {
+      return;
+    }
+
     entities.insertAdjacentHTML(
       'beforeend',
       createPlayerMarkerHtml(player, localPlayerId)
@@ -513,11 +719,22 @@ export function upsertPlayerMarker(
     packetTime
   );
 
-  marker.dataset.updatedAt = String(Date.now());
-  marker.dataset.playerId = playerId;
-  marker.dataset.nickname = player.nickname;
+  const nowMs = Date.now();
 
-  updatePlayerMarkerView(marker, player);
+  marker.dataset.updatedAt = String(nowMs);
+  marker.dataset.playerId = playerId;
+
+  const lastViewUpdateAt = Number(marker.dataset.viewUpdatedAt || 0);
+  const shouldUpdateView =
+    options.instant ||
+    marker.dataset.nickname !== player.nickname ||
+    nowMs - lastViewUpdateAt > 900;
+
+  if (shouldUpdateView) {
+    marker.dataset.nickname = player.nickname;
+    marker.dataset.viewUpdatedAt = String(nowMs);
+    updatePlayerMarkerView(marker, player);
+  }
 
   if (options.instant) {
     if (state.animationId) {
@@ -587,10 +804,13 @@ function startStalePlayersCleanup(entities, localPlayerId, localPlayerPosition, 
   const staleAfter =
     NETWORK_CONFIG.movement.staleAfter || ONLINE_TTL_MS;
 
-  const checkInterval =
-    NETWORK_CONFIG.movement.staleCheckInterval || 2000;
+  const checkInterval = getStaleCheckInterval(options);
 
   const timer = setInterval(() => {
+    if (!entities?.isConnected) {
+      return;
+    }
+
     const now = Date.now();
 
     cleanupLocalDuplicates(entities, localPlayerId);
@@ -663,67 +883,89 @@ async function touchSelfOnline(selfPlayerId) {
   if (error) throw error;
 }
 
-function startPresenceHeartbeat(cityId, selfPlayerId) {
+function startPresenceHeartbeat(cityId, selfPlayerId, options = {}) {
   let stopped = false;
+  let inFlight = false;
 
   async function runHeartbeat() {
-    if (stopped) return;
+    if (stopped || inFlight) return;
+
+    inFlight = true;
 
     try {
       await touchSelfOnline(selfPlayerId);
     } catch (error) {
       console.warn('[network] presence heartbeat failed:', error);
+    } finally {
+      inFlight = false;
     }
   }
 
-  runHeartbeat();
+  const firstDelay = isMobileGameplayDevice() ? 900 : 250;
+  const firstTimer = window.setTimeout(runHeartbeat, firstDelay);
 
   const timer = setInterval(
     runHeartbeat,
-    NETWORK_CONFIG.movement.presenceHeartbeatInterval || 4000
+    getPresenceHeartbeatInterval(options)
   );
 
   return () => {
     stopped = true;
+    window.clearTimeout(firstTimer);
     clearInterval(timer);
   };
 }
 
 function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId, localPlayerPosition, options = {}) {
   let stopped = false;
+  let inFlight = false;
+  let consecutiveErrors = 0;
 
   async function refreshSnapshot() {
-    if (stopped) return;
+    if (stopped || inFlight || !entities?.isConnected) return;
+
+    inFlight = true;
 
     try {
       const players = await getCityPlayers(cityId, getPlayersQueryOptions(localPlayerPosition, {
         ...options,
         entities,
       }));
+
+      const normalizedPlayers = (Array.isArray(players) ? players : [])
+        .map(normalizeRemotePlayer)
+        .filter((player) => {
+          const playerId = player.playerId;
+
+          if (!playerId || isSamePlayer(playerId, selfPlayerId)) {
+            return false;
+          }
+
+          if (!isPlayerFresh(player, SNAPSHOT_PLAYER_MAX_AGE_MS)) {
+            removePlayerMarker(entities, playerId);
+            return false;
+          }
+
+          if (!isPlayerInsideRenderDistance(player, localPlayerPosition, {
+            ...options,
+            entities,
+          })) {
+            return false;
+          }
+
+          return true;
+        });
+
+      const maxMarkers = getMaxRemoteMarkers(options);
+      const renderablePlayers = sortPlayersByDistance(
+        normalizedPlayers,
+        localPlayerPosition
+      ).slice(0, maxMarkers);
+
       const liveIds = new Set();
 
-      players.forEach((rawPlayer) => {
-        const player = normalizeRemotePlayer(rawPlayer);
-        const playerId = player.playerId;
-
-        if (!playerId || isSamePlayer(playerId, selfPlayerId)) {
-          return;
-        }
-
-        if (!isPlayerFresh(player, SNAPSHOT_PLAYER_MAX_AGE_MS)) {
-          removePlayerMarker(entities, playerId);
-          return;
-        }
-
-        if (!isPlayerInsideRenderDistance(player, localPlayerPosition, {
-          ...options,
-          entities,
-        })) {
-          removePlayerMarker(entities, playerId);
-          return;
-        }
-
-        liveIds.add(playerId);
+      renderablePlayers.forEach((player) => {
+        liveIds.add(player.playerId);
 
         upsertPlayerMarker(
           entities,
@@ -744,27 +986,58 @@ function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId, localPlayer
         .forEach((marker) => {
           const markerPlayerId = marker.dataset.playerId;
 
-          if (!markerPlayerId) return;
+          if (!markerPlayerId || isSamePlayer(markerPlayerId, selfPlayerId)) return;
 
-          if (!liveIds.has(markerPlayerId)) {
+          const markerPlayer = getPlayerFromMarker(marker);
+          const isInsideUnloadRadius = isPlayerInsideUnloadDistance(
+            markerPlayer,
+            localPlayerPosition,
+            {
+              ...options,
+              entities,
+            }
+          );
+
+          if (!liveIds.has(markerPlayerId) || !isInsideUnloadRadius) {
             removePlayerMarker(entities, markerPlayerId);
           }
         });
+
+      consecutiveErrors = 0;
     } catch (error) {
+      consecutiveErrors += 1;
       console.warn('[network] players snapshot refresh failed:', error);
+    } finally {
+      inFlight = false;
     }
   }
 
-  refreshSnapshot();
+  const baseInterval = getSnapshotRefreshInterval(options);
 
-  const timer = setInterval(
-    refreshSnapshot,
-    SNAPSHOT_REFRESH_INTERVAL_MS
-  );
+  function scheduleNextSnapshot() {
+    if (stopped) return;
+
+    const errorBackoff = consecutiveErrors
+      ? Math.min(18000, consecutiveErrors * 3500)
+      : 0;
+
+    const delay = baseInterval + errorBackoff;
+
+    return window.setTimeout(async () => {
+      await refreshSnapshot();
+      scheduleNextSnapshot();
+    }, delay);
+  }
+
+  const firstDelay = isMobileGameplayDevice() ? 1100 : 300;
+  let timer = window.setTimeout(async () => {
+    await refreshSnapshot();
+    timer = scheduleNextSnapshot();
+  }, firstDelay);
 
   return () => {
     stopped = true;
-    clearInterval(timer);
+    window.clearTimeout(timer);
   };
 }
 
@@ -778,10 +1051,143 @@ export function setupPlayerNetwork({
   const selfPlayerId =
     localPlayerId || playerId;
 
+  if (!cityId || !selfPlayerId || !entities) {
+    console.warn('[network] setup skipped: missing cityId/playerId/entities');
+
+    return {
+      movementChannel: null,
+      cleanup() {},
+    };
+  }
+
+  const isMobileNetwork = isMobileGameplayDevice();
+
   const streamingOptions = {
     entities,
     viewport: entities?.closest?.('.gta-map-viewport') || null,
+    maxRemoteMarkers: isMobileNetwork
+      ? MOBILE_MAX_REMOTE_MARKERS
+      : DESKTOP_MAX_REMOTE_MARKERS,
   };
+
+  let stopped = false;
+  let movementFlushFrame = null;
+  let lastMovementFlushAt = 0;
+  const pendingRemotePlayers = new Map();
+  const packetFlushInterval = getRemotePacketFlushInterval();
+
+  function cancelMovementFlush() {
+    if (movementFlushFrame) {
+      cancelAnimationFrame(movementFlushFrame);
+      movementFlushFrame = null;
+    }
+  }
+
+  function flushQueuedRemotePlayers(now = performance.now()) {
+    movementFlushFrame = null;
+
+    if (stopped || !entities?.isConnected) {
+      pendingRemotePlayers.clear();
+      return;
+    }
+
+    if (now - lastMovementFlushAt < packetFlushInterval) {
+      movementFlushFrame = requestAnimationFrame(flushQueuedRemotePlayers);
+      return;
+    }
+
+    lastMovementFlushAt = now;
+
+    const batch = Array.from(pendingRemotePlayers.values());
+    pendingRemotePlayers.clear();
+
+    const normalizedBatch = batch
+      .map(({ rawPlayer, upsertOptions }) => {
+        return {
+          player: normalizeRemotePlayer(rawPlayer),
+          upsertOptions,
+        };
+      })
+      .filter(({ player, upsertOptions }) => {
+        if (!player.playerId || isSamePlayer(player.playerId, selfPlayerId)) {
+          cleanupLocalDuplicates(entities, selfPlayerId);
+          return false;
+        }
+
+        if (!isPlayerOnlineFlagEnabled(player)) {
+          removePlayerMarker(entities, player.playerId);
+          return false;
+        }
+
+        if (
+          !upsertOptions.skipFreshnessCheck &&
+          !isPlayerFresh(player, upsertOptions.maxAgeMs ?? ONLINE_TTL_MS)
+        ) {
+          removePlayerMarker(entities, player.playerId);
+          return false;
+        }
+
+        if (
+          !upsertOptions.skipRenderDistance &&
+          !isPlayerInsideRenderDistance(player, playerPosition, {
+            ...streamingOptions,
+            ...upsertOptions,
+          })
+        ) {
+          removePlayerMarker(entities, player.playerId);
+          return false;
+        }
+
+        return true;
+      });
+
+    const localPosition = getLocalPosition(playerPosition);
+    const sortedBatch = normalizedBatch
+      .slice()
+      .sort((a, b) => {
+        if (!localPosition) return 0;
+
+        return getPercentDistance(a.player, localPosition) - getPercentDistance(b.player, localPosition);
+      })
+      .slice(0, getMaxRemoteMarkers(streamingOptions));
+
+    sortedBatch.forEach(({ player, upsertOptions }) => {
+      upsertPlayerMarker(
+        entities,
+        player,
+        selfPlayerId,
+        {
+          localPlayerPosition: playerPosition,
+          entities,
+          ...streamingOptions,
+          ...upsertOptions,
+        }
+      );
+    });
+
+    if (pendingRemotePlayers.size) {
+      movementFlushFrame = requestAnimationFrame(flushQueuedRemotePlayers);
+    }
+  }
+
+  function queueRemotePlayer(rawPlayer, upsertOptions = {}) {
+    if (stopped || !rawPlayer) return;
+
+    const playerId = getPlayerId(rawPlayer);
+
+    if (!playerId) return;
+
+    // Храним только последний пакет по каждому игроку.
+    // Это убирает микрофризы от пачек realtime/broadcast сообщений.
+    pendingRemotePlayers.set(playerId, {
+      rawPlayer,
+      upsertOptions,
+    });
+
+    if (!movementFlushFrame) {
+      movementFlushFrame = requestAnimationFrame(flushQueuedRemotePlayers);
+    }
+  }
 
   cleanupLocalDuplicates(entities, selfPlayerId);
   cleanupRemotePlayersOutsideRenderDistance(
@@ -791,40 +1197,20 @@ export function setupPlayerNetwork({
     streamingOptions
   );
 
-  const movementChannel =
-    createCityMovementChannel(cityId, {
+  let movementChannel = null;
+
+  try {
+    movementChannel = createCityMovementChannel(cityId, {
       onMove(player) {
-        const remotePlayer = normalizeRemotePlayer(player);
-
-        if (
-          !remotePlayer.playerId ||
-          isSamePlayer(
-            remotePlayer.playerId,
-            selfPlayerId
-          )
-        ) {
-          cleanupLocalDuplicates(entities, selfPlayerId);
-          return;
-        }
-
-        if (!isPlayerOnlineFlagEnabled(remotePlayer)) {
-          removePlayerMarker(entities, remotePlayer.playerId);
-          return;
-        }
-
-        upsertPlayerMarker(
-          entities,
-          remotePlayer,
-          selfPlayerId,
-          {
-            instant: false,
-            skipFreshnessCheck: true,
-            localPlayerPosition: playerPosition,
-            ...streamingOptions,
-          }
-        );
+        queueRemotePlayer(player, {
+          instant: false,
+          skipFreshnessCheck: true,
+        });
       },
     });
+  } catch (error) {
+    console.warn('[network] movement channel failed:', error);
+  }
 
   const cleanupStalePlayers =
     startStalePlayersCleanup(
@@ -835,7 +1221,7 @@ export function setupPlayerNetwork({
     );
 
   const cleanupPresenceHeartbeat =
-    startPresenceHeartbeat(cityId, selfPlayerId);
+    startPresenceHeartbeat(cityId, selfPlayerId, streamingOptions);
 
   const cleanupSnapshotRefresh =
     startPlayersSnapshotRefresh(
@@ -851,104 +1237,60 @@ export function setupPlayerNetwork({
 
   let cleanupRealtime = null;
 
-  try {
-    cleanupRealtime =
-      subscribeCityPlayers(cityId, {
-        onInsert(player) {
-          const remotePlayer = normalizeRemotePlayer(player);
+  const shouldUsePostgresRealtime =
+    !isMobileNetwork || MOBILE_POSTGRES_REALTIME_ENABLED;
 
-          if (
-            !remotePlayer.playerId ||
-            isSamePlayer(
-              remotePlayer.playerId,
-              selfPlayerId
-            )
-          ) {
-            cleanupLocalDuplicates(entities, selfPlayerId);
-            return;
-          }
-
-          if (!isPlayerFresh(remotePlayer, SNAPSHOT_PLAYER_MAX_AGE_MS)) {
-            removePlayerMarker(entities, remotePlayer.playerId);
-            return;
-          }
-
-          upsertPlayerMarker(
-            entities,
-            remotePlayer,
-            selfPlayerId,
-            {
+  if (shouldUsePostgresRealtime) {
+    try {
+      cleanupRealtime =
+        subscribeCityPlayers(cityId, {
+          onInsert(player) {
+            queueRemotePlayer(player, {
               instant: true,
               maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
-              localPlayerPosition: playerPosition,
-              ...streamingOptions,
-            }
-          );
-        },
+            });
+          },
 
-        onUpdate(player) {
-          const remotePlayer = normalizeRemotePlayer(player);
-
-          if (
-            !remotePlayer.playerId ||
-            isSamePlayer(
-              remotePlayer.playerId,
-              selfPlayerId
-            )
-          ) {
-            cleanupLocalDuplicates(entities, selfPlayerId);
-            return;
-          }
-
-          if (!isPlayerFresh(remotePlayer, SNAPSHOT_PLAYER_MAX_AGE_MS)) {
-            removePlayerMarker(
-              entities,
-              remotePlayer.playerId
-            );
-
-            return;
-          }
-
-          upsertPlayerMarker(
-            entities,
-            remotePlayer,
-            selfPlayerId,
-            {
+          onUpdate(player) {
+            queueRemotePlayer(player, {
               instant: false,
               maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
-              localPlayerPosition: playerPosition,
-              ...streamingOptions,
+            });
+          },
+
+          onDelete(playerId) {
+            if (
+              isSamePlayer(
+                playerId,
+                selfPlayerId
+              )
+            ) {
+              return;
             }
-          );
-        },
 
-        onDelete(playerId) {
-          if (
-            isSamePlayer(
-              playerId,
-              selfPlayerId
-            )
-          ) {
-            return;
-          }
-
-          removePlayerMarker(
-            entities,
-            playerId
-          );
-        },
-      });
-  } catch (error) {
-    console.warn(
-      '[network] realtime subscribe failed:',
-      error
-    );
+            pendingRemotePlayers.delete(String(playerId));
+            removePlayerMarker(
+              entities,
+              playerId
+            );
+          },
+        });
+    } catch (error) {
+      console.warn(
+        '[network] realtime subscribe failed:',
+        error
+      );
+    }
   }
 
   return {
     movementChannel,
 
     cleanup() {
+      stopped = true;
+      cancelMovementFlush();
+      pendingRemotePlayers.clear();
+
       cleanupRealtime?.();
 
       cleanupStalePlayers?.();
