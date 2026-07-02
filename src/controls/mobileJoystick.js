@@ -238,9 +238,17 @@ export function enableMobileJoystick(
     Движение остаётся 60fps локально, а синхра уходит реже — так меньше
     микрофризов и телефон меньше греется.
   */
-  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 95);
-  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 2800);
-  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 2500);
+  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 120);
+
+  /*
+    Самый важный фикс микрофризов:
+    не пишем позицию в БД каждые 2–3 секунды. На мобилке это даёт короткий
+    стоп кадра в Telegram WebView. Локальное движение и broadcast остаются живыми,
+    а БД обновляется реже: при остановке/телепорте и страховочно раз в 12–22 сек.
+  */
+  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 12000);
+  const HARD_DB_SAVE_INTERVAL = 22000;
+  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 9000);
 
   const initialPosition = getInitialPosition(playerPosition, marker, BOUNDS);
 
@@ -299,6 +307,10 @@ export function enableMobileJoystick(
   let lastSentX = x;
   let lastSentY = y;
   let lastSentAngle = angle;
+
+  let lastDbSavedX = x;
+  let lastDbSavedY = y;
+  let lastDbSavedAngle = angle;
 
   function setMovingUi(isMoving) {
     const next = isMoving ? 'true' : 'false';
@@ -470,6 +482,20 @@ export function enableMobileJoystick(
     lastSentAngle = angle;
   }
 
+  function hasDbPositionChangedEnough() {
+    return (
+      Math.abs(x - lastDbSavedX) > 0.004 ||
+      Math.abs(y - lastDbSavedY) > 0.004 ||
+      Math.abs(angle - lastDbSavedAngle) > 0.25
+    );
+  }
+
+  function markPositionSaved() {
+    lastDbSavedX = x;
+    lastDbSavedY = y;
+    lastDbSavedAngle = angle;
+  }
+
   function broadcastMove(force = false) {
     const now = Date.now();
 
@@ -499,6 +525,15 @@ export function enableMobileJoystick(
       return;
     }
 
+    if (!force && !hasDbPositionChangedEnough()) {
+      dbSavePending = false;
+      return;
+    }
+
+    if (force && now - lastDbSaveAt < 900 && !hasDbPositionChangedEnough()) {
+      return;
+    }
+
     if (dbSaveInFlight) {
       dbSavePending = true;
       return;
@@ -519,25 +554,31 @@ export function enableMobileJoystick(
       });
 
       lastDbSaveAt = Date.now();
+      markPositionSaved();
     } catch (error) {
       console.warn('[mobileJoystick] player position update failed:', error);
     } finally {
       dbSaveInFlight = false;
 
+      /*
+        Не запускаем рекурсивный save сразу после завершения запроса.
+        Иначе при плохой сети можно получить пачку сохранений прямо во время кадра.
+        Следующий обычный тик сам сохранит позицию, когда пройдёт DB_SAVE_INTERVAL.
+      */
       if (dbSavePending && !destroyed) {
-        savePositionToDb(false);
+        dbSavePending = false;
       }
     }
   }
 
 
   function queuePositionSave(force = false) {
+    const now = Date.now();
+
     if (force) {
       savePositionToDb(true);
       return;
     }
-
-    const now = Date.now();
 
     if (now - lastDbSaveAt >= DB_SAVE_INTERVAL) {
       savePositionToDb(false);
@@ -738,7 +779,14 @@ export function enableMobileJoystick(
       renderPlayer();
       updateCamera(false);
       broadcastMove(true);
-      queuePositionSave(true);
+
+      // Страховочное сохранение в БД, но не каждые 2–3 секунды.
+      if (
+        Date.now() - lastDbSaveAt >= HARD_DB_SAVE_INTERVAL &&
+        hasDbPositionChangedEnough()
+      ) {
+        queuePositionSave(false);
+      }
     }, HEARTBEAT_DELAY);
   }
 
