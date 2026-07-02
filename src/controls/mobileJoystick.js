@@ -214,8 +214,8 @@ export function enableMobileJoystick(
     сглаживаем input, камера быстрее догоняет игрока,
     а лишние DOM/DB обновления режем, чтобы убрать мини-телепорты.
   */
-  const CAMERA_LAG = 0.78;
-  const CAMERA_PAINT_EPSILON = 0.00008;
+  const CAMERA_LAG = 1;
+  const CAMERA_PAINT_EPSILON = 0.000001;
 
   /*
     Второй фикс плавности:
@@ -226,8 +226,8 @@ export function enableMobileJoystick(
   const INPUT_STOP_EASING = 0.28;
   const VELOCITY_LERP = 0.16;
   const VELOCITY_STOP_LERP = 0.22;
-  const RENDER_LAG = 0.62;
-  const POSITION_PAINT_EPSILON = 0.00008;
+  const RENDER_LAG = 0.82;
+  const POSITION_PAINT_EPSILON = 0.00005;
   const MARKER_DATA_SYNC_INTERVAL = 180;
 
   const STAMINA_ARC_MAX_DEG = 165;
@@ -417,13 +417,14 @@ export function enableMobileJoystick(
     const targetX = renderX;
     const targetY = renderY;
 
-    if (force) {
-      cameraX = targetX;
-      cameraY = targetY;
-    } else {
-      cameraX += (targetX - cameraX) * CAMERA_LAG;
-      cameraY += (targetY - cameraY) * CAMERA_LAG;
-    }
+    /*
+      ВАЖНО ДЛЯ МОБИЛКИ:
+      раньше маркер и камера имели две разные плавности. Из-за этого визуально
+      казалось, что то карта, то маркер чуть подёргиваются. Теперь камера
+      привязана к той же render-позиции, что и маркер: одна позиция = один кадр.
+    */
+    cameraX = targetX;
+    cameraY = targetY;
 
     const shouldPaint =
       force ||
