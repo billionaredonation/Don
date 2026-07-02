@@ -90,6 +90,60 @@ function renderFatalError(error) {
   `;
 }
 
+function renderRemoteCheckError() {
+  const root = document.getElementById('app');
+
+  if (!root) return;
+
+  root.innerHTML = `
+    <main style="
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      background:#050607;
+      color:#fff;
+      font-family:Arial,sans-serif;
+      text-align:center;
+    ">
+      <section style="
+        width:min(430px, 100%);
+        padding:24px;
+        border:1px solid rgba(255,255,255,.16);
+        border-radius:22px;
+        background:rgba(255,255,255,.06);
+      ">
+        <h1 style="margin:0 0 12px;font-size:24px;">
+          Не удалось проверить игрока
+        </h1>
+
+        <p style="margin:0 0 16px;opacity:.75;line-height:1.45;font-size:15px;">
+          Локальный кеш больше не считается источником правды. Проверь интернет и перезапусти игру.
+        </p>
+
+        <button id="reloadAppBtn" type="button" style="
+          width:100%;
+          height:48px;
+          border:0;
+          border-radius:16px;
+          background:#fff;
+          color:#000;
+          font-weight:800;
+          font-size:14px;
+          cursor:pointer;
+        ">
+          Перезапустить
+        </button>
+      </section>
+    </main>
+  `;
+
+  root.querySelector('#reloadAppBtn')?.addEventListener('click', () => {
+    window.location.reload();
+  });
+}
+
 async function boot() {
   try {
     if (!isTelegramWebApp()) {
@@ -103,7 +157,17 @@ async function boot() {
 
     initRuntime();
 
-    await loadRemote();
+    const remoteStatus = await loadRemote();
+
+    if (remoteStatus?.ok === false) {
+      renderRemoteCheckError();
+      return;
+    }
+
+    if (remoteStatus?.playerFound === false) {
+      show('welcome1');
+      return;
+    }
 
     const state = getState();
 
@@ -117,6 +181,11 @@ async function boot() {
       state.cityId ||
       state.player?.city ||
       '';
+
+    if (!state.backendPlayerVerified) {
+      show('welcome1');
+      return;
+    }
 
     if (!nickname) {
       show('welcome1');
