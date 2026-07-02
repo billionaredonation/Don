@@ -5,9 +5,9 @@ const MOBILE_MAP_TILE_ASSETS = import.meta.glob('../../map-tiles/**/*.{png,jpg,j
 });
 
 const MOBILE_TILE_GRID = 8;
-const MOBILE_TILE_KEEP_RADIUS = 2;
-const MOBILE_TILE_PRELOAD_RADIUS = 3;
-const MOBILE_TILE_IDLE_DELAY = 140;
+const MOBILE_TILE_KEEP_RADIUS = 3;
+const MOBILE_TILE_PRELOAD_RADIUS = 4;
+const MOBILE_TILE_IDLE_DELAY = 260;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -480,7 +480,15 @@ export function enableMapControls(stage, viewport, options = {}) {
     x = clamp(x, -limits.maxX, limits.maxX);
     y = clamp(y, -limits.maxY, limits.maxY);
 
-    const precision = 1000;
+    /*
+      На телефоне огромная PNG/тайловый слой на дробных CSS-пикселях может
+      визуально дрожать из-за resampling GPU. Привязываем transform к физическому
+      пикселю устройства. На ПК оставляем высокую точность.
+    */
+    const precision = mobile
+      ? Math.max(1, Math.round(window.devicePixelRatio || 1))
+      : 1000;
+
     const safeX = Math.round(x * precision) / precision;
     const safeY = Math.round(y * precision) / precision;
     const safeScale = Math.round(scale * 10000) / 10000;
@@ -628,7 +636,8 @@ export function enableMapControls(stage, viewport, options = {}) {
       });
 
       window.clearTimeout(tileCleanupTimer);
-      tileCleanupTimer = window.setTimeout(() => unloadFarTiles(keepKeys), 2400);
+      // Не выгружаем тайлы агрессивно во время движения — это может дать рывок.
+      tileCleanupTimer = window.setTimeout(() => unloadFarTiles(keepKeys), 5200);
     }, MOBILE_TILE_IDLE_DELAY);
   }
 
