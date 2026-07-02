@@ -214,8 +214,8 @@ export function enableMobileJoystick(
     сглаживаем input, камера быстрее догоняет игрока,
     а лишние DOM/DB обновления режем, чтобы убрать мини-телепорты.
   */
-  const CAMERA_LAG = 0.5;
-  const CAMERA_PAINT_EPSILON = 0.00045;
+  const CAMERA_LAG = 0.78;
+  const CAMERA_PAINT_EPSILON = 0.00008;
 
   /*
     Второй фикс плавности:
@@ -226,8 +226,8 @@ export function enableMobileJoystick(
   const INPUT_STOP_EASING = 0.28;
   const VELOCITY_LERP = 0.16;
   const VELOCITY_STOP_LERP = 0.22;
-  const RENDER_LAG = 0.42;
-  const POSITION_PAINT_EPSILON = 0.00018;
+  const RENDER_LAG = 0.62;
+  const POSITION_PAINT_EPSILON = 0.00008;
   const MARKER_DATA_SYNC_INTERVAL = 180;
 
   const STAMINA_ARC_MAX_DEG = 165;
