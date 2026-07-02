@@ -66,11 +66,39 @@ function formatHudMoney(value) {
   return formatFullMoney(value);
 }
 
-const MAP_FILES = import.meta.glob('../../*.png', {
+const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif}', {
   eager: true,
   query: '?url',
   import: 'default',
 });
+
+const CITY_MAP_RATIOS = {
+  vinnytsia: 1,
+  lutsk: 1,
+  luhansk: 1,
+  dnipro: 1,
+  donetsk: 1,
+  zhytomyr: 1,
+  uzhhorod: 1,
+  zaporizhzhia: 0.632213,
+  'ivano-frankivsk': 1,
+  kyiv: 1,
+  kropyvnytskyi: 1,
+  crimea: 1,
+  lviv: 1,
+  mykolaiv: 1,
+  odesa: 0.75,
+  poltava: 0.615385,
+  rivne: 0.666667,
+  sumy: 0.666667,
+  ternopil: 0.666667,
+  kharkiv: 0.666667,
+  kherson: 0.666667,
+  khmelnytskyi: 0.666667,
+  cherkasy: 0.666667,
+  chernihiv: 0.666667,
+  chernivtsi: 0.666667,
+};
 
 function isTruthyAdmin(value) {
   return value === true || value === 'true' || value === 1 || value === '1';
@@ -86,6 +114,10 @@ function getCityMap(city) {
   const mapFileName = mapPath.split('/').pop();
 
   return getMapByFileName(mapFileName) || getMapByFileName('UkraineMap.png');
+}
+
+function getCityMapRatio(cityId) {
+  return CITY_MAP_RATIOS[normalizeCityId(cityId)] || 0.6697;
 }
 
 function getUserDayMode() {
@@ -551,6 +583,36 @@ register('home', async (root) => {
   }
 
   const mapSrc = getCityMap(city);
+  const isMobileGameplay = isMobileGameplayDevice();
+  const cityMapRatio = getCityMapRatio(cityId);
+
+  const mapLayerHtml = isMobileGameplay
+    ? `
+          <div
+            class="gta-map-image gta-map-mobile-placeholder"
+            data-map-src="${mapSrc}"
+            aria-hidden="true"
+          ></div>
+        `
+    : `
+          <img
+            class="gta-map-image gta-map-glow"
+            src="${mapSrc}"
+            alt=""
+            aria-hidden="true"
+            loading="eager"
+            decoding="async"
+          />
+
+          <img
+            class="gta-map-image"
+            src="${mapSrc}"
+            alt="${city.name}"
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
+          />
+        `;
 
   const telegramId =
     state.telegramId ||
@@ -579,7 +641,7 @@ register('home', async (root) => {
           <div class="gta-water-soft"></div>
         </div>
 
-        <div class="gta-map-viewport">
+        <div class="gta-map-viewport" data-city-id="${cityId}" data-map-src="${mapSrc}" data-map-ratio="${cityMapRatio}">
           <div class="gta-map-weather">
             <div class="gta-weather-sun"></div>
             <div class="gta-weather-clouds"></div>
@@ -591,23 +653,7 @@ register('home', async (root) => {
             ${playersHtml}
           </div>
 
-          <img
-            class="gta-map-image gta-map-glow"
-            src="${mapSrc}"
-            alt=""
-            aria-hidden="true"
-            loading="eager"
-            decoding="async"
-          />
-
-          <img
-            class="gta-map-image"
-            src="${mapSrc}"
-            alt="${city.name}"
-            loading="eager"
-            decoding="async"
-            fetchpriority="high"
-          />
+          ${mapLayerHtml}
         </div>
 
 
@@ -662,7 +708,6 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
-  const isMobileGameplay = isMobileGameplayDevice();
 
   const cleanupHousesFeature = enableHousesFeature(root, {
     cityId,
@@ -684,6 +729,8 @@ register('home', async (root) => {
   const cleanupSingleHouseModalMode = null;
 
   const mapControls = enableMapControls(stage, viewport, {
+    cityId,
+    mapSrc,
     focusX: playerPosition.x,
     focusY: playerPosition.y,
 
