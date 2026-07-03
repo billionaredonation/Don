@@ -14,8 +14,8 @@ const MOBILE_INTERACTION_RADIUS_PX = 112;
 const DIRECT_TAP_RADIUS_PX = 132;
 const MOBILE_FREE_TAP_RADIUS_PX = 150;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
-const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 9800 : 5600;
-const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 220 : 110;
+const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 16000 : 5600;
+const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 380 : 110;
 
 /*
   ПК оставляем широким: там железо выдерживает много DOM-объектов.
@@ -27,15 +27,15 @@ const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 220 : 110;
 const OBJECT_RENDER_RADIUS_PERCENT = 23;
 const OBJECT_LOAD_RADIUS_PERCENT = 31;
 
-const MOBILE_OBJECT_RENDER_RADIUS_PX = 360;
-const MOBILE_OBJECT_LOAD_RADIUS_PX = 980;
-const MOBILE_OBJECT_REGION_RELOAD_SHIFT_PX = 340;
-const MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX = 30;
+const MOBILE_OBJECT_RENDER_RADIUS_PX = 960;
+const MOBILE_OBJECT_LOAD_RADIUS_PX = 1800;
+const MOBILE_OBJECT_REGION_RELOAD_SHIFT_PX = 760;
+const MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX = 180;
 
-const MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT = 10;
-const MOBILE_OBJECT_RENDER_RADIUS_MAX_PERCENT = 34;
-const MOBILE_OBJECT_LOAD_RADIUS_MIN_PERCENT = 24;
-const MOBILE_OBJECT_LOAD_RADIUS_MAX_PERCENT = 72;
+const MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT = 24;
+const MOBILE_OBJECT_RENDER_RADIUS_MAX_PERCENT = 78;
+const MOBILE_OBJECT_LOAD_RADIUS_MIN_PERCENT = 42;
+const MOBILE_OBJECT_LOAD_RADIUS_MAX_PERCENT = 96;
 const OBJECT_REGION_RELOAD_SHIFT_PERCENT = 7;
 const OBJECT_RENDER_MOVE_EPSILON_PERCENT = 0.25;
 
@@ -116,6 +116,18 @@ function isMobileGameplayDevice() {
     Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 920;
 
   return hasTouch && narrowScreen;
+}
+
+function isMobilePlayerBusy() {
+  if (!isMobileGameplayDevice()) return false;
+
+  const now = performance.now();
+  const pauseUntil = Number(window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ || 0);
+
+  return (
+    window.__MN_MOBILE_PLAYER_MOVING__ === true ||
+    pauseUntil > now
+  );
 }
 
 function clampNumber(value, min, max) {
@@ -733,6 +745,7 @@ export function enableEntityInteraction({
   let lastRenderY = Number.NaN;
   let lastRenderedIdsKey = '';
   let loadedRegion = null;
+  let lastMovingObjectsRenderAt = 0;
 
   function getRenderRadiusPercent() {
     return isMobileGameplayDevice()
@@ -951,13 +964,30 @@ export function enableEntityInteraction({
   function getNearestInteractableObject() {
     let bestObject = null;
     let bestDistance = Number.POSITIVE_INFINITY;
+    const radius = getInteractionRadius();
+    const position = getCurrentPlayerPercent(playerPosition);
+    const rect = viewport?.getBoundingClientRect?.();
+    const width = Number(rect?.width);
+    const height = Number(rect?.height);
 
     renderedObjects.forEach((object) => {
       if (!object) return;
 
-      const distance = getDistanceToObject(object);
+      let distance = Number.POSITIVE_INFINITY;
 
-      if (distance <= getInteractionRadius() && distance < bestDistance) {
+      if (width > 0 && height > 0) {
+        const objectX = Number(object.x || 50);
+        const objectY = Number(object.y || 50);
+
+        distance = Math.hypot(
+          ((objectX - position.x) / 100) * width,
+          ((objectY - position.y) / 100) * height
+        );
+      } else {
+        distance = getDistanceToObject(object);
+      }
+
+      if (distance <= radius && distance < bestDistance) {
         bestObject = object;
         bestDistance = distance;
       }
@@ -1069,7 +1099,20 @@ export function enableEntityInteraction({
     if (destroyed) return;
 
     if (shouldReloadRegion()) {
-      scheduleReload(250);
+      scheduleReload(isMobilePlayerBusy() ? 900 : 250);
+    }
+
+    if (isMobilePlayerBusy()) {
+      const now = performance.now();
+
+      if (now - lastMovingObjectsRenderAt >= 950) {
+        renderNearbyMapObjects(false);
+        lastMovingObjectsRenderAt = now;
+      }
+
+      hideInteractionHint();
+      scheduleInteractionHintUpdate(420);
+      return;
     }
 
     renderNearbyMapObjects(false);
