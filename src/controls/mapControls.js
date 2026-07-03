@@ -11,15 +11,6 @@ const MOBILE_TILE_KEEP_RADIUS = 4;
 const MOBILE_TILE_IDLE_DELAY = 120;
 const MOBILE_TILE_CLEANUP_DELAY = 7800;
 
-const MAP_OBJECT_DENSE_LIMIT = 48;
-const MAP_OBJECT_DENSE_LIMIT_LOW_POWER = 34;
-const MAP_OBJECT_CULL_INTERVAL = 520;
-const MAP_OBJECT_MOVING_IDLE_MS = 150;
-const MAP_OBJECT_ULTRA_FREEZE_LIMIT = 78;
-const MAP_OBJECT_ULTRA_FREEZE_LIMIT_LOW_POWER = 58;
-const MAP_OBJECT_VIEW_PADDING_PERCENT = 8;
-const MAP_OBJECT_PERF_STYLE_ID = 'mn-map-controls-object-perf-style';
-
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -285,389 +276,20 @@ export function enableMapControls(stage, viewport, options = {}) {
   const activeTiles = new Map();
   const preloadedTileSrcs = new Set();
 
-  const perfHome = stage.closest?.('.home') || null;
-  const perfTargets = [stage, perfHome].filter(Boolean);
-  let mapObjectPerfEnabled = false;
-  let mapObjectMovingTimer = null;
-  let mapObjectIsMoving = false;
-  let mapObjectCullingFrame = null;
-  let mapObjectCullLastAt = 0;
-  let mapObjectCullLastKey = '';
-  let mapObjectLayersCache = [];
-  let mapObjectLayersCacheAt = 0;
-  let mapObjectDomCount = 0;
-  let mapObjectUltraFreezeEnabled = false;
-
   /*
-    Camera rewrite:
-    focusOnPlayer sets a target and mapControls paints the viewport through one
-    lightweight camera loop. This keeps all existing player/network/admin code in
-    place, but removes the hard snap that made movement feel like separate steps.
+    Mobile camera rewrite:
+    focusOnPlayer now sets a target. The map transform is painted by one
+    internal camera loop, so joystick/player/network code no longer writes
+    the heavy viewport transform directly on every call.
   */
-  const CAMERA_SETTLE_EPSILON = mobile ? 0.018 : 0.014;
-  const CAMERA_SNAP_DISTANCE = mobile ? 900 : 1100;
-  const CAMERA_TARGET_LERP = mobile
-    ? (lowPower ? 0.3 : 0.36)
-    : (lowPower ? 0.42 : 0.5);
-  const CAMERA_FOLLOW_LERP = mobile
-    ? (lowPower ? 0.18 : 0.24)
-    : (lowPower ? 0.28 : 0.36);
-  const CAMERA_PREDICTION_MS = mobile
-    ? (lowPower ? 110 : 145)
-    : (lowPower ? 80 : 100);
-  const CAMERA_PREDICTION_MAX_DISTANCE = mobile
-    ? (lowPower ? 72 : 96)
-    : 120;
-  const CAMERA_VELOCITY_LERP = mobile ? 0.52 : 0.42;
-  const CAMERA_IDLE_VELOCITY_DECAY = mobile ? 0.78 : 0.7;
-
-  let desiredMapX = 0;
-  let desiredMapY = 0;
+  /*
+    Camera is synced by one rAF paint. The joystick already smooths renderX/renderY,
+    so mapControls must not add a second lerp on top of it. Double smoothing was
+    the likely source of visible camera wobble.
+  */
   let targetMapX = 0;
   let targetMapY = 0;
   let cameraFrameId = 0;
-  let cameraLastFrameAt = 0;
-  let cameraReady = false;
-  let desiredVelocityX = 0;
-  let desiredVelocityY = 0;
-  let lastFocusTargetX = null;
-  let lastFocusTargetY = null;
-  let lastFocusTargetAt = 0;
-
-  function ensureMapObjectPerfStyle() {
-    if (document.getElementById(MAP_OBJECT_PERF_STYLE_ID)) return;
-
-    const style = document.createElement('style');
-    style.id = MAP_OBJECT_PERF_STYLE_ID;
-    style.textContent = `
-      [data-map-object-perf="active"] .map-objects-layer,
-      [data-map-object-perf="active"] .map-objects-layer-public,
-      [data-map-object-perf="active"] .map-objects-layer-admin {
-        contain: layout style paint !important;
-        content-visibility: auto !important;
-        backface-visibility: hidden !important;
-        transform: translateZ(0) !important;
-        pointer-events: none !important;
-      }
-
-      [data-map-object-perf="active"][data-map-object-ultra="true"][data-map-camera-moving="true"] .map-objects-layer,
-      [data-map-object-perf="active"][data-map-object-ultra="true"][data-map-camera-moving="true"] .map-objects-layer-public,
-      [data-map-object-perf="active"][data-map-object-ultra="true"][data-map-camera-moving="true"] .map-objects-layer-admin,
-      [data-map-object-perf="active"][data-map-object-ultra="true"] [data-map-camera-moving="true"] .map-objects-layer,
-      [data-map-object-perf="active"][data-map-object-ultra="true"] [data-map-camera-moving="true"] .map-objects-layer-public,
-      [data-map-object-perf="active"][data-map-object-ultra="true"] [data-map-camera-moving="true"] .map-objects-layer-admin {
-        content-visibility: hidden !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-      }
-
-      [data-map-object-perf="active"] .map-object {
-        contain: layout style paint !important;
-        backface-visibility: hidden !important;
-        transform-style: flat !important;
-        transition: none !important;
-        animation: none !important;
-        will-change: auto !important;
-      }
-
-      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object,
-      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object {
-        box-shadow: none !important;
-        filter: none !important;
-        text-shadow: none !important;
-      }
-
-      [data-map-object-perf="active"] .map-object[data-map-culled="true"] {
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-      }
-
-      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object,
-      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object {
-        pointer-events: none !important;
-        cursor: default !important;
-      }
-
-      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object::before,
-      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object::after,
-      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object::before,
-      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object::after {
-        display: none !important;
-        content: none !important;
-      }
-
-      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-house-svg,
-      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object-icon,
-      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-house-svg,
-      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object-icon {
-        filter: none !important;
-        transition: none !important;
-        animation: none !important;
-      }
-
-      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object-badge,
-      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object-sub,
-      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object-badge,
-      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object-sub {
-        display: none !important;
-      }
-    `;
-
-    document.head?.appendChild(style);
-  }
-
-  function setPerfDataset(name, value) {
-    perfTargets.forEach((target) => {
-      if (!target?.dataset) return;
-
-      if (value === null || value === undefined || value === false) {
-        delete target.dataset[name];
-        return;
-      }
-
-      target.dataset[name] = String(value);
-    });
-  }
-
-  function getMapObjectLayers(force = false) {
-    const now = performance.now();
-    const cacheValid =
-      !force &&
-      mapObjectLayersCache.length > 0 &&
-      now - mapObjectLayersCacheAt < 700 &&
-      mapObjectLayersCache.every((layer) => layer?.isConnected);
-
-    if (cacheValid) {
-      return mapObjectLayersCache;
-    }
-
-    mapObjectLayersCache = Array.from(
-      viewport.querySelectorAll(
-        '.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin'
-      )
-    );
-    mapObjectLayersCacheAt = now;
-
-    return mapObjectLayersCache;
-  }
-
-  function getMapObjectDomCount() {
-    return getMapObjectLayers(true).reduce((total, layer) => {
-      return total + (layer?.children?.length || 0);
-    }, 0);
-  }
-
-  function parsePercentStyle(value) {
-    const number = Number.parseFloat(String(value || ''));
-
-    return Number.isFinite(number) ? number : null;
-  }
-
-  function getVisiblePercentBounds() {
-    const rect = getCachedStageRect();
-    const scaledWidth = Math.max(1, worldWidth * scale);
-    const scaledHeight = Math.max(1, worldHeight * scale);
-    const padding = MAP_OBJECT_VIEW_PADDING_PERCENT;
-
-    const left = 50 + ((-rect.width / 2 - x) / scaledWidth) * 100 - padding;
-    const right = 50 + ((rect.width / 2 - x) / scaledWidth) * 100 + padding;
-    const top = 50 + ((-rect.height / 2 - y) / scaledHeight) * 100 - padding;
-    const bottom = 50 + ((rect.height / 2 - y) / scaledHeight) * 100 + padding;
-
-    return {
-      left: clamp(left, -padding, 100 + padding),
-      right: clamp(right, -padding, 100 + padding),
-      top: clamp(top, -padding, 100 + padding),
-      bottom: clamp(bottom, -padding, 100 + padding),
-    };
-  }
-
-  function clearMapObjectCulling() {
-    getMapObjectLayers(true).forEach((layer) => {
-      delete layer.dataset.visibleObjectsCount;
-
-      Array.from(layer.children || []).forEach((element) => {
-        if (!element?.dataset?.mapCulled) return;
-
-        delete element.dataset.mapCulled;
-        element.style.removeProperty('visibility');
-        element.style.removeProperty('opacity');
-        element.style.removeProperty('pointer-events');
-      });
-    });
-
-    setPerfDataset('mapObjectVisibleCount', null);
-    mapObjectCullLastKey = '';
-  }
-
-  function updateMapObjectCulling(force = false) {
-    if (!mapObjectPerfEnabled) {
-      clearMapObjectCulling();
-      return;
-    }
-
-    const now = performance.now();
-
-    if (!force && now - mapObjectCullLastAt < MAP_OBJECT_CULL_INTERVAL) {
-      return;
-    }
-
-    mapObjectCullLastAt = now;
-
-    const bounds = getVisiblePercentBounds();
-    const nextKey = [
-      Math.round(bounds.left * 2),
-      Math.round(bounds.right * 2),
-      Math.round(bounds.top * 2),
-      Math.round(bounds.bottom * 2),
-      mapObjectDomCount,
-    ].join(':');
-
-    if (!force && nextKey === mapObjectCullLastKey) {
-      return;
-    }
-
-    mapObjectCullLastKey = nextKey;
-
-    let visibleCount = 0;
-    let totalCount = 0;
-
-    getMapObjectLayers().forEach((layer) => {
-      let layerVisibleCount = 0;
-
-      Array.from(layer.children || []).forEach((element) => {
-        if (!element?.classList?.contains('map-object')) return;
-
-        totalCount += 1;
-
-        const objectX = parsePercentStyle(element.style.left);
-        const objectY = parsePercentStyle(element.style.top);
-        const keepVisible =
-          element.classList.contains('map-object-selected') ||
-          element.classList.contains('map-object-nearby') ||
-          element.matches?.('[aria-expanded="true"], [data-force-visible="true"]');
-
-        const insideView =
-          keepVisible ||
-          objectX === null ||
-          objectY === null ||
-          (
-            objectX >= bounds.left &&
-            objectX <= bounds.right &&
-            objectY >= bounds.top &&
-            objectY <= bounds.bottom
-          );
-
-        if (insideView) {
-          visibleCount += 1;
-          layerVisibleCount += 1;
-
-          if (element.dataset.mapCulled) {
-            delete element.dataset.mapCulled;
-            element.style.removeProperty('visibility');
-            element.style.removeProperty('opacity');
-            element.style.removeProperty('pointer-events');
-          }
-
-          return;
-        }
-
-        if (!element.dataset.mapCulled) {
-          element.dataset.mapCulled = 'true';
-          element.style.setProperty('visibility', 'hidden', 'important');
-          element.style.setProperty('opacity', '0', 'important');
-          element.style.setProperty('pointer-events', 'none', 'important');
-        }
-      });
-
-      layer.dataset.visibleObjectsCount = String(layerVisibleCount);
-    });
-
-    setPerfDataset('mapObjectVisibleCount', String(visibleCount));
-
-    if (totalCount !== mapObjectDomCount) {
-      updateMapObjectDensity(totalCount);
-    }
-  }
-
-  function scheduleMapObjectCulling(force = false) {
-    if (!mapObjectPerfEnabled && !force) return;
-    if (mapObjectCullingFrame) return;
-
-    mapObjectCullingFrame = requestAnimationFrame(() => {
-      mapObjectCullingFrame = null;
-      updateMapObjectCulling(Boolean(force));
-    });
-  }
-
-  function updateMapObjectDensity(count = null) {
-    const nextCount = Number.isFinite(Number(count))
-      ? Number(count)
-      : getMapObjectDomCount();
-
-    mapObjectDomCount = Math.max(0, nextCount);
-
-    const denseLimit = lowPower ? MAP_OBJECT_DENSE_LIMIT_LOW_POWER : MAP_OBJECT_DENSE_LIMIT;
-    const ultraLimit = lowPower ? MAP_OBJECT_ULTRA_FREEZE_LIMIT_LOW_POWER : MAP_OBJECT_ULTRA_FREEZE_LIMIT;
-    const shouldEnable = mobile && mapObjectDomCount >= denseLimit;
-    const shouldUltraFreeze = mobile && mapObjectDomCount >= ultraLimit;
-
-    if (shouldEnable) {
-      ensureMapObjectPerfStyle();
-      mapObjectUltraFreezeEnabled = shouldUltraFreeze;
-      setPerfDataset('mapObjectPerf', 'active');
-      setPerfDataset('mapObjectUltra', shouldUltraFreeze ? 'true' : null);
-      setPerfDataset('mapObjectCount', String(mapObjectDomCount));
-
-      if (!mapObjectPerfEnabled) {
-        mapObjectPerfEnabled = true;
-        scheduleMapObjectCulling(true);
-      } else if (!mapObjectIsMoving) {
-        scheduleMapObjectCulling(false);
-      }
-
-      return;
-    }
-
-    mapObjectPerfEnabled = false;
-    mapObjectUltraFreezeEnabled = false;
-    mapObjectIsMoving = false;
-    setPerfDataset('mapObjectPerf', null);
-    setPerfDataset('mapObjectUltra', null);
-    setPerfDataset('mapCameraMoving', null);
-    setPerfDataset('mapObjectCount', null);
-    clearTimeout(mapObjectMovingTimer);
-    mapObjectMovingTimer = null;
-    clearMapObjectCulling();
-  }
-
-  function onMapObjectsRendered(event) {
-    const detail = event?.detail || {};
-    const count = Number(
-      detail.layerChildren ??
-      detail.renderedCount ??
-      detail.count ??
-      NaN
-    );
-
-    updateMapObjectDensity(Number.isFinite(count) ? count : null);
-  }
-
-  function markCameraMoving() {
-    if (!mapObjectPerfEnabled) return;
-
-    mapObjectIsMoving = true;
-    setPerfDataset('mapCameraMoving', 'true');
-
-    clearTimeout(mapObjectMovingTimer);
-    mapObjectMovingTimer = window.setTimeout(() => {
-      mapObjectIsMoving = false;
-      setPerfDataset('mapCameraMoving', null);
-      scheduleMapObjectCulling(true);
-    }, mapObjectUltraFreezeEnabled ? 220 : MAP_OBJECT_MOVING_IDLE_MS);
-  }
 
   function setRenderMode(mode) {
     stage.dataset.mapRenderMode = mode;
@@ -763,8 +385,6 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.willChange = 'transform';
     viewport.style.zIndex = '50';
     viewport.style.pointerEvents = 'none';
-    viewport.style.backfaceVisibility = 'hidden';
-    viewport.style.contain = 'layout style paint';
 
     if (!tileMode) {
       mapImages.forEach((image) => {
@@ -808,11 +428,6 @@ export function enableMapControls(stage, viewport, options = {}) {
       layer.style.visibility = 'visible';
       layer.style.opacity = '1';
       layer.style.overflow = 'visible';
-      layer.style.pointerEvents = 'none';
-      layer.style.backfaceVisibility = 'hidden';
-      layer.style.transform = 'translateZ(0)';
-      layer.style.contain = 'layout style paint';
-      layer.style.contentVisibility = 'auto';
     });
   }
 
@@ -912,10 +527,6 @@ export function enableMapControls(stage, viewport, options = {}) {
     if (nextEntityScaleValue !== lastEntityScaleCssValue) {
       stage.style.setProperty('--map-entity-scale', nextEntityScaleValue);
       lastEntityScaleCssValue = nextEntityScaleValue;
-    }
-
-    if (mapObjectPerfEnabled && !mapObjectIsMoving) {
-      scheduleMapObjectCulling(false);
     }
   }
 
@@ -1122,172 +733,33 @@ export function enableMapControls(stage, viewport, options = {}) {
     };
   }
 
-  function getCameraFrameScale(now) {
-    if (!cameraLastFrameAt) {
-      cameraLastFrameAt = now;
-      return 1;
-    }
+  function runCameraFrame() {
+    cameraFrameId = 0;
 
-    const delta = Math.min(34, Math.max(8, now - cameraLastFrameAt));
-    cameraLastFrameAt = now;
+    x = targetMapX;
+    y = targetMapY;
 
-    return delta / 16.6667;
-  }
-
-  function getPredictedDesiredPosition(now, frameScale, force = false) {
-    if (force || !cameraReady || !lastFocusTargetAt) {
-      return {
-        x: desiredMapX,
-        y: desiredMapY,
-      };
-    }
-
-    const idleFor = Math.max(0, now - lastFocusTargetAt);
-
-    if (idleFor > CAMERA_PREDICTION_MS) {
-      const decay = Math.pow(CAMERA_IDLE_VELOCITY_DECAY, frameScale);
-      desiredVelocityX *= decay;
-      desiredVelocityY *= decay;
-
-      if (Math.abs(desiredVelocityX) < 0.001) desiredVelocityX = 0;
-      if (Math.abs(desiredVelocityY) < 0.001) desiredVelocityY = 0;
-
-      return {
-        x: desiredMapX,
-        y: desiredMapY,
-      };
-    }
-
-    const predictedMs = Math.min(CAMERA_PREDICTION_MS, idleFor);
-    const predictedX = clamp(
-      desiredVelocityX * predictedMs,
-      -CAMERA_PREDICTION_MAX_DISTANCE,
-      CAMERA_PREDICTION_MAX_DISTANCE
-    );
-    const predictedY = clamp(
-      desiredVelocityY * predictedMs,
-      -CAMERA_PREDICTION_MAX_DISTANCE,
-      CAMERA_PREDICTION_MAX_DISTANCE
-    );
-
-    return {
-      x: desiredMapX + predictedX,
-      y: desiredMapY + predictedY,
-    };
-  }
-
-  function updateCameraVelocity(nextX, nextY, force = false) {
-    const now = performance.now();
-
-    if (
-      force ||
-      lastFocusTargetX === null ||
-      lastFocusTargetY === null ||
-      !lastFocusTargetAt
-    ) {
-      desiredVelocityX = 0;
-      desiredVelocityY = 0;
-      lastFocusTargetX = nextX;
-      lastFocusTargetY = nextY;
-      lastFocusTargetAt = now;
-      return;
-    }
-
-    const elapsed = clamp(now - lastFocusTargetAt, 12, 220);
-    const rawVelocityX = (nextX - lastFocusTargetX) / elapsed;
-    const rawVelocityY = (nextY - lastFocusTargetY) / elapsed;
-    const sampleDistance = Math.hypot(nextX - lastFocusTargetX, nextY - lastFocusTargetY);
-
-    if (sampleDistance > CAMERA_SNAP_DISTANCE * 0.45) {
-      desiredVelocityX = 0;
-      desiredVelocityY = 0;
-    } else {
-      desiredVelocityX += (rawVelocityX - desiredVelocityX) * CAMERA_VELOCITY_LERP;
-      desiredVelocityY += (rawVelocityY - desiredVelocityY) * CAMERA_VELOCITY_LERP;
-    }
-
-    lastFocusTargetX = nextX;
-    lastFocusTargetY = nextY;
-    lastFocusTargetAt = now;
-  }
-
-  function paintCamera(now = performance.now(), force = false) {
-    const frameScale = getCameraFrameScale(now);
-    const liveDesired = getPredictedDesiredPosition(now, frameScale, force);
-    const distanceToDesired = Math.hypot(liveDesired.x - x, liveDesired.y - y);
-
-    if (!cameraReady || force || distanceToDesired >= CAMERA_SNAP_DISTANCE) {
-      targetMapX = liveDesired.x;
-      targetMapY = liveDesired.y;
-      x = targetMapX;
-      y = targetMapY;
-      cameraReady = true;
-      cameraLastFrameAt = now;
-
-      applyTransform();
-      scheduleTileUpdate(Boolean(force));
-      return;
-    }
-
-    const targetFollow = 1 - Math.pow(1 - CAMERA_TARGET_LERP, frameScale);
-
-    targetMapX += (liveDesired.x - targetMapX) * targetFollow;
-    targetMapY += (liveDesired.y - targetMapY) * targetFollow;
-
-    const dx = targetMapX - x;
-    const dy = targetMapY - y;
-    const distance = Math.hypot(dx, dy);
-    const desiredDistance = Math.hypot(liveDesired.x - targetMapX, liveDesired.y - targetMapY);
-
-    if (distance <= CAMERA_SETTLE_EPSILON && desiredDistance <= CAMERA_SETTLE_EPSILON) {
-      targetMapX = liveDesired.x;
-      targetMapY = liveDesired.y;
-      x = targetMapX;
-      y = targetMapY;
-
-      applyTransform();
-      scheduleTileUpdate();
-      return;
-    }
-
-    const follow = 1 - Math.pow(1 - CAMERA_FOLLOW_LERP, frameScale);
-
-    x += dx * follow;
-    y += dy * follow;
-
-    markCameraMoving();
     applyTransform();
     scheduleTileUpdate();
-
-    if (!cameraFrameId) {
-      cameraFrameId = requestAnimationFrame(runCameraFrame);
-    }
-  }
-
-  function runCameraFrame(now = performance.now()) {
-    cameraFrameId = 0;
-    paintCamera(now, false);
   }
 
   function scheduleCameraFrame(force = false) {
-    if (force) {
-      if (cameraFrameId) {
-        cancelAnimationFrame(cameraFrameId);
-        cameraFrameId = 0;
-      }
-
-      paintCamera(performance.now(), true);
-      return;
+    if (cameraFrameId) {
+      cancelAnimationFrame(cameraFrameId);
+      cameraFrameId = 0;
     }
 
     /*
-      Coalesce all focusOnPlayer calls into one rAF paint. In dense cities the
-      old immediate paint could transform the whole map more than once per frame,
-      which made 100+ SVG houses feel like step-by-step movement.
+      The mobile joystick already runs inside requestAnimationFrame.
+      Deferring the map transform to another frame adds a visible one-frame
+      delay and makes movement feel heavy. Paint the camera target immediately,
+      while tile work stays throttled separately.
     */
-    if (!cameraFrameId) {
-      cameraFrameId = requestAnimationFrame(runCameraFrame);
-    }
+    x = targetMapX;
+    y = targetMapY;
+
+    applyTransform();
+    scheduleTileUpdate(Boolean(force));
   }
 
   function focusOnPlayer(playerX, playerY, options = {}) {
@@ -1295,14 +767,8 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     if (!nextTarget) return;
 
-    desiredMapX = nextTarget.x;
-    desiredMapY = nextTarget.y;
-    updateCameraVelocity(desiredMapX, desiredMapY, Boolean(options.force || !cameraReady));
-
-    if (options.force || !cameraReady) {
-      targetMapX = desiredMapX;
-      targetMapY = desiredMapY;
-    }
+    targetMapX = nextTarget.x;
+    targetMapY = nextTarget.y;
 
     scheduleCameraFrame(Boolean(options.force));
   }
@@ -1316,7 +782,6 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     measureWorld();
     focusOnPlayer(lastFocusX, lastFocusY, { force: true });
-    updateMapObjectDensity();
   }
 
   function onResize() {
@@ -1333,8 +798,6 @@ export function enableMapControls(stage, viewport, options = {}) {
   window.addEventListener('resize', onResize, { passive: true });
   window.addEventListener('orientationchange', onResize, { passive: true });
   window.visualViewport?.addEventListener?.('resize', onResize, { passive: true });
-  window.addEventListener('mn:map-objects-rendered', onMapObjectsRendered, { passive: true });
-  window.addEventListener('mn:map-objects-dom-rendered', onMapObjectsRendered, { passive: true });
 
   if (!tileMode) {
     mapImages.forEach((image) => {
@@ -1362,18 +825,6 @@ export function enableMapControls(stage, viewport, options = {}) {
         cancelIdle(tileIdleId);
       }
 
-      if (mapObjectCullingFrame) {
-        cancelAnimationFrame(mapObjectCullingFrame);
-      }
-
-      clearTimeout(mapObjectMovingTimer);
-      mapObjectIsMoving = false;
-      clearMapObjectCulling();
-      setPerfDataset('mapObjectPerf', null);
-      setPerfDataset('mapObjectUltra', null);
-      setPerfDataset('mapCameraMoving', null);
-      setPerfDataset('mapObjectCount', null);
-
       activeTiles.clear();
       preloadedTileSrcs.clear();
       tileLayer?.remove();
@@ -1381,8 +832,6 @@ export function enableMapControls(stage, viewport, options = {}) {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
       window.visualViewport?.removeEventListener?.('resize', onResize);
-      window.removeEventListener('mn:map-objects-rendered', onMapObjectsRendered);
-      window.removeEventListener('mn:map-objects-dom-rendered', onMapObjectsRendered);
 
       mapImages.forEach((image) => {
         image.removeEventListener('load', onImageReady);
