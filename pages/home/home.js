@@ -160,6 +160,15 @@ function isMobileGameplayDevice() {
   return hasTouch && Math.min(width, height) <= 768;
 }
 
+function isMobilePlayerBusy() {
+  if (!isMobileGameplayDevice()) return false;
+
+  const now = performance.now();
+  const pauseUntil = Number(window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ || 0);
+
+  return window.__MN_MOBILE_PLAYER_MOVING__ === true || pauseUntil > now;
+}
+
 function hasMobileControlsAccepted() {
   try {
     return localStorage.getItem(MOBILE_CONTROLS_KEY) === '1';
@@ -982,18 +991,29 @@ register('home', async (root) => {
   function startBalanceDatabaseSync() {
     clearInterval(balanceSyncTimer);
 
+    const balanceSyncInterval = isMobileGameplay ? 6500 : 1100;
+
     balanceSyncTimer = setInterval(() => {
+      if (isMobileGameplay && isMobilePlayerBusy()) return;
+
       syncBalanceFromDatabase({ silent: true });
-    }, 1100);
+    }, balanceSyncInterval);
 
     const syncOnFocus = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (isMobileGameplay && isMobilePlayerBusy()) return;
+
       syncBalanceFromDatabase({ silent: false });
     };
 
     window.addEventListener('focus', syncOnFocus);
     document.addEventListener('visibilitychange', syncOnFocus);
 
-    syncBalanceFromDatabase({ silent: true });
+    window.setTimeout(() => {
+      if (!isMobileGameplay || !isMobilePlayerBusy()) {
+        syncBalanceFromDatabase({ silent: true });
+      }
+    }, isMobileGameplay ? 1800 : 0);
 
     return () => {
       clearInterval(balanceSyncTimer);
