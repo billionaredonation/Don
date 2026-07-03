@@ -240,8 +240,8 @@ export function enableMapControls(stage, viewport, options = {}) {
         меньше работы на каждом translate/scale кадре.
       */
       return {
-        scale: getRequestedStartScale(lowPower ? 1.46 : 1.55),
-        worldFactor: lowPower ? 2.02 : 2.18,
+        scale: getRequestedStartScale(lowPower ? 1.4 : 1.5),
+        worldFactor: lowPower ? 1.86 : 2.04,
       };
     }
 
@@ -383,6 +383,9 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.overflow = 'visible';
     viewport.style.transformOrigin = 'center center';
     viewport.style.willChange = 'transform';
+    viewport.style.backfaceVisibility = 'hidden';
+    viewport.style.transformStyle = 'flat';
+    viewport.style.contain = mobile ? 'layout style paint' : '';
     viewport.style.zIndex = '50';
     viewport.style.pointerEvents = 'none';
 
@@ -400,7 +403,12 @@ export function enableMapControls(stage, viewport, options = {}) {
         image.style.objectFit = 'contain';
         image.style.objectPosition = 'center center';
         image.style.pointerEvents = 'none';
+        image.decoding = 'async';
+        image.loading = 'eager';
         image.style.userSelect = 'none';
+        image.style.backfaceVisibility = 'hidden';
+        image.style.transformStyle = 'flat';
+        image.style.contain = mobile ? 'layout paint size style' : '';
         image.style.zIndex = isGlow ? '1' : '2';
       });
     }
