@@ -3176,3 +3176,151 @@ body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
     transform: none !important;
   }
 }
+
+/* =========================================================
+   MN MOBILE ULTRA OBJECT PERFORMANCE
+   Дома остаются видимыми постоянно, но на мобильной карте рендерятся как
+   лёгкие CSS-иконки без SVG-фильтров и без тяжёлых hitbox во время движения.
+   ========================================================= */
+
+body.mn-mobile-game-enabled .map-objects-layer,
+body.mn-mobile-game-enabled .map-objects-layer-public,
+body.mn-mobile-game-enabled .map-objects-layer-admin {
+  contain: layout style paint !important;
+  transform: translateZ(0) !important;
+  backface-visibility: hidden !important;
+  transform-style: flat !important;
+  will-change: transform !important;
+}
+
+body.mn-mobile-game-enabled .map-object,
+body.mn-mobile-game-enabled .map-object-house,
+body.mn-mobile-game-enabled .map-object-business {
+  contain: layout style paint !important;
+  backface-visibility: hidden !important;
+  transform-style: flat !important;
+  transition: none !important;
+  animation: none !important;
+  will-change: auto !important;
+  touch-action: manipulation !important;
+}
+
+body.mn-mobile-game-enabled .map-object.map-object-house,
+body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house,
+body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house.map-object-visual-standard {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  max-width: 26px !important;
+  max-height: 26px !important;
+}
+
+body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house.map-object-visual-comfort,
+body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house.map-object-visual-premium {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+}
+
+body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house.map-object-visual-lux,
+body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house.map-object-visual-elite {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  max-width: 30px !important;
+  max-height: 30px !important;
+}
+
+body.mn-mobile-game-enabled .map-house-svg,
+body.mn-mobile-game-enabled .map-object-selected .map-house-svg,
+body.mn-mobile-game-enabled .map-object-nearby .map-house-svg,
+body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house .map-house-svg {
+  filter: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+body.mn-mobile-game-enabled .map-house-lite {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  contain: layout style paint !important;
+  pointer-events: none !important;
+  transform: translateZ(0) !important;
+}
+
+body.mn-mobile-game-enabled .map-house-lite-shadow {
+  position: absolute !important;
+  left: 18% !important;
+  right: 18% !important;
+  bottom: 3% !important;
+  height: 14% !important;
+  border-radius: 999px !important;
+  background: rgba(0, 0, 0, 0.32) !important;
+}
+
+body.mn-mobile-game-enabled .map-house-lite-roof {
+  position: absolute !important;
+  left: 50% !important;
+  top: 9% !important;
+  width: 58% !important;
+  height: 58% !important;
+  border-radius: 4px 4px 2px 4px !important;
+  background: var(--map-house-roof, #20d977) !important;
+  transform: translateX(-50%) rotate(45deg) translateZ(0) !important;
+}
+
+body.mn-mobile-game-enabled .map-house-lite-body {
+  position: absolute !important;
+  left: 24% !important;
+  right: 24% !important;
+  bottom: 13% !important;
+  height: 48% !important;
+  border-radius: 3px 3px 5px 5px !important;
+  background: var(--map-house-main, #35e985) !important;
+  outline: 1px solid var(--map-house-soft, rgba(255,255,255,0.38)) !important;
+}
+
+body.mn-mobile-game-enabled .map-house-lite-door {
+  position: absolute !important;
+  left: 43% !important;
+  bottom: 13% !important;
+  width: 14% !important;
+  height: 28% !important;
+  border-radius: 2px 2px 0 0 !important;
+  background: var(--map-house-dark, #0f8f52) !important;
+}
+
+body.mn-mobile-game-enabled .map-object-selected .map-house-lite,
+body.mn-mobile-game-enabled .map-object-nearby .map-house-lite {
+  transform: translateZ(0) scale(1.08) !important;
+}
+
+body.mn-mobile-game-enabled .map-object-selected .map-house-lite-body,
+body.mn-mobile-game-enabled .map-object-nearby .map-house-lite-body {
+  outline: 2px solid rgba(255, 255, 255, 0.84) !important;
+}
+
+body.mn-mobile-game-enabled.mn-player-moving .map-object,
+html.mn-player-moving body.mn-mobile-game-enabled .map-object {
+  pointer-events: none !important;
+}
+
+body.mn-mobile-game-enabled.mn-player-moving .map-objects-layer .map-object.map-object-house::before,
+body.mn-mobile-game-enabled.mn-player-moving .map-objects-layer .map-object.map-object-house::after,
+html.mn-player-moving body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house::before,
+html.mn-player-moving body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house::after {
+  display: none !important;
+  content: none !important;
+}
+
+body.mn-mobile-game-enabled:not(.mn-player-moving) .map-objects-layer .map-object.map-object-house::before {
+  inset: -12px !important;
+}
