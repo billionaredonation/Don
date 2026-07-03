@@ -26,6 +26,24 @@ function dispatchMapObjectsChanged(cityId, payload) {
   }));
 }
 
+
+function isMobileGameplayDevice() {
+  const hasTouch = navigator.maxTouchPoints > 0;
+  const narrowScreen =
+    Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 920;
+
+  return hasTouch && narrowScreen;
+}
+
+function isMobilePlayerBusy() {
+  if (!isMobileGameplayDevice()) return false;
+
+  const now = performance.now();
+  const pauseUntil = Number(window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ || 0);
+
+  return window.__MN_MOBILE_PLAYER_MOVING__ === true || pauseUntil > now;
+}
+
 function dispatchPlayerBalanceChanged(row, payload = {}) {
   const balance = Number(row?.balance || 0);
   const oldBalance = Number(payload?.old?.balance);
@@ -67,6 +85,60 @@ export function setupGameRealtime({
   }
 
   let destroyed = false;
+  let deferredMapObjectsPayload = null;
+  let deferredBalancePayload = null;
+  let deferredFlushTimer = null;
+
+  function clearDeferredFlushTimer() {
+    if (!deferredFlushTimer) return;
+
+    window.clearTimeout(deferredFlushTimer);
+    deferredFlushTimer = null;
+  }
+
+  function flushDeferredRealtime() {
+    deferredFlushTimer = null;
+
+    if (destroyed) {
+      deferredMapObjectsPayload = null;
+      deferredBalancePayload = null;
+      return;
+    }
+
+    if (isMobilePlayerBusy()) {
+      scheduleDeferredRealtimeFlush(900);
+      return;
+    }
+
+    const mapPayload = deferredMapObjectsPayload;
+    const balancePayload = deferredBalancePayload;
+
+    deferredMapObjectsPayload = null;
+    deferredBalancePayload = null;
+
+    if (mapPayload) {
+      dispatchMapObjectsChanged(normalizedCityId, mapPayload);
+    }
+
+    if (balancePayload && normalizedTelegramId) {
+      const row = balancePayload?.new || {};
+      const changedTelegramId = getPlayerTelegramId(row);
+
+      if (!changedTelegramId || changedTelegramId === normalizedTelegramId) {
+        const meta = dispatchPlayerBalanceChanged(row, balancePayload);
+
+        if (typeof onBalanceChanged === 'function') {
+          onBalanceChanged(row, meta);
+        }
+      }
+    }
+  }
+
+  function scheduleDeferredRealtimeFlush(delay = 1200) {
+    if (destroyed || deferredFlushTimer) return;
+
+    deferredFlushTimer = window.setTimeout(flushDeferredRealtime, delay);
+  }
 
   const channel = supabase.channel(
     `mn-game:${normalizedCityId}:${normalizedTelegramId || 'guest'}`
@@ -83,6 +155,12 @@ export function setupGameRealtime({
     (payload) => {
       if (destroyed) return;
 
+      if (isMobilePlayerBusy()) {
+        deferredMapObjectsPayload = payload;
+        scheduleDeferredRealtimeFlush(1200);
+        return;
+      }
+
       dispatchMapObjectsChanged(normalizedCityId, payload);
     }
   );
@@ -98,6 +176,12 @@ export function setupGameRealtime({
       },
       (payload) => {
         if (destroyed) return;
+
+        if (isMobilePlayerBusy()) {
+          deferredBalancePayload = payload;
+          scheduleDeferredRealtimeFlush(1200);
+          return;
+        }
 
         const row = payload?.new || {};
         const changedTelegramId = getPlayerTelegramId(row);
@@ -123,6 +207,9 @@ export function setupGameRealtime({
 
   return () => {
     destroyed = true;
+    clearDeferredFlushTimer();
+    deferredMapObjectsPayload = null;
+    deferredBalancePayload = null;
     supabase.removeChannel(channel);
   };
 }
