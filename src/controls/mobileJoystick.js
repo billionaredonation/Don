@@ -314,6 +314,7 @@ export function enableMobileJoystick(
 
   let dbSaveInFlight = false;
   let dbSavePending = false;
+  let lastRuntimeMovingState = null;
 
   let lastSentX = x;
   let lastSentY = y;
@@ -325,12 +326,24 @@ export function enableMobileJoystick(
 
   function setMobileRuntimeBusy(isMoving) {
     const now = performance.now();
+    const moving = Boolean(isMoving);
 
-    window.__MN_MOBILE_PLAYER_MOVING__ = Boolean(isMoving);
+    window.__MN_MOBILE_PLAYER_MOVING__ = moving;
     window.__MN_MOBILE_PLAYER_LAST_ACTIVE_AT__ = now;
 
-    if (isMoving) {
-      window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = now + 900;
+    if (lastRuntimeMovingState !== moving) {
+      lastRuntimeMovingState = moving;
+
+      document.body?.classList?.toggle('mn-player-moving', moving);
+      document.documentElement?.classList?.toggle('mn-player-moving', moving);
+
+      if (document.body?.dataset) {
+        document.body.dataset.mnPlayerMoving = moving ? 'true' : 'false';
+      }
+    }
+
+    if (moving) {
+      window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = now + 1100;
     }
   }
 
@@ -949,6 +962,12 @@ export function enableMobileJoystick(
     destroyed = true;
     window.__MN_MOBILE_PLAYER_MOVING__ = false;
     window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = 0;
+    document.body?.classList?.remove('mn-player-moving');
+    document.documentElement?.classList?.remove('mn-player-moving');
+
+    if (document.body?.dataset) {
+      document.body.dataset.mnPlayerMoving = 'false';
+    }
 
     base.removeEventListener('pointerdown', onPointerDown);
     window.removeEventListener('pointermove', onPointerMove);
