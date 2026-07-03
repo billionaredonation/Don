@@ -100,19 +100,20 @@ function shouldUseLightweightHouseIcon() {
 
 function createHouseLiteIcon(houseClass, state) {
   const normalizedClass = normalizeHouseClass(houseClass);
-  const cacheKey = `${normalizedClass}:${state}:lite-v1`;
+  const cacheKey = `${normalizedClass}:${state}:lite-v3-single-node`;
 
   if (HOUSE_ICON_CACHE.has(cacheKey)) {
     return HOUSE_ICON_CACHE.get(cacheKey);
   }
 
+  /*
+    Мобилка: один DOM-узел на дом.
+    Старый lite-рендер создавал 4 span внутри каждого дома. На 100+ домах это уже
+    сотни лишних элементов внутри движущегося слоя Telegram WebView. Форма дома
+    теперь рисуется CSS/pseudo-element'ами, без SVG, drop-shadow и внутренних DOM.
+  */
   const html = `
-    <span class="map-house-lite map-house-lite-${normalizedClass} map-house-lite-${state}" aria-hidden="true">
-      <span class="map-house-lite-shadow"></span>
-      <span class="map-house-lite-roof"></span>
-      <span class="map-house-lite-body"></span>
-      <span class="map-house-lite-door"></span>
-    </span>
+    <span class="map-house-lite map-house-lite-${normalizedClass} map-house-lite-${state}" aria-hidden="true"></span>
   `;
 
   HOUSE_ICON_CACHE.set(cacheKey, html);
