@@ -217,7 +217,7 @@ export function enableMobileJoystick(
   const SYNC_CONFIG = getMovementSyncConfig();
 
   const MAX_DISTANCE = 48;
-  const DEADZONE = 0.055;
+  const DEADZONE = 0.038;
   const SPRINT_POWER = 0.62;
 
   /*
@@ -233,12 +233,12 @@ export function enableMobileJoystick(
     координата игрока теперь не прыгает напрямую за джойстиком.
     Сначала сглаживаем input, потом velocity, потом отдельно render-позицию.
   */
-  const INPUT_SMOOTHING = 0.18;
-  const INPUT_STOP_EASING = 0.28;
-  const VELOCITY_LERP = 0.16;
-  const VELOCITY_STOP_LERP = 0.22;
-  const RENDER_LAG = 0.82;
-  const POSITION_PAINT_EPSILON = 0.00005;
+  const INPUT_SMOOTHING = 0.34;
+  const INPUT_STOP_EASING = 0.48;
+  const VELOCITY_LERP = 0.42;
+  const VELOCITY_STOP_LERP = 0.56;
+  const RENDER_LAG = 1;
+  const POSITION_PAINT_EPSILON = 0.00002;
   const MARKER_DATA_SYNC_INTERVAL = 180;
 
   const STAMINA_ARC_MAX_DEG = 165;
@@ -768,12 +768,17 @@ export function enableMobileJoystick(
       if (x <= BOUNDS.minX || x >= BOUNDS.maxX) velocityX = 0;
       if (y <= BOUNDS.minY || y >= BOUNDS.maxY) velocityY = 0;
 
-      const renderLerp = 1 - Math.pow(1 - RENDER_LAG, frameScale);
-      renderX += (x - renderX) * renderLerp;
-      renderY += (y - renderY) * renderLerp;
+      if (RENDER_LAG >= 1) {
+        renderX = x;
+        renderY = y;
+      } else {
+        const renderLerp = 1 - Math.pow(1 - RENDER_LAG, frameScale);
+        renderX += (x - renderX) * renderLerp;
+        renderY += (y - renderY) * renderLerp;
 
-      if (Math.abs(renderX - x) <= POSITION_PAINT_EPSILON) renderX = x;
-      if (Math.abs(renderY - y) <= POSITION_PAINT_EPSILON) renderY = y;
+        if (Math.abs(renderX - x) <= POSITION_PAINT_EPSILON) renderX = x;
+        if (Math.abs(renderY - y) <= POSITION_PAINT_EPSILON) renderY = y;
+      }
 
       angle = getAngleFromMovement(velocityX || moveX, velocityY || moveY, angle);
 
