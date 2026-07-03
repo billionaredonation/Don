@@ -1210,3 +1210,4 @@ register('home', async (root) => {
     document.documentElement?.classList.remove('mn-force-rotate-landscape', 'mn-real-landscape');
   };
 });
+
