@@ -744,23 +744,22 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function scheduleCameraFrame(force = false) {
-    if (force || !mobile) {
-      if (cameraFrameId) {
-        cancelAnimationFrame(cameraFrameId);
-        cameraFrameId = 0;
-      }
-
-      x = targetMapX;
-      y = targetMapY;
-
-      applyTransform();
-      scheduleTileUpdate(true);
-      return;
+    if (cameraFrameId) {
+      cancelAnimationFrame(cameraFrameId);
+      cameraFrameId = 0;
     }
 
-    if (!cameraFrameId) {
-      cameraFrameId = requestAnimationFrame(runCameraFrame);
-    }
+    /*
+      The mobile joystick already runs inside requestAnimationFrame.
+      Deferring the map transform to another frame adds a visible one-frame
+      delay and makes movement feel heavy. Paint the camera target immediately,
+      while tile work stays throttled separately.
+    */
+    x = targetMapX;
+    y = targetMapY;
+
+    applyTransform();
+    scheduleTileUpdate(Boolean(force));
   }
 
   function focusOnPlayer(playerX, playerY, options = {}) {
