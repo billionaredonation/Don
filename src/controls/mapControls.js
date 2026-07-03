@@ -13,8 +13,10 @@ const MOBILE_TILE_CLEANUP_DELAY = 7800;
 
 const MAP_OBJECT_DENSE_LIMIT = 48;
 const MAP_OBJECT_DENSE_LIMIT_LOW_POWER = 34;
-const MAP_OBJECT_CULL_INTERVAL = 320;
-const MAP_OBJECT_MOVING_IDLE_MS = 260;
+const MAP_OBJECT_CULL_INTERVAL = 520;
+const MAP_OBJECT_MOVING_IDLE_MS = 150;
+const MAP_OBJECT_ULTRA_FREEZE_LIMIT = 78;
+const MAP_OBJECT_ULTRA_FREEZE_LIMIT_LOW_POWER = 58;
 const MAP_OBJECT_VIEW_PADDING_PERCENT = 8;
 const MAP_OBJECT_PERF_STYLE_ID = 'mn-map-controls-object-perf-style';
 
@@ -294,6 +296,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   let mapObjectLayersCache = [];
   let mapObjectLayersCacheAt = 0;
   let mapObjectDomCount = 0;
+  let mapObjectUltraFreezeEnabled = false;
 
   /*
     Camera rewrite:
@@ -301,14 +304,22 @@ export function enableMapControls(stage, viewport, options = {}) {
     lightweight camera loop. This keeps all existing player/network/admin code in
     place, but removes the hard snap that made movement feel like separate steps.
   */
-  const CAMERA_SETTLE_EPSILON = mobile ? 0.028 : 0.018;
+  const CAMERA_SETTLE_EPSILON = mobile ? 0.018 : 0.014;
   const CAMERA_SNAP_DISTANCE = mobile ? 900 : 1100;
   const CAMERA_TARGET_LERP = mobile
-    ? (lowPower ? 0.2 : 0.26)
-    : (lowPower ? 0.34 : 0.42);
+    ? (lowPower ? 0.3 : 0.36)
+    : (lowPower ? 0.42 : 0.5);
   const CAMERA_FOLLOW_LERP = mobile
-    ? (lowPower ? 0.16 : 0.2)
-    : (lowPower ? 0.24 : 0.32);
+    ? (lowPower ? 0.18 : 0.24)
+    : (lowPower ? 0.28 : 0.36);
+  const CAMERA_PREDICTION_MS = mobile
+    ? (lowPower ? 110 : 145)
+    : (lowPower ? 80 : 100);
+  const CAMERA_PREDICTION_MAX_DISTANCE = mobile
+    ? (lowPower ? 72 : 96)
+    : 120;
+  const CAMERA_VELOCITY_LERP = mobile ? 0.52 : 0.42;
+  const CAMERA_IDLE_VELOCITY_DECAY = mobile ? 0.78 : 0.7;
 
   let desiredMapX = 0;
   let desiredMapY = 0;
@@ -317,6 +328,11 @@ export function enableMapControls(stage, viewport, options = {}) {
   let cameraFrameId = 0;
   let cameraLastFrameAt = 0;
   let cameraReady = false;
+  let desiredVelocityX = 0;
+  let desiredVelocityY = 0;
+  let lastFocusTargetX = null;
+  let lastFocusTargetY = null;
+  let lastFocusTargetAt = 0;
 
   function ensureMapObjectPerfStyle() {
     if (document.getElementById(MAP_OBJECT_PERF_STYLE_ID)) return;
@@ -328,8 +344,21 @@ export function enableMapControls(stage, viewport, options = {}) {
       [data-map-object-perf="active"] .map-objects-layer-public,
       [data-map-object-perf="active"] .map-objects-layer-admin {
         contain: layout style paint !important;
+        content-visibility: auto !important;
         backface-visibility: hidden !important;
         transform: translateZ(0) !important;
+        pointer-events: none !important;
+      }
+
+      [data-map-object-perf="active"][data-map-object-ultra="true"][data-map-camera-moving="true"] .map-objects-layer,
+      [data-map-object-perf="active"][data-map-object-ultra="true"][data-map-camera-moving="true"] .map-objects-layer-public,
+      [data-map-object-perf="active"][data-map-object-ultra="true"][data-map-camera-moving="true"] .map-objects-layer-admin,
+      [data-map-object-perf="active"][data-map-object-ultra="true"] [data-map-camera-moving="true"] .map-objects-layer,
+      [data-map-object-perf="active"][data-map-object-ultra="true"] [data-map-camera-moving="true"] .map-objects-layer-public,
+      [data-map-object-perf="active"][data-map-object-ultra="true"] [data-map-camera-moving="true"] .map-objects-layer-admin {
+        content-visibility: hidden !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
         pointer-events: none !important;
       }
 
@@ -581,17 +610,21 @@ export function enableMapControls(stage, viewport, options = {}) {
     mapObjectDomCount = Math.max(0, nextCount);
 
     const denseLimit = lowPower ? MAP_OBJECT_DENSE_LIMIT_LOW_POWER : MAP_OBJECT_DENSE_LIMIT;
+    const ultraLimit = lowPower ? MAP_OBJECT_ULTRA_FREEZE_LIMIT_LOW_POWER : MAP_OBJECT_ULTRA_FREEZE_LIMIT;
     const shouldEnable = mobile && mapObjectDomCount >= denseLimit;
+    const shouldUltraFreeze = mobile && mapObjectDomCount >= ultraLimit;
 
     if (shouldEnable) {
       ensureMapObjectPerfStyle();
+      mapObjectUltraFreezeEnabled = shouldUltraFreeze;
       setPerfDataset('mapObjectPerf', 'active');
+      setPerfDataset('mapObjectUltra', shouldUltraFreeze ? 'true' : null);
       setPerfDataset('mapObjectCount', String(mapObjectDomCount));
 
       if (!mapObjectPerfEnabled) {
         mapObjectPerfEnabled = true;
         scheduleMapObjectCulling(true);
-      } else {
+      } else if (!mapObjectIsMoving) {
         scheduleMapObjectCulling(false);
       }
 
@@ -599,8 +632,10 @@ export function enableMapControls(stage, viewport, options = {}) {
     }
 
     mapObjectPerfEnabled = false;
+    mapObjectUltraFreezeEnabled = false;
     mapObjectIsMoving = false;
     setPerfDataset('mapObjectPerf', null);
+    setPerfDataset('mapObjectUltra', null);
     setPerfDataset('mapCameraMoving', null);
     setPerfDataset('mapObjectCount', null);
     clearTimeout(mapObjectMovingTimer);
@@ -631,7 +666,7 @@ export function enableMapControls(stage, viewport, options = {}) {
       mapObjectIsMoving = false;
       setPerfDataset('mapCameraMoving', null);
       scheduleMapObjectCulling(true);
-    }, MAP_OBJECT_MOVING_IDLE_MS);
+    }, mapObjectUltraFreezeEnabled ? 220 : MAP_OBJECT_MOVING_IDLE_MS);
   }
 
   function setRenderMode(mode) {
@@ -728,6 +763,8 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.willChange = 'transform';
     viewport.style.zIndex = '50';
     viewport.style.pointerEvents = 'none';
+    viewport.style.backfaceVisibility = 'hidden';
+    viewport.style.contain = 'layout style paint';
 
     if (!tileMode) {
       mapImages.forEach((image) => {
@@ -775,6 +812,7 @@ export function enableMapControls(stage, viewport, options = {}) {
       layer.style.backfaceVisibility = 'hidden';
       layer.style.transform = 'translateZ(0)';
       layer.style.contain = 'layout style paint';
+      layer.style.contentVisibility = 'auto';
     });
   }
 
@@ -1096,12 +1134,91 @@ export function enableMapControls(stage, viewport, options = {}) {
     return delta / 16.6667;
   }
 
+  function getPredictedDesiredPosition(now, frameScale, force = false) {
+    if (force || !cameraReady || !lastFocusTargetAt) {
+      return {
+        x: desiredMapX,
+        y: desiredMapY,
+      };
+    }
+
+    const idleFor = Math.max(0, now - lastFocusTargetAt);
+
+    if (idleFor > CAMERA_PREDICTION_MS) {
+      const decay = Math.pow(CAMERA_IDLE_VELOCITY_DECAY, frameScale);
+      desiredVelocityX *= decay;
+      desiredVelocityY *= decay;
+
+      if (Math.abs(desiredVelocityX) < 0.001) desiredVelocityX = 0;
+      if (Math.abs(desiredVelocityY) < 0.001) desiredVelocityY = 0;
+
+      return {
+        x: desiredMapX,
+        y: desiredMapY,
+      };
+    }
+
+    const predictedMs = Math.min(CAMERA_PREDICTION_MS, idleFor);
+    const predictedX = clamp(
+      desiredVelocityX * predictedMs,
+      -CAMERA_PREDICTION_MAX_DISTANCE,
+      CAMERA_PREDICTION_MAX_DISTANCE
+    );
+    const predictedY = clamp(
+      desiredVelocityY * predictedMs,
+      -CAMERA_PREDICTION_MAX_DISTANCE,
+      CAMERA_PREDICTION_MAX_DISTANCE
+    );
+
+    return {
+      x: desiredMapX + predictedX,
+      y: desiredMapY + predictedY,
+    };
+  }
+
+  function updateCameraVelocity(nextX, nextY, force = false) {
+    const now = performance.now();
+
+    if (
+      force ||
+      lastFocusTargetX === null ||
+      lastFocusTargetY === null ||
+      !lastFocusTargetAt
+    ) {
+      desiredVelocityX = 0;
+      desiredVelocityY = 0;
+      lastFocusTargetX = nextX;
+      lastFocusTargetY = nextY;
+      lastFocusTargetAt = now;
+      return;
+    }
+
+    const elapsed = clamp(now - lastFocusTargetAt, 12, 220);
+    const rawVelocityX = (nextX - lastFocusTargetX) / elapsed;
+    const rawVelocityY = (nextY - lastFocusTargetY) / elapsed;
+    const sampleDistance = Math.hypot(nextX - lastFocusTargetX, nextY - lastFocusTargetY);
+
+    if (sampleDistance > CAMERA_SNAP_DISTANCE * 0.45) {
+      desiredVelocityX = 0;
+      desiredVelocityY = 0;
+    } else {
+      desiredVelocityX += (rawVelocityX - desiredVelocityX) * CAMERA_VELOCITY_LERP;
+      desiredVelocityY += (rawVelocityY - desiredVelocityY) * CAMERA_VELOCITY_LERP;
+    }
+
+    lastFocusTargetX = nextX;
+    lastFocusTargetY = nextY;
+    lastFocusTargetAt = now;
+  }
+
   function paintCamera(now = performance.now(), force = false) {
-    const distanceToDesired = Math.hypot(desiredMapX - x, desiredMapY - y);
+    const frameScale = getCameraFrameScale(now);
+    const liveDesired = getPredictedDesiredPosition(now, frameScale, force);
+    const distanceToDesired = Math.hypot(liveDesired.x - x, liveDesired.y - y);
 
     if (!cameraReady || force || distanceToDesired >= CAMERA_SNAP_DISTANCE) {
-      targetMapX = desiredMapX;
-      targetMapY = desiredMapY;
+      targetMapX = liveDesired.x;
+      targetMapY = liveDesired.y;
       x = targetMapX;
       y = targetMapY;
       cameraReady = true;
@@ -1112,20 +1229,19 @@ export function enableMapControls(stage, viewport, options = {}) {
       return;
     }
 
-    const frameScale = getCameraFrameScale(now);
     const targetFollow = 1 - Math.pow(1 - CAMERA_TARGET_LERP, frameScale);
 
-    targetMapX += (desiredMapX - targetMapX) * targetFollow;
-    targetMapY += (desiredMapY - targetMapY) * targetFollow;
+    targetMapX += (liveDesired.x - targetMapX) * targetFollow;
+    targetMapY += (liveDesired.y - targetMapY) * targetFollow;
 
     const dx = targetMapX - x;
     const dy = targetMapY - y;
     const distance = Math.hypot(dx, dy);
-    const desiredDistance = Math.hypot(desiredMapX - targetMapX, desiredMapY - targetMapY);
+    const desiredDistance = Math.hypot(liveDesired.x - targetMapX, liveDesired.y - targetMapY);
 
     if (distance <= CAMERA_SETTLE_EPSILON && desiredDistance <= CAMERA_SETTLE_EPSILON) {
-      targetMapX = desiredMapX;
-      targetMapY = desiredMapY;
+      targetMapX = liveDesired.x;
+      targetMapY = liveDesired.y;
       x = targetMapX;
       y = targetMapY;
 
@@ -1181,6 +1297,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     desiredMapX = nextTarget.x;
     desiredMapY = nextTarget.y;
+    updateCameraVelocity(desiredMapX, desiredMapY, Boolean(options.force || !cameraReady));
 
     if (options.force || !cameraReady) {
       targetMapX = desiredMapX;
@@ -1253,6 +1370,7 @@ export function enableMapControls(stage, viewport, options = {}) {
       mapObjectIsMoving = false;
       clearMapObjectCulling();
       setPerfDataset('mapObjectPerf', null);
+      setPerfDataset('mapObjectUltra', null);
       setPerfDataset('mapCameraMoving', null);
       setPerfDataset('mapObjectCount', null);
 
