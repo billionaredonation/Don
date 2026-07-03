@@ -120,11 +120,27 @@ export function updatePlayerMarkerView(marker, player) {
   const x = Number(player.x ?? marker.dataset.x ?? 50);
   const y = Number(player.y ?? marker.dataset.y ?? 50);
 
+  // Always keep the latest numbers in data attributes for logic,
+  // but avoid touching heavy layout‑affecting properties unless
+  // the marker actually moved a noticeable amount.
   marker.dataset.x = String(Number.isFinite(x) ? x : 50);
   marker.dataset.y = String(Number.isFinite(y) ? y : 50);
 
-  marker.style.left = `${Number.isFinite(x) ? x : 50}%`;
-  marker.style.top = `${Number.isFinite(y) ? y : 50}%`;
+  const lastX = Number(marker.dataset.lastX ?? x);
+  const lastY = Number(marker.dataset.lastY ?? y);
+  const dx = Math.abs(x - lastX);
+  const dy = Math.abs(y - lastY);
+  const THRESHOLD = 0.25; // 0.25 % shift ~ 1 px on 400 px map
+
+  if (dx > THRESHOLD) {
+    marker.style.left = `${x}%`;
+    marker.dataset.lastX = String(x);
+  }
+
+  if (dy > THRESHOLD) {
+    marker.style.top = `${y}%`;
+    marker.dataset.lastY = String(y);
+  }
 
   const angle = Number(
     player.angle ??
@@ -132,7 +148,6 @@ export function updatePlayerMarkerView(marker, player) {
     marker.dataset.angle ??
     0
   );
-
   const safeAngle = Number.isFinite(angle) ? angle : 0;
 
   marker.dataset.angle = String(safeAngle);
@@ -143,7 +158,6 @@ export function updatePlayerMarkerView(marker, player) {
   marker.dataset.updatedAt = String(Date.now());
 
   const name = marker.querySelector('.gta-player-marker-name');
-
   if (name) {
     name.textContent = nickname;
   }
