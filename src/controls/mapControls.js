@@ -13,8 +13,8 @@ const MOBILE_TILE_CLEANUP_DELAY = 7800;
 
 const MAP_OBJECT_DENSE_LIMIT = 48;
 const MAP_OBJECT_DENSE_LIMIT_LOW_POWER = 34;
-const MAP_OBJECT_CULL_INTERVAL = 140;
-const MAP_OBJECT_MOVING_IDLE_MS = 170;
+const MAP_OBJECT_CULL_INTERVAL = 320;
+const MAP_OBJECT_MOVING_IDLE_MS = 260;
 const MAP_OBJECT_VIEW_PADDING_PERCENT = 8;
 const MAP_OBJECT_PERF_STYLE_ID = 'mn-map-controls-object-perf-style';
 
@@ -287,6 +287,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   const perfTargets = [stage, perfHome].filter(Boolean);
   let mapObjectPerfEnabled = false;
   let mapObjectMovingTimer = null;
+  let mapObjectIsMoving = false;
   let mapObjectCullingFrame = null;
   let mapObjectCullLastAt = 0;
   let mapObjectCullLastKey = '';
@@ -300,12 +301,17 @@ export function enableMapControls(stage, viewport, options = {}) {
     lightweight camera loop. This keeps all existing player/network/admin code in
     place, but removes the hard snap that made movement feel like separate steps.
   */
-  const CAMERA_SETTLE_EPSILON = mobile ? 0.018 : 0.012;
-  const CAMERA_SNAP_DISTANCE = mobile ? 220 : 260;
+  const CAMERA_SETTLE_EPSILON = mobile ? 0.028 : 0.018;
+  const CAMERA_SNAP_DISTANCE = mobile ? 900 : 1100;
+  const CAMERA_TARGET_LERP = mobile
+    ? (lowPower ? 0.2 : 0.26)
+    : (lowPower ? 0.34 : 0.42);
   const CAMERA_FOLLOW_LERP = mobile
-    ? (lowPower ? 0.42 : 0.52)
-    : (lowPower ? 0.62 : 0.72);
+    ? (lowPower ? 0.16 : 0.2)
+    : (lowPower ? 0.24 : 0.32);
 
+  let desiredMapX = 0;
+  let desiredMapY = 0;
   let targetMapX = 0;
   let targetMapY = 0;
   let cameraFrameId = 0;
@@ -336,6 +342,13 @@ export function enableMapControls(stage, viewport, options = {}) {
         will-change: auto !important;
       }
 
+      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object,
+      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object {
+        box-shadow: none !important;
+        filter: none !important;
+        text-shadow: none !important;
+      }
+
       [data-map-object-perf="active"] .map-object[data-map-culled="true"] {
         visibility: hidden !important;
         opacity: 0 !important;
@@ -363,6 +376,13 @@ export function enableMapControls(stage, viewport, options = {}) {
         filter: none !important;
         transition: none !important;
         animation: none !important;
+      }
+
+      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object-badge,
+      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object-sub,
+      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object-badge,
+      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object-sub {
+        display: none !important;
       }
     `;
 
@@ -579,6 +599,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     }
 
     mapObjectPerfEnabled = false;
+    mapObjectIsMoving = false;
     setPerfDataset('mapObjectPerf', null);
     setPerfDataset('mapCameraMoving', null);
     setPerfDataset('mapObjectCount', null);
@@ -602,10 +623,12 @@ export function enableMapControls(stage, viewport, options = {}) {
   function markCameraMoving() {
     if (!mapObjectPerfEnabled) return;
 
+    mapObjectIsMoving = true;
     setPerfDataset('mapCameraMoving', 'true');
 
     clearTimeout(mapObjectMovingTimer);
     mapObjectMovingTimer = window.setTimeout(() => {
+      mapObjectIsMoving = false;
       setPerfDataset('mapCameraMoving', null);
       scheduleMapObjectCulling(true);
     }, MAP_OBJECT_MOVING_IDLE_MS);
@@ -853,7 +876,7 @@ export function enableMapControls(stage, viewport, options = {}) {
       lastEntityScaleCssValue = nextEntityScaleValue;
     }
 
-    if (mapObjectPerfEnabled) {
+    if (mapObjectPerfEnabled && !mapObjectIsMoving) {
       scheduleMapObjectCulling(false);
     }
   }
@@ -1074,11 +1097,11 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function paintCamera(now = performance.now(), force = false) {
-    const dx = targetMapX - x;
-    const dy = targetMapY - y;
-    const distance = Math.hypot(dx, dy);
+    const distanceToDesired = Math.hypot(desiredMapX - x, desiredMapY - y);
 
-    if (!cameraReady || force || distance >= CAMERA_SNAP_DISTANCE) {
+    if (!cameraReady || force || distanceToDesired >= CAMERA_SNAP_DISTANCE) {
+      targetMapX = desiredMapX;
+      targetMapY = desiredMapY;
       x = targetMapX;
       y = targetMapY;
       cameraReady = true;
@@ -1089,7 +1112,20 @@ export function enableMapControls(stage, viewport, options = {}) {
       return;
     }
 
-    if (distance <= CAMERA_SETTLE_EPSILON) {
+    const frameScale = getCameraFrameScale(now);
+    const targetFollow = 1 - Math.pow(1 - CAMERA_TARGET_LERP, frameScale);
+
+    targetMapX += (desiredMapX - targetMapX) * targetFollow;
+    targetMapY += (desiredMapY - targetMapY) * targetFollow;
+
+    const dx = targetMapX - x;
+    const dy = targetMapY - y;
+    const distance = Math.hypot(dx, dy);
+    const desiredDistance = Math.hypot(desiredMapX - targetMapX, desiredMapY - targetMapY);
+
+    if (distance <= CAMERA_SETTLE_EPSILON && desiredDistance <= CAMERA_SETTLE_EPSILON) {
+      targetMapX = desiredMapX;
+      targetMapY = desiredMapY;
       x = targetMapX;
       y = targetMapY;
 
@@ -1098,7 +1134,6 @@ export function enableMapControls(stage, viewport, options = {}) {
       return;
     }
 
-    const frameScale = getCameraFrameScale(now);
     const follow = 1 - Math.pow(1 - CAMERA_FOLLOW_LERP, frameScale);
 
     x += dx * follow;
@@ -1144,8 +1179,13 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     if (!nextTarget) return;
 
-    targetMapX = nextTarget.x;
-    targetMapY = nextTarget.y;
+    desiredMapX = nextTarget.x;
+    desiredMapY = nextTarget.y;
+
+    if (options.force || !cameraReady) {
+      targetMapX = desiredMapX;
+      targetMapY = desiredMapY;
+    }
 
     scheduleCameraFrame(Boolean(options.force));
   }
@@ -1210,6 +1250,7 @@ export function enableMapControls(stage, viewport, options = {}) {
       }
 
       clearTimeout(mapObjectMovingTimer);
+      mapObjectIsMoving = false;
       clearMapObjectCulling();
       setPerfDataset('mapObjectPerf', null);
       setPerfDataset('mapCameraMoving', null);
