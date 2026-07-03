@@ -843,3 +843,4 @@ export function enableMapControls(stage, viewport, options = {}) {
     refresh,
   };
 }
+
