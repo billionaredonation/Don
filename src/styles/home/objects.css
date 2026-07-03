@@ -215,3 +215,86 @@
     inset: -22px !important;
   }
 }
+
+
+/* =========================================================
+   MOBILE ZERO-JANK OBJECT OVERRIDES
+   Loaded after houses.css through pages/home/home.css.
+   ========================================================= */
+@media (hover: none) and (pointer: coarse) {
+  body.mn-mobile-game-enabled .map-objects-layer,
+  body.mn-mobile-game-enabled .map-objects-layer-public,
+  body.mn-mobile-game-enabled .map-objects-layer-admin {
+    contain: layout paint style !important;
+    isolation: isolate !important;
+    pointer-events: none !important;
+    will-change: auto !important;
+  }
+
+  body.mn-mobile-game-enabled .map-object,
+  body.mn-mobile-game-enabled .map-object-house,
+  body.mn-mobile-game-enabled .map-object-business {
+    contain: strict !important;
+    transition: none !important;
+    animation: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  body.mn-mobile-game-enabled .map-house-lite {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    contain: strict !important;
+    pointer-events: none !important;
+    transform: translateZ(0) !important;
+    background: var(--map-house-main, #35e985) !important;
+    border-radius: 4px 4px 6px 6px !important;
+    outline: 1px solid rgba(255, 255, 255, 0.26) !important;
+    box-shadow: none !important;
+    filter: none !important;
+  }
+
+  body.mn-mobile-game-enabled .map-house-lite::before {
+    content: "" !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: -23% !important;
+    width: 72% !important;
+    height: 72% !important;
+    background: var(--map-house-roof, #20d977) !important;
+    border-radius: 3px 3px 2px 3px !important;
+    transform: translate3d(-50%, 0, 0) rotate(45deg) !important;
+    transform-origin: center center !important;
+  }
+
+  body.mn-mobile-game-enabled .map-house-lite::after {
+    content: "" !important;
+    position: absolute !important;
+    left: 42% !important;
+    bottom: 0 !important;
+    width: 16% !important;
+    height: 38% !important;
+    border-radius: 2px 2px 0 0 !important;
+    background: var(--map-house-dark, #0f8f52) !important;
+  }
+
+  body.mn-mobile-game-enabled .map-house-lite > * {
+    display: none !important;
+  }
+
+  body.mn-mobile-game-enabled.mn-player-moving .map-object,
+  html.mn-player-moving body.mn-mobile-game-enabled .map-object {
+    pointer-events: none !important;
+  }
+
+  body.mn-mobile-game-enabled.mn-player-moving .map-object-selected .map-house-lite,
+  body.mn-mobile-game-enabled.mn-player-moving .map-object-nearby .map-house-lite,
+  html.mn-player-moving body.mn-mobile-game-enabled .map-object-selected .map-house-lite,
+  html.mn-player-moving body.mn-mobile-game-enabled .map-object-nearby .map-house-lite {
+    outline: 1px solid rgba(255, 255, 255, 0.26) !important;
+    transform: translateZ(0) !important;
+  }
+}
