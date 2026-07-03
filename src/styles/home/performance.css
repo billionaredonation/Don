@@ -232,3 +232,45 @@
     opacity: 0.12 !important;
   }
 }
+
+
+/* =========================================================
+   MOBILE CONTROL RENDER REWRITE
+   Fixed self marker + async camera loop. The local marker inside the moving
+   map layer is kept only as data anchor, not as the visible player dot.
+   ========================================================= */
+
+@media (hover: none) and (pointer: coarse) {
+  body.mn-mobile-game-enabled .gta-map-viewport {
+    transition: none !important;
+    will-change: transform !important;
+    backface-visibility: hidden !important;
+    transform-style: flat !important;
+  }
+
+  body.mn-mobile-game-enabled .gta-map-entities,
+  body.mn-mobile-game-enabled .gta-map-mobile-tile-layer,
+  body.mn-mobile-game-enabled .gta-map-image {
+    backface-visibility: hidden !important;
+    transform-style: flat !important;
+  }
+
+  body.mn-mobile-game-enabled .mn-mobile-local-player-marker {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  body.mn-mobile-game-enabled .mobile-self-player-indicator,
+  body.mn-mobile-game-enabled [data-mobile-self-marker-hard="true"] {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate3d(-50%, -50%, 0) !important;
+    will-change: transform !important;
+    pointer-events: none !important;
+    z-index: 300 !important;
+  }
+}
