@@ -172,6 +172,17 @@ export function enableMobileJoystick(
   if (!container || !marker || !playerPosition) return null;
   if (!isMobileDevice()) return null;
 
+  /*
+    Mobile render rewrite:
+    self marker inside the huge map layer is no longer visually moved by left/top.
+    The visible player dot is the fixed mobile overlay; the map camera moves around it.
+    This removes the marker-vs-map desync that caused small visual jumps.
+  */
+  marker.classList.add('mn-mobile-local-player-marker');
+  marker.dataset.mobileLocalPlayer = 'true';
+  marker.style.transition = 'none';
+  marker.style.willChange = 'auto';
+
   requestLandscapeMode();
 
   container.classList.add('mn-mobile-controls');
@@ -457,8 +468,12 @@ export function enableMobileJoystick(
       Math.abs(renderY - lastMarkerPaintY) > POSITION_PAINT_EPSILON;
 
     if (shouldPaintPosition) {
-      marker.style.left = `${renderX}%`;
-      marker.style.top = `${renderY}%`;
+      /*
+        Do not move the visible mobile self marker with left/top each frame.
+        On mobile the player is rendered as a fixed overlay in the center,
+        while the map camera follows renderX/renderY. We keep the dataset fresh
+        for interaction/network code, but avoid layout-position writes.
+      */
       lastMarkerPaintX = renderX;
       lastMarkerPaintY = renderY;
     }
@@ -478,6 +493,13 @@ export function enableMobileJoystick(
       marker.dataset.x = String(x);
       marker.dataset.y = String(y);
       marker.dataset.angle = String(angle);
+
+      // Rare sync only for code that still reads CSS left/top, not for visual movement.
+      if (force) {
+        marker.style.left = `${x}%`;
+        marker.style.top = `${y}%`;
+      }
+
       lastMarkerDataSyncAt = now;
     }
   }
@@ -944,6 +966,11 @@ export function enableMobileJoystick(
     updateStaminaUi();
     broadcastMove(true);
     queuePositionSave(true);
+
+    marker.classList.remove('mn-mobile-local-player-marker');
+    delete marker.dataset.mobileLocalPlayer;
+    marker.style.removeProperty('transition');
+    marker.style.removeProperty('will-change');
 
     joystick?.remove();
 
