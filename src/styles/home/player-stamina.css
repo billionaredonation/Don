@@ -509,3 +509,14 @@ body,
 .pc-stamina-fill[data-state="locked"] {
   background: linear-gradient(90deg, #ff3d3d, #ff8a3d);
 }
+
+/* Mobile fog: no CSS blur/filter on moving canvas. Blur on a full-map canvas is
+   expensive in Telegram WebView and causes small visible frame drops. */
+@media (hover: none) and (pointer: coarse) {
+  body.mn-mobile-game-enabled .fog-of-war-canvas {
+    filter: none !important;
+    mix-blend-mode: normal !important;
+    contain: strict !important;
+    pointer-events: none !important;
+  }
+}
