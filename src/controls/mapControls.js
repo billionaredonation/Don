@@ -273,6 +273,20 @@ export function enableMapControls(stage, viewport, options = {}) {
   let tileCleanupTimer = null;
   const activeTiles = new Map();
 
+  /*
+    Mobile camera rewrite:
+    focusOnPlayer now sets a target. The map transform is painted by one
+    internal camera loop, so joystick/player/network code no longer writes
+    the heavy viewport transform directly on every call.
+  */
+  const CAMERA_LERP = mobile ? 0.38 : 1;
+  const CAMERA_STOP_EPSILON = mobile ? 0.035 : 0.001;
+
+  let targetMapX = 0;
+  let targetMapY = 0;
+  let cameraFrameId = 0;
+  let lastCameraFrameAt = performance.now();
+
   function setRenderMode(mode) {
     stage.dataset.mapRenderMode = mode;
 
@@ -481,13 +495,10 @@ export function enableMapControls(stage, viewport, options = {}) {
     y = clamp(y, -limits.maxY, limits.maxY);
 
     /*
-      На телефоне огромная PNG/тайловый слой на дробных CSS-пикселях может
-      визуально дрожать из-за resampling GPU. Привязываем transform к физическому
-      пикселю устройства. На ПК оставляем высокую точность.
+      Keep sub-pixel precision. Previous device-pixel snapping reduced GPU work,
+      but on movement it created visible stair-step camera motion.
     */
-    const precision = mobile
-      ? Math.max(1, Math.round(window.devicePixelRatio || 1))
-      : 1000;
+    const precision = 1000;
 
     const safeX = Math.round(x * precision) / precision;
     const safeY = Math.round(y * precision) / precision;
@@ -660,11 +671,13 @@ export function enableMapControls(stage, viewport, options = {}) {
     });
   }
 
-  function focusOnPlayer(playerX, playerY) {
+  function computeTargetMapPosition(playerX, playerY) {
     const focusX = Number(playerX);
     const focusY = Number(playerY);
 
-    if (!Number.isFinite(focusX) || !Number.isFinite(focusY)) return;
+    if (!Number.isFinite(focusX) || !Number.isFinite(focusY)) {
+      return null;
+    }
 
     lastFocusX = clamp(focusX, 0, 100);
     lastFocusY = clamp(focusY, 0, 100);
@@ -672,11 +685,88 @@ export function enableMapControls(stage, viewport, options = {}) {
     const fx = (lastFocusX / 100 - 0.5) * worldWidth * scale;
     const fy = (lastFocusY / 100 - 0.5) * worldHeight * scale;
 
-    x = -fx;
-    y = -fy;
+    return {
+      x: -fx,
+      y: -fy,
+    };
+  }
+
+  function stopCameraLoopIfSettled() {
+    if (
+      Math.abs(targetMapX - x) <= CAMERA_STOP_EPSILON &&
+      Math.abs(targetMapY - y) <= CAMERA_STOP_EPSILON
+    ) {
+      x = targetMapX;
+      y = targetMapY;
+      applyTransform();
+      scheduleTileUpdate();
+      cameraFrameId = 0;
+      return true;
+    }
+
+    return false;
+  }
+
+  function runCameraFrame(now = performance.now()) {
+    cameraFrameId = 0;
+
+    if (!mobile) {
+      x = targetMapX;
+      y = targetMapY;
+      applyTransform();
+      scheduleTileUpdate();
+      return;
+    }
+
+    const delta = Math.min(34, Math.max(8, now - lastCameraFrameAt));
+    const frameScale = delta / 16.6667;
+    const lerp = 1 - Math.pow(1 - CAMERA_LERP, frameScale);
+
+    lastCameraFrameAt = now;
+
+    x += (targetMapX - x) * lerp;
+    y += (targetMapY - y) * lerp;
 
     applyTransform();
     scheduleTileUpdate();
+
+    if (stopCameraLoopIfSettled()) {
+      return;
+    }
+
+    cameraFrameId = requestAnimationFrame(runCameraFrame);
+  }
+
+  function scheduleCameraFrame(force = false) {
+    if (!mobile || force) {
+      if (cameraFrameId) {
+        cancelAnimationFrame(cameraFrameId);
+        cameraFrameId = 0;
+      }
+
+      x = targetMapX;
+      y = targetMapY;
+      applyTransform();
+      scheduleTileUpdate(true);
+      lastCameraFrameAt = performance.now();
+      return;
+    }
+
+    if (!cameraFrameId) {
+      lastCameraFrameAt = performance.now();
+      cameraFrameId = requestAnimationFrame(runCameraFrame);
+    }
+  }
+
+  function focusOnPlayer(playerX, playerY, options = {}) {
+    const nextTarget = computeTargetMapPosition(playerX, playerY);
+
+    if (!nextTarget) return;
+
+    targetMapX = nextTarget.x;
+    targetMapY = nextTarget.y;
+
+    scheduleCameraFrame(Boolean(options.force));
   }
 
   function refresh() {
@@ -687,7 +777,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     lastEntityScaleCssValue = '';
 
     measureWorld();
-    focusOnPlayer(lastFocusX, lastFocusY);
+    focusOnPlayer(lastFocusX, lastFocusY, { force: true });
   }
 
   function onResize() {
@@ -718,6 +808,10 @@ export function enableMapControls(stage, viewport, options = {}) {
     cleanup() {
       clearTimeout(resizeRefreshTimer);
       window.clearTimeout(tileCleanupTimer);
+
+      if (cameraFrameId) {
+        cancelAnimationFrame(cameraFrameId);
+      }
 
       if (tileUpdateFrame) {
         cancelAnimationFrame(tileUpdateFrame);
