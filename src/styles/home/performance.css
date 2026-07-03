@@ -274,3 +274,15 @@
     z-index: 300 !important;
   }
 }
+
+
+/* -- Codex mobile performance patch ------------------------------------ */
+.gta-map-image,
+.gta-player-marker,
+.home-gameplay canvas,
+.home-gameplay .gta-map-title,
+.home-gameplay .gta-map-player {
+  /* Hint the compositor so mobile browsers avoid unnecessary repaints */
+  will-change: transform;
+  contain: layout paint style;
+}
