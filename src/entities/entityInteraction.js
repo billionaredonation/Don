@@ -14,8 +14,8 @@ const MOBILE_INTERACTION_RADIUS_PX = 112;
 const DIRECT_TAP_RADIUS_PX = 132;
 const MOBILE_FREE_TAP_RADIUS_PX = 150;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
-const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 16000 : 5600;
-const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 380 : 110;
+const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 26000 : 5600;
+const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 520 : 110;
 
 /*
   ПК оставляем широким: там железо выдерживает много DOM-объектов.
@@ -27,15 +27,15 @@ const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 380 : 110;
 const OBJECT_RENDER_RADIUS_PERCENT = 23;
 const OBJECT_LOAD_RADIUS_PERCENT = 31;
 
-const MOBILE_OBJECT_RENDER_RADIUS_PX = 960;
-const MOBILE_OBJECT_LOAD_RADIUS_PX = 1800;
-const MOBILE_OBJECT_REGION_RELOAD_SHIFT_PX = 760;
-const MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX = 180;
+const MOBILE_OBJECT_RENDER_RADIUS_PX = 1400;
+const MOBILE_OBJECT_LOAD_RADIUS_PX = 2400;
+const MOBILE_OBJECT_REGION_RELOAD_SHIFT_PX = 1150;
+const MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX = 420;
 
-const MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT = 24;
-const MOBILE_OBJECT_RENDER_RADIUS_MAX_PERCENT = 78;
-const MOBILE_OBJECT_LOAD_RADIUS_MIN_PERCENT = 42;
-const MOBILE_OBJECT_LOAD_RADIUS_MAX_PERCENT = 96;
+const MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT = 44;
+const MOBILE_OBJECT_RENDER_RADIUS_MAX_PERCENT = 100;
+const MOBILE_OBJECT_LOAD_RADIUS_MIN_PERCENT = 64;
+const MOBILE_OBJECT_LOAD_RADIUS_MAX_PERCENT = 100;
 const OBJECT_REGION_RELOAD_SHIFT_PERCENT = 7;
 const OBJECT_RENDER_MOVE_EPSILON_PERCENT = 0.25;
 
@@ -746,6 +746,7 @@ export function enableEntityInteraction({
   let lastRenderedIdsKey = '';
   let loadedRegion = null;
   let lastMovingObjectsRenderAt = 0;
+  let pendingRenderAfterMovement = false;
 
   function getRenderRadiusPercent() {
     return isMobileGameplayDevice()
@@ -911,6 +912,12 @@ export function enableEntityInteraction({
       : [];
 
     rememberLoadedRegion();
+
+    if (isMobilePlayerBusy() && layer.children.length > 0) {
+      pendingRenderAfterMovement = true;
+      return;
+    }
+
     renderNearbyMapObjects(true);
   }
 
@@ -1103,19 +1110,25 @@ export function enableEntityInteraction({
     }
 
     if (isMobilePlayerBusy()) {
-      const now = performance.now();
-
-      if (now - lastMovingObjectsRenderAt >= 950) {
-        renderNearbyMapObjects(false);
-        lastMovingObjectsRenderAt = now;
-      }
-
+      /*
+        Во время движения НЕ трогаем DOM домов вообще.
+        Даже редкий renderMapObjects раз в секунду даёт заметный микрофриз
+        в Telegram WebView. Дома остаются видимыми в текущем окне, а пересборка
+        слоя выполняется после остановки игрока.
+      */
+      pendingRenderAfterMovement = true;
       hideInteractionHint();
-      scheduleInteractionHintUpdate(420);
+      scheduleInteractionHintUpdate(560);
       return;
     }
 
-    renderNearbyMapObjects(false);
+    if (pendingRenderAfterMovement) {
+      pendingRenderAfterMovement = false;
+      lastMovingObjectsRenderAt = performance.now();
+      renderNearbyMapObjects(true);
+    } else {
+      renderNearbyMapObjects(false);
+    }
 
     if (panel?.isOpen?.()) {
       hideInteractionHint();
