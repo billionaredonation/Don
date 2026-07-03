@@ -44,6 +44,12 @@ export function createAdminObjectMover({
     }));
 
     setObjects(nextObjects);
+
+    if (objectsLayer) {
+      objectsLayer.hidden = false;
+      objectsLayer.style.display = 'block';
+    }
+
     renderMapObjects(objectsLayer, nextObjects);
     renderObjectList?.();
   }
@@ -147,6 +153,11 @@ export function createAdminObjectMover({
 
     setObjects(nextObjects);
     setSelectedObjectId(String(object.id));
+
+    if (objectsLayer) {
+      objectsLayer.hidden = false;
+      objectsLayer.style.display = 'block';
+    }
 
     renderMapObjects(objectsLayer, nextObjects);
     renderObjectList?.();
