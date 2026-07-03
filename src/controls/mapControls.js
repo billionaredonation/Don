@@ -277,19 +277,22 @@ export function enableMapControls(stage, viewport, options = {}) {
   const preloadedTileSrcs = new Set();
 
   /*
-    Mobile camera rewrite:
-    focusOnPlayer now sets a target. The map transform is painted by one
-    internal camera loop, so joystick/player/network code no longer writes
-    the heavy viewport transform directly on every call.
+    Camera rewrite:
+    focusOnPlayer sets a target and mapControls paints the viewport through one
+    lightweight camera loop. This keeps all existing player/network/admin code in
+    place, but removes the hard snap that made movement feel like separate steps.
   */
-  /*
-    Camera is synced by one rAF paint. The joystick already smooths renderX/renderY,
-    so mapControls must not add a second lerp on top of it. Double smoothing was
-    the likely source of visible camera wobble.
-  */
+  const CAMERA_SETTLE_EPSILON = mobile ? 0.018 : 0.012;
+  const CAMERA_SNAP_DISTANCE = mobile ? 220 : 260;
+  const CAMERA_FOLLOW_LERP = mobile
+    ? (lowPower ? 0.42 : 0.52)
+    : (lowPower ? 0.62 : 0.72);
+
   let targetMapX = 0;
   let targetMapY = 0;
   let cameraFrameId = 0;
+  let cameraLastFrameAt = 0;
+  let cameraReady = false;
 
   function setRenderMode(mode) {
     stage.dataset.mapRenderMode = mode;
@@ -709,7 +712,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     tileUpdateFrame = requestAnimationFrame(() => {
       tileUpdateFrame = null;
-      updateMobileTiles();
+      updateMobileTiles(Boolean(force));
     });
   }
 
@@ -733,33 +736,79 @@ export function enableMapControls(stage, viewport, options = {}) {
     };
   }
 
-  function runCameraFrame() {
-    cameraFrameId = 0;
+  function getCameraFrameScale(now) {
+    if (!cameraLastFrameAt) {
+      cameraLastFrameAt = now;
+      return 1;
+    }
 
-    x = targetMapX;
-    y = targetMapY;
+    const delta = Math.min(34, Math.max(8, now - cameraLastFrameAt));
+    cameraLastFrameAt = now;
+
+    return delta / 16.6667;
+  }
+
+  function paintCamera(now = performance.now(), force = false) {
+    const dx = targetMapX - x;
+    const dy = targetMapY - y;
+    const distance = Math.hypot(dx, dy);
+
+    if (!cameraReady || force || distance >= CAMERA_SNAP_DISTANCE) {
+      x = targetMapX;
+      y = targetMapY;
+      cameraReady = true;
+      cameraLastFrameAt = now;
+
+      applyTransform();
+      scheduleTileUpdate(Boolean(force));
+      return;
+    }
+
+    if (distance <= CAMERA_SETTLE_EPSILON) {
+      x = targetMapX;
+      y = targetMapY;
+
+      applyTransform();
+      scheduleTileUpdate();
+      return;
+    }
+
+    const frameScale = getCameraFrameScale(now);
+    const follow = 1 - Math.pow(1 - CAMERA_FOLLOW_LERP, frameScale);
+
+    x += dx * follow;
+    y += dy * follow;
 
     applyTransform();
     scheduleTileUpdate();
+
+    if (!cameraFrameId) {
+      cameraFrameId = requestAnimationFrame(runCameraFrame);
+    }
+  }
+
+  function runCameraFrame(now = performance.now()) {
+    cameraFrameId = 0;
+    paintCamera(now, false);
   }
 
   function scheduleCameraFrame(force = false) {
-    if (cameraFrameId) {
-      cancelAnimationFrame(cameraFrameId);
-      cameraFrameId = 0;
+    if (force) {
+      if (cameraFrameId) {
+        cancelAnimationFrame(cameraFrameId);
+        cameraFrameId = 0;
+      }
+
+      paintCamera(performance.now(), true);
+      return;
     }
 
     /*
-      The mobile joystick already runs inside requestAnimationFrame.
-      Deferring the map transform to another frame adds a visible one-frame
-      delay and makes movement feel heavy. Paint the camera target immediately,
-      while tile work stays throttled separately.
+      Paint immediately so joystick/WASD does not get a delayed camera, but move
+      toward the target with a short eased follow. This gives the needed sliding
+      feeling instead of hard frame-by-frame stepping.
     */
-    x = targetMapX;
-    y = targetMapY;
-
-    applyTransform();
-    scheduleTileUpdate(Boolean(force));
+    paintCamera(performance.now(), false);
   }
 
   function focusOnPlayer(playerX, playerY, options = {}) {
