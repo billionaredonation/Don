@@ -2,6 +2,7 @@ import { getStaminaConfig } from '../player/playerStaminaConfig.js';
 import { MOVEMENT_CONFIG } from '../config/movement.js';
 
 import {
+  getMobileMoveSpeed,
   getMovementBounds,
   getMovementSyncConfig,
 } from '../player/playerStatsConfig.js';
@@ -13,6 +14,12 @@ import {
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function getPositiveNumber(value, fallback) {
+  const number = Number(value);
+
+  return Number.isFinite(number) && number > 0 ? number : fallback;
 }
 
 function toFiniteNumber(value, fallback = null) {
@@ -233,10 +240,10 @@ export function enableMobileJoystick(
     координата игрока теперь не прыгает напрямую за джойстиком.
     Сначала сглаживаем input, потом velocity, потом отдельно render-позицию.
   */
-  const INPUT_SMOOTHING = 0.34;
-  const INPUT_STOP_EASING = 0.48;
-  const VELOCITY_LERP = 0.42;
-  const VELOCITY_STOP_LERP = 0.56;
+  const INPUT_SMOOTHING = 0.52;
+  const INPUT_STOP_EASING = 0.6;
+  const VELOCITY_LERP = 0.58;
+  const VELOCITY_STOP_LERP = 0.66;
   const RENDER_LAG = 1;
   const POSITION_PAINT_EPSILON = 0.00002;
   const MARKER_DATA_SYNC_INTERVAL = 180;
@@ -249,6 +256,16 @@ export function enableMobileJoystick(
     Движение остаётся 60fps локально, а синхра уходит реже — так меньше
     микрофризов и телефон меньше греется.
   */
+  const mobileStatsSpeed = getPositiveNumber(getMobileMoveSpeed(), 0.065);
+  const MOBILE_WALK_SPEED = Math.max(
+    getPositiveNumber(MOVEMENT_CONFIG.MOBILE_WALK_SPEED, 0.02),
+    mobileStatsSpeed * 0.62
+  );
+  const MOBILE_SPRINT_SPEED = Math.max(
+    getPositiveNumber(MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED, MOBILE_WALK_SPEED * 1.45),
+    MOBILE_WALK_SPEED * getPositiveNumber(STAMINA.sprintSpeedMultiplier, 1.45)
+  );
+
   const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 220);
 
   /*
@@ -767,8 +784,8 @@ export function enableMobileJoystick(
     const isSprinting = updateSprintState(wantsMove, frameScale);
 
     const speed = isSprinting
-      ? MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED
-      : MOVEMENT_CONFIG.MOBILE_WALK_SPEED;
+      ? MOBILE_SPRINT_SPEED
+      : MOBILE_WALK_SPEED;
 
     const targetVelocityX = moveX * speed;
     const targetVelocityY = moveY * speed;
