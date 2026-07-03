@@ -11,6 +11,13 @@ const MOBILE_TILE_KEEP_RADIUS = 4;
 const MOBILE_TILE_IDLE_DELAY = 120;
 const MOBILE_TILE_CLEANUP_DELAY = 7800;
 
+const MAP_OBJECT_DENSE_LIMIT = 48;
+const MAP_OBJECT_DENSE_LIMIT_LOW_POWER = 34;
+const MAP_OBJECT_CULL_INTERVAL = 140;
+const MAP_OBJECT_MOVING_IDLE_MS = 170;
+const MAP_OBJECT_VIEW_PADDING_PERCENT = 8;
+const MAP_OBJECT_PERF_STYLE_ID = 'mn-map-controls-object-perf-style';
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -276,6 +283,17 @@ export function enableMapControls(stage, viewport, options = {}) {
   const activeTiles = new Map();
   const preloadedTileSrcs = new Set();
 
+  const perfHome = stage.closest?.('.home') || null;
+  const perfTargets = [stage, perfHome].filter(Boolean);
+  let mapObjectPerfEnabled = false;
+  let mapObjectMovingTimer = null;
+  let mapObjectCullingFrame = null;
+  let mapObjectCullLastAt = 0;
+  let mapObjectCullLastKey = '';
+  let mapObjectLayersCache = [];
+  let mapObjectLayersCacheAt = 0;
+  let mapObjectDomCount = 0;
+
   /*
     Camera rewrite:
     focusOnPlayer sets a target and mapControls paints the viewport through one
@@ -293,6 +311,305 @@ export function enableMapControls(stage, viewport, options = {}) {
   let cameraFrameId = 0;
   let cameraLastFrameAt = 0;
   let cameraReady = false;
+
+  function ensureMapObjectPerfStyle() {
+    if (document.getElementById(MAP_OBJECT_PERF_STYLE_ID)) return;
+
+    const style = document.createElement('style');
+    style.id = MAP_OBJECT_PERF_STYLE_ID;
+    style.textContent = `
+      [data-map-object-perf="active"] .map-objects-layer,
+      [data-map-object-perf="active"] .map-objects-layer-public,
+      [data-map-object-perf="active"] .map-objects-layer-admin {
+        contain: layout style paint !important;
+        backface-visibility: hidden !important;
+        transform: translateZ(0) !important;
+        pointer-events: none !important;
+      }
+
+      [data-map-object-perf="active"] .map-object {
+        contain: layout style paint !important;
+        backface-visibility: hidden !important;
+        transform-style: flat !important;
+        transition: none !important;
+        animation: none !important;
+        will-change: auto !important;
+      }
+
+      [data-map-object-perf="active"] .map-object[data-map-culled="true"] {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+
+      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object,
+      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object {
+        pointer-events: none !important;
+        cursor: default !important;
+      }
+
+      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object::before,
+      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object::after,
+      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object::before,
+      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object::after {
+        display: none !important;
+        content: none !important;
+      }
+
+      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-house-svg,
+      [data-map-object-perf="active"][data-map-camera-moving="true"] .map-object-icon,
+      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-house-svg,
+      [data-map-object-perf="active"] [data-map-camera-moving="true"] .map-object-icon {
+        filter: none !important;
+        transition: none !important;
+        animation: none !important;
+      }
+    `;
+
+    document.head?.appendChild(style);
+  }
+
+  function setPerfDataset(name, value) {
+    perfTargets.forEach((target) => {
+      if (!target?.dataset) return;
+
+      if (value === null || value === undefined || value === false) {
+        delete target.dataset[name];
+        return;
+      }
+
+      target.dataset[name] = String(value);
+    });
+  }
+
+  function getMapObjectLayers(force = false) {
+    const now = performance.now();
+    const cacheValid =
+      !force &&
+      mapObjectLayersCache.length > 0 &&
+      now - mapObjectLayersCacheAt < 700 &&
+      mapObjectLayersCache.every((layer) => layer?.isConnected);
+
+    if (cacheValid) {
+      return mapObjectLayersCache;
+    }
+
+    mapObjectLayersCache = Array.from(
+      viewport.querySelectorAll(
+        '.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin'
+      )
+    );
+    mapObjectLayersCacheAt = now;
+
+    return mapObjectLayersCache;
+  }
+
+  function getMapObjectDomCount() {
+    return getMapObjectLayers(true).reduce((total, layer) => {
+      return total + (layer?.children?.length || 0);
+    }, 0);
+  }
+
+  function parsePercentStyle(value) {
+    const number = Number.parseFloat(String(value || ''));
+
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function getVisiblePercentBounds() {
+    const rect = getCachedStageRect();
+    const scaledWidth = Math.max(1, worldWidth * scale);
+    const scaledHeight = Math.max(1, worldHeight * scale);
+    const padding = MAP_OBJECT_VIEW_PADDING_PERCENT;
+
+    const left = 50 + ((-rect.width / 2 - x) / scaledWidth) * 100 - padding;
+    const right = 50 + ((rect.width / 2 - x) / scaledWidth) * 100 + padding;
+    const top = 50 + ((-rect.height / 2 - y) / scaledHeight) * 100 - padding;
+    const bottom = 50 + ((rect.height / 2 - y) / scaledHeight) * 100 + padding;
+
+    return {
+      left: clamp(left, -padding, 100 + padding),
+      right: clamp(right, -padding, 100 + padding),
+      top: clamp(top, -padding, 100 + padding),
+      bottom: clamp(bottom, -padding, 100 + padding),
+    };
+  }
+
+  function clearMapObjectCulling() {
+    getMapObjectLayers(true).forEach((layer) => {
+      delete layer.dataset.visibleObjectsCount;
+
+      Array.from(layer.children || []).forEach((element) => {
+        if (!element?.dataset?.mapCulled) return;
+
+        delete element.dataset.mapCulled;
+        element.style.removeProperty('visibility');
+        element.style.removeProperty('opacity');
+        element.style.removeProperty('pointer-events');
+      });
+    });
+
+    setPerfDataset('mapObjectVisibleCount', null);
+    mapObjectCullLastKey = '';
+  }
+
+  function updateMapObjectCulling(force = false) {
+    if (!mapObjectPerfEnabled) {
+      clearMapObjectCulling();
+      return;
+    }
+
+    const now = performance.now();
+
+    if (!force && now - mapObjectCullLastAt < MAP_OBJECT_CULL_INTERVAL) {
+      return;
+    }
+
+    mapObjectCullLastAt = now;
+
+    const bounds = getVisiblePercentBounds();
+    const nextKey = [
+      Math.round(bounds.left * 2),
+      Math.round(bounds.right * 2),
+      Math.round(bounds.top * 2),
+      Math.round(bounds.bottom * 2),
+      mapObjectDomCount,
+    ].join(':');
+
+    if (!force && nextKey === mapObjectCullLastKey) {
+      return;
+    }
+
+    mapObjectCullLastKey = nextKey;
+
+    let visibleCount = 0;
+    let totalCount = 0;
+
+    getMapObjectLayers().forEach((layer) => {
+      let layerVisibleCount = 0;
+
+      Array.from(layer.children || []).forEach((element) => {
+        if (!element?.classList?.contains('map-object')) return;
+
+        totalCount += 1;
+
+        const objectX = parsePercentStyle(element.style.left);
+        const objectY = parsePercentStyle(element.style.top);
+        const keepVisible =
+          element.classList.contains('map-object-selected') ||
+          element.classList.contains('map-object-nearby') ||
+          element.matches?.('[aria-expanded="true"], [data-force-visible="true"]');
+
+        const insideView =
+          keepVisible ||
+          objectX === null ||
+          objectY === null ||
+          (
+            objectX >= bounds.left &&
+            objectX <= bounds.right &&
+            objectY >= bounds.top &&
+            objectY <= bounds.bottom
+          );
+
+        if (insideView) {
+          visibleCount += 1;
+          layerVisibleCount += 1;
+
+          if (element.dataset.mapCulled) {
+            delete element.dataset.mapCulled;
+            element.style.removeProperty('visibility');
+            element.style.removeProperty('opacity');
+            element.style.removeProperty('pointer-events');
+          }
+
+          return;
+        }
+
+        if (!element.dataset.mapCulled) {
+          element.dataset.mapCulled = 'true';
+          element.style.setProperty('visibility', 'hidden', 'important');
+          element.style.setProperty('opacity', '0', 'important');
+          element.style.setProperty('pointer-events', 'none', 'important');
+        }
+      });
+
+      layer.dataset.visibleObjectsCount = String(layerVisibleCount);
+    });
+
+    setPerfDataset('mapObjectVisibleCount', String(visibleCount));
+
+    if (totalCount !== mapObjectDomCount) {
+      updateMapObjectDensity(totalCount);
+    }
+  }
+
+  function scheduleMapObjectCulling(force = false) {
+    if (!mapObjectPerfEnabled && !force) return;
+    if (mapObjectCullingFrame) return;
+
+    mapObjectCullingFrame = requestAnimationFrame(() => {
+      mapObjectCullingFrame = null;
+      updateMapObjectCulling(Boolean(force));
+    });
+  }
+
+  function updateMapObjectDensity(count = null) {
+    const nextCount = Number.isFinite(Number(count))
+      ? Number(count)
+      : getMapObjectDomCount();
+
+    mapObjectDomCount = Math.max(0, nextCount);
+
+    const denseLimit = lowPower ? MAP_OBJECT_DENSE_LIMIT_LOW_POWER : MAP_OBJECT_DENSE_LIMIT;
+    const shouldEnable = mobile && mapObjectDomCount >= denseLimit;
+
+    if (shouldEnable) {
+      ensureMapObjectPerfStyle();
+      setPerfDataset('mapObjectPerf', 'active');
+      setPerfDataset('mapObjectCount', String(mapObjectDomCount));
+
+      if (!mapObjectPerfEnabled) {
+        mapObjectPerfEnabled = true;
+        scheduleMapObjectCulling(true);
+      } else {
+        scheduleMapObjectCulling(false);
+      }
+
+      return;
+    }
+
+    mapObjectPerfEnabled = false;
+    setPerfDataset('mapObjectPerf', null);
+    setPerfDataset('mapCameraMoving', null);
+    setPerfDataset('mapObjectCount', null);
+    clearTimeout(mapObjectMovingTimer);
+    mapObjectMovingTimer = null;
+    clearMapObjectCulling();
+  }
+
+  function onMapObjectsRendered(event) {
+    const detail = event?.detail || {};
+    const count = Number(
+      detail.layerChildren ??
+      detail.renderedCount ??
+      detail.count ??
+      NaN
+    );
+
+    updateMapObjectDensity(Number.isFinite(count) ? count : null);
+  }
+
+  function markCameraMoving() {
+    if (!mapObjectPerfEnabled) return;
+
+    setPerfDataset('mapCameraMoving', 'true');
+
+    clearTimeout(mapObjectMovingTimer);
+    mapObjectMovingTimer = window.setTimeout(() => {
+      setPerfDataset('mapCameraMoving', null);
+      scheduleMapObjectCulling(true);
+    }, MAP_OBJECT_MOVING_IDLE_MS);
+  }
 
   function setRenderMode(mode) {
     stage.dataset.mapRenderMode = mode;
@@ -431,6 +748,10 @@ export function enableMapControls(stage, viewport, options = {}) {
       layer.style.visibility = 'visible';
       layer.style.opacity = '1';
       layer.style.overflow = 'visible';
+      layer.style.pointerEvents = 'none';
+      layer.style.backfaceVisibility = 'hidden';
+      layer.style.transform = 'translateZ(0)';
+      layer.style.contain = 'layout style paint';
     });
   }
 
@@ -530,6 +851,10 @@ export function enableMapControls(stage, viewport, options = {}) {
     if (nextEntityScaleValue !== lastEntityScaleCssValue) {
       stage.style.setProperty('--map-entity-scale', nextEntityScaleValue);
       lastEntityScaleCssValue = nextEntityScaleValue;
+    }
+
+    if (mapObjectPerfEnabled) {
+      scheduleMapObjectCulling(false);
     }
   }
 
@@ -779,6 +1104,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     x += dx * follow;
     y += dy * follow;
 
+    markCameraMoving();
     applyTransform();
     scheduleTileUpdate();
 
@@ -804,11 +1130,13 @@ export function enableMapControls(stage, viewport, options = {}) {
     }
 
     /*
-      Paint immediately so joystick/WASD does not get a delayed camera, but move
-      toward the target with a short eased follow. This gives the needed sliding
-      feeling instead of hard frame-by-frame stepping.
+      Coalesce all focusOnPlayer calls into one rAF paint. In dense cities the
+      old immediate paint could transform the whole map more than once per frame,
+      which made 100+ SVG houses feel like step-by-step movement.
     */
-    paintCamera(performance.now(), false);
+    if (!cameraFrameId) {
+      cameraFrameId = requestAnimationFrame(runCameraFrame);
+    }
   }
 
   function focusOnPlayer(playerX, playerY, options = {}) {
@@ -831,6 +1159,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     measureWorld();
     focusOnPlayer(lastFocusX, lastFocusY, { force: true });
+    updateMapObjectDensity();
   }
 
   function onResize() {
@@ -847,6 +1176,8 @@ export function enableMapControls(stage, viewport, options = {}) {
   window.addEventListener('resize', onResize, { passive: true });
   window.addEventListener('orientationchange', onResize, { passive: true });
   window.visualViewport?.addEventListener?.('resize', onResize, { passive: true });
+  window.addEventListener('mn:map-objects-rendered', onMapObjectsRendered, { passive: true });
+  window.addEventListener('mn:map-objects-dom-rendered', onMapObjectsRendered, { passive: true });
 
   if (!tileMode) {
     mapImages.forEach((image) => {
@@ -874,6 +1205,16 @@ export function enableMapControls(stage, viewport, options = {}) {
         cancelIdle(tileIdleId);
       }
 
+      if (mapObjectCullingFrame) {
+        cancelAnimationFrame(mapObjectCullingFrame);
+      }
+
+      clearTimeout(mapObjectMovingTimer);
+      clearMapObjectCulling();
+      setPerfDataset('mapObjectPerf', null);
+      setPerfDataset('mapCameraMoving', null);
+      setPerfDataset('mapObjectCount', null);
+
       activeTiles.clear();
       preloadedTileSrcs.clear();
       tileLayer?.remove();
@@ -881,6 +1222,8 @@ export function enableMapControls(stage, viewport, options = {}) {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
       window.visualViewport?.removeEventListener?.('resize', onResize);
+      window.removeEventListener('mn:map-objects-rendered', onMapObjectsRendered);
+      window.removeEventListener('mn:map-objects-dom-rendered', onMapObjectsRendered);
 
       mapImages.forEach((image) => {
         image.removeEventListener('load', onImageReady);
