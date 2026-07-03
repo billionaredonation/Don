@@ -16,6 +16,7 @@ import {
 import {
   createMapObjectsLayer,
   renderMapObjects,
+  clearMapObjectsLayer,
   getMapObjectIdFromEvent,
 } from '../mapObjects/mapObjectsRenderer.js';
 
@@ -157,6 +158,8 @@ export function enableAdminPanel({
 
   const objectsLayer = createMapObjectsLayer();
   objectsLayer.classList.add('map-objects-layer-admin');
+  objectsLayer.hidden = true;
+  objectsLayer.style.display = 'none';
   viewport.appendChild(objectsLayer);
 
   const panel = document.createElement('aside');
@@ -317,6 +320,7 @@ export function enableAdminPanel({
       panel.hidden = true;
 
       objectMover?.resetMoveMode();
+      syncAdminObjectsLayerVisibility();
 
       showAdminNotice(
         'Режим телепорта включен. Чтобы телепортироваться, нажмите правой кнопкой мыши по месту на карте.'
@@ -334,6 +338,7 @@ export function enableAdminPanel({
       disableAdminModeClass();
     }
 
+    syncAdminObjectsLayerVisibility();
     showAdminNotice('Режим телепорта выключен.');
   }
 
@@ -398,14 +403,36 @@ export function enableAdminPanel({
       .join('');
   }
 
+  function shouldRenderAdminObjectsLayer() {
+    return enabled || root.dataset.adminMoveMode === 'enabled';
+  }
+
+  function syncAdminObjectsLayerVisibility() {
+    const visible = shouldRenderAdminObjectsLayer();
+
+    objectsLayer.hidden = !visible;
+    objectsLayer.style.display = visible ? 'block' : 'none';
+
+    if (!visible) {
+      clearMapObjectsLayer(objectsLayer);
+    }
+
+    return visible;
+  }
+
   function markSelectedObject() {
     objects = objects.map((object) => ({
       ...object,
       selected: Boolean(selectedObjectId) && String(object.id) === String(selectedObjectId),
     }));
 
-    renderMapObjects(objectsLayer, objects);
-    renderObjectList();
+    if (syncAdminObjectsLayerVisibility()) {
+      renderMapObjects(objectsLayer, objects);
+    }
+
+    if (enabled || panel.hidden === false) {
+      renderObjectList();
+    }
   }
 
   function updateSelectedObject(objectId) {
@@ -464,6 +491,7 @@ function setEnabled(next) {
 
   if (enabled) {
     enableAdminModeClass();
+    syncAdminObjectsLayerVisibility();
 
     const point = getCurrentPlayerPoint(playerMarker, playerPosition);
     updateCoords(point.x, point.y);
@@ -477,6 +505,7 @@ function setEnabled(next) {
   placeMode = false;
 
   objectMover?.resetMoveMode();
+  syncAdminObjectsLayerVisibility();
 
   btnPlace.textContent = 'Клик: OFF';
 }
@@ -531,7 +560,9 @@ function setEnabled(next) {
     object.x = point.x;
     object.y = point.y;
 
-    renderMapObjects(objectsLayer, objects);
+    if (syncAdminObjectsLayerVisibility()) {
+      renderMapObjects(objectsLayer, objects);
+    }
 
     await updateMapObject(cityId, object.id, {
       x: point.x,
