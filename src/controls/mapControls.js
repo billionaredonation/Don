@@ -115,7 +115,6 @@ function findMobileTileSrc(cityId, grid, tileX, tileY) {
 
     return (
       cleanKey.includes(cityNeedle) &&
-      (cleanKey.includes(`/${grid}/`) || cleanKey.includes(`/grid-${grid}/`) || cleanKey.includes(`/g${grid}/`) || true) &&
       xyNeedles.some((needle) => cleanKey.includes(needle))
     );
   });
