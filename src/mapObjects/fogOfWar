@@ -1,0 +1,316 @@
+const FOG_KEY_PREFIX = 'mn_fog_v1';
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function isMobileGameplayDevice() {
+  const hasTouch = navigator.maxTouchPoints > 0;
+  const narrowScreen =
+    Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 920;
+
+  return hasTouch && narrowScreen;
+}
+
+function getFogKey(cityId, playerId) {
+  return `${FOG_KEY_PREFIX}_${cityId}_${playerId}`;
+}
+
+function loadRevealedCells(cityId, playerId) {
+  try {
+    const raw = localStorage.getItem(getFogKey(cityId, playerId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveRevealedCells(cityId, playerId, cells) {
+  try {
+    localStorage.setItem(
+      getFogKey(cityId, playerId),
+      JSON.stringify([...cells])
+    );
+  } catch {}
+}
+
+function cellKey(x, y) {
+  return `${x}:${y}`;
+}
+
+function revealAround(cells, playerX, playerY, gridSize, radius) {
+  const cx = Math.round((playerX / 100) * gridSize);
+  const cy = Math.round((playerY / 100) * gridSize);
+  let changed = false;
+
+  for (let y = cy - radius; y <= cy + radius; y += 1) {
+    for (let x = cx - radius; x <= cx + radius; x += 1) {
+      if (x < 0 || y < 0 || x > gridSize || y > gridSize) continue;
+
+      const dist = Math.hypot(x - cx, y - cy);
+
+      if (dist <= radius) {
+        const key = cellKey(x, y);
+
+        if (!cells.has(key)) {
+          cells.add(key);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return changed;
+}
+
+export function enableFogOfWar({
+  stage,
+  viewport,
+  playerMarker,
+  playerPosition,
+  cityId,
+  playerId,
+}) {
+  if (!stage || !viewport || !playerMarker || !playerPosition) return null;
+
+  const mobile = isMobileGameplayDevice();
+
+  /*
+    Telegram WebView на телефоне плохо переваривает огромный canvas внутри
+    transform/scale слоя. На мобилке держим fog, но рисуем его реже и в меньшем
+    внутреннем разрешении. Визуально затемнение остаётся, а кадры движения больше
+    не стопорятся от createRadialGradient + localStorage на каждом шаге.
+  */
+  const GRID_SIZE = mobile ? 30 : 46;
+  const REVEAL_RADIUS = mobile ? 3 : 4;
+  const VISION_RADIUS = mobile ? 17 : 15;
+  const MOVE_THRESHOLD = mobile ? 1.05 : 0.25;
+  const TICK_INTERVAL_MS = mobile ? 320 : 0;
+  const CANVAS_RESOLUTION_SCALE = mobile ? 0.44 : 1;
+  const SAVE_DEBOUNCE_MS = mobile ? 2600 : 0;
+
+  const canvas = document.createElement('canvas');
+  canvas.className = 'fog-of-war-canvas';
+
+  viewport.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d', {
+    alpha: true,
+    desynchronized: true,
+  }) || canvas.getContext('2d');
+
+  const revealedCells = loadRevealedCells(cityId, playerId);
+
+  let animationId = null;
+  let timerId = null;
+  let saveTimerId = null;
+  let destroyed = false;
+  let lastX = null;
+  let lastY = null;
+  let lastCanvasWidth = 0;
+  let lastCanvasHeight = 0;
+  let savePending = false;
+
+  function scheduleSave(force = false) {
+    if (!SAVE_DEBOUNCE_MS || force) {
+      savePending = false;
+      window.clearTimeout(saveTimerId);
+      saveTimerId = null;
+      saveRevealedCells(cityId, playerId, revealedCells);
+      return;
+    }
+
+    savePending = true;
+
+    if (saveTimerId) return;
+
+    saveTimerId = window.setTimeout(() => {
+      saveTimerId = null;
+
+      if (destroyed || !savePending) return;
+
+      savePending = false;
+      saveRevealedCells(cityId, playerId, revealedCells);
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  function resizeCanvas() {
+    const layoutWidth = Number(viewport.clientWidth || viewport.offsetWidth || 0);
+    const layoutHeight = Number(viewport.clientHeight || viewport.offsetHeight || 0);
+    const rect = (!layoutWidth || !layoutHeight) ? viewport.getBoundingClientRect() : null;
+
+    const rawWidth = layoutWidth || Number(rect?.width) || 1;
+    const rawHeight = layoutHeight || Number(rect?.height) || 1;
+
+    const width = Math.max(1, Math.round(rawWidth * CANVAS_RESOLUTION_SCALE));
+    const height = Math.max(1, Math.round(rawHeight * CANVAS_RESOLUTION_SCALE));
+
+    if (width === lastCanvasWidth && height === lastCanvasHeight) {
+      return;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    lastCanvasWidth = width;
+    lastCanvasHeight = height;
+  }
+
+  function drawFog() {
+    if (!ctx) return;
+
+    resizeCanvas();
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.fillStyle = mobile ? 'rgba(5, 8, 12, 0.82)' : 'rgba(5, 8, 12, 0.88)';
+    ctx.fillRect(0, 0, w, h);
+
+    const cellW = w / GRID_SIZE;
+    const cellH = h / GRID_SIZE;
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+
+    for (const key of revealedCells) {
+      const [gx, gy] = key.split(':').map(Number);
+      const px = gx * cellW;
+      const py = gy * cellH;
+      const radius = Math.max(cellW, cellH) * (mobile ? 2.0 : 2.2);
+
+      const gradient = ctx.createRadialGradient(
+        px,
+        py,
+        0,
+        px,
+        py,
+        radius
+      );
+
+      gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+      gradient.addColorStop(0.55, 'rgba(255,255,255,0.45)');
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(px, py, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const playerX = clamp(Number(playerPosition.x) || 50, 0, 100);
+    const playerY = clamp(Number(playerPosition.y) || 50, 0, 100);
+
+    const px = (playerX / 100) * w;
+    const py = (playerY / 100) * h;
+    const liveRadius = Math.max(w, h) * (VISION_RADIUS / 100);
+
+    const liveGradient = ctx.createRadialGradient(
+      px,
+      py,
+      0,
+      px,
+      py,
+      liveRadius
+    );
+
+    liveGradient.addColorStop(0, 'rgba(255,255,255,1)');
+    liveGradient.addColorStop(0.45, 'rgba(255,255,255,0.85)');
+    liveGradient.addColorStop(0.75, 'rgba(255,255,255,0.35)');
+    liveGradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+    ctx.fillStyle = liveGradient;
+    ctx.beginPath();
+    ctx.arc(px, py, liveRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    if (!mobile) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+
+      const cloudGradient = ctx.createRadialGradient(
+        px,
+        py,
+        Math.max(w, h) * 0.08,
+        px,
+        py,
+        Math.max(w, h) * 0.45
+      );
+
+      cloudGradient.addColorStop(0, 'rgba(255,255,255,0)');
+      cloudGradient.addColorStop(0.55, 'rgba(160,180,200,0.06)');
+      cloudGradient.addColorStop(1, 'rgba(210,225,240,0.14)');
+
+      ctx.fillStyle = cloudGradient;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.restore();
+    }
+  }
+
+  function runTick() {
+    if (destroyed) return;
+
+    const x = clamp(Number(playerPosition.x) || 50, 0, 100);
+    const y = clamp(Number(playerPosition.y) || 50, 0, 100);
+
+    const moved =
+      lastX === null ||
+      lastY === null ||
+      Math.hypot(x - lastX, y - lastY) >= MOVE_THRESHOLD;
+
+    if (moved) {
+      const changed = revealAround(revealedCells, x, y, GRID_SIZE, REVEAL_RADIUS);
+
+      if (changed) {
+        scheduleSave(false);
+      }
+
+      drawFog();
+      lastX = x;
+      lastY = y;
+    }
+  }
+
+  function tick() {
+    if (destroyed) return;
+
+    runTick();
+
+    if (TICK_INTERVAL_MS > 0) {
+      timerId = window.setTimeout(tick, TICK_INTERVAL_MS);
+      return;
+    }
+
+    animationId = requestAnimationFrame(tick);
+  }
+
+  revealAround(
+    revealedCells,
+    Number(playerPosition.x) || 50,
+    Number(playerPosition.y) || 50,
+    GRID_SIZE,
+    REVEAL_RADIUS
+  );
+
+  scheduleSave(false);
+  drawFog();
+  tick();
+
+  return () => {
+    destroyed = true;
+    if (animationId) cancelAnimationFrame(animationId);
+    window.clearTimeout(timerId);
+    window.clearTimeout(saveTimerId);
+
+    if (savePending) {
+      saveRevealedCells(cityId, playerId, revealedCells);
+    }
+
+    canvas.remove();
+  };
+}
