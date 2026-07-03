@@ -82,6 +82,44 @@ function getHouseColors(state) {
   };
 }
 
+function isMobileGameplayDevice() {
+  const hasTouch = navigator.maxTouchPoints > 0;
+  const narrowScreen =
+    Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 920;
+
+  return hasTouch && narrowScreen;
+}
+
+function shouldUseLightweightHouseIcon() {
+  return (
+    isMobileGameplayDevice() ||
+    document.body?.classList?.contains('mn-mobile-game-enabled') ||
+    window.__MN_MAP_OBJECTS_LIGHT_MODE__ === true
+  );
+}
+
+function createHouseLiteIcon(houseClass, state) {
+  const normalizedClass = normalizeHouseClass(houseClass);
+  const cacheKey = `${normalizedClass}:${state}:lite-v1`;
+
+  if (HOUSE_ICON_CACHE.has(cacheKey)) {
+    return HOUSE_ICON_CACHE.get(cacheKey);
+  }
+
+  const html = `
+    <span class="map-house-lite map-house-lite-${normalizedClass} map-house-lite-${state}" aria-hidden="true">
+      <span class="map-house-lite-shadow"></span>
+      <span class="map-house-lite-roof"></span>
+      <span class="map-house-lite-body"></span>
+      <span class="map-house-lite-door"></span>
+    </span>
+  `;
+
+  HOUSE_ICON_CACHE.set(cacheKey, html);
+
+  return html;
+}
+
 function createHouseSvgIcon(houseClass, state) {
   const normalizedClass = normalizeHouseClass(houseClass);
   const cacheKey = `${normalizedClass}:${state}:pc-v2`;
@@ -197,12 +235,17 @@ function getObjectMeta(object) {
           ? 'Закрыт'
           : 'Свободен';
 
+    const colors = getHouseColors(state);
+
     return {
       title: `${object.name || 'Дом'} · ${normalizedClass} · ${statusText}${ownerName ? ` · ${ownerName}` : ''}${priceText ? ` · ${priceText}` : ''}`,
       visualClass: normalizedClass,
       state,
       ownerId,
-      iconHtml: createHouseSvgIcon(normalizedClass, state),
+      colors,
+      iconHtml: shouldUseLightweightHouseIcon()
+        ? createHouseLiteIcon(normalizedClass, state)
+        : createHouseSvgIcon(normalizedClass, state),
     };
   }
 
@@ -266,6 +309,10 @@ function createObjectHtml(object) {
         top: ${y}%;
         --map-object-scale: ${scale};
         --map-object-rotation: ${rotation}deg;
+        --map-house-main: ${escapeHtml(meta.colors?.main || '#35e985')};
+        --map-house-dark: ${escapeHtml(meta.colors?.dark || '#0f8f52')};
+        --map-house-soft: ${escapeHtml(meta.colors?.soft || '#93ffc4')};
+        --map-house-roof: ${escapeHtml(meta.colors?.roof || '#20d977')};
         width: ${renderSize}px;
         height: ${renderSize}px;
         min-width: ${renderSize}px;
