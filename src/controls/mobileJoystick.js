@@ -294,6 +294,9 @@ export function enableMobileJoystick(
 
   let animationId = null;
   let heartbeatTimer = null;
+  let stickUpdateFrame = null;
+  let pendingStickClientX = 0;
+  let pendingStickClientY = 0;
   let destroyed = false;
   let lastFrameAt = performance.now();
 
@@ -690,6 +693,21 @@ export function enableMobileJoystick(
       'translate(-50%, -50%) translate3d(0px, 0px, 0)';
   }
 
+  function scheduleStickUpdate(clientX, clientY) {
+    pendingStickClientX = clientX;
+    pendingStickClientY = clientY;
+
+    if (stickUpdateFrame) return;
+
+    stickUpdateFrame = requestAnimationFrame(() => {
+      stickUpdateFrame = null;
+
+      if (destroyed || activePointerId === null) return;
+
+      updateStick(pendingStickClientX, pendingStickClientY);
+    });
+  }
+
   function updateStick(clientX, clientY) {
     const dx = clientX - centerX;
     const dy = clientY - centerY;
@@ -859,6 +877,11 @@ export function enableMobileJoystick(
     activePointerId = null;
     container.dataset.joystickActive = 'false';
 
+    if (stickUpdateFrame) {
+      cancelAnimationFrame(stickUpdateFrame);
+      stickUpdateFrame = null;
+    }
+
     resetStick(false);
     renderPlayer(false);
     updateCamera(false);
@@ -928,7 +951,7 @@ export function enableMobileJoystick(
     event.preventDefault();
     event.stopPropagation();
 
-    updateStick(event.clientX, event.clientY);
+    scheduleStickUpdate(event.clientX, event.clientY);
   }
 
   function onPointerEnd(event) {
@@ -982,6 +1005,11 @@ export function enableMobileJoystick(
 
     if (animationId) {
       cancelAnimationFrame(animationId);
+    }
+
+    if (stickUpdateFrame) {
+      cancelAnimationFrame(stickUpdateFrame);
+      stickUpdateFrame = null;
     }
 
     resetStick(true);
