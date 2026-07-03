@@ -5,18 +5,14 @@ const MOBILE_MAP_TILE_ASSETS = import.meta.glob('../../map-tiles/**/*.{png,jpg,j
 });
 
 const MOBILE_TILE_GRID = 8;
-const MOBILE_TILE_LOAD_RADIUS = 3;
+const MOBILE_TILE_RENDER_RADIUS = 2;
+const MOBILE_TILE_PRELOAD_RADIUS = 3;
 const MOBILE_TILE_KEEP_RADIUS = 4;
-const MOBILE_TILE_IDLE_DELAY = 180;
-const MOBILE_TILE_CLEANUP_DELAY = 6200;
+const MOBILE_TILE_IDLE_DELAY = 120;
+const MOBILE_TILE_CLEANUP_DELAY = 7800;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
-}
-
-function toFiniteNumber(value, fallback = 0) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : fallback;
 }
 
 function isCoarsePointer() {
@@ -79,10 +75,6 @@ function normalizeTilePart(value) {
     .replace(/[^a-z0-9_-]+/g, '-');
 }
 
-function normalizeAssetKey(key) {
-  return String(key || '').toLowerCase().replaceAll('\\\\', '/').replaceAll('\\', '/');
-}
-
 function getTileAssetValue(key) {
   return MOBILE_MAP_TILE_ASSETS[key] || null;
 }
@@ -104,8 +96,6 @@ function findMobileTileSrc(cityId, grid, tileX, tileY) {
 
   const roots = [
     `../../map-tiles/${city}/${grid}`,
-    `../../map-tiles/${city}/grid-${grid}`,
-    `../../map-tiles/${city}/g${grid}`,
     `../../map-tiles/${city}`,
   ];
 
@@ -120,20 +110,16 @@ function findMobileTileSrc(cityId, grid, tileX, tileY) {
   }
 
   const cityNeedle = `/map-tiles/${city}/`;
-  const gridNeedles = [`/${grid}/`, `/grid-${grid}/`, `/g${grid}/`];
   const xyNeedles = names.map((name) => `/${name}.`);
 
   const matched = Object.entries(MOBILE_MAP_TILE_ASSETS).find(([key]) => {
-    const cleanKey = normalizeAssetKey(key);
+    const cleanKey = String(key).toLowerCase().replaceAll('\\', '/');
 
-    if (!cleanKey.includes(cityNeedle)) return false;
-    if (!xyNeedles.some((needle) => cleanKey.includes(needle))) return false;
-
-    const afterCity = cleanKey.split(cityNeedle)[1] || '';
-    const firstFolder = afterCity.split('/')[0] || '';
-    const hasExplicitGridFolder = /^\d+$/.test(firstFolder) || /^grid-\d+$/.test(firstFolder) || /^g\d+$/.test(firstFolder);
-
-    return !hasExplicitGridFolder || gridNeedles.some((needle) => cleanKey.includes(needle));
+    return (
+      cleanKey.includes(cityNeedle) &&
+      (cleanKey.includes(`/${grid}/`) || cleanKey.includes(`/grid-${grid}/`) || cleanKey.includes(`/g${grid}/`)) &&
+      xyNeedles.some((needle) => cleanKey.includes(needle))
+    );
   });
 
   return matched?.[1] || null;
@@ -147,7 +133,7 @@ function hasMobileTilesForCity(cityId) {
   const cityNeedle = `/map-tiles/${city}/`;
 
   return Object.keys(MOBILE_MAP_TILE_ASSETS).some((key) => {
-    return normalizeAssetKey(key).includes(cityNeedle);
+    return String(key).toLowerCase().replaceAll('\\', '/').includes(cityNeedle);
   });
 }
 
@@ -204,38 +190,6 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.querySelector?.('.gta-map-image:not(.gta-map-glow)')?.src ||
     '';
 
-  const mapImages = Array.from(viewport.querySelectorAll('.gta-map-image'));
-
-  let scale = 1;
-  let mapX = 0;
-  let mapY = 0;
-  let targetMapX = 0;
-  let targetMapY = 0;
-
-  let worldWidth = 1200;
-  let worldHeight = 864;
-  let cachedStageWidth = 1;
-  let cachedStageHeight = 1;
-
-  let lastFocusX = toFiniteNumber(options.focusX, 50);
-  let lastFocusY = toFiniteNumber(options.focusY, 50);
-
-  let resizeRefreshTimer = 0;
-  let cameraFrameId = 0;
-  let lastCameraFrameAt = performance.now();
-
-  let lastViewportTransform = '';
-  let lastZoomCssValue = '';
-  let lastEntityScaleCssValue = '';
-
-  let tileLayer = null;
-  let tileMode = false;
-  let tileIdleId = null;
-  let tileUpdateFrame = 0;
-  let tileCleanupTimer = 0;
-  let lastTileCenterKey = '';
-  const activeTiles = new Map();
-
   function getRequestedStartScale(defaultScale) {
     const requested = Number(options.startScale);
 
@@ -246,16 +200,10 @@ export function enableMapControls(stage, viewport, options = {}) {
     return defaultScale;
   }
 
-  function getMapProfile() {
-    if (mobile) {
-      return {
-        scale: getRequestedStartScale(lowPower ? 1.42 : 1.5),
-        worldFactor: lowPower ? 1.92 : 2.08,
-      };
-    }
-
+  function getDesktopMapProfile() {
     const screen = getViewportSize();
     const minSide = Math.min(screen.width, screen.height);
+
     const requested = getRequestedStartScale(lowPower ? 1.42 : 1.56);
 
     if (minSide <= 410) {
@@ -285,6 +233,64 @@ export function enableMapControls(stage, viewport, options = {}) {
     };
   }
 
+  function getMapProfile() {
+    if (mobile) {
+      /*
+        Мобильный профиль щадящий: меньше огромного полотна, меньше памяти GPU,
+        меньше работы на каждом translate/scale кадре.
+      */
+      return {
+        scale: getRequestedStartScale(lowPower ? 1.46 : 1.55),
+        worldFactor: lowPower ? 2.02 : 2.18,
+      };
+    }
+
+    return getDesktopMapProfile();
+  }
+
+  let scale = getMapProfile().scale;
+  let x = 0;
+  let y = 0;
+
+  let worldWidth = 1200;
+  let worldHeight = 864;
+
+  let cachedStageWidth = 1;
+  let cachedStageHeight = 1;
+
+  let lastFocusX = Number(options.focusX) || 50;
+  let lastFocusY = Number(options.focusY) || 50;
+
+  const mapImages = Array.from(viewport.querySelectorAll('.gta-map-image'));
+  let resizeRefreshTimer = null;
+  let lastViewportTransform = '';
+  let lastZoomCssValue = '';
+  let lastEntityScaleCssValue = '';
+
+  let tileLayer = null;
+  let tileMode = false;
+  let tileIdleId = null;
+  let tileUpdateFrame = null;
+  let lastTileCenterKey = '';
+  let tileCleanupTimer = null;
+  const activeTiles = new Map();
+  const preloadedTileSrcs = new Set();
+
+  /*
+    Mobile camera rewrite:
+    focusOnPlayer now sets a target. The map transform is painted by one
+    internal camera loop, so joystick/player/network code no longer writes
+    the heavy viewport transform directly on every call.
+  */
+  /*
+    Camera is synced by one rAF paint. The joystick already smooths renderX/renderY,
+    so mapControls must not add a second lerp on top of it. Double smoothing was
+    the likely source of visible camera wobble.
+  */
+  let targetMapX = 0;
+  let targetMapY = 0;
+  let cameraFrameId = 0;
+
   function setRenderMode(mode) {
     stage.dataset.mapRenderMode = mode;
 
@@ -296,21 +302,19 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function setupFallbackSingleImage() {
-    setRenderMode(mobile ? 'single-mobile-fallback' : 'single-desktop');
+    setRenderMode('single-mobile-fallback');
 
     mapImages.forEach((image) => {
       const isGlow = image.classList.contains('gta-map-glow');
 
       if (mobile && isGlow) {
         image.style.display = 'none';
-        image.style.visibility = 'hidden';
-        image.style.opacity = '0';
         return;
       }
 
       image.style.display = 'block';
       image.style.visibility = 'visible';
-      image.style.opacity = isGlow && !mobile && !lowPower ? '0.18' : '1';
+      image.style.opacity = '1';
       image.style.backgroundImage = fallbackMapSrc ? `url("${fallbackMapSrc}")` : '';
       image.style.backgroundSize = '100% 100%';
       image.style.backgroundRepeat = 'no-repeat';
@@ -323,7 +327,12 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function setupMobileTileLayer() {
-    if (!mobile || !hasMobileTilesForCity(cityId)) {
+    if (!mobile) {
+      setRenderMode('single-desktop');
+      return;
+    }
+
+    if (!hasMobileTilesForCity(cityId)) {
       setupFallbackSingleImage();
       return;
     }
@@ -384,7 +393,7 @@ export function enableMapControls(stage, viewport, options = {}) {
         image.style.position = 'absolute';
         image.style.inset = '0';
         image.style.display = mobile && isGlow ? 'none' : 'block';
-        image.style.visibility = mobile && isGlow ? 'hidden' : 'visible';
+        image.style.visibility = 'visible';
         image.style.opacity = isGlow ? (lowPower || mobile ? '0' : '0.18') : '1';
         image.style.width = '100%';
         image.style.height = '100%';
@@ -409,31 +418,44 @@ export function enableMapControls(stage, viewport, options = {}) {
       entities.style.pointerEvents = 'none';
     }
 
-    viewport
-      .querySelectorAll('.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin')
-      .forEach((layer) => {
-        layer.style.position = 'absolute';
-        layer.style.inset = '0';
-        layer.style.visibility = 'visible';
-        layer.style.opacity = '1';
-        layer.style.overflow = 'visible';
-      });
+    const objectLayers = viewport.querySelectorAll(
+      '.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin'
+    );
+
+    objectLayers.forEach((layer) => {
+      layer.style.position = 'absolute';
+      layer.style.inset = '0';
+      layer.style.visibility = 'visible';
+      layer.style.opacity = '1';
+      layer.style.overflow = 'visible';
+    });
   }
 
   function readStageRect() {
     const rect = stage.getBoundingClientRect();
     const screen = getViewportSize();
 
-    const width = Number.isFinite(rect.width) && rect.width >= 20
-      ? rect.width
-      : screen.width;
-    const height = Number.isFinite(rect.height) && rect.height >= 20
-      ? rect.height
-      : screen.height;
+    let width = Number(rect.width);
+    let height = Number(rect.height);
+
+    if (!Number.isFinite(width) || width < 20) {
+      width = screen.width;
+    }
+
+    if (!Number.isFinite(height) || height < 20) {
+      height = screen.height;
+    }
 
     cachedStageWidth = Math.max(1, width);
     cachedStageHeight = Math.max(1, height);
 
+    return {
+      width: cachedStageWidth,
+      height: cachedStageHeight,
+    };
+  }
+
+  function getCachedStageRect() {
     return {
       width: cachedStageWidth,
       height: cachedStageHeight,
@@ -449,36 +471,41 @@ export function enableMapControls(stage, viewport, options = {}) {
     const base = isDesktopPortrait
       ? Math.max(rect.width, Math.min(rect.height, rect.width * 1.28))
       : Math.max(rect.width, rect.height);
-    const profile = getMapProfile();
+    const { worldFactor } = getMapProfile();
 
-    scale = profile.scale;
-    worldWidth = Math.max(mobile ? 720 : 760, base * profile.worldFactor);
-    worldHeight = Math.max(mobile ? 480 : 620, worldWidth * ratio);
+    worldWidth = Math.max(mobile ? 760 : 760, base * worldFactor);
+    worldHeight = Math.max(mobile ? 520 : 620, worldWidth * ratio);
 
     viewport.style.width = `${Math.round(worldWidth)}px`;
     viewport.style.height = `${Math.round(worldHeight)}px`;
   }
 
   function getLimits() {
+    const rect = getCachedStageRect();
+
     const scaledWidth = worldWidth * scale;
     const scaledHeight = worldHeight * scale;
 
     return {
-      maxX: Math.max(0, (scaledWidth - cachedStageWidth) / 2),
-      maxY: Math.max(0, (scaledHeight - cachedStageHeight) / 2),
+      maxX: Math.max(0, (scaledWidth - rect.width) / 2),
+      maxY: Math.max(0, (scaledHeight - rect.height) / 2),
     };
   }
 
   function applyTransform() {
     const limits = getLimits();
 
-    mapX = clamp(mapX, -limits.maxX, limits.maxX);
-    mapY = clamp(mapY, -limits.maxY, limits.maxY);
-    targetMapX = clamp(targetMapX, -limits.maxX, limits.maxX);
-    targetMapY = clamp(targetMapY, -limits.maxY, limits.maxY);
+    x = clamp(x, -limits.maxX, limits.maxX);
+    y = clamp(y, -limits.maxY, limits.maxY);
 
-    const safeX = Math.round(mapX * 1000) / 1000;
-    const safeY = Math.round(mapY * 1000) / 1000;
+    /*
+      Keep sub-pixel precision. Previous device-pixel snapping reduced GPU work,
+      but on movement it created visible stair-step camera motion.
+    */
+    const precision = 1000;
+
+    const safeX = Math.round(x * precision) / precision;
+    const safeY = Math.round(y * precision) / precision;
     const safeScale = Math.round(scale * 10000) / 10000;
 
     const nextTransform =
@@ -524,6 +551,41 @@ export function enableMapControls(stage, viewport, options = {}) {
     return result;
   }
 
+  function preloadTileSrc(src) {
+    if (!src || preloadedTileSrcs.has(src)) return;
+
+    preloadedTileSrcs.add(src);
+
+    const image = new Image();
+
+    image.decoding = 'async';
+    image.loading = 'eager';
+    image.src = src;
+  }
+
+  function loadTilePosition(tilePosition, appendToDom = true) {
+    const key = `${tilePosition.x}:${tilePosition.y}`;
+
+    if (activeTiles.has(key)) return;
+
+    const src = findMobileTileSrc(
+      cityId,
+      MOBILE_TILE_GRID,
+      tilePosition.x,
+      tilePosition.y
+    );
+
+    if (!src) return;
+
+    preloadTileSrc(src);
+
+    if (!appendToDom || !tileLayer) return;
+
+    const tile = createTileElement(tilePosition.x, tilePosition.y, src);
+    activeTiles.set(key, tile);
+    tileLayer.appendChild(tile);
+  }
+
   function createTileElement(tileX, tileY, src) {
     const tile = document.createElement('div');
     const size = 100 / MOBILE_TILE_GRID;
@@ -544,7 +606,6 @@ export function enableMapControls(stage, viewport, options = {}) {
     };
 
     probe.onerror = () => {
-      activeTiles.delete(`${tileX}:${tileY}`);
       tile.remove();
     };
 
@@ -598,14 +659,22 @@ export function enableMapControls(stage, viewport, options = {}) {
       tileIdleId = null;
     }
 
+    /*
+      ВАЖНО: прогрузку карты не убираем.
+      Сразу добавляем ближние тайлы в DOM, а внешний круг заранее грузим в память
+      браузера через Image(). Когда игрок подходит к зоне, картинка уже в cache.
+    */
+    const renderTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_RENDER_RADIUS);
+    const preloadTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_PRELOAD_RADIUS);
+    const keepTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_KEEP_RADIUS);
+    const keepKeys = new Set(keepTiles.map((tile) => `${tile.x}:${tile.y}`));
+
+    renderTiles.forEach((tilePosition) => loadTilePosition(tilePosition, true));
+
     tileIdleId = scheduleIdle(() => {
       tileIdleId = null;
 
-      const loadTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_LOAD_RADIUS);
-      const keepTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_KEEP_RADIUS);
-      const keepKeys = new Set(keepTiles.map((tile) => `${tile.x}:${tile.y}`));
-
-      loadTiles.forEach((tilePosition) => {
+      preloadTiles.forEach((tilePosition) => {
         const key = `${tilePosition.x}:${tilePosition.y}`;
 
         if (activeTiles.has(key)) return;
@@ -617,11 +686,7 @@ export function enableMapControls(stage, viewport, options = {}) {
           tilePosition.y
         );
 
-        if (!src) return;
-
-        const tile = createTileElement(tilePosition.x, tilePosition.y, src);
-        activeTiles.set(key, tile);
-        tileLayer.appendChild(tile);
+        preloadTileSrc(src);
       });
 
       window.clearTimeout(tileCleanupTimer);
@@ -635,14 +700,16 @@ export function enableMapControls(stage, viewport, options = {}) {
     if (!force) {
       const { centerKey } = getFocusedTileCenter();
 
-      if (centerKey === lastTileCenterKey) return;
+      if (centerKey === lastTileCenterKey) {
+        return;
+      }
     }
 
     if (tileUpdateFrame) return;
 
     tileUpdateFrame = requestAnimationFrame(() => {
-      tileUpdateFrame = 0;
-      updateMobileTiles(force);
+      tileUpdateFrame = null;
+      updateMobileTiles();
     });
   }
 
@@ -657,79 +724,59 @@ export function enableMapControls(stage, viewport, options = {}) {
     lastFocusX = clamp(focusX, 0, 100);
     lastFocusY = clamp(focusY, 0, 100);
 
+    const fx = (lastFocusX / 100 - 0.5) * worldWidth * scale;
+    const fy = (lastFocusY / 100 - 0.5) * worldHeight * scale;
+
     return {
-      x: -((lastFocusX / 100 - 0.5) * worldWidth * scale),
-      y: -((lastFocusY / 100 - 0.5) * worldHeight * scale),
+      x: -fx,
+      y: -fy,
     };
   }
 
-  function paintCamera(force = false) {
-    if (force) {
-      mapX = targetMapX;
-      mapY = targetMapY;
-    }
-
-    applyTransform();
-    scheduleTileUpdate(force);
-  }
-
-  function runCameraFrame(now = performance.now()) {
+  function runCameraFrame() {
     cameraFrameId = 0;
 
-    const delta = Math.min(34, Math.max(8, now - lastCameraFrameAt));
-    const frameScale = delta / 16.6667;
-    const lerpBase = mobile ? 0.32 : 1;
-    const lerp = mobile ? 1 - Math.pow(1 - lerpBase, frameScale) : 1;
+    x = targetMapX;
+    y = targetMapY;
 
-    lastCameraFrameAt = now;
-
-    mapX += (targetMapX - mapX) * lerp;
-    mapY += (targetMapY - mapY) * lerp;
-
-    if (
-      Math.abs(targetMapX - mapX) <= (mobile ? 0.02 : 0.001) &&
-      Math.abs(targetMapY - mapY) <= (mobile ? 0.02 : 0.001)
-    ) {
-      mapX = targetMapX;
-      mapY = targetMapY;
-      paintCamera(false);
-      return;
-    }
-
-    paintCamera(false);
-    cameraFrameId = requestAnimationFrame(runCameraFrame);
+    applyTransform();
+    scheduleTileUpdate();
   }
 
   function scheduleCameraFrame(force = false) {
-    if (force) {
+    if (force || !mobile) {
       if (cameraFrameId) {
         cancelAnimationFrame(cameraFrameId);
         cameraFrameId = 0;
       }
 
-      lastCameraFrameAt = performance.now();
-      paintCamera(true);
+      x = targetMapX;
+      y = targetMapY;
+
+      applyTransform();
+      scheduleTileUpdate(true);
       return;
     }
 
     if (!cameraFrameId) {
-      lastCameraFrameAt = performance.now();
       cameraFrameId = requestAnimationFrame(runCameraFrame);
     }
   }
 
-  function focusOnPlayer(playerX, playerY, focusOptions = {}) {
-    const target = computeTargetMapPosition(playerX, playerY);
+  function focusOnPlayer(playerX, playerY, options = {}) {
+    const nextTarget = computeTargetMapPosition(playerX, playerY);
 
-    if (!target) return;
+    if (!nextTarget) return;
 
-    targetMapX = target.x;
-    targetMapY = target.y;
+    targetMapX = nextTarget.x;
+    targetMapY = nextTarget.y;
 
-    scheduleCameraFrame(Boolean(focusOptions.force));
+    scheduleCameraFrame(Boolean(options.force));
   }
 
   function refresh() {
+    scale = getMapProfile().scale;
+
     lastViewportTransform = '';
     lastZoomCssValue = '';
     lastEntityScaleCssValue = '';
@@ -739,8 +786,8 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function onResize() {
-    window.clearTimeout(resizeRefreshTimer);
-    resizeRefreshTimer = window.setTimeout(refresh, mobile ? 180 : 60);
+    clearTimeout(resizeRefreshTimer);
+    resizeRefreshTimer = setTimeout(refresh, mobile ? 180 : 60);
   }
 
   function onImageReady() {
@@ -764,7 +811,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   return {
     cleanup() {
-      window.clearTimeout(resizeRefreshTimer);
+      clearTimeout(resizeRefreshTimer);
       window.clearTimeout(tileCleanupTimer);
 
       if (cameraFrameId) {
@@ -780,6 +827,7 @@ export function enableMapControls(stage, viewport, options = {}) {
       }
 
       activeTiles.clear();
+      preloadedTileSrcs.clear();
       tileLayer?.remove();
 
       window.removeEventListener('resize', onResize);
