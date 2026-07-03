@@ -298,3 +298,14 @@
     transform: translateZ(0) !important;
   }
 }
+
+
+/* =========================================================
+   PERFORMANCE PATCH (Codex): Cull off‑screen objects on mobile/low‑power
+   ========================================================= */
+.map-objects-layer > [data-map-object-id],
+.map-objects-layer-public > [data-map-object-id],
+.map-objects-layer-admin > [data-map-object-id] {
+  content-visibility: auto;
+  contain-intrinsic-size: 20px 20px;
+}
