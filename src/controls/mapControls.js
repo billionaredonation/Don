@@ -5,9 +5,9 @@ const MOBILE_MAP_TILE_ASSETS = import.meta.glob('../../map-tiles/**/*.{png,jpg,j
 });
 
 const MOBILE_TILE_GRID = 8;
-const MOBILE_TILE_RENDER_RADIUS = 2;
-const MOBILE_TILE_PRELOAD_RADIUS = 3;
-const MOBILE_TILE_KEEP_RADIUS = 4;
+const MOBILE_TILE_RENDER_RADIUS = isLowPowerDevice() ? 1 : 2;
+const MOBILE_TILE_PRELOAD_RADIUS = isLowPowerDevice() ? 2 : 3;
+const MOBILE_TILE_KEEP_RADIUS = isLowPowerDevice() ? 3 : 4;
 const MOBILE_TILE_IDLE_DELAY = 120;
 const MOBILE_TILE_CLEANUP_DELAY = 7800;
 
