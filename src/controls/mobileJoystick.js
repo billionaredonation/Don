@@ -256,14 +256,14 @@ export function enableMobileJoystick(
     Движение остаётся 60fps локально, а синхра уходит реже — так меньше
     микрофризов и телефон меньше греется.
   */
-  const mobileStatsSpeed = getPositiveNumber(getMobileMoveSpeed(), 0.065);
+  const mobileStatsSpeed = getPositiveNumber(getMobileMoveSpeed(), 0.078);
   const MOBILE_WALK_SPEED = Math.max(
-    getPositiveNumber(MOVEMENT_CONFIG.MOBILE_WALK_SPEED, 0.02),
-    mobileStatsSpeed * 0.62
+    getPositiveNumber(MOVEMENT_CONFIG.MOBILE_WALK_SPEED, 0.078),
+    mobileStatsSpeed
   );
   const MOBILE_SPRINT_SPEED = Math.max(
-    getPositiveNumber(MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED, MOBILE_WALK_SPEED * 1.45),
-    MOBILE_WALK_SPEED * getPositiveNumber(STAMINA.sprintSpeedMultiplier, 1.45)
+    getPositiveNumber(MOVEMENT_CONFIG.MOBILE_SPRINT_SPEED, MOBILE_WALK_SPEED * 1.65),
+    MOBILE_WALK_SPEED * getPositiveNumber(STAMINA.sprintSpeedMultiplier, 1.65)
   );
 
   const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 220);
