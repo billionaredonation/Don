@@ -244,9 +244,10 @@ function getObjectMeta(object) {
       state,
       ownerId,
       colors,
-      iconHtml: shouldUseLightweightHouseIcon()
-        ? createHouseLiteIcon(normalizedClass, state)
-        : createHouseSvgIcon(normalizedClass, state),
+      // Mobile uses the same detailed house SVG as desktop.
+      // The previous lightweight CSS-only icon looked like colored blocks/blobs
+      // on Telegram WebView, especially after zoom.
+      iconHtml: createHouseSvgIcon(normalizedClass, state),
     };
   }
 
