@@ -385,7 +385,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.willChange = 'transform';
     viewport.style.backfaceVisibility = 'hidden';
     viewport.style.transformStyle = 'flat';
-    viewport.style.contain = mobile ? 'layout style paint' : '';
+    viewport.style.contain = 'layout style paint';
     viewport.style.zIndex = '50';
     viewport.style.pointerEvents = 'none';
 
@@ -424,6 +424,8 @@ export function enableMapControls(stage, viewport, options = {}) {
       entities.style.overflow = 'visible';
       entities.style.zIndex = '90';
       entities.style.pointerEvents = 'none';
+      entities.style.contain = 'layout paint style';
+      entities.style.backfaceVisibility = 'hidden';
     }
 
     const objectLayers = viewport.querySelectorAll(
@@ -436,6 +438,9 @@ export function enableMapControls(stage, viewport, options = {}) {
       layer.style.visibility = 'visible';
       layer.style.opacity = '1';
       layer.style.overflow = 'visible';
+      layer.style.contain = 'layout paint style';
+      layer.style.backfaceVisibility = 'hidden';
+      layer.style.transform = 'translateZ(0)';
     });
   }
 
