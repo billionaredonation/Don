@@ -635,7 +635,44 @@ register('home', async (root) => {
   root.dataset.city = cityId;
   root.dataset.time = dayMode;
   root.dataset.weather = weather.type;
-  root.dataset.performance = isLowPowerDevice() ? 'low' : 'normal';
+  root.dataset.performance = isLowPowerDevice() || isMobileGameplay ? 'low' : 'normal';
+  root.dataset.weatherFx = isLowPowerDevice() || isMobileGameplay ? 'lite' : 'normal';
+  root.dataset.objectLoad = 'normal';
+
+  let cleanupRenderPerformanceGuards = null;
+
+  function setRenderPressureMode(detail = {}) {
+    if (detail.cityId && String(detail.cityId) !== String(cityId)) return;
+
+    const totalCount = Number(detail.count || 0);
+    const renderedCount = Number(detail.renderedCount ?? detail.layerChildren ?? 0);
+    const highObjectPressure = renderedCount >= 90 || totalCount >= 500;
+    const lowMode = isLowPowerDevice() || isMobileGameplay || highObjectPressure;
+
+    root.dataset.objectLoad = highObjectPressure ? 'high' : 'normal';
+    root.dataset.performance = lowMode ? 'low' : 'normal';
+    root.dataset.weatherFx = lowMode ? 'lite' : 'normal';
+  }
+
+  function setupRenderPerformanceGuards() {
+    const handleObjectsRendered = (event) => {
+      setRenderPressureMode(event?.detail || {});
+    };
+
+    const handleObjectsLoaded = (event) => {
+      setRenderPressureMode(event?.detail || {});
+    };
+
+    window.addEventListener('mn:map-objects-rendered', handleObjectsRendered);
+    window.addEventListener('mn:map-objects-loaded', handleObjectsLoaded);
+
+    return () => {
+      window.removeEventListener('mn:map-objects-rendered', handleObjectsRendered);
+      window.removeEventListener('mn:map-objects-loaded', handleObjectsLoaded);
+    };
+  }
+
+  cleanupRenderPerformanceGuards = setupRenderPerformanceGuards();
 
   delete root.dataset.mobileControls;
 
@@ -1202,6 +1239,7 @@ register('home', async (root) => {
     clearTimeout(balanceChangeTimer);
     clearInterval(balanceSyncTimer);
     cleanupBalanceDatabaseSync?.();
+    cleanupRenderPerformanceGuards?.();
 
     cleanupHousesFeature?.();
     cleanupSingleHouseModalMode?.();
