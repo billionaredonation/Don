@@ -2,6 +2,7 @@ import { getStaminaConfig } from '../player/playerStaminaConfig.js';
 import { MOVEMENT_CONFIG } from '../config/movement.js';
 
 import {
+  getKeyboardMoveSpeed,
   getMovementBounds,
   getMovementSyncConfig,
 } from '../player/playerStatsConfig.js';
@@ -21,6 +22,20 @@ function getAngleFromMovement(moveX, moveY, fallback = 0) {
   }
 
   return Math.atan2(moveX, -moveY) * 180 / Math.PI;
+}
+
+function getPositiveNumber(value, fallback) {
+  const number = Number(value);
+
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+function hasPositionChanged(a, b, angleA, angleB, epsilon = 0.003) {
+  return (
+    Math.abs(a.x - b.x) > epsilon ||
+    Math.abs(a.y - b.y) > epsilon ||
+    Math.abs(angleA - angleB) > 0.25
+  );
 }
 
 export function enableKeyboardPlayerMovement(
@@ -72,18 +87,24 @@ export function enableKeyboardPlayerMovement(
     return keys.has('shift');
   }
 
-  function updateSprintState(isMoving) {
+  function updateSprintState(isMoving, frameScale = 1) {
     const wantsSprint = isMoving && isSprintPressed() && !sprintLocked;
 
     if (wantsSprint) {
-      stamina = Math.max(STAMINA.emptyAt, stamina - STAMINA.drainPerFrame);
+      stamina = Math.max(
+        STAMINA.emptyAt,
+        stamina - STAMINA.drainPerFrame * frameScale
+      );
 
       if (stamina <= STAMINA.emptyAt) {
         sprintLocked = true;
         stamina = STAMINA.emptyAt;
       }
     } else {
-      stamina = Math.min(STAMINA.max, stamina + STAMINA.recoverPerFrame);
+      stamina = Math.min(
+        STAMINA.max,
+        stamina + STAMINA.recoverPerFrame * frameScale
+      );
 
       if (stamina >= STAMINA.recoveredAt) {
         sprintLocked = false;
@@ -99,9 +120,21 @@ export function enableKeyboardPlayerMovement(
   const BOUNDS = getMovementBounds();
   const SYNC_CONFIG = getMovementSyncConfig();
 
-  const BROADCAST_INTERVAL = SYNC_CONFIG.broadcastInterval;
-  const DB_SAVE_INTERVAL = SYNC_CONFIG.dbSaveInterval;
-  const HEARTBEAT_DELAY = SYNC_CONFIG.heartbeatDelay;
+  const WALK_SPEED = getPositiveNumber(
+    getKeyboardMoveSpeed(),
+    getPositiveNumber(MOVEMENT_CONFIG.WALK_SPEED, 0.055)
+  );
+
+  const SPRINT_SPEED = Math.max(
+    WALK_SPEED * getPositiveNumber(STAMINA.sprintSpeedMultiplier, 1.55),
+    getPositiveNumber(MOVEMENT_CONFIG.SPRINT_SPEED, WALK_SPEED * 1.55)
+  );
+
+  // ПК не должен писать позицию в БД каждые 1.4 сек во время ходьбы.
+  // Broadcast остаётся быстрым, DB сохраняется реже и принудительно при остановке.
+  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 55);
+  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 9000);
+  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 9000);
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
@@ -110,11 +143,15 @@ export function enableKeyboardPlayerMovement(
   let animationId = null;
   let heartbeatTimer = null;
   let destroyed = false;
+  let lastFrameAt = performance.now();
 
   let lastBroadcastAt = 0;
   let lastDbSaveAt = 0;
   let dbSaveInFlight = false;
   let dbSavePending = false;
+
+  let lastDbSaved = { x, y };
+  let lastDbSavedAngle = angle;
 
   function syncPlayerPosition() {
     playerPosition.x = x;
@@ -176,9 +213,24 @@ export function enableKeyboardPlayerMovement(
 
   async function savePositionToDb(force = false) {
     const now = Date.now();
+    const changedEnough = hasPositionChanged(
+      { x, y },
+      lastDbSaved,
+      angle,
+      lastDbSavedAngle
+    );
 
     if (!force && now - lastDbSaveAt < DB_SAVE_INTERVAL) {
       dbSavePending = true;
+      return;
+    }
+
+    if (!force && !changedEnough) {
+      dbSavePending = false;
+      return;
+    }
+
+    if (force && now - lastDbSaveAt < 900 && !changedEnough) {
       return;
     }
 
@@ -200,13 +252,17 @@ export function enableKeyboardPlayerMovement(
       });
 
       lastDbSaveAt = Date.now();
+      lastDbSaved = { x, y };
+      lastDbSavedAngle = angle;
     } catch (error) {
       console.warn('[keyboardMovement] player position update failed:', error);
     } finally {
       dbSaveInFlight = false;
 
+      // Не запускаем цепочку сохранений сразу после завершения запроса.
+      // Следующий tick/остановка сами сохранят актуальную позицию.
       if (dbSavePending && !destroyed) {
-        savePositionToDb(false);
+        dbSavePending = false;
       }
     }
   }
@@ -216,8 +272,8 @@ export function enableKeyboardPlayerMovement(
 
     heartbeatTimer = setInterval(() => {
       forceSyncPosition();
-      savePositionToDb(true);
       broadcastMove(true);
+      savePositionToDb(false);
     }, HEARTBEAT_DELAY);
   }
 
@@ -260,8 +316,13 @@ export function enableKeyboardPlayerMovement(
     );
   }
 
-  function loop() {
+  function loop(now = performance.now()) {
     if (destroyed) return;
+
+    const delta = Math.min(34, Math.max(8, now - lastFrameAt));
+    const frameScale = delta / 16.6667;
+
+    lastFrameAt = now;
 
     const { moveX, moveY } = getMoveVector();
 
@@ -269,14 +330,12 @@ export function enableKeyboardPlayerMovement(
       Math.abs(moveX) > 0.001 ||
       Math.abs(moveY) > 0.001;
 
-    const isSprinting = updateSprintState(moved);
-    const speed = isSprinting
-      ? MOVEMENT_CONFIG.SPRINT_SPEED
-      : MOVEMENT_CONFIG.WALK_SPEED;
+    const isSprinting = updateSprintState(moved, frameScale);
+    const speed = isSprinting ? SPRINT_SPEED : WALK_SPEED;
 
     if (moved) {
-      x += moveX * speed;
-      y += moveY * speed;
+      x += moveX * speed * frameScale;
+      y += moveY * speed * frameScale;
 
       angle = getAngleFromMovement(moveX, moveY, angle);
 
@@ -298,6 +357,7 @@ export function enableKeyboardPlayerMovement(
 
   function ensureLoopRunning() {
     if (!animationId && !destroyed) {
+      lastFrameAt = performance.now();
       animationId = requestAnimationFrame(loop);
     }
   }
