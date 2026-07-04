@@ -11,3 +11,4 @@ export const MOVEMENT_CONFIG = {
 
   POSITION_SMOOTHING: 0.14,
 };
+
