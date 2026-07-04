@@ -595,6 +595,11 @@ register('home', async (root) => {
   const isMobileGameplay = isMobileGameplayDevice();
   const cityMapRatio = getCityMapRatio(cityId);
 
+  document.body?.classList.toggle('mn-desktop-game-enabled', !isMobileGameplay);
+  document.documentElement?.classList.toggle('mn-desktop-game-enabled', !isMobileGameplay);
+  document.body?.classList.toggle('mn-mobile-device-detected', isMobileGameplay);
+  document.documentElement?.classList.toggle('mn-mobile-device-detected', isMobileGameplay);
+
   const mapLayerHtml = isMobileGameplay
     ? `
           <div
@@ -1262,10 +1267,19 @@ register('home', async (root) => {
     document.body?.classList.remove(
       'mn-landscape-game',
       'mn-mobile-game-enabled',
+      'mn-desktop-game-enabled',
+      'mn-mobile-device-detected',
+      'mn-player-moving',
       'mn-force-rotate-landscape',
       'mn-real-landscape'
     );
-    document.documentElement?.classList.remove('mn-force-rotate-landscape', 'mn-real-landscape');
+    document.documentElement?.classList.remove(
+      'mn-desktop-game-enabled',
+      'mn-mobile-device-detected',
+      'mn-player-moving',
+      'mn-force-rotate-landscape',
+      'mn-real-landscape'
+    );
   };
 });
 
