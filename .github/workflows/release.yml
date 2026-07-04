@@ -41,10 +41,13 @@ jobs:
         run: |
           set -e
           for file in \
+            src/controls/keyboardMovement.js \
             src/controls/mapControls.js \
             src/controls/mobileJoystick.js \
+            src/entities/entityInteraction.js \
             src/map/fogOfWar.js \
-            src/mapObjects/mapObjectsRenderer.js
+            src/mapObjects/mapObjectsRenderer.js \
+            src/weather/weather.js
           do
             if [ -f "$file" ]; then
               node --check "$file"
@@ -89,6 +92,6 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
         with:
-          timeout: 900000
+          timeout: 600000
           error_count: 20
           reporting_interval: 10000
