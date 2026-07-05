@@ -14,8 +14,8 @@ const MOBILE_INTERACTION_RADIUS_PX = 112;
 const DIRECT_TAP_RADIUS_PX = 132;
 const MOBILE_FREE_TAP_RADIUS_PX = 150;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
-const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 26000 : 5600;
-const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 620 : 260;
+const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 36000 : 6500;
+const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 900 : 320;
 
 /*
   ПК оставляем широким: там железо выдерживает много DOM-объектов.
@@ -24,21 +24,24 @@ const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 620 : 260;
   - из БД/кеша подтягивается только небольшой запас вокруг игрока;
   - всё вне окна не рендерится и не висит в DOM.
 */
-const OBJECT_RENDER_RADIUS_PERCENT = 12;
-const OBJECT_LOAD_RADIUS_PERCENT = 23;
+const OBJECT_RENDER_RADIUS_PERCENT = 9;
+const OBJECT_LOAD_RADIUS_PERCENT = 18;
 
-const MOBILE_OBJECT_RENDER_RADIUS_PX = 760;
-const MOBILE_OBJECT_LOAD_RADIUS_PX = 1280;
-const MOBILE_OBJECT_REGION_RELOAD_SHIFT_PX = 620;
-const MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX = 260;
+const MOBILE_OBJECT_RENDER_RADIUS_PX = 360;
+const MOBILE_OBJECT_LOAD_RADIUS_PX = 840;
+const MOBILE_OBJECT_REGION_RELOAD_SHIFT_PX = 520;
+const MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX = 420;
 
-const MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT = 18;
-const MOBILE_OBJECT_RENDER_RADIUS_MAX_PERCENT = 44;
-const MOBILE_OBJECT_LOAD_RADIUS_MIN_PERCENT = 32;
-const MOBILE_OBJECT_LOAD_RADIUS_MAX_PERCENT = 62;
-const OBJECT_REGION_RELOAD_SHIFT_PERCENT = 7;
-const OBJECT_RENDER_MOVE_EPSILON_PERCENT = 1.2;
+const MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT = 7;
+const MOBILE_OBJECT_RENDER_RADIUS_MAX_PERCENT = 18;
+const MOBILE_OBJECT_LOAD_RADIUS_MIN_PERCENT = 17;
+const MOBILE_OBJECT_LOAD_RADIUS_MAX_PERCENT = 36;
+const OBJECT_REGION_RELOAD_SHIFT_PERCENT = 8;
+const OBJECT_RENDER_MOVE_EPSILON_PERCENT = 1.8;
 const OBJECT_GRID_CELL_PERCENT = 4;
+
+const MOBILE_MAX_RENDERED_OBJECTS = 18;
+const DESKTOP_MAX_RENDERED_OBJECTS = 70;
 
 function getPurchasedHouseId(detail = {}) {
   return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
@@ -848,6 +851,40 @@ export function enableEntityInteraction({
       : OBJECT_LOAD_RADIUS_PERCENT;
   }
 
+
+  function getMaxRenderedObjects() {
+    return isMobileGameplayDevice()
+      ? MOBILE_MAX_RENDERED_OBJECTS
+      : DESKTOP_MAX_RENDERED_OBJECTS;
+  }
+
+  function sortObjectsByDistance(objects, position) {
+    return objects
+      .slice()
+      .sort((a, b) => getPercentDistance(a, position) - getPercentDistance(b, position));
+  }
+
+  function pauseObjectLayerForMovement() {
+    if (!layer || !isMobileGameplayDevice()) return;
+
+    if (layer.dataset.motionPaused === 'true') return;
+
+    layer.dataset.motionPaused = 'true';
+    layer.classList.add('map-objects-layer-motion-paused');
+    layer.style.setProperty('display', 'none', 'important');
+  }
+
+  function resumeObjectLayerAfterMovement() {
+    if (!layer) return;
+
+    if (layer.dataset.motionPaused !== 'true') return;
+
+    layer.dataset.motionPaused = 'false';
+    layer.classList.remove('map-objects-layer-motion-paused');
+    layer.style.removeProperty('display');
+    moveLayerAboveMap(viewport, layer);
+  }
+
   function getRegionReloadShiftPercent() {
     return isMobileGameplayDevice()
       ? getViewportPercentRadiusFromPx(
@@ -909,6 +946,7 @@ export function enableEntityInteraction({
     const radius = getRenderRadiusPercent();
     const keepIds = new Set();
     const resultById = new Map();
+    const maxRenderedObjects = getMaxRenderedObjects();
 
     if (nearestObjectId) keepIds.add(String(nearestObjectId));
 
@@ -916,7 +954,12 @@ export function enableEntityInteraction({
 
     if (selectedObject?.id) keepIds.add(String(selectedObject.id));
 
-    getObjectsAroundPosition(position, radius).forEach((object) => {
+    const nearbyObjects = sortObjectsByDistance(
+      getObjectsAroundPosition(position, radius),
+      position
+    );
+
+    nearbyObjects.slice(0, maxRenderedObjects).forEach((object) => {
       if (!object?.id) return;
       resultById.set(String(object.id), object);
     });
@@ -931,6 +974,14 @@ export function enableEntityInteraction({
 
   function renderNearbyMapObjects(force = false) {
     if (!layer) return;
+
+    if (isMobileGameplayDevice() && isPlayerBusy()) {
+      pauseObjectLayerForMovement();
+      pendingRenderAfterMovement = true;
+      return;
+    }
+
+    resumeObjectLayerAfterMovement();
 
     const position = getCurrentPlayerPercent(playerPosition);
     const renderMoveEpsilon = getRenderMoveEpsilonPercent();
@@ -992,7 +1043,8 @@ export function enableEntityInteraction({
     rebuildObjectIndex();
     rememberLoadedRegion();
 
-    if (isPlayerBusy() && layer.children.length > 0) {
+    if (isPlayerBusy()) {
+      pauseObjectLayerForMovement();
       pendingRenderAfterMovement = true;
       return;
     }
@@ -1206,11 +1258,14 @@ export function enableEntityInteraction({
         DOM/hover/hitbox прямо во время кадра движения. Слой остаётся видимым, а
         окно объектов пересчитывается после остановки.
       */
+      pauseObjectLayerForMovement();
       pendingRenderAfterMovement = true;
       hideInteractionHint();
       scheduleInteractionHintUpdate(isMobileGameplayDevice() ? 620 : 360);
       return;
     }
+
+    resumeObjectLayerAfterMovement();
 
     if (pendingRenderAfterMovement) {
       pendingRenderAfterMovement = false;
