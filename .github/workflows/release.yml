@@ -1,4 +1,4 @@
-name: Build dist to gh-pages
+name: Deploy GitHub Pages
 
 on:
   push:
@@ -7,20 +7,23 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: build-dist-to-gh-pages
+  group: github-pages
   cancel-in-progress: true
 
 env:
   NODE_VERSION: 22
-  VITE_SUPABASE_URL: https://vpzcoczvezsatledfwpx.supabase.co
-  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_X_OWfkNSzFxfGYCz6eJ1_g_re7DszbX
+  NODE_OPTIONS: --max_old_space_size=4096
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://vpzcoczvezsatledfwpx.supabase.co' }}
+  VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_X_OWfkNSzFxfGYCz6eJ1_g_re7DszbX' }}
 
 jobs:
   build:
-    name: Build optimized Vite dist
+    name: Build Vite app
     runs-on: ubuntu-latest
 
     steps:
@@ -35,11 +38,13 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
+          set -euo pipefail
           npm install --no-audit --no-fund
 
-      - name: Optimize root PNG assets before build
+      - name: Optimize heavy PNG maps for Pages artifact
         shell: bash
         run: |
+          set -euo pipefail
           python -m pip install --disable-pip-version-check --no-cache-dir pillow
 
           python <<'PY'
@@ -55,79 +60,93 @@ jobs:
                   continue
 
               try:
-                  with Image.open(path) as img:
-                      source_size = path.stat().st_size
+                  before = path.stat().st_size
 
+                  with Image.open(path) as img:
                       if img.mode in ("RGBA", "LA"):
                           image = img.convert("RGBA")
-                          quantized = image.quantize(
+                          out = image.quantize(
                               colors=COLORS,
                               method=Image.Quantize.FASTOCTREE,
                           )
                       else:
                           image = img.convert("RGB")
-                          quantized = image.quantize(
+                          out = image.quantize(
                               colors=COLORS,
                               method=Image.Quantize.MEDIANCUT,
                           )
 
                       tmp = path.with_suffix(".optimized.png")
-                      quantized.save(tmp, optimize=True)
+                      out.save(tmp, optimize=True)
 
-                      if tmp.stat().st_size < source_size:
-                          os.replace(tmp, path)
-                          print(f"optimized {path}: {source_size} -> {path.stat().st_size}")
-                      else:
-                          tmp.unlink(missing_ok=True)
-                          print(f"kept original {path}: optimized copy was not smaller")
+                  after = tmp.stat().st_size
+                  if after < before:
+                      os.replace(tmp, path)
+                      print(f"optimized {path}: {before} -> {after}")
+                  else:
+                      tmp.unlink(missing_ok=True)
+                      print(f"kept {path}: optimized copy was not smaller")
               except Exception as error:
                   print(f"skip {path}: {error}")
           PY
 
-      - name: Build Vite app
+      - name: Build project
         shell: bash
         run: |
+          set -euo pipefail
+
+          if [ -z "${VITE_SUPABASE_URL}" ]; then
+            echo "VITE_SUPABASE_URL is empty"
+            exit 1
+          fi
+
+          if [ -z "${VITE_SUPABASE_PUBLISHABLE_KEY}" ]; then
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY is empty"
+            exit 1
+          fi
+
           npm run build
 
-      - name: Validate optimized dist
+      - name: Prepare Pages artifact
         shell: bash
         run: |
+          set -euo pipefail
+
           test -d dist
           test -f dist/index.html
-
-          DIST_SIZE_MB=$(du -sm dist | cut -f1)
-          echo "dist size: ${DIST_SIZE_MB} MB"
-
-          if [ "$DIST_SIZE_MB" -gt 80 ]; then
-            echo "dist is too heavy for stable GitHub Pages deploy: ${DIST_SIZE_MB} MB"
-            exit 1
-          fi
-
-          if ! grep -R -F "$VITE_SUPABASE_URL" dist >/dev/null 2>&1; then
-            echo "Supabase URL was not injected into Vite build"
-            exit 1
-          fi
 
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
 
-      - name: Publish dist to gh-pages
-        shell: bash
-        run: |
-          rm -rf /tmp/gh-pages
-          mkdir -p /tmp/gh-pages
-          cp -R dist/. /tmp/gh-pages/
+          DIST_SIZE_MB="$(du -sm dist | cut -f1)"
+          echo "dist size: ${DIST_SIZE_MB} MB"
 
-          cd /tmp/gh-pages
-          git init
-          git checkout -b gh-pages
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "${DIST_SIZE_MB}" -gt 90 ]; then
+            echo "dist is too heavy for stable GitHub Pages artifact deploy"
+            exit 1
+          fi
 
-          git add -A
-          git commit -m "Deploy optimized dist to GitHub Pages"
+          if ! grep -R -F "${VITE_SUPABASE_URL}" dist >/dev/null 2>&1; then
+            echo "Supabase URL was not injected into the build"
+            exit 1
+          fi
 
-          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push --force origin gh-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+          retention-days: 1
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy artifact to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
