@@ -1,4 +1,6 @@
-const FOG_KEY_PREFIX = 'mn_fog_v1';
+const FOG_KEY_PREFIX = 'mn_fog_v2';
+const LEGACY_FOG_KEY_PREFIX = 'mn_fog_v1';
+const MIGRATE_LEGACY_FOG = false;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -12,56 +14,185 @@ function isMobileGameplayDevice() {
   return hasTouch && narrowScreen;
 }
 
-function getFogKey(cityId, playerId) {
-  return `${FOG_KEY_PREFIX}_${cityId}_${playerId}`;
+function getFogKey(cityId, playerId, gridSize) {
+  return `${FOG_KEY_PREFIX}_${cityId}_${playerId}_${gridSize}`;
 }
 
-function loadRevealedCells(cityId, playerId) {
-  try {
-    const raw = localStorage.getItem(getFogKey(cityId, playerId));
-    const parsed = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(parsed) ? parsed : []);
-  } catch {
-    return new Set();
-  }
+function getLegacyFogKey(cityId, playerId) {
+  return `${LEGACY_FOG_KEY_PREFIX}_${cityId}_${playerId}`;
 }
 
-function saveRevealedCells(cityId, playerId, cells) {
-  try {
-    localStorage.setItem(
-      getFogKey(cityId, playerId),
-      JSON.stringify([...cells])
-    );
-  } catch {}
+function parseCellKey(key) {
+  if (typeof key !== 'string') return null;
+
+  const separatorIndex = key.indexOf(':');
+  if (separatorIndex <= 0) return null;
+
+  const x = Number(key.slice(0, separatorIndex));
+  const y = Number(key.slice(separatorIndex + 1));
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+  };
 }
 
 function cellKey(x, y) {
   return `${x}:${y}`;
 }
 
-function revealAround(cells, playerX, playerY, gridSize, radius) {
+function normalizeCellList(value, gridSize) {
+  const source = Array.isArray(value)
+    ? value
+    : Array.isArray(value?.cells)
+      ? value.cells
+      : [];
+
+  const cells = new Set();
+  const points = [];
+
+  for (const item of source) {
+    const point = parseCellKey(item);
+    if (!point) continue;
+
+    const x = clamp(point.x, 0, gridSize);
+    const y = clamp(point.y, 0, gridSize);
+    const key = cellKey(x, y);
+
+    if (cells.has(key)) continue;
+
+    cells.add(key);
+    points.push({ x, y });
+  }
+
+  return { cells, points };
+}
+
+function loadRevealedState(cityId, playerId, gridSize) {
+  const key = getFogKey(cityId, playerId, gridSize);
+
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      return normalizeCellList(JSON.parse(raw), gridSize);
+    }
+  } catch {}
+
+  /*
+    Старый ключ v1 специально не подтягивается автоматически.
+    Именно старый раздутый кэш чаще всего душит Запорожье после долгих тестов.
+    Если понадобится миграция старого прогресса — поставь MIGRATE_LEGACY_FOG = true.
+  */
+  if (MIGRATE_LEGACY_FOG) {
+    try {
+      const raw = localStorage.getItem(getLegacyFogKey(cityId, playerId));
+      if (raw) {
+        return normalizeCellList(JSON.parse(raw), gridSize);
+      }
+    } catch {}
+  }
+
+  return {
+    cells: new Set(),
+    points: [],
+  };
+}
+
+function saveRevealedCells(cityId, playerId, gridSize, cells) {
+  try {
+    localStorage.setItem(
+      getFogKey(cityId, playerId, gridSize),
+      JSON.stringify({
+        version: 2,
+        gridSize,
+        cells: [...cells],
+      })
+    );
+  } catch {}
+}
+
+function addRevealedCell(state, x, y) {
+  const key = cellKey(x, y);
+
+  if (state.cells.has(key)) {
+    return false;
+  }
+
+  state.cells.add(key);
+  state.points.push({ x, y });
+  return true;
+}
+
+function revealAround(state, playerX, playerY, gridSize, radius) {
   const cx = Math.round((playerX / 100) * gridSize);
   const cy = Math.round((playerY / 100) * gridSize);
+  const radiusSq = radius * radius;
   let changed = false;
 
   for (let y = cy - radius; y <= cy + radius; y += 1) {
+    if (y < 0 || y > gridSize) continue;
+
     for (let x = cx - radius; x <= cx + radius; x += 1) {
-      if (x < 0 || y < 0 || x > gridSize || y > gridSize) continue;
+      if (x < 0 || x > gridSize) continue;
 
-      const dist = Math.hypot(x - cx, y - cy);
+      const dx = x - cx;
+      const dy = y - cy;
 
-      if (dist <= radius) {
-        const key = cellKey(x, y);
+      if ((dx * dx) + (dy * dy) > radiusSq) continue;
 
-        if (!cells.has(key)) {
-          cells.add(key);
-          changed = true;
-        }
+      if (addRevealedCell(state, x, y)) {
+        changed = true;
       }
     }
   }
 
   return changed;
+}
+
+function createCanvas(width = 1, height = 1) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+
+function getCanvasContext(canvas) {
+  return canvas.getContext('2d', {
+    alpha: true,
+    desynchronized: true,
+  }) || canvas.getContext('2d');
+}
+
+function createRadialBrush(radius, stops) {
+  const size = Math.max(2, Math.ceil(radius * 2) + 2);
+  const brush = createCanvas(size, size);
+  const brushCtx = getCanvasContext(brush);
+
+  if (!brushCtx) return null;
+
+  const center = size / 2;
+  const gradient = brushCtx.createRadialGradient(
+    center,
+    center,
+    0,
+    center,
+    center,
+    radius
+  );
+
+  for (const [offset, color] of stops) {
+    gradient.addColorStop(offset, color);
+  }
+
+  brushCtx.clearRect(0, 0, size, size);
+  brushCtx.fillStyle = gradient;
+  brushCtx.beginPath();
+  brushCtx.arc(center, center, radius, 0, Math.PI * 2);
+  brushCtx.fill();
+
+  return brush;
 }
 
 export function enableFogOfWar({
@@ -77,47 +208,56 @@ export function enableFogOfWar({
   const mobile = isMobileGameplayDevice();
 
   /*
-    Telegram WebView на телефоне плохо переваривает огромный canvas внутри
-    transform/scale слоя. На мобилке держим fog, но рисуем его реже и в меньшем
-    внутреннем разрешении. Визуально затемнение остаётся, а кадры движения больше
-    не стопорятся от createRadialGradient + localStorage на каждом шаге.
+    Оптимизация для тяжёлых городов типа Запорожья:
+    - все уже открытые клетки рисуются в memoryCanvas только при изменении/resize;
+    - основной canvas при движении просто накладывает готовую маску;
+    - localStorage сохраняется с debounce, а не на каждый шаг;
+    - старый v1-кэш не читается, чтобы не тащить раздутые данные из старой версии.
   */
   const GRID_SIZE = mobile ? 30 : 46;
   const REVEAL_RADIUS = mobile ? 3 : 4;
   const VISION_RADIUS = mobile ? 17 : 15;
-  const MOVE_THRESHOLD = mobile ? 1.05 : 0.25;
-  const TICK_INTERVAL_MS = mobile ? 320 : 0;
-  const CANVAS_RESOLUTION_SCALE = mobile ? 0.44 : 1;
-  const SAVE_DEBOUNCE_MS = mobile ? 2600 : 0;
+  const MOVE_THRESHOLD = mobile ? 0.65 : 0.18;
+  const TICK_INTERVAL_MS = mobile ? 120 : 0;
+  const CANVAS_RESOLUTION_SCALE = mobile ? 0.46 : 1;
+  const SAVE_DEBOUNCE_MS = mobile ? 2600 : 700;
 
-  const canvas = document.createElement('canvas');
+  const canvas = createCanvas();
   canvas.className = 'fog-of-war-canvas';
-
   viewport.appendChild(canvas);
 
-  const ctx = canvas.getContext('2d', {
-    alpha: true,
-    desynchronized: true,
-  }) || canvas.getContext('2d');
+  const ctx = getCanvasContext(canvas);
+  const memoryCanvas = createCanvas();
+  const memoryCtx = getCanvasContext(memoryCanvas);
 
-  const revealedCells = loadRevealedCells(cityId, playerId);
+  if (!ctx || !memoryCtx) {
+    canvas.remove();
+    return null;
+  }
+
+  const revealedState = loadRevealedState(cityId, playerId, GRID_SIZE);
 
   let animationId = null;
   let timerId = null;
   let saveTimerId = null;
+  let resizeTimerId = null;
   let destroyed = false;
   let lastX = null;
   let lastY = null;
   let lastCanvasWidth = 0;
   let lastCanvasHeight = 0;
   let savePending = false;
+  let memoryDirty = true;
+  let revealedBrush = null;
+  let liveBrush = null;
+  let cloudBrush = null;
 
   function scheduleSave(force = false) {
-    if (!SAVE_DEBOUNCE_MS || force) {
+    if (force || !SAVE_DEBOUNCE_MS) {
       savePending = false;
       window.clearTimeout(saveTimerId);
       saveTimerId = null;
-      saveRevealedCells(cityId, playerId, revealedCells);
+      saveRevealedCells(cityId, playerId, GRID_SIZE, revealedState.cells);
       return;
     }
 
@@ -131,8 +271,37 @@ export function enableFogOfWar({
       if (destroyed || !savePending) return;
 
       savePending = false;
-      saveRevealedCells(cityId, playerId, revealedCells);
+      saveRevealedCells(cityId, playerId, GRID_SIZE, revealedState.cells);
     }, SAVE_DEBOUNCE_MS);
+  }
+
+  function rebuildBrushes(width, height) {
+    const cellW = width / GRID_SIZE;
+    const cellH = height / GRID_SIZE;
+    const revealedRadius = Math.max(cellW, cellH) * (mobile ? 2.0 : 2.2);
+    const liveRadius = Math.max(width, height) * (VISION_RADIUS / 100);
+    const cloudRadius = Math.max(width, height) * 0.45;
+
+    revealedBrush = createRadialBrush(revealedRadius, [
+      [0, 'rgba(255,255,255,0.95)'],
+      [0.55, 'rgba(255,255,255,0.48)'],
+      [1, 'rgba(255,255,255,0)'],
+    ]);
+
+    liveBrush = createRadialBrush(liveRadius, [
+      [0, 'rgba(255,255,255,1)'],
+      [0.45, 'rgba(255,255,255,0.85)'],
+      [0.75, 'rgba(255,255,255,0.35)'],
+      [1, 'rgba(255,255,255,0)'],
+    ]);
+
+    cloudBrush = mobile
+      ? null
+      : createRadialBrush(cloudRadius, [
+          [0, 'rgba(255,255,255,0)'],
+          [0.55, 'rgba(160,180,200,0.06)'],
+          [1, 'rgba(210,225,240,0.14)'],
+        ]);
   }
 
   function resizeCanvas() {
@@ -147,109 +316,98 @@ export function enableFogOfWar({
     const height = Math.max(1, Math.round(rawHeight * CANVAS_RESOLUTION_SCALE));
 
     if (width === lastCanvasWidth && height === lastCanvasHeight) {
-      return;
+      return false;
     }
 
     canvas.width = width;
     canvas.height = height;
+    memoryCanvas.width = width;
+    memoryCanvas.height = height;
+
     lastCanvasWidth = width;
     lastCanvasHeight = height;
+    memoryDirty = true;
+
+    rebuildBrushes(width, height);
+    return true;
+  }
+
+  function drawMemoryMask() {
+    if (!memoryDirty) return;
+
+    memoryDirty = false;
+
+    const width = memoryCanvas.width;
+    const height = memoryCanvas.height;
+    const cellW = width / GRID_SIZE;
+    const cellH = height / GRID_SIZE;
+
+    memoryCtx.clearRect(0, 0, width, height);
+
+    if (!revealedBrush) return;
+
+    const brushW = revealedBrush.width;
+    const brushH = revealedBrush.height;
+    const halfBrushW = brushW / 2;
+    const halfBrushH = brushH / 2;
+
+    memoryCtx.globalCompositeOperation = 'source-over';
+    memoryCtx.imageSmoothingEnabled = true;
+
+    for (const point of revealedState.points) {
+      const px = point.x * cellW;
+      const py = point.y * cellH;
+
+      memoryCtx.drawImage(
+        revealedBrush,
+        px - halfBrushW,
+        py - halfBrushH,
+        brushW,
+        brushH
+      );
+    }
+  }
+
+  function drawBrushDestinationOut(brush, x, y) {
+    if (!brush) return;
+
+    ctx.drawImage(
+      brush,
+      x - (brush.width / 2),
+      y - (brush.height / 2),
+      brush.width,
+      brush.height
+    );
   }
 
   function drawFog() {
-    if (!ctx) return;
-
     resizeCanvas();
+    drawMemoryMask();
 
-    const w = canvas.width;
-    const h = canvas.height;
-
-    ctx.clearRect(0, 0, w, h);
-
-    ctx.fillStyle = mobile ? 'rgba(5, 8, 12, 0.82)' : 'rgba(5, 8, 12, 0.88)';
-    ctx.fillRect(0, 0, w, h);
-
-    const cellW = w / GRID_SIZE;
-    const cellH = h / GRID_SIZE;
-
-    ctx.save();
-    ctx.globalCompositeOperation = 'destination-out';
-
-    for (const key of revealedCells) {
-      const [gx, gy] = key.split(':').map(Number);
-      const px = gx * cellW;
-      const py = gy * cellH;
-      const radius = Math.max(cellW, cellH) * (mobile ? 2.0 : 2.2);
-
-      const gradient = ctx.createRadialGradient(
-        px,
-        py,
-        0,
-        px,
-        py,
-        radius
-      );
-
-      gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
-      gradient.addColorStop(0.55, 'rgba(255,255,255,0.45)');
-      gradient.addColorStop(1, 'rgba(255,255,255,0)');
-
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(px, py, radius, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    const width = canvas.width;
+    const height = canvas.height;
 
     const playerX = clamp(Number(playerPosition.x) || 50, 0, 100);
     const playerY = clamp(Number(playerPosition.y) || 50, 0, 100);
+    const px = (playerX / 100) * width;
+    const py = (playerY / 100) * height;
 
-    const px = (playerX / 100) * w;
-    const py = (playerY / 100) * h;
-    const liveRadius = Math.max(w, h) * (VISION_RADIUS / 100);
+    ctx.clearRect(0, 0, width, height);
 
-    const liveGradient = ctx.createRadialGradient(
-      px,
-      py,
-      0,
-      px,
-      py,
-      liveRadius
-    );
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = mobile ? 'rgba(5, 8, 12, 0.82)' : 'rgba(5, 8, 12, 0.88)';
+    ctx.fillRect(0, 0, width, height);
 
-    liveGradient.addColorStop(0, 'rgba(255,255,255,1)');
-    liveGradient.addColorStop(0.45, 'rgba(255,255,255,0.85)');
-    liveGradient.addColorStop(0.75, 'rgba(255,255,255,0.35)');
-    liveGradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.drawImage(memoryCanvas, 0, 0);
+    drawBrushDestinationOut(liveBrush, px, py);
 
-    ctx.fillStyle = liveGradient;
-    ctx.beginPath();
-    ctx.arc(px, py, liveRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
-
-    if (!mobile) {
-      ctx.save();
+    if (cloudBrush) {
       ctx.globalCompositeOperation = 'source-over';
-
-      const cloudGradient = ctx.createRadialGradient(
-        px,
-        py,
-        Math.max(w, h) * 0.08,
-        px,
-        py,
-        Math.max(w, h) * 0.45
-      );
-
-      cloudGradient.addColorStop(0, 'rgba(255,255,255,0)');
-      cloudGradient.addColorStop(0.55, 'rgba(160,180,200,0.06)');
-      cloudGradient.addColorStop(1, 'rgba(210,225,240,0.14)');
-
-      ctx.fillStyle = cloudGradient;
-      ctx.fillRect(0, 0, w, h);
-
-      ctx.restore();
+      drawBrushDestinationOut(cloudBrush, px, py);
     }
+
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   function runTick() {
@@ -263,17 +421,25 @@ export function enableFogOfWar({
       lastY === null ||
       Math.hypot(x - lastX, y - lastY) >= MOVE_THRESHOLD;
 
-    if (moved) {
-      const changed = revealAround(revealedCells, x, y, GRID_SIZE, REVEAL_RADIUS);
+    if (!moved) return;
 
-      if (changed) {
-        scheduleSave(false);
-      }
+    const changed = revealAround(
+      revealedState,
+      x,
+      y,
+      GRID_SIZE,
+      REVEAL_RADIUS
+    );
 
-      drawFog();
-      lastX = x;
-      lastY = y;
+    if (changed) {
+      memoryDirty = true;
+      scheduleSave(false);
     }
+
+    drawFog();
+
+    lastX = x;
+    lastY = y;
   }
 
   function tick() {
@@ -289,26 +455,56 @@ export function enableFogOfWar({
     animationId = requestAnimationFrame(tick);
   }
 
-  revealAround(
-    revealedCells,
+  function handleResize() {
+    if (destroyed) return;
+
+    window.clearTimeout(resizeTimerId);
+    resizeTimerId = window.setTimeout(() => {
+      if (destroyed) return;
+      memoryDirty = true;
+      drawFog();
+    }, 80);
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'hidden' && savePending) {
+      scheduleSave(true);
+    }
+  }
+
+  const initiallyChanged = revealAround(
+    revealedState,
     Number(playerPosition.x) || 50,
     Number(playerPosition.y) || 50,
     GRID_SIZE,
     REVEAL_RADIUS
   );
 
-  scheduleSave(false);
+  if (initiallyChanged) {
+    memoryDirty = true;
+    scheduleSave(false);
+  }
+
+  window.addEventListener('resize', handleResize, { passive: true });
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
   drawFog();
   tick();
 
   return () => {
     destroyed = true;
+
     if (animationId) cancelAnimationFrame(animationId);
+
     window.clearTimeout(timerId);
     window.clearTimeout(saveTimerId);
+    window.clearTimeout(resizeTimerId);
+
+    window.removeEventListener('resize', handleResize);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
 
     if (savePending) {
-      saveRevealedCells(cityId, playerId, revealedCells);
+      saveRevealedCells(cityId, playerId, GRID_SIZE, revealedState.cells);
     }
 
     canvas.remove();
