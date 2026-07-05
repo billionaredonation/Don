@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no"
+  />
+  <meta name="theme-color" content="#050505" />
+
+  <title>Mn-game</title>
+
+
+  <!-- Основной стиль дома/карты/модалок. Его не перебиваем отдельными map-fix файлами. -->
+
+  <!-- Только джойстик/стамина. Без вмешательства в карту и модалки. -->
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <script>
+    function escapeHtml(value) {
+      return String(value).replace(/[<>&]/g, function (char) {
+        return {
+          '<': '&lt;',
+          '>': '&gt;',
+          '&': '&amp;',
+        }[char];
+      });
+    }
+
+    function stringifyError(error) {
+      if (!error) return 'Unknown error';
+
+      if (typeof error === 'string') {
+        return error;
+      }
+
+      const parts = [];
+
+      if (error.name) {
+        parts.push('Name: ' + error.name);
+      }
+
+      if (error.message) {
+        parts.push('Message: ' + error.message);
+      }
+
+      if (error.stack) {
+        parts.push('Stack:\n' + error.stack);
+      }
+
+      try {
+        const json = JSON.stringify(error, null, 2);
+        if (json && json !== '{}') {
+          parts.push('JSON:\n' + json);
+        }
+      } catch {
+        // ignore
+      }
+
+      return parts.join('\n\n') || String(error);
+    }
+
+    function showFatalError(error, source) {
+      const root = document.getElementById('app');
+      if (!root) return;
+
+      const message = stringifyError(error);
+
+      root.innerHTML =
+        '<div style="' +
+          'min-height:100vh;' +
+          'background:#050505;' +
+          'color:#fff;' +
+          'padding:20px;' +
+          'font-family:Arial,sans-serif;' +
+          'white-space:pre-wrap;' +
+          'line-height:1.45;' +
+          'font-size:14px;' +
+        '">' +
+          'Ошибка загрузки' +
+          (source ? ' [' + source + ']' : '') +
+          ':\n\n' +
+          escapeHtml(message) +
+        '</div>';
+    }
+
+    window.addEventListener('error', function (event) {
+      showFatalError(event.error || event.message, 'window.error');
+    });
+
+    window.addEventListener('unhandledrejection', function (event) {
+      showFatalError(event.reason, 'unhandledrejection');
+    });
+  </script>
+  <script type="module" crossorigin src="/Don/assets/index-CaxvWgRl.js"></script>
+  <link rel="stylesheet" crossorigin href="/Don/assets/index-CCPFttpj.css">
+</head>
+
+<body>
+  <div id="app">
+    <div class="app-loading">
+      Загрузка...
+    </div>
+  </div>
+
+</body>
+</html>
