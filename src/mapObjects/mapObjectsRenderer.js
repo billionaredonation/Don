@@ -107,10 +107,10 @@ function createHouseLiteIcon(houseClass, state) {
   }
 
   /*
-    Мобилка: один DOM-узел на дом.
-    Старый lite-рендер создавал 4 span внутри каждого дома. На 100+ домах это уже
-    сотни лишних элементов внутри движущегося слоя Telegram WebView. Форма дома
-    теперь рисуется CSS/pseudo-element'ами, без SVG, drop-shadow и внутренних DOM.
+    Один DOM-узел на дом для ПК и мобилки.
+    SVG с мелкими белыми бликами/окнами на масштабе 20-30px давал эффект
+    "вырезано в фотошопе" и заставлял браузер тащить сотни SVG+filter
+    внутри движущейся карты. Форма дома теперь рисуется CSS-псевдоэлементами.
   */
   const html = `
     <span class="map-house-lite map-house-lite-${normalizedClass} map-house-lite-${state}" aria-hidden="true"></span>
@@ -244,10 +244,9 @@ function getObjectMeta(object) {
       state,
       ownerId,
       colors,
-      // Mobile uses the same detailed house SVG as desktop.
-      // The previous lightweight CSS-only icon looked like colored blocks/blobs
-      // on Telegram WebView, especially after zoom.
-      iconHtml: createHouseSvgIcon(normalizedClass, state),
+      // Используем лёгкую CSS-иконку на всех устройствах: без SVG, без drop-shadow,
+      // без белых "осколков" при движении и без сотен лишних SVG-нод на карте.
+      iconHtml: createHouseLiteIcon(normalizedClass, state),
     };
   }
 
