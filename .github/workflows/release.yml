@@ -7,95 +7,58 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: gh-pages-deploy
   cancel-in-progress: true
 
-env:
-  NODE_VERSION: 22
-  NODE_OPTIONS: --max_old_space_size=4096
-
 jobs:
-  build:
-    name: Build Vite app
+  build-and-push:
+    name: Build and push dist to gh-pages
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+          node-version: 22
+          cache: npm
 
       - name: Install dependencies
         shell: bash
         run: |
-          set -euo pipefail
-
           if [ -f package-lock.json ]; then
-            npm ci --no-audit --no-fund
+            npm ci
           else
-            npm install --no-audit --no-fund
+            npm install
           fi
 
       - name: Build project
-        shell: bash
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-        run: |
-          set -euo pipefail
-          npm run build
+        run: npm run build
 
-      - name: Prepare GitHub Pages artifact
+      - name: Prepare Pages files
         shell: bash
         run: |
-          set -euo pipefail
-
-          if [ ! -d dist ]; then
-            echo "dist folder was not created"
-            exit 1
-          fi
-
-          if [ ! -f dist/index.html ]; then
-            echo "dist/index.html was not created"
-            exit 1
-          fi
-
+          test -d dist
+          test -f dist/index.html
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
 
-      - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-          retention-days: 1
-          include-hidden-files: true
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-    runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-        with:
-          timeout: 900000
-          error_count: 60
-          reporting_interval: 15000
+      - name: Push dist to gh-pages branch
+        shell: bash
+        run: |
+          cd dist
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b gh-pages
+          git add .
+          git commit -m "Deploy GitHub Pages"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
