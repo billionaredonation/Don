@@ -16,6 +16,13 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function lerpByFrame(current, target, lerp, frameScale) {
+  const safeLerp = clamp(Number(lerp) || 0, 0, 1);
+  const safeFrameScale = Math.max(0.001, Number(frameScale) || 1);
+
+  return current + (target - current) * (1 - Math.pow(1 - safeLerp, safeFrameScale));
+}
+
 function getAngleFromMovement(moveX, moveY, fallback = 0) {
   if (Math.abs(moveX) < 0.001 && Math.abs(moveY) < 0.001) {
     return fallback;
@@ -122,7 +129,7 @@ export function enableKeyboardPlayerMovement(
 
   const WALK_SPEED = getPositiveNumber(
     getKeyboardMoveSpeed(),
-    getPositiveNumber(MOVEMENT_CONFIG.WALK_SPEED, 0.055)
+    getPositiveNumber(MOVEMENT_CONFIG.WALK_SPEED, 0.085)
   );
 
   const SPRINT_SPEED = Math.max(
@@ -130,21 +137,42 @@ export function enableKeyboardPlayerMovement(
     getPositiveNumber(MOVEMENT_CONFIG.SPRINT_SPEED, WALK_SPEED * 1.55)
   );
 
-  // ПК не должен писать позицию в БД каждые 1.4 сек во время ходьбы.
-  // Broadcast остаётся быстрым, DB сохраняется реже и принудительно при остановке.
-  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 55);
-  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 9000);
-  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 9000);
+  /*
+    ПК теперь тоже двигается через velocity/render-позицию.
+    До этого позиция прыгала ровно на speed * delta каждый кадр: когда вокруг много DOM-домов,
+    любой просевший кадр выглядел как резкий шаг. Здесь ход остаётся быстрым, но камера/маркер
+    догоняют координату плавно и без ощущения «стоп-кадр/рывок».
+  */
+  const INPUT_ACCELERATION = 0.26;
+  const INPUT_DECELERATION = 0.34;
+  const VELOCITY_ACCELERATION = 0.30;
+  const VELOCITY_DECELERATION = 0.42;
+  const RENDER_LAG = 0.58;
+  const STOP_EPSILON = 0.000045;
+  const RENDER_EPSILON = 0.00006;
+  const MARKER_DATA_SYNC_INTERVAL = 100;
+
+  // Broadcast быстрый, DB реже. DB-запись во время движения не должна давить кадр.
+  const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 90);
+  const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 12000);
+  const HEARTBEAT_DELAY = Math.max(SYNC_CONFIG.heartbeatDelay || 1000, 12000);
 
   let x = Number(playerPosition.x) || 50;
   let y = Number(playerPosition.y) || 50;
+  let renderX = x;
+  let renderY = y;
   let angle = Number(playerPosition.angle || playerPosition.direction || 0);
+
+  let inputX = 0;
+  let inputY = 0;
+  let velocityX = 0;
+  let velocityY = 0;
 
   let animationId = null;
   let heartbeatTimer = null;
   let destroyed = false;
   let lastFrameAt = performance.now();
-  let lastRuntimeMovingState = null;
+  let lastMarkerDataSyncAt = 0;
 
   let lastBroadcastAt = 0;
   let lastDbSaveAt = 0;
@@ -153,17 +181,18 @@ export function enableKeyboardPlayerMovement(
 
   let lastDbSaved = { x, y };
   let lastDbSavedAngle = angle;
+  let lastDesktopMovingState = null;
+  let lastSentX = x;
+  let lastSentY = y;
+  let lastSentAngle = angle;
 
-  function setPlayerMovingUi(isMoving) {
+  function setDesktopRuntimeMoving(isMoving) {
     const moving = Boolean(isMoving);
 
-    window.__MN_PLAYER_MOVING__ = moving;
+    if (lastDesktopMovingState === moving) return;
+
+    lastDesktopMovingState = moving;
     window.__MN_DESKTOP_PLAYER_MOVING__ = moving;
-
-    if (lastRuntimeMovingState === moving) return;
-
-    lastRuntimeMovingState = moving;
-
     document.body?.classList?.toggle('mn-player-moving', moving);
     document.documentElement?.classList?.toggle('mn-player-moving', moving);
 
@@ -176,58 +205,78 @@ export function enableKeyboardPlayerMovement(
     playerPosition.x = x;
     playerPosition.y = y;
     playerPosition.angle = angle;
+  }
 
-    mapControls?.focusOnPlayer?.(x, y);
+  function paintPlayer(force = false) {
+    x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
+    y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
+    renderX = clamp(renderX, BOUNDS.minX, BOUNDS.maxX);
+    renderY = clamp(renderY, BOUNDS.minY, BOUNDS.maxY);
+
+    syncPlayerPosition();
+
+    marker.style.left = `${renderX}%`;
+    marker.style.top = `${renderY}%`;
+    marker.style.setProperty('--player-angle', `${angle}deg`);
+
+    const now = performance.now();
+
+    if (force || now - lastMarkerDataSyncAt >= MARKER_DATA_SYNC_INTERVAL) {
+      marker.dataset.x = String(x);
+      marker.dataset.y = String(y);
+      marker.dataset.angle = String(angle);
+      lastMarkerDataSyncAt = now;
+    }
+
+    mapControls?.focusOnPlayer?.(renderX, renderY);
   }
 
   function forceSyncPosition() {
     x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
     y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
+    renderX = x;
+    renderY = y;
+    inputX = 0;
+    inputY = 0;
+    velocityX = 0;
+    velocityY = 0;
 
-    playerPosition.x = x;
-    playerPosition.y = y;
-    playerPosition.angle = angle;
-
-    marker.style.left = `${x}%`;
-    marker.style.top = `${y}%`;
-    marker.dataset.x = String(x);
-    marker.dataset.y = String(y);
-    marker.dataset.angle = String(angle);
-    marker.style.setProperty('--player-angle', `${angle}deg`);
-
-    mapControls?.focusOnPlayer?.(x, y);
+    paintPlayer(true);
   }
 
-  function renderPlayer() {
-    x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
-    y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
+  function hasBroadcastPositionChangedEnough() {
+    return (
+      Math.abs(x - lastSentX) > 0.002 ||
+      Math.abs(y - lastSentY) > 0.002 ||
+      Math.abs(angle - lastSentAngle) > 0.1
+    );
+  }
 
-    syncPlayerPosition();
-
-    marker.style.left = `${x}%`;
-    marker.style.top = `${y}%`;
-    marker.dataset.x = String(x);
-    marker.dataset.y = String(y);
-    marker.dataset.angle = String(angle);
-    marker.style.setProperty('--player-angle', `${angle}deg`);
+  function markBroadcastSent() {
+    lastSentX = x;
+    lastSentY = y;
+    lastSentAngle = angle;
   }
 
   function broadcastMove(force = false) {
     const now = Date.now();
 
     if (!force && now - lastBroadcastAt < BROADCAST_INTERVAL) return;
+    if (!force && !hasBroadcastPositionChangedEnough()) return;
 
     lastBroadcastAt = now;
 
-    movementChannel?.sendMove({
+    movementChannel?.sendMove?.({
       playerId: getLocalPlayerId(),
       nickname,
       cityId,
-      x: playerPosition.x,
-      y: playerPosition.y,
-      angle: playerPosition.angle,
+      x: Math.round(x * 10000) / 10000,
+      y: Math.round(y * 10000) / 10000,
+      angle: Math.round(angle * 10) / 10,
       updatedAt: new Date().toISOString(),
     });
+
+    markBroadcastSent();
   }
 
   async function savePositionToDb(force = false) {
@@ -258,6 +307,8 @@ export function enableKeyboardPlayerMovement(
       return;
     }
 
+    syncPlayerPosition();
+
     dbSaveInFlight = true;
     dbSavePending = false;
 
@@ -265,9 +316,9 @@ export function enableKeyboardPlayerMovement(
       await updatePlayerPosition({
         cityId,
         nickname,
-        x: playerPosition.x,
-        y: playerPosition.y,
-        angle: playerPosition.angle,
+        x,
+        y,
+        angle,
       });
 
       lastDbSaveAt = Date.now();
@@ -278,22 +329,9 @@ export function enableKeyboardPlayerMovement(
     } finally {
       dbSaveInFlight = false;
 
-      // Не запускаем цепочку сохранений сразу после завершения запроса.
-      // Следующий tick/остановка сами сохранят актуальную позицию.
       if (dbSavePending && !destroyed) {
         dbSavePending = false;
       }
-    }
-  }
-
-  function queuePositionSave(force = false) {
-    if (force) {
-      savePositionToDb(true);
-      return;
-    }
-
-    if (Date.now() - lastDbSaveAt >= DB_SAVE_INTERVAL) {
-      savePositionToDb(false);
     }
   }
 
@@ -301,9 +339,14 @@ export function enableKeyboardPlayerMovement(
     clearInterval(heartbeatTimer);
 
     heartbeatTimer = setInterval(() => {
-      forceSyncPosition();
-      broadcastMove(true);
-      savePositionToDb(false);
+      if (destroyed) return;
+
+      paintPlayer(false);
+
+      if (!window.__MN_DESKTOP_PLAYER_MOVING__) {
+        broadcastMove(true);
+        savePositionToDb(false);
+      }
     }, HEARTBEAT_DELAY);
   }
 
@@ -337,9 +380,21 @@ export function enableKeyboardPlayerMovement(
     return { moveX, moveY };
   }
 
-  function shouldSleepLoop(moved) {
+  function isMotionSettled() {
     return (
-      !moved &&
+      Math.abs(inputX) <= 0.002 &&
+      Math.abs(inputY) <= 0.002 &&
+      Math.abs(velocityX) <= STOP_EPSILON &&
+      Math.abs(velocityY) <= STOP_EPSILON &&
+      Math.abs(renderX - x) <= RENDER_EPSILON &&
+      Math.abs(renderY - y) <= RENDER_EPSILON
+    );
+  }
+
+  function shouldSleepLoop(wantsMove, isMoving) {
+    return (
+      !wantsMove &&
+      !isMoving &&
       keys.size === 0 &&
       stamina >= STAMINA.max &&
       !sprintLocked
@@ -355,32 +410,62 @@ export function enableKeyboardPlayerMovement(
     lastFrameAt = now;
 
     const { moveX, moveY } = getMoveVector();
+    const wantsMove = Math.abs(moveX) > 0.001 || Math.abs(moveY) > 0.001;
 
-    const moved =
-      Math.abs(moveX) > 0.001 ||
-      Math.abs(moveY) > 0.001;
+    const inputLerp = wantsMove ? INPUT_ACCELERATION : INPUT_DECELERATION;
+    inputX = lerpByFrame(inputX, moveX, inputLerp, frameScale);
+    inputY = lerpByFrame(inputY, moveY, inputLerp, frameScale);
 
-    const isSprinting = updateSprintState(moved, frameScale);
+    if (!wantsMove && Math.abs(inputX) < 0.002) inputX = 0;
+    if (!wantsMove && Math.abs(inputY) < 0.002) inputY = 0;
+
+    const isSprinting = updateSprintState(wantsMove, frameScale);
     const speed = isSprinting ? SPRINT_SPEED : WALK_SPEED;
 
-    setPlayerMovingUi(moved);
+    const targetVelocityX = inputX * speed;
+    const targetVelocityY = inputY * speed;
+    const velocityLerp = wantsMove ? VELOCITY_ACCELERATION : VELOCITY_DECELERATION;
 
-    if (moved) {
-      x += moveX * speed * frameScale;
-      y += moveY * speed * frameScale;
+    velocityX = lerpByFrame(velocityX, targetVelocityX, velocityLerp, frameScale);
+    velocityY = lerpByFrame(velocityY, targetVelocityY, velocityLerp, frameScale);
 
-      angle = getAngleFromMovement(moveX, moveY, angle);
+    if (!wantsMove && Math.abs(velocityX) < STOP_EPSILON) velocityX = 0;
+    if (!wantsMove && Math.abs(velocityY) < STOP_EPSILON) velocityY = 0;
 
-      renderPlayer();
+    const isMoving = wantsMove || !isMotionSettled();
+    setDesktopRuntimeMoving(isMoving);
+
+    if (isMoving) {
+      x += velocityX * frameScale;
+      y += velocityY * frameScale;
+      x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
+      y = clamp(y, BOUNDS.minY, BOUNDS.maxY);
+
+      if (x <= BOUNDS.minX || x >= BOUNDS.maxX) velocityX = 0;
+      if (y <= BOUNDS.minY || y >= BOUNDS.maxY) velocityY = 0;
+
+      renderX = lerpByFrame(renderX, x, RENDER_LAG, frameScale);
+      renderY = lerpByFrame(renderY, y, RENDER_LAG, frameScale);
+
+      if (Math.abs(renderX - x) <= RENDER_EPSILON) renderX = x;
+      if (Math.abs(renderY - y) <= RENDER_EPSILON) renderY = y;
+
+      angle = getAngleFromMovement(velocityX || inputX || moveX, velocityY || inputY || moveY, angle);
+
+      paintPlayer(false);
       broadcastMove(false);
-      queuePositionSave(false);
+      savePositionToDb(false);
     } else {
-      syncPlayerPosition();
+      renderX = x;
+      renderY = y;
+      paintPlayer(false);
     }
 
-    if (shouldSleepLoop(moved)) {
+    if (shouldSleepLoop(wantsMove, isMoving)) {
       animationId = null;
+      setDesktopRuntimeMoving(false);
       updateStaminaUi();
+      paintPlayer(true);
       return;
     }
 
@@ -408,6 +493,7 @@ export function enableKeyboardPlayerMovement(
     angle = Number.isFinite(nextAngle) ? nextAngle : angle;
 
     keys.clear();
+    setDesktopRuntimeMoving(false);
 
     forceSyncPosition();
     broadcastMove(true);
@@ -439,8 +525,6 @@ export function enableKeyboardPlayerMovement(
     keys.delete(event.key.toLowerCase());
 
     if (keys.size === 0) {
-      setPlayerMovingUi(false);
-      forceSyncPosition();
       broadcastMove(true);
       updateStaminaUi();
 
@@ -448,7 +532,7 @@ export function enableKeyboardPlayerMovement(
         if (!destroyed) {
           savePositionToDb(true);
         }
-      }, 60);
+      }, 90);
     }
 
     ensureLoopRunning();
@@ -465,7 +549,6 @@ export function enableKeyboardPlayerMovement(
 
   return () => {
     destroyed = true;
-    setPlayerMovingUi(false);
     clearInterval(heartbeatTimer);
 
     window.removeEventListener('keydown', onKeyDown);
@@ -475,6 +558,8 @@ export function enableKeyboardPlayerMovement(
     if (animationId) {
       cancelAnimationFrame(animationId);
     }
+
+    setDesktopRuntimeMoving(false);
 
     forceSyncPosition();
     broadcastMove(true);
