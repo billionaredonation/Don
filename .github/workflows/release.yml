@@ -15,12 +15,12 @@ concurrency:
 
 env:
   NODE_VERSION: 22
-  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://vpzcoczvezsatledfwpx.supabase.co' }}
-  VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_X_OWfkNSzFxfGYCz6eJ1_g_re7DszbX' }}
+  VITE_SUPABASE_URL: https://vpzcoczvezsatledfwpx.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_X_OWfkNSzFxfGYCz6eJ1_g_re7DszbX
 
 jobs:
   build:
-    name: Build Vite and publish dist
+    name: Build optimized Vite dist
     runs-on: ubuntu-latest
 
     steps:
@@ -37,31 +37,71 @@ jobs:
         run: |
           npm install --no-audit --no-fund
 
-      - name: Validate Supabase env
+      - name: Optimize root PNG assets before build
         shell: bash
         run: |
-          if [ -z "$VITE_SUPABASE_URL" ]; then
-            echo "VITE_SUPABASE_URL is empty"
-            exit 1
-          fi
+          python -m pip install --disable-pip-version-check --no-cache-dir pillow
 
-          if [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "VITE_SUPABASE_PUBLISHABLE_KEY is empty"
-            exit 1
-          fi
+          python <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import os
 
-          echo "Supabase env is present"
+          MIN_SIZE = 300_000
+          COLORS = 160
+
+          for path in Path(".").glob("*.png"):
+              if path.stat().st_size < MIN_SIZE:
+                  continue
+
+              try:
+                  with Image.open(path) as img:
+                      source_size = path.stat().st_size
+
+                      if img.mode in ("RGBA", "LA"):
+                          image = img.convert("RGBA")
+                          quantized = image.quantize(
+                              colors=COLORS,
+                              method=Image.Quantize.FASTOCTREE,
+                          )
+                      else:
+                          image = img.convert("RGB")
+                          quantized = image.quantize(
+                              colors=COLORS,
+                              method=Image.Quantize.MEDIANCUT,
+                          )
+
+                      tmp = path.with_suffix(".optimized.png")
+                      quantized.save(tmp, optimize=True)
+
+                      if tmp.stat().st_size < source_size:
+                          os.replace(tmp, path)
+                          print(f"optimized {path}: {source_size} -> {path.stat().st_size}")
+                      else:
+                          tmp.unlink(missing_ok=True)
+                          print(f"kept original {path}: optimized copy was not smaller")
+              except Exception as error:
+                  print(f"skip {path}: {error}")
+          PY
 
       - name: Build Vite app
         shell: bash
         run: |
           npm run build
 
-      - name: Validate built app
+      - name: Validate optimized dist
         shell: bash
         run: |
           test -d dist
           test -f dist/index.html
+
+          DIST_SIZE_MB=$(du -sm dist | cut -f1)
+          echo "dist size: ${DIST_SIZE_MB} MB"
+
+          if [ "$DIST_SIZE_MB" -gt 80 ]; then
+            echo "dist is too heavy for stable GitHub Pages deploy: ${DIST_SIZE_MB} MB"
+            exit 1
+          fi
 
           if ! grep -R -F "$VITE_SUPABASE_URL" dist >/dev/null 2>&1; then
             echo "Supabase URL was not injected into Vite build"
@@ -85,7 +125,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
-          git commit -m "Deploy dist to GitHub Pages"
+          git commit -m "Deploy optimized dist to GitHub Pages"
 
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin gh-pages
