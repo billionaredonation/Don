@@ -13,6 +13,11 @@ concurrency:
   group: build-dist-to-gh-pages
   cancel-in-progress: true
 
+env:
+  NODE_VERSION: 22
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://vpzcoczvezsatledfwpx.supabase.co' }}
+  VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_X_OWfkNSzFxfGYCz6eJ1_g_re7DszbX' }}
+
 jobs:
   build:
     name: Build Vite and publish dist
@@ -25,23 +30,44 @@ jobs:
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
         shell: bash
         run: |
           npm install --no-audit --no-fund
 
+      - name: Validate Supabase env
+        shell: bash
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ]; then
+            echo "VITE_SUPABASE_URL is empty"
+            exit 1
+          fi
+
+          if [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY is empty"
+            exit 1
+          fi
+
+          echo "Supabase env is present"
+
       - name: Build Vite app
         shell: bash
         run: |
           npm run build
 
-      - name: Prepare dist for GitHub Pages
+      - name: Validate built app
         shell: bash
         run: |
           test -d dist
           test -f dist/index.html
+
+          if ! grep -R -F "$VITE_SUPABASE_URL" dist >/dev/null 2>&1; then
+            echo "Supabase URL was not injected into Vite build"
+            exit 1
+          fi
+
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
 
