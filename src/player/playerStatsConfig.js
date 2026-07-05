@@ -1,7 +1,7 @@
 export const PLAYER_STATS_CONFIG = {
   movement: {
-    keyboardSpeed: 0.096,
-    mobileSpeed: 0.088,
+    keyboardSpeed: 0.09,
+    mobileSpeed: 0.084,
 
     /*
       Не ставим 0–100.
