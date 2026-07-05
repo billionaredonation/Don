@@ -23,6 +23,14 @@ const HOUSE_CLASS_ALIASES = Object.freeze({
   'элита': 'elite',
 });
 
+const MOBILE_RENDER_RADIUS = 30;
+const MOBILE_KEEP_RADIUS = 38;
+const MOBILE_RENDER_BUDGET = 28;
+const MOBILE_IDLE_BUDGET_MS = 120;
+
+const layerStates = new Set();
+let globalCameraListenerEnabled = false;
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({
     '&': '&amp;',
@@ -51,6 +59,32 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function isMobileDevice() {
+  return (
+    window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ||
+    navigator.maxTouchPoints > 0
+  );
+}
+
+function scheduleIdle(callback, timeout = MOBILE_IDLE_BUDGET_MS) {
+  if ('requestIdleCallback' in window) {
+    return window.requestIdleCallback(callback, { timeout });
+  }
+
+  return window.setTimeout(callback, Math.min(timeout, 80));
+}
+
+function cancelIdle(id) {
+  if (!id) return;
+
+  if ('cancelIdleCallback' in window) {
+    window.cancelIdleCallback(id);
+    return;
+  }
+
+  window.clearTimeout(id);
+}
+
 function getPayload(object) {
   return object && typeof object.payload === 'object' && object.payload !== null
     ? object.payload
@@ -63,13 +97,14 @@ function getObjectId(object) {
 
 function getCategory(object) {
   const payload = getPayload(object);
+
   return String(
     object?.category ||
-    payload.category ||
-    payload.kind ||
-    object?.kind ||
-    object?.type ||
-    'marker'
+      payload.category ||
+      payload.kind ||
+      object?.kind ||
+      object?.type ||
+      'marker'
   );
 }
 
@@ -85,17 +120,19 @@ function normalizeHouseClass(value) {
 
 function getHouseClass(object) {
   const payload = getPayload(object);
+
   return normalizeHouseClass(
     payload.houseClass ||
-    payload.houseClassLabel ||
-    object?.variant ||
-    object?.class ||
-    'standard'
+      payload.houseClassLabel ||
+      object?.variant ||
+      object?.class ||
+      'standard'
   );
 }
 
 function getHouseOwnerId(object) {
   const payload = getPayload(object);
+
   return (
     object?.owner_id ||
     object?.ownerId ||
@@ -107,12 +144,13 @@ function getHouseOwnerId(object) {
 
 function getHouseOwnerName(object) {
   const payload = getPayload(object);
+
   return String(
     object?.owner_name ||
-    object?.ownerName ||
-    payload.owner_name ||
-    payload.ownerName ||
-    ''
+      object?.ownerName ||
+      payload.owner_name ||
+      payload.ownerName ||
+      ''
   );
 }
 
@@ -129,8 +167,10 @@ function formatPrice(value) {
 
 function getHouseState(object) {
   const payload = getPayload(object);
+
   if (getHouseOwnerId(object) || payload.owned === true) return 'owned';
   if (payload.locked === true || object?.locked === true) return 'locked';
+
   return 'free';
 }
 
@@ -231,17 +271,16 @@ function applyLayerBaseStyle(layer) {
   layer.style.visibility = 'visible';
   layer.style.opacity = '1';
   layer.style.pointerEvents = 'none';
-  layer.style.zIndex = '220';
+  layer.style.zIndex = layer.classList.contains('map-objects-layer-admin') ? '260' : '220';
   layer.style.contain = 'layout style paint';
 }
 
 function applyObjectStyle(element, object, meta) {
-  const x = clamp(toFiniteNumber(object?.x, 50), -10, 110);
-  const y = clamp(toFiniteNumber(object?.y, 50), -10, 110);
-  const scale = clamp(toFiniteNumber(object?.scale, 1), 0.25, 3);
+  const x = clamp(toFiniteNumber(object?.x, 50), 0, 100);
+  const y = clamp(toFiniteNumber(object?.y, 50), 0, 100);
   const rotation = toFiniteNumber(object?.rotation, 0);
+  const objectScale = Math.max(0.4, toFiniteNumber(object?.scale, 1));
   const size = getObjectRenderSize(meta.category, meta.visualClass);
-  const colors = meta.colors || DEFAULT_HOUSE_COLORS.default;
 
   element.style.position = 'absolute';
   element.style.left = `${x}%`;
@@ -250,23 +289,22 @@ function applyObjectStyle(element, object, meta) {
   element.style.height = `${size}px`;
   element.style.minWidth = `${size}px`;
   element.style.minHeight = `${size}px`;
-  element.style.display = 'grid';
-  element.style.placeItems = 'center';
-  element.style.padding = '0';
   element.style.border = '0';
+  element.style.padding = '0';
+  element.style.margin = '0';
   element.style.background = 'transparent';
-  element.style.transform = `translate3d(-50%, -50%, 0) rotate(${rotation}deg) scale(${scale})`;
+  element.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(${objectScale}) scale(var(--map-entity-scale, 1))`;
   element.style.transformOrigin = 'center center';
   element.style.pointerEvents = 'auto';
-  element.style.cursor = 'pointer';
-  element.style.zIndex = '10';
+  element.style.cursor = meta.category === 'house' ? 'pointer' : 'default';
+  element.style.zIndex = meta.category === 'house' ? '240' : '230';
+  element.style.contain = 'layout style paint';
   element.style.willChange = 'transform';
-  element.style.setProperty('--map-object-scale', String(scale));
-  element.style.setProperty('--map-object-rotation', `${rotation}deg`);
-  element.style.setProperty('--map-house-main', colors.main);
-  element.style.setProperty('--map-house-dark', colors.dark);
-  element.style.setProperty('--map-house-soft', colors.soft);
-  element.style.setProperty('--map-house-roof', colors.roof);
+
+  element.style.setProperty('--map-house-main', meta.colors?.main || DEFAULT_HOUSE_COLORS.default.main);
+  element.style.setProperty('--map-house-dark', meta.colors?.dark || DEFAULT_HOUSE_COLORS.default.dark);
+  element.style.setProperty('--map-house-soft', meta.colors?.soft || DEFAULT_HOUSE_COLORS.default.soft);
+  element.style.setProperty('--map-house-roof', meta.colors?.roof || DEFAULT_HOUSE_COLORS.default.roof);
 }
 
 function createHouseIcon(meta) {
@@ -345,7 +383,8 @@ function updateObjectElement(element, object) {
   element.dataset.mapObjectCategory = meta.category;
   element.dataset.mapObjectState = meta.state;
   element.dataset.mapObjectOwnerId = String(meta.ownerId || '');
-  element.title = meta.title;
+  element.title = escapeHtml(meta.title);
+  element.setAttribute('aria-label', meta.title);
 
   applyObjectStyle(element, object, meta);
   updateObjectIcon(element, meta);
@@ -356,6 +395,7 @@ function getCachedElement(layer, id) {
   if (cached?.isConnected) return cached;
 
   const children = layer?.children || [];
+
   for (let index = 0; index < children.length; index += 1) {
     const child = children[index];
     if (child?.dataset?.mapObjectId === id) return child;
@@ -364,108 +404,244 @@ function getCachedElement(layer, id) {
   return null;
 }
 
+function getDistance(object, focusX, focusY) {
+  const x = clamp(toFiniteNumber(object?.x, 50), 0, 100);
+  const y = clamp(toFiniteNumber(object?.y, 50), 0, 100);
+
+  return Math.hypot(x - focusX, y - focusY);
+}
+
+function isAdminLayer(layer) {
+  return (
+    layer?.classList?.contains('map-objects-layer-admin') ||
+    layer?.closest?.('.home')?.dataset?.adminMode === 'enabled' ||
+    document.querySelector?.('.home')?.dataset?.adminMode === 'enabled'
+  );
+}
+
+function readPlayerFocus(layer) {
+  const scope = layer?.closest?.('.gta-map-viewport') || document;
+  const player =
+    scope.querySelector?.('[data-player-id][data-x][data-y]') ||
+    document.querySelector('[data-player-id][data-x][data-y]');
+
+  return {
+    x: clamp(toFiniteNumber(player?.dataset?.x, 50), 0, 100),
+    y: clamp(toFiniteNumber(player?.dataset?.y, 50), 0, 100),
+  };
+}
+
+function getObjectsToRender(state) {
+  if (!state.mobile || state.forceFullRender || isAdminLayer(state.layer)) {
+    return state.objects;
+  }
+
+  const renderRadius = state.renderRadius || MOBILE_RENDER_RADIUS;
+  const keepRadius = state.keepRadius || MOBILE_KEEP_RADIUS;
+  const existingIds = state.elements;
+
+  return state.objects.filter((object) => {
+    const id = getObjectId(object);
+    if (!id) return false;
+
+    const distance = getDistance(object, state.focusX, state.focusY);
+
+    if (distance <= renderRadius) return true;
+    if (existingIds.has(id) && distance <= keepRadius) return true;
+
+    return false;
+  });
+}
+
+function removeObjectElement(state, id) {
+  const element = state.elements.get(id);
+
+  if (element) {
+    element.remove();
+  }
+
+  state.elements.delete(id);
+  state.signatures.delete(id);
+}
+
+function renderObjectBatch(state, objects, startIndex = 0, nextIds = new Set()) {
+  if (!state.layer?.isConnected) {
+    layerStates.delete(state);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  const budget = state.mobile && !state.forceFullRender && !isAdminLayer(state.layer)
+    ? MOBILE_RENDER_BUDGET
+    : objects.length;
+
+  let index = startIndex;
+  let count = 0;
+
+  for (; index < objects.length && count < budget; index += 1, count += 1) {
+    const object = objects[index];
+    const id = getObjectId(object);
+
+    if (!id) continue;
+
+    nextIds.add(id);
+
+    const nextSignature = getObjectSignature(object);
+    let element = getCachedElement(state.layer, id);
+
+    if (!element) {
+      element = createObjectElement(object);
+      fragment.appendChild(element);
+      state.elements.set(id, element);
+      state.signatures.set(id, nextSignature);
+      continue;
+    }
+
+    if (state.signatures.get(id) !== nextSignature) {
+      updateObjectElement(element, object);
+      state.signatures.set(id, nextSignature);
+    }
+
+    state.elements.set(id, element);
+  }
+
+  if (fragment.childNodes.length) {
+    state.layer.appendChild(fragment);
+  }
+
+  if (index < objects.length) {
+    state.idleId = scheduleIdle(() => {
+      state.idleId = 0;
+      renderObjectBatch(state, objects, index, nextIds);
+    });
+
+    return;
+  }
+
+  Array.from(state.elements.keys()).forEach((id) => {
+    if (nextIds.has(id)) return;
+    removeObjectElement(state, id);
+  });
+
+  state.layer.dataset.renderedCount = String(nextIds.size);
+  state.layer.dataset.totalCount = String(state.objects.length);
+  state.layer.dataset.virtualized = state.mobile && !state.forceFullRender && !isAdminLayer(state.layer)
+    ? 'true'
+    : 'false';
+}
+
+function paintLayerState(state) {
+  if (!state.layer?.isConnected) {
+    layerStates.delete(state);
+    return;
+  }
+
+  if (state.rafId) return;
+
+  state.rafId = requestAnimationFrame(() => {
+    state.rafId = 0;
+
+    if (state.idleId) {
+      cancelIdle(state.idleId);
+      state.idleId = 0;
+    }
+
+    const objects = getObjectsToRender(state);
+    renderObjectBatch(state, objects);
+  });
+}
+
+function ensureGlobalCameraListener() {
+  if (globalCameraListenerEnabled) return;
+
+  globalCameraListenerEnabled = true;
+
+  window.addEventListener('mn:map-camera-focus', (event) => {
+    const detail = event?.detail || {};
+    const focusX = clamp(toFiniteNumber(detail.x, 50), 0, 100);
+    const focusY = clamp(toFiniteNumber(detail.y, 50), 0, 100);
+
+    layerStates.forEach((state) => {
+      if (!state.layer?.isConnected) {
+        layerStates.delete(state);
+        return;
+      }
+
+      if (detail.cityId && state.cityId && String(detail.cityId) !== String(state.cityId)) {
+        return;
+      }
+
+      state.focusX = focusX;
+      state.focusY = focusY;
+      paintLayerState(state);
+    });
+  }, { passive: true });
+}
+
+function getOrCreateLayerState(layer, options = {}) {
+  let state = layer.__mnObjectRendererState;
+
+  if (!state) {
+    const focus = readPlayerFocus(layer);
+
+    state = {
+      layer,
+      objects: [],
+      elements: new Map(),
+      signatures: new Map(),
+      mobile: isMobileDevice(),
+      forceFullRender: false,
+      focusX: focus.x,
+      focusY: focus.y,
+      cityId: '',
+      renderRadius: MOBILE_RENDER_RADIUS,
+      keepRadius: MOBILE_KEEP_RADIUS,
+      rafId: 0,
+      idleId: 0,
+    };
+
+    layer.__mnObjectRendererState = state;
+    layer.__mnObjectElements = state.elements;
+    layerStates.add(state);
+    ensureGlobalCameraListener();
+  }
+
+  state.mobile = isMobileDevice();
+  state.forceFullRender = Boolean(options.forceFullRender || options.fullRender || isAdminLayer(layer));
+  state.cityId = options.cityId || layer.dataset.cityId || state.cityId || '';
+  state.renderRadius = Number(options.renderRadius || MOBILE_RENDER_RADIUS);
+  state.keepRadius = Number(options.keepRadius || MOBILE_KEEP_RADIUS);
+
+  return state;
+}
+
 export function createMapObjectsLayer() {
   const layer = document.createElement('div');
 
   layer.className = 'map-objects-layer';
-  layer.__mnObjectSignatures = new Map();
-  layer.__mnObjectElements = new Map();
-
+  layer.setAttribute('aria-hidden', 'false');
   applyLayerBaseStyle(layer);
 
   return layer;
 }
 
-export function renderMapObjects(layer, objects = []) {
+export function renderMapObjects(layer, objects = [], options = {}) {
   if (!layer) return;
 
   applyLayerBaseStyle(layer);
 
-  if (!layer.__mnObjectSignatures) layer.__mnObjectSignatures = new Map();
-  if (!layer.__mnObjectElements) layer.__mnObjectElements = new Map();
+  const state = getOrCreateLayerState(layer, options);
 
-  const signatures = layer.__mnObjectSignatures;
-  const elements = layer.__mnObjectElements;
-  const nextIds = new Set();
-  const safeObjects = Array.isArray(objects) ? objects.filter(Boolean) : [];
+  state.objects = Array.isArray(objects)
+    ? objects.filter(Boolean)
+    : [];
 
-  layer.dataset.objectsCount = String(safeObjects.length);
-
-  safeObjects.forEach((object) => {
-    const id = getObjectId(object);
-    if (!id) return;
-
-    nextIds.add(id);
-
-    const nextSignature = getObjectSignature(object);
-    let element = elements.get(id);
-
-    if (!element?.isConnected) {
-      element = getCachedElement(layer, id);
-    }
-
-    if (!element) {
-      element = createObjectElement(object);
-      layer.appendChild(element);
-      elements.set(id, element);
-      signatures.set(id, nextSignature);
-      return;
-    }
-
-    if (signatures.get(id) !== nextSignature) {
-      updateObjectElement(element, object);
-      signatures.set(id, nextSignature);
-    }
-
-    elements.set(id, element);
-  });
-
-  Array.from(signatures.keys()).forEach((id) => {
-    if (nextIds.has(id)) return;
-
-    const element = elements.get(id) || getCachedElement(layer, id);
-    if (element?.parentNode === layer) {
-      layer.removeChild(element);
-    } else {
-      element?.remove?.();
-    }
-
-    elements.delete(id);
-    signatures.delete(id);
-  });
-
-  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-    window.dispatchEvent(new CustomEvent('mn:map-objects-dom-rendered', {
-      detail: {
-        count: safeObjects.length,
-        layerChildren: layer.children.length,
-      },
-    }));
-  }
-}
-
-export function clearMapObjectsLayer(layer) {
-  if (!layer) return;
-
-  layer.textContent = '';
-  layer.__mnObjectSignatures?.clear?.();
-  layer.__mnObjectElements?.clear?.();
-  layer.dataset.objectsCount = '0';
-}
-
-export function findMapObjectElement(layer, objectId) {
-  if (!layer || !objectId) return null;
-
-  const id = String(objectId);
-  const found = getCachedElement(layer, id);
-
-  if (found) {
-    layer.__mnObjectElements?.set?.(id, found);
-  }
-
-  return found;
+  paintLayerState(state);
 }
 
 export function getMapObjectIdFromEvent(event) {
-  return event?.target?.closest?.('[data-map-object-id]')?.dataset?.mapObjectId || null;
+  const target = event?.target;
+  const element = target?.closest?.('[data-map-object-id]');
+
+  return element?.dataset?.mapObjectId || null;
 }
