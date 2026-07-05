@@ -514,3 +514,4 @@ export function findMapObjectElement(layer, objectId) {
 export function getMapObjectIdFromEvent(event) {
   return event.target?.closest?.('[data-map-object-id]')?.dataset?.mapObjectId || null;
 }
+
