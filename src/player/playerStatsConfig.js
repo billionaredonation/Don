@@ -55,3 +55,4 @@ export function getMovementBounds() {
 export function getMovementSyncConfig() {
   return PLAYER_STATS_CONFIG.sync;
 }
+
