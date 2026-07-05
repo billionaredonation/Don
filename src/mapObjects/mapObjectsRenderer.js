@@ -107,10 +107,10 @@ function createHouseLiteIcon(houseClass, state) {
   }
 
   /*
-    Один DOM-узел на дом для ПК и мобилки.
-    SVG с мелкими белыми бликами/окнами на масштабе 20-30px давал эффект
-    "вырезано в фотошопе" и заставлял браузер тащить сотни SVG+filter
-    внутри движущейся карты. Форма дома теперь рисуется CSS-псевдоэлементами.
+    Мобилка: один DOM-узел на дом.
+    Старый lite-рендер создавал 4 span внутри каждого дома. На 100+ домах это уже
+    сотни лишних элементов внутри движущегося слоя Telegram WebView. Форма дома
+    теперь рисуется CSS/pseudo-element'ами, без SVG, drop-shadow и внутренних DOM.
   */
   const html = `
     <span class="map-house-lite map-house-lite-${normalizedClass} map-house-lite-${state}" aria-hidden="true"></span>
@@ -118,6 +118,26 @@ function createHouseLiteIcon(houseClass, state) {
 
   HOUSE_ICON_CACHE.set(cacheKey, html);
 
+  return html;
+}
+
+
+function createHouseCleanIcon(houseClass, state) {
+  const normalizedClass = normalizeHouseClass(houseClass);
+  const cacheKey = `${normalizedClass}:${state}:clean-css-v1`;
+
+  if (HOUSE_ICON_CACHE.has(cacheKey)) {
+    return HOUSE_ICON_CACHE.get(cacheKey);
+  }
+
+  /*
+    Один DOM-узел на дом. Форма рисуется CSS clip-path'ом.
+    Без inline SVG, без вложенных span, без filter/drop-shadow.
+    Это держит взаимодействие, но резко снижает стоимость прорисовки.
+  */
+  const html = `<span class="map-house-clean map-house-clean-${normalizedClass} map-house-clean-${state}" aria-hidden="true"></span>`;
+
+  HOUSE_ICON_CACHE.set(cacheKey, html);
   return html;
 }
 
@@ -244,9 +264,10 @@ function getObjectMeta(object) {
       state,
       ownerId,
       colors,
-      // Используем лёгкую CSS-иконку на всех устройствах: без SVG, без drop-shadow,
-      // без белых "осколков" при движении и без сотен лишних SVG-нод на карте.
-      iconHtml: createHouseLiteIcon(normalizedClass, state),
+      // Mobile uses the same detailed house SVG as desktop.
+      // The previous lightweight CSS-only icon looked like colored blocks/blobs
+      // on Telegram WebView, especially after zoom.
+      iconHtml: createHouseCleanIcon(normalizedClass, state),
     };
   }
 
@@ -264,12 +285,12 @@ function getObjectRenderSize(category, visualClass) {
 
   const normalizedClass = normalizeHouseClass(visualClass);
 
-  if (normalizedClass === 'elite') return 28;
-  if (normalizedClass === 'lux') return 27;
-  if (normalizedClass === 'premium') return 25;
-  if (normalizedClass === 'comfort') return 24;
+  if (normalizedClass === 'elite') return 21;
+  if (normalizedClass === 'lux') return 20;
+  if (normalizedClass === 'premium') return 19;
+  if (normalizedClass === 'comfort') return 18;
 
-  return 22;
+  return 17;
 }
 
 function getSafeNumber(value, fallback) {
@@ -282,7 +303,7 @@ function createObjectHtml(object) {
   const x = getSafeNumber(object.x, 50);
   const y = getSafeNumber(object.y, 50);
   const scale = getSafeNumber(object.scale, 1);
-  const rotation = getSafeNumber(object.rotation, 0);
+  const rawRotation = getSafeNumber(object.rotation, 0);
   const category = String(object.category || object.payload?.category || object.type || 'marker');
   const type = String(object.type || object.payload?.type || category || 'marker');
   const selectedClass = object.selected ? 'map-object-selected' : '';
@@ -292,18 +313,18 @@ function createObjectHtml(object) {
     type,
   });
   const renderSize = getObjectRenderSize(category, meta.visualClass);
+  const rotation = category === 'house' ? 0 : rawRotation;
 
   return `
-    <button
+    <span
       class="map-object map-object-${escapeHtml(category)} map-object-type-${escapeHtml(type)} map-object-visual-${escapeHtml(meta.visualClass)} map-object-state-${escapeHtml(meta.state)} ${selectedClass}"
       data-map-object-id="${escapeHtml(object.id)}"
       data-map-object-type="${escapeHtml(type)}"
       data-map-object-category="${escapeHtml(category)}"
       data-map-object-state="${escapeHtml(meta.state)}"
       data-map-object-owner-id="${escapeHtml(meta.ownerId || '')}"
-      type="button"
-      tabindex="-1"
-      title="${escapeHtml(meta.title)}"
+      role="button"
+      aria-label="${escapeHtml(meta.title)}"
       style="
         position: absolute;
         left: ${x}%;
@@ -318,8 +339,8 @@ function createObjectHtml(object) {
         height: ${renderSize}px;
         min-width: ${renderSize}px;
         min-height: ${renderSize}px;
-        display: grid;
-        place-items: center;
+        display: block;
+        contain: layout paint style;
         padding: 0;
         border: 0;
         background: transparent;
@@ -334,7 +355,7 @@ function createObjectHtml(object) {
       "
     >
       ${meta.iconHtml}
-    </button>
+    </span>
   `;
 }
 
