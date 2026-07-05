@@ -1,4 +1,4 @@
-name: Deploy GitHub Pages
+name: Build dist to gh-pages
 
 on:
   push:
@@ -10,17 +10,19 @@ permissions:
   contents: write
 
 concurrency:
-  group: gh-pages-deploy
+  group: build-dist-to-gh-pages
   cancel-in-progress: true
 
 jobs:
-  build-and-push:
-    name: Build and push dist to gh-pages
+  build:
+    name: Build Vite and publish dist
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,10 +39,10 @@ jobs:
             npm install
           fi
 
-      - name: Build project
+      - name: Build Vite app
         run: npm run build
 
-      - name: Prepare Pages files
+      - name: Validate dist
         shell: bash
         run: |
           test -d dist
@@ -48,16 +50,22 @@ jobs:
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
 
-      - name: Push dist to gh-pages branch
+      - name: Publish dist to gh-pages
         shell: bash
         run: |
-          cd dist
+          rm -rf /tmp/gh-pages
+          mkdir -p /tmp/gh-pages
+          cp -R dist/. /tmp/gh-pages/
+
+          cd /tmp/gh-pages
           git init
+          git checkout -b gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b gh-pages
-          git add .
-          git commit -m "Deploy GitHub Pages"
+
+          git add -A
+          git commit -m "Deploy dist"
+
           git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin gh-pages
         env:
