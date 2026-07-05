@@ -109,11 +109,32 @@ function getMapByFileName(fileName) {
   return entry?.[1] || null;
 }
 
+function getOptimizedMapByFileName(fileName) {
+  const cleanName = String(fileName || '').trim();
+  const dotIndex = cleanName.lastIndexOf('.');
+  const baseName = dotIndex > 0 ? cleanName.slice(0, dotIndex) : cleanName;
+
+  for (const extension of ['avif', 'webp']) {
+    const optimized = getMapByFileName(`${baseName}.${extension}`);
+
+    if (optimized) {
+      return optimized;
+    }
+  }
+
+  return null;
+}
+
 function getCityMap(city) {
   const mapPath = String(city.map || '').replace(/^\.?\//, '');
   const mapFileName = mapPath.split('/').pop();
 
-  return getMapByFileName(mapFileName) || getMapByFileName('UkraineMap.png');
+  return (
+    getOptimizedMapByFileName(mapFileName) ||
+    getMapByFileName(mapFileName) ||
+    getOptimizedMapByFileName('UkraineMap.png') ||
+    getMapByFileName('UkraineMap.png')
+  );
 }
 
 function getCityMapRatio(cityId) {
