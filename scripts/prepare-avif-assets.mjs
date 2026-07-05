@@ -50,7 +50,7 @@ async function main() {
   try {
     sharp = (await import('sharp')).default;
   } catch {
-    console.warn('[prepare-avif-assets] sharp is not installed; skipping AVIF generation. Run npm install first.');
+    console.log('[prepare-avif-assets] optional sharp package is not installed; AVIF generation skipped safely.');
     return;
   }
 
