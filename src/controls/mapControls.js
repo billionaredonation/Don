@@ -5,14 +5,19 @@ const MOBILE_MAP_TILE_ASSETS = import.meta.glob('../../map-tiles/**/*.{png,jpg,j
 });
 
 const MOBILE_TILE_GRID = 8;
-const MOBILE_TILE_RENDER_RADIUS = isLowPowerDevice() ? 1 : 2;
-const MOBILE_TILE_PRELOAD_RADIUS = isLowPowerDevice() ? 2 : 3;
-const MOBILE_TILE_KEEP_RADIUS = isLowPowerDevice() ? 3 : 4;
-const MOBILE_TILE_IDLE_DELAY = 120;
+const MOBILE_TILE_RENDER_RADIUS = 2;
+const MOBILE_TILE_PRELOAD_RADIUS = 3;
+const MOBILE_TILE_KEEP_RADIUS = 4;
+const MOBILE_TILE_IDLE_DELAY = 110;
 const MOBILE_TILE_CLEANUP_DELAY = 7800;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+function toFiniteNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
 }
 
 function isCoarsePointer() {
@@ -27,10 +32,10 @@ function getViewportSize() {
     1,
     Math.round(
       window.visualViewport?.width ||
-      window.innerWidth ||
-      document.documentElement.clientWidth ||
-      window.screen?.width ||
-      1
+        window.innerWidth ||
+        document.documentElement.clientWidth ||
+        window.screen?.width ||
+        1
     )
   );
 
@@ -38,10 +43,10 @@ function getViewportSize() {
     1,
     Math.round(
       window.visualViewport?.height ||
-      window.innerHeight ||
-      document.documentElement.clientHeight ||
-      window.screen?.height ||
-      1
+        window.innerHeight ||
+        document.documentElement.clientHeight ||
+        window.screen?.height ||
+        1
     )
   );
 
@@ -132,9 +137,9 @@ function hasMobileTilesForCity(cityId) {
 
   const cityNeedle = `/map-tiles/${city}/`;
 
-  return Object.keys(MOBILE_MAP_TILE_ASSETS).some((key) => {
-    return String(key).toLowerCase().replaceAll('\\', '/').includes(cityNeedle);
-  });
+  return Object.keys(MOBILE_MAP_TILE_ASSETS).some((key) => (
+    String(key).toLowerCase().replaceAll('\\', '/').includes(cityNeedle)
+  ));
 }
 
 function scheduleIdle(callback, timeout = 220) {
@@ -156,11 +161,17 @@ function cancelIdle(id) {
   window.clearTimeout(id);
 }
 
+function dispatchCameraFocus(detail) {
+  window.dispatchEvent(new CustomEvent('mn:map-camera-focus', {
+    detail,
+  }));
+}
+
 export function isLowPowerDevice() {
   const memory = navigator.deviceMemory || 4;
   const cores = navigator.hardwareConcurrency || 4;
-  const isSmallScreen = window.matchMedia('(max-width: 520px)').matches;
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isSmallScreen = window.matchMedia?.('(max-width: 520px)')?.matches;
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
   return reducedMotion || memory <= 3 || cores <= 4 || isSmallScreen;
 }
@@ -200,68 +211,53 @@ export function enableMapControls(stage, viewport, options = {}) {
     return defaultScale;
   }
 
-  function getDesktopMapProfile() {
+  function getMapProfile() {
     const screen = getViewportSize();
     const minSide = Math.min(screen.width, screen.height);
 
-    const requested = getRequestedStartScale(lowPower ? 1.42 : 1.56);
-
-    if (minSide <= 410) {
+    if (mobile) {
       return {
-        scale: clamp(requested, lowPower ? 1.28 : 1.34, lowPower ? 1.42 : 1.52),
-        worldFactor: lowPower ? 2.02 : 2.18,
+        scale: getRequestedStartScale(lowPower ? 1.42 : 1.55),
+        worldFactor: lowPower ? 1.96 : 2.12,
       };
     }
 
-    if (minSide <= 520) {
+    if (minSide <= 410) {
       return {
-        scale: clamp(requested, lowPower ? 1.34 : 1.42, lowPower ? 1.5 : 1.6),
-        worldFactor: lowPower ? 2.14 : 2.28,
+        scale: clamp(getRequestedStartScale(lowPower ? 1.32 : 1.42), 1.18, lowPower ? 1.48 : 1.62),
+        worldFactor: lowPower ? 2.02 : 2.18,
       };
     }
 
     if (minSide <= 650) {
       return {
-        scale: clamp(requested, lowPower ? 1.42 : 1.5, lowPower ? 1.58 : 1.68),
-        worldFactor: lowPower ? 2.28 : 2.48,
+        scale: clamp(getRequestedStartScale(lowPower ? 1.42 : 1.54), 1.24, lowPower ? 1.62 : 1.72),
+        worldFactor: lowPower ? 2.24 : 2.46,
       };
     }
 
     return {
-      scale: clamp(requested, lowPower ? 1.5 : 1.58, lowPower ? 1.7 : 1.82),
+      scale: clamp(getRequestedStartScale(lowPower ? 1.5 : 1.58), 1.28, lowPower ? 1.74 : 1.88),
       worldFactor: lowPower ? 2.42 : 2.68,
     };
-  }
-
-  function getMapProfile() {
-    if (mobile) {
-      /*
-        Мобильный профиль щадящий: меньше огромного полотна, меньше памяти GPU,
-        меньше работы на каждом translate/scale кадре.
-      */
-      return {
-        scale: getRequestedStartScale(lowPower ? 1.4 : 1.5),
-        worldFactor: lowPower ? 1.86 : 2.04,
-      };
-    }
-
-    return getDesktopMapProfile();
   }
 
   let scale = getMapProfile().scale;
   let x = 0;
   let y = 0;
+  let targetMapX = 0;
+  let targetMapY = 0;
 
   let worldWidth = 1200;
-  let worldHeight = 864;
-
+  let worldHeight = 804;
   let cachedStageWidth = 1;
   let cachedStageHeight = 1;
 
-  let lastFocusX = Number(options.focusX) || 50;
-  let lastFocusY = Number(options.focusY) || 50;
+  let lastFocusX = toFiniteNumber(options.focusX, 50);
+  let lastFocusY = toFiniteNumber(options.focusY, 50);
 
   const mapImages = Array.from(viewport.querySelectorAll('.gta-map-image'));
+
   let resizeRefreshTimer = null;
   let lastViewportTransform = '';
   let lastZoomCssValue = '';
@@ -276,20 +272,14 @@ export function enableMapControls(stage, viewport, options = {}) {
   const activeTiles = new Map();
   const preloadedTileSrcs = new Set();
 
-  /*
-    Mobile camera rewrite:
-    focusOnPlayer now sets a target. The map transform is painted by one
-    internal camera loop, so joystick/player/network code no longer writes
-    the heavy viewport transform directly on every call.
-  */
-  /*
-    Camera is synced by one rAF paint. The joystick already smooths renderX/renderY,
-    so mapControls must not add a second lerp on top of it. Double smoothing was
-    the likely source of visible camera wobble.
-  */
-  let targetMapX = 0;
-  let targetMapY = 0;
+  const cameraFollowLerp = mobile
+    ? (lowPower ? 0.40 : 0.50)
+    : 1;
+  const cameraSettleEpsilon = mobile ? 0.018 : 0.001;
+  const cameraSnapDistance = mobile ? 280 : 0;
+
   let cameraFrameId = 0;
+  let cameraReady = false;
 
   function setRenderMode(mode) {
     stage.dataset.mapRenderMode = mode;
@@ -302,23 +292,38 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function setupFallbackSingleImage() {
-    setRenderMode('single-mobile-fallback');
+    setRenderMode(mobile ? 'single-mobile-fallback' : 'single-desktop');
 
     mapImages.forEach((image) => {
       const isGlow = image.classList.contains('gta-map-glow');
 
       if (mobile && isGlow) {
         image.style.display = 'none';
+        image.style.visibility = 'hidden';
+        image.style.opacity = '0';
         return;
       }
 
       image.style.display = 'block';
       image.style.visibility = 'visible';
-      image.style.opacity = '1';
-      image.style.backgroundImage = fallbackMapSrc ? `url("${fallbackMapSrc}")` : '';
-      image.style.backgroundSize = '100% 100%';
-      image.style.backgroundRepeat = 'no-repeat';
-      image.style.backgroundPosition = 'center center';
+      image.style.opacity = isGlow ? (lowPower || mobile ? '0' : '0.18') : '1';
+      image.style.position = 'absolute';
+      image.style.inset = '0';
+      image.style.width = '100%';
+      image.style.height = '100%';
+      image.style.objectFit = 'contain';
+      image.style.objectPosition = 'center center';
+      image.style.pointerEvents = 'none';
+      image.style.userSelect = 'none';
+      image.decoding = 'async';
+      image.loading = mobile ? 'lazy' : 'eager';
+
+      if (fallbackMapSrc) {
+        image.style.backgroundImage = `url("${fallbackMapSrc}")`;
+        image.style.backgroundSize = '100% 100%';
+        image.style.backgroundRepeat = 'no-repeat';
+        image.style.backgroundPosition = 'center center';
+      }
 
       if (image.tagName === 'IMG' && fallbackMapSrc && !image.getAttribute('src')) {
         image.src = fallbackMapSrc;
@@ -328,7 +333,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   function setupMobileTileLayer() {
     if (!mobile) {
-      setRenderMode('single-desktop');
+      setupFallbackSingleImage();
       return;
     }
 
@@ -361,6 +366,15 @@ export function enableMapControls(stage, viewport, options = {}) {
       const entities = viewport.querySelector('.gta-map-entities');
       viewport.insertBefore(tileLayer, entities || viewport.firstChild);
     }
+
+    tileLayer.style.position = 'absolute';
+    tileLayer.style.inset = '0';
+    tileLayer.style.width = '100%';
+    tileLayer.style.height = '100%';
+    tileLayer.style.overflow = 'hidden';
+    tileLayer.style.pointerEvents = 'none';
+    tileLayer.style.zIndex = '5';
+    tileLayer.style.contain = 'layout style paint';
   }
 
   function forceVisibleMapLayer() {
@@ -383,34 +397,12 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.overflow = 'visible';
     viewport.style.transformOrigin = 'center center';
     viewport.style.willChange = 'transform';
-    viewport.style.backfaceVisibility = 'hidden';
-    viewport.style.transformStyle = 'flat';
-    viewport.style.contain = 'layout style paint';
     viewport.style.zIndex = '50';
     viewport.style.pointerEvents = 'none';
+    viewport.style.contain = mobile ? 'layout style paint' : '';
 
     if (!tileMode) {
-      mapImages.forEach((image) => {
-        const isGlow = image.classList.contains('gta-map-glow');
-
-        image.style.position = 'absolute';
-        image.style.inset = '0';
-        image.style.display = mobile && isGlow ? 'none' : 'block';
-        image.style.visibility = 'visible';
-        image.style.opacity = isGlow ? (lowPower || mobile ? '0' : '0.18') : '1';
-        image.style.width = '100%';
-        image.style.height = '100%';
-        image.style.objectFit = 'contain';
-        image.style.objectPosition = 'center center';
-        image.style.pointerEvents = 'none';
-        image.decoding = 'async';
-        image.loading = 'eager';
-        image.style.userSelect = 'none';
-        image.style.backfaceVisibility = 'hidden';
-        image.style.transformStyle = 'flat';
-        image.style.contain = mobile ? 'layout paint size style' : '';
-        image.style.zIndex = isGlow ? '1' : '2';
-      });
+      setupFallbackSingleImage();
     }
 
     const entities = viewport.querySelector('.gta-map-entities');
@@ -424,51 +416,26 @@ export function enableMapControls(stage, viewport, options = {}) {
       entities.style.overflow = 'visible';
       entities.style.zIndex = '90';
       entities.style.pointerEvents = 'none';
-      entities.style.contain = 'layout paint style';
-      entities.style.backfaceVisibility = 'hidden';
     }
 
-    const objectLayers = viewport.querySelectorAll(
-      '.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin'
-    );
-
-    objectLayers.forEach((layer) => {
-      layer.style.position = 'absolute';
-      layer.style.inset = '0';
-      layer.style.visibility = 'visible';
-      layer.style.opacity = '1';
-      layer.style.overflow = 'visible';
-      layer.style.contain = 'layout paint style';
-      layer.style.backfaceVisibility = 'hidden';
-      layer.style.transform = 'translateZ(0)';
-    });
+    viewport
+      .querySelectorAll('.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin')
+      .forEach((layer) => {
+        layer.style.position = 'absolute';
+        layer.style.inset = '0';
+        layer.style.visibility = 'visible';
+        layer.style.opacity = '1';
+        layer.style.overflow = 'visible';
+      });
   }
 
   function readStageRect() {
     const rect = stage.getBoundingClientRect();
     const screen = getViewportSize();
 
-    let width = Number(rect.width);
-    let height = Number(rect.height);
+    cachedStageWidth = Math.max(1, Number(rect.width) || screen.width);
+    cachedStageHeight = Math.max(1, Number(rect.height) || screen.height);
 
-    if (!Number.isFinite(width) || width < 20) {
-      width = screen.width;
-    }
-
-    if (!Number.isFinite(height) || height < 20) {
-      height = screen.height;
-    }
-
-    cachedStageWidth = Math.max(1, width);
-    cachedStageHeight = Math.max(1, height);
-
-    return {
-      width: cachedStageWidth,
-      height: cachedStageHeight,
-    };
-  }
-
-  function getCachedStageRect() {
     return {
       width: cachedStageWidth,
       height: cachedStageHeight,
@@ -480,66 +447,61 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     const rect = readStageRect();
     const ratio = getImageRatio(viewport);
-    const isDesktopPortrait = !mobile && rect.height > rect.width * 1.18;
-    const base = isDesktopPortrait
-      ? Math.max(rect.width, Math.min(rect.height, rect.width * 1.28))
-      : Math.max(rect.width, rect.height);
-    const { worldFactor } = getMapProfile();
+    const base = Math.max(rect.width, rect.height);
+    const profile = getMapProfile();
+
+    scale = profile.scale;
+
+    const requestedWorldFactor = Number(options.worldFactor);
+    const worldFactor = Number.isFinite(requestedWorldFactor) && requestedWorldFactor > 0
+      ? requestedWorldFactor
+      : profile.worldFactor;
 
     worldWidth = Math.max(mobile ? 760 : 760, base * worldFactor);
-    worldHeight = Math.max(mobile ? 520 : 620, worldWidth * ratio);
+    worldHeight = Math.max(mobile ? 500 : 620, worldWidth * ratio);
 
     viewport.style.width = `${Math.round(worldWidth)}px`;
     viewport.style.height = `${Math.round(worldHeight)}px`;
+    viewport.dataset.mapRatio = String(ratio);
   }
 
   function getLimits() {
-    const rect = getCachedStageRect();
-
-    const scaledWidth = worldWidth * scale;
-    const scaledHeight = worldHeight * scale;
+    const w = worldWidth * scale;
+    const h = worldHeight * scale;
 
     return {
-      maxX: Math.max(0, (scaledWidth - rect.width) / 2),
-      maxY: Math.max(0, (scaledHeight - rect.height) / 2),
+      maxX: Math.max(0, (w - cachedStageWidth) / 2),
+      maxY: Math.max(0, (h - cachedStageHeight) / 2),
     };
   }
 
   function applyTransform() {
     const limits = getLimits();
-
-    x = clamp(x, -limits.maxX, limits.maxX);
-    y = clamp(y, -limits.maxY, limits.maxY);
-
-    /*
-      Keep sub-pixel precision. Previous device-pixel snapping reduced GPU work,
-      but on movement it created visible stair-step camera motion.
-    */
-    const precision = 1000;
-
-    const safeX = Math.round(x * precision) / precision;
-    const safeY = Math.round(y * precision) / precision;
+    const safeX = Math.round(clamp(x, -limits.maxX, limits.maxX) * 1000) / 1000;
+    const safeY = Math.round(clamp(y, -limits.maxY, limits.maxY) * 1000) / 1000;
     const safeScale = Math.round(scale * 10000) / 10000;
 
-    const nextTransform =
-      `translate(-50%, -50%) translate3d(${safeX}px, ${safeY}px, 0) scale(${safeScale})`;
+    x = safeX;
+    y = safeY;
+
+    const nextTransform = `translate(-50%, -50%) translate3d(${safeX}px, ${safeY}px, 0) scale(${safeScale})`;
 
     if (nextTransform !== lastViewportTransform) {
       viewport.style.transform = nextTransform;
       lastViewportTransform = nextTransform;
     }
 
-    const nextZoomValue = safeScale.toFixed(2);
-    const nextEntityScaleValue = (1 / Math.max(safeScale, 1)).toFixed(4);
+    const nextZoomCssValue = safeScale.toFixed(3);
+    const nextEntityScaleCssValue = (1 / Math.max(safeScale, 1)).toFixed(4);
 
-    if (nextZoomValue !== lastZoomCssValue) {
-      stage.style.setProperty('--zoom', nextZoomValue);
-      lastZoomCssValue = nextZoomValue;
+    if (nextZoomCssValue !== lastZoomCssValue) {
+      stage.style.setProperty('--zoom', nextZoomCssValue);
+      lastZoomCssValue = nextZoomCssValue;
     }
 
-    if (nextEntityScaleValue !== lastEntityScaleCssValue) {
-      stage.style.setProperty('--map-entity-scale', nextEntityScaleValue);
-      lastEntityScaleCssValue = nextEntityScaleValue;
+    if (nextEntityScaleCssValue !== lastEntityScaleCssValue) {
+      stage.style.setProperty('--map-entity-scale', nextEntityScaleCssValue);
+      lastEntityScaleCssValue = nextEntityScaleCssValue;
     }
   }
 
@@ -548,12 +510,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     for (let yIndex = tileY - radius; yIndex <= tileY + radius; yIndex += 1) {
       for (let xIndex = tileX - radius; xIndex <= tileX + radius; xIndex += 1) {
-        if (
-          xIndex < 0 ||
-          yIndex < 0 ||
-          xIndex >= MOBILE_TILE_GRID ||
-          yIndex >= MOBILE_TILE_GRID
-        ) {
+        if (xIndex < 0 || yIndex < 0 || xIndex >= MOBILE_TILE_GRID || yIndex >= MOBILE_TILE_GRID) {
           continue;
         }
 
@@ -570,10 +527,49 @@ export function enableMapControls(stage, viewport, options = {}) {
     preloadedTileSrcs.add(src);
 
     const image = new Image();
-
     image.decoding = 'async';
     image.loading = 'eager';
     image.src = src;
+  }
+
+  function createTileElement(tileX, tileY, src) {
+    const tile = document.createElement('div');
+    const size = 100 / MOBILE_TILE_GRID;
+
+    tile.className = 'gta-map-mobile-tile';
+    tile.dataset.tileX = String(tileX);
+    tile.dataset.tileY = String(tileY);
+    tile.style.position = 'absolute';
+    tile.style.left = `${tileX * size}%`;
+    tile.style.top = `${tileY * size}%`;
+    tile.style.width = `${size + 0.08}%`;
+    tile.style.height = `${size + 0.08}%`;
+    tile.style.backgroundImage = `url("${src}")`;
+    tile.style.backgroundSize = '100% 100%';
+    tile.style.backgroundRepeat = 'no-repeat';
+    tile.style.backgroundPosition = 'center center';
+    tile.style.opacity = '0';
+    tile.style.transition = 'opacity 120ms linear';
+    tile.style.willChange = 'opacity';
+    tile.style.contain = 'strict';
+
+    const probe = new Image();
+
+    probe.onload = () => {
+      tile.classList.add('is-loaded');
+      tile.style.opacity = '1';
+    };
+
+    probe.onerror = () => {
+      activeTiles.delete(`${tileX}:${tileY}`);
+      tile.remove();
+    };
+
+    probe.decoding = 'async';
+    probe.loading = 'eager';
+    probe.src = src;
+
+    return tile;
   }
 
   function loadTilePosition(tilePosition, appendToDom = true) {
@@ -581,12 +577,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     if (activeTiles.has(key)) return;
 
-    const src = findMobileTileSrc(
-      cityId,
-      MOBILE_TILE_GRID,
-      tilePosition.x,
-      tilePosition.y
-    );
+    const src = findMobileTileSrc(cityId, MOBILE_TILE_GRID, tilePosition.x, tilePosition.y);
 
     if (!src) return;
 
@@ -599,36 +590,6 @@ export function enableMapControls(stage, viewport, options = {}) {
     tileLayer.appendChild(tile);
   }
 
-  function createTileElement(tileX, tileY, src) {
-    const tile = document.createElement('div');
-    const size = 100 / MOBILE_TILE_GRID;
-
-    tile.className = 'gta-map-mobile-tile';
-    tile.dataset.tileX = String(tileX);
-    tile.dataset.tileY = String(tileY);
-    tile.style.left = `${tileX * size}%`;
-    tile.style.top = `${tileY * size}%`;
-    tile.style.width = `${size + 0.08}%`;
-    tile.style.height = `${size + 0.08}%`;
-    tile.style.backgroundImage = `url("${src}")`;
-
-    const probe = new Image();
-
-    probe.onload = () => {
-      tile.classList.add('is-loaded');
-    };
-
-    probe.onerror = () => {
-      tile.remove();
-    };
-
-    probe.decoding = 'async';
-    probe.loading = 'eager';
-    probe.src = src;
-
-    return tile;
-  }
-
   function unloadFarTiles(keepKeys) {
     activeTiles.forEach((tile, key) => {
       if (keepKeys.has(key)) return;
@@ -639,17 +600,8 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function getFocusedTileCenter() {
-    const tileX = clamp(
-      Math.floor((lastFocusX / 100) * MOBILE_TILE_GRID),
-      0,
-      MOBILE_TILE_GRID - 1
-    );
-
-    const tileY = clamp(
-      Math.floor((lastFocusY / 100) * MOBILE_TILE_GRID),
-      0,
-      MOBILE_TILE_GRID - 1
-    );
+    const tileX = clamp(Math.floor((lastFocusX / 100) * MOBILE_TILE_GRID), 0, MOBILE_TILE_GRID - 1);
+    const tileY = clamp(Math.floor((lastFocusY / 100) * MOBILE_TILE_GRID), 0, MOBILE_TILE_GRID - 1);
 
     return {
       tileX,
@@ -672,11 +624,6 @@ export function enableMapControls(stage, viewport, options = {}) {
       tileIdleId = null;
     }
 
-    /*
-      ВАЖНО: прогрузку карты не убираем.
-      Сразу добавляем ближние тайлы в DOM, а внешний круг заранее грузим в память
-      браузера через Image(). Когда игрок подходит к зоне, картинка уже в cache.
-    */
     const renderTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_RENDER_RADIUS);
     const preloadTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_PRELOAD_RADIUS);
     const keepTiles = getTileSetAround(tileX, tileY, MOBILE_TILE_KEEP_RADIUS);
@@ -687,20 +634,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     tileIdleId = scheduleIdle(() => {
       tileIdleId = null;
 
-      preloadTiles.forEach((tilePosition) => {
-        const key = `${tilePosition.x}:${tilePosition.y}`;
-
-        if (activeTiles.has(key)) return;
-
-        const src = findMobileTileSrc(
-          cityId,
-          MOBILE_TILE_GRID,
-          tilePosition.x,
-          tilePosition.y
-        );
-
-        preloadTileSrc(src);
-      });
+      preloadTiles.forEach((tilePosition) => loadTilePosition(tilePosition, false));
 
       window.clearTimeout(tileCleanupTimer);
       tileCleanupTimer = window.setTimeout(() => unloadFarTiles(keepKeys), MOBILE_TILE_CLEANUP_DELAY);
@@ -713,16 +647,14 @@ export function enableMapControls(stage, viewport, options = {}) {
     if (!force) {
       const { centerKey } = getFocusedTileCenter();
 
-      if (centerKey === lastTileCenterKey) {
-        return;
-      }
+      if (centerKey === lastTileCenterKey) return;
     }
 
     if (tileUpdateFrame) return;
 
     tileUpdateFrame = requestAnimationFrame(() => {
       tileUpdateFrame = null;
-      updateMobileTiles(Boolean(force));
+      updateMobileTiles(force);
     });
   }
 
@@ -746,60 +678,79 @@ export function enableMapControls(stage, viewport, options = {}) {
     };
   }
 
-  function runCameraFrame() {
-    cameraFrameId = 0;
+  function ensureCameraLoop() {
+    if (cameraFrameId) return;
 
-    x = targetMapX;
-    y = targetMapY;
+    const step = () => {
+      cameraFrameId = 0;
 
-    applyTransform();
+      const dx = targetMapX - x;
+      const dy = targetMapY - y;
+      const distance = Math.hypot(dx, dy);
+
+      if (!cameraReady || !mobile || distance > cameraSnapDistance) {
+        x = targetMapX;
+        y = targetMapY;
+        cameraReady = true;
+        applyTransform();
+        return;
+      }
+
+      if (distance <= cameraSettleEpsilon) {
+        x = targetMapX;
+        y = targetMapY;
+        applyTransform();
+        return;
+      }
+
+      x += dx * cameraFollowLerp;
+      y += dy * cameraFollowLerp;
+      applyTransform();
+      ensureCameraLoop();
+    };
+
+    cameraFrameId = requestAnimationFrame(step);
+  }
+
+  function focusOnPlayer(playerX, playerY) {
+    const target = computeTargetMapPosition(playerX, playerY);
+
+    if (!target) return;
+
+    targetMapX = target.x;
+    targetMapY = target.y;
+
+    dispatchCameraFocus({
+      cityId,
+      x: lastFocusX,
+      y: lastFocusY,
+      scale,
+      mobile,
+      tileMode,
+      worldWidth,
+      worldHeight,
+    });
+
+    ensureCameraLoop();
     scheduleTileUpdate();
   }
 
-  function scheduleCameraFrame(force = false) {
-    if (cameraFrameId) {
-      cancelAnimationFrame(cameraFrameId);
-      cameraFrameId = 0;
-    }
-
-    /*
-      The mobile joystick already runs inside requestAnimationFrame.
-      Deferring the map transform to another frame adds a visible one-frame
-      delay and makes movement feel heavy. Paint the camera target immediately,
-      while tile work stays throttled separately.
-    */
-    x = targetMapX;
-    y = targetMapY;
-
-    applyTransform();
-    scheduleTileUpdate(Boolean(force));
-  }
-
-  function focusOnPlayer(playerX, playerY, options = {}) {
-    const nextTarget = computeTargetMapPosition(playerX, playerY);
-
-    if (!nextTarget) return;
-
-    targetMapX = nextTarget.x;
-    targetMapY = nextTarget.y;
-
-    scheduleCameraFrame(Boolean(options.force));
-  }
-
   function refresh() {
-    scale = getMapProfile().scale;
+    const oldFocusX = lastFocusX;
+    const oldFocusY = lastFocusY;
 
     lastViewportTransform = '';
     lastZoomCssValue = '';
     lastEntityScaleCssValue = '';
 
     measureWorld();
-    focusOnPlayer(lastFocusX, lastFocusY, { force: true });
+    focusOnPlayer(oldFocusX, oldFocusY);
+    scheduleTileUpdate(true);
   }
 
   function onResize() {
     clearTimeout(resizeRefreshTimer);
-    resizeRefreshTimer = setTimeout(refresh, mobile ? 180 : 60);
+    resizeRefreshTimer = window.setTimeout(refresh, mobile ? 160 : 60);
   }
 
   function onImageReady() {
@@ -807,6 +758,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   setupMobileTileLayer();
+  refresh();
 
   window.addEventListener('resize', onResize, { passive: true });
   window.addEventListener('orientationchange', onResize, { passive: true });
@@ -819,19 +771,17 @@ export function enableMapControls(stage, viewport, options = {}) {
     });
   }
 
-  refresh();
-
   return {
     cleanup() {
       clearTimeout(resizeRefreshTimer);
       window.clearTimeout(tileCleanupTimer);
 
-      if (cameraFrameId) {
-        cancelAnimationFrame(cameraFrameId);
-      }
-
       if (tileUpdateFrame) {
         cancelAnimationFrame(tileUpdateFrame);
+      }
+
+      if (cameraFrameId) {
+        cancelAnimationFrame(cameraFrameId);
       }
 
       if (tileIdleId) {
@@ -856,5 +806,3 @@ export function enableMapControls(stage, viewport, options = {}) {
     refresh,
   };
 }
-
-
