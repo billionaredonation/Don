@@ -10,15 +10,16 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -32,25 +33,44 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Prepare AVIF assets
+        run: |
+          if [ -f "scripts/prepare-avif-assets.mjs" ]; then
+            node scripts/prepare-avif-assets.mjs
+          elif [ -f "prepare-avif-assets.mjs" ]; then
+            node prepare-avif-assets.mjs
+          else
+            echo "prepare-avif-assets.mjs not found, skipping"
+          fi
+
       - name: Build
         run: npm run build
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v6
+      - name: Clean Pages output
+        run: |
+          test -d dist
+          touch dist/.nojekyll
+          find dist -type l -delete
+          echo "Dist size:"
+          du -sh dist
+          echo "Largest files:"
+          find dist -type f -printf '%s %p\n' | sort -nr | head -20
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
           path: ./dist
+          retention-days: 1
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     permissions:
       pages: write
       id-token: write
+      actions: read
 
     environment:
       name: github-pages
@@ -59,8 +79,8 @@ jobs:
     steps:
       - name: Deploy artifact to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         with:
-          timeout: 600000
-          error_count: 10
-          reporting_interval: 5000
+          timeout: 900000
+          error_count: 20
+          reporting_interval: 10000
