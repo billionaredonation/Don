@@ -240,10 +240,10 @@ export function enableMobileJoystick(
     координата игрока теперь не прыгает напрямую за джойстиком.
     Сначала сглаживаем input, потом velocity, потом отдельно render-позицию.
   */
-  const INPUT_SMOOTHING = 0.52;
-  const INPUT_STOP_EASING = 0.6;
-  const VELOCITY_LERP = 0.58;
-  const VELOCITY_STOP_LERP = 0.66;
+  const INPUT_SMOOTHING = 0.64;
+  const INPUT_STOP_EASING = 0.72;
+  const VELOCITY_LERP = 0.72;
+  const VELOCITY_STOP_LERP = 0.78;
   const RENDER_LAG = 1;
   const POSITION_PAINT_EPSILON = 0.00002;
   const MARKER_DATA_SYNC_INTERVAL = 180;
@@ -348,6 +348,7 @@ export function enableMobileJoystick(
     const now = performance.now();
     const moving = Boolean(isMoving);
 
+    window.__MN_PLAYER_MOVING__ = moving;
     window.__MN_MOBILE_PLAYER_MOVING__ = moving;
     window.__MN_MOBILE_PLAYER_LAST_ACTIVE_AT__ = now;
 
