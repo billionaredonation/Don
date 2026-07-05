@@ -144,6 +144,7 @@ export function enableKeyboardPlayerMovement(
   let heartbeatTimer = null;
   let destroyed = false;
   let lastFrameAt = performance.now();
+  let lastRuntimeMovingState = null;
 
   let lastBroadcastAt = 0;
   let lastDbSaveAt = 0;
@@ -152,6 +153,24 @@ export function enableKeyboardPlayerMovement(
 
   let lastDbSaved = { x, y };
   let lastDbSavedAngle = angle;
+
+  function setPlayerMovingUi(isMoving) {
+    const moving = Boolean(isMoving);
+
+    window.__MN_PLAYER_MOVING__ = moving;
+    window.__MN_DESKTOP_PLAYER_MOVING__ = moving;
+
+    if (lastRuntimeMovingState === moving) return;
+
+    lastRuntimeMovingState = moving;
+
+    document.body?.classList?.toggle('mn-player-moving', moving);
+    document.documentElement?.classList?.toggle('mn-player-moving', moving);
+
+    if (document.body?.dataset) {
+      document.body.dataset.mnPlayerMoving = moving ? 'true' : 'false';
+    }
+  }
 
   function syncPlayerPosition() {
     playerPosition.x = x;
@@ -267,6 +286,17 @@ export function enableKeyboardPlayerMovement(
     }
   }
 
+  function queuePositionSave(force = false) {
+    if (force) {
+      savePositionToDb(true);
+      return;
+    }
+
+    if (Date.now() - lastDbSaveAt >= DB_SAVE_INTERVAL) {
+      savePositionToDb(false);
+    }
+  }
+
   function startHeartbeat() {
     clearInterval(heartbeatTimer);
 
@@ -333,6 +363,8 @@ export function enableKeyboardPlayerMovement(
     const isSprinting = updateSprintState(moved, frameScale);
     const speed = isSprinting ? SPRINT_SPEED : WALK_SPEED;
 
+    setPlayerMovingUi(moved);
+
     if (moved) {
       x += moveX * speed * frameScale;
       y += moveY * speed * frameScale;
@@ -341,7 +373,7 @@ export function enableKeyboardPlayerMovement(
 
       renderPlayer();
       broadcastMove(false);
-      savePositionToDb(false);
+      queuePositionSave(false);
     } else {
       syncPlayerPosition();
     }
@@ -407,6 +439,7 @@ export function enableKeyboardPlayerMovement(
     keys.delete(event.key.toLowerCase());
 
     if (keys.size === 0) {
+      setPlayerMovingUi(false);
       forceSyncPosition();
       broadcastMove(true);
       updateStaminaUi();
@@ -432,6 +465,7 @@ export function enableKeyboardPlayerMovement(
 
   return () => {
     destroyed = true;
+    setPlayerMovingUi(false);
     clearInterval(heartbeatTimer);
 
     window.removeEventListener('keydown', onKeyDown);
