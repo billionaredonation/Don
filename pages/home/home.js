@@ -206,9 +206,11 @@ function saveMobileControlsAccepted() {
   }
 }
 
+const ADMIN_HOTKEY_EVENT_FLAG = '__mnAdminHotkeyHandled';
+
 function isAdminHotkey(event) {
-  const code = String(event?.code || '');
-  const key = String(event?.key || '').toLowerCase();
+  const key = String(event?.key || '').trim().toLowerCase();
+  const code = String(event?.code || '').trim();
 
   return (
     code === 'KeyP' ||
@@ -1176,7 +1178,28 @@ register('home', async (root) => {
         movementChannel: network.movementChannel,
       });
 
+      function setAdminPanelVisible(nextVisible) {
+        const panel = root.querySelector('.admin-panel');
+        if (!panel) return false;
+
+        panel.hidden = !nextVisible;
+        root.dataset.adminMode = nextVisible ? 'enabled' : 'disabled';
+
+        if (nextVisible) {
+          delete root.dataset.adminTeleportMode;
+        }
+
+        return true;
+      }
+
       function toggleAdminPanel() {
+        const panel = root.querySelector('.admin-panel');
+
+        if (panel) {
+          setAdminPanelVisible(panel.hidden);
+          return;
+        }
+
         window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
       }
 
@@ -1206,23 +1229,23 @@ register('home', async (root) => {
       root.appendChild(adminStatusButton);
 
       const handleAdminHotkey = (event) => {
-        if (event.__mnAdminHotkeyHandled === true) return;
+        if (event?.[ADMIN_HOTKEY_EVENT_FLAG] === true) return;
         if (!isAdminHotkey(event)) return;
+        if (event.repeat) return;
         if (isTypingTarget(event.target)) return;
 
-        event.__mnAdminHotkeyHandled = true;
+        event[ADMIN_HOTKEY_EVENT_FLAG] = true;
         event.preventDefault();
         event.stopPropagation();
+        event.stopImmediatePropagation?.();
 
         toggleAdminPanel();
       };
 
       window.addEventListener('keydown', handleAdminHotkey, true);
-      document.addEventListener('keydown', handleAdminHotkey, true);
 
       cleanupAdminPanel = () => {
         window.removeEventListener('keydown', handleAdminHotkey, true);
-        document.removeEventListener('keydown', handleAdminHotkey, true);
         adminStatusButton.remove();
         panelCleanup?.();
       };
