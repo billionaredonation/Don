@@ -10,6 +10,8 @@ const MOBILE_TILE_PRELOAD_RADIUS = 3;
 const MOBILE_TILE_KEEP_RADIUS = 4;
 const MOBILE_TILE_IDLE_DELAY = 110;
 const MOBILE_TILE_CLEANUP_DELAY = 7800;
+const MOBILE_CAMERA_EVENT_INTERVAL_MS = 90;
+const DESKTOP_CAMERA_EVENT_INTERVAL_MS = 34;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -264,6 +266,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   let lastEntityScaleCssValue = '';
 
   let tileLayer = null;
+  let tileLayerOwned = false;
   let tileMode = false;
   let tileIdleId = null;
   let tileUpdateFrame = null;
@@ -280,6 +283,10 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   let cameraFrameId = 0;
   let cameraReady = false;
+  let cameraFocusFrameId = 0;
+  let cameraFocusTimerId = 0;
+  let lastCameraFocusDispatchedAt = Number.NEGATIVE_INFINITY;
+  let pendingCameraFocusDetail = null;
 
   function setRenderMode(mode) {
     stage.dataset.mapRenderMode = mode;
@@ -319,10 +326,10 @@ export function enableMapControls(stage, viewport, options = {}) {
       image.loading = mobile ? 'lazy' : 'eager';
 
       if (fallbackMapSrc) {
-        image.style.backgroundImage = `url("${fallbackMapSrc}")`;
-        image.style.backgroundSize = '100% 100%';
-        image.style.backgroundRepeat = 'no-repeat';
-        image.style.backgroundPosition = 'center center';
+        image.style.backgroundImage = '';
+        image.style.backgroundSize = '';
+        image.style.backgroundRepeat = '';
+        image.style.backgroundPosition = '';
       }
 
       if (image.tagName === 'IMG' && fallbackMapSrc && !image.getAttribute('src')) {
@@ -360,6 +367,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     if (!tileLayer) {
       tileLayer = document.createElement('div');
+      tileLayerOwned = true;
       tileLayer.className = 'gta-map-mobile-tile-layer';
       tileLayer.setAttribute('aria-hidden', 'true');
 
@@ -463,6 +471,8 @@ export function enableMapControls(stage, viewport, options = {}) {
     viewport.style.width = `${Math.round(worldWidth)}px`;
     viewport.style.height = `${Math.round(worldHeight)}px`;
     viewport.dataset.mapRatio = String(ratio);
+    viewport.dataset.worldWidth = String(Math.round(worldWidth));
+    viewport.dataset.worldHeight = String(Math.round(worldHeight));
   }
 
   function getLimits() {
@@ -712,6 +722,52 @@ export function enableMapControls(stage, viewport, options = {}) {
     cameraFrameId = requestAnimationFrame(step);
   }
 
+  function flushCameraFocusDispatch() {
+    cameraFocusFrameId = 0;
+    cameraFocusTimerId = 0;
+
+    if (!pendingCameraFocusDetail) return;
+
+    lastCameraFocusDispatchedAt = performance.now();
+    dispatchCameraFocus(pendingCameraFocusDetail);
+    pendingCameraFocusDetail = null;
+  }
+
+  function scheduleCameraFocusDispatch(detail, force = false) {
+    pendingCameraFocusDetail = detail;
+
+    if (force) {
+      if (cameraFocusFrameId) {
+        cancelAnimationFrame(cameraFocusFrameId);
+        cameraFocusFrameId = 0;
+      }
+
+      if (cameraFocusTimerId) {
+        clearTimeout(cameraFocusTimerId);
+        cameraFocusTimerId = 0;
+      }
+
+      flushCameraFocusDispatch();
+      return;
+    }
+
+    if (cameraFocusFrameId || cameraFocusTimerId) return;
+
+    const now = performance.now();
+    const interval = mobile ? MOBILE_CAMERA_EVENT_INTERVAL_MS : DESKTOP_CAMERA_EVENT_INTERVAL_MS;
+    const wait = Math.max(0, interval - (now - lastCameraFocusDispatchedAt));
+
+    if (wait <= 0) {
+      cameraFocusFrameId = requestAnimationFrame(flushCameraFocusDispatch);
+      return;
+    }
+
+    cameraFocusTimerId = window.setTimeout(() => {
+      cameraFocusTimerId = 0;
+      cameraFocusFrameId = requestAnimationFrame(flushCameraFocusDispatch);
+    }, wait);
+  }
+
   function focusOnPlayer(playerX, playerY) {
     const target = computeTargetMapPosition(playerX, playerY);
 
@@ -720,7 +776,7 @@ export function enableMapControls(stage, viewport, options = {}) {
     targetMapX = target.x;
     targetMapY = target.y;
 
-    dispatchCameraFocus({
+    scheduleCameraFocusDispatch({
       cityId,
       x: lastFocusX,
       y: lastFocusY,
@@ -784,13 +840,27 @@ export function enableMapControls(stage, viewport, options = {}) {
         cancelAnimationFrame(cameraFrameId);
       }
 
+      if (cameraFocusFrameId) {
+        cancelAnimationFrame(cameraFocusFrameId);
+      }
+
+      if (cameraFocusTimerId) {
+        clearTimeout(cameraFocusTimerId);
+      }
+
       if (tileIdleId) {
         cancelIdle(tileIdleId);
       }
 
+      activeTiles.forEach((tile) => tile.remove());
       activeTiles.clear();
       preloadedTileSrcs.clear();
-      tileLayer?.remove();
+
+      if (tileLayerOwned) {
+        tileLayer?.remove();
+      } else {
+        tileLayer?.replaceChildren?.();
+      }
 
       window.removeEventListener('resize', onResize);
       window.removeEventListener('orientationchange', onResize);
