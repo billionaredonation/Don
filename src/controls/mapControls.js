@@ -326,10 +326,17 @@ export function enableMapControls(stage, viewport, options = {}) {
       image.loading = mobile ? 'lazy' : 'eager';
 
       if (fallbackMapSrc) {
-        image.style.backgroundImage = '';
-        image.style.backgroundSize = '';
-        image.style.backgroundRepeat = '';
-        image.style.backgroundPosition = '';
+        if (image.tagName === 'IMG') {
+          image.style.backgroundImage = '';
+          image.style.backgroundSize = '';
+          image.style.backgroundRepeat = '';
+          image.style.backgroundPosition = '';
+        } else {
+          image.style.backgroundImage = `url("${fallbackMapSrc}")`;
+          image.style.backgroundSize = '100% 100%';
+          image.style.backgroundRepeat = 'no-repeat';
+          image.style.backgroundPosition = 'center center';
+        }
       }
 
       if (image.tagName === 'IMG' && fallbackMapSrc && !image.getAttribute('src')) {
