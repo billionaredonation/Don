@@ -6646,3 +6646,16 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
     max-height: 20px !important;
   }
 }
+
+
+/* Admin PC-only hotkey mode: no admin open button on mobile. */
+@media (hover: none), (pointer: coarse), (max-width: 900px) {
+  .home[data-mobile-controls="enabled"] .admin-status-dot,
+  body.mn-landscape-game .admin-status-dot,
+  body.mn-mobile-game-enabled .admin-status-dot {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+}
