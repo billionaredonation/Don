@@ -14,8 +14,8 @@ const MOBILE_INTERACTION_RADIUS_PX = 112;
 const DIRECT_TAP_RADIUS_PX = 132;
 const MOBILE_FREE_TAP_RADIUS_PX = 150;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
-const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 36000 : 6500;
-const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 900 : 320;
+const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
+const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 760 : 320;
 
 /*
   ПК оставляем широким: там железо выдерживает много DOM-объектов.
@@ -30,7 +30,7 @@ const OBJECT_LOAD_RADIUS_PERCENT = 18;
 const MOBILE_OBJECT_RENDER_RADIUS_PX = 360;
 const MOBILE_OBJECT_LOAD_RADIUS_PX = 840;
 const MOBILE_OBJECT_REGION_RELOAD_SHIFT_PX = 520;
-const MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX = 420;
+const MOBILE_OBJECT_RENDER_MOVE_EPSILON_PX = 260;
 
 const MOBILE_OBJECT_RENDER_RADIUS_MIN_PERCENT = 7;
 const MOBILE_OBJECT_RENDER_RADIUS_MAX_PERCENT = 18;
@@ -40,8 +40,8 @@ const OBJECT_REGION_RELOAD_SHIFT_PERCENT = 8;
 const OBJECT_RENDER_MOVE_EPSILON_PERCENT = 1.8;
 const OBJECT_GRID_CELL_PERCENT = 4;
 
-const MOBILE_MAX_RENDERED_OBJECTS = 18;
-const DESKTOP_MAX_RENDERED_OBJECTS = 70;
+const MOBILE_MAX_RENDERED_OBJECTS = 28;
+const DESKTOP_MAX_RENDERED_OBJECTS = 90;
 
 function getPurchasedHouseId(detail = {}) {
   return detail.houseId || detail.result?.houseId || detail.house?.payload?.houseId || null;
@@ -756,6 +756,7 @@ export function enableEntityInteraction({
   let loadedRegion = null;
   let lastMovingObjectsRenderAt = 0;
   let pendingRenderAfterMovement = false;
+  let pendingReloadAfterMovement = false;
   let objectById = new Map();
   let objectGrid = new Map();
 
@@ -869,9 +870,15 @@ export function enableEntityInteraction({
 
     if (layer.dataset.motionPaused === 'true') return;
 
+    /*
+      Не скрываем дома display:none во время движения. Старый вариант убирал слой,
+      потом после остановки заново включал/перерисовывал DOM — отсюда визуальная
+      «прорисовка» и резкие лаги. Теперь слой остаётся на экране, но не получает
+      pointer-events до пересчёта окна объектов.
+    */
     layer.dataset.motionPaused = 'true';
     layer.classList.add('map-objects-layer-motion-paused');
-    layer.style.setProperty('display', 'none', 'important');
+    layer.style.pointerEvents = 'none';
   }
 
   function resumeObjectLayerAfterMovement() {
@@ -881,7 +888,7 @@ export function enableEntityInteraction({
 
     layer.dataset.motionPaused = 'false';
     layer.classList.remove('map-objects-layer-motion-paused');
-    layer.style.removeProperty('display');
+    layer.style.removeProperty('pointer-events');
     moveLayerAboveMap(viewport, layer);
   }
 
@@ -1248,7 +1255,11 @@ export function enableEntityInteraction({
     if (destroyed) return;
 
     if (shouldReloadRegion()) {
-      scheduleReload(isPlayerBusy() ? 1100 : 260);
+      if (isMobileGameplayDevice() && isPlayerBusy()) {
+        pendingReloadAfterMovement = true;
+      } else {
+        scheduleReload(260);
+      }
     }
 
     if (isPlayerBusy()) {
@@ -1266,6 +1277,11 @@ export function enableEntityInteraction({
     }
 
     resumeObjectLayerAfterMovement();
+
+    if (pendingReloadAfterMovement) {
+      pendingReloadAfterMovement = false;
+      scheduleReload(0);
+    }
 
     if (pendingRenderAfterMovement) {
       pendingRenderAfterMovement = false;
@@ -1444,6 +1460,11 @@ export function enableEntityInteraction({
   window.addEventListener('mn:house-purchased-local', onHousePurchased);
 
   snapshotTimer = setInterval(() => {
+    if (isMobileGameplayDevice() && isPlayerBusy()) {
+      pendingReloadAfterMovement = true;
+      return;
+    }
+
     scheduleReload(0);
   }, MAP_OBJECTS_SNAPSHOT_INTERVAL_MS);
 
