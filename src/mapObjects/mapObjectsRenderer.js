@@ -671,6 +671,48 @@ export function clearMapObjectsLayer(layer) {
   layer.dataset.virtualized = 'false';
 }
 
+export function findMapObjectElement(layerOrObjectId, maybeObjectId) {
+  const hasExplicitLayer = maybeObjectId !== undefined;
+  const layer = hasExplicitLayer ? layerOrObjectId : null;
+  const objectId = String(hasExplicitLayer ? maybeObjectId : layerOrObjectId || '').trim();
+
+  if (!objectId) return null;
+
+  const findInLayer = (targetLayer) => {
+    if (!targetLayer) return null;
+
+    const cached = targetLayer.__mnObjectElements?.get?.(objectId);
+    if (cached?.isConnected) return cached;
+
+    const children = targetLayer.children || [];
+
+    for (let index = 0; index < children.length; index += 1) {
+      const child = children[index];
+      if (child?.dataset?.mapObjectId === objectId) return child;
+    }
+
+    return null;
+  };
+
+  if (layer?.querySelector || layer?.children) {
+    return findInLayer(layer);
+  }
+
+  for (const state of layerStates) {
+    const element = findInLayer(state.layer);
+    if (element) return element;
+  }
+
+  const layers = document.querySelectorAll?.('.map-objects-layer, .map-objects-layer-admin') || [];
+
+  for (let index = 0; index < layers.length; index += 1) {
+    const element = findInLayer(layers[index]);
+    if (element) return element;
+  }
+
+  return null;
+}
+
 export function getMapObjectIdFromEvent(event) {
   const target = event?.target;
   const element = target?.closest?.('[data-map-object-id]');
