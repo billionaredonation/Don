@@ -1,10 +1,10 @@
 const MOVEMENT_CONFIG = Object.freeze({
   keyboardSpeed: 0.09,
   mobileSpeed: 0.084,
-  minX: 12,
-  maxX: 88,
-  minY: 10,
-  maxY: 90,
+  minX: 0,
+  maxX: 100,
+  minY: 0,
+  maxY: 100,
 });
 
 const SYNC_CONFIG = Object.freeze({
@@ -54,10 +54,10 @@ export function getMobileMoveSpeed() {
 
 export function getMovementBounds() {
   return {
-    minX: toFiniteNumber(MOVEMENT_CONFIG.minX, 12),
-    maxX: toFiniteNumber(MOVEMENT_CONFIG.maxX, 88),
-    minY: toFiniteNumber(MOVEMENT_CONFIG.minY, 10),
-    maxY: toFiniteNumber(MOVEMENT_CONFIG.maxY, 90),
+    minX: toFiniteNumber(MOVEMENT_CONFIG.minX, 0),
+    maxX: toFiniteNumber(MOVEMENT_CONFIG.maxX, 100),
+    minY: toFiniteNumber(MOVEMENT_CONFIG.minY, 0),
+    maxY: toFiniteNumber(MOVEMENT_CONFIG.maxY, 100),
   };
 }
 
