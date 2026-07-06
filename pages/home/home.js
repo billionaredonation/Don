@@ -233,6 +233,18 @@ function isTypingTarget(target) {
   );
 }
 
+
+function hasLocalAdminAccess(playerPosition) {
+  return (
+    isTruthyAdmin(playerPosition?.is_admin) ||
+    isTruthyAdmin(playerPosition?.isAdmin) ||
+    isTruthyAdmin(state?.is_admin) ||
+    isTruthyAdmin(state?.isAdmin) ||
+    isTruthyAdmin(state?.player?.is_admin) ||
+    isTruthyAdmin(state?.player?.isAdmin)
+  );
+}
+
 function createMobileSelfMarkerHardOverlay() {
   if (window.__MN_SESSION_BLOCKED === true ||
       document.documentElement?.classList?.contains('mn-session-blocked') ||
@@ -1160,7 +1172,7 @@ register('home', async (root) => {
     telegramId,
   });
 
-  isCurrentPlayerAdmin()
+  Promise.resolve(hasLocalAdminAccess(playerPosition) ? true : isCurrentPlayerAdmin())
     .then((canUseAdminPanel) => {
       if (!canUseAdminPanel || root.dataset.destroyed === 'true') {
         return;
@@ -1178,25 +1190,11 @@ register('home', async (root) => {
         movementChannel: network.movementChannel,
       });
 
-      function setAdminPanelVisible(nextVisible) {
-        const panel = root.querySelector('.admin-panel');
-        if (!panel) return false;
-
-        panel.hidden = !nextVisible;
-        root.dataset.adminMode = nextVisible ? 'enabled' : 'disabled';
-
-        if (nextVisible) {
-          delete root.dataset.adminTeleportMode;
-        }
-
-        return true;
-      }
-
       function toggleAdminPanel() {
-        const panel = root.querySelector('.admin-panel');
+        const api = root.__mnAdminPanel || window.__MN_ADMIN_PANEL__;
 
-        if (panel) {
-          setAdminPanelVisible(panel.hidden);
+        if (api?.toggle) {
+          api.toggle();
           return;
         }
 
@@ -1311,4 +1309,5 @@ register('home', async (root) => {
     );
   };
 });
+
 
