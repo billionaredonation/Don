@@ -26,6 +26,19 @@ function getTelegramInitData() {
   return window.Telegram?.WebApp?.initData || '';
 }
 
+function isTruthyAdmin(value) {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function hasLocalAdminFlag() {
+  return (
+    isTruthyAdmin(state?.is_admin) ||
+    isTruthyAdmin(state?.isAdmin) ||
+    isTruthyAdmin(state?.player?.is_admin) ||
+    isTruthyAdmin(state?.player?.isAdmin)
+  );
+}
+
 async function readFunctionError(error) {
   let details = error?.message || String(error);
 
@@ -94,6 +107,28 @@ async function checkAdminSession() {
 }
 
 export async function isCurrentPlayerAdmin() {
+  // PC/browser preview has no Telegram initData. Do not block the dev admin panel
+  // if the player admin flag was already loaded from Supabase/player state.
+  if (hasLocalAdminFlag()) {
+    cachedAdminSession = {
+      ok: true,
+      isAdmin: true,
+      player: state.player || null,
+      reason: 'local_admin_flag',
+      details: null,
+    };
+
+    state.is_admin = true;
+    state.isAdmin = true;
+    state.player = {
+      ...(state.player || {}),
+      is_admin: true,
+      isAdmin: true,
+    };
+
+    return true;
+  }
+
   if (cachedAdminSession) {
     return cachedAdminSession.isAdmin === true;
   }
