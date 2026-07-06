@@ -10,142 +10,202 @@
 
   <title>Mn-game</title>
 
-  <link rel="stylesheet" href="./styles/base.css?v=106" />
-  <link rel="stylesheet" href="./pages/welcome1/welcome1.css?v=106" />
-  <link rel="stylesheet" href="./pages/welcome2/welcome2.css?v=106" />
-  <link rel="stylesheet" href="./pages/welcome3/welcome3.css?v=116" />
-  <link rel="stylesheet" href="./pages/preload/preload.css?v=5" />
-  <link rel="stylesheet" href="./pages/home/home.css?v=129" />
-  <link rel="stylesheet" href="./styles/map-lights.css?v=106" />
-  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=14" />
-  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=91" />
+  <link rel="stylesheet" href="./styles/base.css?v=107" />
+  <link rel="stylesheet" href="./pages/welcome1/welcome1.css?v=107" />
+  <link rel="stylesheet" href="./pages/welcome2/welcome2.css?v=107" />
+  <link rel="stylesheet" href="./pages/welcome3/welcome3.css?v=117" />
+  <link rel="stylesheet" href="./pages/preload/preload.css?v=6" />
+
+  <!-- Основной стиль дома/карты/модалок. Его не перебиваем отдельными map-fix файлами. -->
+  <link rel="stylesheet" href="./pages/home/home.css?v=130" />
+  <link rel="stylesheet" href="./styles/map-lights.css?v=107" />
+  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=15" />
+
+  <!-- Только джойстик/стамина. Без вмешательства в карту и модалки. -->
+  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=92" />
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <script>
-    window.__MN_BOOT_STARTED__ = false;
-    window.__MN_BOOT_READY__ = false;
-    window.__MN_BOOT_STAGE__ = 'index';
+    (function () {
+      window.__MN_BOOT_READY__ = false;
+      window.__MN_BOOT_STAGE__ = 'index';
 
-    function escapeHtml(value) {
-      return String(value ?? '').replace(/[&<>"']/g, function (char) {
-        return {
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#039;',
-        }[char];
-      });
-    }
-
-    function stringifyError(error) {
-      if (!error) return 'Unknown error';
-      if (typeof error === 'string') return error;
-
-      var parts = [];
-
-      if (error.name) parts.push('Name: ' + error.name);
-      if (error.message) parts.push('Message: ' + error.message);
-      if (error.stack) parts.push('Stack:\n' + error.stack);
-
-      try {
-        var json = JSON.stringify(error, null, 2);
-        if (json && json !== '{}') parts.push('JSON:\n' + json);
-      } catch (_) {
-        // ignore
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function (char) {
+          return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;',
+          }[char];
+        });
       }
 
-      return parts.join('\n\n') || String(error);
-    }
+      function stringifyError(error) {
+        if (!error) return 'Unknown error';
+        if (typeof error === 'string') return error;
 
-    function showFatalError(error, source) {
-      var root = document.getElementById('app');
-      if (!root) return;
+        var parts = [];
 
-      var stage = window.__MN_BOOT_STAGE__ || 'unknown';
-      var message = stringifyError(error);
+        if (error.name) parts.push('Name: ' + error.name);
+        if (error.message) parts.push('Message: ' + error.message);
+        if (error.stack) parts.push('Stack:\n' + error.stack);
 
-      root.innerHTML =
-        '<div style="' +
-          'min-height:100vh;' +
-          'box-sizing:border-box;' +
-          'background:#050505;' +
-          'color:#fff;' +
-          'padding:20px;' +
-          'font-family:Arial,sans-serif;' +
-          'white-space:pre-wrap;' +
-          'line-height:1.45;' +
-          'font-size:14px;' +
-        '">' +
-          'Ошибка загрузки' +
-          (source ? ' [' + escapeHtml(source) + ']' : '') +
-          '\nЭтап: ' + escapeHtml(stage) +
-          '\n\n' + escapeHtml(message) +
-          '\n\n<button id="mnReloadBtn" style="' +
-            'margin-top:14px;' +
-            'height:44px;' +
-            'padding:0 18px;' +
-            'border:0;' +
-            'border-radius:14px;' +
-            'background:#fff;' +
-            'color:#000;' +
-            'font-weight:800;' +
-          '">Перезапустить</button>' +
-        '</div>';
+        try {
+          var json = JSON.stringify(error, null, 2);
+          if (json && json !== '{}') parts.push('JSON:\n' + json);
+        } catch (_) {
+          // ignore
+        }
 
-      document.getElementById('mnReloadBtn')?.addEventListener('click', function () {
-        window.location.reload();
-      });
-    }
-
-    window.__MN_SET_BOOT_STAGE__ = function (stage) {
-      window.__MN_BOOT_STAGE__ = String(stage || 'unknown');
-
-      var loading = document.querySelector('#app .app-loading');
-      if (loading) {
-        loading.textContent = window.__MN_BOOT_STAGE__;
+        return parts.join('\n\n') || String(error);
       }
-    };
 
-    window.addEventListener('error', function (event) {
-      showFatalError(event.error || event.message, 'window.error');
-    });
+      function getAppRoot() {
+        return document.getElementById('app');
+      }
 
-    window.addEventListener('unhandledrejection', function (event) {
-      showFatalError(event.reason, 'unhandledrejection');
-    });
+      function hasOnlyInitialLoading(root) {
+        if (!root) return false;
 
-    window.setTimeout(function () {
-      if (window.__MN_BOOT_READY__ === true) return;
+        var loading = root.querySelector('.app-loading');
 
-      showFatalError(
-        new Error('Загрузка зависла дольше 22 секунд. Это не index.html, а зависший стартовый запрос или main.js. Смотри этап выше.'),
-        'boot-watchdog'
-      );
-    }, 22000);
+        if (!loading) return false;
+
+        var text = String(root.textContent || '').trim().toLowerCase();
+
+        return (
+          root.children.length === 1 &&
+          root.firstElementChild === loading &&
+          (text === 'загрузка...' || text === 'загрузка')
+        );
+      }
+
+      function markBootReady(reason) {
+        window.__MN_BOOT_READY__ = true;
+        window.__MN_BOOT_READY_REASON__ = reason || 'ready';
+
+        if (window.__MN_BOOT_WATCHDOG_ID__) {
+          clearTimeout(window.__MN_BOOT_WATCHDOG_ID__);
+          window.__MN_BOOT_WATCHDOG_ID__ = 0;
+        }
+
+        if (window.__MN_BOOT_OBSERVER__) {
+          try {
+            window.__MN_BOOT_OBSERVER__.disconnect();
+          } catch (_) {
+            // ignore
+          }
+          window.__MN_BOOT_OBSERVER__ = null;
+        }
+      }
+
+      function showFatalError(error, source) {
+        var root = getAppRoot();
+        if (!root) return;
+
+        var message = stringifyError(error);
+        var stage = window.__MN_BOOT_STAGE__ || 'unknown';
+
+        root.innerHTML =
+          '<div style="' +
+            'min-height:100vh;' +
+            'box-sizing:border-box;' +
+            'background:#050505;' +
+            'color:#fff;' +
+            'padding:20px;' +
+            'font-family:Arial,sans-serif;' +
+            'white-space:pre-wrap;' +
+            'line-height:1.45;' +
+            'font-size:14px;' +
+          '">' +
+            'Ошибка загрузки' +
+            (source ? ' [' + escapeHtml(source) + ']' : '') +
+            '\nЭтап: ' + escapeHtml(stage) +
+            '\n\n' + escapeHtml(message) +
+            '\n\n<button id="mnReloadBtn" style="' +
+              'margin-top:14px;' +
+              'height:44px;' +
+              'padding:0 18px;' +
+              'border:0;' +
+              'border-radius:14px;' +
+              'background:#fff;' +
+              'color:#000;' +
+              'font-weight:800;' +
+              'cursor:pointer;' +
+            '">Перезапустить</button>' +
+          '</div>';
+
+        document.getElementById('mnReloadBtn')?.addEventListener('click', function () {
+          window.location.reload();
+        });
+      }
+
+      window.__MN_MARK_BOOT_READY__ = markBootReady;
+
+      window.__MN_SET_BOOT_STAGE__ = function (stage) {
+        window.__MN_BOOT_STAGE__ = String(stage || 'unknown');
+
+        var loading = document.querySelector('#app .app-loading');
+        if (loading && hasOnlyInitialLoading(getAppRoot())) {
+          loading.textContent = window.__MN_BOOT_STAGE__;
+        }
+      };
+
+      window.addEventListener('error', function (event) {
+        showFatalError(event.error || event.message, 'window.error');
+      });
+
+      window.addEventListener('unhandledrejection', function (event) {
+        showFatalError(event.reason, 'unhandledrejection');
+      });
+
+      window.addEventListener('DOMContentLoaded', function () {
+        var root = getAppRoot();
+
+        if (!root) return;
+
+        window.__MN_BOOT_OBSERVER__ = new MutationObserver(function () {
+          if (!hasOnlyInitialLoading(root)) {
+            markBootReady('app-rendered');
+          }
+        });
+
+        window.__MN_BOOT_OBSERVER__.observe(root, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+
+        window.__MN_BOOT_WATCHDOG_ID__ = window.setTimeout(function () {
+          if (window.__MN_BOOT_READY__ === true) return;
+
+          var currentRoot = getAppRoot();
+
+          if (!hasOnlyInitialLoading(currentRoot)) {
+            markBootReady('app-rendered-before-watchdog');
+            return;
+          }
+
+          showFatalError(
+            new Error('Стартовый экран висит дольше 30 секунд. Это значит, что main.js не заменил начальную загрузку. Смотри текущий этап выше.'),
+            'boot-watchdog'
+          );
+        }, 30000);
+      });
+    })();
   </script>
 </head>
 
 <body>
   <div id="app">
-    <div class="app-loading" style="
-      min-height:100vh;
-      display:flex;
-      align-items:flex-start;
-      justify-content:flex-start;
-      box-sizing:border-box;
-      padding:24px;
-      background:#050505;
-      color:#fff;
-      font-family:Arial,sans-serif;
-      font-size:20px;
-      font-weight:800;
-    ">
+    <div class="app-loading">
       Загрузка...
     </div>
   </div>
 
-  <script type="module" src="./src/main.js?v=172"></script>
+  <script type="module" src="./src/main.js?v=174"></script>
 </body>
 </html>
