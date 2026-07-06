@@ -111,6 +111,25 @@
     </div>
   </div>
 
-  <script type="module" src="./src/main.js?v=171"></script>
+  <script>
+    window.setTimeout(function () {
+      var root = document.getElementById('app');
+      if (!root) return;
+      if (!root.querySelector('.app-loading')) return;
+
+      root.innerHTML =
+        '<div style="min-height:100vh;background:#050505;color:#fff;padding:20px;font-family:Arial,sans-serif;line-height:1.45">' +
+          '<h2 style="margin:0 0 12px;font-size:22px">Загрузка зависла</h2>' +
+          '<p style="margin:0 0 16px;color:rgba(255,255,255,.72)">Основной JS не стартовал или сеть зависла. Нажми перезапуск.</p>' +
+          '<button id="mnHardReload" type="button" style="height:46px;border:0;border-radius:14px;padding:0 18px;font-weight:800;cursor:pointer">Перезапустить</button>' +
+        '</div>';
+
+      document.getElementById('mnHardReload')?.addEventListener('click', function () {
+        window.location.reload();
+      });
+    }, 12000);
+  </script>
+
+  <script type="module" src="./src/main.js?v=172"></script>
 </body>
 </html>
