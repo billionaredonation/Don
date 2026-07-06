@@ -8,18 +8,19 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
-  actions: read
 
 concurrency:
-  group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
+    name: Build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -31,56 +32,48 @@ jobs:
           node-version: 24
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Prepare AVIF assets
+        shell: bash
         run: |
-          if [ -f "scripts/prepare-avif-assets.mjs" ]; then
-            node scripts/prepare-avif-assets.mjs
-          elif [ -f "prepare-avif-assets.mjs" ]; then
-            node prepare-avif-assets.mjs
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
           else
-            echo "prepare-avif-assets.mjs not found, skipping"
+            npm install --no-audit --no-fund
           fi
 
       - name: Build
         run: npm run build
 
-      - name: Clean Pages output
+      - name: Prepare Pages output
+        shell: bash
         run: |
           test -d dist
           touch dist/.nojekyll
-          find dist -type l -delete
-          echo "Dist size:"
+          if find dist -type l | grep -q .; then
+            echo "GitHub Pages artifact cannot contain symlinks. Remove symlinks from dist."
+            find dist -type l -print
+            exit 1
+          fi
           du -sh dist
-          echo "Largest files:"
-          find dist -type f -printf '%s %p\n' | sort -nr | head -20
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: ./dist
-          retention-days: 1
+          path: dist
 
   deploy:
+    name: Deploy
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    permissions:
-      pages: write
-      id-token: write
-      actions: read
+    timeout-minutes: 15
 
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Deploy artifact to GitHub Pages
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-        with:
-          timeout: 900000
-          error_count: 20
-          reporting_interval: 10000
