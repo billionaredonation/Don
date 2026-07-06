@@ -27,6 +27,9 @@ const MOBILE_RENDER_RADIUS = 30;
 const MOBILE_KEEP_RADIUS = 38;
 const MOBILE_RENDER_BUDGET = 28;
 const MOBILE_IDLE_BUDGET_MS = 120;
+const MOBILE_CAMERA_RENDER_INTERVAL_MS = 520;
+const MOBILE_CAMERA_MOVE_EPSILON_PERCENT = 1.25;
+const MOBILE_CAMERA_BUSY_RETRY_MS = 620;
 
 const layerStates = new Set();
 let globalCameraListenerEnabled = false;
@@ -63,6 +66,18 @@ function isMobileDevice() {
   return (
     window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ||
     navigator.maxTouchPoints > 0
+  );
+}
+
+function isMobilePlayerBusy() {
+  if (!isMobileDevice()) return false;
+
+  const now = performance.now();
+  const pauseUntil = Number(window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ || 0);
+
+  return (
+    window.__MN_MOBILE_PLAYER_MOVING__ === true ||
+    pauseUntil > now
   );
 }
 
@@ -530,7 +545,56 @@ function renderObjectBatch(state, objects, startIndex = 0, nextIds = new Set()) 
     : 'false';
 }
 
-function paintLayerState(state) {
+function clearPendingCameraPaint(state) {
+  if (!state?.cameraTimerId) return;
+
+  window.clearTimeout(state.cameraTimerId);
+  state.cameraTimerId = 0;
+}
+
+function scheduleCameraPaintAfterBusy(state) {
+  if (!state || state.cameraTimerId) return;
+
+  state.cameraTimerId = window.setTimeout(() => {
+    state.cameraTimerId = 0;
+
+    if (!state.layer?.isConnected) return;
+
+    if (isMobilePlayerBusy()) {
+      scheduleCameraPaintAfterBusy(state);
+      return;
+    }
+
+    paintLayerState(state, { fromCamera: true, force: true });
+  }, MOBILE_CAMERA_BUSY_RETRY_MS);
+}
+
+function shouldSkipMobileCameraPaint(state, focusX, focusY, force = false) {
+  if (force || !state.mobile || state.forceFullRender || isAdminLayer(state.layer)) return false;
+
+  if (isMobilePlayerBusy()) {
+    scheduleCameraPaintAfterBusy(state);
+    return true;
+  }
+
+  const now = performance.now();
+  const moved = Math.hypot(
+    focusX - state.lastCameraPaintFocusX,
+    focusY - state.lastCameraPaintFocusY
+  );
+
+  if (
+    Number.isFinite(state.lastCameraPaintAt) &&
+    now - state.lastCameraPaintAt < MOBILE_CAMERA_RENDER_INTERVAL_MS &&
+    moved < MOBILE_CAMERA_MOVE_EPSILON_PERCENT
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function paintLayerState(state, options = {}) {
   if (!state.layer?.isConnected) {
     layerStates.delete(state);
     return;
@@ -544,6 +608,14 @@ function paintLayerState(state) {
     if (state.idleId) {
       cancelIdle(state.idleId);
       state.idleId = 0;
+    }
+
+    clearPendingCameraPaint(state);
+
+    if (options.fromCamera) {
+      state.lastCameraPaintAt = performance.now();
+      state.lastCameraPaintFocusX = state.focusX;
+      state.lastCameraPaintFocusY = state.focusY;
     }
 
     const objects = getObjectsToRender(state);
@@ -573,7 +645,12 @@ function ensureGlobalCameraListener() {
 
       state.focusX = focusX;
       state.focusY = focusY;
-      paintLayerState(state);
+
+      if (shouldSkipMobileCameraPaint(state, focusX, focusY, false)) {
+        return;
+      }
+
+      paintLayerState(state, { fromCamera: true });
     });
   }, { passive: true });
 }
@@ -598,6 +675,10 @@ function getOrCreateLayerState(layer, options = {}) {
       keepRadius: MOBILE_KEEP_RADIUS,
       rafId: 0,
       idleId: 0,
+      cameraTimerId: 0,
+      lastCameraPaintAt: Number.NEGATIVE_INFINITY,
+      lastCameraPaintFocusX: focus.x,
+      lastCameraPaintFocusY: focus.y,
     };
 
     layer.__mnObjectRendererState = state;
@@ -636,7 +717,8 @@ export function renderMapObjects(layer, objects = [], options = {}) {
     ? objects.filter(Boolean)
     : [];
 
-  paintLayerState(state);
+  clearPendingCameraPaint(state);
+  paintLayerState(state, { force: true });
 }
 
 
@@ -655,15 +737,24 @@ export function clearMapObjectsLayer(layer) {
     state.idleId = 0;
   }
 
+  if (state?.cameraTimerId) {
+    window.clearTimeout(state.cameraTimerId);
+    state.cameraTimerId = 0;
+  }
+
   if (state) {
     state.objects = [];
     state.elements.clear();
     state.signatures.clear();
+    layerStates.delete(state);
   }
 
   if (layer.__mnObjectElements?.clear) {
     layer.__mnObjectElements.clear();
   }
+
+  delete layer.__mnObjectRendererState;
+  delete layer.__mnObjectElements;
 
   layer.replaceChildren();
   layer.dataset.renderedCount = '0';
