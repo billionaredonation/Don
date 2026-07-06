@@ -30,14 +30,14 @@ function isTruthyAdmin(value) {
   return value === true || value === 'true' || value === 1 || value === '1';
 }
 
-function getCachedLocalAdminSession() {
+function getLocalAdminSession() {
   const player = state.player || {};
-  const isAdmin = (
+
+  const isAdmin =
     isTruthyAdmin(state.is_admin) ||
     isTruthyAdmin(state.isAdmin) ||
     isTruthyAdmin(player.is_admin) ||
-    isTruthyAdmin(player.isAdmin)
-  );
+    isTruthyAdmin(player.isAdmin);
 
   if (!isAdmin) return null;
 
@@ -45,8 +45,8 @@ function getCachedLocalAdminSession() {
     ok: true,
     isAdmin: true,
     player,
-    reason: 'local_player_is_admin',
-    details: 'Admin allowed from already loaded player/state is_admin flag.',
+    reason: 'local_db_admin_flag',
+    details: 'Admin allowed by already loaded player/state is_admin flag.',
   };
 }
 
@@ -80,21 +80,21 @@ async function readFunctionError(error) {
 }
 
 async function checkAdminSession() {
-  const localAdminSession = getCachedLocalAdminSession();
-
-  if (localAdminSession) {
-    return localAdminSession;
-  }
-
   const initData = getTelegramInitData();
 
   if (!initData) {
+    const localSession = getLocalAdminSession();
+
+    if (localSession) {
+      return localSession;
+    }
+
     return {
       ok: false,
       isAdmin: false,
       player: null,
       reason: 'missing_telegram_init_data',
-      details: 'Telegram Mini App initData is empty and local player is not admin.',
+      details: 'Telegram Mini App initData is empty and no local is_admin flag is loaded.',
     };
   }
 
@@ -124,6 +124,13 @@ async function checkAdminSession() {
 }
 
 export async function isCurrentPlayerAdmin() {
+  const localSession = getLocalAdminSession();
+
+  if (localSession) {
+    cachedAdminSession = localSession;
+    return true;
+  }
+
   if (cachedAdminSession) {
     return cachedAdminSession.isAdmin === true;
   }
