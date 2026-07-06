@@ -34,14 +34,14 @@ const ADMIN_HOTKEY_EVENT_FLAG = '__mnAdminHotkeyHandled';
 
 function isAdminPanelHotkey(event) {
   const key = String(event?.key || '').trim().toLowerCase();
-  const code = String(event?.code || '').trim();
+  const code = String(event?.code || '').trim().toLowerCase();
 
   return (
-    code === 'KeyP' ||
-    code === 'KeyZ' ||
+    code === 'keyp' ||
+    code === 'keyz' ||
     key === 'p' ||
-    key === 'z' ||
     key === 'з' ||
+    key === 'z' ||
     key === 'я'
   );
 }
@@ -529,6 +529,24 @@ function setEnabled(next) {
     setEnabled(!enabled);
   }
 
+  const adminPanelApi = {
+    open() {
+      setEnabled(true);
+    },
+    close() {
+      setEnabled(false);
+    },
+    toggle() {
+      togglePanel();
+    },
+    isOpen() {
+      return enabled === true;
+    },
+  };
+
+  root.__mnAdminPanel = adminPanelApi;
+  window.__MN_ADMIN_PANEL__ = adminPanelApi;
+
   async function addObjectAt(x, y) {
     const draft = createMapObjectDraft({
       cityId,
@@ -669,7 +687,7 @@ function setEnabled(next) {
       activeTag === 'select';
 
     const key = String(event.key || '').toLowerCase();
-    const code = String(event.code || '');
+    const code = String(event.code || '').toLowerCase();
 
     const teleportHotkey = String(getAdminTeleportHotkey()).toLowerCase();
 
@@ -889,6 +907,14 @@ function setEnabled(next) {
     viewport.removeEventListener('mousemove', onMouseMove);
     window.removeEventListener('keydown', onKeyDown, true);
     window.removeEventListener('mn:admin-toggle', onAdminToggle);
+
+    if (root.__mnAdminPanel === adminPanelApi) {
+      delete root.__mnAdminPanel;
+    }
+
+    if (window.__MN_ADMIN_PANEL__ === adminPanelApi) {
+      delete window.__MN_ADMIN_PANEL__;
+    }
 
     objectMover?.cleanup();
 
