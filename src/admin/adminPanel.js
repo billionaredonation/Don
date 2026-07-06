@@ -32,13 +32,25 @@ const ADMIN_TELEPORT_HOTKEY_STORAGE_KEY = 'mn-admin-teleport-hotkey';
 const DEFAULT_ADMIN_TELEPORT_HOTKEY = 't';
 const ADMIN_HOTKEY_EVENT_FLAG = '__mnAdminHotkeyHandled';
 
+function isDesktopAdminDevice() {
+  const width = Math.min(window.innerWidth || 9999, window.screen?.width || 9999);
+  const height = Math.min(window.innerHeight || 9999, window.screen?.height || 9999);
+  const hasTouch = navigator.maxTouchPoints > 0;
+
+  return !(hasTouch && Math.min(width, height) <= 768);
+}
+
 function isAdminPanelHotkey(event) {
+  if (!isDesktopAdminDevice()) return false;
+
   const key = String(event?.key || '').trim().toLowerCase();
   const code = String(event?.code || '').trim();
 
-  // Только физическая клавиша P:
-  // English P/p и русская З/з. Без Z/Я и без мобильных кнопок.
-  return code === 'KeyP' || key === 'p' || key === 'з';
+  return (
+    code === 'KeyP' ||
+    key === 'p' ||
+    key === 'з'
+  );
 }
 
 function clamp(value, min, max) {
@@ -743,6 +755,7 @@ function setEnabled(next) {
   }
 
   function onAdminToggle() {
+    if (!isDesktopAdminDevice()) return;
     togglePanel();
   }
 
