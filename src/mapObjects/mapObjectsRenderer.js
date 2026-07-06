@@ -30,6 +30,10 @@ const MOBILE_IDLE_BUDGET_MS = 120;
 const MOBILE_CAMERA_RENDER_INTERVAL_MS = 520;
 const MOBILE_CAMERA_MOVE_EPSILON_PERCENT = 1.25;
 const MOBILE_CAMERA_BUSY_RETRY_MS = 620;
+const MOBILE_GRID_CELL_PERCENT = 5;
+const MOBILE_MAX_VISIBLE_OBJECTS = 96;
+const DESKTOP_MAX_VISIBLE_OBJECTS = 720;
+const DETACHED_OBJECT_POOL_LIMIT = 180;
 
 const layerStates = new Set();
 let globalCameraListenerEnabled = false;
@@ -372,11 +376,12 @@ function updateObjectIcon(element, meta) {
   element.appendChild(meta.category === 'house' ? createHouseIcon(meta) : createMarkerIcon(meta));
 }
 
-function createObjectElement(object) {
-  const element = document.createElement('button');
+function createObjectElement(object, state = null) {
+  const element = state?.pool?.pop?.() || document.createElement('button');
 
   element.type = 'button';
   element.tabIndex = -1;
+  element.hidden = false;
 
   updateObjectElement(element, object);
 
@@ -426,6 +431,93 @@ function getDistance(object, focusX, focusY) {
   return Math.hypot(x - focusX, y - focusY);
 }
 
+function getSpatialCell(value) {
+  return Math.floor(clamp(toFiniteNumber(value, 0), 0, 100) / MOBILE_GRID_CELL_PERCENT);
+}
+
+function getSpatialKey(cellX, cellY) {
+  return `${cellX}:${cellY}`;
+}
+
+function getSpatialSignature(objects) {
+  if (!Array.isArray(objects) || objects.length === 0) return '0';
+
+  /*
+    Signature is intentionally compact. It changes when the object set, position,
+    ownership or visual state changes, but it does not include transient DOM-only data.
+  */
+  return `${objects.length}|${objects.map((object) => getObjectSignature(object)).join('~')}`;
+}
+
+function rebuildSpatialIndex(state) {
+  const nextSignature = getSpatialSignature(state.objects);
+
+  if (state.spatialSignature === nextSignature && state.spatialIndex) {
+    return;
+  }
+
+  const index = new Map();
+
+  state.objects.forEach((object) => {
+    const id = getObjectId(object);
+    if (!id) return;
+
+    const cellX = getSpatialCell(object?.x);
+    const cellY = getSpatialCell(object?.y);
+    const key = getSpatialKey(cellX, cellY);
+    const bucket = index.get(key);
+
+    if (bucket) {
+      bucket.push(object);
+    } else {
+      index.set(key, [object]);
+    }
+  });
+
+  state.spatialSignature = nextSignature;
+  state.spatialIndex = index;
+}
+
+function getObjectsFromSpatialIndex(state, focusX, focusY, radius) {
+  if (!state.spatialIndex?.size) return [];
+
+  const minCellX = getSpatialCell(focusX - radius);
+  const maxCellX = getSpatialCell(focusX + radius);
+  const minCellY = getSpatialCell(focusY - radius);
+  const maxCellY = getSpatialCell(focusY + radius);
+  const seen = new Set();
+  const result = [];
+
+  for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+    for (let cellY = minCellY; cellY <= maxCellY; cellY += 1) {
+      const bucket = state.spatialIndex.get(getSpatialKey(cellX, cellY));
+      if (!bucket) continue;
+
+      bucket.forEach((object) => {
+        const id = getObjectId(object);
+        if (!id || seen.has(id)) return;
+
+        const distance = getDistance(object, focusX, focusY);
+        if (distance > radius) return;
+
+        seen.add(id);
+        result.push({ object, distance });
+      });
+    }
+  }
+
+  result.sort((a, b) => a.distance - b.distance);
+
+  return result.map((entry) => entry.object);
+}
+
+function getObjectById(state, id) {
+  const objectId = String(id || '').trim();
+  if (!objectId) return null;
+
+  return state.objects.find((object) => getObjectId(object) === objectId) || null;
+}
+
 function isAdminLayer(layer) {
   return (
     layer?.classList?.contains('map-objects-layer-admin') ||
@@ -447,25 +539,43 @@ function readPlayerFocus(layer) {
 }
 
 function getObjectsToRender(state) {
-  if (!state.mobile || state.forceFullRender || isAdminLayer(state.layer)) {
-    return state.objects;
+  const fullRender = !state.mobile || state.forceFullRender || isAdminLayer(state.layer);
+
+  if (fullRender) {
+    return state.objects.slice(0, DESKTOP_MAX_VISIBLE_OBJECTS);
   }
 
+  rebuildSpatialIndex(state);
+
   const renderRadius = state.renderRadius || MOBILE_RENDER_RADIUS;
-  const keepRadius = state.keepRadius || MOBILE_KEEP_RADIUS;
-  const existingIds = state.elements;
+  const keepRadius = Math.max(renderRadius, state.keepRadius || MOBILE_KEEP_RADIUS);
+  const nextById = new Map();
 
-  return state.objects.filter((object) => {
-    const id = getObjectId(object);
-    if (!id) return false;
+  getObjectsFromSpatialIndex(state, state.focusX, state.focusY, renderRadius)
+    .slice(0, MOBILE_MAX_VISIBLE_OBJECTS)
+    .forEach((object) => {
+      const id = getObjectId(object);
+      if (id) nextById.set(id, object);
+    });
 
-    const distance = getDistance(object, state.focusX, state.focusY);
+  /*
+    Keep already visible objects a little longer. This prevents flashing on the
+    border of the render window while the player is walking.
+  */
+  state.elements.forEach((element, id) => {
+    if (nextById.has(id)) return;
 
-    if (distance <= renderRadius) return true;
-    if (existingIds.has(id) && distance <= keepRadius) return true;
+    const object = getObjectById(state, id);
+    if (!object) return;
 
-    return false;
+    if (getDistance(object, state.focusX, state.focusY) <= keepRadius) {
+      nextById.set(id, object);
+    }
   });
+
+  return Array.from(nextById.values())
+    .sort((a, b) => getDistance(a, state.focusX, state.focusY) - getDistance(b, state.focusX, state.focusY))
+    .slice(0, MOBILE_MAX_VISIBLE_OBJECTS);
 }
 
 function removeObjectElement(state, id) {
@@ -473,6 +583,18 @@ function removeObjectElement(state, id) {
 
   if (element) {
     element.remove();
+
+    if (state.pool.length < DETACHED_OBJECT_POOL_LIMIT) {
+      element.textContent = '';
+      element.removeAttribute('class');
+      element.removeAttribute('style');
+      element.removeAttribute('title');
+      element.removeAttribute('aria-label');
+      Object.keys(element.dataset || {}).forEach((key) => {
+        delete element.dataset[key];
+      });
+      state.pool.push(element);
+    }
   }
 
   state.elements.delete(id);
@@ -505,7 +627,7 @@ function renderObjectBatch(state, objects, startIndex = 0, nextIds = new Set()) 
     let element = getCachedElement(state.layer, id);
 
     if (!element) {
-      element = createObjectElement(object);
+      element = createObjectElement(object, state);
       fragment.appendChild(element);
       state.elements.set(id, element);
       state.signatures.set(id, nextSignature);
@@ -673,6 +795,9 @@ function getOrCreateLayerState(layer, options = {}) {
       cityId: '',
       renderRadius: MOBILE_RENDER_RADIUS,
       keepRadius: MOBILE_KEEP_RADIUS,
+      spatialIndex: new Map(),
+      spatialSignature: '',
+      pool: [],
       rafId: 0,
       idleId: 0,
       cameraTimerId: 0,
@@ -717,6 +842,7 @@ export function renderMapObjects(layer, objects = [], options = {}) {
     ? objects.filter(Boolean)
     : [];
 
+  rebuildSpatialIndex(state);
   clearPendingCameraPaint(state);
   paintLayerState(state, { force: true });
 }
@@ -746,6 +872,9 @@ export function clearMapObjectsLayer(layer) {
     state.objects = [];
     state.elements.clear();
     state.signatures.clear();
+    state.spatialIndex?.clear?.();
+    state.spatialSignature = '';
+    state.pool.length = 0;
     layerStates.delete(state);
   }
 
@@ -799,6 +928,19 @@ export function findMapObjectElement(layerOrObjectId, maybeObjectId) {
   for (let index = 0; index < layers.length; index += 1) {
     const element = findInLayer(layers[index]);
     if (element) return element;
+  }
+
+  for (const state of layerStates) {
+    if (layer && state.layer !== layer) continue;
+
+    const object = getObjectById(state, objectId);
+    if (!object) continue;
+
+    const element = createObjectElement(object, state);
+    state.elements.set(objectId, element);
+    state.signatures.set(objectId, getObjectSignature(object));
+    state.layer?.appendChild?.(element);
+    return element;
   }
 
   return null;
