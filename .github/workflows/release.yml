@@ -8,13 +8,12 @@ on:
 
 permissions:
   contents: read
-  actions: read
   pages: write
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -35,6 +34,15 @@ jobs:
         with:
           node-version: 24
 
+      - name: Install dependencies
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund
+          fi
+
       - name: Validate required Vite env
         shell: bash
         run: |
@@ -48,31 +56,45 @@ jobs:
             exit 1
           fi
 
-          echo "Required Vite env variables are present."
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci --no-audit --no-fund
-          else
-            npm install --no-audit --no-fund
-          fi
-
       - name: Build
         run: npm run build
 
-      - name: Prepare Pages output
+      - name: Validate Pages output
         shell: bash
         run: |
           test -d dist
           touch dist/.nojekyll
+
+          echo "---- dist size ----"
+          du -sh dist || true
+          du -sb dist || true
+
+          echo "---- file count ----"
+          find dist -type f | wc -l
+
+          echo "---- largest files ----"
+          find dist -type f -printf '%s %p\n' | sort -nr | head -30 | awk '{ size=$1; $1=""; printf "%.2f MB %s\n", size/1024/1024, $0 }'
+
+          echo "---- symlink check ----"
           if find dist -type l | grep -q .; then
-            echo "GitHub Pages artifact cannot contain symlinks. Remove symlinks from dist."
+            echo "GitHub Pages artifact cannot contain symlinks:"
             find dist -type l -print
             exit 1
           fi
-          du -sh dist
+
+          DIST_BYTES="$(du -sb dist | awk '{print $1}')"
+
+          if [ "$DIST_BYTES" -gt 900000000 ]; then
+            echo "dist is larger than 900 MB. GitHub Pages published sites may fail near the 1 GB limit."
+            exit 1
+          fi
+
+          BIG_FILES="$(find dist -type f -size +95M -print)"
+          if [ -n "$BIG_FILES" ]; then
+            echo "Some files are larger than 95 MB. Optimize/split these assets before Pages deploy:"
+            echo "$BIG_FILES"
+            exit 1
+          fi
 
       - name: Configure Pages
         uses: actions/configure-pages@v6
@@ -88,6 +110,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    permissions:
+      pages: write
+      id-token: write
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -96,3 +122,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          timeout: 600000
+          error_count: 10
+          reporting_interval: 5000
