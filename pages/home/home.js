@@ -212,14 +212,11 @@ function isAdminHotkey(event) {
   const key = String(event?.key || '').trim().toLowerCase();
   const code = String(event?.code || '').trim();
 
-  return (
-    code === 'KeyP' ||
-    code === 'KeyZ' ||
-    key === 'p' ||
-    key === 'z' ||
-    key === 'з' ||
-    key === 'я'
-  );
+  // Только физическая клавиша P на ПК:
+  // - English layout: P / p
+  // - Russian layout: З / з
+  // Не используем KeyZ, Z, Я и мобильные кнопки.
+  return code === 'KeyP' || key === 'p' || key === 'з';
 }
 
 function isTypingTarget(target) {
@@ -230,18 +227,6 @@ function isTypingTarget(target) {
     tagName === 'textarea' ||
     tagName === 'select' ||
     target?.isContentEditable === true
-  );
-}
-
-
-function hasLocalAdminAccess(playerPosition) {
-  return (
-    isTruthyAdmin(playerPosition?.is_admin) ||
-    isTruthyAdmin(playerPosition?.isAdmin) ||
-    isTruthyAdmin(state?.is_admin) ||
-    isTruthyAdmin(state?.isAdmin) ||
-    isTruthyAdmin(state?.player?.is_admin) ||
-    isTruthyAdmin(state?.player?.isAdmin)
   );
 }
 
@@ -1172,7 +1157,7 @@ register('home', async (root) => {
     telegramId,
   });
 
-  Promise.resolve(hasLocalAdminAccess(playerPosition) ? true : isCurrentPlayerAdmin())
+  isCurrentPlayerAdmin()
     .then((canUseAdminPanel) => {
       if (!canUseAdminPanel || root.dataset.destroyed === 'true') {
         return;
@@ -1191,13 +1176,8 @@ register('home', async (root) => {
       });
 
       function toggleAdminPanel() {
-        const api = root.__mnAdminPanel || window.__MN_ADMIN_PANEL__;
-
-        if (api?.toggle) {
-          api.toggle();
-          return;
-        }
-
+        // Админка открывается только через внутренний API adminPanel.js.
+        // Так не ломается состояние панели, режим телепорта и слой объектов.
         window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
       }
 
@@ -1207,8 +1187,6 @@ register('home', async (root) => {
         adminStatusButton.textContent = '👤';
         adminStatusButton.title = 'Админка не запустилась';
         adminStatusButton.className = 'admin-status-dot admin-status-dot-error';
-
-        adminStatusButton.addEventListener('click', toggleAdminPanel);
 
         root.appendChild(adminStatusButton);
 
@@ -1221,8 +1199,6 @@ register('home', async (root) => {
       adminStatusButton.textContent = '👤';
       adminStatusButton.title = 'Админка активна';
       adminStatusButton.className = 'admin-status-dot admin-status-dot-ok';
-
-      adminStatusButton.addEventListener('click', toggleAdminPanel);
 
       root.appendChild(adminStatusButton);
 
@@ -1309,5 +1285,4 @@ register('home', async (root) => {
     );
   };
 });
-
 
