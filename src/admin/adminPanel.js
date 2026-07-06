@@ -56,6 +56,20 @@ function getAdminTeleportHotkey() {
   }
 }
 
+function isAdminPanelHotkey(event) {
+  const code = String(event?.code || '');
+  const key = String(event?.key || '').toLowerCase();
+
+  return (
+    code === 'KeyP' ||
+    code === 'KeyZ' ||
+    key === 'p' ||
+    key === 'z' ||
+    key === 'з' ||
+    key === 'я'
+  );
+}
+
 function enableAdminModeClass() {
   document.body.classList.add('admin-mode');
 }
@@ -651,7 +665,8 @@ function setEnabled(next) {
     const isFormField =
       activeTag === 'input' ||
       activeTag === 'textarea' ||
-      activeTag === 'select';
+      activeTag === 'select' ||
+      document.activeElement?.isContentEditable === true;
 
     const key = String(event.key || '').toLowerCase();
     const code = String(event.code || '');
@@ -665,14 +680,13 @@ function setEnabled(next) {
       return;
     }
 
-    const isAdminHotkey =
-      code === 'KeyP' ||
-      key === 'p' ||
-      key === 'з';
+    const isAdminHotkey = isAdminPanelHotkey(event);
 
     if (isAdminHotkey && !event.repeat && !isFormField) {
+      event.__mnAdminHotkeyHandled = true;
       event.preventDefault();
       event.stopPropagation();
+      event.stopImmediatePropagation?.();
       togglePanel();
       return;
     }
