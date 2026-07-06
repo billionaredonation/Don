@@ -30,6 +30,21 @@ import { saveAdminObject } from './adminObjectEditor.js';
 
 const ADMIN_TELEPORT_HOTKEY_STORAGE_KEY = 'mn-admin-teleport-hotkey';
 const DEFAULT_ADMIN_TELEPORT_HOTKEY = 't';
+const ADMIN_HOTKEY_EVENT_FLAG = '__mnAdminHotkeyHandled';
+
+function isAdminPanelHotkey(event) {
+  const key = String(event?.key || '').trim().toLowerCase();
+  const code = String(event?.code || '').trim();
+
+  return (
+    code === 'KeyP' ||
+    code === 'KeyZ' ||
+    key === 'p' ||
+    key === 'z' ||
+    key === 'з' ||
+    key === 'я'
+  );
+}
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -54,20 +69,6 @@ function getAdminTeleportHotkey() {
   } catch {
     return DEFAULT_ADMIN_TELEPORT_HOTKEY;
   }
-}
-
-function isAdminPanelHotkey(event) {
-  const code = String(event?.code || '');
-  const key = String(event?.key || '').toLowerCase();
-
-  return (
-    code === 'KeyP' ||
-    code === 'KeyZ' ||
-    key === 'p' ||
-    key === 'z' ||
-    key === 'з' ||
-    key === 'я'
-  );
 }
 
 function enableAdminModeClass() {
@@ -665,8 +666,7 @@ function setEnabled(next) {
     const isFormField =
       activeTag === 'input' ||
       activeTag === 'textarea' ||
-      activeTag === 'select' ||
-      document.activeElement?.isContentEditable === true;
+      activeTag === 'select';
 
     const key = String(event.key || '').toLowerCase();
     const code = String(event.code || '');
@@ -680,10 +680,10 @@ function setEnabled(next) {
       return;
     }
 
-    const isAdminHotkey = isAdminPanelHotkey(event);
+    if (event?.[ADMIN_HOTKEY_EVENT_FLAG] === true) return;
 
-    if (isAdminHotkey && !event.repeat && !isFormField) {
-      event.__mnAdminHotkeyHandled = true;
+    if (isAdminPanelHotkey(event) && !event.repeat && !isFormField) {
+      event[ADMIN_HOTKEY_EVENT_FLAG] = true;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation?.();
