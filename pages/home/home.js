@@ -207,12 +207,16 @@ function saveMobileControlsAccepted() {
 }
 
 function isAdminHotkey(event) {
+  const code = String(event?.code || '');
+  const key = String(event?.key || '').toLowerCase();
+
   return (
-    event.code === 'KeyP' ||
-    event.key === 'p' ||
-    event.key === 'P' ||
-    event.key === 'з' ||
-    event.key === 'З'
+    code === 'KeyP' ||
+    code === 'KeyZ' ||
+    key === 'p' ||
+    key === 'z' ||
+    key === 'з' ||
+    key === 'я'
   );
 }
 
@@ -1172,28 +1176,7 @@ register('home', async (root) => {
         movementChannel: network.movementChannel,
       });
 
-      function setAdminPanelVisible(nextVisible) {
-        const panel = root.querySelector('.admin-panel');
-        if (!panel) return false;
-
-        panel.hidden = !nextVisible;
-        root.dataset.adminMode = nextVisible ? 'enabled' : 'disabled';
-
-        if (nextVisible) {
-          delete root.dataset.adminTeleportMode;
-        }
-
-        return true;
-      }
-
       function toggleAdminPanel() {
-        const panel = root.querySelector('.admin-panel');
-
-        if (panel) {
-          setAdminPanelVisible(panel.hidden);
-          return;
-        }
-
         window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
       }
 
@@ -1223,9 +1206,11 @@ register('home', async (root) => {
       root.appendChild(adminStatusButton);
 
       const handleAdminHotkey = (event) => {
+        if (event.__mnAdminHotkeyHandled === true) return;
         if (!isAdminHotkey(event)) return;
         if (isTypingTarget(event.target)) return;
 
+        event.__mnAdminHotkeyHandled = true;
         event.preventDefault();
         event.stopPropagation();
 
