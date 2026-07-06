@@ -30,13 +30,24 @@ function isTruthyAdmin(value) {
   return value === true || value === 'true' || value === 1 || value === '1';
 }
 
-function hasLocalAdminFlag() {
-  return (
-    isTruthyAdmin(state?.is_admin) ||
-    isTruthyAdmin(state?.isAdmin) ||
-    isTruthyAdmin(state?.player?.is_admin) ||
-    isTruthyAdmin(state?.player?.isAdmin)
+function getCachedLocalAdminSession() {
+  const player = state.player || {};
+  const isAdmin = (
+    isTruthyAdmin(state.is_admin) ||
+    isTruthyAdmin(state.isAdmin) ||
+    isTruthyAdmin(player.is_admin) ||
+    isTruthyAdmin(player.isAdmin)
   );
+
+  if (!isAdmin) return null;
+
+  return {
+    ok: true,
+    isAdmin: true,
+    player,
+    reason: 'local_player_is_admin',
+    details: 'Admin allowed from already loaded player/state is_admin flag.',
+  };
 }
 
 async function readFunctionError(error) {
@@ -69,6 +80,12 @@ async function readFunctionError(error) {
 }
 
 async function checkAdminSession() {
+  const localAdminSession = getCachedLocalAdminSession();
+
+  if (localAdminSession) {
+    return localAdminSession;
+  }
+
   const initData = getTelegramInitData();
 
   if (!initData) {
@@ -77,7 +94,7 @@ async function checkAdminSession() {
       isAdmin: false,
       player: null,
       reason: 'missing_telegram_init_data',
-      details: 'Telegram Mini App initData is empty',
+      details: 'Telegram Mini App initData is empty and local player is not admin.',
     };
   }
 
@@ -107,28 +124,6 @@ async function checkAdminSession() {
 }
 
 export async function isCurrentPlayerAdmin() {
-  // PC/browser preview has no Telegram initData. Do not block the dev admin panel
-  // if the player admin flag was already loaded from Supabase/player state.
-  if (hasLocalAdminFlag()) {
-    cachedAdminSession = {
-      ok: true,
-      isAdmin: true,
-      player: state.player || null,
-      reason: 'local_admin_flag',
-      details: null,
-    };
-
-    state.is_admin = true;
-    state.isAdmin = true;
-    state.player = {
-      ...(state.player || {}),
-      is_admin: true,
-      isAdmin: true,
-    };
-
-    return true;
-  }
-
   if (cachedAdminSession) {
     return cachedAdminSession.isAdmin === true;
   }
