@@ -639,6 +639,38 @@ export function renderMapObjects(layer, objects = [], options = {}) {
   paintLayerState(state);
 }
 
+
+export function clearMapObjectsLayer(layer) {
+  if (!layer) return;
+
+  const state = layer.__mnObjectRendererState;
+
+  if (state?.rafId) {
+    cancelAnimationFrame(state.rafId);
+    state.rafId = 0;
+  }
+
+  if (state?.idleId) {
+    cancelIdle(state.idleId);
+    state.idleId = 0;
+  }
+
+  if (state) {
+    state.objects = [];
+    state.elements.clear();
+    state.signatures.clear();
+  }
+
+  if (layer.__mnObjectElements?.clear) {
+    layer.__mnObjectElements.clear();
+  }
+
+  layer.replaceChildren();
+  layer.dataset.renderedCount = '0';
+  layer.dataset.totalCount = '0';
+  layer.dataset.virtualized = 'false';
+}
+
 export function getMapObjectIdFromEvent(event) {
   const target = event?.target;
   const element = target?.closest?.('[data-map-object-id]');
