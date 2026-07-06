@@ -208,15 +208,21 @@ function saveMobileControlsAccepted() {
 
 const ADMIN_HOTKEY_EVENT_FLAG = '__mnAdminHotkeyHandled';
 
+function isDesktopDevice() {
+  return !isMobileGameplayDevice();
+}
+
 function isAdminHotkey(event) {
+  if (!isDesktopDevice()) return false;
+
   const key = String(event?.key || '').trim().toLowerCase();
   const code = String(event?.code || '').trim();
 
-  // Только физическая клавиша P на ПК:
-  // - English layout: P / p
-  // - Russian layout: З / з
-  // Не используем KeyZ, Z, Я и мобильные кнопки.
-  return code === 'KeyP' || key === 'p' || key === 'з';
+  return (
+    code === 'KeyP' ||
+    key === 'p' ||
+    key === 'з'
+  );
 }
 
 function isTypingTarget(target) {
@@ -1176,8 +1182,8 @@ register('home', async (root) => {
       });
 
       function toggleAdminPanel() {
-        // Админка открывается только через внутренний API adminPanel.js.
-        // Так не ломается состояние панели, режим телепорта и слой объектов.
+        if (!isDesktopDevice()) return;
+
         window.dispatchEvent(new CustomEvent('mn:admin-toggle'));
       }
 
@@ -1187,6 +1193,7 @@ register('home', async (root) => {
         adminStatusButton.textContent = '👤';
         adminStatusButton.title = 'Админка не запустилась';
         adminStatusButton.className = 'admin-status-dot admin-status-dot-error';
+
 
         root.appendChild(adminStatusButton);
 
@@ -1199,6 +1206,7 @@ register('home', async (root) => {
       adminStatusButton.textContent = '👤';
       adminStatusButton.title = 'Админка активна';
       adminStatusButton.className = 'admin-status-dot admin-status-dot-ok';
+
 
       root.appendChild(adminStatusButton);
 
