@@ -10,60 +10,49 @@
 
   <title>Mn-game</title>
 
-  <link rel="stylesheet" href="./styles/base.css?v=105" />
-  <link rel="stylesheet" href="./pages/welcome1/welcome1.css?v=105" />
-  <link rel="stylesheet" href="./pages/welcome2/welcome2.css?v=105" />
-  <link rel="stylesheet" href="./pages/welcome3/welcome3.css?v=115" />
-  <link rel="stylesheet" href="./pages/preload/preload.css?v=4" />
-
-  <!-- Основной стиль дома/карты/модалок. Его не перебиваем отдельными map-fix файлами. -->
-  <link rel="stylesheet" href="./pages/home/home.css?v=128" />
-  <link rel="stylesheet" href="./styles/map-lights.css?v=105" />
-  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=13" />
-
-  <!-- Только джойстик/стамина. Без вмешательства в карту и модалки. -->
-  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=90" />
+  <link rel="stylesheet" href="./styles/base.css?v=106" />
+  <link rel="stylesheet" href="./pages/welcome1/welcome1.css?v=106" />
+  <link rel="stylesheet" href="./pages/welcome2/welcome2.css?v=106" />
+  <link rel="stylesheet" href="./pages/welcome3/welcome3.css?v=116" />
+  <link rel="stylesheet" href="./pages/preload/preload.css?v=5" />
+  <link rel="stylesheet" href="./pages/home/home.css?v=129" />
+  <link rel="stylesheet" href="./styles/map-lights.css?v=106" />
+  <link rel="stylesheet" href="./styles/ios-game-fix.css?v=14" />
+  <link rel="stylesheet" href="./styles/mobile-controls-final.css?v=91" />
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <script>
+    window.__MN_BOOT_STARTED__ = false;
+    window.__MN_BOOT_READY__ = false;
+    window.__MN_BOOT_STAGE__ = 'index';
+
     function escapeHtml(value) {
-      return String(value).replace(/[<>&]/g, function (char) {
+      return String(value ?? '').replace(/[&<>"']/g, function (char) {
         return {
+          '&': '&amp;',
           '<': '&lt;',
           '>': '&gt;',
-          '&': '&amp;',
+          '"': '&quot;',
+          "'": '&#039;',
         }[char];
       });
     }
 
     function stringifyError(error) {
       if (!error) return 'Unknown error';
+      if (typeof error === 'string') return error;
 
-      if (typeof error === 'string') {
-        return error;
-      }
+      var parts = [];
 
-      const parts = [];
-
-      if (error.name) {
-        parts.push('Name: ' + error.name);
-      }
-
-      if (error.message) {
-        parts.push('Message: ' + error.message);
-      }
-
-      if (error.stack) {
-        parts.push('Stack:\n' + error.stack);
-      }
+      if (error.name) parts.push('Name: ' + error.name);
+      if (error.message) parts.push('Message: ' + error.message);
+      if (error.stack) parts.push('Stack:\n' + error.stack);
 
       try {
-        const json = JSON.stringify(error, null, 2);
-        if (json && json !== '{}') {
-          parts.push('JSON:\n' + json);
-        }
-      } catch {
+        var json = JSON.stringify(error, null, 2);
+        if (json && json !== '{}') parts.push('JSON:\n' + json);
+      } catch (_) {
         // ignore
       }
 
@@ -71,14 +60,16 @@
     }
 
     function showFatalError(error, source) {
-      const root = document.getElementById('app');
+      var root = document.getElementById('app');
       if (!root) return;
 
-      const message = stringifyError(error);
+      var stage = window.__MN_BOOT_STAGE__ || 'unknown';
+      var message = stringifyError(error);
 
       root.innerHTML =
         '<div style="' +
           'min-height:100vh;' +
+          'box-sizing:border-box;' +
           'background:#050505;' +
           'color:#fff;' +
           'padding:20px;' +
@@ -88,11 +79,34 @@
           'font-size:14px;' +
         '">' +
           'Ошибка загрузки' +
-          (source ? ' [' + source + ']' : '') +
-          ':\n\n' +
-          escapeHtml(message) +
+          (source ? ' [' + escapeHtml(source) + ']' : '') +
+          '\nЭтап: ' + escapeHtml(stage) +
+          '\n\n' + escapeHtml(message) +
+          '\n\n<button id="mnReloadBtn" style="' +
+            'margin-top:14px;' +
+            'height:44px;' +
+            'padding:0 18px;' +
+            'border:0;' +
+            'border-radius:14px;' +
+            'background:#fff;' +
+            'color:#000;' +
+            'font-weight:800;' +
+          '">Перезапустить</button>' +
         '</div>';
+
+      document.getElementById('mnReloadBtn')?.addEventListener('click', function () {
+        window.location.reload();
+      });
     }
+
+    window.__MN_SET_BOOT_STAGE__ = function (stage) {
+      window.__MN_BOOT_STAGE__ = String(stage || 'unknown');
+
+      var loading = document.querySelector('#app .app-loading');
+      if (loading) {
+        loading.textContent = window.__MN_BOOT_STAGE__;
+      }
+    };
 
     window.addEventListener('error', function (event) {
       showFatalError(event.error || event.message, 'window.error');
@@ -101,34 +115,36 @@
     window.addEventListener('unhandledrejection', function (event) {
       showFatalError(event.reason, 'unhandledrejection');
     });
+
+    window.setTimeout(function () {
+      if (window.__MN_BOOT_READY__ === true) return;
+
+      showFatalError(
+        new Error('Загрузка зависла дольше 22 секунд. Это не index.html, а зависший стартовый запрос или main.js. Смотри этап выше.'),
+        'boot-watchdog'
+      );
+    }, 22000);
   </script>
 </head>
 
 <body>
   <div id="app">
-    <div class="app-loading">
+    <div class="app-loading" style="
+      min-height:100vh;
+      display:flex;
+      align-items:flex-start;
+      justify-content:flex-start;
+      box-sizing:border-box;
+      padding:24px;
+      background:#050505;
+      color:#fff;
+      font-family:Arial,sans-serif;
+      font-size:20px;
+      font-weight:800;
+    ">
       Загрузка...
     </div>
   </div>
-
-  <script>
-    window.setTimeout(function () {
-      var root = document.getElementById('app');
-      if (!root) return;
-      if (!root.querySelector('.app-loading')) return;
-
-      root.innerHTML =
-        '<div style="min-height:100vh;background:#050505;color:#fff;padding:20px;font-family:Arial,sans-serif;line-height:1.45">' +
-          '<h2 style="margin:0 0 12px;font-size:22px">Загрузка зависла</h2>' +
-          '<p style="margin:0 0 16px;color:rgba(255,255,255,.72)">Основной JS не стартовал или сеть зависла. Нажми перезапуск.</p>' +
-          '<button id="mnHardReload" type="button" style="height:46px;border:0;border-radius:14px;padding:0 18px;font-weight:800;cursor:pointer">Перезапустить</button>' +
-        '</div>';
-
-      document.getElementById('mnHardReload')?.addEventListener('click', function () {
-        window.location.reload();
-      });
-    }, 12000);
-  </script>
 
   <script type="module" src="./src/main.js?v=172"></script>
 </body>
