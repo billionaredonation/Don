@@ -11,21 +11,26 @@ function formatMoney(value) {
 }
 
 function getHouseClass(house) {
-  const houseClass = house?.class || house?.payload?.houseClass || house?.variant || 'standard';
+  const rawClass = house?.class || house?.payload?.houseClass || house?.variant || 'standard';
+  const houseClass = String(rawClass || 'standard').trim().toLowerCase();
 
   const labels = {
     standard: 'Стандарт',
     std: 'Стандарт',
     comfort: 'Стандарт',
     premium: 'Премиум',
+    prem: 'Премиум',
     ultra_lux: 'Ультра люкс',
-    luxe: 'Ультра люкс',
+    ultra: 'Ультра люкс',
+    'ultra-lux': 'Ультра люкс',
     lux: 'Ультра люкс',
+    luxe: 'Ультра люкс',
     luxury: 'Ультра люкс',
     elite: 'Ультра люкс',
+    vip: 'Ультра люкс',
   };
 
-  return labels[houseClass] || String(houseClass);
+  return labels[houseClass] || String(rawClass || 'Стандарт');
 }
 
 function getHousePrice(house) {
@@ -112,7 +117,13 @@ function getHouseNumber(house) {
     return '—';
   }
 
-  return `№ ${String(number)}`;
+  const value = String(number);
+
+  if (value.length > 12) {
+    return `№ ${value.slice(-6)}`;
+  }
+
+  return `№ ${value}`;
 }
 
 
@@ -353,7 +364,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
     title.textContent = owned
       ? `${houseNumberText} · ${classText}`
-      : activeHouse?.name || `Дом · ${classText}`;
+      : `Дом · ${classText}`;
 
     const kicker = modal.querySelector('.house-details-kicker');
     if (kicker) {
