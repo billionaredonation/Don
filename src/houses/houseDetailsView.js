@@ -92,13 +92,32 @@ function isCurrentPlayerHouseOwner(house) {
   return Boolean(ownerId && playerId && String(ownerId) === String(playerId));
 }
 
+function looksLikeLocalHouseId(value) {
+  return /^house[_-]/i.test(String(value || '').trim());
+}
+
 function getHouseId(house) {
+  const stableId =
+    house?.mapObjectId ||
+    house?.objectId ||
+    house?.dbId ||
+    house?.id ||
+    null;
+
+  // Для новых домов из map_objects покупать нужно по реальному id строки БД.
+  // payload.houseId вида house_1783... оставляем только как запасной legacy-id.
+  if (stableId && !looksLikeLocalHouseId(stableId)) {
+    return stableId;
+  }
+
   return (
+    stableId ||
+    house?.payload?.mapObjectId ||
+    house?.payload?.objectId ||
     house?.payload?.houseId ||
     house?.payload?.house_id ||
     house?.houseId ||
     house?.house_id ||
-    house?.id ||
     null
   );
 }
