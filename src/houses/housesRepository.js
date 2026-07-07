@@ -21,6 +21,7 @@ function normalizeHouseForUi(house) {
 
   return {
     ...house,
+    mapObjectId: house?.mapObjectId || house?.objectId || house?.id || payload.mapObjectId || null,
     price: house?.price || payload.price || 0,
     class: house?.class || payload.houseClass || payload.houseClassLabel || house?.variant || 'standard',
     owner_id: house?.owner_id || payload.ownerId || payload.owner_id || null,
@@ -70,28 +71,76 @@ function normalizeBuyResultFromMapObject(row, playerId) {
   };
 }
 
-async function buyHouseMapObject({ houseId, playerId }) {
-  const mapObjectId = String(houseId || '').trim();
+async function findHouseMapObject(houseId) {
+  const rawId = String(houseId || '').trim();
 
-  if (!mapObjectId || !playerId) {
+  if (!rawId) {
+    return null;
+  }
+
+  // 1) Основной вариант: покупка по реальному id строки map_objects.
+  const { data: rowById, error: idError } = await supabase
+    .from('map_objects')
+    .select('*')
+    .eq('id', rawId)
+    .maybeSingle();
+
+  if (idError) {
+    console.warn('[houses] map object load by id failed:', idError);
+  }
+
+  if (rowById) {
+    return rowById;
+  }
+
+  // 2) Legacy-вариант: старый UI мог передать payload.houseId вида house_1783...
+  const { data: rowsByPayload, error: payloadError } = await supabase
+    .from('map_objects')
+    .select('*')
+    .filter('payload->>houseId', 'eq', rawId)
+    .limit(1);
+
+  if (payloadError) {
+    console.warn('[houses] map object load by payload.houseId failed:', payloadError);
+  }
+
+  if (Array.isArray(rowsByPayload) && rowsByPayload.length > 0) {
+    return rowsByPayload[0];
+  }
+
+  // 3) Ещё один legacy-вариант.
+  const { data: rowsByHouseIdSnake, error: snakeError } = await supabase
+    .from('map_objects')
+    .select('*')
+    .filter('payload->>house_id', 'eq', rawId)
+    .limit(1);
+
+  if (snakeError) {
+    console.warn('[houses] map object load by payload.house_id failed:', snakeError);
+  }
+
+  if (Array.isArray(rowsByHouseIdSnake) && rowsByHouseIdSnake.length > 0) {
+    return rowsByHouseIdSnake[0];
+  }
+
+  return null;
+}
+
+async function buyHouseMapObject({ houseId, playerId }) {
+  const rawHouseId = String(houseId || '').trim();
+
+  if (!rawHouseId || !playerId) {
     throw new Error('HOUSE_ID_INVALID');
   }
 
-  const { data: row, error: loadError } = await supabase
-    .from('map_objects')
-    .select('*')
-    .eq('id', mapObjectId)
-    .maybeSingle();
-
-  if (loadError) {
-    console.error('[houses] map object load failed:', loadError);
-    throw loadError;
-  }
+  const row = await findHouseMapObject(rawHouseId);
 
   if (!row) {
+    console.error('[houses] map object not found for houseId:', rawHouseId);
     throw new Error('HOUSE_NOT_FOUND');
   }
 
+  const mapObjectId = row.id;
   const payload = row.payload || {};
 
   if (payload.ownerId || payload.owner_id || payload.owned === true) {
@@ -100,6 +149,8 @@ async function buyHouseMapObject({ houseId, playerId }) {
 
   const nextPayload = {
     ...payload,
+    mapObjectId,
+    houseId: payload.houseId || mapObjectId,
     ownerId: String(playerId),
     owner_id: String(playerId),
     ownerName: payload.ownerName || 'Игрок',
