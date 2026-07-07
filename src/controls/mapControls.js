@@ -301,6 +301,13 @@ export function enableMapControls(stage, viewport, options = {}) {
   function setupFallbackSingleImage() {
     setRenderMode(mobile ? 'single-mobile-fallback' : 'single-desktop');
 
+    const fallbackSrc =
+      fallbackMapSrc ||
+      viewport.dataset.mapSrc ||
+      viewport.querySelector?.('.gta-map-mobile-image')?.dataset?.mapSrc ||
+      viewport.querySelector?.('.gta-map-image:not(.gta-map-glow)')?.getAttribute?.('src') ||
+      '';
+
     mapImages.forEach((image) => {
       const isGlow = image.classList.contains('gta-map-glow');
 
@@ -318,29 +325,33 @@ export function enableMapControls(stage, viewport, options = {}) {
       image.style.inset = '0';
       image.style.width = '100%';
       image.style.height = '100%';
+      image.style.minWidth = '100%';
+      image.style.minHeight = '100%';
       image.style.objectFit = 'contain';
       image.style.objectPosition = 'center center';
       image.style.pointerEvents = 'none';
       image.style.userSelect = 'none';
+      image.style.zIndex = isGlow ? '1' : '12';
+      image.style.backgroundColor = 'transparent';
       image.decoding = 'async';
-      image.loading = mobile ? 'lazy' : 'eager';
+      image.loading = 'eager';
 
-      if (fallbackMapSrc) {
+      if (fallbackSrc) {
         if (image.tagName === 'IMG') {
+          if (!image.getAttribute('src') || image.getAttribute('src') !== fallbackSrc) {
+            image.src = fallbackSrc;
+          }
+
           image.style.backgroundImage = '';
           image.style.backgroundSize = '';
           image.style.backgroundRepeat = '';
           image.style.backgroundPosition = '';
         } else {
-          image.style.backgroundImage = `url("${fallbackMapSrc}")`;
+          image.style.backgroundImage = `url("${fallbackSrc}")`;
           image.style.backgroundSize = '100% 100%';
           image.style.backgroundRepeat = 'no-repeat';
           image.style.backgroundPosition = 'center center';
         }
-      }
-
-      if (image.tagName === 'IMG' && fallbackMapSrc && !image.getAttribute('src')) {
-        image.src = fallbackMapSrc;
       }
     });
   }
