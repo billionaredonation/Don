@@ -9,13 +9,29 @@ function formatMoney(value) {
 }
 
 function getHouseClass(object) {
-  return (
+  const raw = String(
     object?.class ||
-    object?.payload?.houseClassLabel ||
-    object?.payload?.houseClass ||
-    object?.variant ||
-    'standard'
-  );
+      object?.payload?.houseClass ||
+      object?.variant ||
+      object?.payload?.houseClassLabel ||
+      'standard'
+  ).trim().toLowerCase();
+
+  const labels = {
+    standard: 'Стандарт',
+    std: 'Стандарт',
+    comfort: 'Стандарт',
+    premium: 'Премиум',
+    prem: 'Премиум',
+    ultra_lux: 'Ультра люкс',
+    ultra: 'Ультра люкс',
+    lux: 'Ультра люкс',
+    luxe: 'Ультра люкс',
+    luxury: 'Ультра люкс',
+    elite: 'Ультра люкс',
+  };
+
+  return labels[raw] || object?.payload?.houseClassLabel || 'Стандарт';
 }
 
 function getHouseOwnerId(object) {
