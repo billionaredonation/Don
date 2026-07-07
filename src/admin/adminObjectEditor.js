@@ -25,10 +25,13 @@ export async function saveAdminObject({
   if (selectedType === 'house') {
     const houseClass = getHouseClass(selectedVariant || object.variant || 'standard');
 
+    const currentName = String(name || object.name || '').trim();
+    const hasCustomName = currentName && !/^Дом\s*·/i.test(currentName);
+
     nextPatch.icon = houseClass.icon;
     nextPatch.asset = houseClass.asset;
     nextPatch.scale = houseClass.scale;
-    nextPatch.name = name || object.name || `Дом · ${houseClass.label}`;
+    nextPatch.name = hasCustomName ? currentName : `Дом · ${houseClass.label}`;
     nextPatch.variant = houseClass.value;
     nextPatch.payload = {
       ...(object.payload || {}),
