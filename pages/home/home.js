@@ -632,15 +632,11 @@ register('home', async (root) => {
 
   const mapLayerHtml = isMobileGameplay
     ? `
-          <img
-            class="gta-map-image gta-map-mobile-image"
-            src="${mapSrc}"
+          <div
+            class="gta-map-image gta-map-mobile-placeholder"
             data-map-src="${mapSrc}"
-            alt="${city.name}"
-            loading="eager"
-            decoding="async"
-            fetchpriority="high"
-          />
+            aria-hidden="true"
+          ></div>
         `
     : `
           <img
@@ -1167,9 +1163,46 @@ register('home', async (root) => {
     telegramId,
   });
 
+  let adminPanelReady = false;
+
+  function emitAdminBlockedToast(reason = 'is_admin не найден в БД') {
+    if (!isDesktopDevice()) return;
+
+    window.dispatchEvent(new CustomEvent('mn:toast', {
+      detail: { message: `Админка не доступна: ${reason}` },
+    }));
+  }
+
+  const handleEarlyAdminHotkey = async (event) => {
+    if (adminPanelReady) return;
+    if (!isAdminHotkey(event)) return;
+    if (event.repeat) return;
+    if (isTypingTarget(event.target)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+
+    try {
+      const canUseAdminPanel = await isCurrentPlayerAdmin();
+
+      if (!canUseAdminPanel) {
+        emitAdminBlockedToast('поставь is_admin=true в players или player_positions');
+      }
+    } catch (error) {
+      console.warn('[home] admin recheck failed:', error);
+      emitAdminBlockedToast('ошибка проверки is_admin');
+    }
+  };
+
+  window.addEventListener('keydown', handleEarlyAdminHotkey, true);
+
   isCurrentPlayerAdmin()
     .then((canUseAdminPanel) => {
       if (!canUseAdminPanel || root.dataset.destroyed === 'true') {
+        cleanupAdminPanel = () => {
+          window.removeEventListener('keydown', handleEarlyAdminHotkey, true);
+        };
         return;
       }
 
@@ -1205,6 +1238,8 @@ register('home', async (root) => {
         return;
       }
 
+      adminPanelReady = true;
+
       const adminStatusButton = document.createElement('button');
       adminStatusButton.type = 'button';
       adminStatusButton.textContent = '👤';
@@ -1231,7 +1266,9 @@ register('home', async (root) => {
       window.addEventListener('keydown', handleAdminHotkey, true);
 
       cleanupAdminPanel = () => {
+        adminPanelReady = false;
         window.removeEventListener('keydown', handleAdminHotkey, true);
+        window.removeEventListener('keydown', handleEarlyAdminHotkey, true);
         adminStatusButton.remove();
         panelCleanup?.();
       };
