@@ -3600,3 +3600,18 @@ html.mn-player-moving body.mn-mobile-game-enabled .map-object {
     inset: -28px !important;
   }
 }
+
+
+/* MN v69: keep house details readable with long generated ids. */
+.house-details-grid article {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.house-details-grid strong {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
