@@ -194,28 +194,49 @@ async function getPlayerAdminFlag(playerId, nickname) {
   const safeNickname = getSafeNickname(nickname).replaceAll(',', '');
   const telegramId = getTelegramUserId();
 
-  let query = supabase
-    .from('players')
-    .select('id, player_id, tg_id, nickname, is_admin')
-    .limit(1);
+  const checks = [];
 
-  if (telegramId) {
-    query = query.or(`tg_id.eq.${telegramId},player_id.eq.${playerId},nickname.ilike.${safeNickname}`);
-  } else {
-    query = query.or(`player_id.eq.${playerId},nickname.ilike.${safeNickname}`);
+  if (telegramId) checks.push({ table: 'players', column: 'tg_id', value: telegramId });
+  if (playerId) checks.push({ table: 'players', column: 'player_id', value: playerId });
+  if (safeNickname) checks.push({ table: 'players', column: 'nickname', value: safeNickname, ilike: true });
+  if (playerId) checks.push({ table: 'player_positions', column: 'player_id', value: playerId });
+  if (safeNickname) checks.push({ table: 'player_positions', column: 'nickname', value: safeNickname, ilike: true });
+
+  for (const check of checks) {
+    try {
+      let query = supabase
+        .from(check.table)
+        .select('*')
+        .limit(1);
+
+      query = check.ilike
+        ? query.ilike(check.column, check.value)
+        : query.eq(check.column, check.value);
+
+      const { data, error } = await query.maybeSingle();
+
+      if (error) {
+        console.warn('[playerPosition] admin flag loading failed:', check.table, error);
+        continue;
+      }
+
+      if (!data) continue;
+
+      const isAdmin = isTruthyAdmin(data.is_admin || data.isAdmin);
+
+      if (isAdmin) {
+        rememberAdminFlag(playerId, true);
+        return true;
+      }
+    } catch (error) {
+      console.warn('[playerPosition] admin flag check crashed:', check.table, error);
+    }
   }
 
-  const { data, error } = await query.maybeSingle();
+  const cached = readCachedAdminFlag(playerId);
+  rememberAdminFlag(playerId, cached);
 
-  if (error) {
-    console.warn('[playerPosition] admin flag loading failed:', error);
-    return false;
-  }
-
-  const isAdmin = isTruthyAdmin(data?.is_admin);
-  rememberAdminFlag(playerId, isAdmin);
-
-  return isAdmin;
+  return cached;
 }
 
 function normalizePosition(row, extra = {}) {
