@@ -16,11 +16,13 @@ function getHouseClass(house) {
   const labels = {
     standard: 'Стандарт',
     std: 'Стандарт',
-    comfort: 'Комфорт',
+    comfort: 'Стандарт',
     premium: 'Премиум',
-    luxe: 'Люкс',
-    lux: 'Люкс',
-    luxury: 'Люкс',
+    ultra_lux: 'Ультра люкс',
+    luxe: 'Ультра люкс',
+    lux: 'Ультра люкс',
+    luxury: 'Ультра люкс',
+    elite: 'Ультра люкс',
   };
 
   return labels[houseClass] || String(houseClass);
