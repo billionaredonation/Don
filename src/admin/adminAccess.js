@@ -30,6 +30,95 @@ function isTruthyAdmin(value) {
   return value === true || value === 'true' || value === 1 || value === '1';
 }
 
+function getLocalPlayerIdFromState() {
+  const direct =
+    state.playerId ||
+    state.player?.playerId ||
+    state.player?.player_id ||
+    null;
+
+  if (direct) return String(direct);
+
+  try {
+    const stored = localStorage.getItem('mn_player_id');
+    if (stored) return String(stored);
+  } catch {
+    // ignore
+  }
+
+  return null;
+}
+
+function getLocalTelegramIdFromState() {
+  const direct =
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+    state.telegramId ||
+    state.player?.telegramId ||
+    state.player?.tg_id ||
+    null;
+
+  return direct ? String(direct) : null;
+}
+
+function getLocalNicknameFromState() {
+  return String(
+    state.nickname ||
+      state.player?.nickname ||
+      state.player?.name ||
+      ''
+  ).trim();
+}
+
+async function getDatabaseAdminSession() {
+  const playerId = getLocalPlayerIdFromState();
+  const telegramId = getLocalTelegramIdFromState();
+  const nickname = getLocalNicknameFromState();
+
+  const selectors = [];
+
+  if (telegramId) selectors.push({ table: 'players', column: 'tg_id', value: telegramId });
+  if (playerId) selectors.push({ table: 'players', column: 'player_id', value: playerId });
+  if (nickname) selectors.push({ table: 'players', column: 'nickname', value: nickname, ilike: true });
+  if (playerId) selectors.push({ table: 'player_positions', column: 'player_id', value: playerId });
+  if (nickname) selectors.push({ table: 'player_positions', column: 'nickname', value: nickname, ilike: true });
+
+  for (const selector of selectors) {
+    try {
+      let query = supabase
+        .from(selector.table)
+        .select('*')
+        .limit(1);
+
+      query = selector.ilike
+        ? query.ilike(selector.column, selector.value)
+        : query.eq(selector.column, selector.value);
+
+      const { data, error } = await query.maybeSingle();
+
+      if (error) {
+        console.warn('[adminAccess] database admin check failed:', selector.table, error);
+        continue;
+      }
+
+      if (!data || !isTruthyAdmin(data.is_admin || data.isAdmin)) {
+        continue;
+      }
+
+      return {
+        ok: true,
+        isAdmin: true,
+        player: data,
+        reason: `database_${selector.table}_${selector.column}`,
+        details: 'Admin allowed by database is_admin flag without requiring Telegram initData.',
+      };
+    } catch (error) {
+      console.warn('[adminAccess] database admin check crashed:', selector.table, error);
+    }
+  }
+
+  return null;
+}
+
 function getLocalAdminSession() {
   const player = state.player || {};
 
@@ -89,12 +178,18 @@ async function checkAdminSession() {
       return localSession;
     }
 
+    const databaseSession = await getDatabaseAdminSession();
+
+    if (databaseSession) {
+      return databaseSession;
+    }
+
     return {
       ok: false,
       isAdmin: false,
       player: null,
       reason: 'missing_telegram_init_data',
-      details: 'Telegram Mini App initData is empty and no local is_admin flag is loaded.',
+      details: 'Telegram Mini App initData is empty and no local/database is_admin flag is loaded.',
     };
   }
 
@@ -104,6 +199,11 @@ async function checkAdminSession() {
 
   if (error) {
     const details = await readFunctionError(error);
+    const databaseSession = await getDatabaseAdminSession();
+
+    if (databaseSession) {
+      return databaseSession;
+    }
 
     return {
       ok: false,
@@ -114,13 +214,21 @@ async function checkAdminSession() {
     };
   }
 
-  return {
+  const telegramSession = {
     ok: data?.ok === true,
     isAdmin: data?.isAdmin === true || data?.player?.is_admin === true,
     player: data?.player || null,
     reason: data?.reason || null,
     details: data?.details || data?.error || null,
   };
+
+  if (telegramSession.isAdmin) {
+    return telegramSession;
+  }
+
+  const databaseSession = await getDatabaseAdminSession();
+
+  return databaseSession || telegramSession;
 }
 
 export async function isCurrentPlayerAdmin() {
