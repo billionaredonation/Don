@@ -13,7 +13,7 @@ export const HOUSE_CLASSES = {
     shortLabel: 'STD',
     icon: '🏠',
     asset: 'house_standard_01',
-    scale: 1,
+    scale: 1.12,
     price: 15000,
     rentPerHour: 15,
     statusText: 'Базовый дом',
@@ -26,7 +26,7 @@ export const HOUSE_CLASSES = {
     shortLabel: 'PREM',
     icon: '🏡',
     asset: 'house_premium_01',
-    scale: 1.18,
+    scale: 1.24,
     price: 85000,
     rentPerHour: 85,
     statusText: 'Премиум жильё',
@@ -39,11 +39,11 @@ export const HOUSE_CLASSES = {
     shortLabel: 'ULTRA',
     icon: '🏛️',
     asset: 'house_lux_01',
-    scale: 1.36,
+    scale: 1.38,
     price: 250000,
     rentPerHour: 250,
     statusText: 'Ультра-люксовая недвижимость',
-    visualClass: 'lux',
+    visualClass: 'ultra_lux',
   },
 };
 
@@ -308,3 +308,4 @@ export function createMapObjectDraft({
     updatedAt: new Date().toISOString(),
   };
 }
+
