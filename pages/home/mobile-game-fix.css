@@ -442,3 +442,34 @@ body,
     bottom: max(14px, calc(var(--mn-safe-bottom) + 10px)) !important;
   }
 }
+
+/* v69 mobile map fallback: show the real city image, not only weather/fog background. */
+@media (hover: none) and (pointer: coarse) {
+  .home[data-map-render-mode="single-mobile-fallback"] .gta-map-mobile-image,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .gta-map-mobile-image {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    z-index: 12 !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    -webkit-user-drag: none !important;
+  }
+
+  body.mn-mobile-game-enabled .fog-of-war-canvas {
+    opacity: 0.82 !important;
+    z-index: 35 !important;
+  }
+}
