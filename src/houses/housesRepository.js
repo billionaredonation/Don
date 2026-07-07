@@ -61,7 +61,7 @@ function normalizeBuyResultFromMapObject(row, playerId) {
   return {
     ok: true,
     source: 'map_objects_fallback',
-    houseId: payload.houseId || row?.id,
+    houseId: row?.id || payload.houseId,
     mapObjectId: row?.id,
     playerId: String(playerId || ''),
     ownerId: String(playerId || ''),
@@ -71,69 +71,136 @@ function normalizeBuyResultFromMapObject(row, playerId) {
   };
 }
 
-async function findHouseMapObject(houseId) {
-  const rawId = String(houseId || '').trim();
 
-  if (!rawId) {
+function isUuidLike(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || '').trim());
+}
+
+function uniq(values) {
+  const out = [];
+  const seen = new Set();
+
+  values.forEach((value) => {
+    const text = String(value ?? '').trim();
+    if (!text || seen.has(text)) return;
+    seen.add(text);
+    out.push(text);
+  });
+
+  return out;
+}
+
+function getHouseLookupCandidates(houseId, house = {}) {
+  const payload = house?.payload || {};
+
+  return uniq([
+    houseId,
+    house?.mapObjectId,
+    house?.objectId,
+    house?.dbId,
+    house?.id,
+    payload.mapObjectId,
+    payload.objectId,
+    payload.id,
+    payload.houseId,
+    payload.house_id,
+    house?.houseId,
+    house?.house_id,
+  ]);
+}
+
+async function findHouseMapObject(houseId, house = {}) {
+  const candidates = getHouseLookupCandidates(houseId, house);
+
+  if (!candidates.length) {
     return null;
   }
 
-  // 1) Основной вариант: покупка по реальному id строки map_objects.
-  const { data: rowById, error: idError } = await supabase
-    .from('map_objects')
-    .select('*')
-    .eq('id', rawId)
-    .maybeSingle();
+  // 1) Реальный id строки map_objects. Для uuid-колонки не шлём house_... в .eq('id'), иначе Supabase падает.
+  for (const candidate of candidates) {
+    if (!isUuidLike(candidate)) continue;
 
-  if (idError) {
-    console.warn('[houses] map object load by id failed:', idError);
+    const { data: rowById, error: idError } = await supabase
+      .from('map_objects')
+      .select('*')
+      .eq('id', candidate)
+      .maybeSingle();
+
+    if (idError) {
+      console.warn('[houses] map object load by uuid failed:', candidate, idError);
+      continue;
+    }
+
+    if (rowById) {
+      return rowById;
+    }
   }
 
-  if (rowById) {
-    return rowById;
+  // 2) Legacy payload ids: house_..., старый id, numeric-id, etc.
+  for (const candidate of candidates) {
+    const payloadKeys = ['houseId', 'house_id', 'mapObjectId', 'objectId', 'id'];
+
+    for (const key of payloadKeys) {
+      const { data: rows, error } = await supabase
+        .from('map_objects')
+        .select('*')
+        .filter(`payload->>${key}`, 'eq', candidate)
+        .limit(1);
+
+      if (error) {
+        console.warn(`[houses] map object load by payload.${key} failed:`, candidate, error);
+        continue;
+      }
+
+      if (Array.isArray(rows) && rows.length > 0) {
+        return rows[0];
+      }
+    }
   }
 
-  // 2) Legacy-вариант: старый UI мог передать payload.houseId вида house_1783...
-  const { data: rowsByPayload, error: payloadError } = await supabase
-    .from('map_objects')
-    .select('*')
-    .filter('payload->>houseId', 'eq', rawId)
-    .limit(1);
+  // 3) Последний fallback: тот же город + координаты. Нужен для старых локальных домов, где id успел рассинхрониться.
+  const cityId = String(house?.cityId || house?.city_id || house?.payload?.cityId || house?.payload?.city_id || '').trim();
+  const x = Number(house?.x ?? house?.payload?.x);
+  const y = Number(house?.y ?? house?.payload?.y);
 
-  if (payloadError) {
-    console.warn('[houses] map object load by payload.houseId failed:', payloadError);
+  if (cityId && Number.isFinite(x) && Number.isFinite(y)) {
+    const minX = x - 0.001;
+    const maxX = x + 0.001;
+    const minY = y - 0.001;
+    const maxY = y + 0.001;
+
+    const { data: rows, error } = await supabase
+      .from('map_objects')
+      .select('*')
+      .eq('city_id', cityId)
+      .in('category', ['house'])
+      .gte('x', minX)
+      .lte('x', maxX)
+      .gte('y', minY)
+      .lte('y', maxY)
+      .limit(1);
+
+    if (error) {
+      console.warn('[houses] map object coordinate fallback failed:', error);
+    }
+
+    if (Array.isArray(rows) && rows.length > 0) {
+      return rows[0];
+    }
   }
 
-  if (Array.isArray(rowsByPayload) && rowsByPayload.length > 0) {
-    return rowsByPayload[0];
-  }
-
-  // 3) Ещё один legacy-вариант.
-  const { data: rowsByHouseIdSnake, error: snakeError } = await supabase
-    .from('map_objects')
-    .select('*')
-    .filter('payload->>house_id', 'eq', rawId)
-    .limit(1);
-
-  if (snakeError) {
-    console.warn('[houses] map object load by payload.house_id failed:', snakeError);
-  }
-
-  if (Array.isArray(rowsByHouseIdSnake) && rowsByHouseIdSnake.length > 0) {
-    return rowsByHouseIdSnake[0];
-  }
-
+  console.error('[houses] map object not found. lookup candidates:', candidates, 'house:', house);
   return null;
 }
 
-async function buyHouseMapObject({ houseId, playerId }) {
+async function buyHouseMapObject({ houseId, house, playerId }) {
   const rawHouseId = String(houseId || '').trim();
 
   if (!rawHouseId || !playerId) {
     throw new Error('HOUSE_ID_INVALID');
   }
 
-  const row = await findHouseMapObject(rawHouseId);
+  const row = await findHouseMapObject(rawHouseId, house);
 
   if (!row) {
     console.error('[houses] map object not found for houseId:', rawHouseId);
@@ -150,7 +217,7 @@ async function buyHouseMapObject({ houseId, playerId }) {
   const nextPayload = {
     ...payload,
     mapObjectId,
-    houseId: payload.houseId || mapObjectId,
+    houseId: mapObjectId,
     ownerId: String(playerId),
     owner_id: String(playerId),
     ownerName: payload.ownerName || 'Игрок',
@@ -177,7 +244,7 @@ async function buyHouseMapObject({ houseId, playerId }) {
   return normalizeBuyResultFromMapObject(updatedRow || { ...row, payload: nextPayload }, playerId);
 }
 
-export async function buyHouseFromState({ houseId, playerId }) {
+export async function buyHouseFromState({ houseId, house, playerId }) {
   const rawHouseId = String(houseId || '').trim();
   const dbHouseId = Number(rawHouseId);
 
@@ -186,7 +253,7 @@ export async function buyHouseFromState({ houseId, playerId }) {
   }
 
   if (!Number.isFinite(dbHouseId) || dbHouseId <= 0) {
-    return buyHouseMapObject({ houseId: rawHouseId, playerId });
+    return buyHouseMapObject({ houseId: rawHouseId, house, playerId });
   }
 
   const { data, error } = await supabase.rpc('buy_house_from_state', {
