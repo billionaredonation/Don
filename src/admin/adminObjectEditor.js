@@ -1,4 +1,4 @@
-import { getMapObjectType } from '../mapObjects/mapObjectTypes.js';
+import { getHouseClass, getMapObjectType } from '../mapObjects/mapObjectTypes.js';
 import { updateMapObject } from '../mapObjects/mapObjectsRepository.js';
 
 export async function saveAdminObject({
@@ -23,13 +23,30 @@ export async function saveAdminObject({
   };
 
   if (selectedType === 'house') {
+    const houseClass = getHouseClass(selectedVariant || object.variant || 'standard');
+
+    nextPatch.icon = houseClass.icon;
+    nextPatch.asset = houseClass.asset;
+    nextPatch.scale = houseClass.scale;
+    nextPatch.name = name || object.name || `Дом · ${houseClass.label}`;
+    nextPatch.variant = houseClass.value;
     nextPatch.payload = {
       ...(object.payload || {}),
       kind: 'house',
-      houseClass: selectedVariant,
+      type: 'house',
+      category: 'house',
+      houseClass: houseClass.value,
+      houseClassLabel: houseClass.label,
+      houseClassShortLabel: houseClass.shortLabel,
+      visualClass: houseClass.visualClass,
+      statusText: houseClass.statusText,
       buyable: true,
+      visible: true,
       ownerId: object.payload?.ownerId || null,
-      price: object.payload?.price || 0,
+      ownerName: object.payload?.ownerName || null,
+      owned: Boolean(object.payload?.ownerId),
+      price: object.payload?.price || houseClass.price,
+      rentPerHour: object.payload?.rentPerHour || houseClass.rentPerHour,
       locked: object.payload?.locked || false,
     };
   }
