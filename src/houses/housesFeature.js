@@ -19,8 +19,35 @@ function getPlayerTgId() {
   );
 }
 
+function looksLikeLocalHouseId(value) {
+  return /^house[_-]/i.test(String(value || '').trim());
+}
+
 function getHouseId(house) {
-  return house?.payload?.houseId || house?.houseId || house?.id;
+  const payload = house?.payload || {};
+
+  const candidates = [
+    house?.mapObjectId,
+    house?.objectId,
+    house?.dbId,
+    payload.mapObjectId,
+    payload.objectId,
+    payload.id,
+    house?.id,
+    payload.houseId,
+    payload.house_id,
+    house?.houseId,
+    house?.house_id,
+  ];
+
+  // Для покупки сначала всегда берём реальный id map_objects.
+  // Короткий номер дома и legacy house_... нельзя использовать как основной id покупки.
+  const realId = candidates.find((value) => {
+    const text = String(value || '').trim();
+    return text && !looksLikeLocalHouseId(text);
+  });
+
+  return realId || String(candidates.find(Boolean) || '').trim() || null;
 }
 
 function hideModal(element) {
