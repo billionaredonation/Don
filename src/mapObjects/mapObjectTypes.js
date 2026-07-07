@@ -20,19 +20,6 @@ export const HOUSE_CLASSES = {
     visualClass: 'standard',
   },
 
-  comfort: {
-    value: 'comfort',
-    label: 'Комфорт',
-    shortLabel: 'COM',
-    icon: '🏘️',
-    asset: 'house_comfort_01',
-    scale: 1.08,
-    price: 35000,
-    rentPerHour: 35,
-    statusText: 'Дом получше',
-    visualClass: 'comfort',
-  },
-
   premium: {
     value: 'premium',
     label: 'Премиум',
@@ -46,30 +33,17 @@ export const HOUSE_CLASSES = {
     visualClass: 'premium',
   },
 
-  lux: {
-    value: 'lux',
-    label: 'Люкс',
-    shortLabel: 'LUX',
+  ultra_lux: {
+    value: 'ultra_lux',
+    label: 'Ультра люкс',
+    shortLabel: 'ULTRA',
     icon: '🏛️',
     asset: 'house_lux_01',
-    scale: 1.32,
-    price: 180000,
-    rentPerHour: 180,
-    statusText: 'Элитный объект',
+    scale: 1.36,
+    price: 250000,
+    rentPerHour: 250,
+    statusText: 'Ультра-люксовая недвижимость',
     visualClass: 'lux',
-  },
-
-  elite: {
-    value: 'elite',
-    label: 'Элита',
-    shortLabel: 'VIP',
-    icon: '💎',
-    asset: 'house_elite_01',
-    scale: 1.42,
-    price: 350000,
-    rentPerHour: 350,
-    statusText: 'VIP недвижимость',
-    visualClass: 'elite',
   },
 };
 
