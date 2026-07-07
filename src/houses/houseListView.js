@@ -13,9 +13,13 @@ function getHouseClass(house) {
 
   const labels = {
     standard: 'STD',
+    comfort: 'STD',
     premium: 'PRM',
-    luxe: 'LUX',
-    luxury: 'LUX',
+    ultra_lux: 'ULTRA',
+    luxe: 'ULTRA',
+    lux: 'ULTRA',
+    luxury: 'ULTRA',
+    elite: 'ULTRA',
   };
 
   return labels[houseClass] || String(houseClass).toUpperCase();
@@ -26,9 +30,13 @@ function getHouseClassLabel(house) {
 
   const labels = {
     standard: 'Стандарт',
+    comfort: 'Стандарт',
     premium: 'Премиум',
-    luxe: 'Люкс',
-    luxury: 'Люкс',
+    ultra_lux: 'Ультра люкс',
+    luxe: 'Ультра люкс',
+    lux: 'Ультра люкс',
+    luxury: 'Ультра люкс',
+    elite: 'Ультра люкс',
   };
 
   return labels[houseClass] || String(houseClass);
