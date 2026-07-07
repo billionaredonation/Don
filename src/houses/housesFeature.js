@@ -140,6 +140,7 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
 
     const result = await buyHouseFromState({
       houseId: getHouseId(house),
+      house,
       playerId: tgId,
     });
 
