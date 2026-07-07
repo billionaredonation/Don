@@ -9,18 +9,22 @@ const HOUSE_CLASS_ALIASES = Object.freeze({
   std: 'standard',
   standard: 'standard',
   'стандарт': 'standard',
-  comfort: 'comfort',
-  'комфорт': 'comfort',
+  comfort: 'standard',
+  'комфорт': 'standard',
   premium: 'premium',
   prem: 'premium',
   'премиум': 'premium',
-  lux: 'lux',
-  luxe: 'lux',
-  luxury: 'lux',
-  'люкс': 'lux',
-  elite: 'elite',
-  vip: 'elite',
-  'элита': 'elite',
+  lux: 'ultra_lux',
+  luxe: 'ultra_lux',
+  luxury: 'ultra_lux',
+  ultra: 'ultra_lux',
+  ultra_lux: 'ultra_lux',
+  'ультра': 'ultra_lux',
+  'ультра люкс': 'ultra_lux',
+  'люкс': 'ultra_lux',
+  elite: 'ultra_lux',
+  vip: 'ultra_lux',
+  'элита': 'ultra_lux',
 });
 
 const MOBILE_RENDER_RADIUS = 30;
@@ -247,8 +251,7 @@ function getObjectRenderSize(category, visualClass) {
   if (category !== 'house') return 18;
 
   const normalized = normalizeHouseClass(visualClass);
-  if (normalized === 'elite') return 26;
-  if (normalized === 'lux') return 25;
+  if (normalized === 'ultra_lux') return 26;
   if (normalized === 'premium') return 24;
   if (normalized === 'comfort') return 23;
 
