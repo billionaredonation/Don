@@ -2,6 +2,8 @@ import { supabase } from '../supabaseClient.js';
 
 const STORAGE_PREFIX = 'mn_map_objects';
 const TABLE_NAME = 'map_objects';
+const PENDING_SYNC_FLAG = '__mnPendingRemoteSync';
+const PENDING_SYNC_REASON = '__mnPendingRemoteReason';
 
 function getStorageKey(cityId) {
   return `${STORAGE_PREFIX}_${cityId}`;
@@ -120,6 +122,103 @@ function normalizePayload(value) {
   return {};
 }
 
+
+function isPendingLocalObject(object) {
+  return Boolean(
+    object?.pendingRemoteSync === true ||
+      object?.payload?.[PENDING_SYNC_FLAG] === true
+  );
+}
+
+function markPendingRemoteSync(object, error) {
+  const reason = String(error?.message || error?.details || error || 'remote_sync_failed');
+
+  return normalizeObject({
+    ...object,
+    pendingRemoteSync: true,
+    payload: {
+      ...(object?.payload || {}),
+      [PENDING_SYNC_FLAG]: true,
+      [PENDING_SYNC_REASON]: reason,
+    },
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function clearPendingRemoteSync(object) {
+  const payload = {
+    ...(object?.payload || {}),
+  };
+
+  delete payload[PENDING_SYNC_FLAG];
+  delete payload[PENDING_SYNC_REASON];
+
+  return normalizeObject({
+    ...object,
+    pendingRemoteSync: false,
+    payload,
+  });
+}
+
+function mergeRemoteWithPendingLocal(remoteObjects, pendingLocalObjects) {
+  if (!pendingLocalObjects?.length) return remoteObjects;
+
+  const byId = new Map();
+
+  (Array.isArray(remoteObjects) ? remoteObjects : []).forEach((object) => {
+    if (object?.id) byId.set(String(object.id), object);
+  });
+
+  pendingLocalObjects.forEach((object) => {
+    const id = String(object?.id || '');
+
+    if (id && !byId.has(id)) {
+      byId.set(id, object);
+    }
+  });
+
+  return Array.from(byId.values());
+}
+
+function toDbRow(object = {}) {
+  const normalized = normalizeObject(object);
+  const payload = {
+    ...(normalized.payload || {}),
+    type: normalized.type,
+    category: normalized.category,
+    cityId: normalized.cityId,
+    city_id: normalized.cityId,
+    icon: normalized.icon,
+    asset: normalized.asset,
+    x: normalized.x,
+    y: normalized.y,
+    rotation: normalized.rotation,
+    scale: normalized.scale,
+    variant: normalized.variant,
+  };
+
+  delete payload[PENDING_SYNC_FLAG];
+  delete payload[PENDING_SYNC_REASON];
+
+  return {
+    id: normalized.id,
+    city_id: normalized.cityId,
+    type: normalized.type,
+    category: normalized.category,
+    name: normalized.name,
+    icon: normalized.icon,
+    asset: normalized.asset,
+    x: normalized.x,
+    y: normalized.y,
+    rotation: normalized.rotation,
+    scale: normalized.scale,
+    variant: normalized.variant,
+    payload,
+    created_at: normalized.createdAt || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
 function normalizeObject(object = {}) {
   const payload = normalizePayload(object.payload);
 
@@ -208,6 +307,11 @@ function normalizeObject(object = {}) {
       payload.ownerName ??
       payload.owner_name ??
       null,
+
+    pendingRemoteSync: Boolean(
+      object.pendingRemoteSync === true ||
+        payload[PENDING_SYNC_FLAG] === true
+    ),
 
     payload,
 
@@ -371,14 +475,31 @@ async function fetchRemoteObjects(cityId, options = {}) {
 }
 
 async function saveRemoteObject(object) {
-  const data = await adminMapObjectsRequest({
-    action: 'upsert',
-    object,
-  });
+  try {
+    const data = await adminMapObjectsRequest({
+      action: 'upsert',
+      object,
+    });
 
-  return data?.object
-    ? fromDbRow(data.object)
-    : normalizeObject(object);
+    return data?.object
+      ? clearPendingRemoteSync(fromDbRow(data.object))
+      : clearPendingRemoteSync(object);
+  } catch (edgeError) {
+    console.warn('[mapObjectsRepository] edge upsert failed, trying direct table upsert:', edgeError);
+
+    const row = toDbRow(object);
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .upsert(row, { onConflict: 'id' })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    return data
+      ? clearPendingRemoteSync(fromDbRow(data))
+      : clearPendingRemoteSync(object);
+  }
 }
 
 async function syncHouseMapObject(object) {
@@ -437,18 +558,45 @@ async function syncHouseMapObject(object) {
 }
 
 async function deleteRemoteObject(cityId, objectId) {
-  return adminMapObjectsRequest({
-    action: 'delete',
-    cityId,
-    objectId,
-  });
+  try {
+    return await adminMapObjectsRequest({
+      action: 'delete',
+      cityId,
+      objectId,
+    });
+  } catch (edgeError) {
+    console.warn('[mapObjectsRepository] edge delete failed, trying direct table delete:', edgeError);
+
+    const { error } = await supabase
+      .from(TABLE_NAME)
+      .delete()
+      .eq('city_id', String(cityId || '').trim())
+      .eq('id', String(objectId));
+
+    if (error) throw error;
+
+    return { ok: true };
+  }
 }
 
 async function clearRemoteCity(cityId) {
-  return adminMapObjectsRequest({
-    action: 'clear_city',
-    cityId,
-  });
+  try {
+    return await adminMapObjectsRequest({
+      action: 'clear_city',
+      cityId,
+    });
+  } catch (edgeError) {
+    console.warn('[mapObjectsRepository] edge clear failed, trying direct table clear:', edgeError);
+
+    const { error } = await supabase
+      .from(TABLE_NAME)
+      .delete()
+      .eq('city_id', String(cityId || '').trim());
+
+    if (error) throw error;
+
+    return { ok: true };
+  }
 }
 
 export async function getMapObjects(cityId, options = {}) {
@@ -460,16 +608,25 @@ export async function getMapObjects(cityId, options = {}) {
     range
   );
 
+  const pendingLocalObjects = filterObjectsByRange(
+    localObjects.filter(isPendingLocalObject),
+    range
+  );
+
   try {
     const remoteObjects = await fetchRemoteObjects(normalizedCityId, options);
+    const mergedObjects = mergeRemoteWithPendingLocal(
+      remoteObjects,
+      pendingLocalObjects
+    );
 
     if (range) {
-      mergeLocalObjects(normalizedCityId, remoteObjects);
+      mergeLocalObjects(normalizedCityId, mergedObjects);
     } else {
-      saveLocalObjects(normalizedCityId, remoteObjects);
+      saveLocalObjects(normalizedCityId, mergedObjects);
     }
 
-    return remoteObjects;
+    return mergedObjects;
   } catch (error) {
     console.warn(
       '[mapObjectsRepository] remote load failed, using local cache:',
@@ -509,7 +666,14 @@ export async function saveMapObjects(cityId, objects) {
     return savedObjects;
   } catch (error) {
     console.warn('[mapObjectsRepository] admin remote save failed:', error);
-    return normalized;
+
+    const pendingObjects = normalized.map((object) =>
+      markPendingRemoteSync(object, error)
+    );
+
+    saveLocalObjects(normalizedCityId, pendingObjects);
+
+    return pendingObjects;
   }
 }
 
@@ -548,7 +712,17 @@ export async function addMapObject(cityId, object) {
     return savedObject;
   } catch (error) {
     console.warn('[mapObjectsRepository] admin add failed:', error);
-    return nextObject;
+
+    const pendingObject = markPendingRemoteSync(nextObject, error);
+    const pendingObjects = nextObjects.map((item) =>
+      String(item.id) === String(pendingObject.id)
+        ? pendingObject
+        : item
+    );
+
+    saveLocalObjects(normalizedCityId, pendingObjects);
+
+    return pendingObject;
   }
 }
 
@@ -596,6 +770,19 @@ export async function updateMapObject(cityId, objectId, patch) {
     }
   } catch (error) {
     console.warn('[mapObjectsRepository] admin update failed:', error);
+
+    if (updatedObject) {
+      const pendingObject = markPendingRemoteSync(updatedObject, error);
+      const pendingObjects = nextObjects.map((item) =>
+        String(item.id) === String(pendingObject.id)
+          ? pendingObject
+          : item
+      );
+
+      saveLocalObjects(normalizedCityId, pendingObjects);
+
+      return pendingObject;
+    }
   }
 
   return updatedObject;
