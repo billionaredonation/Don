@@ -54,11 +54,88 @@ export async function fetchCityHousesState(cityId) {
   };
 }
 
+function normalizeBuyResultFromMapObject(row, playerId) {
+  const payload = row?.payload || {};
+
+  return {
+    ok: true,
+    source: 'map_objects_fallback',
+    houseId: payload.houseId || row?.id,
+    mapObjectId: row?.id,
+    playerId: String(playerId || ''),
+    ownerId: String(playerId || ''),
+    ownerName: payload.ownerName || 'Игрок',
+    price: Number(payload.price || 0),
+    houseClass: payload.houseClass || row?.variant || 'standard',
+  };
+}
+
+async function buyHouseMapObject({ houseId, playerId }) {
+  const mapObjectId = String(houseId || '').trim();
+
+  if (!mapObjectId || !playerId) {
+    throw new Error('HOUSE_ID_INVALID');
+  }
+
+  const { data: row, error: loadError } = await supabase
+    .from('map_objects')
+    .select('*')
+    .eq('id', mapObjectId)
+    .maybeSingle();
+
+  if (loadError) {
+    console.error('[houses] map object load failed:', loadError);
+    throw loadError;
+  }
+
+  if (!row) {
+    throw new Error('HOUSE_NOT_FOUND');
+  }
+
+  const payload = row.payload || {};
+
+  if (payload.ownerId || payload.owner_id || payload.owned === true) {
+    throw new Error('HOUSE_ALREADY_OWNED');
+  }
+
+  const nextPayload = {
+    ...payload,
+    ownerId: String(playerId),
+    owner_id: String(playerId),
+    ownerName: payload.ownerName || 'Игрок',
+    owned: true,
+    locked: false,
+    buyable: true,
+  };
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from('map_objects')
+    .update({
+      payload: nextPayload,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', mapObjectId)
+    .select('*')
+    .single();
+
+  if (updateError) {
+    console.error('[houses] map object buy failed:', updateError);
+    throw updateError;
+  }
+
+  return normalizeBuyResultFromMapObject(updatedRow || { ...row, payload: nextPayload }, playerId);
+}
+
 export async function buyHouseFromState({ houseId, playerId }) {
-  const dbHouseId = Number(houseId);
+  const rawHouseId = String(houseId || '').trim();
+  const dbHouseId = Number(rawHouseId);
+
+  if (!rawHouseId) {
+    throw new Error('HOUSE_ID_INVALID');
+  }
 
   if (!Number.isFinite(dbHouseId) || dbHouseId <= 0) {
-    throw new Error('HOUSE_ID_INVALID');
+    return buyHouseMapObject({ houseId: rawHouseId, playerId });
   }
 
   const { data, error } = await supabase.rpc('buy_house_from_state', {
