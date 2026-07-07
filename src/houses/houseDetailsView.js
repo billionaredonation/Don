@@ -122,27 +122,40 @@ function getHouseId(house) {
   );
 }
 
+function getRealMapObjectId(house) {
+  return (
+    house?.mapObjectId ||
+    house?.objectId ||
+    house?.dbId ||
+    house?.payload?.mapObjectId ||
+    house?.payload?.objectId ||
+    house?.payload?.id ||
+    house?.id ||
+    null
+  );
+}
+
 function getHouseNumber(house) {
-  const number = (
+  const explicitNumber = (
     house?.payload?.houseNumber ||
     house?.payload?.house_number ||
     house?.payload?.number ||
     house?.number ||
-    getHouseId(house) ||
     null
   );
 
-  if (number === null || number === undefined || number === '') {
+  if (explicitNumber !== null && explicitNumber !== undefined && explicitNumber !== '') {
+    return `№ ${String(explicitNumber).slice(0, 12)}`;
+  }
+
+  const realId = String(getRealMapObjectId(house) || '').trim();
+
+  if (!realId) {
     return '—';
   }
 
-  const value = String(number);
-
-  if (value.length > 12) {
-    return `№ ${value.slice(-6)}`;
-  }
-
-  return `№ ${value}`;
+  // Это только отображаемый короткий номер, не id для покупки.
+  return `№ ${realId.replace(/-/g, '').slice(-6).toUpperCase()}`;
 }
 
 
@@ -459,7 +472,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     window.dispatchEvent(new CustomEvent('mn:house-purchased-local', {
       detail: {
         houseId: getHouseId(activeHouse),
-        mapObjectId: activeHouse.id,
+        mapObjectId: getRealMapObjectId(activeHouse),
         house: activeHouse,
         ownerId: purchaseState.ownerId,
         ownerName: purchaseState.ownerName,
