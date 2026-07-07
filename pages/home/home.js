@@ -632,11 +632,15 @@ register('home', async (root) => {
 
   const mapLayerHtml = isMobileGameplay
     ? `
-          <div
-            class="gta-map-image gta-map-mobile-placeholder"
+          <img
+            class="gta-map-image gta-map-mobile-image"
+            src="${mapSrc}"
             data-map-src="${mapSrc}"
-            aria-hidden="true"
-          ></div>
+            alt="${city.name}"
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
+          />
         `
     : `
           <img
