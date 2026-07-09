@@ -1,10 +1,62 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
+import { getAuthPlayer } from '../auth/playerAuth.js';
 
 const STORAGE_PREFIX = 'mn_map_objects';
 const TABLE_NAME = 'map_objects';
 const PENDING_SYNC_FLAG = '__mnPendingRemoteSync';
 const PENDING_SYNC_REASON = '__mnPendingRemoteReason';
+
+const CITY_ID_ALIASES = {
+  zaporizhia: 'zaporizhzhia',
+  zaporizhzhya: 'zaporizhzhia',
+  zaporozhye: 'zaporizhzhia',
+  zaporozya: 'zaporizhzhia',
+  kiev: 'kyiv',
+  kiyiv: 'kyiv',
+  kiyv: 'kyiv',
+  odessa: 'odesa',
+  nikolaev: 'mykolaiv',
+  rovno: 'rivne',
+  chernigov: 'chernihiv',
+  krym: 'crimea',
+  khmelnitskiy: 'khmelnytskyi',
+  zutomyr: 'zhytomyr',
+};
+
+const CITY_REVERSE_ALIASES = Object.entries(CITY_ID_ALIASES).reduce((acc, [from, to]) => {
+  acc[to] = acc[to] || new Set([to]);
+  acc[to].add(from);
+  return acc;
+}, {});
+
+function normalizeCityId(value) {
+  const raw = String(value || '').trim();
+  const key = raw.toLowerCase();
+  return CITY_ID_ALIASES[key] || raw;
+}
+
+function getCityStorageAliases(cityId) {
+  const raw = String(cityId || '').trim();
+  const normalized = normalizeCityId(raw);
+  const aliases = new Set([raw, normalized].filter(Boolean));
+  const reverse = CITY_REVERSE_ALIASES[String(normalized).toLowerCase()];
+
+  if (reverse) {
+    reverse.forEach((alias) => aliases.add(alias));
+  }
+
+  return Array.from(aliases);
+}
+
+function readJsonLocalStorage(key, fallback = null) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function getStorageKey(cityId) {
   return `${STORAGE_PREFIX}_${cityId}`;
@@ -16,22 +68,38 @@ function getTelegramInitData() {
 
 
 function getAdminIdentity() {
+  const authPlayer = typeof getAuthPlayer === 'function' ? getAuthPlayer() : null;
+  const storedGameState = readJsonLocalStorage('mn-game-state', null);
+  const storedAuthPlayer = readJsonLocalStorage('mn_auth_player', null);
+
   const telegramId =
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
     state.telegramId ||
+    state.tg_id ||
     state.player?.tg_id ||
     state.player?.telegramId ||
+    storedGameState?.telegramId ||
+    storedGameState?.player?.tg_id ||
+    storedGameState?.player?.telegramId ||
+    localStorage.getItem('mn_player_tg_id') ||
+    localStorage.getItem('mn_tg_id') ||
     null;
 
   const nickname = String(
     state.nickname ||
       state.player?.nickname ||
       state.player?.name ||
+      authPlayer?.nickname ||
+      storedAuthPlayer?.nickname ||
+      storedGameState?.nickname ||
+      storedGameState?.player?.nickname ||
+      localStorage.getItem('mn_player_nickname') ||
+      localStorage.getItem('mn_nickname') ||
       ''
   ).trim();
 
   return {
-    adminTgId: telegramId ? String(telegramId) : null,
+    adminTgId: telegramId ? String(telegramId).trim() : null,
     adminNickname: nickname || null,
   };
 }
@@ -274,7 +342,7 @@ function normalizeObject(object = {}) {
   return {
     id: String(object.id || createObjectId()),
 
-    cityId: String(
+    cityId: normalizeCityId(
       object.cityId ||
         object.city_id ||
         payload.cityId ||
@@ -384,38 +452,49 @@ function fromDbRow(row = {}) {
 }
 
 function getLocalObjects(cityId) {
-  try {
-    const raw = localStorage.getItem(getStorageKey(cityId));
-    const list = safeParse(raw, []);
+  const aliases = getCityStorageAliases(cityId);
+  const byId = new Map();
 
-    return Array.isArray(list)
-      ? list.map((object) =>
-          normalizeObject({
-            ...object,
-            cityId,
-          })
-        )
-      : [];
-  } catch {
-    return [];
+  for (const alias of aliases) {
+    try {
+      const raw = localStorage.getItem(getStorageKey(alias));
+      const list = safeParse(raw, []);
+
+      if (!Array.isArray(list)) continue;
+
+      list.forEach((object) => {
+        const normalized = normalizeObject({
+          ...object,
+          cityId: normalizeCityId(cityId),
+        });
+
+        if (normalized.id) byId.set(String(normalized.id), normalized);
+      });
+    } catch {
+      // ignore broken local cache key
+    }
   }
+
+  return Array.from(byId.values());
 }
 
 function saveLocalObjects(cityId, objects) {
+  const normalizedCityId = normalizeCityId(cityId);
   const normalized = Array.isArray(objects)
     ? objects.map((object) =>
         normalizeObject({
           ...object,
-          cityId,
+          cityId: normalizedCityId,
         })
       )
     : [];
 
   try {
-    localStorage.setItem(
-      getStorageKey(cityId),
-      JSON.stringify(normalized)
-    );
+    const payload = JSON.stringify(normalized);
+
+    getCityStorageAliases(cityId).forEach((alias) => {
+      localStorage.setItem(getStorageKey(alias), payload);
+    });
   } catch {}
 
   return normalized;
@@ -459,7 +538,7 @@ async function adminMapObjectsRequest(payload) {
 }
 
 async function fetchRemoteObjects(cityId, options = {}) {
-  const normalizedCityId = String(cityId || '').trim();
+  const normalizedCityId = normalizeCityId(cityId);
 
   if (!normalizedCityId) {
     console.warn('[mapObjectsRepository] fetch skipped: cityId missing');
@@ -594,7 +673,7 @@ async function syncHouseMapObject(object) {
 }
 
 async function deleteRemoteObject(cityId, objectId) {
-  const normalizedCityId = String(cityId || '').trim();
+  const normalizedCityId = normalizeCityId(cityId);
   const normalizedObjectId = String(objectId || '').trim();
   const adminIdentity = getAdminIdentity();
 
@@ -602,17 +681,7 @@ async function deleteRemoteObject(cityId, objectId) {
     throw new Error('map_object_id_missing');
   }
 
-  try {
-    return await adminMapObjectsRequest({
-      action: 'delete',
-      cityId: normalizedCityId,
-      objectId: normalizedObjectId,
-      ...adminIdentity,
-    });
-  } catch (edgeError) {
-    console.warn('[mapObjectsRepository] edge delete failed, trying admin RPC delete:', edgeError);
-  }
-
+  // Важно: сначала RPC. Старый/чужой Edge Function может вернуть ok, но реально ничего не удалить.
   try {
     const { data, error } = await supabase.rpc(
       'admin_delete_map_object',
@@ -626,9 +695,33 @@ async function deleteRemoteObject(cityId, objectId) {
 
     if (error) throw error;
 
-    return data || { ok: true };
+    const deletedCount = Number(data?.deleted ?? data?.count ?? 0);
+    console.log('[mapObjectsRepository] RPC delete result:', {
+      cityId: normalizedCityId,
+      objectId: normalizedObjectId,
+      adminIdentity,
+      data,
+    });
+
+    return data || { ok: true, deleted: deletedCount };
   } catch (rpcError) {
-    console.warn('[mapObjectsRepository] admin RPC delete failed, trying direct table delete:', rpcError);
+    console.warn('[mapObjectsRepository] admin RPC delete failed, trying edge delete:', {
+      cityId: normalizedCityId,
+      objectId: normalizedObjectId,
+      adminIdentity,
+      error: rpcError,
+    });
+  }
+
+  try {
+    return await adminMapObjectsRequest({
+      action: 'delete',
+      cityId: normalizedCityId,
+      objectId: normalizedObjectId,
+      ...adminIdentity,
+    });
+  } catch (edgeError) {
+    console.warn('[mapObjectsRepository] edge delete failed, trying direct table delete:', edgeError);
   }
 
   const { error } = await supabase
@@ -643,23 +736,14 @@ async function deleteRemoteObject(cityId, objectId) {
 }
 
 async function clearRemoteCity(cityId) {
-  const normalizedCityId = String(cityId || '').trim();
+  const normalizedCityId = normalizeCityId(cityId);
   const adminIdentity = getAdminIdentity();
 
   if (!normalizedCityId) {
     throw new Error('map_city_id_missing');
   }
 
-  try {
-    return await adminMapObjectsRequest({
-      action: 'clear_city',
-      cityId: normalizedCityId,
-      ...adminIdentity,
-    });
-  } catch (edgeError) {
-    console.warn('[mapObjectsRepository] edge clear failed, trying admin RPC clear:', edgeError);
-  }
-
+  // Важно: сначала RPC. Иначе старый Edge Function может тихо вернуть ok без удаления.
   try {
     const { data, error } = await supabase.rpc(
       'admin_clear_map_objects_city',
@@ -672,9 +756,29 @@ async function clearRemoteCity(cityId) {
 
     if (error) throw error;
 
+    console.log('[mapObjectsRepository] RPC clear result:', {
+      cityId: normalizedCityId,
+      adminIdentity,
+      data,
+    });
+
     return data || { ok: true };
   } catch (rpcError) {
-    console.warn('[mapObjectsRepository] admin RPC clear failed, trying direct table clear:', rpcError);
+    console.warn('[mapObjectsRepository] admin RPC clear failed, trying edge clear:', {
+      cityId: normalizedCityId,
+      adminIdentity,
+      error: rpcError,
+    });
+  }
+
+  try {
+    return await adminMapObjectsRequest({
+      action: 'clear_city',
+      cityId: normalizedCityId,
+      ...adminIdentity,
+    });
+  } catch (edgeError) {
+    console.warn('[mapObjectsRepository] edge clear failed, trying direct table clear:', edgeError);
   }
 
   const { error } = await supabase
@@ -687,8 +791,18 @@ async function clearRemoteCity(cityId) {
   return { ok: true };
 }
 
+function clearLocalObjectsForCity(cityId) {
+  try {
+    getCityStorageAliases(cityId).forEach((alias) => {
+      localStorage.removeItem(getStorageKey(alias));
+    });
+  } catch {
+    // ignore
+  }
+}
+
 export async function getMapObjects(cityId, options = {}) {
-  const normalizedCityId = String(cityId || '').trim();
+  const normalizedCityId = normalizeCityId(cityId);
   const range = normalizeRangeOptions(options);
 
   const localObjects = filterObjectsByRange(
@@ -726,7 +840,7 @@ export async function getMapObjects(cityId, options = {}) {
 }
 
 export async function saveMapObjects(cityId, objects) {
-  const normalizedCityId = String(cityId || '').trim();
+  const normalizedCityId = normalizeCityId(cityId);
 
   const normalized = Array.isArray(objects)
     ? objects.map((object) =>
@@ -766,7 +880,7 @@ export async function saveMapObjects(cityId, objects) {
 }
 
 export async function addMapObject(cityId, object) {
-  const normalizedCityId = String(cityId || '').trim();
+  const normalizedCityId = normalizeCityId(cityId);
 
   const nextObject = normalizeObject({
     ...object,
@@ -815,7 +929,7 @@ export async function addMapObject(cityId, object) {
 }
 
 export async function updateMapObject(cityId, objectId, patch) {
-  const normalizedCityId = String(cityId || '').trim();
+  const normalizedCityId = normalizeCityId(cityId);
 
   const objects = await getMapObjects(normalizedCityId);
 
@@ -877,7 +991,7 @@ export async function updateMapObject(cityId, objectId, patch) {
 }
 
 export async function deleteMapObject(cityId, objectId) {
-  const normalizedCityId = String(cityId || '').trim();
+  const normalizedCityId = normalizeCityId(cityId);
 
   const objects = await getMapObjects(normalizedCityId);
 
@@ -897,8 +1011,9 @@ export async function deleteMapObject(cityId, objectId) {
 }
 
 export async function clearMapObjects(cityId) {
-  const normalizedCityId = String(cityId || '').trim();
+  const normalizedCityId = normalizeCityId(cityId);
 
+  clearLocalObjectsForCity(normalizedCityId);
   saveLocalObjects(normalizedCityId, []);
 
   try {
