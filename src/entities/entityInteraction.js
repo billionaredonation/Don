@@ -3,6 +3,7 @@ import { getMapObjects } from '../mapObjects/mapObjectsRepository.js';
 import {
   createMapObjectsLayer,
   renderMapObjects,
+  clearMapObjectsLayer,
   getMapObjectIdFromEvent,
   findMapObjectElement,
 } from '../mapObjects/mapObjectsRenderer.js';
@@ -1403,10 +1404,61 @@ export function enableEntityInteraction({
     tryOpenObject(nearest, { silent: true });
   }
 
+  function isCurrentCityEvent(event) {
+    return !event?.detail?.cityId || String(event.detail.cityId) === String(cityId);
+  }
+
+  function resetRenderedObjectState() {
+    nearestObjectId = null;
+    lastHintObjectId = null;
+    lastRenderedIdsKey = '';
+    lastRenderX = Number.NaN;
+    lastRenderY = Number.NaN;
+    loadedRegion = null;
+    pendingRenderAfterMovement = false;
+    pendingReloadAfterMovement = false;
+    objectById = new Map();
+    objectGrid = new Map();
+    renderedObjects = [];
+    hideInteractionHint({ reset: true });
+  }
+
   function onObjectsChanged(event) {
-    if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
+    if (!isCurrentCityEvent(event)) return;
 
     scheduleReload();
+  }
+
+  function onAdminObjectsCleared(event) {
+    if (!isCurrentCityEvent(event)) return;
+
+    mapObjects = [];
+    resetRenderedObjectState();
+    clearMapObjectsLayer(layer);
+
+    window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
+      detail: {
+        cityId,
+        count: 0,
+        renderedCount: 0,
+        layerChildren: 0,
+        adminCleared: true,
+      },
+    }));
+  }
+
+  function onAdminObjectDeleted(event) {
+    if (!isCurrentCityEvent(event)) return;
+
+    const objectId = String(event?.detail?.objectId || '').trim();
+    if (!objectId) return;
+
+    mapObjects = mapObjects.filter((object) => String(object?.id || '') !== objectId);
+    renderedObjects = renderedObjects.filter((object) => String(object?.id || '') !== objectId);
+
+    rebuildObjectIndex();
+    lastRenderedIdsKey = '';
+    renderNearbyMapObjects(true);
   }
 
   function onHousePurchased(event) {
@@ -1457,6 +1509,8 @@ export function enableEntityInteraction({
   window.addEventListener('keydown', onKeyDown, true);
 
   window.addEventListener('mn:map-objects-changed', onObjectsChanged);
+  window.addEventListener('mn:map-objects-admin-cleared', onAdminObjectsCleared);
+  window.addEventListener('mn:map-objects-admin-deleted', onAdminObjectDeleted);
   window.addEventListener('mn:house-purchased-local', onHousePurchased);
 
   snapshotTimer = setInterval(() => {
@@ -1487,6 +1541,8 @@ export function enableEntityInteraction({
     window.removeEventListener('keydown', onKeyDown, true);
 
     window.removeEventListener('mn:map-objects-changed', onObjectsChanged);
+    window.removeEventListener('mn:map-objects-admin-cleared', onAdminObjectsCleared);
+    window.removeEventListener('mn:map-objects-admin-deleted', onAdminObjectDeleted);
     window.removeEventListener('mn:house-purchased-local', onHousePurchased);
 
     clearNearestVisual();
