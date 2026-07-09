@@ -1551,4 +1551,3 @@ export function enableEntityInteraction({
     layer.remove();
   };
 }
-
