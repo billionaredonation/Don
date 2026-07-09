@@ -696,62 +696,47 @@ async function deleteRemoteObject(cityId, objectId, options = {}) {
   const normalizedObjectId = String(objectId || '').trim();
   const adminIdentity = getAdminIdentity(options);
 
+  if (!normalizedCityId) {
+    throw new Error('map_city_id_missing');
+  }
+
   if (!normalizedObjectId) {
     throw new Error('map_object_id_missing');
   }
 
-  // Важно: сначала RPC. Старый/чужой Edge Function может вернуть ok, но реально ничего не удалить.
-  try {
-    const { data, error } = await supabase.rpc(
-      'admin_delete_map_object',
-      {
-        p_city_id: normalizedCityId,
-        p_object_id: normalizedObjectId,
-        p_admin_tg_id: adminIdentity.adminTgId,
-        p_admin_nickname: adminIdentity.adminNickname,
-      }
-    );
+  const { data, error } = await supabase.rpc(
+    'admin_delete_map_object',
+    {
+      p_object_id: normalizedObjectId,
+      p_city_id: normalizedCityId,
+      p_admin_tg_id: adminIdentity.adminTgId,
+      p_admin_nickname: adminIdentity.adminNickname,
+    }
+  );
 
-    if (error) throw error;
-
-    const deletedCount = Number(data?.deleted ?? data?.count ?? 0);
-    console.log('[mapObjectsRepository] RPC delete result:', {
+  if (error) {
+    console.error('[mapObjectsRepository] RPC delete failed:', {
       cityId: normalizedCityId,
       objectId: normalizedObjectId,
       adminIdentity,
-      data,
+      error,
     });
 
-    return data || { ok: true, deleted: deletedCount };
-  } catch (rpcError) {
-    console.warn('[mapObjectsRepository] admin RPC delete failed, trying edge delete:', {
-      cityId: normalizedCityId,
-      objectId: normalizedObjectId,
-      adminIdentity,
-      error: rpcError,
-    });
+    throw new Error(error.message || error.details || 'ADMIN_RPC_DELETE_FAILED');
   }
 
-  try {
-    return await adminMapObjectsRequest({
-      action: 'delete',
-      cityId: normalizedCityId,
-      objectId: normalizedObjectId,
-      ...adminIdentity,
-    });
-  } catch (edgeError) {
-    console.warn('[mapObjectsRepository] edge delete failed, trying direct table delete:', edgeError);
+  console.log('[mapObjectsRepository] RPC delete result:', {
+    cityId: normalizedCityId,
+    objectId: normalizedObjectId,
+    adminIdentity,
+    data,
+  });
+
+  if (data?.ok === false) {
+    throw new Error(`DB_DELETE_FAILED: осталось ${data?.remaining ?? '?'} строк для объекта ${normalizedObjectId}`);
   }
 
-  const { error } = await supabase
-    .from(TABLE_NAME)
-    .delete()
-    .eq('city_id', normalizedCityId)
-    .eq('id', normalizedObjectId);
-
-  if (error) throw error;
-
-  return { ok: true };
+  return data || { ok: true };
 }
 
 async function clearRemoteCity(cityId, options = {}) {
@@ -762,52 +747,36 @@ async function clearRemoteCity(cityId, options = {}) {
     throw new Error('map_city_id_missing');
   }
 
-  // Важно: сначала RPC. Иначе старый Edge Function может тихо вернуть ok без удаления.
-  try {
-    const { data, error } = await supabase.rpc(
-      'admin_clear_map_objects_city',
-      {
-        p_city_id: normalizedCityId,
-        p_admin_tg_id: adminIdentity.adminTgId,
-        p_admin_nickname: adminIdentity.adminNickname,
-      }
-    );
+  const { data, error } = await supabase.rpc(
+    'admin_clear_map_objects_city',
+    {
+      p_city_id: normalizedCityId,
+      p_admin_tg_id: adminIdentity.adminTgId,
+      p_admin_nickname: adminIdentity.adminNickname,
+    }
+  );
 
-    if (error) throw error;
-
-    console.log('[mapObjectsRepository] RPC clear result:', {
+  if (error) {
+    console.error('[mapObjectsRepository] RPC clear failed:', {
       cityId: normalizedCityId,
       adminIdentity,
-      data,
+      error,
     });
 
-    return data || { ok: true };
-  } catch (rpcError) {
-    console.warn('[mapObjectsRepository] admin RPC clear failed, trying edge clear:', {
-      cityId: normalizedCityId,
-      adminIdentity,
-      error: rpcError,
-    });
+    throw new Error(error.message || error.details || 'ADMIN_RPC_CLEAR_FAILED');
   }
 
-  try {
-    return await adminMapObjectsRequest({
-      action: 'clear_city',
-      cityId: normalizedCityId,
-      ...adminIdentity,
-    });
-  } catch (edgeError) {
-    console.warn('[mapObjectsRepository] edge clear failed, trying direct table clear:', edgeError);
+  console.log('[mapObjectsRepository] RPC clear result:', {
+    cityId: normalizedCityId,
+    adminIdentity,
+    data,
+  });
+
+  if (data?.ok === false) {
+    throw new Error(`DB_CLEAR_FAILED: RPC удалил ${data?.deleted ?? 0}, но осталось ${data?.remaining ?? '?'} объектов для города ${normalizedCityId}`);
   }
 
-  const { error } = await supabase
-    .from(TABLE_NAME)
-    .delete()
-    .eq('city_id', normalizedCityId);
-
-  if (error) throw error;
-
-  return { ok: true };
+  return data || { ok: true };
 }
 
 function clearLocalObjectsForCity(cityId) {
@@ -1101,18 +1070,7 @@ export async function clearMapObjects(cityId, options = {}) {
     throw new Error('map_city_id_missing');
   }
 
-  const localObjectsBeforeClear = getLocalObjects(normalizedCityId);
   const result = await clearRemoteCity(normalizedCityId, options);
-  const deletedCount = getDeletedCount(result);
-  const remoteCountAfterClear = await countRemoteObjectsForCity(normalizedCityId);
-
-  if (
-    remoteCountAfterClear !== null &&
-    remoteCountAfterClear > 0 &&
-    (deletedCount === 0 || localObjectsBeforeClear.length > 0)
-  ) {
-    throw new Error(`DB_CLEAR_FAILED: в map_objects осталось ${remoteCountAfterClear} объектов для города ${normalizedCityId}`);
-  }
 
   clearLocalObjectsForCity(normalizedCityId);
   saveLocalObjects(normalizedCityId, []);
@@ -1123,6 +1081,12 @@ export async function clearMapObjects(cityId, options = {}) {
       result,
     },
   }));
+
+  const remoteCountAfterClear = await countRemoteObjectsForCity(normalizedCityId);
+
+  if (remoteCountAfterClear !== null && remoteCountAfterClear > 0) {
+    throw new Error(`DB_CLEAR_FAILED: после RPC осталось ${remoteCountAfterClear} объектов для города ${normalizedCityId}`);
+  }
 
   return [];
 }
