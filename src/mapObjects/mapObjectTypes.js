@@ -226,6 +226,14 @@ export function getHouseClassesList() {
   return Object.values(HOUSE_CLASSES);
 }
 
+function createDraftObjectId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `obj_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
 export function createMapObjectDraft({
   cityId,
   type = 'marker',
@@ -290,9 +298,31 @@ export function createMapObjectDraft({
     };
   }
 
+  const objectId = createDraftObjectId();
+  const normalizedCityId = String(cityId || '').trim();
+
+  const basePayload = {
+    ...nextPayload,
+    id: objectId,
+    objectId,
+    mapObjectId: objectId,
+    cityId: normalizedCityId,
+    city_id: normalizedCityId,
+    type: config.type,
+    category: config.category,
+  };
+
+  if (config.category === MAP_OBJECT_CATEGORIES.HOUSE) {
+    basePayload.houseId = objectId;
+    basePayload.house_id = objectId;
+    basePayload.kind = 'house';
+    basePayload.buyable = basePayload.buyable ?? true;
+    basePayload.visible = basePayload.visible ?? true;
+  }
+
   return {
-    id: `${config.type}_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-    cityId,
+    id: objectId,
+    cityId: normalizedCityId,
     type: config.type,
     category: config.category,
     variant: variant || '',
@@ -303,7 +333,7 @@ export function createMapObjectDraft({
     y: Number(y),
     rotation: config.defaultRotation,
     scale,
-    payload: nextPayload,
+    payload: basePayload,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
