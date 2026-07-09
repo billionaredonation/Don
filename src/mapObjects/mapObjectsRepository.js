@@ -67,12 +67,26 @@ function getTelegramInitData() {
 }
 
 
-function getAdminIdentity() {
+function getAdminIdentity(options = {}) {
   const authPlayer = typeof getAuthPlayer === 'function' ? getAuthPlayer() : null;
   const storedGameState = readJsonLocalStorage('mn-game-state', null);
   const storedAuthPlayer = readJsonLocalStorage('mn_auth_player', null);
 
+  const localPlayerId =
+    options.adminPlayerId ||
+    options.playerId ||
+    state.playerId ||
+    state.player?.playerId ||
+    state.player?.player_id ||
+    storedGameState?.playerId ||
+    storedGameState?.player?.playerId ||
+    storedGameState?.player?.player_id ||
+    localStorage.getItem('mn_player_id') ||
+    null;
+
   const telegramId =
+    options.adminTgId ||
+    options.telegramId ||
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
     state.telegramId ||
     state.tg_id ||
@@ -86,7 +100,9 @@ function getAdminIdentity() {
     null;
 
   const nickname = String(
-    state.nickname ||
+    options.adminNickname ||
+      options.nickname ||
+      state.nickname ||
       state.player?.nickname ||
       state.player?.name ||
       authPlayer?.nickname ||
@@ -98,9 +114,12 @@ function getAdminIdentity() {
       ''
   ).trim();
 
+  const adminTgId = telegramId || localPlayerId || null;
+
   return {
-    adminTgId: telegramId ? String(telegramId).trim() : null,
+    adminTgId: adminTgId ? String(adminTgId).trim() : null,
     adminNickname: nickname || null,
+    adminPlayerId: localPlayerId ? String(localPlayerId).trim() : null,
   };
 }
 
@@ -672,10 +691,10 @@ async function syncHouseMapObject(object) {
   }
 }
 
-async function deleteRemoteObject(cityId, objectId) {
+async function deleteRemoteObject(cityId, objectId, options = {}) {
   const normalizedCityId = normalizeCityId(cityId);
   const normalizedObjectId = String(objectId || '').trim();
-  const adminIdentity = getAdminIdentity();
+  const adminIdentity = getAdminIdentity(options);
 
   if (!normalizedObjectId) {
     throw new Error('map_object_id_missing');
@@ -735,9 +754,9 @@ async function deleteRemoteObject(cityId, objectId) {
   return { ok: true };
 }
 
-async function clearRemoteCity(cityId) {
+async function clearRemoteCity(cityId, options = {}) {
   const normalizedCityId = normalizeCityId(cityId);
-  const adminIdentity = getAdminIdentity();
+  const adminIdentity = getAdminIdentity(options);
 
   if (!normalizedCityId) {
     throw new Error('map_city_id_missing');
@@ -990,10 +1009,15 @@ export async function updateMapObject(cityId, objectId, patch) {
   return updatedObject;
 }
 
-export async function deleteMapObject(cityId, objectId) {
+export async function deleteMapObject(cityId, objectId, options = {}) {
   const normalizedCityId = normalizeCityId(cityId);
 
-  const objects = await getMapObjects(normalizedCityId);
+  if (!objectId) {
+    throw new Error('map_object_id_missing');
+  }
+
+  const result = await deleteRemoteObject(normalizedCityId, objectId, options);
+  const objects = getLocalObjects(normalizedCityId);
 
   const nextObjects = objects.filter(
     (object) => String(object.id) !== String(objectId)
@@ -1001,26 +1025,35 @@ export async function deleteMapObject(cityId, objectId) {
 
   saveLocalObjects(normalizedCityId, nextObjects);
 
-  try {
-    await deleteRemoteObject(normalizedCityId, objectId);
-  } catch (error) {
-    console.warn('[mapObjectsRepository] admin delete failed:', error);
-  }
+  window.dispatchEvent(new CustomEvent('mn:map-objects-admin-deleted', {
+    detail: {
+      cityId: normalizedCityId,
+      objectId: String(objectId),
+      result,
+    },
+  }));
 
   return nextObjects;
 }
 
-export async function clearMapObjects(cityId) {
+export async function clearMapObjects(cityId, options = {}) {
   const normalizedCityId = normalizeCityId(cityId);
+
+  if (!normalizedCityId) {
+    throw new Error('map_city_id_missing');
+  }
+
+  const result = await clearRemoteCity(normalizedCityId, options);
 
   clearLocalObjectsForCity(normalizedCityId);
   saveLocalObjects(normalizedCityId, []);
 
-  try {
-    await clearRemoteCity(normalizedCityId);
-  } catch (error) {
-    console.warn('[mapObjectsRepository] admin clear failed:', error);
-  }
+  window.dispatchEvent(new CustomEvent('mn:map-objects-admin-cleared', {
+    detail: {
+      cityId: normalizedCityId,
+      result,
+    },
+  }));
 
   return [];
 }
