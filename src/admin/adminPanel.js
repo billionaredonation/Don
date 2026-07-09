@@ -788,19 +788,43 @@ function setEnabled(next) {
   btnDeleteSelected.addEventListener('click', async () => {
     if (!selectedObjectId) return;
 
-    await deleteMapObject(cityId, selectedObjectId);
+    const objectIdToDelete = selectedObjectId;
 
-    selectedObjectId = null;
-    await reloadObjects();
+    try {
+      await deleteMapObject(cityId, objectIdToDelete, {
+        adminNickname: nickname,
+      });
+
+      selectedObjectId = null;
+      await reloadObjects();
+      showAdminNotice('Объект удалён из БД и с карты.');
+    } catch (error) {
+      console.error('[adminPanel] delete selected object failed:', error);
+      showAdminNotice(`Удаление не прошло: ${error?.message || error}`);
+      await reloadObjects();
+    }
   });
 
   btnClearAll.addEventListener('click', async () => {
     if (!window.confirm('Удалить все объекты на этой карте?')) return;
 
-    await clearMapObjects(cityId);
+    try {
+      await clearMapObjects(cityId, {
+        adminNickname: nickname,
+      });
 
-    selectedObjectId = null;
-    await reloadObjects();
+      selectedObjectId = null;
+      objects = [];
+      clearMapObjectsLayer(objectsLayer);
+      renderObjectList();
+      fillEditor(null);
+      notifyMapObjectsChanged(cityId);
+      showAdminNotice('Карта очищена: объекты удалены из БД.');
+    } catch (error) {
+      console.error('[adminPanel] clear map objects failed:', error);
+      showAdminNotice(`Очистка не прошла: ${error?.message || error}`);
+      await reloadObjects();
+    }
   });
 
   objectListEl.addEventListener('click', (event) => {
