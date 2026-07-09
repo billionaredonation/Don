@@ -834,3 +834,4 @@ export async function clearMapObjects(cityId) {
 
   return [];
 }
+
