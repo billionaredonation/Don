@@ -1,43 +1,93 @@
 import { supabase } from '../supabaseClient.js';
 import { getMapObjects } from '../mapObjects/mapObjectsRepository.js';
 
-function isHouseObject(object) {
-  return object?.category === 'house' || object?.type === 'house' || object?.payload?.kind === 'house';
+function normalizePayload(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+
+  try {
+    return JSON.parse(String(value)) || {};
+  } catch {
+    return {};
+  }
 }
 
-function isHouseOwned(house) {
-  return Boolean(
-    house?.owner_id ||
-    house?.ownerName ||
-    house?.payload?.ownerId ||
-    house?.payload?.owner_id ||
-    house?.payload?.ownerName ||
-    house?.payload?.owned
+function isHouseObject(object) {
+  const payload = normalizePayload(object?.payload);
+
+  return (
+    object?.category === 'house' ||
+    object?.type === 'house' ||
+    payload.kind === 'house' ||
+    payload.category === 'house' ||
+    payload.type === 'house'
   );
 }
 
+function isHouseOwned(house) {
+  const payload = normalizePayload(house?.payload);
+
+  return Boolean(
+    house?.owner_id ||
+      house?.ownerId ||
+      house?.ownerName ||
+      payload.ownerId ||
+      payload.owner_id ||
+      payload.ownerName ||
+      payload.owner_name ||
+      payload.owned
+  );
+}
+
+function normalizeHouseClass(value) {
+  const raw = String(value || 'standard').trim().toLowerCase();
+
+  if (['premium', 'prem', 'премиум'].includes(raw)) return 'premium';
+  if (['ultra_lux', 'ultra-lux', 'ultra', 'lux', 'luxe', 'luxury', 'vip', 'ультра люкс'].includes(raw)) return 'ultra_lux';
+
+  return 'standard';
+}
+
 function normalizeHouseForUi(house) {
-  const payload = house?.payload || {};
+  const payload = normalizePayload(house?.payload);
+  const id = String(house?.id || payload.id || payload.mapObjectId || payload.objectId || payload.houseId || '').trim();
+  const mapObjectId = String(house?.mapObjectId || house?.objectId || payload.mapObjectId || payload.objectId || id || '').trim();
+  const houseClass = normalizeHouseClass(house?.class || payload.houseClass || payload.houseClassLabel || house?.variant || 'standard');
+  const ownerId = house?.owner_id || house?.ownerId || payload.ownerId || payload.owner_id || null;
+  const ownerName = house?.ownerName || house?.owner_name || payload.ownerName || payload.owner_name || null;
+  const price = Number(house?.price ?? payload.price ?? 0) || 0;
 
   return {
     ...house,
-    mapObjectId: house?.mapObjectId || house?.objectId || house?.id || payload.mapObjectId || null,
-    price: house?.price || payload.price || 0,
-    class: house?.class || payload.houseClass || payload.houseClassLabel || house?.variant || 'standard',
-    owner_id: house?.owner_id || payload.ownerId || payload.owner_id || null,
-    ownerName: house?.ownerName || payload.ownerName || payload.owner_name || null,
+    id: id || house?.id,
+    mapObjectId: mapObjectId || id || null,
+    objectId: house?.objectId || mapObjectId || id || null,
+    price,
+    class: houseClass,
+    owner_id: ownerId,
+    ownerId,
+    ownerName,
     payload: {
       ...payload,
-      id: payload.id || house?.id || null,
-      objectId: payload.objectId || house?.id || null,
-      mapObjectId: payload.mapObjectId || house?.id || null,
-      houseId: payload.houseId || payload.house_id || house?.id || null,
-      house_id: payload.house_id || payload.houseId || house?.id || null,
-      price: house?.price || payload.price || 0,
-      houseClass: house?.class || payload.houseClass || payload.houseClassLabel || house?.variant || 'standard',
-      ownerId: house?.owner_id || payload.ownerId || payload.owner_id || null,
-      ownerName: house?.ownerName || payload.ownerName || payload.owner_name || null,
-      owned: isHouseOwned(house),
+      id: payload.id || id || null,
+      objectId: payload.objectId || mapObjectId || id || null,
+      mapObjectId: payload.mapObjectId || mapObjectId || id || null,
+      houseId: payload.houseId || payload.house_id || mapObjectId || id || null,
+      house_id: payload.house_id || payload.houseId || mapObjectId || id || null,
+      cityId: payload.cityId || payload.city_id || house?.cityId || house?.city_id || null,
+      city_id: payload.city_id || payload.cityId || house?.city_id || house?.cityId || null,
+      kind: 'house',
+      type: 'house',
+      category: 'house',
+      price,
+      houseClass,
+      ownerId,
+      owner_id: ownerId,
+      ownerName,
+      owner_name: ownerName,
+      owned: Boolean(ownerId || ownerName || payload.owned),
+      buyable: payload.buyable ?? true,
+      visible: payload.visible ?? true,
     },
   };
 }
@@ -61,13 +111,13 @@ export async function fetchCityHousesState(cityId) {
 }
 
 function normalizeBuyResultFromMapObject(row, playerId) {
-  const payload = row?.payload || {};
+  const payload = normalizePayload(row?.payload);
 
   return {
     ok: true,
-    source: 'map_objects_fallback',
+    source: 'map_objects_client_fallback',
     houseId: row?.id || payload.houseId,
-    mapObjectId: row?.id,
+    mapObjectId: row?.id || payload.mapObjectId,
     playerId: String(playerId || ''),
     ownerId: String(playerId || ''),
     ownerName: payload.ownerName || 'Игрок',
@@ -77,12 +127,11 @@ function normalizeBuyResultFromMapObject(row, playerId) {
 }
 
 function isUuidLike(value) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || '').trim());
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(String(value || '').trim());
 }
 
 function createObjectId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-
   return `obj_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
@@ -106,7 +155,7 @@ function uniq(values) {
 }
 
 function getHouseLookupCandidates(houseId, house = {}) {
-  const payload = house?.payload || {};
+  const payload = normalizePayload(house?.payload);
 
   return uniq([
     houseId,
@@ -129,6 +178,76 @@ function getHouseLookupCandidates(houseId, house = {}) {
   ]);
 }
 
+function getCityIdFromHouse(house = {}) {
+  const payload = normalizePayload(house?.payload);
+
+  return String(
+    house?.cityId ||
+      house?.city_id ||
+      payload.cityId ||
+      payload.city_id ||
+      ''
+  ).trim();
+}
+
+function getHouseSnapshot(house = {}) {
+  const payload = normalizePayload(house?.payload);
+
+  return {
+    id: house?.id || payload.id || null,
+    mapObjectId: house?.mapObjectId || payload.mapObjectId || null,
+    objectId: house?.objectId || payload.objectId || null,
+    houseId: payload.houseId || payload.house_id || house?.houseId || null,
+    cityId: getCityIdFromHouse(house),
+    city_id: getCityIdFromHouse(house),
+    type: 'house',
+    category: 'house',
+    kind: 'house',
+    name: house?.name || payload.name || 'Дом',
+    icon: house?.icon || payload.icon || '🏠',
+    asset: house?.asset || payload.asset || '',
+    x: toFiniteNumber(house?.x ?? payload.x, 50),
+    y: toFiniteNumber(house?.y ?? payload.y, 50),
+    rotation: toFiniteNumber(house?.rotation ?? payload.rotation, 0),
+    scale: toFiniteNumber(house?.scale ?? payload.scale, 1),
+    variant: house?.variant || payload.variant || payload.houseClass || 'standard',
+    payload: {
+      ...payload,
+      kind: 'house',
+      type: 'house',
+      category: 'house',
+    },
+  };
+}
+
+async function buyHouseViaHardRpc({ houseId, house, playerId }) {
+  const snapshot = getHouseSnapshot(house);
+
+  const { data, error } = await supabase.rpc('buy_house_map_object_any', {
+    p_map_object_id: String(houseId),
+    p_tg_id: String(playerId),
+    p_city_id: snapshot.cityId || null,
+    p_x: Number.isFinite(Number(snapshot.x)) ? Number(snapshot.x) : null,
+    p_y: Number.isFinite(Number(snapshot.y)) ? Number(snapshot.y) : null,
+    p_house_snapshot: snapshot,
+  });
+
+  if (error) {
+    console.error('[houses] buy_house_map_object_any failed:', {
+      houseId,
+      snapshot,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+
+    throw error;
+  }
+
+  return data;
+}
+
 async function queryMapObjectById(candidate) {
   const text = String(candidate || '').trim();
   if (!text) return null;
@@ -140,8 +259,6 @@ async function queryMapObjectById(candidate) {
     .maybeSingle();
 
   if (error) {
-    // В одних базах id = uuid, в других id = text. Для uuid-колонки non-uuid даст 22P02.
-    // Это не фатально: дальше проверяем payload и координаты.
     console.warn('[houses] map object load by id failed:', text, error);
     return null;
   }
@@ -150,6 +267,9 @@ async function queryMapObjectById(candidate) {
 }
 
 async function queryMapObjectByPayload(candidate) {
+  const text = String(candidate || '').trim();
+  if (!text) return null;
+
   const payloadKeys = [
     'houseId',
     'house_id',
@@ -167,26 +287,22 @@ async function queryMapObjectByPayload(candidate) {
     const { data: rows, error } = await supabase
       .from('map_objects')
       .select('*')
-      .filter(`payload->>${key}`, 'eq', candidate)
+      .filter(`payload->>${key}`, 'eq', text)
       .limit(1);
 
     if (error) {
-      console.warn(`[houses] map object load by payload.${key} failed:`, candidate, error);
+      console.warn(`[houses] map object load by payload.${key} failed:`, text, error);
       continue;
     }
 
-    if (Array.isArray(rows) && rows.length > 0) {
-      return rows[0];
-    }
+    if (Array.isArray(rows) && rows.length > 0) return rows[0];
   }
 
   return null;
 }
 
 function rowLooksLikeHouse(row = {}) {
-  const payload = row?.payload && typeof row.payload === 'object'
-    ? row.payload
-    : {};
+  const payload = normalizePayload(row?.payload);
 
   return (
     row.category === 'house' ||
@@ -198,53 +314,60 @@ function rowLooksLikeHouse(row = {}) {
 }
 
 async function queryMapObjectByCoordinates(house = {}) {
-  const cityId = String(house?.cityId || house?.city_id || house?.payload?.cityId || house?.payload?.city_id || '').trim();
-  const x = Number(house?.x ?? house?.payload?.x);
-  const y = Number(house?.y ?? house?.payload?.y);
+  const cityId = getCityIdFromHouse(house);
+  const payload = normalizePayload(house?.payload);
+  const x = Number(house?.x ?? payload.x);
+  const y = Number(house?.y ?? payload.y);
 
-  if (!cityId || !Number.isFinite(x) || !Number.isFinite(y)) {
-    return null;
-  }
+  if (!cityId || !Number.isFinite(x) || !Number.isFinite(y)) return null;
 
-  // Старые локальные дома могли не иметь houseId/mapObjectId в payload.
-  // Поэтому ищем по городу и точке, но фильтр house делаем на клиенте: в базе у старых строк
-  // иногда заполнен type='house', а category мог быть пустым/marker.
-  const minX = x - 0.03;
-  const maxX = x + 0.03;
-  const minY = y - 0.03;
-  const maxY = y + 0.03;
+  const minX = x - 0.35;
+  const maxX = x + 0.35;
+  const minY = y - 0.35;
+  const maxY = y + 0.35;
+  const cityCandidates = uniq([
+    cityId,
+    payload.cityId,
+    payload.city_id,
+    'zaporizhzhia',
+    cityId === 'zaporizhzhia' ? 'zaporizhia' : null,
+    cityId === 'zaporizhzhia' ? 'zaporozya' : null,
+  ]);
 
   const { data: rows, error } = await supabase
     .from('map_objects')
     .select('*')
-    .eq('city_id', cityId)
+    .in('city_id', cityCandidates)
     .gte('x', minX)
     .lte('x', maxX)
     .gte('y', minY)
     .lte('y', maxY)
-    .limit(20);
+    .limit(30);
 
   if (error) {
     console.warn('[houses] map object coordinate fallback failed:', error);
     return null;
   }
 
-  return (Array.isArray(rows) ? rows : []).find(rowLooksLikeHouse) || null;
+  return (Array.isArray(rows) ? rows : [])
+    .filter(rowLooksLikeHouse)
+    .sort((a, b) => {
+      const da = Math.abs(Number(a.x || 0) - x) + Math.abs(Number(a.y || 0) - y);
+      const db = Math.abs(Number(b.x || 0) - x) + Math.abs(Number(b.y || 0) - y);
+      return da - db;
+    })[0] || null;
 }
 
 function normalizeHouseMapObjectForInsert(house = {}) {
-  const payload = house?.payload && typeof house.payload === 'object'
-    ? house.payload
-    : {};
-
+  const snapshot = getHouseSnapshot(house);
   const candidates = getHouseLookupCandidates('', house);
-  const stableId = candidates.find(isUuidLike) || createObjectId();
+  const stableId = candidates.find(isUuidLike) || String(snapshot.id || '') || createObjectId();
   const legacyId = candidates.find((value) => value && String(value) !== String(stableId)) || null;
-  const cityId = String(house?.cityId || house?.city_id || payload.cityId || payload.city_id || '').trim();
+  const cityId = snapshot.cityId;
   const now = new Date().toISOString();
 
   const nextPayload = {
-    ...payload,
+    ...(snapshot.payload || {}),
     id: stableId,
     objectId: stableId,
     mapObjectId: stableId,
@@ -255,21 +378,21 @@ function normalizeHouseMapObjectForInsert(house = {}) {
     kind: 'house',
     type: 'house',
     category: 'house',
-    icon: house?.icon || payload.icon || '🏠',
-    asset: house?.asset || payload.asset || '',
-    x: toFiniteNumber(house?.x ?? payload.x, 50),
-    y: toFiniteNumber(house?.y ?? payload.y, 50),
-    rotation: toFiniteNumber(house?.rotation ?? payload.rotation, 0),
-    scale: toFiniteNumber(house?.scale ?? payload.scale, 1),
-    variant: house?.variant || payload.variant || payload.houseClass || 'standard',
-    houseClass: house?.class || payload.houseClass || house?.variant || 'standard',
-    price: Number(house?.price ?? payload.price ?? 0),
-    ownerId: payload.ownerId || payload.owner_id || house?.ownerId || house?.owner_id || null,
-    ownerName: payload.ownerName || payload.owner_name || house?.ownerName || house?.owner_name || null,
-    owned: Boolean(payload.ownerId || payload.owner_id || house?.ownerId || house?.owner_id || payload.owned),
-    locked: Boolean(payload.locked || house?.locked),
-    buyable: payload.buyable ?? true,
-    visible: payload.visible ?? true,
+    icon: snapshot.icon,
+    asset: snapshot.asset,
+    x: snapshot.x,
+    y: snapshot.y,
+    rotation: snapshot.rotation,
+    scale: snapshot.scale,
+    variant: snapshot.variant,
+    houseClass: normalizeHouseClass(snapshot.payload?.houseClass || snapshot.variant),
+    price: Number(snapshot.payload?.price || 0),
+    ownerId: snapshot.payload?.ownerId || snapshot.payload?.owner_id || null,
+    ownerName: snapshot.payload?.ownerName || snapshot.payload?.owner_name || null,
+    owned: Boolean(snapshot.payload?.ownerId || snapshot.payload?.owner_id || snapshot.payload?.owned),
+    locked: Boolean(snapshot.payload?.locked),
+    buyable: true,
+    visible: true,
   };
 
   if (legacyId) {
@@ -280,25 +403,19 @@ function normalizeHouseMapObjectForInsert(house = {}) {
     nextPayload.__mnLegacyHouseId = nextPayload.__mnLegacyHouseId || legacyId;
   }
 
-  house.id = stableId;
-  house.mapObjectId = stableId;
-  house.objectId = stableId;
-  house.cityId = cityId;
-  house.payload = nextPayload;
-
   return {
     id: stableId,
     city_id: cityId,
     type: 'house',
     category: 'house',
-    name: house?.name || payload.name || `Дом · ${nextPayload.houseClass}`,
-    icon: house?.icon || payload.icon || '🏠',
-    asset: house?.asset || payload.asset || '',
-    x: nextPayload.x,
-    y: nextPayload.y,
-    rotation: nextPayload.rotation,
-    scale: nextPayload.scale,
-    variant: nextPayload.variant,
+    name: snapshot.name || `Дом · ${nextPayload.houseClass}`,
+    icon: snapshot.icon,
+    asset: snapshot.asset,
+    x: snapshot.x,
+    y: snapshot.y,
+    rotation: snapshot.rotation,
+    scale: snapshot.scale,
+    variant: nextPayload.houseClass,
     payload: nextPayload,
     created_at: house?.createdAt || house?.created_at || now,
     updated_at: now,
@@ -327,28 +444,19 @@ async function persistLocalHouseMapObject(house = {}) {
 async function findHouseMapObject(houseId, house = {}) {
   const candidates = getHouseLookupCandidates(houseId, house);
 
-  if (!candidates.length) {
-    return null;
-  }
-
-  // 1) Реальный id строки map_objects. Проверяем и uuid, и text-id.
   for (const candidate of candidates) {
     const row = await queryMapObjectById(candidate);
     if (row) return row;
   }
 
-  // 2) Legacy payload ids: house_..., старый id, numeric-id, etc.
   for (const candidate of candidates) {
     const row = await queryMapObjectByPayload(candidate);
     if (row) return row;
   }
 
-  // 3) Последний fallback: тот же город + координаты.
   const rowByCoordinates = await queryMapObjectByCoordinates(house);
   if (rowByCoordinates) return rowByCoordinates;
 
-  // 4) Если дом есть только в локальном кеше после старого бага с house_... id,
-  // пробуем один раз записать его в map_objects уже с нормальным uuid-id.
   const persistedRow = await persistLocalHouseMapObject(house);
   if (persistedRow) return persistedRow;
 
@@ -356,81 +464,83 @@ async function findHouseMapObject(houseId, house = {}) {
   return null;
 }
 
-function normalizeRpcBuyResult(data, row, playerId) {
-  const result = data && typeof data === 'object' ? data : {};
-  const payload = row?.payload || {};
-
-  return {
-    ok: result.ok ?? true,
-    source: result.source || 'map_objects_rpc',
-    houseId: result.houseId || result.house_id || row?.id || payload.houseId,
-    mapObjectId: result.mapObjectId || result.map_object_id || row?.id,
-    playerId: String(result.playerId || result.player_id || playerId || ''),
-    ownerId: String(result.ownerId || result.owner_id || result.playerId || playerId || ''),
-    ownerName: result.ownerName || result.owner_name || payload.ownerName || 'Игрок',
-    price: Number(result.price ?? payload.price ?? 0),
-    houseClass: result.houseClass || result.house_class || payload.houseClass || row?.variant || 'standard',
-    newBalance: result.newBalance ?? result.new_balance,
-    cityIncome: result.cityIncome ?? result.city_income,
-    taxBurned: result.taxBurned ?? result.tax_burned,
-  };
-}
-
-async function buyHouseMapObject({ houseId, house, playerId }) {
+async function buyHouseMapObjectClientFallback({ houseId, house, playerId }) {
   const rawHouseId = String(houseId || '').trim();
 
-  if (!rawHouseId || !playerId) {
-    throw new Error('HOUSE_ID_INVALID');
-  }
+  if (!rawHouseId || !playerId) throw new Error('HOUSE_ID_INVALID');
 
   const row = await findHouseMapObject(rawHouseId, house);
 
-  if (!row) {
-    console.error('[houses] map object not found for houseId:', rawHouseId);
-    throw new Error('HOUSE_NOT_FOUND');
-  }
+  if (!row) throw new Error('HOUSE_NOT_FOUND');
 
-  const mapObjectId = String(row.id || rawHouseId);
-  const payload = row.payload || {};
+  const mapObjectId = row.id;
+  const payload = normalizePayload(row.payload);
 
   if (payload.ownerId || payload.owner_id || payload.owned === true) {
     throw new Error('HOUSE_ALREADY_OWNED');
   }
 
-  const { data, error } = await supabase.rpc('buy_house_map_object', {
-    p_map_object_id: mapObjectId,
-    p_tg_id: String(playerId),
-  });
+  const nextPayload = {
+    ...payload,
+    id: mapObjectId,
+    objectId: mapObjectId,
+    mapObjectId,
+    houseId: mapObjectId,
+    house_id: mapObjectId,
+    kind: 'house',
+    type: 'house',
+    category: 'house',
+    ownerId: String(playerId),
+    owner_id: String(playerId),
+    ownerName: payload.ownerName || 'Игрок',
+    owner_name: payload.ownerName || 'Игрок',
+    owned: true,
+    locked: false,
+    buyable: true,
+  };
 
-  if (error) {
-    console.error('[houses] map object rpc buy failed:', error);
-    throw error;
+  const { data: updatedRow, error: updateError } = await supabase
+    .from('map_objects')
+    .update({
+      payload: nextPayload,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', mapObjectId)
+    .select('*')
+    .single();
+
+  if (updateError) {
+    console.error('[houses] map object client fallback buy failed:', updateError);
+    throw updateError;
   }
 
-  return normalizeRpcBuyResult(data, row, playerId);
+  return normalizeBuyResultFromMapObject(updatedRow || { ...row, payload: nextPayload }, playerId);
 }
 
 export async function buyHouseFromState({ houseId, house, playerId }) {
   const rawHouseId = String(houseId || '').trim();
-  const dbHouseId = Number(rawHouseId);
 
-  if (!rawHouseId) {
-    throw new Error('HOUSE_ID_INVALID');
+  if (!rawHouseId) throw new Error('HOUSE_ID_INVALID');
+
+  try {
+    return await buyHouseViaHardRpc({
+      houseId: rawHouseId,
+      house,
+      playerId,
+    });
+  } catch (rpcError) {
+    const message = String(rpcError?.message || rpcError?.details || rpcError?.hint || '');
+
+    // If the SQL migration was not installed yet, the old client fallback still gives a chance.
+    if (
+      message.includes('buy_house_map_object_any') ||
+      message.includes('function') ||
+      message.includes('404') ||
+      rpcError?.code === 'PGRST202'
+    ) {
+      return buyHouseMapObjectClientFallback({ houseId: rawHouseId, house, playerId });
+    }
+
+    throw rpcError;
   }
-
-  if (isHouseObject(house) || !Number.isFinite(dbHouseId) || dbHouseId <= 0) {
-    return buyHouseMapObject({ houseId: rawHouseId, house, playerId });
-  }
-
-  const { data, error } = await supabase.rpc('buy_house_from_state', {
-    p_house_id: dbHouseId,
-    p_tg_id: String(playerId),
-  });
-
-  if (error) {
-    console.error('[houses] buy failed:', error);
-    throw error;
-  }
-
-  return data;
 }
