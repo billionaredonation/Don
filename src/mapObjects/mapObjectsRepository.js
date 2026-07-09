@@ -1090,3 +1090,5 @@ export async function clearMapObjects(cityId, options = {}) {
 
   return [];
 }
+
+
