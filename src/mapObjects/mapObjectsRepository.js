@@ -184,6 +184,9 @@ function toDbRow(object = {}) {
   const normalized = normalizeObject(object);
   const payload = {
     ...(normalized.payload || {}),
+    id: normalized.payload?.id || normalized.id,
+    objectId: normalized.payload?.objectId || normalized.id,
+    mapObjectId: normalized.payload?.mapObjectId || normalized.id,
     type: normalized.type,
     category: normalized.category,
     cityId: normalized.cityId,
@@ -196,6 +199,16 @@ function toDbRow(object = {}) {
     scale: normalized.scale,
     variant: normalized.variant,
   };
+
+  if (normalized.category === 'house' || normalized.type === 'house' || payload.kind === 'house') {
+    payload.kind = 'house';
+    payload.type = 'house';
+    payload.category = 'house';
+    payload.houseId = payload.houseId || normalized.id;
+    payload.house_id = payload.house_id || payload.houseId || normalized.id;
+    payload.buyable = payload.buyable ?? true;
+    payload.visible = payload.visible ?? true;
+  }
 
   delete payload[PENDING_SYNC_FLAG];
   delete payload[PENDING_SYNC_REASON];
