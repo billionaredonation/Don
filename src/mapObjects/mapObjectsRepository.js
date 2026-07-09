@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { state } from '../state.js';
 
 const STORAGE_PREFIX = 'mn_map_objects';
 const TABLE_NAME = 'map_objects';
@@ -11,6 +12,28 @@ function getStorageKey(cityId) {
 
 function getTelegramInitData() {
   return window.Telegram?.WebApp?.initData || '';
+}
+
+
+function getAdminIdentity() {
+  const telegramId =
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+    state.telegramId ||
+    state.player?.tg_id ||
+    state.player?.telegramId ||
+    null;
+
+  const nickname = String(
+    state.nickname ||
+      state.player?.nickname ||
+      state.player?.name ||
+      ''
+  ).trim();
+
+  return {
+    adminTgId: telegramId ? String(telegramId) : null,
+    adminNickname: nickname || null,
+  };
 }
 
 function safeParse(value, fallback) {
@@ -571,45 +594,97 @@ async function syncHouseMapObject(object) {
 }
 
 async function deleteRemoteObject(cityId, objectId) {
+  const normalizedCityId = String(cityId || '').trim();
+  const normalizedObjectId = String(objectId || '').trim();
+  const adminIdentity = getAdminIdentity();
+
+  if (!normalizedObjectId) {
+    throw new Error('map_object_id_missing');
+  }
+
   try {
     return await adminMapObjectsRequest({
       action: 'delete',
-      cityId,
-      objectId,
+      cityId: normalizedCityId,
+      objectId: normalizedObjectId,
+      ...adminIdentity,
     });
   } catch (edgeError) {
-    console.warn('[mapObjectsRepository] edge delete failed, trying direct table delete:', edgeError);
+    console.warn('[mapObjectsRepository] edge delete failed, trying admin RPC delete:', edgeError);
+  }
 
-    const { error } = await supabase
-      .from(TABLE_NAME)
-      .delete()
-      .eq('city_id', String(cityId || '').trim())
-      .eq('id', String(objectId));
+  try {
+    const { data, error } = await supabase.rpc(
+      'admin_delete_map_object',
+      {
+        p_city_id: normalizedCityId,
+        p_object_id: normalizedObjectId,
+        p_admin_tg_id: adminIdentity.adminTgId,
+        p_admin_nickname: adminIdentity.adminNickname,
+      }
+    );
 
     if (error) throw error;
 
-    return { ok: true };
+    return data || { ok: true };
+  } catch (rpcError) {
+    console.warn('[mapObjectsRepository] admin RPC delete failed, trying direct table delete:', rpcError);
   }
+
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .delete()
+    .eq('city_id', normalizedCityId)
+    .eq('id', normalizedObjectId);
+
+  if (error) throw error;
+
+  return { ok: true };
 }
 
 async function clearRemoteCity(cityId) {
+  const normalizedCityId = String(cityId || '').trim();
+  const adminIdentity = getAdminIdentity();
+
+  if (!normalizedCityId) {
+    throw new Error('map_city_id_missing');
+  }
+
   try {
     return await adminMapObjectsRequest({
       action: 'clear_city',
-      cityId,
+      cityId: normalizedCityId,
+      ...adminIdentity,
     });
   } catch (edgeError) {
-    console.warn('[mapObjectsRepository] edge clear failed, trying direct table clear:', edgeError);
+    console.warn('[mapObjectsRepository] edge clear failed, trying admin RPC clear:', edgeError);
+  }
 
-    const { error } = await supabase
-      .from(TABLE_NAME)
-      .delete()
-      .eq('city_id', String(cityId || '').trim());
+  try {
+    const { data, error } = await supabase.rpc(
+      'admin_clear_map_objects_city',
+      {
+        p_city_id: normalizedCityId,
+        p_admin_tg_id: adminIdentity.adminTgId,
+        p_admin_nickname: adminIdentity.adminNickname,
+      }
+    );
 
     if (error) throw error;
 
-    return { ok: true };
+    return data || { ok: true };
+  } catch (rpcError) {
+    console.warn('[mapObjectsRepository] admin RPC clear failed, trying direct table clear:', rpcError);
   }
+
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .delete()
+    .eq('city_id', normalizedCityId);
+
+  if (error) throw error;
+
+  return { ok: true };
 }
 
 export async function getMapObjects(cityId, options = {}) {
@@ -834,4 +909,3 @@ export async function clearMapObjects(cityId) {
 
   return [];
 }
-
