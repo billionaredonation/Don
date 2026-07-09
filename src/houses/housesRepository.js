@@ -356,6 +356,26 @@ async function findHouseMapObject(houseId, house = {}) {
   return null;
 }
 
+function normalizeRpcBuyResult(data, row, playerId) {
+  const result = data && typeof data === 'object' ? data : {};
+  const payload = row?.payload || {};
+
+  return {
+    ok: result.ok ?? true,
+    source: result.source || 'map_objects_rpc',
+    houseId: result.houseId || result.house_id || row?.id || payload.houseId,
+    mapObjectId: result.mapObjectId || result.map_object_id || row?.id,
+    playerId: String(result.playerId || result.player_id || playerId || ''),
+    ownerId: String(result.ownerId || result.owner_id || result.playerId || playerId || ''),
+    ownerName: result.ownerName || result.owner_name || payload.ownerName || 'Игрок',
+    price: Number(result.price ?? payload.price ?? 0),
+    houseClass: result.houseClass || result.house_class || payload.houseClass || row?.variant || 'standard',
+    newBalance: result.newBalance ?? result.new_balance,
+    cityIncome: result.cityIncome ?? result.city_income,
+    taxBurned: result.taxBurned ?? result.tax_burned,
+  };
+}
+
 async function buyHouseMapObject({ houseId, house, playerId }) {
   const rawHouseId = String(houseId || '').trim();
 
@@ -370,47 +390,24 @@ async function buyHouseMapObject({ houseId, house, playerId }) {
     throw new Error('HOUSE_NOT_FOUND');
   }
 
-  const mapObjectId = row.id;
+  const mapObjectId = String(row.id || rawHouseId);
   const payload = row.payload || {};
 
   if (payload.ownerId || payload.owner_id || payload.owned === true) {
     throw new Error('HOUSE_ALREADY_OWNED');
   }
 
-  const nextPayload = {
-    ...payload,
-    id: mapObjectId,
-    objectId: mapObjectId,
-    mapObjectId,
-    houseId: mapObjectId,
-    house_id: mapObjectId,
-    kind: 'house',
-    type: 'house',
-    category: 'house',
-    ownerId: String(playerId),
-    owner_id: String(playerId),
-    ownerName: payload.ownerName || 'Игрок',
-    owned: true,
-    locked: false,
-    buyable: true,
-  };
+  const { data, error } = await supabase.rpc('buy_house_map_object', {
+    p_map_object_id: mapObjectId,
+    p_tg_id: String(playerId),
+  });
 
-  const { data: updatedRow, error: updateError } = await supabase
-    .from('map_objects')
-    .update({
-      payload: nextPayload,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', mapObjectId)
-    .select('*')
-    .single();
-
-  if (updateError) {
-    console.error('[houses] map object buy failed:', updateError);
-    throw updateError;
+  if (error) {
+    console.error('[houses] map object rpc buy failed:', error);
+    throw error;
   }
 
-  return normalizeBuyResultFromMapObject(updatedRow || { ...row, payload: nextPayload }, playerId);
+  return normalizeRpcBuyResult(data, row, playerId);
 }
 
 export async function buyHouseFromState({ houseId, house, playerId }) {
