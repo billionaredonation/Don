@@ -820,6 +820,58 @@ function clearLocalObjectsForCity(cityId) {
   }
 }
 
+
+function getDeletedCount(result) {
+  const value = result?.deleted ?? result?.count ?? result?.deletedCount ?? null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+async function countRemoteObjectsForCity(cityId) {
+  const normalizedCityId = normalizeCityId(cityId);
+
+  const { count, error } = await supabase
+    .from(TABLE_NAME)
+    .select('id', { count: 'exact', head: true })
+    .eq('city_id', normalizedCityId);
+
+  if (error) {
+    console.warn('[mapObjectsRepository] remote count failed:', {
+      cityId: normalizedCityId,
+      error,
+    });
+
+    return null;
+  }
+
+  return Number(count || 0);
+}
+
+async function objectExistsRemote(cityId, objectId) {
+  const normalizedCityId = normalizeCityId(cityId);
+  const normalizedObjectId = String(objectId || '').trim();
+
+  if (!normalizedObjectId) return false;
+
+  const { count, error } = await supabase
+    .from(TABLE_NAME)
+    .select('id', { count: 'exact', head: true })
+    .eq('city_id', normalizedCityId)
+    .eq('id', normalizedObjectId);
+
+  if (error) {
+    console.warn('[mapObjectsRepository] remote object exists check failed:', {
+      cityId: normalizedCityId,
+      objectId: normalizedObjectId,
+      error,
+    });
+
+    return true;
+  }
+
+  return Number(count || 0) > 0;
+}
+
 export async function getMapObjects(cityId, options = {}) {
   const normalizedCityId = normalizeCityId(cityId);
   const range = normalizeRangeOptions(options);
@@ -1017,6 +1069,12 @@ export async function deleteMapObject(cityId, objectId, options = {}) {
   }
 
   const result = await deleteRemoteObject(normalizedCityId, objectId, options);
+  const deletedCount = getDeletedCount(result);
+
+  if (deletedCount === 0 && await objectExistsRemote(normalizedCityId, objectId)) {
+    throw new Error(`DB_DELETE_FAILED: объект ${objectId} остался в map_objects`);
+  }
+
   const objects = getLocalObjects(normalizedCityId);
 
   const nextObjects = objects.filter(
@@ -1043,7 +1101,18 @@ export async function clearMapObjects(cityId, options = {}) {
     throw new Error('map_city_id_missing');
   }
 
+  const localObjectsBeforeClear = getLocalObjects(normalizedCityId);
   const result = await clearRemoteCity(normalizedCityId, options);
+  const deletedCount = getDeletedCount(result);
+  const remoteCountAfterClear = await countRemoteObjectsForCity(normalizedCityId);
+
+  if (
+    remoteCountAfterClear !== null &&
+    remoteCountAfterClear > 0 &&
+    (deletedCount === 0 || localObjectsBeforeClear.length > 0)
+  ) {
+    throw new Error(`DB_CLEAR_FAILED: в map_objects осталось ${remoteCountAfterClear} объектов для города ${normalizedCityId}`);
+  }
 
   clearLocalObjectsForCity(normalizedCityId);
   saveLocalObjects(normalizedCityId, []);
