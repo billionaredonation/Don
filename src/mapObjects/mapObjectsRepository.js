@@ -66,6 +66,14 @@ function getTelegramInitData() {
   return window.Telegram?.WebApp?.initData || '';
 }
 
+function normalizeTelegramId(value) {
+  const text = String(value ?? '').trim();
+
+  // Telegram user ids are numeric. A local player UUID must never be sent to
+  // an RPC parameter declared as bigint.
+  return /^\d+$/.test(text) ? text : null;
+}
+
 
 function getAdminIdentity(options = {}) {
   const authPlayer = typeof getAuthPlayer === 'function' ? getAuthPlayer() : null;
@@ -114,10 +122,12 @@ function getAdminIdentity(options = {}) {
       ''
   ).trim();
 
-  const adminTgId = telegramId || localPlayerId || null;
+  const adminTgId =
+    normalizeTelegramId(telegramId) ||
+    normalizeTelegramId(localPlayerId);
 
   return {
-    adminTgId: adminTgId ? String(adminTgId).trim() : null,
+    adminTgId,
     adminNickname: nickname || null,
     adminPlayerId: localPlayerId ? String(localPlayerId).trim() : null,
   };
