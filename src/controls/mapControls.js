@@ -517,8 +517,14 @@ export function enableMapControls(stage, viewport, options = {}) {
     if (mobile) {
       const playerWorldX = (lastFocusX / 100 - 0.5) * worldWidth * safeScale;
       const playerWorldY = (lastFocusY / 100 - 0.5) * worldHeight * safeScale;
-      const playerScreenOffsetX = Math.round((safeX + playerWorldX) * 100) / 100;
-      const playerScreenOffsetY = Math.round((safeY + playerWorldY) * 100) / 100;
+      const safePlayerEdgeX = Math.max(18, cachedStageWidth / 2 - 18);
+      const safePlayerEdgeY = Math.max(18, cachedStageHeight / 2 - 18);
+      const playerScreenOffsetX = Math.round(
+        clamp(safeX + playerWorldX, -safePlayerEdgeX, safePlayerEdgeX) * 100
+      ) / 100;
+      const playerScreenOffsetY = Math.round(
+        clamp(safeY + playerWorldY, -safePlayerEdgeY, safePlayerEdgeY) * 100
+      ) / 100;
 
       if (
         !Number.isFinite(lastPlayerScreenOffsetX) ||
