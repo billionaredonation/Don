@@ -12,6 +12,8 @@ const ROOT_ASSETS = import.meta.glob('../../*.{png,svg,jpg,jpeg,webp,gif,ico,avi
   import: 'default'
 });
 
+const BUNDLED_ASSET_URLS = new Set(Object.values(ROOT_ASSETS));
+
 function rootAsset(src) {
   const cleanSrc = String(src || '')
     .replace(/^\.\//, '')
@@ -31,9 +33,9 @@ function rootAsset(src) {
   return `${normalizedBase}${encodeURI(cleanSrc)}`;
 }
 
-const MIN_LOADING_TIME = 6200;
-const SLIDE_TIME = 2600;
-const PRELOAD_HARD_TIMEOUT_MS = 7600;
+const MIN_LOADING_TIME = 9000;
+const SLIDE_TIME = 3000;
+const PRELOAD_HARD_TIMEOUT_MS = 10500;
 
 const ALL_CITY_IDS = [
   'vinnytsia',
@@ -128,7 +130,14 @@ const CITY_LOADING_FILE_ALIASES = {
 
 function assetUrl(src) {
   if (!src) return '';
-  if (src.startsWith('http')) return src;
+  if (
+    src.startsWith('http') ||
+    src.startsWith('data:') ||
+    src.startsWith('blob:') ||
+    BUNDLED_ASSET_URLS.has(src)
+  ) {
+    return src;
+  }
 
   return rootAsset(src);
 }
@@ -160,6 +169,32 @@ function makeCityLoadingCandidates(cityId) {
     `loading-${name}-2.png`,
     `loading-${name}-3.png`,
   ]);
+}
+
+function getBundledLoadingImage(src) {
+  const cleanSrc = String(src || '')
+    .replace(/^\.\//, '')
+    .replace(/^\//, '')
+    .split('?')[0];
+
+  return ROOT_ASSETS[`../../${cleanSrc}`] || null;
+}
+
+function getBundledCityLoadingImages(cityId) {
+  const unique = new Set();
+
+  makeCityLoadingCandidates(cityId).forEach((src) => {
+    const bundled = getBundledLoadingImage(src);
+    if (bundled) unique.add(bundled);
+  });
+
+  return Array.from(unique).slice(0, 3);
+}
+
+function getBundledDefaultLoadingImages() {
+  return DEFAULT_LOADING_IMAGES
+    .map(getBundledLoadingImage)
+    .filter(Boolean);
 }
 
 const DEFAULT_PRELOAD_TEXTS = [
@@ -749,48 +784,35 @@ async function collectExistingImages(candidates) {
 
 async function resolveLoadingImages(cityId, city) {
   const normalizedCityId = normalizeCityId(cityId);
-  const isMobile = navigator.maxTouchPoints > 0 &&
-    Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 920;
 
   const cityMap = withVersion(city.map || getCityMapSrc(normalizedCityId, city), CITY_MAP_VERSION);
   const ukraineMap = withVersion('UkraineMap.png', CITY_MAP_VERSION);
+  const preparedImages = getBundledCityLoadingImages(normalizedCityId);
+  const fallbackPreparedImages = getBundledDefaultLoadingImages();
+  const exactCandidates = preparedImages.length
+    ? preparedImages
+    : fallbackPreparedImages;
 
-  const images = [];
+  // Every URL below is known by Vite at build time, so there are no sequential
+  // 404 probes. The prepared city art and city map warm up in parallel.
+  const [existingPreparedImages, cityMapOk] = await Promise.all([
+    collectExistingImages(exactCandidates),
+    preloadImage(cityMap, 4500),
+  ]);
 
-  const cityMapOk = await preloadImage(cityMap, 4500);
+  const images = existingPreparedImages.slice(0, 3);
 
-  if (cityMapOk) {
+  if (cityMapOk && !images.includes(cityMap) && images.length < 3) {
     images.push(cityMap);
-    console.log('[Preload] city map loaded:', normalizedCityId, cityMap);
-  } else {
+  }
+
+  if (!cityMapOk) {
     console.warn('[Preload] city map failed:', normalizedCityId, cityMap);
   }
 
-  // A phone does not need to download another 6–10 MB of slideshow art before
-  // entering the game. Reuse the city map already requested above; home uses
-  // the same cached asset immediately afterwards.
-  if (isMobile) {
-    const mobileImage = images[0] || cityMap || ukraineMap;
-    return [mobileImage, mobileImage, mobileImage];
-  }
-
-  const cityCandidates = makeCityLoadingCandidates(normalizedCityId);
-  const cityLoadingImages = await collectExistingImages(cityCandidates);
-
-  for (const img of cityLoadingImages) {
-    if (!images.includes(img)) {
-      images.push(img);
-    }
-  }
-
   if (images.length < 3) {
-    const defaultImages = await collectExistingImages(DEFAULT_LOADING_IMAGES);
-
-    for (const img of defaultImages) {
-      if (!images.includes(img)) {
-        images.push(img);
-      }
-
+    for (const img of fallbackPreparedImages) {
+      if (!images.includes(img)) images.push(img);
       if (images.length >= 3) break;
     }
   }
@@ -994,7 +1016,21 @@ register('preload', async (root, props = {}) => {
   }, 80);
 
   const firstImage = withVersion(getCityMapSrc(cityId, city), CITY_MAP_VERSION);
-  let slides = makeSlides(cityId, city, [firstImage]);
+  const initialImages = getBundledCityLoadingImages(cityId);
+
+  if (!initialImages.length) {
+    initialImages.push(...getBundledDefaultLoadingImages().slice(0, 3));
+  }
+
+  if (!initialImages.includes(firstImage) && initialImages.length < 3) {
+    initialImages.push(firstImage);
+  }
+
+  while (initialImages.length < 3) {
+    initialImages.push(initialImages[0] || firstImage);
+  }
+
+  let slides = makeSlides(cityId, city, initialImages.slice(0, 3));
 
   function setSlide(index) {
     const slide = slides[index % slides.length];
