@@ -11,8 +11,8 @@ import {
 import { dispatchEntityAction } from './entityActions.js';
 
 const INTERACTION_RADIUS_PX = 86;
-const MOBILE_INTERACTION_RADIUS_PX = 112;
-const DIRECT_TAP_RADIUS_PX = 132;
+const MOBILE_INTERACTION_RADIUS_PX = 124;
+const DIRECT_TAP_RADIUS_PX = 146;
 const MOBILE_FREE_TAP_RADIUS_PX = 150;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
@@ -452,6 +452,7 @@ function renderMapObjectsOverview(canvas, viewport, objects) {
 
     context.save();
     context.translate(x, y);
+    context.scale(1.11, 1.11);
     context.globalAlpha = 0.94;
 
     if (kind === 'house') {
