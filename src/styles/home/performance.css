@@ -20,7 +20,7 @@
 }
 
 .home[data-performance="low"] .gta-weather-clouds {
-  filter: blur(12px);
+  filter: none;
 }
 
 .home[data-performance="low"] .gta-map-image {
@@ -121,7 +121,7 @@
 }
 
 .home[data-performance="low"] .gta-weather-clouds {
-  filter: blur(8px);
+  filter: none;
 }
 
 .home[data-performance="low"] .gta-weather-rain {
