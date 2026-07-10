@@ -443,7 +443,9 @@
 }
 
 .map-object-state-free .map-house-clean {
-  background: #28e27a !important;
+  background: #19ff7f !important;
+  border-color: rgba(3, 10, 14, 0.94) !important;
+  outline: 1px solid rgba(255, 255, 255, 0.88) !important;
 }
 
 .map-object-state-locked .map-house-clean {
