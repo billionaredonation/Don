@@ -457,26 +457,35 @@ function renderMapObjectsOverview(canvas, viewport, objects) {
     if (kind === 'house') {
       const color = getOverviewObjectColor(object);
 
+      context.lineJoin = 'round';
+      context.lineCap = 'round';
+
+      // Separate body + roof reads as a house at small scale. The previous
+      // single polygon looked like an arrow, especially with a DOM icon under it.
       context.fillStyle = color;
+      context.fillRect(-5, -1, 10, 7);
+      context.strokeStyle = 'rgba(3, 8, 12, 0.94)';
+      context.lineWidth = 2.6;
+      context.strokeRect(-5, -1, 10, 7);
+      context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      context.lineWidth = 0.8;
+      context.strokeRect(-5, -1, 10, 7);
+
       context.beginPath();
-      context.moveTo(0, -6);
-      context.lineTo(6, -1);
-      context.lineTo(4.5, -1);
-      context.lineTo(4.5, 5);
-      context.lineTo(-4.5, 5);
-      context.lineTo(-4.5, -1);
-      context.lineTo(-6, -1);
+      context.moveTo(-7, -1);
+      context.lineTo(0, -7);
+      context.lineTo(7, -1);
       context.closePath();
       context.fill();
-
-      // A dark outer stroke keeps free green houses visible on light/green map
-      // areas. The thin white inner stroke keeps them readable at night.
       context.strokeStyle = 'rgba(3, 8, 12, 0.94)';
-      context.lineWidth = 2.8;
+      context.lineWidth = 2.6;
       context.stroke();
       context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-      context.lineWidth = 0.9;
+      context.lineWidth = 0.8;
       context.stroke();
+
+      context.fillStyle = 'rgba(3, 8, 12, 0.76)';
+      context.fillRect(-1.4, 2, 2.8, 4);
     } else {
       context.fillStyle = 'rgba(235, 242, 250, 0.9)';
       context.beginPath();
@@ -1681,4 +1690,3 @@ export function enableEntityInteraction({
     layer.remove();
   };
 }
-
