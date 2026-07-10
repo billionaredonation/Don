@@ -374,6 +374,119 @@ function moveLayerAboveMap(viewport, layer) {
   layer.style.pointerEvents = 'none';
 }
 
+function getOverviewObjectKind(object) {
+  return String(
+    object?.category ||
+    object?.payload?.category ||
+    object?.payload?.kind ||
+    object?.type ||
+    'marker'
+  ).toLowerCase();
+}
+
+function getOverviewObjectColor(object) {
+  const payload = object?.payload || {};
+  const ownerId =
+    object?.owner_id ||
+    object?.ownerId ||
+    payload.owner_id ||
+    payload.ownerId ||
+    null;
+
+  if (payload.locked === true || object?.locked === true) return '#9ca3af';
+  if (ownerId || payload.owned === true) return '#ff4d5e';
+
+  return '#35e985';
+}
+
+function createMapObjectsOverviewCanvas(viewport) {
+  const canvas = document.createElement('canvas');
+
+  canvas.className = 'map-objects-overview-canvas';
+  canvas.setAttribute('aria-hidden', 'true');
+  canvas.style.position = 'absolute';
+  canvas.style.inset = '0';
+  canvas.style.display = 'block';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.zIndex = '235';
+  canvas.style.pointerEvents = 'none';
+  canvas.style.contain = 'strict';
+
+  viewport.appendChild(canvas);
+
+  return canvas;
+}
+
+function renderMapObjectsOverview(canvas, viewport, objects, interactiveIds = new Set()) {
+  if (!canvas || !viewport) return;
+
+  const width = Math.max(1, Number(viewport.clientWidth || viewport.offsetWidth || 1));
+  const height = Math.max(1, Number(viewport.clientHeight || viewport.offsetHeight || 1));
+  const bitmapScale = Math.min(1, 1280 / width, 960 / height);
+  const bitmapWidth = Math.max(1, Math.round(width * bitmapScale));
+  const bitmapHeight = Math.max(1, Math.round(height * bitmapScale));
+
+  if (canvas.width !== bitmapWidth || canvas.height !== bitmapHeight) {
+    canvas.width = bitmapWidth;
+    canvas.height = bitmapHeight;
+  }
+
+  const context = canvas.getContext('2d', { alpha: true });
+  if (!context) return;
+
+  context.setTransform(bitmapScale, 0, 0, bitmapScale, 0, 0);
+  context.clearRect(0, 0, width, height);
+
+  (Array.isArray(objects) ? objects : []).forEach((object) => {
+    const id = String(object?.id || '');
+    if (!id || interactiveIds.has(id)) return;
+
+    const xPercent = Number(object?.x);
+    const yPercent = Number(object?.y);
+    if (!Number.isFinite(xPercent) || !Number.isFinite(yPercent)) return;
+
+    const x = (xPercent / 100) * width;
+    const y = (yPercent / 100) * height;
+    const kind = getOverviewObjectKind(object);
+
+    context.save();
+    context.translate(x, y);
+    context.globalAlpha = 0.94;
+
+    if (kind === 'house') {
+      const color = getOverviewObjectColor(object);
+
+      context.fillStyle = color;
+      context.beginPath();
+      context.moveTo(0, -6);
+      context.lineTo(6, -1);
+      context.lineTo(4.5, -1);
+      context.lineTo(4.5, 5);
+      context.lineTo(-4.5, 5);
+      context.lineTo(-4.5, -1);
+      context.lineTo(-6, -1);
+      context.closePath();
+      context.fill();
+
+      context.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+      context.lineWidth = 0.8;
+      context.stroke();
+    } else {
+      context.fillStyle = 'rgba(235, 242, 250, 0.9)';
+      context.beginPath();
+      context.moveTo(0, -4);
+      context.lineTo(4, 0);
+      context.lineTo(0, 4);
+      context.lineTo(-4, 0);
+      context.closePath();
+      context.fill();
+    }
+
+    context.restore();
+  });
+}
+
 export function createEntityInteractionPanel(root) {
   const CONFIRM_VISIBLE_MS = 6000;
 
@@ -740,6 +853,9 @@ export function enableEntityInteraction({
 
   moveLayerAboveMap(viewport, layer);
 
+  const overviewCanvas = createMapObjectsOverviewCanvas(viewport);
+  viewport.insertBefore(overviewCanvas, layer);
+
   const hint = createInteractionHint(root);
 
   let mapObjects = [];
@@ -760,6 +876,27 @@ export function enableEntityInteraction({
   let pendingReloadAfterMovement = false;
   let objectById = new Map();
   let objectGrid = new Map();
+
+  function renderOverview() {
+    const interactiveIds = new Set(
+      renderedObjects
+        .map((object) => String(object?.id || ''))
+        .filter(Boolean)
+    );
+
+    renderMapObjectsOverview(
+      overviewCanvas,
+      viewport,
+      mapObjects,
+      interactiveIds
+    );
+  }
+
+  const overviewResizeObserver = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(() => renderOverview())
+    : null;
+
+  overviewResizeObserver?.observe(viewport);
 
   function getGridCell(value) {
     const number = Number(value);
@@ -916,13 +1053,10 @@ export function enableEntityInteraction({
   }
 
   function getObjectQueryOptions() {
-    const position = getCurrentPlayerPercent(playerPosition);
-
-    return {
-      centerX: position.x,
-      centerY: position.y,
-      radiusPercent: getLoadRadiusPercent(),
-    };
+    // Public players must know about every city object. Rendering remains
+    // virtualized: the overview is one canvas and only nearby objects become
+    // interactive DOM nodes.
+    return {};
   }
 
   function rememberLoadedRegion() {
@@ -936,17 +1070,9 @@ export function enableEntityInteraction({
   }
 
   function shouldReloadRegion() {
-    if (!loadedRegion) return true;
-
-    const position = getCurrentPlayerPercent(playerPosition);
-    const shift = getPercentDistance(position, loadedRegion);
-
-    const reloadShift = getRegionReloadShiftPercent();
-
-    return shift >= Math.min(
-      reloadShift,
-      Math.max(2.2, loadedRegion.radius * 0.42)
-    );
+    // The complete city snapshot is already loaded. Movement only changes the
+    // small interactive DOM window and must not trigger another DB request.
+    return false;
   }
 
   function getRenderableObjects() {
@@ -1015,6 +1141,7 @@ export function enableEntityInteraction({
 
     moveLayerAboveMap(viewport, layer);
     renderMapObjects(layer, renderedObjects);
+    renderOverview();
 
     window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
       detail: {
@@ -1050,6 +1177,7 @@ export function enableEntityInteraction({
 
     rebuildObjectIndex();
     rememberLoadedRegion();
+    renderOverview();
 
     if (isPlayerBusy()) {
       pauseObjectLayerForMovement();
@@ -1435,6 +1563,7 @@ export function enableEntityInteraction({
     mapObjects = [];
     resetRenderedObjectState();
     clearMapObjectsLayer(layer);
+    renderOverview();
 
     window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
       detail: {
@@ -1546,6 +1675,9 @@ export function enableEntityInteraction({
     window.removeEventListener('mn:house-purchased-local', onHousePurchased);
 
     clearNearestVisual();
+
+    overviewResizeObserver?.disconnect();
+    overviewCanvas.remove();
 
     hint.remove();
     layer.remove();
