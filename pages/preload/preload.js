@@ -33,6 +33,7 @@ function rootAsset(src) {
 
 const MIN_LOADING_TIME = 6200;
 const SLIDE_TIME = 2600;
+const PRELOAD_HARD_TIMEOUT_MS = 7600;
 
 const ALL_CITY_IDS = [
   'vinnytsia',
@@ -730,25 +731,26 @@ function preloadImage(src, timeout = 3200) {
 }
 
 async function collectExistingImages(candidates) {
-  const existing = [];
-
-  for (const src of candidates) {
+  const results = await Promise.all((Array.isArray(candidates) ? candidates : []).map(async (src) => {
     const versioned = withVersion(src);
     const ok = await preloadImage(versioned);
 
     if (ok) {
-      existing.push(versioned);
       console.log('[Preload] image found:', versioned);
+      return versioned;
     } else {
       console.warn('[Preload] image missing:', versioned);
+      return null;
     }
-  }
+  }));
 
-  return existing;
+  return results.filter(Boolean);
 }
 
 async function resolveLoadingImages(cityId, city) {
   const normalizedCityId = normalizeCityId(cityId);
+  const isMobile = navigator.maxTouchPoints > 0 &&
+    Math.min(window.innerWidth || 9999, window.innerHeight || 9999) <= 920;
 
   const cityMap = withVersion(city.map || getCityMapSrc(normalizedCityId, city), CITY_MAP_VERSION);
   const ukraineMap = withVersion('UkraineMap.png', CITY_MAP_VERSION);
@@ -762,6 +764,14 @@ async function resolveLoadingImages(cityId, city) {
     console.log('[Preload] city map loaded:', normalizedCityId, cityMap);
   } else {
     console.warn('[Preload] city map failed:', normalizedCityId, cityMap);
+  }
+
+  // A phone does not need to download another 6–10 MB of slideshow art before
+  // entering the game. Reuse the city map already requested above; home uses
+  // the same cached asset immediately afterwards.
+  if (isMobile) {
+    const mobileImage = images[0] || cityMap || ukraineMap;
+    return [mobileImage, mobileImage, mobileImage];
   }
 
   const cityCandidates = makeCityLoadingCandidates(normalizedCityId);
@@ -1018,12 +1028,17 @@ register('preload', async (root, props = {}) => {
     return images;
   });
 
-  Promise.allSettled([
+  const readinessPromise = Promise.allSettled([
     imagesPromise,
 
     import('../home/home.js').catch((error) => {
       console.warn('[Preload] home module preload failed:', error);
     }),
+  ]);
+
+  Promise.race([
+    readinessPromise,
+    new Promise((resolve) => window.setTimeout(resolve, PRELOAD_HARD_TIMEOUT_MS)),
   ]).then(async () => {
     const elapsed = Date.now() - startedAt;
     const rest = Math.max(0, MIN_LOADING_TIME - elapsed);
