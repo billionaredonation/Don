@@ -461,32 +461,23 @@ function renderMapObjectsOverview(canvas, viewport, objects) {
       context.lineJoin = 'round';
       context.lineCap = 'round';
 
-      // Separate body + roof reads as a house at small scale. The previous
-      // single polygon looked like an arrow, especially with a DOM icon under it.
+      // No triangular roof: forced-landscape rotated it into an arrow. A small
+      // building with a flat roof, windows and door stays readable at any angle.
       context.fillStyle = color;
-      context.fillRect(-5, -1, 10, 7);
+      context.fillRect(-6, -6, 12, 12);
       context.strokeStyle = 'rgba(3, 8, 12, 0.94)';
       context.lineWidth = 2.6;
-      context.strokeRect(-5, -1, 10, 7);
+      context.strokeRect(-6, -6, 12, 12);
       context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
       context.lineWidth = 0.8;
-      context.strokeRect(-5, -1, 10, 7);
-
-      context.beginPath();
-      context.moveTo(-7, -1);
-      context.lineTo(0, -7);
-      context.lineTo(7, -1);
-      context.closePath();
-      context.fill();
-      context.strokeStyle = 'rgba(3, 8, 12, 0.94)';
-      context.lineWidth = 2.6;
-      context.stroke();
-      context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-      context.lineWidth = 0.8;
-      context.stroke();
+      context.strokeRect(-6, -6, 12, 12);
 
       context.fillStyle = 'rgba(3, 8, 12, 0.76)';
-      context.fillRect(-1.4, 2, 2.8, 4);
+      context.fillRect(-6, -6, 12, 2.4);
+      context.fillRect(-1.5, 1.5, 3, 4.5);
+      context.fillStyle = 'rgba(235, 250, 255, 0.88)';
+      context.fillRect(-4.2, -2, 2.3, 2.3);
+      context.fillRect(1.9, -2, 2.3, 2.3);
     } else {
       context.fillStyle = 'rgba(235, 242, 250, 0.9)';
       context.beginPath();
@@ -891,6 +882,8 @@ export function enableEntityInteraction({
   let pendingReloadAfterMovement = false;
   let objectById = new Map();
   let objectGrid = new Map();
+  let lastDirectInteractionAt = 0;
+  let lastDirectInteractionObjectId = '';
 
   function renderOverview() {
     renderMapObjectsOverview(
@@ -1488,7 +1481,32 @@ export function enableEntityInteraction({
     return true;
   }
 
+  function openObjectFromDirectInput(object) {
+    if (!object?.id) return false;
+
+    const objectId = String(object.id);
+    const now = performance.now();
+
+    if (
+      objectId === lastDirectInteractionObjectId &&
+      now - lastDirectInteractionAt < 320
+    ) {
+      return true;
+    }
+
+    const opened = tryOpenObject(object, { directTap: true });
+
+    if (opened) {
+      lastDirectInteractionAt = now;
+      lastDirectInteractionObjectId = objectId;
+    }
+
+    return opened;
+  }
+
   function onObjectClick(event) {
+    if (panel?.isOpen?.()) return;
+
     const clickedObjectId = getMapObjectIdFromEvent(event);
     if (!clickedObjectId) return;
 
@@ -1502,9 +1520,7 @@ export function enableEntityInteraction({
     event.preventDefault();
     event.stopPropagation();
 
-    tryOpenObject(object, {
-      directTap: true,
-    });
+    openObjectFromDirectInput(object);
   }
 
   function onViewportPointer(event) {
@@ -1527,9 +1543,11 @@ export function enableEntityInteraction({
     }
 
     const point = getPointerPoint(event);
-    const nearest =
-      getNearestObjectToPoint(point, DIRECT_TAP_RADIUS_PX) ||
-      getNearestInteractableObject();
+    const tappedObject = getNearestObjectToPoint(point, DIRECT_TAP_RADIUS_PX);
+    const readyObject = getNearestInteractableObject();
+    const nearest = tappedObject && isObjectInInteractionRange(tappedObject, { directTap: true })
+      ? tappedObject
+      : readyObject;
 
     if (!nearest) return;
 
@@ -1540,9 +1558,7 @@ export function enableEntityInteraction({
     event.preventDefault();
     event.stopPropagation();
 
-    tryOpenObject(nearest, {
-      directTap: true,
-    });
+    openObjectFromDirectInput(nearest);
   }
 
   function onKeyDown(event) {
@@ -1662,6 +1678,7 @@ export function enableEntityInteraction({
   */
   viewport.addEventListener('pointerdown', onViewportPointer, true);
   viewport.addEventListener('touchstart', onViewportPointer, true);
+  viewport.addEventListener('click', onViewportPointer, true);
 
   window.addEventListener('keydown', onKeyDown, true);
 
@@ -1694,6 +1711,7 @@ export function enableEntityInteraction({
 
     viewport.removeEventListener('pointerdown', onViewportPointer, true);
     viewport.removeEventListener('touchstart', onViewportPointer, true);
+    viewport.removeEventListener('click', onViewportPointer, true);
 
     window.removeEventListener('keydown', onKeyDown, true);
 
