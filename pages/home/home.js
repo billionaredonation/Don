@@ -155,6 +155,15 @@ function getFallbackWeather() {
   };
 }
 
+function withHomeTimeout(promise, timeoutMs, label) {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(`${label}_timeout`)), timeoutMs);
+    }),
+  ]);
+}
+
 function getDisplayWeather(weather, dayMode) {
   if (weather.type !== 'hot') return weather;
 
@@ -535,26 +544,45 @@ register('home', async (root) => {
 
   root.className = 'page home';
 
+  root.innerHTML = `
+    <main style="
+      position:fixed;
+      inset:0;
+      display:grid;
+      place-items:center;
+      background:#050607;
+      color:rgba(255,255,255,.9);
+      font:900 13px/1 system-ui,-apple-system,sans-serif;
+      letter-spacing:.08em;
+    ">ЗАГРУЗКА…</main>
+  `;
+
   const cityId = normalizeCityId(state.city);
   const city = getCityConfig(cityId);
   const dayMode = getUserDayMode();
   const nickname = state.nickname || 'Игрок';
   const localPlayerId = getLocalPlayerId();
 
-  let weather = getFallbackWeather();
+  const [weatherResult, playerPositionResult, cityPlayersResult] = await Promise.allSettled([
+    withHomeTimeout(getCityWeather(cityId), 5200, 'weather'),
+    withHomeTimeout(getOrCreatePlayerPosition(cityId, nickname), 5200, 'player_position'),
+    withHomeTimeout(getCityPlayers(cityId), 5200, 'city_players'),
+  ]);
 
-  try {
-    weather = await getCityWeather(cityId);
-  } catch (error) {
-    console.warn('[home] weather loading failed:', error);
+  let weather = weatherResult.status === 'fulfilled'
+    ? weatherResult.value
+    : getFallbackWeather();
+
+  if (weatherResult.status === 'rejected') {
+    console.warn('[home] weather loading failed:', weatherResult.reason);
   }
 
   const displayWeather = getDisplayWeather(weather, dayMode);
 
   let playerPosition = null;
 
-  try {
-    playerPosition = await getOrCreatePlayerPosition(cityId, nickname);
+  if (playerPositionResult.status === 'fulfilled' && playerPositionResult.value) {
+    playerPosition = playerPositionResult.value;
 
     const isAdmin = isTruthyAdmin(playerPosition?.is_admin) || isTruthyAdmin(playerPosition?.isAdmin);
 
@@ -569,8 +597,8 @@ register('home', async (root) => {
     state.isAdmin = isAdmin;
 
     save();
-  } catch (error) {
-    console.warn('[home] player position loading failed:', error);
+  } else {
+    console.warn('[home] player position loading failed:', playerPositionResult.reason);
 
     playerPosition = {
       playerId: localPlayerId,
@@ -594,13 +622,12 @@ register('home', async (root) => {
     save();
   }
 
-  let cityPlayers = [];
+  const cityPlayers = cityPlayersResult.status === 'fulfilled' && Array.isArray(cityPlayersResult.value)
+    ? cityPlayersResult.value
+    : [playerPosition];
 
-  try {
-    cityPlayers = await getCityPlayers(cityId);
-  } catch (error) {
-    console.warn('[home] city players loading failed:', error);
-    cityPlayers = [playerPosition];
+  if (cityPlayersResult.status === 'rejected') {
+    console.warn('[home] city players loading failed:', cityPlayersResult.reason);
   }
 
   const hasSelf = cityPlayers.some((player) => String(player.playerId) === String(localPlayerId));
@@ -1334,4 +1361,3 @@ register('home', async (root) => {
     );
   };
 });
-
