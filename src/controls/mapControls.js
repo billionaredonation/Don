@@ -264,6 +264,8 @@ export function enableMapControls(stage, viewport, options = {}) {
   let lastViewportTransform = '';
   let lastZoomCssValue = '';
   let lastEntityScaleCssValue = '';
+  let lastPlayerScreenOffsetX = Number.NaN;
+  let lastPlayerScreenOffsetY = Number.NaN;
 
   let tileLayer = null;
   let tileLayerOwned = false;
@@ -511,6 +513,34 @@ export function enableMapControls(stage, viewport, options = {}) {
 
     x = safeX;
     y = safeY;
+
+    if (mobile) {
+      const playerWorldX = (lastFocusX / 100 - 0.5) * worldWidth * safeScale;
+      const playerWorldY = (lastFocusY / 100 - 0.5) * worldHeight * safeScale;
+      const playerScreenOffsetX = Math.round((safeX + playerWorldX) * 100) / 100;
+      const playerScreenOffsetY = Math.round((safeY + playerWorldY) * 100) / 100;
+
+      if (
+        !Number.isFinite(lastPlayerScreenOffsetX) ||
+        !Number.isFinite(lastPlayerScreenOffsetY) ||
+        Math.abs(playerScreenOffsetX - lastPlayerScreenOffsetX) >= 0.25 ||
+        Math.abs(playerScreenOffsetY - lastPlayerScreenOffsetY) >= 0.25
+      ) {
+        lastPlayerScreenOffsetX = playerScreenOffsetX;
+        lastPlayerScreenOffsetY = playerScreenOffsetY;
+
+        const offsetDetail = {
+          x: playerScreenOffsetX,
+          y: playerScreenOffsetY,
+          cityId,
+        };
+
+        window.__MN_MOBILE_PLAYER_SCREEN_OFFSET__ = offsetDetail;
+        window.dispatchEvent(new CustomEvent('mn:mobile-player-screen-offset', {
+          detail: offsetDetail,
+        }));
+      }
+    }
 
     const nextTransform = `translate(-50%, -50%) translate3d(${safeX}px, ${safeY}px, 0) scale(${safeScale})`;
 
@@ -870,6 +900,11 @@ export function enableMapControls(stage, viewport, options = {}) {
         cancelIdle(tileIdleId);
       }
 
+      window.dispatchEvent(new CustomEvent('mn:mobile-player-screen-offset', {
+        detail: { x: 0, y: 0, cityId },
+      }));
+      window.__MN_MOBILE_PLAYER_SCREEN_OFFSET__ = { x: 0, y: 0, cityId };
+
       activeTiles.forEach((tile) => tile.remove());
       activeTiles.clear();
       preloadedTileSrcs.clear();
@@ -894,5 +929,3 @@ export function enableMapControls(stage, viewport, options = {}) {
     refresh,
   };
 }
-
-
