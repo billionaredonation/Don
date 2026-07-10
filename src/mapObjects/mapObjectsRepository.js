@@ -735,10 +735,10 @@ async function deleteRemoteObject(cityId, objectId, options = {}) {
 
   // RLS may intentionally forbid direct DELETE. Keep the SECURITY DEFINER RPC
   // as a fallback, but never report success until the row is really gone.
-  const { data, error } = await supabase.rpc('admin_delete_map_object', {
+  const { data, error } = await supabase.rpc('admin_delete_map_object_v2', {
     p_object_id: normalizedObjectId,
     p_city_id: normalizedCityId,
-    p_admin_tg_id: adminIdentity.adminTgId,
+    p_admin_player_id: adminIdentity.adminPlayerId,
     p_admin_nickname: adminIdentity.adminNickname,
   });
 
@@ -792,9 +792,9 @@ async function clearRemoteCity(cityId, options = {}) {
     };
   }
 
-  const { data, error } = await supabase.rpc('admin_clear_map_objects_city', {
+  const { data, error } = await supabase.rpc('admin_clear_map_objects_city_v2', {
     p_city_id: normalizedCityId,
-    p_admin_tg_id: adminIdentity.adminTgId,
+    p_admin_player_id: adminIdentity.adminPlayerId,
     p_admin_nickname: adminIdentity.adminNickname,
   });
 
@@ -1131,3 +1131,4 @@ export async function clearMapObjects(cityId, options = {}) {
 
   return [];
 }
+
