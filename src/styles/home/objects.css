@@ -38,6 +38,17 @@
   display: none !important;
 }
 
+/* The public canvas owns the visible icon. Nearby DOM objects remain as
+   accessible/clickable hitboxes only, so canvas + DOM never form a double
+   triangle/square marker. Admin objects keep their full editor visuals. */
+.map-objects-layer-public .map-object.map-object-house .map-house-svg,
+.map-objects-layer-public .map-object.map-object-house .map-house-lite,
+.map-objects-layer-public .map-object.map-object-house .map-house-clean,
+.map-objects-layer-public .map-object.map-object-house .map-object-icon {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 .map-object,
 .map-object-house,
 .map-object-business {
@@ -658,5 +669,3 @@ body:not(.mn-player-moving) .map-objects-layer-admin .map-object {
     inset: -26px !important;
   }
 }
-
-
