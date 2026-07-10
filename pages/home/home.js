@@ -288,15 +288,33 @@ function createMobileSelfMarkerHardOverlay() {
   marker.style.visibility = 'visible';
   marker.style.display = 'block';
 
+  const updateMarkerPosition = (event) => {
+    const detail = event?.detail || {};
+    const worldX = Number(detail.x || 0);
+    const worldY = Number(detail.y || 0);
+    const forcedLandscape =
+      document.documentElement?.classList?.contains('mn-force-rotate-landscape') ||
+      document.body?.classList?.contains('mn-force-rotate-landscape');
+
+    const screenX = forcedLandscape ? -worldY : worldX;
+    const screenY = forcedLandscape ? worldX : worldY;
+
+    marker.style.setProperty('left', `calc(50% + ${screenX}px)`, 'important');
+    marker.style.setProperty('top', `calc(50% + ${screenY}px)`, 'important');
+  };
+
   const removeMarker = () => {
     marker.remove();
   };
 
   window.addEventListener('mn:session-blocked', removeMarker, { once: true });
+  window.addEventListener('mn:mobile-player-screen-offset', updateMarkerPosition);
   document.body.appendChild(marker);
+  updateMarkerPosition({ detail: window.__MN_MOBILE_PLAYER_SCREEN_OFFSET__ });
 
   return () => {
     window.removeEventListener('mn:session-blocked', removeMarker);
+    window.removeEventListener('mn:mobile-player-screen-offset', updateMarkerPosition);
     marker.remove();
   };
 }
