@@ -619,6 +619,31 @@ async function fetchRemoteObjects(cityId, options = {}) {
 }
 
 async function saveRemoteObject(object) {
+  const row = toDbRow(object);
+  const adminIdentity = getAdminIdentity();
+
+  try {
+    const { data, error } = await supabase.rpc(
+      'admin_upsert_map_object_v2',
+      {
+        p_object: row,
+        p_admin_player_id: adminIdentity.adminPlayerId,
+        p_admin_nickname: adminIdentity.adminNickname,
+      }
+    );
+
+    if (error) throw error;
+    if (data?.ok === false) {
+      throw new Error(data?.reason || 'admin_upsert_map_object_v2_failed');
+    }
+
+    return data?.object
+      ? clearPendingRemoteSync(fromDbRow(data.object))
+      : clearPendingRemoteSync(object);
+  } catch (rpcError) {
+    console.warn('[mapObjectsRepository] admin upsert RPC failed, trying edge function:', rpcError);
+  }
+
   try {
     const data = await adminMapObjectsRequest({
       action: 'upsert',
@@ -631,7 +656,6 @@ async function saveRemoteObject(object) {
   } catch (edgeError) {
     console.warn('[mapObjectsRepository] edge upsert failed, trying direct table upsert:', edgeError);
 
-    const row = toDbRow(object);
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .upsert(row, { onConflict: 'id' })
@@ -644,6 +668,26 @@ async function saveRemoteObject(object) {
       ? clearPendingRemoteSync(fromDbRow(data))
       : clearPendingRemoteSync(object);
   }
+}
+
+async function syncPendingRemoteObjects(objects = []) {
+  const syncedObjects = [];
+
+  for (const object of Array.isArray(objects) ? objects : []) {
+    try {
+      const savedObjectRaw = await saveRemoteObject(object);
+      const savedObject = await syncHouseMapObject(savedObjectRaw);
+      syncedObjects.push(clearPendingRemoteSync(savedObject));
+    } catch (error) {
+      console.warn('[mapObjectsRepository] pending object sync failed:', {
+        objectId: object?.id,
+        error,
+      });
+      syncedObjects.push(object);
+    }
+  }
+
+  return syncedObjects;
 }
 
 async function syncHouseMapObject(object) {
@@ -895,9 +939,12 @@ export async function getMapObjects(cityId, options = {}) {
 
   try {
     const remoteObjects = await fetchRemoteObjects(normalizedCityId, options);
+    const syncedPendingObjects = pendingLocalObjects.length
+      ? await syncPendingRemoteObjects(pendingLocalObjects)
+      : pendingLocalObjects;
     const mergedObjects = mergeRemoteWithPendingLocal(
       remoteObjects,
-      pendingLocalObjects
+      syncedPendingObjects
     );
 
     if (range) {
