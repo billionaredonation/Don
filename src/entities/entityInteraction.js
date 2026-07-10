@@ -418,7 +418,7 @@ function createMapObjectsOverviewCanvas(viewport) {
   return canvas;
 }
 
-function renderMapObjectsOverview(canvas, viewport, objects, interactiveIds = new Set()) {
+function renderMapObjectsOverview(canvas, viewport, objects) {
   if (!canvas || !viewport) return;
 
   const width = Math.max(1, Number(viewport.clientWidth || viewport.offsetWidth || 1));
@@ -440,7 +440,7 @@ function renderMapObjectsOverview(canvas, viewport, objects, interactiveIds = ne
 
   (Array.isArray(objects) ? objects : []).forEach((object) => {
     const id = String(object?.id || '');
-    if (!id || interactiveIds.has(id)) return;
+    if (!id) return;
 
     const xPercent = Number(object?.x);
     const yPercent = Number(object?.y);
@@ -469,8 +469,13 @@ function renderMapObjectsOverview(canvas, viewport, objects, interactiveIds = ne
       context.closePath();
       context.fill();
 
-      context.strokeStyle = 'rgba(255, 255, 255, 0.72)';
-      context.lineWidth = 0.8;
+      // A dark outer stroke keeps free green houses visible on light/green map
+      // areas. The thin white inner stroke keeps them readable at night.
+      context.strokeStyle = 'rgba(3, 8, 12, 0.94)';
+      context.lineWidth = 2.8;
+      context.stroke();
+      context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      context.lineWidth = 0.9;
       context.stroke();
     } else {
       context.fillStyle = 'rgba(235, 242, 250, 0.9)';
@@ -878,17 +883,10 @@ export function enableEntityInteraction({
   let objectGrid = new Map();
 
   function renderOverview() {
-    const interactiveIds = new Set(
-      renderedObjects
-        .map((object) => String(object?.id || ''))
-        .filter(Boolean)
-    );
-
     renderMapObjectsOverview(
       overviewCanvas,
       viewport,
-      mapObjects,
-      interactiveIds
+      mapObjects
     );
   }
 
