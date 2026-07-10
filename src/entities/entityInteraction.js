@@ -1294,7 +1294,10 @@ export function enableEntityInteraction({
     let bestObject = null;
     let bestDistance = Number.POSITIVE_INFINITY;
 
-    renderedObjects.forEach((object) => {
+    // Canvas can show an object before the virtual DOM window catches up after
+    // movement. A tap must therefore search the complete city snapshot, not
+    // only the currently mounted DOM buttons.
+    mapObjects.forEach((object) => {
       if (!object) return;
 
       const element = findMapObjectElement(layer, object.id);
@@ -1508,7 +1511,9 @@ export function enableEntityInteraction({
     }
 
     const point = getPointerPoint(event);
-    const nearest = getNearestObjectToPoint(point, 86);
+    const nearest =
+      getNearestObjectToPoint(point, DIRECT_TAP_RADIUS_PX) ||
+      getNearestInteractableObject();
 
     if (!nearest) return;
 
