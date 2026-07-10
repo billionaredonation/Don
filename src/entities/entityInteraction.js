@@ -16,7 +16,7 @@ const DIRECT_TAP_RADIUS_PX = 132;
 const MOBILE_FREE_TAP_RADIUS_PX = 150;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
-const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 760 : 320;
+const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 420 : 280;
 
 /*
   ПК оставляем широким: там железо выдерживает много DOM-объектов.
@@ -1410,8 +1410,23 @@ export function enableEntityInteraction({
       */
       pauseObjectLayerForMovement();
       pendingRenderAfterMovement = true;
-      hideInteractionHint();
-      scheduleInteractionHintUpdate(isMobileGameplayDevice() ? 620 : 360);
+
+      // Spatial lookup is cheap and does not rebuild DOM. Keep it active while
+      // moving so the readiness hint appears as soon as the player enters the
+      // interaction radius instead of waiting for the render/network pause.
+      if (panel?.isOpen?.()) {
+        hideInteractionHint();
+      } else {
+        const nearestWhileMoving = getNearestInteractableObject();
+
+        if (nearestWhileMoving) {
+          showInteractionHintOnce(nearestWhileMoving);
+        } else {
+          hideInteractionHint({ reset: true });
+        }
+      }
+
+      scheduleInteractionHintUpdate(isMobileGameplayDevice() ? 260 : 280);
       return;
     }
 
