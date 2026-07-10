@@ -5825,10 +5825,7 @@ body.mn-session-blocked .gta-player-marker-self {
       drop-shadow(0 0 5px rgba(255, 255, 255, 0.38)) !important;
   }
 
-  .home[data-performance="low"] .gta-stars,
-  .home[data-performance="low"] .gta-weather-rain,
-  .home[data-performance="low"] .gta-weather-heat,
-  .home[data-performance="low"] .gta-weather-clouds {
+  .home[data-performance="low"] .gta-stars {
     display: none !important;
   }
 }
