@@ -704,39 +704,57 @@ async function deleteRemoteObject(cityId, objectId, options = {}) {
     throw new Error('map_object_id_missing');
   }
 
-  const { data, error } = await supabase.rpc(
-    'admin_delete_map_object',
-    {
-      p_object_id: normalizedObjectId,
-      p_city_id: normalizedCityId,
-      p_admin_tg_id: adminIdentity.adminTgId,
-      p_admin_nickname: adminIdentity.adminNickname,
-    }
-  );
+  // First use the table operation itself. The old implementation called only
+  // an optional RPC. When that RPC was absent/outdated (or had another
+  // signature), the admin panel could never delete even though map_objects
+  // already allowed the admin client to create and edit rows.
+  const { data: deletedRows, error: directError } = await supabase
+    .from(TABLE_NAME)
+    .delete()
+    .eq('city_id', normalizedCityId)
+    .eq('id', normalizedObjectId)
+    .select('id');
+
+  if (!directError && Array.isArray(deletedRows) && deletedRows.length > 0) {
+    return {
+      ok: true,
+      deleted: deletedRows.length,
+      method: 'direct',
+    };
+  }
+
+  // RLS may intentionally forbid direct DELETE. Keep the SECURITY DEFINER RPC
+  // as a fallback, but never report success until the row is really gone.
+  const { data, error } = await supabase.rpc('admin_delete_map_object', {
+    p_object_id: normalizedObjectId,
+    p_city_id: normalizedCityId,
+    p_admin_tg_id: adminIdentity.adminTgId,
+    p_admin_nickname: adminIdentity.adminNickname,
+  });
 
   if (error) {
-    console.error('[mapObjectsRepository] RPC delete failed:', {
+    console.error('[mapObjectsRepository] delete failed:', {
       cityId: normalizedCityId,
       objectId: normalizedObjectId,
       adminIdentity,
-      error,
+      directError,
+      rpcError: error,
     });
 
-    throw new Error(error.message || error.details || 'ADMIN_RPC_DELETE_FAILED');
+    throw new Error(
+      error.message ||
+      error.details ||
+      directError?.message ||
+      directError?.details ||
+      'ADMIN_DELETE_FAILED'
+    );
   }
-
-  console.log('[mapObjectsRepository] RPC delete result:', {
-    cityId: normalizedCityId,
-    objectId: normalizedObjectId,
-    adminIdentity,
-    data,
-  });
 
   if (data?.ok === false) {
     throw new Error(`DB_DELETE_FAILED: осталось ${data?.remaining ?? '?'} строк для объекта ${normalizedObjectId}`);
   }
 
-  return data || { ok: true };
+  return data || { ok: true, method: 'rpc' };
 }
 
 async function clearRemoteCity(cityId, options = {}) {
@@ -747,36 +765,52 @@ async function clearRemoteCity(cityId, options = {}) {
     throw new Error('map_city_id_missing');
   }
 
-  const { data, error } = await supabase.rpc(
-    'admin_clear_map_objects_city',
-    {
-      p_city_id: normalizedCityId,
-      p_admin_tg_id: adminIdentity.adminTgId,
-      p_admin_nickname: adminIdentity.adminNickname,
-    }
-  );
+  const { data: deletedRows, error: directError } = await supabase
+    .from(TABLE_NAME)
+    .delete()
+    .eq('city_id', normalizedCityId)
+    .select('id');
 
-  if (error) {
-    console.error('[mapObjectsRepository] RPC clear failed:', {
-      cityId: normalizedCityId,
-      adminIdentity,
-      error,
-    });
+  const remainingAfterDirect = await countRemoteObjectsForCity(normalizedCityId);
 
-    throw new Error(error.message || error.details || 'ADMIN_RPC_CLEAR_FAILED');
+  if (!directError && remainingAfterDirect === 0) {
+    return {
+      ok: true,
+      deleted: Array.isArray(deletedRows) ? deletedRows.length : 0,
+      remaining: 0,
+      method: 'direct',
+    };
   }
 
-  console.log('[mapObjectsRepository] RPC clear result:', {
-    cityId: normalizedCityId,
-    adminIdentity,
-    data,
+  const { data, error } = await supabase.rpc('admin_clear_map_objects_city', {
+    p_city_id: normalizedCityId,
+    p_admin_tg_id: adminIdentity.adminTgId,
+    p_admin_nickname: adminIdentity.adminNickname,
   });
+
+  if (error) {
+    console.error('[mapObjectsRepository] clear failed:', {
+      cityId: normalizedCityId,
+      adminIdentity,
+      remainingAfterDirect,
+      directError,
+      rpcError: error,
+    });
+
+    throw new Error(
+      error.message ||
+      error.details ||
+      directError?.message ||
+      directError?.details ||
+      'ADMIN_CLEAR_FAILED'
+    );
+  }
 
   if (data?.ok === false) {
     throw new Error(`DB_CLEAR_FAILED: RPC удалил ${data?.deleted ?? 0}, но осталось ${data?.remaining ?? '?'} объектов для города ${normalizedCityId}`);
   }
 
-  return data || { ok: true };
+  return data || { ok: true, method: 'rpc' };
 }
 
 function clearLocalObjectsForCity(cityId) {
@@ -789,12 +823,6 @@ function clearLocalObjectsForCity(cityId) {
   }
 }
 
-
-function getDeletedCount(result) {
-  const value = result?.deleted ?? result?.count ?? result?.deletedCount ?? null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-}
 
 async function countRemoteObjectsForCity(cityId) {
   const normalizedCityId = normalizeCityId(cityId);
@@ -1038,9 +1066,12 @@ export async function deleteMapObject(cityId, objectId, options = {}) {
   }
 
   const result = await deleteRemoteObject(normalizedCityId, objectId, options);
-  const deletedCount = getDeletedCount(result);
+  const objectStillExists = await objectExistsRemote(
+    normalizedCityId,
+    objectId
+  );
 
-  if (deletedCount === 0 && await objectExistsRemote(normalizedCityId, objectId)) {
+  if (objectStillExists) {
     throw new Error(`DB_DELETE_FAILED: объект ${objectId} остался в map_objects`);
   }
 
@@ -1090,5 +1121,3 @@ export async function clearMapObjects(cityId, options = {}) {
 
   return [];
 }
-
-
