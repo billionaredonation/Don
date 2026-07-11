@@ -13,7 +13,7 @@ import { dispatchEntityAction } from './entityActions.js';
 const INTERACTION_RADIUS_PX = 108;
 const MOBILE_INTERACTION_RADIUS_PX = 150;
 const DIRECT_TAP_RADIUS_PX = 174;
-const MOBILE_FREE_TAP_RADIUS_PX = 178;
+const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
 const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 170 : 150;
@@ -528,6 +528,7 @@ export function createEntityInteractionPanel(root) {
   let hideTimer = null;
   let countdownTimer = null;
   let openedAt = 0;
+  let directInputBlockedUntil = 0;
 
   function setHouseSelectionOpen(isOpen) {
     document.body?.classList.toggle('mn-house-selection-open', Boolean(isOpen));
@@ -607,6 +608,7 @@ export function createEntityInteractionPanel(root) {
   }
 
   function close() {
+    directInputBlockedUntil = performance.now() + 500;
     clearTimers();
 
     selectedObject = null;
@@ -820,6 +822,10 @@ export function createEntityInteractionPanel(root) {
       return Boolean(selectedObject) && panel.hidden === false;
     },
 
+    isDirectInputBlocked() {
+      return performance.now() < directInputBlockedUntil;
+    },
+
     getSelectedObject() {
       return selectedObject;
     },
@@ -871,6 +877,8 @@ export function enableEntityInteraction({
   let destroyed = false;
   let nearestObjectId = null;
   let lastHintObjectId = null;
+  let hintCandidateObjectId = null;
+  let hintCandidateSeenCount = 0;
   let hintHideTimer = null;
   let interactionTimer = 0;
   let lastRenderX = Number.NaN;
@@ -1282,7 +1290,7 @@ export function enableEntityInteraction({
     return bestObject;
   }
 
-  function getNearestObjectToPoint(point, radius = MOBILE_FREE_TAP_RADIUS_PX) {
+  function getNearestObjectToPoint(point, radius = HOUSE_TAP_TARGET_RADIUS_PX) {
     if (!point) return null;
 
     let bestObject = null;
@@ -1343,6 +1351,8 @@ export function enableEntityInteraction({
 
     if (reset) {
       lastHintObjectId = null;
+      hintCandidateObjectId = null;
+      hintCandidateSeenCount = 0;
     }
   }
 
@@ -1350,6 +1360,20 @@ export function enableEntityInteraction({
     if (!object?.id) return;
 
     const objectId = String(object.id);
+
+    /*
+      Не показываем подсказку от одного пограничного замера. Дом должен остаться
+      ближайшим два последовательных сканирования — это убирает короткие ложные
+      вспышки при проходе по краю радиуса и сохраняет появление примерно за 0.3с.
+    */
+    if (hintCandidateObjectId !== objectId) {
+      hintCandidateObjectId = objectId;
+      hintCandidateSeenCount = 1;
+      return;
+    }
+
+    hintCandidateSeenCount += 1;
+    if (hintCandidateSeenCount < 2) return;
 
     if (lastHintObjectId === objectId) return;
 
@@ -1360,7 +1384,7 @@ export function enableEntityInteraction({
 
     if (isMobileGameplayDevice()) {
       if (keyEl) keyEl.textContent = '🏠';
-      if (textEl) textEl.textContent = 'Нажми на дом';
+      if (textEl) textEl.textContent = 'Нажми на дом на карте';
     } else {
       if (keyEl) keyEl.textContent = 'E';
       if (textEl) textEl.textContent = 'Взаимодействовать';
@@ -1506,6 +1530,7 @@ export function enableEntityInteraction({
 
   function onObjectClick(event) {
     if (panel?.isOpen?.()) return;
+    if (panel?.isDirectInputBlocked?.()) return;
 
     const clickedObjectId = getMapObjectIdFromEvent(event);
     if (!clickedObjectId) return;
@@ -1526,6 +1551,7 @@ export function enableEntityInteraction({
   function onViewportPointer(event) {
     if (!isMobilePointerEvent(event)) return;
     if (panel?.isOpen?.()) return;
+    if (panel?.isDirectInputBlocked?.()) return;
 
     const target = event.target;
 
@@ -1533,6 +1559,7 @@ export function enableEntityInteraction({
       target?.closest?.('.houses-modal') ||
       target?.closest?.('.house-details-modal') ||
       target?.closest?.('.house-selection-panel') ||
+      target?.closest?.('.entity-interaction-hint') ||
       target?.closest?.('.mobile-joystick') ||
       target?.closest?.('.mobile-control-toggle') ||
       target?.closest?.('.admin-panel') ||
@@ -1543,22 +1570,20 @@ export function enableEntityInteraction({
     }
 
     const point = getPointerPoint(event);
-    const tappedObject = getNearestObjectToPoint(point, DIRECT_TAP_RADIUS_PX);
-    const readyObject = getNearestInteractableObject();
-    const nearest = tappedObject && isObjectInInteractionRange(tappedObject, { directTap: true })
-      ? tappedObject
-      : readyObject;
+    const tappedObject = getNearestObjectToPoint(point, HOUSE_TAP_TARGET_RADIUS_PX);
 
-    if (!nearest) return;
+    // Только явный тап по иконке дома. Близость игрока сама по себе больше не
+    // открывает I/N-блок от любого касания по карте или закрывающей кнопке N.
+    if (!tappedObject) return;
 
     // Не открываем модалки от случайного тапа по экрану/старту Telegram.
     // Мобильная логика срабатывает только возле самой иконки и в радиусе взаимодействия.
-    if (!isObjectInInteractionRange(nearest, { directTap: true })) return;
+    if (!isObjectInInteractionRange(tappedObject, { directTap: true })) return;
 
     event.preventDefault();
     event.stopPropagation();
 
-    openObjectFromDirectInput(nearest);
+    openObjectFromDirectInput(tappedObject);
   }
 
   function onKeyDown(event) {
