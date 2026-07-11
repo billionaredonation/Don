@@ -1282,7 +1282,8 @@
   body.mn-mobile-game-enabled.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .home-gameplay {
     position: fixed !important;
     left: 50% !important;
-    top: var(--mn-house-prompt-mobile-y, 57.5%) !important;
+    /* Карта всегда центрируется отдельно от тонкой настройки окна дома. */
+    top: 50% !important;
     right: auto !important;
     bottom: auto !important;
 
