@@ -715,8 +715,8 @@ export function createEntityInteractionPanel(root) {
 
     if (forcedLandscape) {
       // Центр экрана и чуть ниже игрока. Без ухода к балансу/джойстику.
-      panel.style.setProperty('left', '45%', 'important');
-      panel.style.setProperty('top', '50.5%', 'important');
+      panel.style.setProperty('left', '35%', 'important');
+      panel.style.setProperty('top', '50.0%', 'important');
       panel.style.setProperty(
         'transform',
         'translate3d(-50%, -50%, 0) rotate(90deg)',
@@ -725,8 +725,8 @@ export function createEntityInteractionPanel(root) {
       return;
     }
 
-    panel.style.setProperty('left', '50%', 'important');
-    panel.style.setProperty('top', '56.5%', 'important');
+    panel.style.setProperty('left', '35%', 'important');
+    panel.style.setProperty('top', '50.0%', 'important');
     panel.style.setProperty('transform', 'translate3d(-50%, -50%, 0)', 'important');
   }
 
