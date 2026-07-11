@@ -1,15 +1,15 @@
 import { supabase } from '../supabaseClient.js';
 
-function normalizeTelegramId(value) {
+function normalizeIdentifier(value) {
   return value === undefined || value === null ? '' : String(value).trim();
 }
 
 function getPlayerTelegramId(row = {}) {
-  return normalizeTelegramId(row.tg_id || row.telegram_id || row.telegramId);
+  return normalizeIdentifier(row.tg_id || row.telegram_id || row.telegramId);
 }
 
 function getPlayerRowId(row = {}) {
-  return normalizeTelegramId(row.id || row.player_id || row.playerId);
+  return normalizeIdentifier(row.id || row.player_id || row.playerId);
 }
 
 function dispatchMapObjectsChanged(cityId, payload) {
@@ -30,7 +30,6 @@ function dispatchMapObjectsChanged(cityId, payload) {
   }));
 }
 
-
 function isMobileGameplayDevice() {
   const hasTouch = navigator.maxTouchPoints > 0;
   const narrowScreen =
@@ -39,16 +38,16 @@ function isMobileGameplayDevice() {
   return hasTouch && narrowScreen;
 }
 
-function isMobilePlayerBusy() {
-  if (!isMobileGameplayDevice()) return false;
+function createBalanceSignature(row = {}) {
+  const rowId = getPlayerRowId(row);
+  const telegramId = getPlayerTelegramId(row);
+  const balance = Number(row.balance);
+  const updatedAt = normalizeIdentifier(row.updated_at || row.updatedAt);
 
-  const now = performance.now();
-  const pauseUntil = Number(window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ || 0);
-
-  return window.__MN_MOBILE_PLAYER_MOVING__ === true || pauseUntil > now;
+  return `${rowId}|${telegramId}|${Number.isFinite(balance) ? balance : ''}|${updatedAt}`;
 }
 
-function dispatchPlayerBalanceChanged(row, payload = {}) {
+function dispatchPlayerBalanceChanged(row, payload = {}, source = 'realtime') {
   const balance = Number(row?.balance ?? 0);
   const oldBalance = Number(payload?.old?.balance);
   const hasOldBalance = Number.isFinite(oldBalance);
@@ -61,7 +60,7 @@ function dispatchPlayerBalanceChanged(row, payload = {}) {
       balance,
       oldBalance: hasOldBalance ? oldBalance : undefined,
       delta,
-      source: 'realtime',
+      source,
       payload,
     },
   }));
@@ -70,7 +69,7 @@ function dispatchPlayerBalanceChanged(row, payload = {}) {
     balance,
     oldBalance: hasOldBalance ? oldBalance : undefined,
     delta,
-    source: 'realtime',
+    source,
     payload,
   };
 }
@@ -82,8 +81,8 @@ export function setupGameRealtime({
   onBalanceChanged,
 } = {}) {
   const normalizedCityId = String(cityId || '').trim();
-  const normalizedTelegramId = normalizeTelegramId(telegramId);
-  const normalizedPlayerRowId = normalizeTelegramId(playerRowId);
+  const normalizedTelegramId = normalizeIdentifier(telegramId);
+  const normalizedPlayerRowId = normalizeIdentifier(playerRowId);
 
   if (!normalizedCityId) {
     console.warn('[realtime] setup skipped: cityId missing');
@@ -93,6 +92,8 @@ export function setupGameRealtime({
   let destroyed = false;
   let deferredMapObjectsPayload = null;
   let deferredFlushTimer = null;
+  let lastBalanceSignature = '';
+  let realtimeSubscribedEventSent = false;
 
   function clearDeferredFlushTimer() {
     if (!deferredFlushTimer) return;
@@ -127,18 +128,67 @@ export function setupGameRealtime({
   function queueMapObjectsRealtime(payload) {
     if (destroyed) return;
 
-    // Храним последнее событие из короткой серии. Получатели всё равно берут
-    // свежий snapshot города, поэтому десять UPDATE подряд не должны вызывать
-    // десять запросов и десять перерисовок карты.
+    // Получатели берут свежий snapshot города, поэтому короткую серию UPDATE
+    // сворачиваем в одно событие и не запускаем лишние перерисовки карты.
     deferredMapObjectsPayload = payload;
 
     scheduleDeferredRealtimeFlush(isMobileGameplayDevice() ? 140 : 80);
   }
 
+  function announceBalanceRealtimeSubscribed(transport) {
+    if (realtimeSubscribedEventSent || destroyed) return;
+
+    realtimeSubscribedEventSent = true;
+
+    window.dispatchEvent(new CustomEvent('mn:realtime-subscribed', {
+      detail: {
+        cityId: normalizedCityId,
+        telegramId: normalizedTelegramId,
+        playerRowId: normalizedPlayerRowId,
+        transport,
+      },
+    }));
+  }
+
+  function handleBalanceUpdate(row = {}, payload = {}, source = 'realtime') {
+    if (destroyed) return;
+
+    const changedTelegramId = getPlayerTelegramId(row);
+    const changedPlayerRowId = getPlayerRowId(row);
+
+    if (
+      normalizedPlayerRowId &&
+      changedPlayerRowId &&
+      changedPlayerRowId !== normalizedPlayerRowId
+    ) {
+      return;
+    }
+
+    if (changedTelegramId && changedTelegramId !== normalizedTelegramId) {
+      return;
+    }
+
+    const balance = Number(row.balance);
+
+    if (!Number.isFinite(balance)) return;
+
+    const signature = createBalanceSignature(row);
+
+    // Одно изменение может одновременно прийти через Broadcast и
+    // postgres_changes. В интерфейс отправляем его только один раз.
+    if (signature && signature === lastBalanceSignature) return;
+    lastBalanceSignature = signature;
+
+    const meta = dispatchPlayerBalanceChanged(row, payload, source);
+
+    if (typeof onBalanceChanged === 'function') {
+      onBalanceChanged(row, meta);
+    }
+  }
+
   /*
-    Баланс и имущество живут в независимых каналах. Если Supabase отклонит
-    один filter/binding, второй продолжит работать — раньше одна ошибка могла
-    остановить одновременно и players, и map_objects.
+    Баланс и имущество живут в независимых каналах. Ошибка или RLS-блокировка
+    одного binding не останавливает остальные подписки.
   */
   const channels = [];
   const assetsChannel = supabase.channel(`mn-assets:${normalizedCityId}`);
@@ -165,77 +215,106 @@ export function setupGameRealtime({
   });
 
   if (normalizedTelegramId) {
-    const playerFilter = normalizedPlayerRowId
-      ? `id=eq.${normalizedPlayerRowId}`
-      : `tg_id=eq.${normalizedTelegramId}`;
-
-    const balanceChannel = supabase.channel(
-      `mn-balance:${normalizedPlayerRowId || normalizedTelegramId}`
+    /*
+      Основная postgres_changes-подписка всегда фильтруется по tg_id.
+      Раньше при наличии устаревшего state.player.id канал подписывался на
+      неверный id и корректное UPDATE проходило мимо клиента.
+    */
+    const postgresBalanceChannel = supabase.channel(
+      `mn-balance-postgres:${normalizedTelegramId}`
     );
-    channels.push(balanceChannel);
+    channels.push(postgresBalanceChannel);
 
-    balanceChannel.on(
+    postgresBalanceChannel.on(
       'postgres_changes',
       {
         event: 'UPDATE',
         schema: 'public',
         table: 'players',
-        filter: playerFilter,
+        filter: `tg_id=eq.${normalizedTelegramId}`,
       },
       (payload) => {
-        if (destroyed) return;
-
-        const row = payload?.new || {};
-        const changedTelegramId = getPlayerTelegramId(row);
-        const changedPlayerRowId = getPlayerRowId(row);
-
-        if (
-          normalizedPlayerRowId &&
-          changedPlayerRowId &&
-          changedPlayerRowId !== normalizedPlayerRowId
-        ) {
-          return;
-        }
-
-        if (changedTelegramId && changedTelegramId !== normalizedTelegramId) {
-          return;
-        }
-
-        const meta = dispatchPlayerBalanceChanged(row, payload);
-
-        if (typeof onBalanceChanged === 'function') {
-          onBalanceChanged(row, meta);
-        }
+        handleBalanceUpdate(payload?.new || {}, payload, 'realtime_postgres');
       }
     );
 
-    balanceChannel.subscribe((status) => {
+    postgresBalanceChannel.subscribe((status, error) => {
       window.dispatchEvent(new CustomEvent('mn:balance-realtime-status', {
         detail: {
           telegramId: normalizedTelegramId,
           playerRowId: normalizedPlayerRowId,
+          transport: 'postgres_changes',
           status,
+          error: error || null,
         },
       }));
 
       if (status === 'SUBSCRIBED') {
-        console.log('[realtime] balance subscribed:', normalizedPlayerRowId || normalizedTelegramId);
-
-        window.dispatchEvent(new CustomEvent('mn:realtime-subscribed', {
-          detail: {
-            cityId: normalizedCityId,
-            telegramId: normalizedTelegramId,
-            playerRowId: normalizedPlayerRowId,
-          },
-        }));
+        console.log('[realtime] balance postgres subscribed:', normalizedTelegramId);
+        announceBalanceRealtimeSubscribed('postgres_changes');
       }
     });
+
+    /*
+      Публичный Broadcast по UUID строки игрока обходит ситуацию, когда
+      postgres_changes недоступен клиенту из-за RLS/custom Telegram auth.
+      SQL-триггер отправляет сюда только id/tg_id/balance/updated_at.
+    */
+    if (normalizedPlayerRowId) {
+      const broadcastTopic = `mn-player-balance:${normalizedPlayerRowId}`;
+      const broadcastBalanceChannel = supabase.channel(broadcastTopic, {
+        config: {
+          broadcast: { self: false },
+          private: false,
+        },
+      });
+      channels.push(broadcastBalanceChannel);
+
+      broadcastBalanceChannel.on(
+        'broadcast',
+        { event: 'balance_changed' },
+        (message) => {
+          const change = message?.payload || {};
+          const row = change?.new || change?.record || {};
+          const oldRow = change?.old || change?.old_record || {};
+
+          handleBalanceUpdate(
+            row,
+            {
+              ...change,
+              new: row,
+              old: oldRow,
+              transport: 'broadcast',
+            },
+            'realtime_broadcast'
+          );
+        }
+      );
+
+      broadcastBalanceChannel.subscribe((status, error) => {
+        window.dispatchEvent(new CustomEvent('mn:balance-realtime-status', {
+          detail: {
+            telegramId: normalizedTelegramId,
+            playerRowId: normalizedPlayerRowId,
+            transport: 'broadcast',
+            status,
+            error: error || null,
+          },
+        }));
+
+        if (status === 'SUBSCRIBED') {
+          console.log('[realtime] balance broadcast subscribed:', normalizedPlayerRowId);
+          announceBalanceRealtimeSubscribed('broadcast');
+        }
+      });
+    }
   }
 
   return () => {
     destroyed = true;
     clearDeferredFlushTimer();
     deferredMapObjectsPayload = null;
+
     channels.forEach((channel) => {
       supabase.removeChannel(channel);
     });
