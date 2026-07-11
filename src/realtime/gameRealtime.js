@@ -109,11 +109,6 @@ export function setupGameRealtime({
       return;
     }
 
-    if (isMobilePlayerBusy()) {
-      scheduleDeferredRealtimeFlush(900);
-      return;
-    }
-
     const mapPayload = deferredMapObjectsPayload;
 
     deferredMapObjectsPayload = null;
@@ -137,19 +132,19 @@ export function setupGameRealtime({
     // десять запросов и десять перерисовок карты.
     deferredMapObjectsPayload = payload;
 
-    if (isMobilePlayerBusy()) {
-      scheduleDeferredRealtimeFlush(650);
-      return;
-    }
-
-    scheduleDeferredRealtimeFlush(isMobileGameplayDevice() ? 180 : 80);
+    scheduleDeferredRealtimeFlush(isMobileGameplayDevice() ? 140 : 80);
   }
 
-  const channel = supabase.channel(
-    `mn-game:${normalizedCityId}:${normalizedPlayerRowId || normalizedTelegramId || 'guest'}`
-  );
+  /*
+    Баланс и имущество живут в независимых каналах. Если Supabase отклонит
+    один filter/binding, второй продолжит работать — раньше одна ошибка могла
+    остановить одновременно и players, и map_objects.
+  */
+  const channels = [];
+  const assetsChannel = supabase.channel(`mn-assets:${normalizedCityId}`);
+  channels.push(assetsChannel);
 
-  channel.on(
+  assetsChannel.on(
     'postgres_changes',
     {
       event: '*',
@@ -163,12 +158,23 @@ export function setupGameRealtime({
     }
   );
 
+  assetsChannel.subscribe((status) => {
+    window.dispatchEvent(new CustomEvent('mn:assets-realtime-status', {
+      detail: { cityId: normalizedCityId, status },
+    }));
+  });
+
   if (normalizedTelegramId) {
     const playerFilter = normalizedPlayerRowId
       ? `id=eq.${normalizedPlayerRowId}`
       : `tg_id=eq.${normalizedTelegramId}`;
 
-    channel.on(
+    const balanceChannel = supabase.channel(
+      `mn-balance:${normalizedPlayerRowId || normalizedTelegramId}`
+    );
+    channels.push(balanceChannel);
+
+    balanceChannel.on(
       'postgres_changes',
       {
         event: 'UPDATE',
@@ -202,26 +208,36 @@ export function setupGameRealtime({
         }
       }
     );
-  }
 
-  channel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      console.log('[realtime] subscribed:', normalizedCityId);
-
-      window.dispatchEvent(new CustomEvent('mn:realtime-subscribed', {
+    balanceChannel.subscribe((status) => {
+      window.dispatchEvent(new CustomEvent('mn:balance-realtime-status', {
         detail: {
-          cityId: normalizedCityId,
           telegramId: normalizedTelegramId,
           playerRowId: normalizedPlayerRowId,
+          status,
         },
       }));
-    }
-  });
+
+      if (status === 'SUBSCRIBED') {
+        console.log('[realtime] balance subscribed:', normalizedPlayerRowId || normalizedTelegramId);
+
+        window.dispatchEvent(new CustomEvent('mn:realtime-subscribed', {
+          detail: {
+            cityId: normalizedCityId,
+            telegramId: normalizedTelegramId,
+            playerRowId: normalizedPlayerRowId,
+          },
+        }));
+      }
+    });
+  }
 
   return () => {
     destroyed = true;
     clearDeferredFlushTimer();
     deferredMapObjectsPayload = null;
-    supabase.removeChannel(channel);
+    channels.forEach((channel) => {
+      supabase.removeChannel(channel);
+    });
   };
 }
