@@ -1115,10 +1115,10 @@ export function enableEntityInteraction({
     return Array.from(resultById.values());
   }
 
-  function renderNearbyMapObjects(force = false) {
+  function renderNearbyMapObjects(force = false, allowWhileMoving = false) {
     if (!layer) return;
 
-    if (isMobileGameplayDevice() && isPlayerBusy()) {
+    if (isMobileGameplayDevice() && isPlayerBusy() && !allowWhileMoving) {
       pauseObjectLayerForMovement();
       pendingRenderAfterMovement = true;
       return;
@@ -1620,8 +1620,63 @@ export function enableEntityInteraction({
     hideInteractionHint({ reset: true });
   }
 
+  function applyRealtimeMapObjectPayload(payload) {
+    const eventType = String(payload?.eventType || '').toUpperCase();
+    const row = eventType === 'DELETE'
+      ? payload?.old
+      : payload?.new;
+    const objectId = String(row?.id || '').trim();
+
+    if (!objectId) return false;
+
+    if (eventType === 'DELETE') {
+      mapObjects = mapObjects.filter((object) => String(object?.id || '') !== objectId);
+      renderedObjects = renderedObjects.filter((object) => String(object?.id || '') !== objectId);
+      findMapObjectElement(layer, objectId)?.remove();
+    } else {
+      const currentObject = objectById.get(objectId) || null;
+      const nextObject = {
+        ...(currentObject || {}),
+        ...row,
+        payload: {
+          ...(currentObject?.payload || {}),
+          ...(row?.payload || {}),
+        },
+      };
+      const currentIndex = mapObjects.findIndex((object) => String(object?.id || '') === objectId);
+
+      if (currentIndex >= 0) {
+        mapObjects = mapObjects.slice();
+        mapObjects[currentIndex] = nextObject;
+      } else {
+        mapObjects = [...mapObjects, nextObject];
+      }
+
+      panel?.updateSelectedObject?.((selectedObject) => (
+        String(selectedObject?.id || '') === objectId
+          ? nextObject
+          : selectedObject
+      ));
+    }
+
+    rebuildObjectIndex();
+    lastRenderedIdsKey = '';
+    renderOverview();
+    // Realtime ownership changes are rare and touch one row. Apply them even
+    // while moving so nearby players see purchase/sale within <1 second.
+    renderNearbyMapObjects(true, true);
+    return true;
+  }
+
   function onObjectsChanged(event) {
     if (!isCurrentCityEvent(event)) return;
+
+    if (
+      event?.detail?.source === 'realtime' &&
+      applyRealtimeMapObjectPayload(event?.detail?.payload)
+    ) {
+      return;
+    }
 
     scheduleReload();
   }
