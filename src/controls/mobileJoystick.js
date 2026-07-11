@@ -220,7 +220,21 @@ export function enableMobileJoystick(
   if (!base || !stick) return null;
 
   const STAMINA = getStaminaConfig();
-  const BOUNDS = getMovementBounds();
+  const configuredBounds = getMovementBounds();
+
+  /*
+    Координаты карты остаются полными 0..100, но центр 14px-маркера нельзя
+    ставить ровно на 0/100: тогда половина игрока визуально выходит за карту.
+    Небольшой mobile-only padding оставляет весь маркер внутри изображения,
+    при этом камера по-прежнему доходит до края и останавливается там.
+  */
+  const MAP_EDGE_PADDING_PERCENT = 0.4;
+  const BOUNDS = Object.freeze({
+    minX: Math.max(configuredBounds.minX, MAP_EDGE_PADDING_PERCENT),
+    maxX: Math.min(configuredBounds.maxX, 100 - MAP_EDGE_PADDING_PERCENT),
+    minY: Math.max(configuredBounds.minY, MAP_EDGE_PADDING_PERCENT),
+    maxY: Math.min(configuredBounds.maxY, 100 - MAP_EDGE_PADDING_PERCENT),
+  });
   const SYNC_CONFIG = getMovementSyncConfig();
 
   const MAX_DISTANCE = 48;
@@ -1051,5 +1065,4 @@ export function enableMobileJoystick(
     container.innerHTML = '';
   };
 }
-
 
