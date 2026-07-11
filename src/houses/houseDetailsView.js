@@ -553,6 +553,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
       if (
         code.includes('HOUSE_ALREADY_OWNED') ||
+        code.includes('ASSET_ALREADY_OWNED') ||
         code.includes('already owned') ||
         code.includes('already_owned')
       ) {
@@ -563,13 +564,13 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
         return;
       }
 
-      if (code.includes('HOUSE_NOT_FOUND')) {
+      if (code.includes('HOUSE_NOT_FOUND') || code.includes('ASSET_NOT_FOUND')) {
         setMessage('Дом не найден в базе данных.', 'error');
         buyButton.disabled = false;
         return;
       }
 
-      if (code.includes('HOUSE_ID_INVALID')) {
+      if (code.includes('HOUSE_ID_INVALID') || code.includes('ASSET_ID_INVALID')) {
         setMessage('Ошибка дома: некорректный houseId.', 'error');
         buyButton.disabled = false;
         return;
