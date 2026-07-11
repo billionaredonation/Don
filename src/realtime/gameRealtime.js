@@ -45,7 +45,7 @@ function isMobilePlayerBusy() {
 }
 
 function dispatchPlayerBalanceChanged(row, payload = {}) {
-  const balance = Number(row?.balance || 0);
+  const balance = Number(row?.balance ?? 0);
   const oldBalance = Number(payload?.old?.balance);
   const hasOldBalance = Number.isFinite(oldBalance);
   const delta = hasOldBalance ? balance - oldBalance : undefined;
@@ -86,7 +86,6 @@ export function setupGameRealtime({
 
   let destroyed = false;
   let deferredMapObjectsPayload = null;
-  let deferredBalancePayload = null;
   let deferredFlushTimer = null;
 
   function clearDeferredFlushTimer() {
@@ -101,7 +100,6 @@ export function setupGameRealtime({
 
     if (destroyed) {
       deferredMapObjectsPayload = null;
-      deferredBalancePayload = null;
       return;
     }
 
@@ -111,26 +109,11 @@ export function setupGameRealtime({
     }
 
     const mapPayload = deferredMapObjectsPayload;
-    const balancePayload = deferredBalancePayload;
 
     deferredMapObjectsPayload = null;
-    deferredBalancePayload = null;
 
     if (mapPayload) {
       dispatchMapObjectsChanged(normalizedCityId, mapPayload);
-    }
-
-    if (balancePayload && normalizedTelegramId) {
-      const row = balancePayload?.new || {};
-      const changedTelegramId = getPlayerTelegramId(row);
-
-      if (!changedTelegramId || changedTelegramId === normalizedTelegramId) {
-        const meta = dispatchPlayerBalanceChanged(row, balancePayload);
-
-        if (typeof onBalanceChanged === 'function') {
-          onBalanceChanged(row, meta);
-        }
-      }
     }
   }
 
@@ -138,6 +121,22 @@ export function setupGameRealtime({
     if (destroyed || deferredFlushTimer) return;
 
     deferredFlushTimer = window.setTimeout(flushDeferredRealtime, delay);
+  }
+
+  function queueMapObjectsRealtime(payload) {
+    if (destroyed) return;
+
+    // Храним последнее событие из короткой серии. Получатели всё равно берут
+    // свежий snapshot города, поэтому десять UPDATE подряд не должны вызывать
+    // десять запросов и десять перерисовок карты.
+    deferredMapObjectsPayload = payload;
+
+    if (isMobilePlayerBusy()) {
+      scheduleDeferredRealtimeFlush(650);
+      return;
+    }
+
+    scheduleDeferredRealtimeFlush(isMobileGameplayDevice() ? 180 : 80);
   }
 
   const channel = supabase.channel(
@@ -154,14 +153,7 @@ export function setupGameRealtime({
     },
     (payload) => {
       if (destroyed) return;
-
-      if (isMobilePlayerBusy()) {
-        deferredMapObjectsPayload = payload;
-        scheduleDeferredRealtimeFlush(1200);
-        return;
-      }
-
-      dispatchMapObjectsChanged(normalizedCityId, payload);
+      queueMapObjectsRealtime(payload);
     }
   );
 
@@ -176,12 +168,6 @@ export function setupGameRealtime({
       },
       (payload) => {
         if (destroyed) return;
-
-        if (isMobilePlayerBusy()) {
-          deferredBalancePayload = payload;
-          scheduleDeferredRealtimeFlush(1200);
-          return;
-        }
 
         const row = payload?.new || {};
         const changedTelegramId = getPlayerTelegramId(row);
@@ -202,6 +188,13 @@ export function setupGameRealtime({
   channel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
       console.log('[realtime] subscribed:', normalizedCityId);
+
+      window.dispatchEvent(new CustomEvent('mn:realtime-subscribed', {
+        detail: {
+          cityId: normalizedCityId,
+          telegramId: normalizedTelegramId,
+        },
+      }));
     }
   });
 
@@ -209,7 +202,6 @@ export function setupGameRealtime({
     destroyed = true;
     clearDeferredFlushTimer();
     deferredMapObjectsPayload = null;
-    deferredBalancePayload = null;
     supabase.removeChannel(channel);
   };
 }
