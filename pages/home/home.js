@@ -1108,7 +1108,12 @@ register('home', async (root) => {
   function startBalanceDatabaseSync() {
     clearInterval(balanceSyncTimer);
 
-    const balanceSyncInterval = isMobileGameplay ? 6500 : 1100;
+    /*
+      Основной путь — точечный Supabase Realtime UPDATE конкретного tg_id.
+      Polling оставляем только редкой страховкой на случай reconnect/потери сети,
+      а не долбим players каждую секунду.
+    */
+    const balanceSyncInterval = isMobileGameplay ? 45000 : 30000;
 
     balanceSyncTimer = setInterval(() => {
       if (isMobileGameplay && isMobilePlayerBusy()) return;
@@ -1123,7 +1128,22 @@ register('home', async (root) => {
       syncBalanceFromDatabase({ silent: false });
     };
 
+    const syncAfterRealtimeSubscribe = (event) => {
+      const eventTelegramId = event?.detail?.telegramId;
+
+      if (
+        eventTelegramId &&
+        String(eventTelegramId) !== String(telegramId)
+      ) {
+        return;
+      }
+
+      syncBalanceFromDatabase({ silent: true });
+    };
+
     window.addEventListener('focus', syncOnFocus);
+    window.addEventListener('online', syncOnFocus);
+    window.addEventListener('mn:realtime-subscribed', syncAfterRealtimeSubscribe);
     document.addEventListener('visibilitychange', syncOnFocus);
 
     window.setTimeout(() => {
@@ -1135,6 +1155,8 @@ register('home', async (root) => {
     return () => {
       clearInterval(balanceSyncTimer);
       window.removeEventListener('focus', syncOnFocus);
+      window.removeEventListener('online', syncOnFocus);
+      window.removeEventListener('mn:realtime-subscribed', syncAfterRealtimeSubscribe);
       document.removeEventListener('visibilitychange', syncOnFocus);
     };
   }
