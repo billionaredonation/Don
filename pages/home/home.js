@@ -1228,6 +1228,7 @@ register('home', async (root) => {
   cleanupGameRealtime = setupGameRealtime({
     cityId,
     telegramId,
+    playerRowId: state.player?.id,
   });
 
   let adminPanelReady = false;
