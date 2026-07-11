@@ -1,6 +1,7 @@
 import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { supabase } from '../../src/supabaseClient.js';
+import { getPlayer } from '../../src/api/playerApi.js';
 import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 import { getCityWeather } from '../../src/weather/weather.js';
 import { setupSessionGuard } from '../../src/network/sessionGuard.js';
@@ -708,7 +709,7 @@ register('home', async (root) => {
     state.player?.telegramId ||
     state.player?.tg_id ||
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
-    '123456789';
+    null;
 
   const playerBalance = Number(state.player?.balance || 0);
 
@@ -899,6 +900,7 @@ register('home', async (root) => {
   let balanceChangeTimer = null;
   let balanceSyncTimer = null;
   let balanceSyncInFlight = false;
+  let balanceSyncTransport = 'direct';
 
   function formatBalance(value) {
     return formatHudMoney(value);
@@ -1070,25 +1072,70 @@ register('home', async (root) => {
     });
   }
 
+  async function loadBalanceSnapshot() {
+    if (balanceSyncTransport === 'direct') {
+      const { data, error } = await supabase
+        .from('players')
+        .select('id, tg_id, balance, updated_at')
+        .eq('tg_id', String(telegramId))
+        .maybeSingle();
+
+      if (!error && data) {
+        return data;
+      }
+
+      // При custom Telegram auth браузер остаётся anon для Supabase.
+      // Если RLS не разрешает SELECT players, переключаемся на уже
+      // существующую get-player Edge Function с service-role на сервере.
+      balanceSyncTransport = 'edge';
+
+      if (error) {
+        console.warn('[home] direct balance sync unavailable, using edge fallback:', error);
+      }
+    }
+
+    const result = await getPlayer(String(telegramId));
+    return result?.player || null;
+  }
+
   async function syncBalanceFromDatabase({ silent = false } = {}) {
     if (balanceSyncInFlight || !telegramId) return;
 
     balanceSyncInFlight = true;
 
     try {
-      const { data, error } = await supabase
-        .from('players')
-        .select('balance')
-        .eq('tg_id', String(telegramId))
-        .maybeSingle();
+      const playerSnapshot = await loadBalanceSnapshot();
 
-      if (error) throw error;
-
-      if (!data || data.balance === undefined || data.balance === null) {
+      if (
+        !playerSnapshot ||
+        playerSnapshot.balance === undefined ||
+        playerSnapshot.balance === null
+      ) {
         return;
       }
 
-      const nextBalance = Number(data.balance || 0);
+      const resolvedPlayerId = playerSnapshot.id
+        ? String(playerSnapshot.id)
+        : null;
+      const resolvedTelegramId = playerSnapshot.tg_id
+        ? String(playerSnapshot.tg_id)
+        : String(telegramId);
+      const identityChanged =
+        (resolvedPlayerId && String(state.player?.id || '') !== resolvedPlayerId) ||
+        String(state.player?.tg_id || state.player?.telegramId || '') !== resolvedTelegramId;
+
+      if (identityChanged) {
+        state.player = {
+          ...(state.player || {}),
+          id: resolvedPlayerId || state.player?.id,
+          tg_id: resolvedTelegramId,
+          telegramId: resolvedTelegramId,
+        };
+        state.telegramId = resolvedTelegramId;
+        save();
+      }
+
+      const nextBalance = Number(playerSnapshot.balance || 0);
 
       if (!Number.isFinite(nextBalance) || nextBalance === currentBalance) {
         return;
@@ -1109,11 +1156,10 @@ register('home', async (root) => {
     clearInterval(balanceSyncTimer);
 
     /*
-      Realtime остаётся основным мгновенным путём. Но в Telegram WebView
-      postgres_changes иногда не приходит даже при включённой publication.
-      Поэтому оставляем гарантированный лёгкий fallback: один SELECT только
-      поля balance раз в 2 секунды. Запрос асинхронный, не трогает карту/DOM,
-      не запускается параллельно сам с собой и не влияет на игровой FPS.
+      Realtime/Broadcast остаётся основным мгновенным путём. Резервная
+      проверка раз в 2 секунды сначала использует прямой SELECT, а при RLS-
+      блокировке автоматически переходит на get-player Edge Function.
+      Запрос не запускается параллельно сам с собой и не трогает карту/DOM.
     */
     const balanceSyncInterval = 2000;
 
