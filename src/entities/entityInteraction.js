@@ -10,13 +10,13 @@ import {
 
 import { dispatchEntityAction } from './entityActions.js';
 
-const INTERACTION_RADIUS_PX = 86;
-const MOBILE_INTERACTION_RADIUS_PX = 124;
-const DIRECT_TAP_RADIUS_PX = 146;
-const MOBILE_FREE_TAP_RADIUS_PX = 150;
+const INTERACTION_RADIUS_PX = 108;
+const MOBILE_INTERACTION_RADIUS_PX = 150;
+const DIRECT_TAP_RADIUS_PX = 174;
+const MOBILE_FREE_TAP_RADIUS_PX = 178;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
-const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 420 : 280;
+const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 170 : 150;
 
 /*
   ПК оставляем широким: там железо выдерживает много DOM-объектов.
@@ -1420,7 +1420,7 @@ export function enableEntityInteraction({
         }
       }
 
-      scheduleInteractionHintUpdate(isMobileGameplayDevice() ? 260 : 280);
+      scheduleInteractionHintUpdate(isMobileGameplayDevice() ? 170 : 150);
       return;
     }
 
