@@ -1673,12 +1673,16 @@ export function enableEntityInteraction({
   layer.addEventListener('pointerdown', onObjectClick, true);
 
   /*
-    Главный фикс для мобилки:
-    слушаем весь viewport, а не только маленькую иконку дома.
+    Слушаем корень игровой сцены, а не только viewport. Во время движения слой
+    домов кратко отключает pointer-events ради плавности, а сам viewport всегда
+    имеет pointer-events: none. Из-за этого первый тап после остановки мог вообще
+    не дойти до обработчика. Корень остаётся активным и стабильно ловит первое
+    касание; фильтр внутри onViewportPointer по-прежнему отсекает HUD/джойстик/
+    модалки и админку.
   */
-  viewport.addEventListener('pointerdown', onViewportPointer, true);
-  viewport.addEventListener('touchstart', onViewportPointer, true);
-  viewport.addEventListener('click', onViewportPointer, true);
+  root.addEventListener('pointerdown', onViewportPointer, true);
+  root.addEventListener('touchstart', onViewportPointer, true);
+  root.addEventListener('click', onViewportPointer, true);
 
   window.addEventListener('keydown', onKeyDown, true);
 
@@ -1709,9 +1713,9 @@ export function enableEntityInteraction({
     layer.removeEventListener('click', onObjectClick, true);
     layer.removeEventListener('pointerdown', onObjectClick, true);
 
-    viewport.removeEventListener('pointerdown', onViewportPointer, true);
-    viewport.removeEventListener('touchstart', onViewportPointer, true);
-    viewport.removeEventListener('click', onViewportPointer, true);
+    root.removeEventListener('pointerdown', onViewportPointer, true);
+    root.removeEventListener('touchstart', onViewportPointer, true);
+    root.removeEventListener('click', onViewportPointer, true);
 
     window.removeEventListener('keydown', onKeyDown, true);
 
