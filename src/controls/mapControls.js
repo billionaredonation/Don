@@ -461,8 +461,21 @@ export function enableMapControls(stage, viewport, options = {}) {
     const rect = stage.getBoundingClientRect();
     const screen = getViewportSize();
 
-    cachedStageWidth = Math.max(1, Number(rect.width) || screen.width);
-    cachedStageHeight = Math.max(1, Number(rect.height) || screen.height);
+    const measuredWidth = Math.max(1, Number(rect.width) || screen.width);
+    const measuredHeight = Math.max(1, Number(rect.height) || screen.height);
+    const forcedLandscape =
+      document.documentElement?.classList?.contains('mn-force-rotate-landscape') ||
+      document.body?.classList?.contains('mn-force-rotate-landscape');
+
+    /*
+      В portrait Telegram игровая сцена физически повёрнута rotate(90deg).
+      getBoundingClientRect() возвращает уже визуально повёрнутые размеры, но
+      transform карты работает в её логических landscape-осях. Если не вернуть
+      оси на место, вертикальный лимит камеры считается по высоте portrait и
+      камера останавливается задолго до края PNG, пока игрок продолжает идти.
+    */
+    cachedStageWidth = forcedLandscape ? measuredHeight : measuredWidth;
+    cachedStageHeight = forcedLandscape ? measuredWidth : measuredHeight;
 
     return {
       width: cachedStageWidth,
