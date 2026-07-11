@@ -1109,14 +1109,16 @@ register('home', async (root) => {
     clearInterval(balanceSyncTimer);
 
     /*
-      Основной путь — точечный Supabase Realtime UPDATE конкретного tg_id.
-      Polling оставляем только редкой страховкой на случай reconnect/потери сети,
-      а не долбим players каждую секунду.
+      Realtime остаётся основным мгновенным путём. Но в Telegram WebView
+      postgres_changes иногда не приходит даже при включённой publication.
+      Поэтому оставляем гарантированный лёгкий fallback: один SELECT только
+      поля balance раз в 2 секунды. Запрос асинхронный, не трогает карту/DOM,
+      не запускается параллельно сам с собой и не влияет на игровой FPS.
     */
-    const balanceSyncInterval = isMobileGameplay ? 45000 : 30000;
+    const balanceSyncInterval = 2000;
 
     balanceSyncTimer = setInterval(() => {
-      if (isMobileGameplay && isMobilePlayerBusy()) return;
+      if (document.visibilityState === 'hidden') return;
 
       syncBalanceFromDatabase({ silent: true });
     }, balanceSyncInterval);
