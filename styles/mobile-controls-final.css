@@ -5495,7 +5495,7 @@ body.mn-session-blocked .gta-player-marker-self {
     transform-origin: center center !important;
   }
 
-  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house::before {
+body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house::before {
     inset: -14px !important;
   }
 
@@ -6654,5 +6654,120 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
+  }
+}
+
+/* =========================================================
+   FINAL CAMERA-SCALE HOUSE SIZING / HIT AREA
+   This block intentionally stays last: older compatibility overrides above
+   must not shrink houses back to 20-22px.
+   ========================================================= */
+
+@media (hover: hover) and (pointer: fine) {
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-standard {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    max-width: 28px !important;
+    max-height: 28px !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-comfort,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-premium {
+    width: 31px !important;
+    height: 31px !important;
+    min-width: 31px !important;
+    min-height: 31px !important;
+    max-width: 31px !important;
+    max-height: 31px !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-lux,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-elite,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house.map-object-visual-ultra_lux {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    max-width: 34px !important;
+    max-height: 34px !important;
+  }
+
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .map-object.map-object-house::before {
+    inset: -18px !important;
+  }
+}
+
+.map-object.map-object-house .map-house-clean,
+.map-object.map-object-house .map-house-lite {
+  font-size: 24px !important;
+}
+
+.map-object.map-object-house.map-object-visual-comfort .map-house-clean,
+.map-object.map-object-house.map-object-visual-comfort .map-house-lite,
+.map-object.map-object-house.map-object-visual-premium .map-house-clean,
+.map-object.map-object-house.map-object-visual-premium .map-house-lite {
+  font-size: 27px !important;
+}
+
+.map-object.map-object-house.map-object-visual-lux .map-house-clean,
+.map-object.map-object-house.map-object-visual-lux .map-house-lite,
+.map-object.map-object-house.map-object-visual-elite .map-house-clean,
+.map-object.map-object-house.map-object-visual-elite .map-house-lite,
+.map-object.map-object-house.map-object-visual-ultra_lux .map-house-clean,
+.map-object.map-object-house.map-object-visual-ultra_lux .map-house-lite {
+  font-size: 30px !important;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-standard,
+  body.mn-landscape-game .map-object.map-object-house,
+  body.mn-mobile-game-enabled .map-object.map-object-house {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    max-width: 28px !important;
+    max-height: 28px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-comfort,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-premium,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-comfort,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-premium,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-comfort,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-premium {
+    width: 31px !important;
+    height: 31px !important;
+    min-width: 31px !important;
+    min-height: 31px !important;
+    max-width: 31px !important;
+    max-height: 31px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-lux,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-elite,
+  .home[data-mobile-controls="enabled"] .map-object.map-object-house.map-object-visual-ultra_lux,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-lux,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-elite,
+  body.mn-landscape-game .map-object.map-object-house.map-object-visual-ultra_lux,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-lux,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-elite,
+  body.mn-mobile-game-enabled .map-object.map-object-house.map-object-visual-ultra_lux {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    max-width: 34px !important;
+    max-height: 34px !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .map-objects-layer .map-object.map-object-house::before,
+  body.mn-landscape-game .map-objects-layer .map-object.map-object-house::before,
+  body.mn-mobile-game-enabled .map-objects-layer .map-object.map-object-house::before {
+    inset: -22px !important;
   }
 }
