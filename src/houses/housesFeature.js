@@ -153,6 +153,26 @@ export async function loadHousesFeature(cityId) {
 
 export { renderHousesFeatureHtml };
 
+function getRealtimeObjectCategory(event) {
+  const realtimePayload = event?.detail?.payload;
+  const row = realtimePayload?.new || realtimePayload?.old || null;
+
+  if (!row) return '';
+
+  const payload = row.payload && typeof row.payload === 'object'
+    ? row.payload
+    : {};
+
+  return String(
+    row.category ||
+    row.type ||
+    payload.category ||
+    payload.type ||
+    payload.kind ||
+    ''
+  ).toLowerCase();
+}
+
 export function enableHousesFeature(root, { cityId, city } = {}) {
   let cleanupModal = null;
   let refreshTimer = null;
@@ -298,6 +318,20 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     if (
       event?.detail?.cityId &&
       String(event.detail.cityId) !== String(cityId)
+    ) {
+      return;
+    }
+
+    const realtimeCategory = getRealtimeObjectCategory(event);
+
+    // Бизнесы, деревья и будущие map_objects обновляют общий слой карты, но не
+    // должны заставлять модуль недвижимости заново грузить дома и статистику.
+    // Пустую категорию пропускаем: DELETE при стандартной replica identity
+    // иногда содержит только id, и такой дом нельзя безопасно проигнорировать.
+    if (
+      event?.detail?.source === 'realtime' &&
+      realtimeCategory &&
+      realtimeCategory !== 'house'
     ) {
       return;
     }
