@@ -221,21 +221,14 @@ function getHouseSnapshot(house = {}) {
 }
 
 async function buyHouseViaHardRpc({ houseId, house, playerId }) {
-  const snapshot = getHouseSnapshot(house);
-
-  const { data, error } = await supabase.rpc('buy_house_map_object_any', {
+  const { data, error } = await supabase.rpc('purchase_map_asset', {
     p_map_object_id: String(houseId),
     p_tg_id: String(playerId),
-    p_city_id: snapshot.cityId || null,
-    p_x: Number.isFinite(Number(snapshot.x)) ? Number(snapshot.x) : null,
-    p_y: Number.isFinite(Number(snapshot.y)) ? Number(snapshot.y) : null,
-    p_house_snapshot: snapshot,
   });
 
   if (error) {
-    console.error('[houses] buy_house_map_object_any failed:', {
+    console.error('[houses] purchase_map_asset failed:', {
       houseId,
-      snapshot,
       message: error.message,
       details: error.details,
       hint: error.hint,
@@ -522,25 +515,9 @@ export async function buyHouseFromState({ houseId, house, playerId }) {
 
   if (!rawHouseId) throw new Error('HOUSE_ID_INVALID');
 
-  try {
-    return await buyHouseViaHardRpc({
-      houseId: rawHouseId,
-      house,
-      playerId,
-    });
-  } catch (rpcError) {
-    const message = String(rpcError?.message || rpcError?.details || rpcError?.hint || '');
-
-    // If the SQL migration was not installed yet, the old client fallback still gives a chance.
-    if (
-      message.includes('buy_house_map_object_any') ||
-      message.includes('function') ||
-      message.includes('404') ||
-      rpcError?.code === 'PGRST202'
-    ) {
-      return buyHouseMapObjectClientFallback({ houseId: rawHouseId, house, playerId });
-    }
-
-    throw rpcError;
-  }
+  return buyHouseViaHardRpc({
+    houseId: rawHouseId,
+    house,
+    playerId,
+  });
 }
