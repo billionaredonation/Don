@@ -8,6 +8,10 @@ function getPlayerTelegramId(row = {}) {
   return normalizeTelegramId(row.tg_id || row.telegram_id || row.telegramId);
 }
 
+function getPlayerRowId(row = {}) {
+  return normalizeTelegramId(row.id || row.player_id || row.playerId);
+}
+
 function dispatchMapObjectsChanged(cityId, payload) {
   window.dispatchEvent(new CustomEvent('mn:map-objects-changed', {
     detail: {
@@ -74,10 +78,12 @@ function dispatchPlayerBalanceChanged(row, payload = {}) {
 export function setupGameRealtime({
   cityId,
   telegramId,
+  playerRowId,
   onBalanceChanged,
 } = {}) {
   const normalizedCityId = String(cityId || '').trim();
   const normalizedTelegramId = normalizeTelegramId(telegramId);
+  const normalizedPlayerRowId = normalizeTelegramId(playerRowId);
 
   if (!normalizedCityId) {
     console.warn('[realtime] setup skipped: cityId missing');
@@ -140,7 +146,7 @@ export function setupGameRealtime({
   }
 
   const channel = supabase.channel(
-    `mn-game:${normalizedCityId}:${normalizedTelegramId || 'guest'}`
+    `mn-game:${normalizedCityId}:${normalizedPlayerRowId || normalizedTelegramId || 'guest'}`
   );
 
   channel.on(
@@ -158,19 +164,32 @@ export function setupGameRealtime({
   );
 
   if (normalizedTelegramId) {
+    const playerFilter = normalizedPlayerRowId
+      ? `id=eq.${normalizedPlayerRowId}`
+      : `tg_id=eq.${normalizedTelegramId}`;
+
     channel.on(
       'postgres_changes',
       {
         event: 'UPDATE',
         schema: 'public',
         table: 'players',
-        filter: `tg_id=eq.${normalizedTelegramId}`,
+        filter: playerFilter,
       },
       (payload) => {
         if (destroyed) return;
 
         const row = payload?.new || {};
         const changedTelegramId = getPlayerTelegramId(row);
+        const changedPlayerRowId = getPlayerRowId(row);
+
+        if (
+          normalizedPlayerRowId &&
+          changedPlayerRowId &&
+          changedPlayerRowId !== normalizedPlayerRowId
+        ) {
+          return;
+        }
 
         if (changedTelegramId && changedTelegramId !== normalizedTelegramId) {
           return;
@@ -193,6 +212,7 @@ export function setupGameRealtime({
         detail: {
           cityId: normalizedCityId,
           telegramId: normalizedTelegramId,
+          playerRowId: normalizedPlayerRowId,
         },
       }));
     }
