@@ -6772,3 +6772,20 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
     inset: -22px !important;
   }
 }
+
+/* =========================================================
+   MOBILE PLAYER MARKER — SINGLE SOURCE OF TRUTH
+   The moving hard overlay follows the real 0-100% map position when the
+   camera reaches an edge. The old fixed ::after dot must not remain centered.
+   Keep this rule last so legacy mobile overrides cannot restore the duplicate.
+   ========================================================= */
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"]::after,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"]::after,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"]::after {
+    content: none !important;
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
+}
