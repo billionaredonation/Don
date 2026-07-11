@@ -861,11 +861,11 @@ register('home', async (root) => {
     focusY: playerPosition.y,
 
     /*
-      Mobile оставляем как было.
-      ПК даём умеренный zoom: карта открывается постепенно,
-      но HUD/домики/игрок не раздуваются как отдельный web-app модуль.
+      Камера ближе к игроку на обоих устройствах. Размер мира ниже всё равно
+      вычисляется от viewport и пропорций исходной карты, поэтому разные города
+      не растягиваются и доступные границы карты не обрезаются.
     */
-    startScale: isMobileGameplay ? 1.55 : 1.56,
+    startScale: isMobileGameplay ? 1.72 : 1.74,
   });
 
   const network = setupPlayerNetwork({
