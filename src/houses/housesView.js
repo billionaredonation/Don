@@ -259,7 +259,12 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
   `;
 }
 
-export function enableHousesStatsModal(root, { onBuyHouse, onSellHouseToState } = {}) {
+export function enableHousesStatsModal(root, {
+  onBuyHouse,
+  onSellHouseToState,
+  onFindTradePlayer,
+  onCreatePlayerTrade,
+} = {}) {
   let modal = root.querySelector('[data-houses-modal]') || root.querySelector('.houses-modal');
 
   if (modal && modal.parentElement !== document.body) {
@@ -273,6 +278,8 @@ export function enableHousesStatsModal(root, { onBuyHouse, onSellHouseToState } 
   const detailsController = createHouseDetailsController(modal || root, {
     onBuy: onBuyHouse,
     onSellToState: onSellHouseToState,
+    onFindTradePlayer,
+    onCreatePlayerTrade,
   });
 
   let activeSection = 'city';
