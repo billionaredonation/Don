@@ -55,6 +55,20 @@ function formatPurchaseSplit(price, result = {}) {
   return ` В бюджет города: ${formatMoney(cityIncome)}. Налог 20% сожжён: ${formatMoney(taxBurned)}.`;
 }
 
+function getStateSaleTerms(house, result = {}) {
+  const grossPrice = Math.max(0, Math.round(Number(
+    result.salePrice ?? result.price ?? getHousePrice(house) ?? 0
+  )));
+  const tax = Math.max(0, Math.round(Number(
+    result.tax ?? result.cityTax ?? grossPrice * 0.2
+  )));
+  const payout = Math.max(0, Math.round(Number(
+    result.payout ?? result.playerPayout ?? grossPrice - tax
+  )));
+
+  return { grossPrice, tax, payout };
+}
+
 function getHouseOwnerId(house) {
   return (
     house?.owner_id ||
@@ -207,6 +221,25 @@ function applyPurchasedState(house, result = {}) {
   };
 }
 
+function applyStateSale(house) {
+  if (!house) return;
+
+  house.owner_id = null;
+  house.ownerId = null;
+  house.ownerName = null;
+  house.owner_name = null;
+  house.payload = {
+    ...(house.payload || {}),
+    ownerId: null,
+    owner_id: null,
+    ownerName: null,
+    owner_name: null,
+    owned: false,
+    locked: false,
+    buyable: true,
+  };
+}
+
 function mergeRealtimeRowIntoHouse(house, row = {}) {
   if (!house || !row) return house;
 
@@ -322,6 +355,22 @@ export function renderHouseDetailsModal() {
 
         <div class="house-details-message" hidden data-house-details-message></div>
 
+        <section class="house-state-sale-confirm" hidden data-house-state-sale-confirm>
+          <span>Продажа государству</span>
+          <strong>Ты уверен, что хочешь продать этот дом?</strong>
+
+          <div class="house-state-sale-breakdown">
+            <p><span>Стоимость дома</span><b data-house-sale-gross>0 ₴</b></p>
+            <p><span>Налог в бюджет города (20%)</span><b data-house-sale-tax>0 ₴</b></p>
+            <p class="is-payout"><span>Ты получишь</span><b data-house-sale-payout>0 ₴</b></p>
+          </div>
+
+          <div class="house-state-sale-actions">
+            <button type="button" class="house-secondary-button" data-house-sale-cancel>Отмена</button>
+            <button type="button" class="house-sale-confirm-button" data-house-sale-confirm>Подтвердить продажу</button>
+          </div>
+        </section>
+
         <footer class="house-details-actions" data-house-details-actions>
           <button type="button" class="house-secondary-button" data-house-details-close>
             Назад
@@ -339,7 +388,7 @@ export function renderHouseDetailsModal() {
             Продать игроку
           </button>
 
-          <button type="button" class="house-locked-button" data-house-sell-state-button hidden disabled>
+          <button type="button" class="house-sell-state-button" data-house-sell-state-button hidden>
             Продать в госс
           </button>
         </footer>
@@ -348,7 +397,7 @@ export function renderHouseDetailsModal() {
   `;
 }
 
-export function createHouseDetailsController(root, { onBuy } = {}) {
+export function createHouseDetailsController(root, { onBuy, onSellToState } = {}) {
   let modal = root.querySelector('[data-house-details-modal]');
 
   if (modal && modal.parentElement !== document.body) {
@@ -360,6 +409,13 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
   const enterButton = modal?.querySelector('[data-house-enter-button]');
   const sellPlayerButton = modal?.querySelector('[data-house-sell-player-button]');
   const sellStateButton = modal?.querySelector('[data-house-sell-state-button]');
+  const actions = modal?.querySelector('[data-house-details-actions]');
+  const saleConfirm = modal?.querySelector('[data-house-state-sale-confirm]');
+  const saleCancelButton = modal?.querySelector('[data-house-sale-cancel]');
+  const saleConfirmButton = modal?.querySelector('[data-house-sale-confirm]');
+  const saleGross = modal?.querySelector('[data-house-sale-gross]');
+  const saleTax = modal?.querySelector('[data-house-sale-tax]');
+  const salePayout = modal?.querySelector('[data-house-sale-payout]');
   const message = modal?.querySelector('[data-house-details-message]');
 
   const title = modal?.querySelector('[data-house-details-title]');
@@ -371,6 +427,11 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
   const owner = modal?.querySelector('[data-house-details-owner]');
 
   let activeHouse = null;
+
+  function hideSaleConfirmation() {
+    if (saleConfirm) saleConfirm.hidden = true;
+    if (actions) actions.hidden = false;
+  }
 
   function setMessage(text, type = 'info') {
     if (!message) return;
@@ -417,7 +478,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     if (textEl) {
       if (owned) {
         textEl.textContent = ownerIsCurrentPlayer
-          ? 'Кратко: это твой дом. Войти в дом пока недоступно — функционал интерьера будет добавлен позже. Продажа игроку и продажа в госс уже заложены в CEF, но пока заблокированы.'
+          ? 'Кратко: это твой дом. Его можно продать государству по указанной стоимости. При продаже 20% уйдёт в бюджет города, а 80% поступит на твой баланс.'
           : 'Кратко: дом уже куплен другим игроком. Войти в дом пока недоступно — функционал интерьера будет добавлен позже.';
       } else if (locked) {
         textEl.textContent = 'Этот дом сейчас закрыт. Покупка недоступна.';
@@ -445,8 +506,8 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
     if (sellStateButton) {
       sellStateButton.hidden = !owned || !ownerIsCurrentPlayer;
-      sellStateButton.disabled = true;
-      sellStateButton.title = 'Продажа в госс пока заблокирована';
+      sellStateButton.disabled = !owned || !ownerIsCurrentPlayer;
+      sellStateButton.title = ownerIsCurrentPlayer ? 'Продать дом государству' : '';
     }
   }
 
@@ -486,6 +547,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
     activeHouse = house;
     setMessage('');
+    hideSaleConfirmation();
 
     renderActiveHouse();
 
@@ -513,6 +575,7 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
 
     activeHouse = null;
     setMessage('');
+    hideSaleConfirmation();
 
     document.body.classList.remove('mn-house-details-open');
     document.body.classList.remove('mn-houses-modal-open');
@@ -587,6 +650,85 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
     }
   }
 
+  function handleSellStateRequest(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!activeHouse || !isCurrentPlayerHouseOwner(activeHouse) || !onSellToState) return;
+
+    const terms = getStateSaleTerms(activeHouse);
+    if (!terms.grossPrice) {
+      setMessage('Для этого дома не указана цена продажи.', 'error');
+      return;
+    }
+
+    saleGross.textContent = formatMoney(terms.grossPrice);
+    saleTax.textContent = `− ${formatMoney(terms.tax)}`;
+    salePayout.textContent = formatMoney(terms.payout);
+    setMessage('');
+
+    if (actions) actions.hidden = true;
+    if (saleConfirm) saleConfirm.hidden = false;
+  }
+
+  function handleSellStateCancel(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    hideSaleConfirmation();
+  }
+
+  async function handleSellStateConfirm(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!activeHouse || !onSellToState || !saleConfirmButton) return;
+
+    try {
+      saleConfirmButton.disabled = true;
+      if (saleCancelButton) saleCancelButton.disabled = true;
+      setMessage('Продажа выполняется...', 'info');
+
+      const soldHouse = activeHouse;
+      const result = await onSellToState(soldHouse);
+      const terms = getStateSaleTerms(soldHouse, result);
+
+      applyStateSale(soldHouse);
+      hideSaleConfirmation();
+      renderActiveHouse();
+      setMessage(
+        `Дом продан государству. На баланс зачислено ${formatMoney(terms.payout)}. Налог ${formatMoney(terms.tax)} перечислен в бюджет города.`,
+        'success'
+      );
+
+      window.dispatchEvent(new CustomEvent('mn:house-sold-to-state-local', {
+        detail: {
+          houseId: getHouseId(soldHouse),
+          mapObjectId: getRealMapObjectId(soldHouse),
+          house: soldHouse,
+          result,
+        },
+      }));
+    } catch (error) {
+      console.error('[houses] state sale failed:', error);
+      const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
+
+      if (code.includes('HOUSE_NOT_OWNED_BY_PLAYER')) {
+        setMessage('Продажа отменена: этот дом уже не принадлежит тебе.', 'error');
+      } else if (code.includes('HOUSE_NOT_FOUND') || code.includes('ASSET_NOT_FOUND')) {
+        setMessage('Дом не найден в базе данных.', 'error');
+      } else if (code.includes('PLAYER_NOT_FOUND')) {
+        setMessage('Игрок не найден в базе данных.', 'error');
+      } else if (code.includes('HOUSE_PRICE_INVALID')) {
+        setMessage('У дома не указана корректная цена.', 'error');
+      } else {
+        setMessage(`Не удалось продать дом: ${code || 'неизвестная ошибка'}`, 'error');
+      }
+    } finally {
+      if (saleConfirmButton) saleConfirmButton.disabled = false;
+      if (saleCancelButton) saleCancelButton.disabled = false;
+    }
+  }
+
   function handleRealtimeHouseChanged(event) {
     if (!activeHouse || !event?.detail?.payload) return;
 
@@ -607,6 +749,9 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
   buyButton?.addEventListener('click', handleBuy);
   enterButton?.addEventListener('click', handleEnter);
   enterButton?.addEventListener('pointerup', handleEnter);
+  sellStateButton?.addEventListener('click', handleSellStateRequest);
+  saleCancelButton?.addEventListener('click', handleSellStateCancel);
+  saleConfirmButton?.addEventListener('click', handleSellStateConfirm);
 
   window.addEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
   window.addEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
@@ -627,6 +772,9 @@ export function createHouseDetailsController(root, { onBuy } = {}) {
       buyButton?.removeEventListener('click', handleBuy);
       enterButton?.removeEventListener('click', handleEnter);
       enterButton?.removeEventListener('pointerup', handleEnter);
+      sellStateButton?.removeEventListener('click', handleSellStateRequest);
+      saleCancelButton?.removeEventListener('click', handleSellStateCancel);
+      saleConfirmButton?.removeEventListener('click', handleSellStateConfirm);
 
       window.removeEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
       window.removeEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
