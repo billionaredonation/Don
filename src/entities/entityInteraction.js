@@ -159,6 +159,7 @@ function isPlayerBusy() {
   const mobilePauseUntil = Number(window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ || 0);
 
   return (
+    window.__MN_INTERIOR_ACTIVE__ === true ||
     window.__MN_MOBILE_PLAYER_MOVING__ === true ||
     window.__MN_DESKTOP_PLAYER_MOVING__ === true ||
     mobilePauseUntil > now
