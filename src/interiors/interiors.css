@@ -462,7 +462,7 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
   html.mn-force-rotate-landscape .mn-interior-profile,
   body.mn-force-rotate-landscape .mn-interior-profile {
     right: -63px !important;
-    top: 136px !important;
+    top: 166px !important;
     width: 172px !important;
     min-width: 172px !important;
     max-width: 172px !important;
@@ -473,7 +473,7 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
   html.mn-force-rotate-landscape .mn-interior-balance,
   body.mn-force-rotate-landscape .mn-interior-balance {
     right: -43px !important;
-    top: 306px !important;
+    top: 356px !important;
     grid-template-columns: 28px minmax(0, 1fr) !important;
     gap: 7px !important;
   }
