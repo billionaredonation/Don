@@ -2,7 +2,11 @@ import { state, save } from '../state.js';
 import { supabase } from '../supabaseClient.js';
 import { fetchCityStats } from '../api/cityStats.js';
 import { getCityPlayers } from '../player/playerPosition.js';
-import { buyHouseFromState, fetchCityHousesState } from './housesRepository.js';
+import {
+  buyHouseFromState,
+  fetchCityHousesState,
+  sellHouseToState,
+} from './housesRepository.js';
 import { getEmptyHousesState, normalizeHousesState } from './housesStats.js';
 import {
   enableHousesStatsModal,
@@ -259,6 +263,50 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     return result;
   }
 
+  async function handleSellHouseToState(house) {
+    const tgId = getPlayerTgId();
+
+    if (!tgId) throw new Error('PLAYER_TG_ID_NOT_FOUND');
+
+    const result = await sellHouseToState({
+      houseId: getHouseId(house),
+      playerId: tgId,
+    });
+
+    const nextBalance = Number(result.newBalance);
+    if (Number.isFinite(nextBalance)) {
+      state.player = { ...(state.player || {}), balance: nextBalance };
+      save();
+
+      window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+        detail: { balance: nextBalance, source: 'sell_house_to_state', result },
+      }));
+    }
+
+    const cityRuntime = state.citiesRuntime?.[cityId] || {};
+    const cityBudget = Number(result.cityBudget ?? result.budget);
+    if (Number.isFinite(cityBudget)) {
+      state.citiesRuntime = {
+        ...(state.citiesRuntime || {}),
+        [cityId]: { ...cityRuntime, budget: cityBudget },
+      };
+      save();
+
+      window.dispatchEvent(new CustomEvent('mn:city-economy-changed', {
+        detail: { cityId, budget: cityBudget, source: 'sell_house_to_state', result },
+      }));
+    }
+
+    window.dispatchEvent(new CustomEvent('mn:houses-updated', {
+      detail: { cityId, houseId: getHouseId(house), source: 'sell_house_to_state', result },
+    }));
+    window.dispatchEvent(new CustomEvent('mn:map-objects-changed', {
+      detail: { cityId, houseId: getHouseId(house), source: 'sell_house_to_state', result },
+    }));
+
+    return result;
+  }
+
   async function mountModal() {
     if (destroyed) return;
 
@@ -296,6 +344,7 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
 
     cleanupModal = enableHousesStatsModal(root, {
       onBuyHouse: handleBuyHouse,
+      onSellHouseToState: handleSellHouseToState,
     });
 
     resetHouseModals(root);
