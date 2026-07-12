@@ -3263,6 +3263,75 @@ body.mn-house-trade-open .mobile-stamina { pointer-events: none !important; opac
   .house-trade-offer-card h3 { font-size: 18px; }
 }
 
+/* Incoming player trade follows the same landscape shell as every other
+   gameplay modal. Telegram often keeps its WebView physically portrait, so
+   this overlay must rotate itself instead of using the portrait viewport. */
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape .house-trade-offer:not([hidden]),
+  body.mn-force-rotate-landscape .house-trade-offer:not([hidden]) {
+    inset: auto !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: var(--mn-vh, 100dvh) !important;
+    height: var(--mn-vw, 100vw) !important;
+    min-width: var(--mn-vh, 100dvh) !important;
+    min-height: var(--mn-vw, 100vw) !important;
+    padding: 12px !important;
+    box-sizing: border-box !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
+    overflow: hidden !important;
+  }
+
+  html.mn-force-rotate-landscape .house-trade-offer-card,
+  body.mn-force-rotate-landscape .house-trade-offer-card {
+    width: min(620px, calc(var(--mn-vh, 100dvh) - 28px)) !important;
+    max-width: calc(var(--mn-vh, 100dvh) - 28px) !important;
+    max-height: calc(var(--mn-vw, 100vw) - 28px) !important;
+    padding: 15px 17px !important;
+    border-radius: 20px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  html.mn-force-rotate-landscape .house-trade-offer-card h3,
+  body.mn-force-rotate-landscape .house-trade-offer-card h3 {
+    margin: 4px 0 10px !important;
+    font-size: 18px !important;
+  }
+
+  html.mn-force-rotate-landscape .house-trade-offer-info,
+  body.mn-force-rotate-landscape .house-trade-offer-info {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  html.mn-force-rotate-landscape .house-trade-wait,
+  body.mn-force-rotate-landscape .house-trade-wait {
+    margin-top: 9px !important;
+    padding: 8px 10px !important;
+  }
+
+  html.mn-force-rotate-landscape .house-trade-offer-actions,
+  body.mn-force-rotate-landscape .house-trade-offer-actions {
+    margin-top: 9px !important;
+  }
+}
+
+@media (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  html.mn-real-landscape .house-trade-offer-card,
+  body.mn-real-landscape .house-trade-offer-card {
+    width: min(620px, calc(var(--mn-vw, 100vw) - 28px)) !important;
+    max-width: calc(var(--mn-vw, 100vw) - 28px) !important;
+    max-height: calc(var(--mn-vh, 100dvh) - 28px) !important;
+    padding: 15px 17px !important;
+  }
+
+  html.mn-real-landscape .house-trade-offer-info,
+  body.mn-real-landscape .house-trade-offer-info {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
 @media (hover: none) and (pointer: coarse) {
   body.mn-mobile-game-enabled .house-details-modal[data-mode="cef"] .house-details-panel,
   body.mn-landscape-game .house-details-modal[data-mode="cef"] .house-details-panel,
