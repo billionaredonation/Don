@@ -49,7 +49,7 @@ function getPurchasedHouseId(detail = {}) {
 }
 
 function getPurchasedMapObjectId(detail = {}) {
-  return detail.mapObjectId || detail.house?.id || null;
+  return detail.mapObjectId || detail.result?.mapObjectId || detail.result?.houseId || detail.house?.id || null;
 }
 
 function getPurchasedOwnerId(detail = {}) {
@@ -67,15 +67,24 @@ function getMapObjectHouseId(object) {
 function isSameHouseObject(object, purchasedHouseId, purchasedMapObjectId) {
   if (!object) return false;
 
-  if (purchasedMapObjectId && String(object.id) === String(purchasedMapObjectId)) {
-    return true;
-  }
+  const payload = object?.payload || {};
+  const objectIds = new Set([
+    object?.id,
+    object?.mapObjectId,
+    object?.objectId,
+    object?.dbId,
+    object?.houseId,
+    object?.house_id,
+    payload.id,
+    payload.mapObjectId,
+    payload.objectId,
+    payload.houseId,
+    payload.house_id,
+  ].filter(Boolean).map(String));
 
-  if (purchasedHouseId && String(getMapObjectHouseId(object)) === String(purchasedHouseId)) {
-    return true;
-  }
-
-  return false;
+  return [purchasedMapObjectId, purchasedHouseId]
+    .filter(Boolean)
+    .some((id) => objectIds.has(String(id)));
 }
 
 function markObjectAsPurchased(object, ownerId, ownerName) {
