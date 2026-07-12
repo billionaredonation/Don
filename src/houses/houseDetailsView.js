@@ -389,6 +389,7 @@ export function renderHouseDetailsModal() {
             <button type="button" class="house-secondary-button" data-house-trade-cancel>Отмена</button>
             <button type="button" class="house-sale-confirm-button" hidden data-house-trade-send>Отправить предложение</button>
           </div>
+          <div class="house-trade-keyboard" hidden data-house-trade-keyboard></div>
         </section>
 
         <footer class="house-details-actions" data-house-details-actions>
@@ -449,6 +450,7 @@ export function createHouseDetailsController(root, {
   const tradePriceInput = modal?.querySelector('[data-house-trade-price]');
   const tradeCancelButton = modal?.querySelector('[data-house-trade-cancel]');
   const tradeSendButton = modal?.querySelector('[data-house-trade-send]');
+  const tradeKeyboard = modal?.querySelector('[data-house-trade-keyboard]');
   const message = modal?.querySelector('[data-house-details-message]');
 
   const title = modal?.querySelector('[data-house-details-title]');
@@ -461,11 +463,104 @@ export function createHouseDetailsController(root, {
 
   let activeHouse = null;
   let selectedTradePlayer = null;
+  let tradeKeyboardTarget = null;
+  let tradeKeyboardLanguage = 'EN';
+
+  const isTouchTradeKeyboard = Boolean(
+    navigator.maxTouchPoints > 0 &&
+    Math.min(window.screen?.width || window.innerWidth, window.screen?.height || window.innerHeight) <= 920
+  );
+
+  if (isTouchTradeKeyboard) {
+    [tradeNicknameInput, tradePriceInput].forEach((input) => {
+      if (!input) return;
+      input.readOnly = true;
+      input.setAttribute('inputmode', 'none');
+      input.setAttribute('data-custom-game-keyboard', 'true');
+    });
+  }
+
+  function keyboardRows(target) {
+    if (target === tradePriceInput) return [['1','2','3'], ['4','5','6'], ['7','8','9'], ['0']];
+    if (tradeKeyboardLanguage === 'RU') {
+      return [
+        ['Й','Ц','У','К','Е','Н','Г','Ш','Щ','З','Х'],
+        ['Ф','Ы','В','А','П','Р','О','Л','Д','Ж','Э'],
+        ['Я','Ч','С','М','И','Т','Ь','Б','Ю'],
+        ['0','1','2','3','4','5','6','7','8','9'],
+      ];
+    }
+    return [
+      ['Q','W','E','R','T','Y','U','I','O','P'],
+      ['A','S','D','F','G','H','J','K','L'],
+      ['Z','X','C','V','B','N','M'],
+      ['0','1','2','3','4','5','6','7','8','9'],
+    ];
+  }
+
+  function renderTradeKeyboard() {
+    if (!tradeKeyboard || !tradeKeyboardTarget) return;
+    const numeric = tradeKeyboardTarget === tradePriceInput;
+    tradeKeyboard.innerHTML = `
+      <div class="house-trade-keyboard-top">
+        <b>${numeric ? 'Введите цену' : 'Введите ник'}</b>
+        ${numeric ? '' : `<button type="button" data-trade-key-action="language">${tradeKeyboardLanguage}</button>`}
+      </div>
+      <div class="house-trade-keyboard-rows">
+        ${keyboardRows(tradeKeyboardTarget).map((row) => `
+          <div>${row.map((key) => `<button type="button" data-trade-key="${key}">${key}</button>`).join('')}</div>
+        `).join('')}
+      </div>
+      <div class="house-trade-keyboard-bottom">
+        <button type="button" data-trade-key-action="clear">Очистить</button>
+        <button type="button" data-trade-key-action="backspace">⌫</button>
+        <button type="button" class="is-done" data-trade-key-action="done">Готово</button>
+      </div>`;
+  }
+
+  function openTradeKeyboard(input, event) {
+    if (!isTouchTradeKeyboard || !tradeKeyboard || !input) return;
+    event?.preventDefault?.();
+    tradeKeyboardTarget = input;
+    tradeKeyboard.hidden = false;
+    renderTradeKeyboard();
+  }
+
+  function closeTradeKeyboard() {
+    if (tradeKeyboard) tradeKeyboard.hidden = true;
+    tradeKeyboardTarget = null;
+  }
+
+  function handleTradeKeyboardClick(event) {
+    const keyButton = event.target?.closest?.('[data-trade-key]');
+    const actionButton = event.target?.closest?.('[data-trade-key-action]');
+    if (!tradeKeyboardTarget || (!keyButton && !actionButton)) return;
+    event.preventDefault(); event.stopPropagation();
+
+    if (keyButton) {
+      const maxLength = Number(tradeKeyboardTarget.maxLength || 64);
+      const current = String(tradeKeyboardTarget.value || '');
+      if (maxLength < 0 || current.length < maxLength) {
+        tradeKeyboardTarget.value = current + keyButton.dataset.tradeKey;
+      }
+    } else {
+      const action = actionButton.dataset.tradeKeyAction;
+      if (action === 'backspace') tradeKeyboardTarget.value = String(tradeKeyboardTarget.value || '').slice(0, -1);
+      if (action === 'clear') tradeKeyboardTarget.value = '';
+      if (action === 'language') {
+        tradeKeyboardLanguage = tradeKeyboardLanguage === 'EN' ? 'RU' : 'EN';
+        renderTradeKeyboard();
+      }
+      if (action === 'done') closeTradeKeyboard();
+    }
+    tradeKeyboardTarget?.dispatchEvent?.(new Event('input', { bubbles: true }));
+  }
 
   function hideSaleConfirmation() {
     if (saleConfirm) saleConfirm.hidden = true;
     if (playerSalePanel) playerSalePanel.hidden = true;
     if (actions) actions.hidden = false;
+    closeTradeKeyboard();
   }
 
   function setMessage(text, type = 'info') {
@@ -861,6 +956,9 @@ export function createHouseDetailsController(root, {
   tradeFindButton?.addEventListener('click', handleTradeFind);
   tradeSendButton?.addEventListener('click', handleTradeSend);
   tradeCancelButton?.addEventListener('click', handleSellStateCancel);
+  tradeNicknameInput?.addEventListener('pointerdown', (event) => openTradeKeyboard(tradeNicknameInput, event));
+  tradePriceInput?.addEventListener('pointerdown', (event) => openTradeKeyboard(tradePriceInput, event));
+  tradeKeyboard?.addEventListener('click', handleTradeKeyboardClick);
   saleCancelButton?.addEventListener('click', handleSellStateCancel);
   saleConfirmButton?.addEventListener('click', handleSellStateConfirm);
 
@@ -888,6 +986,7 @@ export function createHouseDetailsController(root, {
       tradeFindButton?.removeEventListener('click', handleTradeFind);
       tradeSendButton?.removeEventListener('click', handleTradeSend);
       tradeCancelButton?.removeEventListener('click', handleSellStateCancel);
+      tradeKeyboard?.removeEventListener('click', handleTradeKeyboardClick);
       saleCancelButton?.removeEventListener('click', handleSellStateCancel);
       saleConfirmButton?.removeEventListener('click', handleSellStateConfirm);
 
