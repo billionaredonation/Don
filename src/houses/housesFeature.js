@@ -11,6 +11,11 @@ import {
   enableHousesStatsModal,
   renderHousesFeatureHtml,
 } from './housesView.js';
+import {
+  createPlayerHouseTrade,
+  enableHouseTradeFeature,
+  findOnlineTradePlayer,
+} from './houseTradeFeature.js';
 
 function getPlayerTgId() {
   return (
@@ -202,6 +207,7 @@ function getRealtimeObjectCategory(event) {
 
 export function enableHousesFeature(root, { cityId, city } = {}) {
   let cleanupModal = null;
+  const cleanupTrade = enableHouseTradeFeature();
   let refreshTimer = null;
   let destroyed = false;
 
@@ -350,6 +356,18 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     return result;
   }
 
+  async function handleFindTradePlayer(nickname) {
+    return findOnlineTradePlayer(nickname);
+  }
+
+  async function handleCreatePlayerTrade({ house, buyer, price }) {
+    return createPlayerHouseTrade({
+      houseId: getHouseId(house),
+      buyerTgId: buyer?.tgId,
+      price,
+    });
+  }
+
   async function mountModal() {
     if (destroyed) return;
 
@@ -388,6 +406,8 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     cleanupModal = enableHousesStatsModal(root, {
       onBuyHouse: handleBuyHouse,
       onSellHouseToState: handleSellHouseToState,
+      onFindTradePlayer: handleFindTradePlayer,
+      onCreatePlayerTrade: handleCreatePlayerTrade,
     });
 
     resetHouseModals(root);
@@ -445,6 +465,7 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     window.removeEventListener('mn:houses-realtime-changed', handleRealtimeRefresh);
 
     cleanupModal?.();
+    cleanupTrade?.();
     resetHouseModals(root);
   };
 }
