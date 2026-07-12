@@ -94,6 +94,28 @@ function markObjectAsPurchased(object, ownerId, ownerName) {
   };
 }
 
+function markObjectAsAvailable(object) {
+  if (!object) return object;
+
+  return {
+    ...object,
+    owner_id: null,
+    ownerId: null,
+    ownerName: null,
+    owner_name: null,
+    payload: {
+      ...(object.payload || {}),
+      ownerId: null,
+      owner_id: null,
+      ownerName: null,
+      owner_name: null,
+      owned: false,
+      locked: false,
+      buyable: true,
+    },
+  };
+}
+
 function isTypingTarget(target) {
   const tagName = target?.tagName?.toLowerCase();
 
@@ -768,6 +790,16 @@ export function createEntityInteractionPanel(root) {
     renderPrompt(selectedObject);
   }
 
+  function handleHouseSoldToState(event) {
+    const houseId = getPurchasedHouseId(event.detail);
+    const mapObjectId = getPurchasedMapObjectId(event.detail);
+
+    if (!selectedObject || !isSameHouseObject(selectedObject, houseId, mapObjectId)) return;
+
+    selectedObject = markObjectAsAvailable(selectedObject);
+    renderPrompt(selectedObject);
+  }
+
   function handleConfirmClick(event) {
     event.preventDefault();
     event.stopPropagation();
@@ -810,6 +842,7 @@ export function createEntityInteractionPanel(root) {
 
   window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('mn:house-purchased-local', handleHousePurchased);
+  window.addEventListener('mn:house-sold-to-state-local', handleHouseSoldToState);
 
   return {
     open,
@@ -840,6 +873,7 @@ export function createEntityInteractionPanel(root) {
     cleanup() {
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('mn:house-purchased-local', handleHousePurchased);
+      window.removeEventListener('mn:house-sold-to-state-local', handleHouseSoldToState);
 
       clearTimers();
       setHouseSelectionOpen(false);
@@ -1635,14 +1669,24 @@ export function enableEntityInteraction({
       findMapObjectElement(layer, objectId)?.remove();
     } else {
       const currentObject = objectById.get(objectId) || null;
+      const rowPayload = row?.payload && typeof row.payload === 'object'
+        ? row.payload
+        : {};
+      const ownershipWasCleared = rowPayload.owned === false && !(
+        rowPayload.ownerId || rowPayload.owner_id
+      );
       const nextObject = {
         ...(currentObject || {}),
         ...row,
         payload: {
           ...(currentObject?.payload || {}),
-          ...(row?.payload || {}),
+          ...rowPayload,
         },
       };
+
+      if (ownershipWasCleared) {
+        Object.assign(nextObject, markObjectAsAvailable(nextObject));
+      }
       const currentIndex = mapObjects.findIndex((object) => String(object?.id || '') === objectId);
 
       if (currentIndex >= 0) {
@@ -1749,6 +1793,31 @@ export function enableEntityInteraction({
     scheduleReload();
   }
 
+  function onHouseSoldToState(event) {
+    const houseId = getPurchasedHouseId(event.detail);
+    const mapObjectId = getPurchasedMapObjectId(event.detail);
+    let changed = false;
+
+    mapObjects = mapObjects.map((object) => {
+      if (!isSameHouseObject(object, houseId, mapObjectId)) return object;
+      changed = true;
+      return markObjectAsAvailable(object);
+    });
+
+    if (!changed) return;
+
+    rebuildObjectIndex();
+    lastRenderedIdsKey = '';
+    renderOverview();
+    renderNearbyMapObjects(true, true);
+
+    panel?.updateSelectedObject?.((selectedObject) => (
+      isSameHouseObject(selectedObject, houseId, mapObjectId)
+        ? markObjectAsAvailable(selectedObject)
+        : selectedObject
+    ));
+  }
+
   layer.addEventListener('click', onObjectClick, true);
   layer.addEventListener('pointerdown', onObjectClick, true);
 
@@ -1770,6 +1839,7 @@ export function enableEntityInteraction({
   window.addEventListener('mn:map-objects-admin-cleared', onAdminObjectsCleared);
   window.addEventListener('mn:map-objects-admin-deleted', onAdminObjectDeleted);
   window.addEventListener('mn:house-purchased-local', onHousePurchased);
+  window.addEventListener('mn:house-sold-to-state-local', onHouseSoldToState);
 
   snapshotTimer = setInterval(() => {
     if (isMobileGameplayDevice() && isPlayerBusy()) {
@@ -1803,6 +1873,7 @@ export function enableEntityInteraction({
     window.removeEventListener('mn:map-objects-admin-cleared', onAdminObjectsCleared);
     window.removeEventListener('mn:map-objects-admin-deleted', onAdminObjectDeleted);
     window.removeEventListener('mn:house-purchased-local', onHousePurchased);
+    window.removeEventListener('mn:house-sold-to-state-local', onHouseSoldToState);
 
     clearNearestVisual();
 
