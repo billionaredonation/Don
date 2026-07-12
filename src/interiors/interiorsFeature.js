@@ -1,12 +1,17 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
-import './interiors.css';
 
 const TEMPLATES = {
   standard: { id: 'standard', file: 'standart_interior.png', rooms: 1, kitchen: 1, bathroom: 1, spawn: { x: 50, y: 82 } },
   premium: { id: 'premium', file: 'premium_interior.png', rooms: 2, kitchen: 2, bathroom: 2, spawn: { x: 50, y: 86 } },
   ultra_lux: { id: 'ultra_lux', file: 'luxe_interior.png', rooms: 4, kitchen: 3, bathroom: 3, spawn: { x: 50, y: 90 } },
 };
+
+const INTERIOR_ASSETS = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
 
 function playerTgId() {
   return String(state.telegramId || state.player?.tg_id || state.player?.telegramId || '').trim();
@@ -25,7 +30,10 @@ function houseId(house) {
 }
 
 function templateAsset(file) {
-  return new URL(file, document.baseURI).href;
+  const entry = Object.entries(INTERIOR_ASSETS)
+    .find(([path]) => path.endsWith(`/${file}`));
+
+  return entry?.[1] || new URL(file, document.baseURI).href;
 }
 
 function markup() {
@@ -269,6 +277,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
-
-
