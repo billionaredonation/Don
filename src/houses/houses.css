@@ -3185,6 +3185,48 @@ body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
 .house-player-sale-price small { display: block; margin-top: 7px; color: rgba(255,255,255,.52); font-size: 10px; line-height: 1.35; }
 .house-player-sale-actions { display: grid; grid-template-columns: .8fr 1.2fr; gap: 8px; margin-top: 12px; }
 
+.house-trade-keyboard {
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid rgba(150,190,255,.18);
+  border-radius: 16px;
+  background: rgba(2,7,16,.92);
+  box-shadow: 0 14px 34px rgba(0,0,0,.38);
+}
+.house-trade-keyboard[hidden] { display: none !important; }
+.house-trade-keyboard-top,
+.house-trade-keyboard-bottom { display: flex; align-items: center; gap: 6px; }
+.house-trade-keyboard-top { justify-content: space-between; margin-bottom: 7px; color: rgba(255,255,255,.72); font-size: 11px; }
+.house-trade-keyboard button {
+  min-width: 0; min-height: 28px; padding: 5px 7px; border: 0; border-radius: 8px;
+  color: #fff; background: rgba(255,255,255,.10); font-size: 11px; font-weight: 900;
+  touch-action: manipulation;
+}
+.house-trade-keyboard-top button { color: #a9d7ff; background: rgba(57,137,218,.20); }
+.house-trade-keyboard-rows { display: grid; gap: 4px; }
+.house-trade-keyboard-rows > div { display: flex; justify-content: center; gap: 3px; }
+.house-trade-keyboard-rows button { flex: 1 1 0; padding-inline: 2px; }
+.house-trade-keyboard-bottom { margin-top: 7px; }
+.house-trade-keyboard-bottom button { flex: 1; }
+.house-trade-keyboard-bottom button.is-done { background: linear-gradient(135deg,#397fd5,#5b9aea); }
+
+@media (hover: none) and (pointer: coarse) {
+  .house-player-sale-panel:has(.house-trade-keyboard:not([hidden])) {
+    padding: 10px;
+  }
+  .house-player-sale-panel:has(.house-trade-keyboard:not([hidden])) > strong,
+  .house-player-sale-panel:has(.house-trade-keyboard:not([hidden])) > span,
+  .house-player-sale-panel:has(.house-trade-keyboard:not([hidden])) .house-player-sale-found,
+  .house-player-sale-panel:has(.house-trade-keyboard:not([hidden])) .house-player-sale-price small {
+    display: none;
+  }
+  .house-player-sale-panel:has(.house-trade-keyboard:not([hidden])) .house-player-sale-field,
+  .house-player-sale-panel:has(.house-trade-keyboard:not([hidden])) .house-player-sale-price,
+  .house-player-sale-panel:has(.house-trade-keyboard:not([hidden])) .house-player-sale-actions {
+    margin-top: 6px;
+  }
+}
+
 .house-trade-offer {
   position: fixed; inset: 0; z-index: 1000100; display: grid; place-items: center; padding: 16px;
 }
