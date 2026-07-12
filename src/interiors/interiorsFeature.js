@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
+import { getStaminaConfig } from '../player/playerStaminaConfig.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
 import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
@@ -30,6 +31,11 @@ function houseId(house) {
   return String(house?.mapObjectId || house?.objectId || house?.dbId || house?.id || p.mapObjectId || p.objectId || p.houseId || '').trim();
 }
 
+function formatMoney(value) {
+  const amount = Math.max(0, Math.round(Number(value || 0)));
+  return `${amount.toLocaleString('ru-RU')} ₴`;
+}
+
 function markup() {
   return `
     <div class="mn-interior" hidden data-mn-interior>
@@ -52,12 +58,28 @@ function markup() {
         <div class="mn-interior-shade"></div>
         <div class="mn-interior-player" data-interior-player><i></i><span>${String(state.nickname || 'Игрок')}</span></div>
         <button type="button" class="mn-interior-exit" data-interior-exit>🚪 Выйти из дома</button>
-        <div class="mn-interior-info">
-          <b data-interior-title>Интерьер</b>
-          <span data-interior-meta></span>
+        <div class="mn-interior-hud">
+          <div class="mn-interior-info">
+            <b data-interior-title>Интерьер</b>
+            <span data-interior-meta></span>
+          </div>
+          <div class="mn-interior-profile">
+            <i>${String(state.nickname || 'И').charAt(0).toUpperCase()}</i>
+            <span><b>${String(state.nickname || 'Игрок')}</b><small>Внутри дома</small></span>
+          </div>
+          <div class="mn-interior-balance">
+            <i>₴</i><b data-interior-balance>${formatMoney(state.player?.balance)}</b>
+          </div>
         </div>
-        <div class="mn-interior-joystick" data-interior-joystick>
-          <div class="mn-interior-joystick-stick" data-interior-stick></div>
+        <div class="mn-interior-joystick" data-interior-joystick data-active="false">
+          <div class="mn-interior-stamina-ring" data-interior-stamina-ring></div>
+          <div class="mn-interior-joystick-base">
+            <div class="mn-interior-joystick-stick" data-interior-stick></div>
+          </div>
+        </div>
+        <div class="mn-interior-stamina" data-interior-stamina data-visible="false">
+          <span>STAMINA</span>
+          <i><b data-interior-stamina-fill></b></i>
         </div>
       </main>
       <div class="mn-interior-error" hidden data-interior-error>
@@ -81,12 +103,16 @@ export function enableInteriorsFeature() {
   const marker = overlay.querySelector('[data-interior-player]');
   const title = overlay.querySelector('[data-interior-title]');
   const meta = overlay.querySelector('[data-interior-meta]');
+  const balance = overlay.querySelector('[data-interior-balance]');
   const exitButton = overlay.querySelector('[data-interior-exit]');
   const errorBox = overlay.querySelector('[data-interior-error]');
   const errorText = overlay.querySelector('[data-interior-error-text]');
   const errorClose = overlay.querySelector('[data-interior-error-close]');
   const joystick = overlay.querySelector('[data-interior-joystick]');
   const stick = overlay.querySelector('[data-interior-stick]');
+  const staminaBox = overlay.querySelector('[data-interior-stamina]');
+  const staminaFill = overlay.querySelector('[data-interior-stamina-fill]');
+  const staminaRing = overlay.querySelector('[data-interior-stamina-ring]');
 
   let active = false;
   let destroyed = false;
@@ -95,6 +121,9 @@ export function enableInteriorsFeature() {
   let position = { x: 50, y: 82 };
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
+  const staminaConfig = getStaminaConfig();
+  let stamina = staminaConfig.max;
+  let sprintLocked = false;
   let warmupTimer = 0;
   const keys = new Set();
   const templateImageCache = new Map();
@@ -108,6 +137,13 @@ export function enableInteriorsFeature() {
   function renderPosition() {
     marker.style.left = `${position.x}%`;
     marker.style.top = `${position.y}%`;
+  }
+
+  function renderStamina() {
+    const percent = Math.max(0, Math.min(100, (stamina / staminaConfig.max) * 100));
+    staminaFill.style.width = `${percent}%`;
+    staminaRing.style.setProperty('--mn-interior-stamina', `${percent * 3.6}deg`);
+    staminaFill.dataset.state = sprintLocked ? 'locked' : percent < 30 ? 'low' : 'normal';
   }
 
   function movementVector() {
@@ -126,10 +162,24 @@ export function enableInteriorsFeature() {
     const dt = Math.min(0.04, Math.max(0, (time - (lastFrame || time)) / 1000));
     lastFrame = time;
     const vector = movementVector();
-    const sprint = keys.has('shift');
+    const moving = Math.hypot(vector.x, vector.y) > 0.04;
+    const wantsSprint = moving && (keys.has('shift') || Math.hypot(joystickVector.x, joystickVector.y) >= 0.62);
+    const frameScale = dt * 60;
+
+    if (wantsSprint && !sprintLocked) {
+      stamina = Math.max(staminaConfig.emptyAt, stamina - staminaConfig.drainPerFrame * frameScale);
+      if (stamina <= staminaConfig.emptyAt) sprintLocked = true;
+    } else {
+      stamina = Math.min(staminaConfig.max, stamina + staminaConfig.recoverPerFrame * frameScale);
+      if (sprintLocked && stamina >= staminaConfig.recoveredAt) sprintLocked = false;
+    }
+
+    const sprint = wantsSprint && !sprintLocked;
     const speed = sprint ? 23 : 15;
     position.x = Math.min(96, Math.max(4, position.x + vector.x * speed * dt));
     position.y = Math.min(96, Math.max(4, position.y + vector.y * speed * dt));
+    staminaBox.dataset.visible = moving ? 'true' : 'false';
+    renderStamina();
     renderPosition();
     raf = requestAnimationFrame(frame);
   }
@@ -241,7 +291,11 @@ export function enableInteriorsFeature() {
       overlay.dataset.houseId = id;
       title.textContent = `Дом · ${data.houseClassLabel || template.label}`;
       meta.textContent = `${template.rooms} комн. · кухня ${template.kitchen} · санузел ${template.bathroom}`;
+      balance.textContent = formatMoney(state.player?.balance);
       position = { ...template.spawn };
+      stamina = staminaConfig.max;
+      sprintLocked = false;
+      renderStamina();
       renderPosition();
       loading.hidden = true;
       scene.hidden = false;
@@ -261,6 +315,8 @@ export function enableInteriorsFeature() {
     cancelAnimationFrame(raf);
     keys.clear();
     joystickVector = { x: 0, y: 0 };
+    joystick.dataset.active = 'false';
+    staminaBox.dataset.visible = 'false';
     stick.style.transform = 'translate3d(0,0,0)';
     overlay.hidden = true;
     scene.hidden = true;
@@ -308,6 +364,8 @@ export function enableInteriorsFeature() {
   joystick.addEventListener('pointerdown', (event) => {
     if (!active) return;
     joystickPointer = event.pointerId;
+    joystick.dataset.active = 'true';
+    staminaBox.dataset.visible = 'true';
     joystick.setPointerCapture(event.pointerId);
     updateJoystick(event);
   });
@@ -316,6 +374,8 @@ export function enableInteriorsFeature() {
     if (event.pointerId !== joystickPointer) return;
     joystickPointer = null;
     joystickVector = { x: 0, y: 0 };
+    joystick.dataset.active = 'false';
+    staminaBox.dataset.visible = 'false';
     stick.style.transform = 'translate3d(0,0,0)';
   };
   joystick.addEventListener('pointerup', stopJoystick);
