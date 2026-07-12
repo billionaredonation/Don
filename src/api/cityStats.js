@@ -26,14 +26,27 @@ function normalizeCityStats(row) {
  * @param {string} slug 'kyiv' | 'lviv' | …
  */
 export async function fetchCityStats(slug) {
-  const { data, error } = await supabase.rpc('city_stats', {
-    city_slug: slug,
-  });
+  const [statsResponse, budgetResponse] = await Promise.all([
+    supabase.rpc('city_stats', { city_slug: slug }),
+    supabase.rpc('get_city_state_sale_tax', { p_city_id: slug }),
+  ]);
+
+  const { data, error } = statsResponse;
 
   if (error) {
     console.error('[fetchCityStats]', error);
     throw new Error('Не удалось получить статистику города');
   }
 
-  return normalizeCityStats(data?.[0] ?? null);
+  const normalized = normalizeCityStats(data?.[0] ?? null) || {};
+
+  // До применения новой миграции RPC бюджета может ещё отсутствовать.
+  // В таком случае старая статистика продолжает работать без падения экрана.
+  if (!budgetResponse.error && budgetResponse.data) {
+    normalized.budget = toNumber(normalized.budget) + toNumber(
+      budgetResponse.data.saleTaxCollected ?? budgetResponse.data.sale_tax_collected
+    );
+  }
+
+  return normalized;
 }
