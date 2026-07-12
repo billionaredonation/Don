@@ -1,17 +1,14 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
+import standardInteriorUrl from '../../standart_interior.png?url';
+import premiumInteriorUrl from '../../premium_interior.png?url';
+import luxeInteriorUrl from '../../luxe_interior.png?url';
 
 const TEMPLATES = {
-  standard: { id: 'standard', file: 'standart_interior.png', rooms: 1, kitchen: 1, bathroom: 1, spawn: { x: 50, y: 82 } },
-  premium: { id: 'premium', file: 'premium_interior.png', rooms: 2, kitchen: 2, bathroom: 2, spawn: { x: 50, y: 86 } },
-  ultra_lux: { id: 'ultra_lux', file: 'luxe_interior.png', rooms: 4, kitchen: 3, bathroom: 3, spawn: { x: 50, y: 90 } },
+  standard: { id: 'standard', file: 'standart_interior.png', url: standardInteriorUrl, rooms: 1, kitchen: 1, bathroom: 1, spawn: { x: 50, y: 82 } },
+  premium: { id: 'premium', file: 'premium_interior.png', url: premiumInteriorUrl, rooms: 2, kitchen: 2, bathroom: 2, spawn: { x: 50, y: 86 } },
+  ultra_lux: { id: 'ultra_lux', file: 'luxe_interior.png', url: luxeInteriorUrl, rooms: 4, kitchen: 3, bathroom: 3, spawn: { x: 50, y: 90 } },
 };
-
-const INTERIOR_ASSETS = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif}', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
 
 function playerTgId() {
   return String(state.telegramId || state.player?.tg_id || state.player?.telegramId || '').trim();
@@ -27,13 +24,6 @@ function normalizeClass(value) {
 function houseId(house) {
   const p = house?.payload || {};
   return String(house?.mapObjectId || house?.objectId || house?.dbId || house?.id || p.mapObjectId || p.objectId || p.houseId || '').trim();
-}
-
-function templateAsset(file) {
-  const entry = Object.entries(INTERIOR_ASSETS)
-    .find(([path]) => path.endsWith(`/${file}`));
-
-  return entry?.[1] || new URL(file, document.baseURI).href;
 }
 
 function markup() {
@@ -172,7 +162,7 @@ export function enableInteriorsFeature() {
       if (!data?.allowed) throw new Error(data?.reason || 'INTERIOR_ACCESS_DENIED');
 
       const template = TEMPLATES[normalizeClass(data.houseClass || house?.payload?.houseClass || house?.variant)];
-      const src = templateAsset(template.file);
+      const src = template.url;
       loadingText.textContent = `Загружаем ${template.file}`;
       await loadImage(src);
 
