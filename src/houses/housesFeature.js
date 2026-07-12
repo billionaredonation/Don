@@ -283,6 +283,16 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
       },
     }));
 
+    window.dispatchEvent(new CustomEvent('mn:map-object-broadcast-request', {
+      detail: {
+        cityId,
+        houseId: result?.houseId || getHouseId(house),
+        mapObjectId: result?.mapObjectId || getHouseId(house),
+        ownerId: result?.ownerId || result?.playerId || tgId,
+        ownerName: result?.ownerName || state.nickname || state.player?.nickname || 'Игрок',
+      },
+    }));
+
     return result;
   }
 
@@ -325,6 +335,16 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     }));
     window.dispatchEvent(new CustomEvent('mn:map-objects-changed', {
       detail: { cityId, houseId: getHouseId(house), source: 'sell_house_to_state', result },
+    }));
+
+    window.dispatchEvent(new CustomEvent('mn:map-object-broadcast-request', {
+      detail: {
+        cityId,
+        houseId: result?.houseId || getHouseId(house),
+        mapObjectId: result?.mapObjectId || getHouseId(house),
+        ownerId: null,
+        ownerName: null,
+      },
     }));
 
     return result;
