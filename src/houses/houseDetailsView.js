@@ -423,6 +423,7 @@ export function createHouseDetailsController(root, {
   onSellToState,
   onFindTradePlayer,
   onCreatePlayerTrade,
+  onEnterHouse,
 } = {}) {
   let modal = root.querySelector('[data-house-details-modal]');
 
@@ -608,7 +609,7 @@ export function createHouseDetailsController(root, {
     if (textEl) {
       if (owned) {
         textEl.textContent = ownerIsCurrentPlayer
-          ? 'Кратко: это твой дом. Его можно продать государству по указанной стоимости. При продаже 20% уйдёт в бюджет города, а 80% поступит на твой баланс.'
+          ? 'Это твой дом. Можно войти в интерьер, продать его государству или передать другому игроку.'
           : 'Кратко: дом уже куплен другим игроком. Войти в дом пока недоступно — функционал интерьера будет добавлен позже.';
       } else if (locked) {
         textEl.textContent = 'Этот дом сейчас закрыт. Покупка недоступна.';
@@ -624,8 +625,8 @@ export function createHouseDetailsController(root, {
 
     if (enterButton) {
       enterButton.hidden = !owned;
-      enterButton.disabled = false;
-      enterButton.title = 'Вход в дом пока недоступен';
+      enterButton.disabled = !ownerIsCurrentPlayer;
+      enterButton.title = ownerIsCurrentPlayer ? 'Войти в интерьер' : 'Дом принадлежит другому игроку';
     }
 
     if (sellPlayerButton) {
@@ -713,11 +714,27 @@ export function createHouseDetailsController(root, {
     window.dispatchEvent(new CustomEvent('mn:house-details-closed'));
   }
 
-  function handleEnter(event) {
+  async function handleEnter(event) {
     event.preventDefault();
     event.stopPropagation();
 
-    setMessage('Войти в дом пока недоступно. Интерьер и вход будем доделывать отдельно.', 'info');
+    if (!activeHouse || !onEnterHouse) return;
+    if (!isCurrentPlayerHouseOwner(activeHouse)) {
+      setMessage('Вход доступен только владельцу дома.', 'error');
+      return;
+    }
+
+    try {
+      enterButton.disabled = true;
+      setMessage('Загружаем интерьер...', 'info');
+      await onEnterHouse(activeHouse);
+      close(event);
+    } catch (error) {
+      const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
+      setMessage(`Не удалось войти в дом: ${code || 'неизвестная ошибка'}`, 'error');
+    } finally {
+      enterButton.disabled = false;
+    }
   }
 
   async function handleBuy(event) {
