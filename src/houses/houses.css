@@ -3031,6 +3031,7 @@ body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
 
 .house-enter-button,
 .house-locked-button,
+.house-sell-player-button,
 .house-sell-state-button,
 .house-sale-confirm-button {
   min-height: 44px !important;
@@ -3050,6 +3051,7 @@ body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
 }
 
 .house-sell-state-button,
+.house-sell-player-button,
 .house-sale-confirm-button {
   background:
     radial-gradient(circle at 25% 0%, rgba(255, 255, 255, 0.20), transparent 42%),
@@ -3059,6 +3061,7 @@ body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
 }
 
 .house-sell-state-button:disabled,
+.house-sell-player-button:disabled,
 .house-sale-confirm-button:disabled {
   opacity: 0.55 !important;
   cursor: wait !important;
@@ -3073,6 +3076,7 @@ body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
 
 .house-enter-button[hidden],
 .house-locked-button[hidden],
+.house-sell-player-button[hidden],
 .house-sell-state-button[hidden],
 .house-buy-button[hidden] {
   display: none !important;
@@ -3147,6 +3151,74 @@ body.mn-force-rotate-landscape.mn-landscape-game .house-details-modal[hidden],
   grid-template-columns: 0.8fr 1.2fr;
   gap: 9px;
   margin-top: 12px;
+}
+
+.house-player-sale-panel {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(126, 194, 255, 0.20);
+  border-radius: 18px;
+  background: rgba(53, 133, 214, 0.10);
+}
+
+.house-player-sale-panel[hidden] { display: none !important; }
+.house-player-sale-panel > span {
+  display: block; color: #9fd5ff; font-size: 11px; font-weight: 950;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.house-player-sale-panel > strong { display: block; margin-top: 5px; font-size: 15px; }
+.house-player-sale-field { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 12px; }
+.house-player-sale-field input,
+.house-player-sale-price input {
+  width: 100%; min-width: 0; box-sizing: border-box; padding: 11px 12px;
+  border: 1px solid rgba(255,255,255,.12); border-radius: 13px;
+  color: #fff; background: rgba(0,0,0,.24); outline: none; font-weight: 800;
+}
+.house-player-sale-field button {
+  border: 0; border-radius: 13px; padding: 0 13px; color: #fff;
+  background: #357fd4; font-weight: 900;
+}
+.house-player-sale-found { margin-top: 9px; padding: 9px 10px; border-radius: 12px; color: #aaffc5; background: rgba(45,200,104,.12); font-size: 12px; font-weight: 850; }
+.house-player-sale-found[hidden], .house-player-sale-price[hidden], [data-house-trade-send][hidden] { display: none !important; }
+.house-player-sale-price { margin-top: 10px; }
+.house-player-sale-price label { display: grid; gap: 6px; color: rgba(255,255,255,.72); font-size: 12px; font-weight: 850; }
+.house-player-sale-price small { display: block; margin-top: 7px; color: rgba(255,255,255,.52); font-size: 10px; line-height: 1.35; }
+.house-player-sale-actions { display: grid; grid-template-columns: .8fr 1.2fr; gap: 8px; margin-top: 12px; }
+
+.house-trade-offer {
+  position: fixed; inset: 0; z-index: 1000100; display: grid; place-items: center; padding: 16px;
+}
+.house-trade-offer[hidden] { display: none !important; }
+.house-trade-offer-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.68); backdrop-filter: blur(7px); }
+.house-trade-offer-card {
+  position: relative; width: min(430px, calc(100vw - 28px)); padding: 20px;
+  border: 1px solid rgba(154,181,255,.18); border-radius: 24px; color: #fff;
+  background: radial-gradient(circle at 12% 0%, rgba(115,80,255,.26), transparent 40%), linear-gradient(180deg,#11182a,#050811);
+  box-shadow: 0 30px 100px rgba(0,0,0,.75);
+}
+.house-trade-offer-kicker { color: #b9aaff; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .09em; }
+.house-trade-offer-card h3 { margin: 7px 0 14px; font-size: 22px; }
+.house-trade-offer-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.house-trade-offer-info p { margin: 0; padding: 10px 11px; border-radius: 13px; background: rgba(255,255,255,.06); }
+.house-trade-offer-info span { display: block; color: rgba(255,255,255,.52); font-size: 10px; font-weight: 800; }
+.house-trade-offer-info b { display: block; margin-top: 4px; font-size: 13px; }
+.house-trade-wait { margin: 12px 0 0; padding: 10px 11px; border-radius: 13px; color: #ffd98d; background: rgba(255,174,47,.11); font-size: 12px; font-weight: 850; }
+.house-trade-wait[data-ready="true"] { color: #aaffc4; background: rgba(44,207,108,.12); }
+.house-trade-result { margin-top: 9px; color: #dce7ff; font-size: 12px; font-weight: 850; }
+.house-trade-result[hidden] { display: none; }
+.house-trade-offer-actions { display: grid; grid-template-columns: 1fr 1.25fr; gap: 9px; margin-top: 13px; }
+.house-trade-offer-actions button { min-height: 46px; border: 0; border-radius: 15px; color: #fff; background: rgba(255,255,255,.09); font-weight: 950; }
+.house-trade-offer-actions button.is-accept { background: linear-gradient(135deg,#674dff,#9e4ee0); }
+.house-trade-offer-actions button:disabled { opacity: .38; }
+.house-trade-offer-actions button span { display: block; }
+.house-trade-offer-actions .pc-label { color: rgba(255,255,255,.55); font-size: 10px; margin-bottom: 2px; }
+body.mn-house-trade-open .mobile-controls-layer,
+body.mn-house-trade-open .mobile-joystick,
+body.mn-house-trade-open .mobile-stamina { pointer-events: none !important; opacity: .18 !important; }
+
+@media (hover: none) and (pointer: coarse) {
+  .house-trade-offer-card { width: min(390px, calc(var(--mn-vw, 100vw) - 28px)); max-height: calc(var(--mn-vh, 100dvh) - 24px); overflow: auto; }
+  .house-trade-offer-card h3 { font-size: 18px; }
 }
 
 @media (hover: none) and (pointer: coarse) {
