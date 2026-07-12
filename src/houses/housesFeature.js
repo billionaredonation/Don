@@ -16,6 +16,7 @@ import {
   enableHouseTradeFeature,
   findOnlineTradePlayer,
 } from './houseTradeFeature.js';
+import { enableInteriorsFeature } from '../interiors/interiorsFeature.js';
 
 function getPlayerTgId() {
   return (
@@ -208,6 +209,7 @@ function getRealtimeObjectCategory(event) {
 export function enableHousesFeature(root, { cityId, city } = {}) {
   let cleanupModal = null;
   const cleanupTrade = enableHouseTradeFeature();
+  const interiors = enableInteriorsFeature();
   let refreshTimer = null;
   let destroyed = false;
 
@@ -368,6 +370,10 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     });
   }
 
+  async function handleEnterHouse(house) {
+    return interiors.enter(house);
+  }
+
   async function mountModal() {
     if (destroyed) return;
 
@@ -408,6 +414,7 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
       onSellHouseToState: handleSellHouseToState,
       onFindTradePlayer: handleFindTradePlayer,
       onCreatePlayerTrade: handleCreatePlayerTrade,
+      onEnterHouse: handleEnterHouse,
     });
 
     resetHouseModals(root);
@@ -466,7 +473,7 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
 
     cleanupModal?.();
     cleanupTrade?.();
+    interiors.cleanup?.();
     resetHouseModals(root);
   };
 }
-
