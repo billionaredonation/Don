@@ -264,6 +264,7 @@ export function enableHousesStatsModal(root, {
   onSellHouseToState,
   onFindTradePlayer,
   onCreatePlayerTrade,
+  onEnterHouse,
 } = {}) {
   let modal = root.querySelector('[data-houses-modal]') || root.querySelector('.houses-modal');
 
@@ -280,6 +281,7 @@ export function enableHousesStatsModal(root, {
     onSellToState: onSellHouseToState,
     onFindTradePlayer,
     onCreatePlayerTrade,
+    onEnterHouse,
   });
 
   let activeSection = 'city';
