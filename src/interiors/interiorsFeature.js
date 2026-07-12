@@ -6,9 +6,9 @@ import luxeInteriorUrl from '../../luxe_interior.png?url';
 import './interiors.css';
 
 const TEMPLATES = {
-  standard: { id: 'standard', file: 'standart_interior.png', url: standardInteriorUrl, rooms: 1, kitchen: 1, bathroom: 1, spawn: { x: 50, y: 82 } },
-  premium: { id: 'premium', file: 'premium_interior.png', url: premiumInteriorUrl, rooms: 2, kitchen: 2, bathroom: 2, spawn: { x: 50, y: 86 } },
-  ultra_lux: { id: 'ultra_lux', file: 'luxe_interior.png', url: luxeInteriorUrl, rooms: 4, kitchen: 3, bathroom: 3, spawn: { x: 50, y: 90 } },
+  standard: { id: 'standard', label: 'Стандарт', file: 'standart_interior.png', url: standardInteriorUrl, rooms: 1, kitchen: 1, bathroom: 1, spawn: { x: 50, y: 82 } },
+  premium: { id: 'premium', label: 'Премиум', file: 'premium_interior.png', url: premiumInteriorUrl, rooms: 2, kitchen: 2, bathroom: 2, spawn: { x: 50, y: 86 } },
+  ultra_lux: { id: 'ultra_lux', label: 'Ультра-люкс', file: 'luxe_interior.png', url: luxeInteriorUrl, rooms: 4, kitchen: 3, bathroom: 3, spawn: { x: 50, y: 90 } },
 };
 
 function playerTgId() {
@@ -16,9 +16,12 @@ function playerTgId() {
 }
 
 function normalizeClass(value) {
-  const key = String(value || 'standard').trim().toLowerCase();
-  if (['premium', 'prem', 'премиум'].includes(key)) return 'premium';
-  if (['ultra_lux', 'ultra-lux', 'ultra', 'lux', 'luxe', 'luxury', 'vip'].includes(key)) return 'ultra_lux';
+  const key = String(value || 'standard').trim().toLowerCase().replace(/\s+/g, '_');
+  if (['premium', 'prem', 'премиум', 'прем'].includes(key)) return 'premium';
+  if ([
+    'ultra_lux', 'ultra-lux', 'ultralux', 'ultra', 'lux', 'luxe', 'luxury', 'vip',
+    'люкс', 'ультра_люкс', 'ультра-люкс', 'ультралюкс',
+  ].includes(key)) return 'ultra_lux';
   return 'standard';
 }
 
@@ -92,7 +95,9 @@ export function enableInteriorsFeature() {
   let position = { x: 50, y: 82 };
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
+  let warmupTimer = 0;
   const keys = new Set();
+  const templateImageCache = new Map();
 
   function setPaused(value) {
     window.__MN_INTERIOR_ACTIVE__ = value;
@@ -143,32 +148,54 @@ export function enableInteriorsFeature() {
     errorBox.hidden = false;
   }
 
-  function loadImage(src) {
-    return new Promise((resolve, reject) => {
-      let settled = false;
+  function preloadTemplateImage(template) {
+    const cached = templateImageCache.get(template.id);
+    if (cached) return cached.promise;
 
+    // Keep every template image inside the DOM. Telegram/embedded WebViews can
+    // deprioritize a detached Image object, especially while the city map is active.
+    const image = document.createElement('img');
+    image.alt = '';
+    image.decoding = 'async';
+    image.dataset.interiorPreload = template.id;
+    image.style.cssText = 'position:fixed;left:-2px;top:-2px;width:1px;height:1px;opacity:.001;pointer-events:none';
+    overlay.appendChild(image);
+
+    const promise = new Promise((resolve, reject) => {
+      image.onload = () => resolve(template.url);
+      image.onerror = () => {
+        templateImageCache.delete(template.id);
+        image.remove();
+        reject(new Error('INTERIOR_IMAGE_NOT_FOUND'));
+      };
+      image.src = template.url;
+
+      if (image.complete) {
+        queueMicrotask(() => {
+          if (image.naturalWidth > 0) resolve(template.url);
+        });
+      }
+    });
+
+    templateImageCache.set(template.id, { image, promise });
+    return promise;
+  }
+
+  async function loadTemplateImage(template) {
+    await preloadTemplateImage(template);
+
+    return new Promise((resolve, reject) => {
       const finish = (error = null) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
         interiorImage.onload = null;
         interiorImage.onerror = null;
         if (error) reject(error);
-        else resolve(src);
+        else resolve(template.url);
       };
-
-      // The image stays attached to the interior DOM while loading. A detached
-      // `new Image()` can be deprioritized or cancelled by embedded WebViews.
-      const timeout = setTimeout(
-        () => finish(new Error('INTERIOR_LOAD_TIMEOUT')),
-        45000,
-      );
 
       interiorImage.onload = () => finish();
       interiorImage.onerror = () => finish(new Error('INTERIOR_IMAGE_NOT_FOUND'));
-      interiorImage.src = src;
+      interiorImage.src = template.url;
 
-      // Cached resources can already be complete before the handlers run.
       if (interiorImage.complete) {
         queueMicrotask(() => {
           if (interiorImage.naturalWidth > 0) finish();
@@ -177,6 +204,13 @@ export function enableInteriorsFeature() {
       }
     });
   }
+
+  // Warm up Standard, Premium and Ultra-Lux in parallel once the city screen
+  // has settled. Entering any house then reuses the browser cache immediately.
+  warmupTimer = window.setTimeout(() => {
+    if (destroyed) return;
+    Promise.allSettled(Object.values(TEMPLATES).map(preloadTemplateImage));
+  }, 900);
 
   async function enter(house) {
     const id = houseId(house);
@@ -200,12 +234,12 @@ export function enableInteriorsFeature() {
       const template = TEMPLATES[normalizeClass(data.houseClass || house?.payload?.houseClass || house?.variant)];
       const src = template.url;
       loadingText.textContent = `Загружаем ${template.file}`;
-      await loadImage(src);
+      await loadTemplateImage(template);
 
       map.style.backgroundImage = 'none';
       overlay.dataset.template = template.id;
       overlay.dataset.houseId = id;
-      title.textContent = `Дом · ${data.houseClassLabel || template.id}`;
+      title.textContent = `Дом · ${data.houseClassLabel || template.label}`;
       meta.textContent = `${template.rooms} комн. · кухня ${template.kitchen} · санузел ${template.bathroom}`;
       position = { ...template.spawn };
       renderPosition();
@@ -296,6 +330,7 @@ export function enableInteriorsFeature() {
     exit,
     cleanup() {
       destroyed = true;
+      window.clearTimeout(warmupTimer);
       exit();
       window.removeEventListener('keydown', keyDown, true);
       window.removeEventListener('keyup', keyUp, true);
