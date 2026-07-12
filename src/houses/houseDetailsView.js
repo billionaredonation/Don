@@ -371,6 +371,26 @@ export function renderHouseDetailsModal() {
           </div>
         </section>
 
+        <section class="house-player-sale-panel" hidden data-house-player-sale-panel>
+          <span>Продажа игроку</span>
+          <strong>Укажите ник покупателя</strong>
+          <div class="house-player-sale-field">
+            <input type="text" maxlength="24" autocomplete="off" placeholder="Ник игрока" data-house-trade-nickname>
+            <button type="button" data-house-trade-find>Проверить</button>
+          </div>
+          <div class="house-player-sale-found" hidden data-house-trade-found></div>
+          <div class="house-player-sale-price" hidden data-house-trade-price-step>
+            <label>Цена сделки
+              <input type="number" min="1" step="1" inputmode="numeric" placeholder="Введите цену" data-house-trade-price>
+            </label>
+            <small>Стандартный налог — 10%. Городская льгота резидента применяется сервером автоматически.</small>
+          </div>
+          <div class="house-player-sale-actions">
+            <button type="button" class="house-secondary-button" data-house-trade-cancel>Отмена</button>
+            <button type="button" class="house-sale-confirm-button" hidden data-house-trade-send>Отправить предложение</button>
+          </div>
+        </section>
+
         <footer class="house-details-actions" data-house-details-actions>
           <button type="button" class="house-secondary-button" data-house-details-close>
             Назад
@@ -384,7 +404,7 @@ export function renderHouseDetailsModal() {
             Войти в дом
           </button>
 
-          <button type="button" class="house-locked-button" data-house-sell-player-button hidden disabled>
+          <button type="button" class="house-sell-player-button" data-house-sell-player-button hidden>
             Продать игроку
           </button>
 
@@ -397,7 +417,12 @@ export function renderHouseDetailsModal() {
   `;
 }
 
-export function createHouseDetailsController(root, { onBuy, onSellToState } = {}) {
+export function createHouseDetailsController(root, {
+  onBuy,
+  onSellToState,
+  onFindTradePlayer,
+  onCreatePlayerTrade,
+} = {}) {
   let modal = root.querySelector('[data-house-details-modal]');
 
   if (modal && modal.parentElement !== document.body) {
@@ -416,6 +441,14 @@ export function createHouseDetailsController(root, { onBuy, onSellToState } = {}
   const saleGross = modal?.querySelector('[data-house-sale-gross]');
   const saleTax = modal?.querySelector('[data-house-sale-tax]');
   const salePayout = modal?.querySelector('[data-house-sale-payout]');
+  const playerSalePanel = modal?.querySelector('[data-house-player-sale-panel]');
+  const tradeNicknameInput = modal?.querySelector('[data-house-trade-nickname]');
+  const tradeFindButton = modal?.querySelector('[data-house-trade-find]');
+  const tradeFound = modal?.querySelector('[data-house-trade-found]');
+  const tradePriceStep = modal?.querySelector('[data-house-trade-price-step]');
+  const tradePriceInput = modal?.querySelector('[data-house-trade-price]');
+  const tradeCancelButton = modal?.querySelector('[data-house-trade-cancel]');
+  const tradeSendButton = modal?.querySelector('[data-house-trade-send]');
   const message = modal?.querySelector('[data-house-details-message]');
 
   const title = modal?.querySelector('[data-house-details-title]');
@@ -427,9 +460,11 @@ export function createHouseDetailsController(root, { onBuy, onSellToState } = {}
   const owner = modal?.querySelector('[data-house-details-owner]');
 
   let activeHouse = null;
+  let selectedTradePlayer = null;
 
   function hideSaleConfirmation() {
     if (saleConfirm) saleConfirm.hidden = true;
+    if (playerSalePanel) playerSalePanel.hidden = true;
     if (actions) actions.hidden = false;
   }
 
@@ -500,8 +535,8 @@ export function createHouseDetailsController(root, { onBuy, onSellToState } = {}
 
     if (sellPlayerButton) {
       sellPlayerButton.hidden = !owned || !ownerIsCurrentPlayer;
-      sellPlayerButton.disabled = true;
-      sellPlayerButton.title = 'Продажа игроку пока заблокирована';
+      sellPlayerButton.disabled = !owned || !ownerIsCurrentPlayer;
+      sellPlayerButton.title = ownerIsCurrentPlayer ? 'Продать дом другому игроку' : '';
     }
 
     if (sellStateButton) {
@@ -671,6 +706,78 @@ export function createHouseDetailsController(root, { onBuy, onSellToState } = {}
     if (saleConfirm) saleConfirm.hidden = false;
   }
 
+  function handlePlayerSaleRequest(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!activeHouse || !isCurrentPlayerHouseOwner(activeHouse)) return;
+    selectedTradePlayer = null;
+    tradeNicknameInput.value = '';
+    tradePriceInput.value = '';
+    tradeFound.hidden = true;
+    tradePriceStep.hidden = true;
+    tradeSendButton.hidden = true;
+    setMessage('');
+    actions.hidden = true;
+    playerSalePanel.hidden = false;
+    tradeNicknameInput.focus();
+  }
+
+  function tradeErrorText(error) {
+    const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
+    if (code.includes('TRADE_PLAYER_NOT_FOUND')) return 'Игрок с таким ником не найден.';
+    if (code.includes('TRADE_PLAYER_OFFLINE')) return 'Игрок сейчас не в сети.';
+    if (code.includes('TRADE_CANNOT_SELL_TO_SELF')) return 'Нельзя продать дом самому себе.';
+    if (code.includes('HOUSE_NOT_OWNED_BY_PLAYER')) return 'Этот дом уже не принадлежит тебе.';
+    if (code.includes('TRADE_PRICE_INVALID')) return 'Введите корректную цену.';
+    return code || 'Не удалось выполнить действие.';
+  }
+
+  async function handleTradeFind(event) {
+    event.preventDefault(); event.stopPropagation();
+    const nickname = String(tradeNicknameInput.value || '').trim();
+    if (!nickname || !onFindTradePlayer) return setMessage('Введите ник игрока.', 'error');
+    try {
+      tradeFindButton.disabled = true;
+      setMessage('Проверяем игрока и его онлайн...', 'info');
+      selectedTradePlayer = await onFindTradePlayer(nickname);
+      tradeFound.hidden = false;
+      tradeFound.textContent = `${selectedTradePlayer.nickname} найден и находится в сети.`;
+      tradePriceStep.hidden = false;
+      tradeSendButton.hidden = false;
+      setMessage('');
+      tradePriceInput.focus();
+    } catch (error) {
+      selectedTradePlayer = null;
+      tradeFound.hidden = true;
+      tradePriceStep.hidden = true;
+      tradeSendButton.hidden = true;
+      setMessage(tradeErrorText(error), 'error');
+    } finally {
+      tradeFindButton.disabled = false;
+    }
+  }
+
+  async function handleTradeSend(event) {
+    event.preventDefault(); event.stopPropagation();
+    const priceValue = Math.round(Number(tradePriceInput.value || 0));
+    if (!selectedTradePlayer || !onCreatePlayerTrade) return;
+    if (!Number.isFinite(priceValue) || priceValue <= 0) return setMessage('Введите корректную цену.', 'error');
+    try {
+      tradeSendButton.disabled = true;
+      tradeCancelButton.disabled = true;
+      setMessage('Отправляем предложение покупателю...', 'info');
+      const result = await onCreatePlayerTrade({ house: activeHouse, buyer: selectedTradePlayer, price: priceValue });
+      playerSalePanel.hidden = true;
+      actions.hidden = false;
+      setMessage(`Предложение отправлено игроку ${result.buyerNickname}: ${formatMoney(result.price)}.`, 'success');
+    } catch (error) {
+      setMessage(tradeErrorText(error), 'error');
+    } finally {
+      tradeSendButton.disabled = false;
+      tradeCancelButton.disabled = false;
+    }
+  }
+
   function handleSellStateCancel(event) {
     event?.preventDefault?.();
     event?.stopPropagation?.();
@@ -750,6 +857,10 @@ export function createHouseDetailsController(root, { onBuy, onSellToState } = {}
   enterButton?.addEventListener('click', handleEnter);
   enterButton?.addEventListener('pointerup', handleEnter);
   sellStateButton?.addEventListener('click', handleSellStateRequest);
+  sellPlayerButton?.addEventListener('click', handlePlayerSaleRequest);
+  tradeFindButton?.addEventListener('click', handleTradeFind);
+  tradeSendButton?.addEventListener('click', handleTradeSend);
+  tradeCancelButton?.addEventListener('click', handleSellStateCancel);
   saleCancelButton?.addEventListener('click', handleSellStateCancel);
   saleConfirmButton?.addEventListener('click', handleSellStateConfirm);
 
@@ -773,6 +884,10 @@ export function createHouseDetailsController(root, { onBuy, onSellToState } = {}
       enterButton?.removeEventListener('click', handleEnter);
       enterButton?.removeEventListener('pointerup', handleEnter);
       sellStateButton?.removeEventListener('click', handleSellStateRequest);
+      sellPlayerButton?.removeEventListener('click', handlePlayerSaleRequest);
+      tradeFindButton?.removeEventListener('click', handleTradeFind);
+      tradeSendButton?.removeEventListener('click', handleTradeSend);
+      tradeCancelButton?.removeEventListener('click', handleSellStateCancel);
       saleCancelButton?.removeEventListener('click', handleSellStateCancel);
       saleConfirmButton?.removeEventListener('click', handleSellStateConfirm);
 
