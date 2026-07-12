@@ -824,6 +824,7 @@ export function createEntityInteractionPanel(root) {
   }
 
   function handleKeyDown(event) {
+    if (document.body.classList.contains('mn-house-trade-open')) return false;
     if (!selectedObject || panel.hidden) return false;
     if (isTypingTarget(event.target)) return false;
 
@@ -1630,6 +1631,7 @@ export function enableEntityInteraction({
   }
 
   function onKeyDown(event) {
+    if (document.body.classList.contains('mn-house-trade-open')) return;
     if (!isInteractKey(event)) return;
     if (event.repeat) return;
     if (isTypingTarget(event.target)) return;
