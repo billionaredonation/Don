@@ -403,6 +403,13 @@ export function enableKeyboardPlayerMovement(
 
   function loop(now = performance.now()) {
     if (destroyed) return;
+    if (window.__MN_INTERIOR_ACTIVE__ === true) {
+      keys.clear();
+      inputX = 0; inputY = 0; velocityX = 0; velocityY = 0;
+      setDesktopRuntimeMoving(false);
+      animationId = null;
+      return;
+    }
 
     const delta = Math.min(34, Math.max(8, now - lastFrameAt));
     const frameScale = delta / 16.6667;
@@ -501,6 +508,7 @@ export function enableKeyboardPlayerMovement(
   }
 
   function onKeyDown(event) {
+    if (window.__MN_INTERIOR_ACTIVE__ === true) return;
     const tag = document.activeElement?.tagName?.toLowerCase();
 
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
@@ -522,6 +530,10 @@ export function enableKeyboardPlayerMovement(
   }
 
   function onKeyUp(event) {
+    if (window.__MN_INTERIOR_ACTIVE__ === true) {
+      keys.clear();
+      return;
+    }
     keys.delete(event.key.toLowerCase());
 
     if (keys.size === 0) {
