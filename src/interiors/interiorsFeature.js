@@ -57,6 +57,8 @@ function markup() {
         </div>
         <div class="mn-interior-shade"></div>
         <div class="mn-interior-player" data-interior-player><i></i><span>${String(state.nickname || 'Игрок')}</span></div>
+      </main>
+      <div class="mn-interior-controls" hidden data-interior-controls>
         <button type="button" class="mn-interior-exit" data-interior-exit>🚪 Выйти из дома</button>
         <div class="mn-interior-hud">
           <div class="mn-interior-info">
@@ -81,7 +83,7 @@ function markup() {
           <span>STAMINA</span>
           <i><b data-interior-stamina-fill></b></i>
         </div>
-      </main>
+      </div>
       <div class="mn-interior-error" hidden data-interior-error>
         <strong>Интерьер пока не загружен</strong>
         <p data-interior-error-text></p>
@@ -98,6 +100,7 @@ export function enableInteriorsFeature() {
   const loading = overlay.querySelector('[data-interior-loading]');
   const loadingText = overlay.querySelector('[data-interior-loading-text]');
   const scene = overlay.querySelector('[data-interior-scene]');
+  const controls = overlay.querySelector('[data-interior-controls]');
   const map = overlay.querySelector('[data-interior-map]');
   const interiorImage = overlay.querySelector('[data-interior-image]');
   const marker = overlay.querySelector('[data-interior-player]');
@@ -194,6 +197,7 @@ export function enableInteriorsFeature() {
     active = false;
     loading.hidden = true;
     scene.hidden = true;
+    controls.hidden = true;
     errorText.textContent = text;
     errorBox.hidden = false;
   }
@@ -269,6 +273,7 @@ export function enableInteriorsFeature() {
     overlay.hidden = false;
     errorBox.hidden = true;
     scene.hidden = true;
+    controls.hidden = true;
     loading.hidden = false;
     loadingText.textContent = 'Проверяем доступ к дому';
     setPaused(true);
@@ -299,6 +304,7 @@ export function enableInteriorsFeature() {
       renderPosition();
       loading.hidden = true;
       scene.hidden = false;
+      controls.hidden = false;
       active = true;
       startLoop();
       window.dispatchEvent(new CustomEvent('mn:interior-entered', { detail: { houseId: id, template: template.id } }));
@@ -320,6 +326,7 @@ export function enableInteriorsFeature() {
     stick.style.transform = 'translate3d(0,0,0)';
     overlay.hidden = true;
     scene.hidden = true;
+    controls.hidden = true;
     loading.hidden = false;
     errorBox.hidden = true;
     setPaused(false);
