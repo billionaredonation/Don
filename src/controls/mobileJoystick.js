@@ -780,6 +780,13 @@ export function enableMobileJoystick(
 
   function loop(now = performance.now()) {
     if (destroyed) return;
+    if (window.__MN_INTERIOR_ACTIVE__ === true) {
+      targetMoveX = 0; targetMoveY = 0; moveX = 0; moveY = 0;
+      velocityX = 0; velocityY = 0;
+      setMovingUi(false);
+      animationId = null;
+      return;
+    }
 
     const delta = Math.min(34, Math.max(8, now - lastFrameAt));
     const frameScale = delta / 16.6667;
@@ -1065,4 +1072,3 @@ export function enableMobileJoystick(
     container.innerHTML = '';
   };
 }
-
