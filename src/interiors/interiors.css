@@ -11,7 +11,9 @@
 .mn-interior-player { position: absolute; z-index: 4; display: grid; justify-items: center; transform: translate(-50%,-50%); pointer-events: none; will-change: left,top; }
 .mn-interior-player i { width: 17px; height: 17px; border: 3px solid #fff; border-radius: 50%; background: #7660ff; box-shadow: 0 0 0 5px rgba(118,96,255,.2), 0 6px 18px rgba(0,0,0,.5); }
 .mn-interior-player span { margin-top: 4px; padding: 3px 6px; border-radius: 7px; color: #fff; background: rgba(0,0,0,.62); font: 850 9px/1 system-ui; white-space: nowrap; }
-.mn-interior-controls { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.mn-interior-controls,
+.mn-interior-ui { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.mn-interior-ui { z-index: 9; }
 .mn-interior-exit { position: absolute; z-index: 6; right: 18px; bottom: 18px; min-height: 44px; padding: 10px 15px; border: 1px solid rgba(255,255,255,.13); border-radius: 15px; color: #fff; background: rgba(5,8,14,.82); backdrop-filter: blur(8px); font-weight: 900; pointer-events: auto; }
 .mn-interior-info { position: absolute; z-index: 6; left: 18px; top: 18px; display: grid; gap: 3px; padding: 10px 13px; border: 1px solid rgba(255,255,255,.11); border-radius: 14px; background: rgba(5,8,14,.74); backdrop-filter: blur(8px); }
 .mn-interior-info b { font: 950 13px/1.1 system-ui; }
@@ -60,13 +62,12 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
     transform-origin: center center !important;
   }
 
-  html.mn-force-rotate-landscape .mn-interior-exit,
-  body.mn-force-rotate-landscape .mn-interior-exit {
-    top: max(14px, env(safe-area-inset-top)) !important;
-    right: max(14px, env(safe-area-inset-right)) !important;
-    bottom: auto !important;
-    transform: rotate(-90deg) translateZ(0) !important;
-    transform-origin: center center !important;
+  html.mn-force-rotate-landscape .mn-interior-ui,
+  body.mn-force-rotate-landscape .mn-interior-ui {
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    transform: none !important;
   }
 }
 @media (prefers-reduced-motion: reduce) { .mn-interior-spinner { animation-duration: 1.5s; } }
@@ -191,4 +192,103 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
   .mn-interior-joystick { left: max(18px, env(safe-area-inset-left)); bottom: max(54px, calc(env(safe-area-inset-bottom) + 54px)); width: 104px; height: 104px; }
   .mn-interior-stamina { display: flex; left: max(14px, env(safe-area-inset-left)); bottom: max(13px, env(safe-area-inset-bottom)); }
   .mn-interior-exit { right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); }
+}
+
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape .mn-interior-hud,
+  body.mn-force-rotate-landscape .mn-interior-hud {
+    left: max(14px, env(safe-area-inset-left)) !important;
+    right: max(14px, env(safe-area-inset-right)) !important;
+    top: max(122px, calc(env(safe-area-inset-top) + 92px)) !important;
+    width: auto !important;
+    max-width: none !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr) minmax(0, .8fr) !important;
+    gap: 6px !important;
+    transform: none !important;
+    rotate: 0deg !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info,
+  body.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info,
+  html.mn-force-rotate-landscape .mn-interior-profile,
+  body.mn-force-rotate-landscape .mn-interior-profile,
+  html.mn-force-rotate-landscape .mn-interior-balance,
+  body.mn-force-rotate-landscape .mn-interior-balance {
+    min-width: 0 !important;
+    width: auto !important;
+    min-height: 34px !important;
+    height: 38px !important;
+    padding: 5px 8px !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info,
+  body.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info {
+    gap: 1px !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info b,
+  body.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info b,
+  html.mn-force-rotate-landscape .mn-interior-profile b,
+  body.mn-force-rotate-landscape .mn-interior-profile b,
+  html.mn-force-rotate-landscape .mn-interior-balance b,
+  body.mn-force-rotate-landscape .mn-interior-balance b {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 11px !important;
+    letter-spacing: -.02em !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info span,
+  body.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info span,
+  html.mn-force-rotate-landscape .mn-interior-profile small,
+  body.mn-force-rotate-landscape .mn-interior-profile small {
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 7px !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-profile,
+  body.mn-force-rotate-landscape .mn-interior-profile,
+  html.mn-force-rotate-landscape .mn-interior-balance,
+  body.mn-force-rotate-landscape .mn-interior-balance {
+    gap: 6px !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-profile > i,
+  body.mn-force-rotate-landscape .mn-interior-profile > i,
+  html.mn-force-rotate-landscape .mn-interior-balance > i,
+  body.mn-force-rotate-landscape .mn-interior-balance > i {
+    width: 24px !important;
+    height: 24px !important;
+    flex-basis: 24px !important;
+    font-size: 11px !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-profile > span,
+  body.mn-force-rotate-landscape .mn-interior-profile > span {
+    min-width: 0 !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-exit,
+  body.mn-force-rotate-landscape .mn-interior-exit {
+    left: auto !important;
+    right: max(16px, env(safe-area-inset-right)) !important;
+    bottom: max(22px, calc(env(safe-area-inset-bottom) + 18px)) !important;
+    max-width: min(250px, calc(100vw - 150px)) !important;
+    min-height: 48px !important;
+    padding: 11px 16px !important;
+    border-radius: 17px !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
 }
