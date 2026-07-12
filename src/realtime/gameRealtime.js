@@ -94,6 +94,7 @@ export function setupGameRealtime({
   let deferredFlushTimer = null;
   let lastBalanceSignature = '';
   let realtimeSubscribedEventSent = false;
+  let assetsSubscribed = false;
 
   function clearDeferredFlushTimer() {
     if (!deferredFlushTimer) return;
@@ -195,6 +196,49 @@ export function setupGameRealtime({
   channels.push(assetsChannel);
 
   assetsChannel.on(
+    'broadcast',
+    { event: 'map_object_state_changed' },
+    ({ payload: broadcastPayload }) => {
+      if (destroyed || !broadcastPayload) return;
+      if (
+        broadcastPayload.cityId &&
+        String(broadcastPayload.cityId) !== normalizedCityId
+      ) return;
+
+      const objectId = normalizeIdentifier(
+        broadcastPayload.mapObjectId || broadcastPayload.houseId
+      );
+      if (!objectId) return;
+
+      dispatchMapObjectsChanged(normalizedCityId, {
+        eventType: 'UPDATE',
+        source: 'broadcast',
+        new: {
+          id: objectId,
+          city_id: normalizedCityId,
+          type: 'house',
+          category: 'house',
+          updated_at: broadcastPayload.updatedAt || new Date().toISOString(),
+          payload: {
+            kind: 'house',
+            type: 'house',
+            category: 'house',
+            houseId: objectId,
+            mapObjectId: objectId,
+            ownerId: broadcastPayload.ownerId || null,
+            owner_id: broadcastPayload.ownerId || null,
+            ownerName: broadcastPayload.ownerName || null,
+            owner_name: broadcastPayload.ownerName || null,
+            owned: Boolean(broadcastPayload.ownerId),
+            locked: false,
+            buyable: true,
+          },
+        },
+      });
+    }
+  );
+
+  assetsChannel.on(
     'postgres_changes',
     {
       event: '*',
@@ -209,10 +253,37 @@ export function setupGameRealtime({
   );
 
   assetsChannel.subscribe((status) => {
+    assetsSubscribed = status === 'SUBSCRIBED';
     window.dispatchEvent(new CustomEvent('mn:assets-realtime-status', {
       detail: { cityId: normalizedCityId, status },
     }));
   });
+
+  function handleMapObjectBroadcastRequest(event) {
+    const detail = event?.detail || {};
+    if (destroyed || !assetsSubscribed) return;
+    if (detail.cityId && String(detail.cityId) !== normalizedCityId) return;
+
+    const mapObjectId = normalizeIdentifier(detail.mapObjectId || detail.houseId);
+    if (!mapObjectId) return;
+
+    assetsChannel.send({
+      type: 'broadcast',
+      event: 'map_object_state_changed',
+      payload: {
+        cityId: normalizedCityId,
+        mapObjectId,
+        houseId: normalizeIdentifier(detail.houseId || mapObjectId),
+        ownerId: normalizeIdentifier(detail.ownerId) || null,
+        ownerName: detail.ownerName || null,
+        updatedAt: new Date().toISOString(),
+      },
+    }).catch((error) => {
+      console.warn('[realtime] map object broadcast failed:', error);
+    });
+  }
+
+  window.addEventListener('mn:map-object-broadcast-request', handleMapObjectBroadcastRequest);
 
   if (normalizedTelegramId) {
     /*
@@ -312,6 +383,7 @@ export function setupGameRealtime({
 
   return () => {
     destroyed = true;
+    window.removeEventListener('mn:map-object-broadcast-request', handleMapObjectBroadcastRequest);
     clearDeferredFlushTimer();
     deferredMapObjectsPayload = null;
 
