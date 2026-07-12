@@ -521,3 +521,33 @@ export async function buyHouseFromState({ houseId, house, playerId }) {
     playerId,
   });
 }
+
+export async function sellHouseToState({ houseId, playerId }) {
+  const rawHouseId = String(houseId || '').trim();
+  const rawPlayerId = String(playerId || '').trim();
+
+  if (!rawHouseId) throw new Error('HOUSE_ID_INVALID');
+  if (!rawPlayerId) throw new Error('PLAYER_TG_ID_NOT_FOUND');
+
+  const { data, error } = await supabase.rpc('sell_house_to_state', {
+    p_map_object_id: rawHouseId,
+    p_tg_id: rawPlayerId,
+  });
+
+  if (error) {
+    console.error('[houses] sell_house_to_state failed:', {
+      houseId: rawHouseId,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+    throw error;
+  }
+
+  if (!data || data.ok === false) {
+    throw new Error(data?.error || 'HOUSE_STATE_SALE_FAILED');
+  }
+
+  return data;
+}
