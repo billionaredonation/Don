@@ -46,6 +46,28 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
     transform: translate3d(-50%,-50%,0) rotate(90deg) !important;
     transform-origin: center center !important;
   }
+
+  html.mn-force-rotate-landscape .mn-interior-controls,
+  body.mn-force-rotate-landscape .mn-interior-controls {
+    inset: auto !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: var(--mn-vh, 100dvh) !important;
+    height: var(--mn-vw, 100vw) !important;
+    min-width: var(--mn-vh, 100dvh) !important;
+    min-height: var(--mn-vw, 100vw) !important;
+    transform: translate3d(-50%,-50%,0) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-exit,
+  body.mn-force-rotate-landscape .mn-interior-exit {
+    top: max(14px, env(safe-area-inset-top)) !important;
+    right: max(14px, env(safe-area-inset-right)) !important;
+    bottom: auto !important;
+    transform: rotate(-90deg) translateZ(0) !important;
+    transform-origin: center center !important;
+  }
 }
 @media (prefers-reduced-motion: reduce) { .mn-interior-spinner { animation-duration: 1.5s; } }
 
