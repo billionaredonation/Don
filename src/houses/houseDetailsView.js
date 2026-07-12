@@ -702,8 +702,8 @@ export function createHouseDetailsController(root, { onBuy, onSellToState } = {}
 
       window.dispatchEvent(new CustomEvent('mn:house-sold-to-state-local', {
         detail: {
-          houseId: getHouseId(soldHouse),
-          mapObjectId: getRealMapObjectId(soldHouse),
+          houseId: result?.houseId || getHouseId(soldHouse),
+          mapObjectId: result?.mapObjectId || getRealMapObjectId(soldHouse),
           house: soldHouse,
           result,
         },
