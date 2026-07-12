@@ -36,7 +36,16 @@ function markup() {
         <small data-interior-loading-text>Подготавливаем помещение</small>
       </div>
       <main class="mn-interior-scene" hidden data-interior-scene>
-        <div class="mn-interior-map" data-interior-map></div>
+        <div class="mn-interior-map" data-interior-map>
+          <img
+            data-interior-image
+            alt=""
+            draggable="false"
+            decoding="async"
+            fetchpriority="high"
+            style="display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none"
+          />
+        </div>
         <div class="mn-interior-shade"></div>
         <div class="mn-interior-player" data-interior-player><i></i><span>${String(state.nickname || 'Игрок')}</span></div>
         <button type="button" class="mn-interior-exit" data-interior-exit>🚪 Выйти из дома</button>
@@ -65,6 +74,7 @@ export function enableInteriorsFeature() {
   const loadingText = overlay.querySelector('[data-interior-loading-text]');
   const scene = overlay.querySelector('[data-interior-scene]');
   const map = overlay.querySelector('[data-interior-map]');
+  const interiorImage = overlay.querySelector('[data-interior-image]');
   const marker = overlay.querySelector('[data-interior-player]');
   const title = overlay.querySelector('[data-interior-title]');
   const meta = overlay.querySelector('[data-interior-meta]');
@@ -135,11 +145,36 @@ export function enableInteriorsFeature() {
 
   function loadImage(src) {
     return new Promise((resolve, reject) => {
-      const image = new Image();
-      const timeout = setTimeout(() => reject(new Error('INTERIOR_LOAD_TIMEOUT')), 12000);
-      image.onload = () => { clearTimeout(timeout); resolve(src); };
-      image.onerror = () => { clearTimeout(timeout); reject(new Error('INTERIOR_IMAGE_NOT_FOUND')); };
-      image.src = src;
+      let settled = false;
+
+      const finish = (error = null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        interiorImage.onload = null;
+        interiorImage.onerror = null;
+        if (error) reject(error);
+        else resolve(src);
+      };
+
+      // The image stays attached to the interior DOM while loading. A detached
+      // `new Image()` can be deprioritized or cancelled by embedded WebViews.
+      const timeout = setTimeout(
+        () => finish(new Error('INTERIOR_LOAD_TIMEOUT')),
+        45000,
+      );
+
+      interiorImage.onload = () => finish();
+      interiorImage.onerror = () => finish(new Error('INTERIOR_IMAGE_NOT_FOUND'));
+      interiorImage.src = src;
+
+      // Cached resources can already be complete before the handlers run.
+      if (interiorImage.complete) {
+        queueMicrotask(() => {
+          if (interiorImage.naturalWidth > 0) finish();
+          else finish(new Error('INTERIOR_IMAGE_NOT_FOUND'));
+        });
+      }
     });
   }
 
@@ -167,7 +202,7 @@ export function enableInteriorsFeature() {
       loadingText.textContent = `Загружаем ${template.file}`;
       await loadImage(src);
 
-      map.style.backgroundImage = `url("${src}")`;
+      map.style.backgroundImage = 'none';
       overlay.dataset.template = template.id;
       overlay.dataset.houseId = id;
       title.textContent = `Дом · ${data.houseClassLabel || template.id}`;
