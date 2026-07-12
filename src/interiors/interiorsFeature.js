@@ -361,8 +361,12 @@ export function enableInteriorsFeature() {
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
     const max = rect.width * 0.32;
-    const dx = event.clientX - cx;
-    const dy = event.clientY - cy;
+    const screenDx = event.clientX - cx;
+    const screenDy = event.clientY - cy;
+    const forceRotated = document.documentElement.classList.contains('mn-force-rotate-landscape') &&
+      window.matchMedia?.('(orientation: portrait)')?.matches;
+    const dx = forceRotated ? screenDy : screenDx;
+    const dy = forceRotated ? -screenDx : screenDy;
     const length = Math.hypot(dx, dy);
     const scale = length > max ? max / length : 1;
     const x = dx * scale;
