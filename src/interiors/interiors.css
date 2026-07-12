@@ -292,3 +292,256 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
     text-overflow: ellipsis !important;
   }
 }
+
+
+/* =========================================================
+   INTERIOR MOBILE CONTROLS — match city gameplay HUD/joystick
+   Source of truth: pages/home/mobile-game-fix.css + home HUD.
+   Scene may rotate, controls and HUD stay fixed on the phone screen.
+   ========================================================= */
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape .mn-interior-controls,
+  body.mn-force-rotate-landscape .mn-interior-controls,
+  html.mn-force-rotate-landscape .mn-interior-ui,
+  body.mn-force-rotate-landscape .mn-interior-ui {
+    position: fixed !important;
+    inset: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    min-width: 100vw !important;
+    min-height: 100dvh !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+    pointer-events: none !important;
+    overflow: visible !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-controls,
+  body.mn-force-rotate-landscape .mn-interior-controls {
+    z-index: 1200 !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-ui,
+  body.mn-force-rotate-landscape .mn-interior-ui {
+    z-index: 1210 !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-joystick,
+  body.mn-force-rotate-landscape .mn-interior-joystick {
+    position: fixed !important;
+    left: 24px !important;
+    top: 84px !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 118px !important;
+    height: 118px !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    border: 0 !important;
+    background: transparent !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    z-index: 1250 !important;
+    pointer-events: auto !important;
+    touch-action: none !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-joystick-base,
+  body.mn-force-rotate-landscape .mn-interior-joystick-base {
+    position: relative !important;
+    inset: auto !important;
+    width: 118px !important;
+    height: 118px !important;
+    border-radius: 999px !important;
+    opacity: .92 !important;
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-joystick-stick,
+  body.mn-force-rotate-landscape .mn-interior-joystick-stick {
+    position: absolute !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 52px !important;
+    height: 52px !important;
+    margin: -26px !important;
+    border-radius: 999px !important;
+    opacity: .95 !important;
+    will-change: transform !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-stamina-ring,
+  body.mn-force-rotate-landscape .mn-interior-stamina-ring {
+    inset: -4px !important;
+    opacity: .95 !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-stamina,
+  body.mn-force-rotate-landscape .mn-interior-stamina {
+    position: fixed !important;
+    left: 24px !important;
+    top: 214px !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 142px !important;
+    max-width: 142px !important;
+    display: flex !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    transform: translateY(8px) !important;
+    rotate: 0deg !important;
+    z-index: 1240 !important;
+    pointer-events: none !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-stamina[data-visible="true"],
+  body.mn-force-rotate-landscape .mn-interior-stamina[data-visible="true"] {
+    visibility: visible !important;
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-hud,
+  body.mn-force-rotate-landscape .mn-interior-hud {
+    position: fixed !important;
+    inset: auto !important;
+    left: auto !important;
+    top: 150px !important;
+    right: 8px !important;
+    bottom: auto !important;
+    width: 176px !important;
+    height: 430px !important;
+    display: block !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+    z-index: 1220 !important;
+    pointer-events: none !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info,
+  body.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info,
+  html.mn-force-rotate-landscape .mn-interior-profile,
+  body.mn-force-rotate-landscape .mn-interior-profile,
+  html.mn-force-rotate-landscape .mn-interior-balance,
+  body.mn-force-rotate-landscape .mn-interior-balance {
+    position: absolute !important;
+    display: grid !important;
+    align-items: center !important;
+    width: 132px !important;
+    height: 44px !important;
+    min-width: 132px !important;
+    min-height: 44px !important;
+    max-width: 132px !important;
+    max-height: 44px !important;
+    padding: 0 9px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(215,238,255,.13) !important;
+    background: rgba(6,12,18,.52) !important;
+    backdrop-filter: blur(12px) saturate(1.08) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.05) !important;
+    overflow: hidden !important;
+    transform: rotate(90deg) translateZ(0) !important;
+    transform-origin: center center !important;
+    pointer-events: auto !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info,
+  body.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info {
+    right: -43px !important;
+    top: 0 !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 1px !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-profile,
+  body.mn-force-rotate-landscape .mn-interior-profile {
+    right: -63px !important;
+    top: 136px !important;
+    width: 172px !important;
+    min-width: 172px !important;
+    max-width: 172px !important;
+    grid-template-columns: 30px minmax(0, 1fr) !important;
+    gap: 7px !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-balance,
+  body.mn-force-rotate-landscape .mn-interior-balance {
+    right: -43px !important;
+    top: 306px !important;
+    grid-template-columns: 28px minmax(0, 1fr) !important;
+    gap: 7px !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info b,
+  body.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info b,
+  html.mn-force-rotate-landscape .mn-interior-profile b,
+  body.mn-force-rotate-landscape .mn-interior-profile b,
+  html.mn-force-rotate-landscape .mn-interior-balance b,
+  body.mn-force-rotate-landscape .mn-interior-balance b {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+    letter-spacing: -.035em !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info span,
+  body.mn-force-rotate-landscape .mn-interior-hud .mn-interior-info span,
+  html.mn-force-rotate-landscape .mn-interior-profile small,
+  body.mn-force-rotate-landscape .mn-interior-profile small {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    font-size: 7px !important;
+    line-height: 1 !important;
+    font-weight: 750 !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-profile > i,
+  body.mn-force-rotate-landscape .mn-interior-profile > i,
+  html.mn-force-rotate-landscape .mn-interior-balance > i,
+  body.mn-force-rotate-landscape .mn-interior-balance > i {
+    width: 28px !important;
+    height: 28px !important;
+    flex-basis: 28px !important;
+    font-size: 12px !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-profile > span,
+  body.mn-force-rotate-landscape .mn-interior-profile > span {
+    min-width: 0 !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-interior-exit,
+  body.mn-force-rotate-landscape .mn-interior-exit {
+    position: fixed !important;
+    left: auto !important;
+    top: auto !important;
+    right: max(16px, env(safe-area-inset-right)) !important;
+    bottom: max(18px, env(safe-area-inset-bottom)) !important;
+    width: min(230px, calc(100vw - 180px)) !important;
+    max-width: min(230px, calc(100vw - 180px)) !important;
+    min-height: 48px !important;
+    padding: 11px 16px !important;
+    border-radius: 17px !important;
+    transform: none !important;
+    rotate: 0deg !important;
+    translate: 0 0 !important;
+    z-index: 1230 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}
