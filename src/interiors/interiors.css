@@ -36,3 +36,125 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
   }
 }
 @media (prefers-reduced-motion: reduce) { .mn-interior-spinner { animation-duration: 1.5s; } }
+
+/* City-style interior HUD */
+.mn-interior-hud {
+  position: absolute;
+  z-index: 7;
+  left: 18px;
+  top: 18px;
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+  pointer-events: none;
+}
+.mn-interior-hud .mn-interior-info {
+  position: static;
+  min-width: 150px;
+  box-sizing: border-box;
+}
+.mn-interior-profile,
+.mn-interior-balance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 7px 11px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 14px;
+  background: rgba(5,8,14,.74);
+  backdrop-filter: blur(8px);
+}
+.mn-interior-profile > i,
+.mn-interior-balance > i {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(135deg,#684fff,#a34ee0);
+  font: normal 900 12px/1 system-ui;
+}
+.mn-interior-balance > i { background: linear-gradient(135deg,#1cbd70,#16824e); }
+.mn-interior-profile > span { display: grid; gap: 2px; min-width: 88px; }
+.mn-interior-profile b,
+.mn-interior-balance b { color: #fff; font: 900 12px/1.1 system-ui; white-space: nowrap; }
+.mn-interior-profile small { color: rgba(255,255,255,.5); font: 750 8px/1 system-ui; }
+
+.mn-interior-joystick {
+  border: 0;
+  background: transparent;
+}
+.mn-interior-joystick-base {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 50%;
+  background: rgba(4,8,15,.48);
+  box-shadow: inset 0 0 20px rgba(255,255,255,.035), 0 12px 30px rgba(0,0,0,.28);
+  opacity: 0;
+  transition: opacity 80ms linear, filter 80ms linear;
+}
+.mn-interior-joystick-stick {
+  opacity: 0;
+  transition: opacity 80ms linear, filter 80ms linear;
+}
+.mn-interior-stamina-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  background: conic-gradient(from 200deg, #72ed93 var(--mn-interior-stamina, 360deg), rgba(255,255,255,.08) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+  transition: opacity 80ms linear;
+}
+.mn-interior-joystick[data-active="true"] .mn-interior-joystick-base,
+.mn-interior-joystick[data-active="true"] .mn-interior-joystick-stick,
+.mn-interior-joystick[data-active="true"] .mn-interior-stamina-ring {
+  opacity: 1;
+  filter: none;
+}
+.mn-interior-stamina {
+  display: none;
+  position: absolute;
+  z-index: 7;
+  width: 112px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 13px;
+  color: rgba(255,255,255,.65);
+  background: rgba(5,8,14,.76);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transform: translateY(7px);
+  transition: opacity 100ms linear, transform 100ms ease;
+  pointer-events: none;
+}
+.mn-interior-stamina[data-visible="true"] { opacity: 1; transform: translateY(0); }
+.mn-interior-stamina > span { font: 850 7px/1 system-ui; letter-spacing: .09em; }
+.mn-interior-stamina > i { display: block; flex: 1; height: 4px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.13); }
+.mn-interior-stamina > i > b { display: block; width: 100%; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#d7ef63,#55dc87); transition: width 80ms linear; }
+.mn-interior-stamina > i > b[data-state="low"] { background: linear-gradient(90deg,#ffbd54,#ff6767); }
+.mn-interior-stamina > i > b[data-state="locked"] { background: #ff5f65; }
+
+@media (hover: none) and (pointer: coarse) {
+  .mn-interior-hud { left: 14px; top: 14px; gap: 5px; }
+  .mn-interior-hud .mn-interior-info { left: auto; top: auto; min-width: 138px; padding: 8px 10px; }
+  .mn-interior-profile,
+  .mn-interior-balance { min-height: 38px; padding: 6px 9px; border-radius: 13px; }
+  .mn-interior-profile > i,
+  .mn-interior-balance > i { width: 25px; height: 25px; flex-basis: 25px; }
+  .mn-interior-profile > span { min-width: 78px; }
+  .mn-interior-balance b { font-size: 11px; }
+  .mn-interior-joystick { left: 18px; bottom: 54px; width: 104px; height: 104px; }
+  .mn-interior-stamina { display: flex; left: 14px; bottom: 13px; }
+  .mn-interior-exit { right: 14px; bottom: 14px; }
+}
