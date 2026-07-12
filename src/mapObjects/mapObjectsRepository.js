@@ -703,6 +703,11 @@ async function syncHouseMapObject(object) {
 
     if (error) throw error;
 
+    const rpcHasOwnerId = Boolean(data) && Object.prototype.hasOwnProperty.call(data, 'ownerId');
+    const rpcHasOwnerName = Boolean(data) && Object.prototype.hasOwnProperty.call(data, 'ownerName');
+    const syncedOwnerId = rpcHasOwnerId ? data.ownerId : (object.payload?.ownerId || null);
+    const syncedOwnerName = rpcHasOwnerName ? data.ownerName : (object.payload?.ownerName || null);
+
     const syncedPayload = {
       ...(object.payload || {}),
 
@@ -711,20 +716,13 @@ async function syncHouseMapObject(object) {
         object.payload?.houseId ||
         null,
 
-      ownerId:
-        data?.ownerId ||
-        object.payload?.ownerId ||
-        null,
+      ownerId: syncedOwnerId,
+      owner_id: syncedOwnerId,
 
-      ownerName:
-        data?.ownerName ||
-        object.payload?.ownerName ||
-        null,
+      ownerName: syncedOwnerName,
+      owner_name: syncedOwnerName,
 
-      owned: Boolean(
-        data?.ownerId ||
-          object.payload?.ownerId
-      ),
+      owned: Boolean(syncedOwnerId),
     };
 
     if (data?.price !== undefined) {
