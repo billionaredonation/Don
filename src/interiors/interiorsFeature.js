@@ -59,6 +59,18 @@ function markup() {
         <div class="mn-interior-player" data-interior-player><i></i><span>${String(state.nickname || 'Игрок')}</span></div>
       </main>
       <div class="mn-interior-controls" hidden data-interior-controls>
+        <div class="mn-interior-joystick" data-interior-joystick data-active="false">
+          <div class="mn-interior-stamina-ring" data-interior-stamina-ring></div>
+          <div class="mn-interior-joystick-base">
+            <div class="mn-interior-joystick-stick" data-interior-stick></div>
+          </div>
+        </div>
+        <div class="mn-interior-stamina" data-interior-stamina data-visible="false">
+          <span>STAMINA</span>
+          <i><b data-interior-stamina-fill></b></i>
+        </div>
+      </div>
+      <div class="mn-interior-ui" hidden data-interior-ui>
         <button type="button" class="mn-interior-exit" data-interior-exit>🚪 Выйти из дома</button>
         <div class="mn-interior-hud">
           <div class="mn-interior-info">
@@ -72,16 +84,6 @@ function markup() {
           <div class="mn-interior-balance">
             <i>₴</i><b data-interior-balance>${formatMoney(state.player?.balance)}</b>
           </div>
-        </div>
-        <div class="mn-interior-joystick" data-interior-joystick data-active="false">
-          <div class="mn-interior-stamina-ring" data-interior-stamina-ring></div>
-          <div class="mn-interior-joystick-base">
-            <div class="mn-interior-joystick-stick" data-interior-stick></div>
-          </div>
-        </div>
-        <div class="mn-interior-stamina" data-interior-stamina data-visible="false">
-          <span>STAMINA</span>
-          <i><b data-interior-stamina-fill></b></i>
         </div>
       </div>
       <div class="mn-interior-error" hidden data-interior-error>
@@ -101,6 +103,7 @@ export function enableInteriorsFeature() {
   const loadingText = overlay.querySelector('[data-interior-loading-text]');
   const scene = overlay.querySelector('[data-interior-scene]');
   const controls = overlay.querySelector('[data-interior-controls]');
+  const ui = overlay.querySelector('[data-interior-ui]');
   const map = overlay.querySelector('[data-interior-map]');
   const interiorImage = overlay.querySelector('[data-interior-image]');
   const marker = overlay.querySelector('[data-interior-player]');
@@ -198,6 +201,7 @@ export function enableInteriorsFeature() {
     loading.hidden = true;
     scene.hidden = true;
     controls.hidden = true;
+    ui.hidden = true;
     errorText.textContent = text;
     errorBox.hidden = false;
   }
@@ -274,6 +278,7 @@ export function enableInteriorsFeature() {
     errorBox.hidden = true;
     scene.hidden = true;
     controls.hidden = true;
+    ui.hidden = true;
     loading.hidden = false;
     loadingText.textContent = 'Проверяем доступ к дому';
     setPaused(true);
@@ -305,6 +310,7 @@ export function enableInteriorsFeature() {
       loading.hidden = true;
       scene.hidden = false;
       controls.hidden = false;
+      ui.hidden = false;
       active = true;
       startLoop();
       window.dispatchEvent(new CustomEvent('mn:interior-entered', { detail: { houseId: id, template: template.id } }));
@@ -327,6 +333,7 @@ export function enableInteriorsFeature() {
     overlay.hidden = true;
     scene.hidden = true;
     controls.hidden = true;
+    ui.hidden = true;
     loading.hidden = false;
     errorBox.hidden = true;
     setPaused(false);
@@ -405,4 +412,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
