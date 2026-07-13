@@ -333,7 +333,7 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
   body.mn-force-rotate-landscape .mn-interior-joystick {
     position: fixed !important;
     left: 24px !important;
-    top: 84px !important;
+    top: 112px !important;
     right: auto !important;
     bottom: auto !important;
     width: 118px !important;
@@ -474,7 +474,7 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
   html.mn-force-rotate-landscape .mn-interior-balance,
   body.mn-force-rotate-landscape .mn-interior-balance {
     right: -43px !important;
-    top: 356px !important;
+    top: 400px !important;
     grid-template-columns: 28px minmax(0, 1fr) !important;
     gap: 7px !important;
   }
