@@ -11,7 +11,6 @@ import {
   getLocalPlayerId,
   getOrCreatePlayerPosition,
   getCityPlayers,
-  updatePlayerPosition,
 } from '../../src/player/playerPosition.js';
 
 import { setupMobileControlPrompt } from '../../src/controls/mobileControlPrompt.js';
@@ -233,43 +232,21 @@ function setupHouseSpawnPicker({
     document.body?.classList.remove('mn-house-spawn-open');
   }
 
-  function teleportToHouse(house) {
+  function enterHouseFromPicker(house) {
     if (!house) return;
-
-    const spawn = getHouseSpawnPoint(house);
-    const nextPosition = {
-      cityId,
-      nickname,
-      x: spawn.x,
-      y: spawn.y,
-      angle: spawn.angle,
-    };
 
     close();
 
-    playerPosition.x = spawn.x;
-    playerPosition.y = spawn.y;
-    playerPosition.angle = spawn.angle;
-
-    mapControls?.focusOnPlayer?.(spawn.x, spawn.y);
-
-    window.dispatchEvent(new CustomEvent('mn:player-teleported', {
-      detail: nextPosition,
+    window.dispatchEvent(new CustomEvent('mn:house-spawn-enter-request', {
+      detail: {
+        house,
+        houseId: house.id || house.mapObjectId || house.objectId || house?.payload?.houseId || null,
+        cityId,
+        playerId: getLocalPlayerId(),
+        nickname,
+        source: 'house_spawn_picker',
+      },
     }));
-
-    movementChannel?.sendMove?.({
-      playerId: getLocalPlayerId(),
-      nickname,
-      cityId,
-      x: Math.round(spawn.x * 10000) / 10000,
-      y: Math.round(spawn.y * 10000) / 10000,
-      angle: Math.round(spawn.angle * 10) / 10,
-      updatedAt: new Date().toISOString(),
-    });
-
-    updatePlayerPosition(nextPosition).catch((error) => {
-      console.warn('[home] house spawn position save failed:', error);
-    });
   }
 
   function handleClick(event) {
@@ -278,7 +255,7 @@ function setupHouseSpawnPicker({
     if (option) {
       event.preventDefault();
       event.stopPropagation();
-      teleportToHouse(ownedHouses[Number(option.dataset.houseSpawnIndex)]);
+      enterHouseFromPicker(ownedHouses[Number(option.dataset.houseSpawnIndex)]);
       return;
     }
 
@@ -304,7 +281,7 @@ function setupHouseSpawnPicker({
     if (event.code === 'Enter' || event.code === 'KeyY' || key === 'y' || key === 'н') {
       event.preventDefault();
       event.stopPropagation();
-      teleportToHouse(ownedHouses[0]);
+      enterHouseFromPicker(ownedHouses[0]);
     }
   }
 
@@ -1695,4 +1672,3 @@ register('home', async (root) => {
     );
   };
 });
-
