@@ -11,6 +11,7 @@ import {
   getLocalPlayerId,
   getOrCreatePlayerPosition,
   getCityPlayers,
+  updatePlayerPosition,
 } from '../../src/player/playerPosition.js';
 
 import { setupMobileControlPrompt } from '../../src/controls/mobileControlPrompt.js';
@@ -177,16 +178,36 @@ function getHouseClassLabel(house = {}) {
 }
 
 function renderHouseSpawnPickerHtml({ houses, cityName }) {
-  const houseButtons = houses.map((house, index) => {
+  const occupiedCount = Math.min(houses.length, PLAYER_HOUSE_SLOT_LIMIT);
+  const cityLabel = escapeHtml(cityName || 'Город');
+  const slotCards = Array.from({ length: PLAYER_HOUSE_SLOT_LIMIT }, (_, index) => {
+    const house = houses[index];
+
+    if (!house) {
+      return `
+        <div class="house-spawn-option house-spawn-option-empty" aria-disabled="true">
+          <span class="house-spawn-slot-badge">Слот ${index + 1}</span>
+          <span class="house-spawn-option-icon">＋</span>
+          <span class="house-spawn-option-main">
+            <b>Свободный слот</b>
+            <small>Можно занять ещё одним домом</small>
+          </span>
+          <span class="house-spawn-option-state">Пусто</span>
+        </div>
+      `;
+    }
+
     const spawn = getHouseSpawnPoint(house);
 
     return `
       <button type="button" class="house-spawn-option" data-house-spawn-index="${index}">
+        <span class="house-spawn-slot-badge">Слот ${index + 1}</span>
         <span class="house-spawn-option-icon">🏠</span>
-        <span>
+        <span class="house-spawn-option-main">
           <b>${escapeHtml(getHouseNumberLabel(house))} · ${escapeHtml(getHouseClassLabel(house))}</b>
-          <small>${escapeHtml(cityName)} · X ${spawn.x.toFixed(1)} / Y ${spawn.y.toFixed(1)}</small>
+          <small>${cityLabel} · вход у двери X ${spawn.x.toFixed(1)} / Y ${spawn.y.toFixed(1)}</small>
         </span>
+        <span class="house-spawn-option-cta">Войти</span>
       </button>
     `;
   }).join('');
@@ -195,14 +216,24 @@ function renderHouseSpawnPickerHtml({ houses, cityName }) {
     <div class="house-spawn-picker" data-house-spawn-picker role="dialog" aria-modal="true">
       <div class="house-spawn-backdrop" data-house-spawn-stay></div>
       <section class="house-spawn-card">
-        <span class="house-spawn-kicker">Моя недвижимость</span>
-        <h3>Где появиться?</h3>
-        <p>У тебя ${houses.length}/${PLAYER_HOUSE_SLOT_LIMIT} слота домов. Выбери дом, возле которого хочешь появиться.</p>
+        <div class="house-spawn-hero">
+          <span class="house-spawn-kicker">CEF · недвижимость</span>
+          <h3>Выбор точки входа</h3>
+          <p>Найдено ${occupiedCount}/${PLAYER_HOUSE_SLOT_LIMIT} слота домов в городе ${cityLabel}. Выбери дом — появление сразу откроет его интерьер.</p>
+          <div class="house-spawn-stats" aria-label="Статус недвижимости">
+            <span><b>${occupiedCount}</b><small>домов</small></span>
+            <span><b>${PLAYER_HOUSE_SLOT_LIMIT - occupiedCount}</b><small>свободно</small></span>
+            <span><b>${cityLabel}</b><small>город</small></span>
+          </div>
+        </div>
+        <div class="house-spawn-progress" aria-hidden="true">
+          <i style="width:${Math.round((occupiedCount / PLAYER_HOUSE_SLOT_LIMIT) * 100)}%"></i>
+        </div>
         <div class="house-spawn-list">
-          ${houseButtons}
+          ${slotCards}
         </div>
         <div class="house-spawn-actions">
-          <button type="button" data-house-spawn-stay>Остаться тут</button>
+          <button type="button" data-house-spawn-stay>Остаться в городе</button>
         </div>
       </section>
     </div>
@@ -312,6 +343,97 @@ function setupHouseSpawnPicker({
     overlay?.removeEventListener('click', handleClick);
     window.removeEventListener('keydown', handleKeyDown, true);
     close();
+  };
+}
+
+function getInteriorExitPoint(detail = {}) {
+  const exitSpawn = detail.exitSpawn || {};
+  const fallback = getHouseSpawnPoint(detail.house || {});
+  const rawX = exitSpawn.x ?? detail.x ?? fallback.x;
+  const rawY = exitSpawn.y ?? detail.y ?? fallback.y;
+  const rawAngle = exitSpawn.angle ?? detail.angle ?? fallback.angle;
+  const angle = Number(rawAngle);
+
+  return {
+    x: clampPercent(rawX, fallback.x),
+    y: clampPercent(rawY, fallback.y),
+    angle: Number.isFinite(angle) ? angle : 0,
+  };
+}
+
+function setupInteriorExitReturn({
+  root,
+  cityId,
+  nickname,
+  playerPosition,
+  mapControls,
+  movementChannel,
+} = {}) {
+  if (!root || !playerPosition) return () => {};
+
+  function handleInteriorExited(event) {
+    if (root.dataset.destroyed === 'true') return;
+
+    const detail = event?.detail || {};
+    const point = getInteriorExitPoint(detail);
+    const updatedAt = new Date().toISOString();
+    const playerId = getLocalPlayerId();
+
+    playerPosition.x = point.x;
+    playerPosition.y = point.y;
+    playerPosition.angle = point.angle;
+    playerPosition.updatedAt = updatedAt;
+
+    state.player = {
+      ...(state.player || {}),
+      x: point.x,
+      y: point.y,
+      angle: point.angle,
+      updatedAt,
+    };
+    save();
+
+    mapControls?.focusOnPlayer?.(point.x, point.y);
+
+    window.dispatchEvent(new CustomEvent('mn:player-teleported', {
+      detail: {
+        playerId,
+        nickname,
+        cityId,
+        x: point.x,
+        y: point.y,
+        angle: point.angle,
+        updatedAt,
+        houseId: detail.houseId || null,
+        source: 'interior_exit',
+      },
+    }));
+
+    movementChannel?.sendMove?.({
+      playerId,
+      nickname,
+      cityId,
+      x: point.x,
+      y: point.y,
+      angle: point.angle,
+      updatedAt,
+    });
+
+    updatePlayerPosition({
+      cityId,
+      nickname,
+      x: point.x,
+      y: point.y,
+      angle: point.angle,
+    }).catch((error) => {
+      console.warn('[home] interior exit position save failed:', error);
+    });
+  }
+
+  window.addEventListener('mn:interior-exited', handleInteriorExited);
+
+  return () => {
+    window.removeEventListener('mn:interior-exited', handleInteriorExited);
   };
 }
 
@@ -1099,6 +1221,7 @@ register('home', async (root) => {
   let cleanupMobileSelfMarker = null;
   let cleanupBalanceDatabaseSync = null;
   let cleanupHouseSpawnPicker = null;
+  let cleanupInteriorExitReturn = null;
 
   const balanceCard = root.querySelector('[data-player-balance-card]');
   const balanceEl = root.querySelector('[data-player-balance]');
@@ -1484,6 +1607,15 @@ register('home', async (root) => {
     movementChannel: network.movementChannel,
   });
 
+  cleanupInteriorExitReturn = setupInteriorExitReturn({
+    root,
+    cityId,
+    nickname,
+    playerPosition,
+    mapControls,
+    movementChannel: network.movementChannel,
+  });
+
   const handleSessionBlocked = () => {
     cleanupMobileSelfMarker?.();
     cleanupMobileSelfMarker = null;
@@ -1642,6 +1774,7 @@ register('home', async (root) => {
     cleanupMobilePrompt?.();
     cleanupAdminPanel?.();
     cleanupEntityInteraction?.();
+    cleanupInteriorExitReturn?.();
     cleanupHouseSpawnPicker?.();
     cleanupGameRealtime?.();
     cleanupMobileSelfMarker?.();
