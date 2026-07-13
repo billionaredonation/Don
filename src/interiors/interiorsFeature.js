@@ -36,6 +36,65 @@ function formatMoney(value) {
   return `${amount.toLocaleString('ru-RU')} ₴`;
 }
 
+function clampPercent(value, fallback = 50) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return fallback;
+
+  return Math.min(100, Math.max(0, number));
+}
+
+function houseExteriorSpawn(house = {}) {
+  const payload = house?.payload || {};
+  const baseX = clampPercent(
+    payload.exitX ??
+      payload.exit_x ??
+      house.exitX ??
+      house.x ??
+      payload.x ??
+      payload.mapX ??
+      payload.map_x,
+    50
+  );
+  const baseY = clampPercent(
+    payload.exitY ??
+      payload.exit_y ??
+      house.exitY ??
+      house.y ??
+      payload.y ??
+      payload.mapY ??
+      payload.map_y,
+    50
+  );
+  const angle = Number(
+    payload.exitAngle ??
+      payload.exit_angle ??
+      house.exitAngle ??
+      house.rotation ??
+      payload.rotation ??
+      0
+  );
+
+  /*
+    Выход из интерьера должен ставить игрока не в центр маркера дома, а рядом
+    с ним — визуально “у двери”. Если позже в БД появятся exitX/exitY, они
+    будут иметь приоритет над автоматическим смещением.
+  */
+  const hasExplicitExit =
+    payload.exitX !== undefined ||
+    payload.exit_x !== undefined ||
+    house.exitX !== undefined ||
+    payload.exitY !== undefined ||
+    payload.exit_y !== undefined ||
+    house.exitY !== undefined;
+
+  return {
+    x: hasExplicitExit ? baseX : clampPercent(baseX + 1.15, baseX),
+    y: hasExplicitExit ? baseY : clampPercent(baseY + 1.25, baseY),
+    angle: Number.isFinite(angle) ? angle : 0,
+  };
+}
+
 function markup() {
   return `
     <div class="mn-interior" hidden data-mn-interior>
@@ -125,6 +184,8 @@ export function enableInteriorsFeature() {
   let raf = 0;
   let lastFrame = 0;
   let position = { x: 50, y: 82 };
+  let activeHouse = null;
+  let activeHouseId = null;
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
   const staminaConfig = getStaminaConfig();
@@ -198,6 +259,8 @@ export function enableInteriorsFeature() {
 
   function showError(text) {
     active = false;
+    activeHouse = null;
+    activeHouseId = null;
     loading.hidden = true;
     scene.hidden = true;
     controls.hidden = true;
@@ -299,6 +362,8 @@ export function enableInteriorsFeature() {
       map.style.backgroundImage = 'none';
       overlay.dataset.template = template.id;
       overlay.dataset.houseId = id;
+      activeHouse = house;
+      activeHouseId = id;
       title.textContent = `Дом · ${data.houseClassLabel || template.label}`;
       meta.textContent = `${template.rooms} комн. · кухня ${template.kitchen} · санузел ${template.bathroom}`;
       balance.textContent = formatMoney(state.player?.balance);
@@ -313,7 +378,14 @@ export function enableInteriorsFeature() {
       ui.hidden = false;
       active = true;
       startLoop();
-      window.dispatchEvent(new CustomEvent('mn:interior-entered', { detail: { houseId: id, template: template.id } }));
+      window.dispatchEvent(new CustomEvent('mn:interior-entered', {
+        detail: {
+          houseId: id,
+          house,
+          template: template.id,
+          exitSpawn: houseExteriorSpawn(house),
+        },
+      }));
     } catch (error) {
       const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
       if (code.includes('INTERIOR_NOT_OWNER')) showError('Вход доступен только владельцу дома.');
@@ -323,7 +395,13 @@ export function enableInteriorsFeature() {
   }
 
   function exit() {
+    const exitedHouse = activeHouse;
+    const exitedHouseId = overlay.dataset.houseId || activeHouseId || null;
+    const exitSpawn = exitedHouse ? houseExteriorSpawn(exitedHouse) : null;
+
     active = false;
+    activeHouse = null;
+    activeHouseId = null;
     cancelAnimationFrame(raf);
     keys.clear();
     joystickVector = { x: 0, y: 0 };
@@ -337,7 +415,18 @@ export function enableInteriorsFeature() {
     loading.hidden = false;
     errorBox.hidden = true;
     setPaused(false);
-    window.dispatchEvent(new CustomEvent('mn:interior-exited', { detail: { houseId: overlay.dataset.houseId || null } }));
+    if (exitedHouseId && exitSpawn) {
+      window.dispatchEvent(new CustomEvent('mn:interior-exited', {
+        detail: {
+          houseId: exitedHouseId,
+          house: exitedHouse,
+          exitSpawn,
+          x: exitSpawn.x,
+          y: exitSpawn.y,
+          angle: exitSpawn.angle,
+        },
+      }));
+    }
     delete overlay.dataset.houseId;
   }
 
