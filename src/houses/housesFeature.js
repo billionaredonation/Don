@@ -395,6 +395,26 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     return interiors.enter(house);
   }
 
+  async function handleHouseSpawnEnterRequest(event) {
+    const detail = event?.detail || {};
+
+    if (
+      detail.cityId &&
+      cityId &&
+      String(detail.cityId) !== String(cityId)
+    ) {
+      return;
+    }
+
+    if (!detail.house || destroyed) return;
+
+    try {
+      await interiors.enter(detail.house);
+    } catch (error) {
+      console.warn('[houses] spawn house interior enter failed:', error);
+    }
+  }
+
   async function mountModal() {
     if (destroyed) return;
 
@@ -482,6 +502,7 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
   resetHouseModals(root);
   mountModal();
 
+  window.addEventListener('mn:house-spawn-enter-request', handleHouseSpawnEnterRequest);
   window.addEventListener('mn:map-objects-changed', handleRealtimeRefresh);
   window.addEventListener('mn:houses-realtime-changed', handleRealtimeRefresh);
 
@@ -489,6 +510,7 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     destroyed = true;
     clearTimeout(refreshTimer);
 
+    window.removeEventListener('mn:house-spawn-enter-request', handleHouseSpawnEnterRequest);
     window.removeEventListener('mn:map-objects-changed', handleRealtimeRefresh);
     window.removeEventListener('mn:houses-realtime-changed', handleRealtimeRefresh);
 
