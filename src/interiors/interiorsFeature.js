@@ -6,121 +6,28 @@ import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
 import './interiors.css';
 
-const INTERIOR_COLLISION_FALLBACK_RADIUS = 0.8;
+const INTERIOR_COLLISION_TABLE = 'interior_collision_profiles';
+const INTERIOR_COLLISION_FALLBACK_RADIUS = 0;
 const INTERIOR_COLLISION_STORAGE_KEY = 'mn-interior-colliders-v1';
 const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
 
-function collisionRect(x, y, width, height) {
-  return {
-    x1: x,
-    y1: y,
-    x2: x + width,
-    y2: y + height,
-  };
-}
-
 const INTERIOR_COLLISION_PROFILES = {
   standard: {
-    radius: 0.8,
-    bounds: [
-      collisionRect(22.9, 13.1, 40.2, 74.0),
-      collisionRect(58.0, 41.9, 19.0, 44.5),
-      collisionRect(61.8, 13.6, 14.6, 27.0),
-      collisionRect(58.1, 28.0, 5.0, 10.6),
-    ],
-    blocked: [
-      collisionRect(22.9, 27.9, 10.0, 44.2),
-      collisionRect(35.3, 55.2, 9.8, 14.7),
-      collisionRect(53.3, 57.8, 6.5, 12.0),
-      collisionRect(63.9, 51.2, 11.8, 25.2),
-      collisionRect(68.2, 77.2, 7.5, 6.8),
-      collisionRect(55.6, 13.2, 5.5, 15.4),
-      collisionRect(60.4, 13.3, 2.1, 14.9),
-      collisionRect(60.4, 37.7, 2.1, 5.1),
-      collisionRect(60.7, 40.5, 16.0, 2.4),
-      collisionRect(65.2, 14.9, 10.5, 10.8),
-      collisionRect(68.2, 27.0, 7.2, 6.1),
-      collisionRect(71.3, 35.0, 4.5, 5.6),
-    ],
+    radius: 0,
+    bounds: [],
+    blocked: [],
   },
 
   premium: {
-    radius: 0.76,
-    bounds: [
-      collisionRect(10.6, 10.2, 78.2, 39.8),
-      collisionRect(9.9, 43.2, 7.8, 9.4),
-      collisionRect(9.7, 53.4, 8.9, 12.0),
-      collisionRect(18.0, 60.2, 31.2, 28.5),
-      collisionRect(34.9, 50.0, 24.0, 15.6),
-      collisionRect(56.6, 50.0, 32.2, 38.7),
-    ],
-    blocked: [
-      collisionRect(10.7, 15.5, 7.1, 24.4),
-      collisionRect(24.9, 27.4, 14.4, 9.3),
-      collisionRect(40.3, 14.8, 12.0, 11.2),
-      collisionRect(58.4, 15.8, 8.6, 21.9),
-      collisionRect(71.2, 20.9, 6.7, 15.2),
-      collisionRect(72.0, 37.8, 7.2, 7.3),
-      collisionRect(83.4, 18.1, 5.4, 21.6),
-      collisionRect(45.1, 49.4, 8.8, 2.5),
-      collisionRect(60.5, 49.4, 28.3, 2.5),
-      collisionRect(27.4, 50.5, 8.6, 10.0),
-      collisionRect(9.8, 53.5, 8.7, 11.7),
-      collisionRect(19.9, 61.0, 12.7, 14.0),
-      collisionRect(20.8, 81.0, 14.3, 7.6),
-      collisionRect(36.6, 75.5, 6.1, 9.7),
-      collisionRect(43.5, 62.6, 5.6, 20.7),
-      collisionRect(61.5, 59.7, 16.4, 17.6),
-      collisionRect(76.8, 56.5, 5.0, 4.6),
-      collisionRect(76.8, 75.2, 5.0, 4.7),
-      collisionRect(50.5, 83.6, 38.4, 5.2),
-    ],
+    radius: 0,
+    bounds: [],
+    blocked: [],
   },
 
   ultra_lux: {
-    radius: 0.72,
-    bounds: [
-      collisionRect(5.2, 8.6, 25.2, 28.4),
-      collisionRect(28.6, 28.0, 4.2, 9.5),
-      collisionRect(4.4, 38.2, 23.8, 30.2),
-      collisionRect(22.0, 43.0, 10.2, 15.0),
-      collisionRect(4.6, 69.2, 26.7, 14.7),
-      collisionRect(31.0, 8.1, 38.7, 68.2),
-      collisionRect(34.5, 73.3, 30.0, 18.0),
-      collisionRect(68.6, 28.0, 4.1, 9.8),
-      collisionRect(69.6, 8.6, 25.4, 28.4),
-      collisionRect(68.6, 40.5, 5.3, 15.0),
-      collisionRect(70.0, 38.7, 24.8, 22.0),
-      collisionRect(68.4, 69.3, 5.7, 8.4),
-      collisionRect(70.0, 68.8, 25.0, 20.8),
-    ],
-    blocked: [
-      collisionRect(8.2, 14.0, 13.4, 15.8),
-      collisionRect(5.4, 51.1, 8.1, 11.0),
-      collisionRect(4.5, 64.2, 19.8, 5.0),
-      collisionRect(5.0, 70.5, 6.1, 12.2),
-      collisionRect(14.8, 75.7, 5.4, 7.6),
-      collisionRect(22.2, 76.2, 8.8, 7.5),
-      collisionRect(5.0, 84.2, 26.4, 6.1),
-      collisionRect(29.4, 45.1, 6.1, 24.6),
-      collisionRect(40.8, 17.0, 10.6, 20.0),
-      collisionRect(49.8, 20.0, 10.6, 15.0),
-      collisionRect(49.6, 23.2, 6.8, 8.2),
-      collisionRect(53.8, 30.2, 4.7, 5.0),
-      collisionRect(42.0, 45.5, 20.0, 10.4),
-      collisionRect(43.2, 61.0, 16.8, 9.2),
-      collisionRect(40.0, 76.2, 5.0, 10.0),
-      collisionRect(47.6, 79.4, 6.5, 6.9),
-      collisionRect(65.6, 14.0, 4.7, 24.0),
-      collisionRect(78.5, 20.2, 5.7, 10.3),
-      collisionRect(88.9, 10.8, 5.7, 25.8),
-      collisionRect(70.0, 47.2, 6.4, 13.2),
-      collisionRect(81.5, 47.5, 7.0, 10.2),
-      collisionRect(90.5, 39.5, 4.2, 20.9),
-      collisionRect(70.0, 71.4, 4.3, 16.5),
-      collisionRect(79.3, 70.3, 15.2, 12.1),
-      collisionRect(71.0, 88.0, 23.4, 4.5),
-    ],
+    radius: 0,
+    bounds: [],
+    blocked: [],
   },
 };
 
@@ -143,6 +50,63 @@ function isInteriorColliderAdmin() {
     isTruthy(state.isAdmin) ||
     isTruthy(state.player?.is_admin) ||
     isTruthy(state.player?.isAdmin);
+}
+
+function readJsonLocalStorage(key, fallback = null) {
+  try {
+    const raw = window.localStorage?.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeTelegramId(value) {
+  const text = String(value ?? '').trim();
+  return /^\d+$/.test(text) ? text : null;
+}
+
+function getInteriorColliderAdminIdentity() {
+  const savedState = readJsonLocalStorage('mn-game-state', null);
+  const savedAuth = readJsonLocalStorage('mn_auth_player', null);
+  const playerId =
+    state.playerId ||
+    state.player?.playerId ||
+    state.player?.player_id ||
+    savedState?.playerId ||
+    savedState?.player?.playerId ||
+    savedState?.player?.player_id ||
+    window.localStorage?.getItem('mn_player_id') ||
+    null;
+  const telegramId =
+    window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+    state.telegramId ||
+    state.tg_id ||
+    state.player?.tg_id ||
+    state.player?.telegramId ||
+    savedState?.telegramId ||
+    savedState?.player?.tg_id ||
+    savedState?.player?.telegramId ||
+    window.localStorage?.getItem('mn_player_tg_id') ||
+    window.localStorage?.getItem('mn_tg_id') ||
+    null;
+  const nickname = String(
+    state.nickname ||
+      state.player?.nickname ||
+      state.player?.name ||
+      savedAuth?.nickname ||
+      savedState?.nickname ||
+      savedState?.player?.nickname ||
+      window.localStorage?.getItem('mn_player_nickname') ||
+      window.localStorage?.getItem('mn_nickname') ||
+      ''
+  ).trim();
+
+  return {
+    adminPlayerId: playerId ? String(playerId).trim() : null,
+    adminTgId: normalizeTelegramId(telegramId) || normalizeTelegramId(playerId),
+    adminNickname: nickname || null,
+  };
 }
 
 function playerTgId() {
@@ -200,23 +164,16 @@ function normalizeCollisionRect(rect) {
   };
 }
 
-function cloneCollisionRect(rect) {
-  return normalizeCollisionRect(rect);
-}
-
 function normalizeCollisionProfile(profile, fallbackProfile = null) {
   const fallback = fallbackProfile || {};
   const radius = Number(profile?.radius ?? fallback.radius ?? INTERIOR_COLLISION_FALLBACK_RADIUS);
-  const bounds = (Array.isArray(profile?.bounds) ? profile.bounds : fallback.bounds || [])
-    .map(normalizeCollisionRect)
-    .filter(Boolean);
   const blocked = (Array.isArray(profile?.blocked) ? profile.blocked : fallback.blocked || [])
     .map(normalizeCollisionRect)
     .filter(Boolean);
 
   return {
-    radius: Number.isFinite(radius) ? Math.max(0.1, Math.min(4, roundPercent(radius))) : INTERIOR_COLLISION_FALLBACK_RADIUS,
-    bounds,
+    radius: Number.isFinite(radius) ? Math.max(0, Math.min(4, roundPercent(radius))) : INTERIOR_COLLISION_FALLBACK_RADIUS,
+    bounds: [],
     blocked,
   };
 }
@@ -265,6 +222,102 @@ function writeStoredCollisionProfiles(profiles) {
 }
 
 let customCollisionProfiles = readStoredCollisionProfiles();
+let remoteCollisionProfilesPromise = null;
+
+function applyRemoteCollisionRow(row) {
+  const templateId = String(row?.template_id || row?.templateId || '').trim();
+  if (!TEMPLATES[templateId]) return false;
+
+  const profile = normalizeCollisionProfile(row?.profile || row, INTERIOR_COLLISION_PROFILES[templateId]);
+  customCollisionProfiles = {
+    ...customCollisionProfiles,
+    [templateId]: profile,
+  };
+  writeStoredCollisionProfiles(customCollisionProfiles);
+  return true;
+}
+
+async function loadRemoteCollisionProfiles({ force = false } = {}) {
+  if (remoteCollisionProfilesPromise && !force) return remoteCollisionProfilesPromise;
+
+  remoteCollisionProfilesPromise = (async () => {
+    const { data, error } = await supabase
+      .from(INTERIOR_COLLISION_TABLE)
+      .select('template_id, profile, updated_at');
+
+    if (error) throw error;
+
+    const nextProfiles = {};
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const templateId = String(row?.template_id || '').trim();
+      if (TEMPLATES[templateId]) {
+        nextProfiles[templateId] = normalizeCollisionProfile(row.profile, INTERIOR_COLLISION_PROFILES[templateId]);
+      }
+    });
+
+    customCollisionProfiles = {
+      ...customCollisionProfiles,
+      ...nextProfiles,
+    };
+    writeStoredCollisionProfiles(customCollisionProfiles);
+    return nextProfiles;
+  })();
+
+  try {
+    return await remoteCollisionProfilesPromise;
+  } catch (error) {
+    remoteCollisionProfilesPromise = null;
+    console.warn('[interiors] remote collider profiles load failed:', error);
+    return {};
+  }
+}
+
+async function saveRemoteCollisionProfile(templateId, profile) {
+  const normalized = normalizeCollisionProfile(profile, INTERIOR_COLLISION_PROFILES[templateId]);
+  const identity = getInteriorColliderAdminIdentity();
+
+  try {
+    const { data, error } = await supabase.rpc('admin_upsert_interior_collision_profile', {
+      p_template_id: templateId,
+      p_profile: normalized,
+      p_admin_player_id: identity.adminPlayerId,
+      p_admin_tg_id: identity.adminTgId,
+      p_admin_nickname: identity.adminNickname,
+    });
+
+    if (error) throw error;
+    if (data?.ok === false) throw new Error(data?.reason || 'admin_upsert_interior_collision_profile_failed');
+
+    const savedProfile = data?.profile || data?.row?.profile || normalized;
+    customCollisionProfiles = {
+      ...customCollisionProfiles,
+      [templateId]: normalizeCollisionProfile(savedProfile, INTERIOR_COLLISION_PROFILES[templateId]),
+    };
+    writeStoredCollisionProfiles(customCollisionProfiles);
+    return data || { ok: true };
+  } catch (rpcError) {
+    console.warn('[interiors] collider RPC save failed, trying direct table upsert:', rpcError);
+  }
+
+  const row = {
+    template_id: templateId,
+    profile: normalized,
+    updated_by_player_id: identity.adminPlayerId,
+    updated_by_tg_id: identity.adminTgId,
+    updated_by_nickname: identity.adminNickname,
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = await supabase
+    .from(INTERIOR_COLLISION_TABLE)
+    .upsert(row, { onConflict: 'template_id' })
+    .select('template_id, profile')
+    .single();
+
+  if (error) throw error;
+
+  applyRemoteCollisionRow(data || row);
+  return { ok: true, row: data || row };
+}
 
 function collisionProfileFor(templateId) {
   return customCollisionProfiles[templateId] ||
@@ -299,9 +352,12 @@ function sanitizeInteriorPosition(point) {
 
 function isInteriorPointWalkable(templateId, point) {
   const profile = collisionProfileFor(templateId);
-  const radius = profile.radius || INTERIOR_COLLISION_FALLBACK_RADIUS;
+  const radius = Number(profile.radius ?? INTERIOR_COLLISION_FALLBACK_RADIUS);
   const safePoint = sanitizeInteriorPosition(point);
-  const insideBounds = profile.bounds.some((box) => insideCollisionRect(safePoint, box, radius));
+  const bounds = Array.isArray(profile.bounds) ? profile.bounds : [];
+  const insideBounds = bounds.length > 0
+    ? bounds.some((box) => insideCollisionRect(safePoint, box, radius))
+    : true;
 
   if (!insideBounds) return false;
 
@@ -332,8 +388,7 @@ function snapInteriorPosition(templateId, point) {
   return base;
 }
 
-function resolveInteriorMovement(templateId, current, delta) {
-  const start = snapInteriorPosition(templateId, current);
+function resolveInteriorMovementStep(templateId, start, delta) {
   const move = {
     x: Number(delta?.x) || 0,
     y: Number(delta?.y) || 0,
@@ -377,6 +432,28 @@ function resolveInteriorMovement(templateId, current, delta) {
   if (resolved !== start) return resolved;
 
   return isInteriorPointWalkable(templateId, vertical) ? vertical : start;
+}
+
+function resolveInteriorMovement(templateId, current, delta) {
+  const move = {
+    x: Number(delta?.x) || 0,
+    y: Number(delta?.y) || 0,
+  };
+  const length = Math.hypot(move.x, move.y);
+  const steps = Math.max(1, Math.ceil(length / 0.25));
+  const step = {
+    x: move.x / steps,
+    y: move.y / steps,
+  };
+  let resolved = snapInteriorPosition(templateId, current);
+
+  for (let i = 0; i < steps; i += 1) {
+    const next = resolveInteriorMovementStep(templateId, resolved, step);
+    if (next.x === resolved.x && next.y === resolved.y) break;
+    resolved = next;
+  }
+
+  return resolved;
 }
 
 function houseExteriorSpawn(house = {}) {
@@ -467,30 +544,32 @@ function markup() {
       </div>
       <div class="mn-interior-ui" hidden data-interior-ui>
         <button type="button" class="mn-interior-exit" data-interior-exit>🚪 Выйти из дома</button>
-        <button type="button" class="mn-interior-collider-toggle" hidden data-interior-collider-toggle>Коллайдеры</button>
+        <button type="button" class="mn-interior-collider-toggle" hidden data-interior-collider-toggle>Стены</button>
         <section class="mn-interior-collider-panel" hidden data-interior-collider-panel>
           <div class="mn-interior-collider-head">
-            <b>Редактор коллайдеров</b>
+            <b>Стены интерьера</b>
             <button type="button" data-interior-collider-close>×</button>
           </div>
-          <div class="mn-interior-collider-mode">
-            <button type="button" data-interior-collider-mode="bounds">Проход</button>
-            <button type="button" data-interior-collider-mode="blocked">Блок</button>
-          </div>
           <div class="mn-interior-collider-hint">
-            Тяни по интерьеру, чтобы создать зону. Зелёное — где можно ходить, красное — стены и мебель.
+            Тяни по интерьеру, чтобы нарисовать красную стенку. Игроки не смогут проходить через красное.
+            Клик по стенке выбирает её, Delete удаляет.
           </div>
           <div class="mn-interior-collider-actions">
-            <button type="button" data-interior-collider-save>Сохранить</button>
+            <button type="button" class="mn-interior-collider-primary" data-interior-collider-save>Сохранить всем</button>
             <button type="button" data-interior-collider-delete>Удалить</button>
-            <button type="button" data-interior-collider-clear>Очистить</button>
+          </div>
+          <div class="mn-interior-collider-actions">
+            <button type="button" data-interior-collider-clear>Очистить всё</button>
             <button type="button" data-interior-collider-reset>Сброс</button>
           </div>
-          <div class="mn-interior-collider-actions">
-            <button type="button" data-interior-collider-export>Экспорт</button>
-            <button type="button" data-interior-collider-import>Импорт</button>
-          </div>
-          <textarea data-interior-collider-json spellcheck="false" placeholder="JSON коллайдеров"></textarea>
+          <details class="mn-interior-collider-json-wrap">
+            <summary>JSON импорт / экспорт</summary>
+            <div class="mn-interior-collider-actions">
+              <button type="button" data-interior-collider-export>Экспорт</button>
+              <button type="button" data-interior-collider-import>Импорт</button>
+            </div>
+            <textarea data-interior-collider-json spellcheck="false" placeholder="JSON стен"></textarea>
+          </details>
           <small data-interior-collider-status></small>
         </section>
         <div class="mn-interior-hud">
@@ -569,6 +648,9 @@ export function enableInteriorsFeature() {
   let colliderEditorPointer = null;
   let colliderEditorStart = null;
   let colliderEditorDraft = null;
+  let colliderSaveTimer = 0;
+  let colliderSaveSequence = 0;
+  let collisionProfilesChannel = null;
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
   const staminaConfig = getStaminaConfig();
@@ -596,12 +678,59 @@ export function enableInteriorsFeature() {
     staminaFill.dataset.state = sprintLocked ? 'locked' : percent < 30 ? 'low' : 'normal';
   }
 
+  function refreshPositionAfterCollisionChange(templateId) {
+    if (!active || templateId !== activeTemplateId || colliderEditorOpen) return;
+
+    position = snapInteriorPosition(activeTemplateId, position);
+    renderPosition();
+  }
+
+  function handleRemoteCollisionChange(payload) {
+    const row = payload?.new || payload?.old;
+    const templateId = String(row?.template_id || row?.templateId || '').trim();
+    if (!TEMPLATES[templateId]) return;
+
+    if (payload?.eventType === 'DELETE') {
+      const nextProfiles = { ...customCollisionProfiles };
+      delete nextProfiles[templateId];
+      customCollisionProfiles = nextProfiles;
+      writeStoredCollisionProfiles(customCollisionProfiles);
+    } else {
+      applyRemoteCollisionRow(row);
+    }
+
+    if (templateId === activeTemplateId) {
+      if (!colliderEditorOpen) {
+        refreshPositionAfterCollisionChange(templateId);
+      } else if (!colliderEditorPointer) {
+        setColliderStatus('Сервер обновил стены');
+      }
+    }
+  }
+
+  function subscribeRemoteCollisionProfiles() {
+    if (collisionProfilesChannel) return;
+
+    collisionProfilesChannel = supabase
+      .channel('mn-interior-colliders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: INTERIOR_COLLISION_TABLE },
+        handleRemoteCollisionChange
+      )
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[interiors] collider realtime subscription failed:', error || status);
+        }
+      });
+  }
+
   function setColliderStatus(text) {
     colliderStatus.textContent = text || '';
   }
 
   function setColliderEditorMode(mode) {
-    colliderEditorMode = mode === 'bounds' ? 'bounds' : 'blocked';
+    colliderEditorMode = 'blocked';
     colliderModeButtons.forEach((button) => {
       button.dataset.active = button.dataset.interiorColliderMode === colliderEditorMode ? 'true' : 'false';
     });
@@ -616,12 +745,6 @@ export function enableInteriorsFeature() {
       ...customCollisionProfiles,
       [activeTemplateId]: normalizeCollisionProfile(profile, INTERIOR_COLLISION_PROFILES[activeTemplateId]),
     };
-  }
-
-  function removeRuntimeEditorProfile() {
-    const nextProfiles = { ...customCollisionProfiles };
-    delete nextProfiles[activeTemplateId];
-    customCollisionProfiles = nextProfiles;
   }
 
   function colliderLayerPoint(event) {
@@ -650,9 +773,8 @@ export function enableInteriorsFeature() {
   }
 
   function editorCountsText(profile = colliderEditorProfile) {
-    const boundsCount = profile?.bounds?.length || 0;
     const blockedCount = profile?.blocked?.length || 0;
-    return `${activeTemplateId}: проход ${boundsCount} · блок ${blockedCount}`;
+    return `${activeTemplateId}: стен ${blockedCount}`;
   }
 
   function renderColliderEditorLayer() {
@@ -662,7 +784,7 @@ export function enableInteriorsFeature() {
     }
 
     const fragments = [];
-    ['bounds', 'blocked'].forEach((kind) => {
+    ['blocked'].forEach((kind) => {
       (colliderEditorProfile[kind] || []).forEach((rect, index) => {
         const selected = colliderEditorSelected?.kind === kind && colliderEditorSelected?.index === index;
         fragments.push(`
@@ -697,15 +819,48 @@ export function enableInteriorsFeature() {
     const normalized = normalizeCollisionProfile(colliderEditorProfile, INTERIOR_COLLISION_PROFILES[activeTemplateId]);
     colliderEditorProfile = normalized;
     setRuntimeEditorProfile(normalized);
+    writeStoredCollisionProfiles(customCollisionProfiles);
 
     if (persist) {
-      const saved = writeStoredCollisionProfiles(customCollisionProfiles);
-      setColliderStatus(saved ? `Сохранено · ${editorCountsText(normalized)}` : 'Не удалось сохранить');
-      return saved;
+      void persistColliderEditorProfile();
+      return true;
     }
 
-    setColliderStatus(`Изменено · ${editorCountsText(normalized)}`);
+    scheduleColliderEditorProfileSave();
     return true;
+  }
+
+  async function persistColliderEditorProfile() {
+    if (!colliderEditorProfile) return false;
+
+    window.clearTimeout(colliderSaveTimer);
+    const saveId = ++colliderSaveSequence;
+    const profile = normalizeCollisionProfile(colliderEditorProfile, INTERIOR_COLLISION_PROFILES[activeTemplateId]);
+    setRuntimeEditorProfile(profile);
+    writeStoredCollisionProfiles(customCollisionProfiles);
+    setColliderStatus(`Сохраняю для всех · ${editorCountsText(profile)}`);
+
+    try {
+      await saveRemoteCollisionProfile(activeTemplateId, profile);
+      if (saveId === colliderSaveSequence) {
+        setColliderStatus(`Сохранено для всех · ${editorCountsText(profile)}`);
+      }
+      return true;
+    } catch (error) {
+      console.warn('[interiors] collider profile save failed:', error);
+      if (saveId === colliderSaveSequence) {
+        setColliderStatus('Локально работает, но в Supabase не сохранилось');
+      }
+      return false;
+    }
+  }
+
+  function scheduleColliderEditorProfileSave() {
+    window.clearTimeout(colliderSaveTimer);
+    setColliderStatus(`Изменено, автосохраняю · ${editorCountsText()}`);
+    colliderSaveTimer = window.setTimeout(() => {
+      void persistColliderEditorProfile();
+    }, 450);
   }
 
   function openColliderEditor() {
@@ -875,7 +1030,8 @@ export function enableInteriorsFeature() {
 
       writeStoredCollisionProfiles(customCollisionProfiles);
       renderColliderEditorLayer();
-      setColliderStatus('Импортировано и сохранено');
+      setColliderStatus('Импортировано, сохраняю для всех');
+      void persistColliderEditorProfile();
     } catch (error) {
       setColliderStatus('JSON не прочитался');
       console.warn('[interiors] collider import failed:', error);
@@ -1007,6 +1163,7 @@ export function enableInteriorsFeature() {
     if (destroyed) return;
     Promise.allSettled(Object.values(TEMPLATES).map(preloadTemplateImage));
   }, 900);
+  subscribeRemoteCollisionProfiles();
 
   async function enter(house) {
     const id = houseId(house);
@@ -1030,9 +1187,10 @@ export function enableInteriorsFeature() {
       if (!data?.allowed) throw new Error(data?.reason || 'INTERIOR_ACCESS_DENIED');
 
       const template = TEMPLATES[normalizeClass(data.houseClass || house?.payload?.houseClass || house?.variant)];
-      const src = template.url;
       loadingText.textContent = `Загружаем ${template.file}`;
       await loadTemplateImage(template);
+      loadingText.textContent = 'Загружаем стены интерьера';
+      await loadRemoteCollisionProfiles({ force: true });
 
       map.style.backgroundImage = 'none';
       overlay.dataset.template = template.id;
@@ -1228,12 +1386,10 @@ export function enableInteriorsFeature() {
     setColliderStatus(`Очищено · ${editorCountsText()}`);
   });
   colliderReset.addEventListener('click', () => {
-    removeRuntimeEditorProfile();
-    writeStoredCollisionProfiles(customCollisionProfiles);
-    colliderEditorProfile = editorProfileForCurrentTemplate();
+    colliderEditorProfile = cloneCollisionProfile(INTERIOR_COLLISION_PROFILES[activeTemplateId]);
     colliderEditorSelected = null;
+    applyColliderEditorProfile({ persist: true });
     renderColliderEditorLayer();
-    setColliderStatus(`Сброшено · ${editorCountsText()}`);
   });
   colliderExport.addEventListener('click', exportColliderProfile);
   colliderImport.addEventListener('click', importColliderProfile);
@@ -1252,9 +1408,14 @@ export function enableInteriorsFeature() {
     cleanup() {
       destroyed = true;
       window.clearTimeout(warmupTimer);
+      window.clearTimeout(colliderSaveTimer);
       exit();
       window.removeEventListener('keydown', keyDown, true);
       window.removeEventListener('keyup', keyUp, true);
+      if (collisionProfilesChannel) {
+        supabase.removeChannel(collisionProfilesChannel);
+        collisionProfilesChannel = null;
+      }
       overlay.remove();
     },
   };
