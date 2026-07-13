@@ -11,6 +11,7 @@ import {
   getLocalPlayerId,
   getOrCreatePlayerPosition,
   getCityPlayers,
+  updatePlayerPosition,
 } from '../../src/player/playerPosition.js';
 
 import { setupMobileControlPrompt } from '../../src/controls/mobileControlPrompt.js';
@@ -32,6 +33,10 @@ import {
 } from '../../src/entities/entityInteraction.js';
 
 import { enableHousesFeature } from '../../src/houses/housesFeature.js';
+import {
+  fetchPlayerOwnedHouses,
+  PLAYER_HOUSE_SLOT_LIMIT,
+} from '../../src/houses/housesRepository.js';
 
 import '../../src/admin/adminPanel.css';
 import '../../src/houses/houses.css';
@@ -103,6 +108,234 @@ const CITY_MAP_RATIOS = {
 
 function isTruthyAdmin(value) {
   return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getCurrentHousePlayerTgId() {
+  return String(
+    state.telegramId ||
+      state.player?.tg_id ||
+      state.player?.telegramId ||
+      window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+      ''
+  ).trim();
+}
+
+function clampPercent(value, fallback = 50) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) return fallback;
+
+  return Math.min(100, Math.max(0, number));
+}
+
+function getHouseSpawnPoint(house = {}) {
+  const payload = house?.payload || {};
+  const x = clampPercent(house.x ?? payload.x, 50);
+  const y = clampPercent(house.y ?? payload.y, 50);
+  const angle = Number(house.rotation ?? payload.rotation ?? 0);
+
+  return {
+    x,
+    y,
+    angle: Number.isFinite(angle) ? angle : 0,
+  };
+}
+
+function getHouseNumberLabel(house = {}) {
+  const payload = house?.payload || {};
+  const raw =
+    payload.houseNumber ||
+    payload.house_number ||
+    payload.shortId ||
+    payload.houseId ||
+    payload.house_id ||
+    house.id ||
+    house.mapObjectId ||
+    '';
+
+  const text = String(raw || '').trim();
+
+  return text ? `№ ${text.slice(-6).toUpperCase()}` : 'Дом';
+}
+
+function getHouseClassLabel(house = {}) {
+  const payload = house?.payload || {};
+  const raw = String(house.class || payload.houseClass || house.variant || 'standard').toLowerCase();
+
+  if (raw.includes('premium') || raw.includes('премиум')) return 'Премиум';
+  if (raw.includes('lux') || raw.includes('vip') || raw.includes('люкс')) return 'Люкс';
+
+  return 'Стандарт';
+}
+
+function renderHouseSpawnPickerHtml({ houses, cityName }) {
+  const houseButtons = houses.map((house, index) => {
+    const spawn = getHouseSpawnPoint(house);
+
+    return `
+      <button type="button" class="house-spawn-option" data-house-spawn-index="${index}">
+        <span class="house-spawn-option-icon">🏠</span>
+        <span>
+          <b>${escapeHtml(getHouseNumberLabel(house))} · ${escapeHtml(getHouseClassLabel(house))}</b>
+          <small>${escapeHtml(cityName)} · X ${spawn.x.toFixed(1)} / Y ${spawn.y.toFixed(1)}</small>
+        </span>
+      </button>
+    `;
+  }).join('');
+
+  return `
+    <div class="house-spawn-picker" data-house-spawn-picker role="dialog" aria-modal="true">
+      <div class="house-spawn-backdrop" data-house-spawn-stay></div>
+      <section class="house-spawn-card">
+        <span class="house-spawn-kicker">Моя недвижимость</span>
+        <h3>Где появиться?</h3>
+        <p>У тебя ${houses.length}/${PLAYER_HOUSE_SLOT_LIMIT} слота домов. Выбери дом, возле которого хочешь появиться.</p>
+        <div class="house-spawn-list">
+          ${houseButtons}
+        </div>
+        <div class="house-spawn-actions">
+          <button type="button" data-house-spawn-stay>Остаться тут</button>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function setupHouseSpawnPicker({
+  root,
+  cityId,
+  city,
+  playerPosition,
+  nickname,
+  mapControls,
+  movementChannel,
+} = {}) {
+  const playerTgId = getCurrentHousePlayerTgId();
+
+  if (!root || !cityId || !playerTgId) return () => {};
+
+  let disposed = false;
+  let overlay = null;
+  let ownedHouses = [];
+
+  function close() {
+    overlay?.remove();
+    overlay = null;
+    document.body?.classList.remove('mn-house-spawn-open');
+  }
+
+  function teleportToHouse(house) {
+    if (!house) return;
+
+    const spawn = getHouseSpawnPoint(house);
+    const nextPosition = {
+      cityId,
+      nickname,
+      x: spawn.x,
+      y: spawn.y,
+      angle: spawn.angle,
+    };
+
+    close();
+
+    playerPosition.x = spawn.x;
+    playerPosition.y = spawn.y;
+    playerPosition.angle = spawn.angle;
+
+    mapControls?.focusOnPlayer?.(spawn.x, spawn.y);
+
+    window.dispatchEvent(new CustomEvent('mn:player-teleported', {
+      detail: nextPosition,
+    }));
+
+    movementChannel?.sendMove?.({
+      playerId: getLocalPlayerId(),
+      nickname,
+      cityId,
+      x: Math.round(spawn.x * 10000) / 10000,
+      y: Math.round(spawn.y * 10000) / 10000,
+      angle: Math.round(spawn.angle * 10) / 10,
+      updatedAt: new Date().toISOString(),
+    });
+
+    updatePlayerPosition(nextPosition).catch((error) => {
+      console.warn('[home] house spawn position save failed:', error);
+    });
+  }
+
+  function handleClick(event) {
+    const option = event.target?.closest?.('[data-house-spawn-index]');
+
+    if (option) {
+      event.preventDefault();
+      event.stopPropagation();
+      teleportToHouse(ownedHouses[Number(option.dataset.houseSpawnIndex)]);
+      return;
+    }
+
+    if (event.target?.closest?.('[data-house-spawn-stay]')) {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    }
+  }
+
+  function handleKeyDown(event) {
+    if (!overlay) return;
+
+    const key = String(event.key || '').toLowerCase();
+
+    if (event.code === 'Escape' || event.code === 'KeyN' || key === 'n' || key === 'т') {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      return;
+    }
+
+    if (event.code === 'Enter' || event.code === 'KeyY' || key === 'y' || key === 'н') {
+      event.preventDefault();
+      event.stopPropagation();
+      teleportToHouse(ownedHouses[0]);
+    }
+  }
+
+  fetchPlayerOwnedHouses({ playerId: playerTgId, cityId })
+    .then((houses) => {
+      if (disposed || root.dataset.destroyed === 'true') return;
+
+      ownedHouses = Array.isArray(houses) ? houses.slice(0, PLAYER_HOUSE_SLOT_LIMIT) : [];
+
+      if (!ownedHouses.length) return;
+
+      root.insertAdjacentHTML('beforeend', renderHouseSpawnPickerHtml({
+        houses: ownedHouses,
+        cityName: city?.name || cityId,
+      }));
+
+      overlay = root.querySelector('[data-house-spawn-picker]');
+      overlay?.addEventListener('click', handleClick);
+      window.addEventListener('keydown', handleKeyDown, true);
+      document.body?.classList.add('mn-house-spawn-open');
+    })
+    .catch((error) => {
+      console.warn('[home] house spawn picker failed:', error);
+    });
+
+  return () => {
+    disposed = true;
+    overlay?.removeEventListener('click', handleClick);
+    window.removeEventListener('keydown', handleKeyDown, true);
+    close();
+  };
 }
 
 function getMapByFileName(fileName) {
@@ -888,6 +1121,7 @@ register('home', async (root) => {
   let cleanupGameRealtime = null;
   let cleanupMobileSelfMarker = null;
   let cleanupBalanceDatabaseSync = null;
+  let cleanupHouseSpawnPicker = null;
 
   const balanceCard = root.querySelector('[data-player-balance-card]');
   const balanceEl = root.querySelector('[data-player-balance]');
@@ -1263,6 +1497,16 @@ register('home', async (root) => {
     playerPosition,
   });
 
+  cleanupHouseSpawnPicker = setupHouseSpawnPicker({
+    root,
+    cityId,
+    city,
+    playerPosition,
+    nickname,
+    mapControls,
+    movementChannel: network.movementChannel,
+  });
+
   const handleSessionBlocked = () => {
     cleanupMobileSelfMarker?.();
     cleanupMobileSelfMarker = null;
@@ -1421,6 +1665,7 @@ register('home', async (root) => {
     cleanupMobilePrompt?.();
     cleanupAdminPanel?.();
     cleanupEntityInteraction?.();
+    cleanupHouseSpawnPicker?.();
     cleanupGameRealtime?.();
     cleanupMobileSelfMarker?.();
     entityInteractionPanel.cleanup();
