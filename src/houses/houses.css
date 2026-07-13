@@ -3833,7 +3833,9 @@ html.mn-player-moving body.mn-mobile-game-enabled .map-object {
 body.mn-house-spawn-open .gta-player-marker,
 body.mn-house-spawn-open .gta-player-marker-self,
 body.mn-house-spawn-open .mobile-self-player-indicator,
-body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
+body.mn-house-spawn-open [data-mobile-self-marker-hard="true"],
+body.mn-house-spawn-open .gta-map-entities,
+body.mn-house-spawn-open [data-player-id] {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
@@ -3919,18 +3921,27 @@ body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
 .house-spawn-card {
   position: relative;
   z-index: 1;
-  width: min(520px, calc(100vw - 32px));
+  width: min(620px, calc(100vw - 32px));
   max-height: min(680px, calc(100dvh - 34px));
   overflow: auto;
-  padding: 24px;
-  border-radius: 26px;
+  padding: 22px;
+  border-radius: 28px;
   color: #fff;
-  border: 1px solid rgba(143, 130, 255, .34);
+  border: 1px solid rgba(143, 130, 255, .38);
   background:
-    radial-gradient(circle at 14% 0%, rgba(132, 91, 255, .32), transparent 40%),
-    radial-gradient(circle at 100% 22%, rgba(47, 210, 163, .18), transparent 42%),
-    rgba(7, 12, 24, .94);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .48), inset 0 1px 0 rgba(255, 255, 255, .08);
+    linear-gradient(135deg, rgba(99, 73, 255, .18), transparent 42%),
+    radial-gradient(circle at 14% 0%, rgba(132, 91, 255, .36), transparent 42%),
+    radial-gradient(circle at 100% 20%, rgba(47, 210, 163, .22), transparent 42%),
+    linear-gradient(180deg, rgba(9, 14, 27, .97), rgba(3, 7, 14, .98));
+  box-shadow:
+    0 24px 86px rgba(0, 0, 0, .62),
+    0 0 0 1px rgba(255, 255, 255, .035),
+    inset 0 1px 0 rgba(255, 255, 255, .09);
+}
+
+.house-spawn-hero {
+  position: relative;
+  padding: 2px 2px 0;
 }
 
 .house-spawn-kicker {
@@ -3945,7 +3956,7 @@ body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
 
 .house-spawn-card h3 {
   margin: 0;
-  font-size: 30px;
+  font-size: 32px;
   line-height: 1;
   letter-spacing: -.04em;
 }
@@ -3958,39 +3969,122 @@ body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
   line-height: 1.35;
 }
 
+.house-spawn-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 12px;
+}
+
+.house-spawn-stats span {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  background: rgba(255, 255, 255, .06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .045);
+}
+
+.house-spawn-stats b,
+.house-spawn-stats small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.house-spawn-stats b {
+  font-size: 18px;
+  font-weight: 1000;
+}
+
+.house-spawn-stats small {
+  margin-top: 3px;
+  color: rgba(226, 233, 255, .58);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.house-spawn-progress {
+  height: 8px;
+  margin: 0 0 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .1);
+}
+
+.house-spawn-progress i {
+  display: block;
+  height: 100%;
+  min-width: 7%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7c5cff, #35d67e);
+  box-shadow: 0 0 20px rgba(94, 255, 165, .38);
+}
+
 .house-spawn-list {
   display: grid;
   gap: 10px;
 }
 
 .house-spawn-option {
+  position: relative;
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   width: 100%;
-  min-height: 72px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 18px;
+  min-height: 82px;
+  padding: 20px 12px 12px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 20px;
   color: #fff;
   text-align: left;
-  background: rgba(255, 255, 255, .07);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  background:
+    radial-gradient(circle at 92% 50%, rgba(56, 220, 146, .13), transparent 36%),
+    rgba(255, 255, 255, .065);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .055),
+    0 10px 26px rgba(0, 0, 0, .18);
+  cursor: pointer;
+  transition: transform .14s ease, border-color .14s ease, background .14s ease;
+}
+
+.house-spawn-option:hover {
+  border-color: rgba(104, 255, 172, .34);
+  background:
+    radial-gradient(circle at 92% 50%, rgba(56, 220, 146, .2), transparent 40%),
+    rgba(255, 255, 255, .085);
 }
 
 .house-spawn-option:active {
   transform: translateY(1px);
 }
 
+.house-spawn-slot-badge {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  color: rgba(190, 205, 255, .68);
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
 .house-spawn-option-icon {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   place-items: center;
-  border-radius: 15px;
+  border-radius: 16px;
   font-size: 24px;
-  background: rgba(123, 86, 255, .28);
+  background:
+    radial-gradient(circle at 38% 28%, rgba(255, 255, 255, .18), transparent 44%),
+    rgba(123, 86, 255, .32);
+  box-shadow: inset 0 0 0 1px rgba(185, 160, 255, .14);
 }
 
 .house-spawn-option b,
@@ -4014,8 +4108,45 @@ body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
   font-weight: 850;
 }
 
+.house-spawn-option-cta,
+.house-spawn-option-state {
+  display: inline-grid;
+  place-items: center;
+  min-width: 72px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 13px;
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.house-spawn-option-cta {
+  color: #06140d;
+  background: linear-gradient(135deg, #63efa3, #35d67e);
+  box-shadow: 0 12px 28px rgba(53, 214, 126, .22);
+}
+
+.house-spawn-option-state {
+  color: rgba(226, 233, 255, .56);
+  background: rgba(255, 255, 255, .07);
+}
+
+.house-spawn-option-empty {
+  cursor: default;
+  opacity: .72;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 8px, transparent 8px 16px),
+    rgba(255, 255, 255, .04);
+}
+
+.house-spawn-option-empty .house-spawn-option-icon {
+  color: rgba(255, 255, 255, .5);
+  background: rgba(255, 255, 255, .08);
+}
+
 .house-spawn-actions {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   margin-top: 14px;
 }
 
@@ -4024,7 +4155,7 @@ body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
   border: 0;
   border-radius: 16px;
   color: #fff;
-  background: rgba(255, 255, 255, .09);
+  background: rgba(255, 255, 255, .095);
   font-size: 15px;
   font-weight: 950;
 }
@@ -4044,9 +4175,9 @@ body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
 
   html.mn-force-rotate-landscape .house-spawn-card,
   body.mn-force-rotate-landscape .house-spawn-card {
-    width: min(560px, calc(100dvh - 34px)) !important;
+    width: min(650px, calc(100dvh - 28px)) !important;
     max-height: calc(100vw - 24px) !important;
-    padding: 18px !important;
+    padding: 14px !important;
     border-radius: 22px !important;
   }
 
@@ -4057,8 +4188,25 @@ body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
 
   html.mn-force-rotate-landscape .house-spawn-card p,
   body.mn-force-rotate-landscape .house-spawn-card p {
-    margin-bottom: 12px !important;
+    margin: 8px 0 10px !important;
     font-size: 12px !important;
+  }
+
+  html.mn-force-rotate-landscape .house-spawn-stats,
+  body.mn-force-rotate-landscape .house-spawn-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    margin: 9px 0 8px !important;
+  }
+
+  html.mn-force-rotate-landscape .house-spawn-stats span,
+  body.mn-force-rotate-landscape .house-spawn-stats span {
+    padding: 7px 9px !important;
+    border-radius: 13px !important;
+  }
+
+  html.mn-force-rotate-landscape .house-spawn-progress,
+  body.mn-force-rotate-landscape .house-spawn-progress {
+    margin-bottom: 9px !important;
   }
 
   html.mn-force-rotate-landscape .house-spawn-list,
@@ -4068,10 +4216,10 @@ body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
 
   html.mn-force-rotate-landscape .house-spawn-option,
   body.mn-force-rotate-landscape .house-spawn-option {
-    min-height: 58px !important;
-    grid-template-columns: 38px minmax(0, 1fr) !important;
+    min-height: 62px !important;
+    grid-template-columns: 38px minmax(0, 1fr) auto !important;
     gap: 10px !important;
-    padding: 9px !important;
+    padding: 17px 9px 8px !important;
     border-radius: 15px !important;
   }
 
@@ -4081,5 +4229,15 @@ body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
     height: 38px !important;
     border-radius: 13px !important;
     font-size: 20px !important;
+  }
+
+  html.mn-force-rotate-landscape .house-spawn-option-cta,
+  html.mn-force-rotate-landscape .house-spawn-option-state,
+  body.mn-force-rotate-landscape .house-spawn-option-cta,
+  body.mn-force-rotate-landscape .house-spawn-option-state {
+    min-width: 58px !important;
+    min-height: 30px !important;
+    padding: 0 10px !important;
+    border-radius: 11px !important;
   }
 }
