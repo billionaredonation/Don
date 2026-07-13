@@ -3830,6 +3830,15 @@ html.mn-player-moving body.mn-mobile-game-enabled .map-object {
   pointer-events: auto !important;
 }
 
+body.mn-house-spawn-open .gta-player-marker,
+body.mn-house-spawn-open .gta-player-marker-self,
+body.mn-house-spawn-open .mobile-self-player-indicator,
+body.mn-house-spawn-open [data-mobile-self-marker-hard="true"] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 @media (hover: none) and (pointer: coarse) {
   body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .map-object.map-object-house,
   body.mn-landscape-game .home[data-mobile-controls="enabled"] .map-object.map-object-house,
