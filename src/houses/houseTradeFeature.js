@@ -1,5 +1,9 @@
 import { supabase } from '../supabaseClient.js';
 import { state, save } from '../state.js';
+import {
+  countPlayerOwnedHouses,
+  PLAYER_HOUSE_SLOT_LIMIT,
+} from './housesRepository.js';
 
 const POLL_MS = 2000;
 
@@ -132,6 +136,7 @@ export function enableHouseTradeFeature() {
   let timer = null;
   let busy = false;
   let lastOfferId = '';
+  let slotBlocked = false;
 
   function close() {
     clearInterval(timer);
@@ -144,17 +149,44 @@ export function enableHouseTradeFeature() {
   function renderTimer() {
     if (!activeOffer) return;
     const left = Math.max(0, Math.ceil((new Date(activeOffer.unlockAt).getTime() - Date.now()) / 1000));
-    acceptButton.disabled = busy || left > 0;
+    acceptButton.disabled = busy || slotBlocked || left > 0;
+
+    if (slotBlocked) {
+      waitEl.textContent = `Лимит домов занят: ${PLAYER_HOUSE_SLOT_LIMIT}/${PLAYER_HOUSE_SLOT_LIMIT}. Освободи слот, чтобы купить дом.`;
+      waitEl.dataset.ready = 'false';
+      return;
+    }
+
     waitEl.textContent = left > 0
       ? `На обдумывание: ${left} сек. После таймера Y / I станет активной.`
       : 'Решение доступно: Y на ПК или I на мобильном.';
     waitEl.dataset.ready = left > 0 ? 'false' : 'true';
   }
 
+  async function checkHouseSlotForActiveOffer(offerId) {
+    try {
+      const ownedCount = await countPlayerOwnedHouses(playerTgId);
+
+      if (!activeOffer || String(activeOffer.offerId) !== String(offerId)) return;
+
+      slotBlocked = ownedCount >= PLAYER_HOUSE_SLOT_LIMIT;
+
+      if (slotBlocked) {
+        resultEl.hidden = false;
+        resultEl.textContent = `Нельзя принять сделку: заняты все ${PLAYER_HOUSE_SLOT_LIMIT} слота домов.`;
+      }
+
+      renderTimer();
+    } catch (error) {
+      console.warn('[houseTrade] house slot check failed:', error);
+    }
+  }
+
   function show(offer) {
     if (!offer?.offerId || offer.status !== 'pending') return;
     activeOffer = offer;
     lastOfferId = String(offer.offerId);
+    slotBlocked = false;
     overlay.querySelector('[data-trade-class]').textContent = classLabel(offer.houseClass);
     overlay.querySelector('[data-trade-seller]').textContent = offer.sellerNickname || 'Игрок';
     overlay.querySelector('[data-trade-price]').textContent = money(offer.price);
@@ -165,6 +197,7 @@ export function enableHouseTradeFeature() {
     clearInterval(timer);
     renderTimer();
     timer = setInterval(renderTimer, 250);
+    checkHouseSlotForActiveOffer(offer.offerId);
   }
 
   async function fetchPending() {
@@ -185,6 +218,12 @@ export function enableHouseTradeFeature() {
     resultEl.hidden = false;
     resultEl.textContent = 'Проводим сделку...';
     try {
+      const ownedCount = await countPlayerOwnedHouses(playerTgId);
+
+      if (ownedCount >= PLAYER_HOUSE_SLOT_LIMIT) {
+        throw new Error('HOUSE_SLOT_LIMIT_REACHED');
+      }
+
       const { data, error } = await supabase.rpc('accept_house_trade_offer', {
         p_offer_id: activeOffer.offerId,
         p_buyer_tg_id: playerTgId,
@@ -214,7 +253,9 @@ export function enableHouseTradeFeature() {
         ? 'Недостаточно денег для покупки.'
         : text.includes('HOUSE_OWNER_CHANGED')
           ? 'Сделка отменена: владелец дома уже изменился.'
-          : `Сделка не выполнена: ${text}`;
+          : text.includes('HOUSE_SLOT_LIMIT_REACHED')
+            ? `Сделка не выполнена: заняты все ${PLAYER_HOUSE_SLOT_LIMIT} слота домов.`
+            : `Сделка не выполнена: ${text}`;
     } finally {
       busy = false;
       rejectButton.disabled = false;
