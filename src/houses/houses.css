@@ -3841,6 +3841,50 @@ body.mn-house-spawn-open [data-player-id] {
   pointer-events: none !important;
 }
 
+html.mn-house-spawn-open .home .player-glass-hud,
+body.mn-house-spawn-open .home .player-glass-hud,
+html.mn-house-spawn-open .home .player-city-button,
+body.mn-house-spawn-open .home .player-city-button,
+html.mn-house-spawn-open .home .player-weather-mini,
+body.mn-house-spawn-open .home .player-weather-mini,
+html.mn-house-spawn-open .home .player-profile-card,
+body.mn-house-spawn-open .home .player-profile-card,
+html.mn-house-spawn-open .home .player-balance-card,
+body.mn-house-spawn-open .home .player-balance-card,
+html.mn-house-spawn-open .home .player-network-card,
+body.mn-house-spawn-open .home .player-network-card,
+html.mn-house-spawn-open .home .admin-status-dot,
+body.mn-house-spawn-open .home .admin-status-dot,
+html.mn-house-spawn-open .home .house-selection-panel,
+body.mn-house-spawn-open .home .house-selection-panel,
+html.mn-house-spawn-open .home .mobile-controls-layer,
+body.mn-house-spawn-open .home .mobile-controls-layer,
+html.mn-house-spawn-open .home .mobile-controls-layer *,
+body.mn-house-spawn-open .home .mobile-controls-layer *,
+html.mn-house-spawn-open .home .mobile-joystick,
+body.mn-house-spawn-open .home .mobile-joystick,
+html.mn-house-spawn-open .home .mobile-stamina,
+body.mn-house-spawn-open .home .mobile-stamina,
+html.mn-house-spawn-open .mobile-joystick,
+body.mn-house-spawn-open .mobile-joystick,
+html.mn-house-spawn-open .mobile-stamina,
+body.mn-house-spawn-open .mobile-stamina,
+html.mn-house-spawn-open .pc-stamina,
+body.mn-house-spawn-open .pc-stamina {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+html.mn-house-spawn-open .home .mobile-controls-layer,
+body.mn-house-spawn-open .home .mobile-controls-layer,
+html.mn-house-spawn-open .home .mobile-joystick,
+body.mn-house-spawn-open .home .mobile-joystick,
+html.mn-house-spawn-open .home .mobile-stamina,
+body.mn-house-spawn-open .home .mobile-stamina {
+  display: none !important;
+}
+
 @media (hover: none) and (pointer: coarse) {
   body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .map-object.map-object-house,
   body.mn-landscape-game .home[data-mobile-controls="enabled"] .map-object.map-object-house,
@@ -3903,7 +3947,7 @@ body.mn-house-spawn-open [data-player-id] {
 .house-spawn-picker {
   position: fixed;
   inset: 0;
-  z-index: 3600;
+  z-index: 50000;
   display: grid;
   place-items: center;
   padding: 22px;
