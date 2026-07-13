@@ -4,7 +4,9 @@ import { fetchCityStats } from '../api/cityStats.js';
 import { getCityPlayers } from '../player/playerPosition.js';
 import {
   buyHouseFromState,
+  countPlayerOwnedHouses,
   fetchCityHousesState,
+  PLAYER_HOUSE_SLOT_LIMIT,
 } from './housesRepository.js';
 import { getEmptyHousesState, normalizeHousesState } from './housesStats.js';
 import {
@@ -213,12 +215,27 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
   let refreshTimer = null;
   let destroyed = false;
 
+  async function assertHouseSlotAvailable(playerId) {
+    const ownedCount = await countPlayerOwnedHouses(playerId);
+
+    if (ownedCount >= PLAYER_HOUSE_SLOT_LIMIT) {
+      const error = new Error('HOUSE_SLOT_LIMIT_REACHED');
+      error.ownedCount = ownedCount;
+      error.slotLimit = PLAYER_HOUSE_SLOT_LIMIT;
+      throw error;
+    }
+
+    return ownedCount;
+  }
+
   async function handleBuyHouse(house) {
     const tgId = getPlayerTgId();
 
     if (!tgId) {
       throw new Error('PLAYER_TG_ID_NOT_FOUND');
     }
+
+    await assertHouseSlotAvailable(tgId);
 
     const result = await buyHouseFromState({
       houseId: getHouseId(house),
@@ -363,6 +380,10 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
   }
 
   async function handleCreatePlayerTrade({ house, buyer, price }) {
+    if (buyer?.tgId) {
+      await assertHouseSlotAvailable(buyer.tgId);
+    }
+
     return createPlayerHouseTrade({
       houseId: getHouseId(house),
       buyerTgId: buyer?.tgId,
