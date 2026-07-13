@@ -1,6 +1,8 @@
 import { supabase } from '../supabaseClient.js';
 import { getMapObjects } from '../mapObjects/mapObjectsRepository.js';
 
+export const PLAYER_HOUSE_SLOT_LIMIT = 3;
+
 function normalizePayload(value) {
   if (!value) return {};
   if (typeof value === 'object') return value;
@@ -37,6 +39,33 @@ function isHouseOwned(house) {
       payload.owner_name ||
       payload.owned
   );
+}
+
+export function getHouseOwnerId(house) {
+  const payload = normalizePayload(house?.payload);
+
+  return (
+    house?.owner_id ||
+    house?.ownerId ||
+    payload.ownerId ||
+    payload.owner_id ||
+    null
+  );
+}
+
+export function isHouseOwnedByPlayer(house, playerId) {
+  const ownerId = getHouseOwnerId(house);
+  const rawPlayerId = String(playerId || '').trim();
+
+  return Boolean(ownerId && rawPlayerId && String(ownerId) === rawPlayerId);
+}
+
+function escapePostgrestFilterValue(value) {
+  return String(value ?? '')
+    .trim()
+    .replace(/"/g, '\\"')
+    .replace(/,/g, '\\,')
+    .replace(/\)/g, '\\)');
 }
 
 function normalizeHouseClass(value) {
@@ -108,6 +137,54 @@ export async function fetchCityHousesState(cityId) {
     housesFree: housesFree.length,
     housesOwned: housesOwned.length,
   };
+}
+
+export async function fetchPlayerOwnedHouses({ playerId, cityId = null } = {}) {
+  const rawPlayerId = String(playerId || '').trim();
+
+  if (!rawPlayerId) return [];
+
+  try {
+    const safePlayerId = escapePostgrestFilterValue(rawPlayerId);
+    let query = supabase
+      .from('map_objects')
+      .select('*')
+      .or(`payload->>ownerId.eq.${safePlayerId},payload->>owner_id.eq.${safePlayerId}`)
+      .limit(20);
+
+    if (cityId) {
+      query = query.eq('city_id', String(cityId));
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    return (Array.isArray(data) ? data : [])
+      .filter(isHouseObject)
+      .map(normalizeHouseForUi)
+      .filter((house) => isHouseOwnedByPlayer(house, rawPlayerId));
+  } catch (error) {
+    console.warn('[houses] player owned houses direct load failed:', error);
+
+    if (!cityId) return [];
+
+    try {
+      const cityState = await fetchCityHousesState(cityId);
+
+      return (cityState.houses || [])
+        .filter((house) => isHouseOwnedByPlayer(house, rawPlayerId));
+    } catch (fallbackError) {
+      console.warn('[houses] player owned houses fallback failed:', fallbackError);
+      return [];
+    }
+  }
+}
+
+export async function countPlayerOwnedHouses(playerId) {
+  const houses = await fetchPlayerOwnedHouses({ playerId });
+
+  return houses.length;
 }
 
 function normalizeBuyResultFromMapObject(row, playerId) {
