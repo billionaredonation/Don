@@ -88,24 +88,21 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
 .mn-interior-collider-rect {
   position: absolute;
   box-sizing: border-box;
-  border: 2px solid rgba(255,255,255,.72);
+  border: 2px solid rgba(255,96,96,.98);
   border-radius: 4px;
   padding: 0;
-  background: rgba(255,255,255,.12);
-  box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 0 18px rgba(0,0,0,.32);
+  background: rgba(255,28,28,.34);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.62), 0 0 18px rgba(255,40,40,.22);
   cursor: pointer;
 }
-.mn-interior-collider-rect-bounds {
-  border-color: rgba(66,255,132,.92);
-  background: rgba(25,210,98,.24);
-}
 .mn-interior-collider-rect-blocked {
-  border-color: rgba(255,82,82,.95);
-  background: rgba(255,48,48,.28);
+  border-color: rgba(255,96,96,.98);
+  background: rgba(255,28,28,.34);
 }
 .mn-interior-collider-rect.is-selected {
   border-color: #fff;
-  box-shadow: 0 0 0 2px rgba(111,96,255,.9), 0 0 22px rgba(111,96,255,.55);
+  background: rgba(255,45,45,.44);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 0 24px rgba(255,55,55,.64);
 }
 .mn-interior-collider-rect.is-draft {
   pointer-events: none;
@@ -134,7 +131,7 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
   top: 18px;
   display: grid;
   gap: 8px;
-  width: min(310px, calc(100vw - 36px));
+  width: min(330px, calc(100vw - 36px));
   box-sizing: border-box;
   padding: 12px;
   border: 1px solid rgba(255,255,255,.14);
@@ -166,6 +163,10 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
   background: rgba(255,255,255,.08);
   font: 850 11px/1 system-ui;
 }
+.mn-interior-collider-panel button.mn-interior-collider-primary {
+  border-color: rgba(255,115,115,.62);
+  background: linear-gradient(135deg, rgba(255,61,61,.95), rgba(180,30,30,.92));
+}
 .mn-interior-collider-head button {
   width: 30px;
   min-height: 30px;
@@ -176,18 +177,19 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
 .mn-interior-collider-actions button {
   flex: 1;
 }
-.mn-interior-collider-mode button[data-active="true"] {
-  border-color: rgba(117,255,157,.55);
-  background: rgba(25,210,98,.24);
-}
-.mn-interior-collider-mode button[data-interior-collider-mode="blocked"][data-active="true"] {
-  border-color: rgba(255,102,102,.6);
-  background: rgba(255,48,48,.25);
-}
 .mn-interior-collider-hint,
 .mn-interior-collider-panel small {
   color: rgba(255,255,255,.62);
   font: 750 10px/1.35 system-ui;
+}
+.mn-interior-collider-json-wrap {
+  display: grid;
+  gap: 8px;
+}
+.mn-interior-collider-json-wrap summary {
+  cursor: pointer;
+  color: rgba(255,255,255,.72);
+  font: 850 10px/1.2 system-ui;
 }
 .mn-interior-collider-panel textarea {
   width: 100%;
@@ -201,6 +203,9 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
   background: rgba(0,0,0,.35);
   font: 700 10px/1.35 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   outline: none;
+}
+.mn-interior-collider-panel small {
+  min-height: 14px;
 }
 body.mn-interior-collider-editor-open .mn-interior-joystick,
 body.mn-interior-collider-editor-open .mn-interior-stamina {
