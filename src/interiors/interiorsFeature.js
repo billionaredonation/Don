@@ -1,18 +1,130 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import { getStaminaConfig } from '../player/playerStaminaConfig.js';
-import {
-  resolveInteriorMovement,
-  snapInteriorPosition,
-} from './interiorCollisions.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
 import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
 import './interiors.css';
 
+const INTERIOR_COLLISION_FALLBACK_RADIUS = 0.8;
+
+function collisionRect(x, y, width, height) {
+  return {
+    x1: x,
+    y1: y,
+    x2: x + width,
+    y2: y + height,
+  };
+}
+
+const INTERIOR_COLLISION_PROFILES = {
+  standard: {
+    radius: 0.8,
+    bounds: [
+      collisionRect(22.9, 13.1, 40.2, 74.0),
+      collisionRect(58.0, 41.9, 19.0, 44.5),
+      collisionRect(61.8, 13.6, 14.6, 27.0),
+      collisionRect(58.1, 28.0, 5.0, 10.6),
+    ],
+    blocked: [
+      collisionRect(22.9, 27.9, 10.0, 44.2),
+      collisionRect(35.3, 55.2, 9.8, 14.7),
+      collisionRect(53.3, 57.8, 6.5, 12.0),
+      collisionRect(63.9, 51.2, 11.8, 25.2),
+      collisionRect(68.2, 77.2, 7.5, 6.8),
+      collisionRect(55.6, 13.2, 5.5, 15.4),
+      collisionRect(60.4, 13.3, 2.1, 14.9),
+      collisionRect(60.4, 37.7, 2.1, 5.1),
+      collisionRect(60.7, 40.5, 16.0, 2.4),
+      collisionRect(65.2, 14.9, 10.5, 10.8),
+      collisionRect(68.2, 27.0, 7.2, 6.1),
+      collisionRect(71.3, 35.0, 4.5, 5.6),
+    ],
+  },
+
+  premium: {
+    radius: 0.76,
+    bounds: [
+      collisionRect(10.6, 10.2, 78.2, 39.8),
+      collisionRect(9.9, 43.2, 7.8, 9.4),
+      collisionRect(9.7, 53.4, 8.9, 12.0),
+      collisionRect(18.0, 60.2, 31.2, 28.5),
+      collisionRect(34.9, 50.0, 24.0, 15.6),
+      collisionRect(56.6, 50.0, 32.2, 38.7),
+    ],
+    blocked: [
+      collisionRect(10.7, 15.5, 7.1, 24.4),
+      collisionRect(24.9, 27.4, 14.4, 9.3),
+      collisionRect(40.3, 14.8, 12.0, 11.2),
+      collisionRect(58.4, 15.8, 8.6, 21.9),
+      collisionRect(71.2, 20.9, 6.7, 15.2),
+      collisionRect(72.0, 37.8, 7.2, 7.3),
+      collisionRect(83.4, 18.1, 5.4, 21.6),
+      collisionRect(45.1, 49.4, 8.8, 2.5),
+      collisionRect(60.5, 49.4, 28.3, 2.5),
+      collisionRect(27.4, 50.5, 8.6, 10.0),
+      collisionRect(9.8, 53.5, 8.7, 11.7),
+      collisionRect(19.9, 61.0, 12.7, 14.0),
+      collisionRect(20.8, 81.0, 14.3, 7.6),
+      collisionRect(36.6, 75.5, 6.1, 9.7),
+      collisionRect(43.5, 62.6, 5.6, 20.7),
+      collisionRect(61.5, 59.7, 16.4, 17.6),
+      collisionRect(76.8, 56.5, 5.0, 4.6),
+      collisionRect(76.8, 75.2, 5.0, 4.7),
+      collisionRect(50.5, 83.6, 38.4, 5.2),
+    ],
+  },
+
+  ultra_lux: {
+    radius: 0.72,
+    bounds: [
+      collisionRect(5.2, 8.6, 25.2, 28.4),
+      collisionRect(28.6, 28.0, 4.2, 9.5),
+      collisionRect(4.4, 38.2, 23.8, 30.2),
+      collisionRect(22.0, 43.0, 10.2, 15.0),
+      collisionRect(4.6, 69.2, 26.7, 14.7),
+      collisionRect(31.0, 8.1, 38.7, 68.2),
+      collisionRect(34.5, 73.3, 30.0, 18.0),
+      collisionRect(68.6, 28.0, 4.1, 9.8),
+      collisionRect(69.6, 8.6, 25.4, 28.4),
+      collisionRect(68.6, 40.5, 5.3, 15.0),
+      collisionRect(70.0, 38.7, 24.8, 22.0),
+      collisionRect(68.4, 69.3, 5.7, 8.4),
+      collisionRect(70.0, 68.8, 25.0, 20.8),
+    ],
+    blocked: [
+      collisionRect(8.2, 14.0, 13.4, 15.8),
+      collisionRect(5.4, 51.1, 8.1, 11.0),
+      collisionRect(4.5, 64.2, 19.8, 5.0),
+      collisionRect(5.0, 70.5, 6.1, 12.2),
+      collisionRect(14.8, 75.7, 5.4, 7.6),
+      collisionRect(22.2, 76.2, 8.8, 7.5),
+      collisionRect(5.0, 84.2, 26.4, 6.1),
+      collisionRect(29.4, 45.1, 6.1, 24.6),
+      collisionRect(40.8, 17.0, 10.6, 20.0),
+      collisionRect(49.8, 20.0, 10.6, 15.0),
+      collisionRect(49.6, 23.2, 6.8, 8.2),
+      collisionRect(53.8, 30.2, 4.7, 5.0),
+      collisionRect(42.0, 45.5, 20.0, 10.4),
+      collisionRect(43.2, 61.0, 16.8, 9.2),
+      collisionRect(40.0, 76.2, 5.0, 10.0),
+      collisionRect(47.6, 79.4, 6.5, 6.9),
+      collisionRect(65.6, 14.0, 4.7, 24.0),
+      collisionRect(78.5, 20.2, 5.7, 10.3),
+      collisionRect(88.9, 10.8, 5.7, 25.8),
+      collisionRect(70.0, 47.2, 6.4, 13.2),
+      collisionRect(81.5, 47.5, 7.0, 10.2),
+      collisionRect(90.5, 39.5, 4.2, 20.9),
+      collisionRect(70.0, 71.4, 4.3, 16.5),
+      collisionRect(79.3, 70.3, 15.2, 12.1),
+      collisionRect(71.0, 88.0, 23.4, 4.5),
+    ],
+  },
+};
+
 const TEMPLATES = {
   standard: { id: 'standard', label: 'Стандарт', file: 'standart_interior.png', url: standardInteriorUrl, rooms: 1, kitchen: 1, bathroom: 1, spawn: { x: 50, y: 82 } },
-  premium: { id: 'premium', label: 'Премиум', file: 'premium_interior.png', url: premiumInteriorUrl, rooms: 2, kitchen: 2, bathroom: 2, spawn: { x: 50, y: 86 } },
+  premium: { id: 'premium', label: 'Премиум', file: 'premium_interior.png', url: premiumInteriorUrl, rooms: 2, kitchen: 2, bathroom: 2, spawn: { x: 58, y: 82 } },
   ultra_lux: { id: 'ultra_lux', label: 'Ультра-люкс', file: 'luxe_interior.png', url: luxeInteriorUrl, rooms: 4, kitchen: 3, bathroom: 3, spawn: { x: 50, y: 90 } },
 };
 
@@ -46,6 +158,117 @@ function clampPercent(value, fallback = 50) {
   if (!Number.isFinite(number)) return fallback;
 
   return Math.min(100, Math.max(0, number));
+}
+
+function collisionProfileFor(templateId) {
+  return INTERIOR_COLLISION_PROFILES[templateId] || INTERIOR_COLLISION_PROFILES.standard;
+}
+
+function insideCollisionRect(point, box, padding = 0) {
+  return (
+    point.x >= box.x1 + padding &&
+    point.x <= box.x2 - padding &&
+    point.y >= box.y1 + padding &&
+    point.y <= box.y2 - padding
+  );
+}
+
+function hitsCollisionRect(point, box, padding = 0) {
+  return (
+    point.x >= box.x1 - padding &&
+    point.x <= box.x2 + padding &&
+    point.y >= box.y1 - padding &&
+    point.y <= box.y2 + padding
+  );
+}
+
+function sanitizeInteriorPosition(point) {
+  return {
+    x: clampPercent(point?.x),
+    y: clampPercent(point?.y),
+  };
+}
+
+function isInteriorPointWalkable(templateId, point) {
+  const profile = collisionProfileFor(templateId);
+  const radius = profile.radius || INTERIOR_COLLISION_FALLBACK_RADIUS;
+  const safePoint = sanitizeInteriorPosition(point);
+  const insideBounds = profile.bounds.some((box) => insideCollisionRect(safePoint, box, radius));
+
+  if (!insideBounds) return false;
+
+  return !profile.blocked.some((box) => hitsCollisionRect(safePoint, box, radius));
+}
+
+function snapInteriorPosition(templateId, point) {
+  const base = sanitizeInteriorPosition(point);
+
+  if (isInteriorPointWalkable(templateId, base)) return base;
+
+  for (let distance = 0.5; distance <= 8; distance += 0.5) {
+    const candidates = [
+      { x: base.x + distance, y: base.y },
+      { x: base.x - distance, y: base.y },
+      { x: base.x, y: base.y + distance },
+      { x: base.x, y: base.y - distance },
+      { x: base.x + distance, y: base.y + distance },
+      { x: base.x - distance, y: base.y + distance },
+      { x: base.x + distance, y: base.y - distance },
+      { x: base.x - distance, y: base.y - distance },
+    ].map(sanitizeInteriorPosition);
+
+    const valid = candidates.find((candidate) => isInteriorPointWalkable(templateId, candidate));
+    if (valid) return valid;
+  }
+
+  return base;
+}
+
+function resolveInteriorMovement(templateId, current, delta) {
+  const start = snapInteriorPosition(templateId, current);
+  const move = {
+    x: Number(delta?.x) || 0,
+    y: Number(delta?.y) || 0,
+  };
+
+  if (Math.abs(move.x) < 0.001 && Math.abs(move.y) < 0.001) {
+    return start;
+  }
+
+  const direct = sanitizeInteriorPosition({
+    x: start.x + move.x,
+    y: start.y + move.y,
+  });
+
+  if (isInteriorPointWalkable(templateId, direct)) return direct;
+
+  const horizontal = sanitizeInteriorPosition({
+    x: start.x + move.x,
+    y: start.y,
+  });
+  const vertical = sanitizeInteriorPosition({
+    x: start.x,
+    y: start.y + move.y,
+  });
+
+  let resolved = start;
+
+  if (isInteriorPointWalkable(templateId, horizontal)) {
+    resolved = horizontal;
+  }
+
+  const verticalFromResolved = sanitizeInteriorPosition({
+    x: resolved.x,
+    y: start.y + move.y,
+  });
+
+  if (isInteriorPointWalkable(templateId, verticalFromResolved)) {
+    return verticalFromResolved;
+  }
+
+  if (resolved !== start) return resolved;
+
+  return isInteriorPointWalkable(templateId, vertical) ? vertical : start;
 }
 
 function houseExteriorSpawn(house = {}) {
@@ -523,5 +746,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
-
