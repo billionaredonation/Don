@@ -1,6 +1,10 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import {
+  resolveInteriorMovement,
+  snapInteriorPosition,
+} from './interiorCollisions.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
 import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
@@ -184,6 +188,7 @@ export function enableInteriorsFeature() {
   let raf = 0;
   let lastFrame = 0;
   let position = { x: 50, y: 82 };
+  let activeTemplateId = 'standard';
   let activeHouse = null;
   let activeHouseId = null;
   let joystickVector = { x: 0, y: 0 };
@@ -243,8 +248,10 @@ export function enableInteriorsFeature() {
 
     const sprint = wantsSprint && !sprintLocked;
     const speed = sprint ? 23 : 15;
-    position.x = Math.min(96, Math.max(4, position.x + vector.x * speed * dt));
-    position.y = Math.min(96, Math.max(4, position.y + vector.y * speed * dt));
+    position = resolveInteriorMovement(activeTemplateId, position, {
+      x: vector.x * speed * dt,
+      y: vector.y * speed * dt,
+    });
     staminaBox.dataset.visible = moving ? 'true' : 'false';
     renderStamina();
     renderPosition();
@@ -261,6 +268,7 @@ export function enableInteriorsFeature() {
     active = false;
     activeHouse = null;
     activeHouseId = null;
+    activeTemplateId = 'standard';
     loading.hidden = true;
     scene.hidden = true;
     controls.hidden = true;
@@ -362,12 +370,13 @@ export function enableInteriorsFeature() {
       map.style.backgroundImage = 'none';
       overlay.dataset.template = template.id;
       overlay.dataset.houseId = id;
+      activeTemplateId = template.id;
       activeHouse = house;
       activeHouseId = id;
       title.textContent = `Дом · ${data.houseClassLabel || template.label}`;
       meta.textContent = `${template.rooms} комн. · кухня ${template.kitchen} · санузел ${template.bathroom}`;
       balance.textContent = formatMoney(state.player?.balance);
-      position = { ...template.spawn };
+      position = snapInteriorPosition(template.id, template.spawn);
       stamina = staminaConfig.max;
       sprintLocked = false;
       renderStamina();
@@ -402,6 +411,7 @@ export function enableInteriorsFeature() {
     active = false;
     activeHouse = null;
     activeHouseId = null;
+    activeTemplateId = 'standard';
     cancelAnimationFrame(raf);
     keys.clear();
     joystickVector = { x: 0, y: 0 };
@@ -513,4 +523,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
