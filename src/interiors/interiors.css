@@ -390,7 +390,7 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
     bottom: auto !important;
     width: 142px !important;
     max-width: 142px !important;
-    display: flex !important;
+    display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
     transform: translateY(8px) !important;
@@ -401,9 +401,10 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
 
   html.mn-force-rotate-landscape .mn-interior-stamina[data-visible="true"],
   body.mn-force-rotate-landscape .mn-interior-stamina[data-visible="true"] {
-    visibility: visible !important;
-    opacity: 1 !important;
-    transform: translateY(0) !important;
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    transform: translateY(8px) !important;
   }
 
   html.mn-force-rotate-landscape .mn-interior-hud,
