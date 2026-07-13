@@ -761,6 +761,12 @@ export function createHouseDetailsController(root, {
         return;
       }
 
+      if (code.includes('HOUSE_SLOT_LIMIT_REACHED')) {
+        setMessage('Лимит домов достигнут: обычный игрок может иметь максимум 3 дома.', 'error');
+        buyButton.disabled = false;
+        return;
+      }
+
       if (
         code.includes('HOUSE_ALREADY_OWNED') ||
         code.includes('ASSET_ALREADY_OWNED') ||
@@ -840,6 +846,7 @@ export function createHouseDetailsController(root, {
     if (code.includes('TRADE_PLAYER_OFFLINE')) return 'Игрок сейчас не в сети.';
     if (code.includes('TRADE_CANNOT_SELL_TO_SELF')) return 'Нельзя продать дом самому себе.';
     if (code.includes('HOUSE_NOT_OWNED_BY_PLAYER')) return 'Этот дом уже не принадлежит тебе.';
+    if (code.includes('HOUSE_SLOT_LIMIT_REACHED')) return 'У покупателя уже заняты 3/3 слота домов.';
     if (code.includes('TRADE_PRICE_INVALID')) return 'Введите корректную цену.';
     return code || 'Не удалось выполнить действие.';
   }
