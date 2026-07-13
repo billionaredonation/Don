@@ -941,6 +941,24 @@ export function enableMobileJoystick(
     }
   }
 
+  function isHouseSpawnPickerActive() {
+    return (
+      window.__MN_HOUSE_SPAWN_PICKER_ACTIVE__ === true ||
+      document.body?.classList?.contains('mn-house-spawn-open') ||
+      document.documentElement?.classList?.contains('mn-house-spawn-open')
+    );
+  }
+
+  function pauseForHouseSpawnPicker() {
+    activePointerId = null;
+    container.dataset.joystickActive = 'false';
+    container.dataset.playerMoving = 'false';
+    window.__MN_MOBILE_PLAYER_MOVING__ = false;
+    window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = performance.now() + 800;
+    resetStick(true);
+    updateStaminaUi();
+  }
+
   function onExternalTeleport(event) {
     const detail = event?.detail || {};
 
@@ -964,6 +982,13 @@ export function enableMobileJoystick(
   }
 
   function onPointerDown(event) {
+    if (isHouseSpawnPickerActive() || window.__MN_INTERIOR_ACTIVE__ === true) {
+      event.preventDefault();
+      event.stopPropagation();
+      pauseForHouseSpawnPicker();
+      return;
+    }
+
     event.preventDefault();
     event.stopPropagation();
 
@@ -985,6 +1010,13 @@ export function enableMobileJoystick(
   function onPointerMove(event) {
     if (activePointerId === null) return;
     if (event.pointerId !== activePointerId) return;
+
+    if (isHouseSpawnPickerActive()) {
+      event.preventDefault();
+      event.stopPropagation();
+      pauseForHouseSpawnPicker();
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();
@@ -1010,6 +1042,7 @@ export function enableMobileJoystick(
   window.addEventListener('orientationchange', handleViewportChange, { passive: true });
   window.visualViewport?.addEventListener?.('resize', handleViewportChange, { passive: true });
   window.addEventListener('mn:player-teleported', onExternalTeleport);
+  window.addEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
 
   syncViewportSize();
   renderPlayer(true);
@@ -1038,6 +1071,7 @@ export function enableMobileJoystick(
     window.removeEventListener('orientationchange', handleViewportChange);
     window.visualViewport?.removeEventListener?.('resize', handleViewportChange);
     window.removeEventListener('mn:player-teleported', onExternalTeleport);
+    window.removeEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
 
     clearInterval(heartbeatTimer);
 
