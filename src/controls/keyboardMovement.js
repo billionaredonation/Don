@@ -507,8 +507,26 @@ export function enableKeyboardPlayerMovement(
     savePositionToDb(true);
   }
 
+  function isHouseSpawnPickerActive() {
+    return (
+      window.__MN_HOUSE_SPAWN_PICKER_ACTIVE__ === true ||
+      document.body?.classList?.contains('mn-house-spawn-open') ||
+      document.documentElement?.classList?.contains('mn-house-spawn-open')
+    );
+  }
+
+  function pauseForHouseSpawnPicker() {
+    keys.clear();
+    setDesktopRuntimeMoving(false);
+    forceSyncPosition();
+  }
+
   function onKeyDown(event) {
-    if (window.__MN_INTERIOR_ACTIVE__ === true) return;
+    if (window.__MN_INTERIOR_ACTIVE__ === true || isHouseSpawnPickerActive()) {
+      pauseForHouseSpawnPicker();
+      return;
+    }
+
     const tag = document.activeElement?.tagName?.toLowerCase();
 
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
@@ -553,6 +571,7 @@ export function enableKeyboardPlayerMovement(
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('mn:player-teleported', onExternalTeleport);
+  window.addEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
 
   forceSyncPosition();
   savePositionToDb(true);
@@ -566,6 +585,7 @@ export function enableKeyboardPlayerMovement(
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
     window.removeEventListener('mn:player-teleported', onExternalTeleport);
+    window.removeEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
 
     if (animationId) {
       cancelAnimationFrame(animationId);
