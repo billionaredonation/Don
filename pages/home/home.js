@@ -1695,3 +1695,4 @@ register('home', async (root) => {
     );
   };
 });
+
