@@ -257,10 +257,28 @@ function setupHouseSpawnPicker({
   let overlay = null;
   let ownedHouses = [];
 
+  function setPickerGate(open) {
+    const isOpen = Boolean(open);
+
+    window.__MN_HOUSE_SPAWN_PICKER_ACTIVE__ = isOpen;
+    document.body?.classList.toggle('mn-house-spawn-open', isOpen);
+    document.documentElement?.classList.toggle('mn-house-spawn-open', isOpen);
+
+    window.dispatchEvent(new CustomEvent(
+      isOpen ? 'mn:house-spawn-picker-opened' : 'mn:house-spawn-picker-closed',
+      { detail: { cityId, source: 'house_spawn_picker' } }
+    ));
+
+    if (isOpen) {
+      window.__MN_MOBILE_PLAYER_MOVING__ = false;
+      window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = performance.now() + 800;
+    }
+  }
+
   function close() {
     overlay?.remove();
     overlay = null;
-    document.body?.classList.remove('mn-house-spawn-open');
+    setPickerGate(false);
   }
 
   function enterHouseFromPicker(house) {
@@ -332,7 +350,7 @@ function setupHouseSpawnPicker({
       overlay = root.querySelector('[data-house-spawn-picker]');
       overlay?.addEventListener('click', handleClick);
       window.addEventListener('keydown', handleKeyDown, true);
-      document.body?.classList.add('mn-house-spawn-open');
+      setPickerGate(true);
     })
     .catch((error) => {
       console.warn('[home] house spawn picker failed:', error);
