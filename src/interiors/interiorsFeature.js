@@ -365,14 +365,26 @@ export function enableInteriorsFeature() {
     const screenDy = event.clientY - cy;
     const forceRotated = document.documentElement.classList.contains('mn-force-rotate-landscape') &&
       window.matchMedia?.('(orientation: portrait)')?.matches;
-    const dx = forceRotated ? screenDy : screenDx;
-    const dy = forceRotated ? -screenDx : screenDy;
-    const length = Math.hypot(dx, dy);
-    const scale = length > max ? max / length : 1;
-    const x = dx * scale;
-    const y = dy * scale;
-    joystickVector = { x: x / max, y: y / max };
-    stick.style.transform = `translate3d(${x}px,${y}px,0)`;
+    const screenLength = Math.hypot(screenDx, screenDy);
+
+    if (screenLength <= 0.001) {
+      joystickVector = { x: 0, y: 0 };
+      stick.style.transform = 'translate3d(0,0,0)';
+      return;
+    }
+
+    const screenScale = screenLength > max ? max / screenLength : 1;
+    const stickX = screenDx * screenScale;
+    const stickY = screenDy * screenScale;
+    const screenX = screenDx / screenLength;
+    const screenY = screenDy / screenLength;
+    const power = Math.min(1, screenLength / max);
+
+    joystickVector = forceRotated
+      ? { x: screenY * power, y: -screenX * power }
+      : { x: screenX * power, y: screenY * power };
+
+    stick.style.transform = `translate3d(${stickX}px,${stickY}px,0)`;
   }
 
   joystick.addEventListener('pointerdown', (event) => {
