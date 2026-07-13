@@ -7,6 +7,8 @@ import luxeInteriorUrl from '../../luxe_interior.png?url';
 import './interiors.css';
 
 const INTERIOR_COLLISION_FALLBACK_RADIUS = 0.8;
+const INTERIOR_COLLISION_STORAGE_KEY = 'mn-interior-colliders-v1';
+const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
 
 function collisionRect(x, y, width, height) {
   return {
@@ -128,6 +130,21 @@ const TEMPLATES = {
   ultra_lux: { id: 'ultra_lux', label: 'Ультра-люкс', file: 'luxe_interior.png', url: luxeInteriorUrl, rooms: 4, kitchen: 3, bathroom: 3, spawn: { x: 50, y: 90 } },
 };
 
+function roundPercent(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function isTruthy(value) {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function isInteriorColliderAdmin() {
+  return isTruthy(state.is_admin) ||
+    isTruthy(state.isAdmin) ||
+    isTruthy(state.player?.is_admin) ||
+    isTruthy(state.player?.isAdmin);
+}
+
 function playerTgId() {
   return String(state.telegramId || state.player?.tg_id || state.player?.telegramId || '').trim();
 }
@@ -160,8 +177,99 @@ function clampPercent(value, fallback = 50) {
   return Math.min(100, Math.max(0, number));
 }
 
+function normalizeCollisionRect(rect) {
+  const rawX1 = Number(rect?.x1 ?? rect?.left ?? rect?.x ?? 0);
+  const rawY1 = Number(rect?.y1 ?? rect?.top ?? rect?.y ?? 0);
+  const rawX2 = Number(rect?.x2 ?? (Number(rect?.x ?? rect?.left ?? 0) + Number(rect?.width ?? rect?.w ?? 0)));
+  const rawY2 = Number(rect?.y2 ?? (Number(rect?.y ?? rect?.top ?? 0) + Number(rect?.height ?? rect?.h ?? 0)));
+
+  if (![rawX1, rawY1, rawX2, rawY2].every(Number.isFinite)) return null;
+
+  const x1 = clampPercent(Math.min(rawX1, rawX2), 0);
+  const y1 = clampPercent(Math.min(rawY1, rawY2), 0);
+  const x2 = clampPercent(Math.max(rawX1, rawX2), 100);
+  const y2 = clampPercent(Math.max(rawY1, rawY2), 100);
+
+  if (x2 - x1 < 0.1 || y2 - y1 < 0.1) return null;
+
+  return {
+    x1: roundPercent(x1),
+    y1: roundPercent(y1),
+    x2: roundPercent(x2),
+    y2: roundPercent(y2),
+  };
+}
+
+function cloneCollisionRect(rect) {
+  return normalizeCollisionRect(rect);
+}
+
+function normalizeCollisionProfile(profile, fallbackProfile = null) {
+  const fallback = fallbackProfile || {};
+  const radius = Number(profile?.radius ?? fallback.radius ?? INTERIOR_COLLISION_FALLBACK_RADIUS);
+  const bounds = (Array.isArray(profile?.bounds) ? profile.bounds : fallback.bounds || [])
+    .map(normalizeCollisionRect)
+    .filter(Boolean);
+  const blocked = (Array.isArray(profile?.blocked) ? profile.blocked : fallback.blocked || [])
+    .map(normalizeCollisionRect)
+    .filter(Boolean);
+
+  return {
+    radius: Number.isFinite(radius) ? Math.max(0.1, Math.min(4, roundPercent(radius))) : INTERIOR_COLLISION_FALLBACK_RADIUS,
+    bounds,
+    blocked,
+  };
+}
+
+function cloneCollisionProfile(profile) {
+  return normalizeCollisionProfile(profile, profile);
+}
+
+function readStoredCollisionProfiles() {
+  try {
+    const raw = window.localStorage?.getItem(INTERIOR_COLLISION_STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw);
+    const source = parsed?.profiles && typeof parsed.profiles === 'object'
+      ? parsed.profiles
+      : parsed && typeof parsed === 'object'
+        ? parsed
+        : {};
+
+    return Object.keys(TEMPLATES).reduce((profiles, templateId) => {
+      if (source[templateId]) {
+        profiles[templateId] = normalizeCollisionProfile(source[templateId], INTERIOR_COLLISION_PROFILES[templateId]);
+      }
+      return profiles;
+    }, {});
+  } catch (error) {
+    console.warn('[interiors] collider profiles load failed:', error);
+    return {};
+  }
+}
+
+function writeStoredCollisionProfiles(profiles) {
+  try {
+    const payload = {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      profiles,
+    };
+    window.localStorage?.setItem(INTERIOR_COLLISION_STORAGE_KEY, JSON.stringify(payload));
+    return true;
+  } catch (error) {
+    console.warn('[interiors] collider profiles save failed:', error);
+    return false;
+  }
+}
+
+let customCollisionProfiles = readStoredCollisionProfiles();
+
 function collisionProfileFor(templateId) {
-  return INTERIOR_COLLISION_PROFILES[templateId] || INTERIOR_COLLISION_PROFILES.standard;
+  return customCollisionProfiles[templateId] ||
+    INTERIOR_COLLISION_PROFILES[templateId] ||
+    INTERIOR_COLLISION_PROFILES.standard;
 }
 
 function insideCollisionRect(point, box, padding = 0) {
@@ -342,6 +450,7 @@ function markup() {
           />
         </div>
         <div class="mn-interior-shade"></div>
+        <div class="mn-interior-collider-layer" hidden data-interior-collider-layer></div>
         <div class="mn-interior-player" data-interior-player><i></i><span>${String(state.nickname || 'Игрок')}</span></div>
       </main>
       <div class="mn-interior-controls" hidden data-interior-controls>
@@ -358,6 +467,32 @@ function markup() {
       </div>
       <div class="mn-interior-ui" hidden data-interior-ui>
         <button type="button" class="mn-interior-exit" data-interior-exit>🚪 Выйти из дома</button>
+        <button type="button" class="mn-interior-collider-toggle" hidden data-interior-collider-toggle>Коллайдеры</button>
+        <section class="mn-interior-collider-panel" hidden data-interior-collider-panel>
+          <div class="mn-interior-collider-head">
+            <b>Редактор коллайдеров</b>
+            <button type="button" data-interior-collider-close>×</button>
+          </div>
+          <div class="mn-interior-collider-mode">
+            <button type="button" data-interior-collider-mode="bounds">Проход</button>
+            <button type="button" data-interior-collider-mode="blocked">Блок</button>
+          </div>
+          <div class="mn-interior-collider-hint">
+            Тяни по интерьеру, чтобы создать зону. Зелёное — где можно ходить, красное — стены и мебель.
+          </div>
+          <div class="mn-interior-collider-actions">
+            <button type="button" data-interior-collider-save>Сохранить</button>
+            <button type="button" data-interior-collider-delete>Удалить</button>
+            <button type="button" data-interior-collider-clear>Очистить</button>
+            <button type="button" data-interior-collider-reset>Сброс</button>
+          </div>
+          <div class="mn-interior-collider-actions">
+            <button type="button" data-interior-collider-export>Экспорт</button>
+            <button type="button" data-interior-collider-import>Импорт</button>
+          </div>
+          <textarea data-interior-collider-json spellcheck="false" placeholder="JSON коллайдеров"></textarea>
+          <small data-interior-collider-status></small>
+        </section>
         <div class="mn-interior-hud">
           <div class="mn-interior-info">
             <b data-interior-title>Интерьер</b>
@@ -393,6 +528,19 @@ export function enableInteriorsFeature() {
   const map = overlay.querySelector('[data-interior-map]');
   const interiorImage = overlay.querySelector('[data-interior-image]');
   const marker = overlay.querySelector('[data-interior-player]');
+  const colliderLayer = overlay.querySelector('[data-interior-collider-layer]');
+  const colliderToggle = overlay.querySelector('[data-interior-collider-toggle]');
+  const colliderPanel = overlay.querySelector('[data-interior-collider-panel]');
+  const colliderClose = overlay.querySelector('[data-interior-collider-close]');
+  const colliderModeButtons = [...overlay.querySelectorAll('[data-interior-collider-mode]')];
+  const colliderSave = overlay.querySelector('[data-interior-collider-save]');
+  const colliderDelete = overlay.querySelector('[data-interior-collider-delete]');
+  const colliderClear = overlay.querySelector('[data-interior-collider-clear]');
+  const colliderReset = overlay.querySelector('[data-interior-collider-reset]');
+  const colliderExport = overlay.querySelector('[data-interior-collider-export]');
+  const colliderImport = overlay.querySelector('[data-interior-collider-import]');
+  const colliderJson = overlay.querySelector('[data-interior-collider-json]');
+  const colliderStatus = overlay.querySelector('[data-interior-collider-status]');
   const title = overlay.querySelector('[data-interior-title]');
   const meta = overlay.querySelector('[data-interior-meta]');
   const balance = overlay.querySelector('[data-interior-balance]');
@@ -414,6 +562,13 @@ export function enableInteriorsFeature() {
   let activeTemplateId = 'standard';
   let activeHouse = null;
   let activeHouseId = null;
+  let colliderEditorOpen = false;
+  let colliderEditorMode = 'blocked';
+  let colliderEditorProfile = null;
+  let colliderEditorSelected = null;
+  let colliderEditorPointer = null;
+  let colliderEditorStart = null;
+  let colliderEditorDraft = null;
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
   const staminaConfig = getStaminaConfig();
@@ -441,7 +596,295 @@ export function enableInteriorsFeature() {
     staminaFill.dataset.state = sprintLocked ? 'locked' : percent < 30 ? 'low' : 'normal';
   }
 
+  function setColliderStatus(text) {
+    colliderStatus.textContent = text || '';
+  }
+
+  function setColliderEditorMode(mode) {
+    colliderEditorMode = mode === 'bounds' ? 'bounds' : 'blocked';
+    colliderModeButtons.forEach((button) => {
+      button.dataset.active = button.dataset.interiorColliderMode === colliderEditorMode ? 'true' : 'false';
+    });
+  }
+
+  function editorProfileForCurrentTemplate() {
+    return cloneCollisionProfile(collisionProfileFor(activeTemplateId));
+  }
+
+  function setRuntimeEditorProfile(profile) {
+    customCollisionProfiles = {
+      ...customCollisionProfiles,
+      [activeTemplateId]: normalizeCollisionProfile(profile, INTERIOR_COLLISION_PROFILES[activeTemplateId]),
+    };
+  }
+
+  function removeRuntimeEditorProfile() {
+    const nextProfiles = { ...customCollisionProfiles };
+    delete nextProfiles[activeTemplateId];
+    customCollisionProfiles = nextProfiles;
+  }
+
+  function colliderLayerPoint(event) {
+    const rect = colliderLayer.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100;
+    const y = ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100;
+
+    return {
+      x: clampPercent(x, 0),
+      y: clampPercent(y, 0),
+    };
+  }
+
+  function rectFromPoints(start, end) {
+    return normalizeCollisionRect({
+      x1: start.x,
+      y1: start.y,
+      x2: end.x,
+      y2: end.y,
+    });
+  }
+
+  function rectToStyle(rect) {
+    const safe = normalizeCollisionRect(rect) || { x1: 0, y1: 0, x2: 0, y2: 0 };
+    return `left:${safe.x1}%;top:${safe.y1}%;width:${safe.x2 - safe.x1}%;height:${safe.y2 - safe.y1}%`;
+  }
+
+  function editorCountsText(profile = colliderEditorProfile) {
+    const boundsCount = profile?.bounds?.length || 0;
+    const blockedCount = profile?.blocked?.length || 0;
+    return `${activeTemplateId}: проход ${boundsCount} · блок ${blockedCount}`;
+  }
+
+  function renderColliderEditorLayer() {
+    if (!colliderEditorOpen || !colliderEditorProfile) {
+      colliderLayer.replaceChildren();
+      return;
+    }
+
+    const fragments = [];
+    ['bounds', 'blocked'].forEach((kind) => {
+      (colliderEditorProfile[kind] || []).forEach((rect, index) => {
+        const selected = colliderEditorSelected?.kind === kind && colliderEditorSelected?.index === index;
+        fragments.push(`
+          <button
+            type="button"
+            class="mn-interior-collider-rect mn-interior-collider-rect-${kind}${selected ? ' is-selected' : ''}"
+            data-collider-kind="${kind}"
+            data-collider-index="${index}"
+            style="${rectToStyle(rect)}"
+            aria-label="${kind} ${index + 1}"
+          ></button>
+        `);
+      });
+    });
+
+    if (colliderEditorDraft) {
+      fragments.push(`
+        <div
+          class="mn-interior-collider-rect mn-interior-collider-rect-${colliderEditorMode} is-draft"
+          style="${rectToStyle(colliderEditorDraft)}"
+        ></div>
+      `);
+    }
+
+    colliderLayer.innerHTML = fragments.join('');
+    setColliderStatus(editorCountsText());
+  }
+
+  function applyColliderEditorProfile({ persist = false } = {}) {
+    if (!colliderEditorProfile) return false;
+
+    const normalized = normalizeCollisionProfile(colliderEditorProfile, INTERIOR_COLLISION_PROFILES[activeTemplateId]);
+    colliderEditorProfile = normalized;
+    setRuntimeEditorProfile(normalized);
+
+    if (persist) {
+      const saved = writeStoredCollisionProfiles(customCollisionProfiles);
+      setColliderStatus(saved ? `Сохранено · ${editorCountsText(normalized)}` : 'Не удалось сохранить');
+      return saved;
+    }
+
+    setColliderStatus(`Изменено · ${editorCountsText(normalized)}`);
+    return true;
+  }
+
+  function openColliderEditor() {
+    if (!active || !isInteriorColliderAdmin()) return;
+
+    colliderEditorOpen = true;
+    colliderEditorProfile = editorProfileForCurrentTemplate();
+    colliderEditorSelected = null;
+    colliderEditorPointer = null;
+    colliderEditorStart = null;
+    colliderEditorDraft = null;
+    keys.clear();
+    joystickVector = { x: 0, y: 0 };
+    joystick.dataset.active = 'false';
+    stick.style.transform = 'translate3d(0,0,0)';
+    colliderLayer.hidden = false;
+    colliderPanel.hidden = false;
+    overlay.dataset.colliderEditor = 'enabled';
+    document.body.classList.add('mn-interior-collider-editor-open');
+    document.documentElement.classList.add('mn-interior-collider-editor-open');
+    setColliderEditorMode(colliderEditorMode);
+    renderColliderEditorLayer();
+  }
+
+  function closeColliderEditor() {
+    colliderEditorOpen = false;
+    colliderEditorPointer = null;
+    colliderEditorStart = null;
+    colliderEditorDraft = null;
+    colliderEditorSelected = null;
+    colliderLayer.hidden = true;
+    colliderPanel.hidden = true;
+    overlay.dataset.colliderEditor = 'disabled';
+    document.body.classList.remove('mn-interior-collider-editor-open');
+    document.documentElement.classList.remove('mn-interior-collider-editor-open');
+    renderColliderEditorLayer();
+  }
+
+  function toggleColliderEditor() {
+    if (colliderEditorOpen) closeColliderEditor();
+    else openColliderEditor();
+  }
+
+  function isColliderEditorHotkey(event) {
+    const key = String(event.key || '').toLowerCase();
+    return key === 'c' || key === 'с';
+  }
+
+  function handleColliderPointerDown(event) {
+    if (!colliderEditorOpen || !colliderEditorProfile) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rectButton = event.target.closest?.('[data-collider-kind]');
+    if (rectButton) {
+      colliderEditorSelected = {
+        kind: rectButton.dataset.colliderKind,
+        index: Number(rectButton.dataset.colliderIndex),
+      };
+      renderColliderEditorLayer();
+      return;
+    }
+
+    colliderEditorPointer = event.pointerId;
+    colliderEditorStart = colliderLayerPoint(event);
+    colliderEditorDraft = null;
+    colliderEditorSelected = null;
+    colliderLayer.setPointerCapture?.(event.pointerId);
+    renderColliderEditorLayer();
+  }
+
+  function handleColliderPointerMove(event) {
+    if (!colliderEditorOpen || event.pointerId !== colliderEditorPointer || !colliderEditorStart) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    colliderEditorDraft = rectFromPoints(colliderEditorStart, colliderLayerPoint(event));
+    renderColliderEditorLayer();
+  }
+
+  function handleColliderPointerEnd(event) {
+    if (!colliderEditorOpen || event.pointerId !== colliderEditorPointer) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = colliderEditorDraft || rectFromPoints(colliderEditorStart, colliderLayerPoint(event));
+    colliderEditorPointer = null;
+    colliderEditorStart = null;
+    colliderEditorDraft = null;
+
+    if (
+      rect &&
+      rect.x2 - rect.x1 >= INTERIOR_COLLIDER_MIN_SIZE &&
+      rect.y2 - rect.y1 >= INTERIOR_COLLIDER_MIN_SIZE
+    ) {
+      const list = colliderEditorProfile[colliderEditorMode] || [];
+      list.push(rect);
+      colliderEditorProfile[colliderEditorMode] = list;
+      colliderEditorSelected = {
+        kind: colliderEditorMode,
+        index: list.length - 1,
+      };
+      applyColliderEditorProfile();
+    }
+
+    renderColliderEditorLayer();
+  }
+
+  function deleteSelectedCollider() {
+    const selected = colliderEditorSelected;
+    if (!selected || !colliderEditorProfile?.[selected.kind]) return;
+
+    colliderEditorProfile[selected.kind].splice(selected.index, 1);
+    colliderEditorSelected = null;
+    applyColliderEditorProfile();
+    renderColliderEditorLayer();
+  }
+
+  function exportColliderProfile() {
+    const profile = normalizeCollisionProfile(
+      colliderEditorProfile || collisionProfileFor(activeTemplateId),
+      INTERIOR_COLLISION_PROFILES[activeTemplateId]
+    );
+    const payload = {
+      version: 1,
+      template: activeTemplateId,
+      profile,
+      profiles: {
+        ...customCollisionProfiles,
+        [activeTemplateId]: profile,
+      },
+    };
+    const text = JSON.stringify(payload, null, 2);
+    colliderJson.value = text;
+    navigator.clipboard?.writeText(text).then(
+      () => setColliderStatus('JSON скопирован'),
+      () => setColliderStatus('JSON готов в поле ниже')
+    );
+  }
+
+  function importColliderProfile() {
+    try {
+      const parsed = JSON.parse(colliderJson.value || '{}');
+      const sourceProfiles = parsed?.profiles && typeof parsed.profiles === 'object' ? parsed.profiles : null;
+
+      if (sourceProfiles) {
+        const nextProfiles = { ...customCollisionProfiles };
+        Object.keys(TEMPLATES).forEach((templateId) => {
+          if (sourceProfiles[templateId]) {
+            nextProfiles[templateId] = normalizeCollisionProfile(sourceProfiles[templateId], INTERIOR_COLLISION_PROFILES[templateId]);
+          }
+        });
+        customCollisionProfiles = nextProfiles;
+        colliderEditorProfile = editorProfileForCurrentTemplate();
+      } else {
+        const templateId = parsed?.template && TEMPLATES[parsed.template] ? parsed.template : activeTemplateId;
+        const sourceProfile = parsed?.profile || parsed;
+        const normalized = normalizeCollisionProfile(sourceProfile, INTERIOR_COLLISION_PROFILES[templateId]);
+        customCollisionProfiles = {
+          ...customCollisionProfiles,
+          [templateId]: normalized,
+        };
+        if (templateId === activeTemplateId) colliderEditorProfile = cloneCollisionProfile(normalized);
+      }
+
+      writeStoredCollisionProfiles(customCollisionProfiles);
+      renderColliderEditorLayer();
+      setColliderStatus('Импортировано и сохранено');
+    } catch (error) {
+      setColliderStatus('JSON не прочитался');
+      console.warn('[interiors] collider import failed:', error);
+    }
+  }
+
   function movementVector() {
+    if (colliderEditorOpen) return { x: 0, y: 0 };
+
     let x = joystickVector.x;
     let y = joystickVector.y;
     if (keys.has('arrowleft') || keys.has('a') || keys.has('ф')) x -= 1;
@@ -492,6 +935,7 @@ export function enableInteriorsFeature() {
     activeHouse = null;
     activeHouseId = null;
     activeTemplateId = 'standard';
+    if (colliderEditorOpen) closeColliderEditor();
     loading.hidden = true;
     scene.hidden = true;
     controls.hidden = true;
@@ -594,6 +1038,7 @@ export function enableInteriorsFeature() {
       overlay.dataset.template = template.id;
       overlay.dataset.houseId = id;
       activeTemplateId = template.id;
+      colliderToggle.hidden = !isInteriorColliderAdmin();
       activeHouse = house;
       activeHouseId = id;
       title.textContent = `Дом · ${data.houseClassLabel || template.label}`;
@@ -631,6 +1076,7 @@ export function enableInteriorsFeature() {
     const exitedHouseId = overlay.dataset.houseId || activeHouseId || null;
     const exitSpawn = exitedHouse ? houseExteriorSpawn(exitedHouse) : null;
 
+    if (colliderEditorOpen) closeColliderEditor();
     active = false;
     activeHouse = null;
     activeHouseId = null;
@@ -665,6 +1111,40 @@ export function enableInteriorsFeature() {
 
   function keyDown(event) {
     if (!active) return;
+
+    const target = event.target;
+    const isFormField = Boolean(target?.closest?.('input, textarea, select'));
+
+    if (!isFormField && isInteriorColliderAdmin() && isColliderEditorHotkey(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleColliderEditor();
+      return;
+    }
+
+    if (colliderEditorOpen) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeColliderEditor();
+        return;
+      }
+
+      if (!isFormField && (event.key === 'Delete' || event.key === 'Backspace')) {
+        event.preventDefault();
+        event.stopPropagation();
+        deleteSelectedCollider();
+        return;
+      }
+
+      if (!isFormField) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
+      return;
+    }
+
     if (event.key === 'Escape' || String(event.key).toLowerCase() === 'e' || String(event.key).toLowerCase() === 'у') {
       event.preventDefault(); exit(); return;
     }
@@ -728,6 +1208,39 @@ export function enableInteriorsFeature() {
   };
   joystick.addEventListener('pointerup', stopJoystick);
   joystick.addEventListener('pointercancel', stopJoystick);
+  colliderToggle.addEventListener('click', toggleColliderEditor);
+  colliderClose.addEventListener('click', closeColliderEditor);
+  colliderModeButtons.forEach((button) => {
+    button.addEventListener('click', () => setColliderEditorMode(button.dataset.interiorColliderMode));
+  });
+  colliderSave.addEventListener('click', () => applyColliderEditorProfile({ persist: true }));
+  colliderDelete.addEventListener('click', deleteSelectedCollider);
+  colliderClear.addEventListener('click', () => {
+    const current = normalizeCollisionProfile(colliderEditorProfile, INTERIOR_COLLISION_PROFILES[activeTemplateId]);
+    colliderEditorProfile = {
+      radius: current.radius,
+      bounds: [],
+      blocked: [],
+    };
+    colliderEditorSelected = null;
+    applyColliderEditorProfile();
+    renderColliderEditorLayer();
+    setColliderStatus(`Очищено · ${editorCountsText()}`);
+  });
+  colliderReset.addEventListener('click', () => {
+    removeRuntimeEditorProfile();
+    writeStoredCollisionProfiles(customCollisionProfiles);
+    colliderEditorProfile = editorProfileForCurrentTemplate();
+    colliderEditorSelected = null;
+    renderColliderEditorLayer();
+    setColliderStatus(`Сброшено · ${editorCountsText()}`);
+  });
+  colliderExport.addEventListener('click', exportColliderProfile);
+  colliderImport.addEventListener('click', importColliderProfile);
+  colliderLayer.addEventListener('pointerdown', handleColliderPointerDown);
+  colliderLayer.addEventListener('pointermove', handleColliderPointerMove);
+  colliderLayer.addEventListener('pointerup', handleColliderPointerEnd);
+  colliderLayer.addEventListener('pointercancel', handleColliderPointerEnd);
   exitButton.addEventListener('click', exit);
   errorClose.addEventListener('click', exit);
   window.addEventListener('keydown', keyDown, true);
