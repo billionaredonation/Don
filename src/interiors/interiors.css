@@ -70,6 +70,290 @@ body.mn-interior-open .home-gameplay, body.mn-interior-open .player-glass-hud, b
     transform: none !important;
   }
 }
+
+/* Interior vitals under the balance HUD card */
+.mn-interior-balance.has-interior-vitals {
+  position: relative;
+  overflow: visible !important;
+}
+
+.mn-interior-vitals-row {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 2;
+  width: min(128px, 100%);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  pointer-events: none;
+}
+
+.mn-interior-vital-pill {
+  --mn-interior-vital-fill: 100%;
+  --mn-interior-vital-glow: rgba(255,255,255,.18);
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.92);
+  background: rgba(7,12,17,.66);
+  box-shadow: 0 6px 15px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  transform-origin: center;
+  transition: border-color 220ms ease, box-shadow 220ms ease, filter 220ms ease;
+}
+
+.mn-interior-vital-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: var(--mn-interior-vital-fill);
+  border-radius: inherit;
+  transition: width 420ms cubic-bezier(.18,.84,.22,1);
+}
+
+.mn-interior-vital-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.24) 45%, rgba(255,255,255,0) 70%),
+    linear-gradient(180deg, rgba(255,255,255,.13), rgba(255,255,255,0));
+  background-size: 220% 100%, 100% 100%;
+  background-position: 180% 0, 0 0;
+  opacity: .55;
+}
+
+.mn-interior-vital-pill .mn-interior-vital-icon,
+.mn-interior-vital-pill b {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0,0,0,.55);
+}
+
+.mn-interior-vital-pill .mn-interior-vital-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  overflow: visible;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.45));
+  transform-origin: center;
+}
+
+.mn-interior-vital-pill b {
+  font: 950 7px/1 system-ui;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-interior-vital-pill.is-interior-vital-changing {
+  animation: mn-interior-vital-soft-pop 520ms ease both;
+  box-shadow:
+    0 6px 15px rgba(0,0,0,.28),
+    0 0 13px var(--mn-interior-vital-glow),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.mn-interior-vital-pill.is-interior-vital-changing::after {
+  animation: mn-interior-vital-glint 520ms ease both;
+}
+
+.mn-interior-vital-pill.is-interior-vital-changing .mn-interior-vital-icon {
+  animation: mn-interior-vital-icon-pop 520ms ease both;
+}
+
+.mn-interior-vital-health {
+  border-color: rgba(255,91,91,.3);
+  --mn-interior-vital-glow: rgba(255,58,70,.32);
+}
+
+.mn-interior-vital-health::before {
+  background:
+    linear-gradient(90deg, rgba(167,22,31,.92), rgba(255,64,72,.94)),
+    #a7161f;
+  box-shadow: 0 0 12px rgba(255,52,64,.34);
+}
+
+.mn-interior-vital-health.is-interior-health-low {
+  border-color: rgba(255,74,74,.58);
+  box-shadow:
+    0 6px 15px rgba(0,0,0,.28),
+    0 0 14px rgba(255,50,60,.24),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.mn-interior-vital-health.is-interior-health-draining {
+  animation: mn-interior-health-drain-kick 620ms ease both;
+}
+
+.mn-interior-vital-food {
+  border-color: rgba(255,187,85,.22);
+  --mn-interior-vital-glow: rgba(255,180,58,.28);
+}
+
+.mn-interior-vital-food::before {
+  background: linear-gradient(90deg, rgba(170,104,24,.76), rgba(255,180,58,.82));
+}
+
+.mn-interior-vital-water {
+  border-color: rgba(76,183,255,.22);
+  --mn-interior-vital-glow: rgba(65,178,255,.28);
+}
+
+.mn-interior-vital-water::before {
+  background: linear-gradient(90deg, rgba(25,103,180,.76), rgba(65,178,255,.84));
+}
+
+.mn-interior-health-edge {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  background:
+    radial-gradient(ellipse at center, rgba(255,0,0,0) 42%, rgba(155,0,10,.09) 76%, rgba(155,0,10,.22) 100%),
+    linear-gradient(90deg, rgba(155,0,10,.22), rgba(155,0,10,0) 14%, rgba(155,0,10,0) 86%, rgba(155,0,10,.22));
+}
+
+.mn-interior-health-edge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  box-shadow: inset 0 0 36px rgba(255,42,52,.34), inset 0 0 98px rgba(130,0,12,.32);
+}
+
+.mn-interior.is-interior-health-low .mn-interior-health-edge {
+  opacity: .72;
+}
+
+.mn-interior.is-interior-health-low .mn-interior-health-edge::before {
+  opacity: 1;
+  animation: mn-interior-health-edge-pulse 1750ms ease-in-out infinite;
+}
+
+.mn-interior.is-interior-health-hit .mn-interior-health-edge {
+  opacity: 1;
+  animation: mn-interior-health-edge-hit 620ms ease-out both;
+}
+
+html.mn-session-blocked .mn-interior-health-edge,
+body.mn-session-blocked .mn-interior-health-edge {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+@keyframes mn-interior-health-drain-kick {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  30% { transform: scale(1.08); filter: brightness(1.35); }
+}
+
+@keyframes mn-interior-vital-soft-pop {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  36% { transform: scale(1.045); filter: brightness(1.1); }
+}
+
+@keyframes mn-interior-vital-icon-pop {
+  0%, 100% { transform: translateY(0) scale(1); }
+  36% { transform: translateY(-1px) scale(1.13); }
+}
+
+@keyframes mn-interior-vital-glint {
+  0% { background-position: 180% 0, 0 0; opacity: .5; }
+  44% { opacity: .82; }
+  100% { background-position: -80% 0, 0 0; opacity: .55; }
+}
+
+@keyframes mn-interior-health-edge-pulse {
+  0%, 100% { opacity: .66; }
+  50% { opacity: 1; }
+}
+
+@keyframes mn-interior-health-edge-hit {
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  100% { opacity: .72; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .mn-interior-vitals-row {
+    top: calc(100% + 4px);
+    gap: 2px;
+    width: min(116px, 100%);
+  }
+
+  .mn-interior-vital-pill {
+    height: 14px;
+    padding-inline: 2px;
+  }
+
+  .mn-interior-vital-pill .mn-interior-vital-icon {
+    width: 9px;
+    font-size: 8.2px;
+  }
+
+  .mn-interior-vital-pill b {
+    font-size: 6.4px;
+  }
+}
+
+@media (max-width: 430px) {
+  .mn-interior-vitals-row {
+    top: calc(100% + 4px);
+    gap: 2px;
+    width: min(116px, 100%);
+  }
+
+  .mn-interior-vital-pill {
+    height: 14px;
+    padding-inline: 2px;
+  }
+
+  .mn-interior-vital-pill .mn-interior-vital-icon {
+    width: 9px;
+    font-size: 8px;
+  }
+
+  .mn-interior-vital-pill b {
+    font-size: 6.3px;
+  }
+}
+
+html.mn-force-rotate-landscape .mn-interior-balance.has-interior-vitals,
+body.mn-force-rotate-landscape .mn-interior-balance.has-interior-vitals {
+  overflow: visible !important;
+}
+
+html.mn-force-rotate-landscape .mn-interior-vitals-row,
+body.mn-force-rotate-landscape .mn-interior-vitals-row {
+  top: calc(100% + 5px) !important;
+  right: 0 !important;
+  width: min(118px, 100%) !important;
+}
 @media (prefers-reduced-motion: reduce) { .mn-interior-spinner { animation-duration: 1.5s; } }
 
 .mn-interior-collider-layer {
@@ -686,4 +970,39 @@ body.mn-interior-collider-editor-open .mn-interior-stamina {
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
+}
+
+/* Keep interior vitals visible after the forced-landscape HUD overrides. */
+html.mn-force-rotate-landscape .mn-interior-balance.has-interior-vitals,
+body.mn-force-rotate-landscape .mn-interior-balance.has-interior-vitals {
+  overflow: visible !important;
+}
+
+html.mn-force-rotate-landscape .mn-interior-vitals-row,
+body.mn-force-rotate-landscape .mn-interior-vitals-row {
+  top: calc(100% + 5px) !important;
+  right: 0 !important;
+  width: min(118px, 100%) !important;
+  display: grid !important;
+}
+
+html.mn-force-rotate-landscape .mn-interior-vital-pill,
+body.mn-force-rotate-landscape .mn-interior-vital-pill {
+  display: inline-flex !important;
+  height: 14px !important;
+  min-width: 0 !important;
+  padding: 0 2px !important;
+  overflow: hidden !important;
+}
+
+html.mn-force-rotate-landscape .mn-interior-vital-pill .mn-interior-vital-icon,
+body.mn-force-rotate-landscape .mn-interior-vital-pill .mn-interior-vital-icon {
+  width: 9px !important;
+  font-size: 8.2px !important;
+}
+
+html.mn-force-rotate-landscape .mn-interior-vital-pill b,
+body.mn-force-rotate-landscape .mn-interior-vital-pill b {
+  font-size: 6.4px !important;
+  letter-spacing: 0 !important;
 }
