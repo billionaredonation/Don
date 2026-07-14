@@ -1720,6 +1720,43 @@ register('home', async (root) => {
   setVitalVisual('food', currentVitals.food, { save: false });
   setVitalVisual('water', currentVitals.water, { save: false });
 
+  async function loadPositionVitalsSnapshot() {
+    const playerIds = Array.from(new Set([
+      localPlayerId,
+      telegramId ? `tg_${telegramId}` : null,
+    ].filter(Boolean).map(String)));
+
+    for (const playerId of playerIds) {
+      const { data, error } = await supabase
+        .from('player_positions')
+        .select('player_id, health, food, water, updated_at')
+        .eq('player_id', playerId)
+        .maybeSingle();
+
+      if (!error && data) {
+        return data;
+      }
+
+      const missingVitalsColumns = error && /health|food|water|column|schema cache/i.test(
+        `${error.message || ''} ${error.details || ''} ${error.hint || ''}`
+      );
+
+      if (missingVitalsColumns) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  async function attachPositionVitals(playerSnapshot) {
+    const positionVitals = await loadPositionVitalsSnapshot();
+
+    if (!positionVitals) return playerSnapshot;
+
+    return mergeDefinedSnapshot(positionVitals, playerSnapshot);
+  }
+
   async function loadBalanceSnapshot() {
     if (balanceSyncTransport === 'direct') {
       const { data, error } = await supabase
@@ -1729,7 +1766,7 @@ register('home', async (root) => {
         .maybeSingle();
 
       if (!error && data) {
-        return data;
+        return attachPositionVitals(data);
       }
 
       const missingVitalsColumns = error && /health|food|water|column|schema cache/i.test(
@@ -1744,7 +1781,7 @@ register('home', async (root) => {
           .maybeSingle();
 
         if (!fallback.error && fallback.data) {
-          return fallback.data;
+          return attachPositionVitals(fallback.data);
         }
       }
 
@@ -1759,7 +1796,7 @@ register('home', async (root) => {
     }
 
     const result = await getPlayer(String(telegramId));
-    return result?.player || null;
+    return attachPositionVitals(result?.player || null);
   }
 
   async function syncBalanceFromDatabase({ silent = false } = {}) {
@@ -2149,5 +2186,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
-
