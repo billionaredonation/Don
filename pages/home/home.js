@@ -37,6 +37,7 @@ import {
   fetchPlayerOwnedHouses,
   PLAYER_HOUSE_SLOT_LIMIT,
 } from '../../src/houses/housesRepository.js';
+import { getPlayerVitalsConfig } from '../../src/player/playerStatsConfig.js';
 
 import '../../src/admin/adminPanel.css';
 import '../../src/houses/houses.css';
@@ -46,6 +47,10 @@ const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 const BALANCE_COUNT_DURATION_MS = 1650;
 const BALANCE_FEEDBACK_DURATION_MS = 1900;
 const BALANCE_PULSE_DURATION_MS = 1250;
+const PLAYER_VITALS_CONFIG = getPlayerVitalsConfig();
+const PLAYER_HEALTH_LOW_CLASS = 'is-player-health-low';
+const PLAYER_HEALTH_HIT_CLASS = 'is-player-health-hit';
+const PLAYER_HEALTH_HIT_DURATION_MS = 620;
 
 function formatFullMoney(value) {
   const number = Math.round(Number(value || 0));
@@ -70,6 +75,50 @@ function formatCompactMoneyValue(number, divider, maximumFractionDigits) {
 function formatHudMoney(value) {
   // HUD показывает реальную сумму полностью. Без “млн”, без сокращений.
   return formatFullMoney(value);
+}
+
+function clampVitalValue(value, config = {}) {
+  const min = Number.isFinite(Number(config.min)) ? Number(config.min) : 0;
+  const max = Number.isFinite(Number(config.max)) ? Number(config.max) : 100;
+  const fallback = Number.isFinite(Number(config.defaultValue))
+    ? Number(config.defaultValue)
+    : max;
+  const number = Number(value);
+  const resolved = Number.isFinite(number) ? number : fallback;
+
+  return Math.min(max, Math.max(min, resolved));
+}
+
+function getPlayerHealthValue(player = state.player) {
+  const config = PLAYER_VITALS_CONFIG.health || {};
+  const candidates = [
+    player?.health,
+    player?.hp,
+    player?.healthPoints,
+    player?.health_points,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null || candidate === '') continue;
+
+    const number = Number(candidate);
+
+    if (Number.isFinite(number)) {
+      return clampVitalValue(number, config);
+    }
+  }
+
+  return clampVitalValue(config.defaultValue, config);
+}
+
+function getDecorativeVitalValue(key) {
+  const config = PLAYER_VITALS_CONFIG[key] || {};
+
+  return clampVitalValue(config.defaultValue, config);
+}
+
+function getVitalFillStyle(value) {
+  return `--mn-vital-fill: ${Math.round(clampVitalValue(value))}%`;
 }
 
 const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif}', {
@@ -1062,6 +1111,9 @@ register('home', async (root) => {
     null;
 
   const playerBalance = Number(state.player?.balance || 0);
+  const playerHealth = getPlayerHealthValue(state.player);
+  const playerFood = getDecorativeVitalValue('food');
+  const playerWater = getDecorativeVitalValue('water');
 
   root.dataset.city = cityId;
   root.dataset.time = dayMode;
@@ -1167,12 +1219,37 @@ register('home', async (root) => {
         <span class="player-profile-arrow">›</span>
       </button>
 
-      <div class="player-balance-card" aria-label="Баланс игрока" data-player-balance-card>
+      <div class="player-balance-card has-player-vitals" aria-label="Баланс игрока" data-player-balance-card>
         <span class="player-card-icon player-card-icon-green">₴</span>
         <strong data-player-balance title="${formatFullMoney(playerBalance)}">${formatHudMoney(playerBalance)}</strong>
         <span class="player-balance-change" data-player-balance-change hidden></span>
+        <div class="player-vitals-row" aria-label="Показатели игрока">
+          <div
+            class="player-vital-pill player-vital-health"
+            data-player-health
+            role="meter"
+            aria-label="Здоровье"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="${Math.round(playerHealth)}"
+            style="${getVitalFillStyle(playerHealth)}"
+          >
+            <span>HP</span>
+            <b data-player-health-value>${Math.round(playerHealth)}</b>
+          </div>
+          <div class="player-vital-pill player-vital-food is-decorative" aria-hidden="true" style="${getVitalFillStyle(playerFood)}">
+            <span>Еда</span>
+            <b>${Math.round(playerFood)}</b>
+          </div>
+          <div class="player-vital-pill player-vital-water is-decorative" aria-hidden="true" style="${getVitalFillStyle(playerWater)}">
+            <span>H2O</span>
+            <b>${Math.round(playerWater)}</b>
+          </div>
+        </div>
       </div>
     </section>
+
+    <div class="player-health-edge" data-player-health-edge aria-hidden="true"></div>
 
     <div class="mobile-controls-layer"></div>
   `;
@@ -1244,15 +1321,19 @@ register('home', async (root) => {
   const balanceCard = root.querySelector('[data-player-balance-card]');
   const balanceEl = root.querySelector('[data-player-balance]');
   const balanceChangeEl = root.querySelector('[data-player-balance-change]');
+  const healthEl = root.querySelector('[data-player-health]');
+  const healthValueEl = root.querySelector('[data-player-health-value]');
 
   let currentBalance = Number(playerBalance || 0);
   let renderedBalance = currentBalance;
+  let currentHealth = playerHealth;
   let balanceFrame = null;
   let balancePulseTimer = null;
   let balanceChangeTimer = null;
   let balanceSyncTimer = null;
   let balanceSyncInFlight = false;
   let balanceSyncTransport = 'direct';
+  let healthHitTimer = null;
 
   function formatBalance(value) {
     return formatHudMoney(value);
@@ -1410,6 +1491,68 @@ register('home', async (root) => {
     setBalanceText(nextBalance);
   }
 
+  function setHealthVisual(health, options = {}) {
+    if (!healthEl) return;
+
+    const previousHealth = currentHealth;
+    const healthConfig = PLAYER_VITALS_CONFIG.health || {};
+    const maxHealth = Number.isFinite(Number(healthConfig.max))
+      ? Number(healthConfig.max)
+      : 100;
+    const lowThreshold = Number.isFinite(Number(healthConfig.lowThreshold))
+      ? Number(healthConfig.lowThreshold)
+      : 50;
+    const nextHealth = clampVitalValue(health, healthConfig);
+    const roundedHealth = Math.round(nextHealth);
+    const fillPercent = maxHealth > 0
+      ? Math.round((nextHealth / maxHealth) * 100)
+      : 0;
+
+    currentHealth = nextHealth;
+    healthEl.style.setProperty('--mn-vital-fill', `${fillPercent}%`);
+    healthEl.setAttribute('aria-valuenow', String(roundedHealth));
+    healthEl.classList.toggle('is-health-low', nextHealth < lowThreshold);
+    root.classList.toggle(PLAYER_HEALTH_LOW_CLASS, nextHealth < lowThreshold);
+
+    if (healthValueEl) {
+      healthValueEl.textContent = String(roundedHealth);
+    }
+
+    if (options.save !== false) {
+      state.player = {
+        ...(state.player || {}),
+        health: nextHealth,
+      };
+      save();
+    }
+
+    const tookDamage = nextHealth < previousHealth;
+
+    if (options.animateDamage !== false && tookDamage) {
+      healthEl.classList.remove('is-health-draining');
+      root.classList.remove(PLAYER_HEALTH_HIT_CLASS);
+
+      void healthEl.offsetWidth;
+
+      healthEl.classList.add('is-health-draining');
+      root.classList.add(PLAYER_HEALTH_HIT_CLASS);
+
+      clearTimeout(healthHitTimer);
+      healthHitTimer = setTimeout(() => {
+        healthEl.classList.remove('is-health-draining');
+        root.classList.remove(PLAYER_HEALTH_HIT_CLASS);
+      }, PLAYER_HEALTH_HIT_DURATION_MS);
+    }
+  }
+
+  function updatePlayerHealth(health, options = {}) {
+    const nextHealth = clampVitalValue(health, PLAYER_VITALS_CONFIG.health || {});
+
+    if (!Number.isFinite(nextHealth)) return;
+
+    setHealthVisual(nextHealth, options);
+  }
+
   function handleBalanceChanged(event) {
     const nextBalance =
       event?.detail?.balance ??
@@ -1423,6 +1566,31 @@ register('home', async (root) => {
       durationMs: BALANCE_COUNT_DURATION_MS,
     });
   }
+
+  function handleHealthChanged(event) {
+    const explicitHealth =
+      event?.detail?.health ??
+      event?.detail?.hp ??
+      event?.detail?.value;
+    const delta = Number(event?.detail?.delta);
+    const nextHealth = explicitHealth !== undefined && explicitHealth !== null
+      ? explicitHealth
+      : Number.isFinite(delta)
+        ? currentHealth + delta
+        : undefined;
+
+    if (nextHealth === undefined || nextHealth === null) return;
+
+    updatePlayerHealth(nextHealth, {
+      animateDamage: event?.detail?.animateDamage !== false,
+      save: event?.detail?.save !== false,
+    });
+  }
+
+  setHealthVisual(currentHealth, {
+    animateDamage: false,
+    save: false,
+  });
 
   async function loadBalanceSnapshot() {
     if (balanceSyncTransport === 'direct') {
@@ -1642,6 +1810,7 @@ register('home', async (root) => {
 
   window.addEventListener('mn:session-blocked', handleSessionBlocked);
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
+  window.addEventListener('mn:player-health-changed', handleHealthChanged);
   cleanupBalanceDatabaseSync = startBalanceDatabaseSync();
 
   cleanupGameRealtime = setupGameRealtime({
@@ -1778,9 +1947,11 @@ register('home', async (root) => {
 
     window.removeEventListener('mn:session-blocked', handleSessionBlocked);
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
+    window.removeEventListener('mn:player-health-changed', handleHealthChanged);
     cancelAnimationFrame(balanceFrame);
     clearTimeout(balancePulseTimer);
     clearTimeout(balanceChangeTimer);
+    clearTimeout(healthHitTimer);
     clearInterval(balanceSyncTimer);
     cleanupBalanceDatabaseSync?.();
     cleanupRenderPerformanceGuards?.();
@@ -1821,5 +1992,6 @@ register('home', async (root) => {
       'mn-force-rotate-landscape',
       'mn-real-landscape'
     );
+    root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
