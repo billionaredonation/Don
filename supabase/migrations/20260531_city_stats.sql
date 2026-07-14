@@ -3,7 +3,18 @@ alter table public.players
   add column if not exists food integer,
   add column if not exists water integer;
 
+alter table public.player_positions
+  add column if not exists health integer,
+  add column if not exists food integer,
+  add column if not exists water integer;
+
 update public.players
+set
+  health = least(100, greatest(0, coalesce(health, 100))),
+  food = least(100, greatest(0, coalesce(food, 100))),
+  water = least(100, greatest(0, coalesce(water, 100)));
+
+update public.player_positions
 set
   health = least(100, greatest(0, coalesce(health, 100))),
   food = least(100, greatest(0, coalesce(food, 100))),
@@ -16,6 +27,22 @@ alter table public.players
   alter column health set not null,
   alter column food set not null,
   alter column water set not null;
+
+alter table public.player_positions
+  alter column health set default 100,
+  alter column food set default 100,
+  alter column water set default 100,
+  alter column health set not null,
+  alter column food set not null,
+  alter column water set not null;
+
+update public.player_positions pp
+set
+  health = p.health,
+  food = p.food,
+  water = p.water
+from public.players p
+where pp.player_id = 'tg_' || p.tg_id::text;
 
 do $$
 begin
@@ -39,6 +66,27 @@ begin
     alter table public.players
       add constraint players_water_range check (water between 0 and 100);
   end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'player_positions_health_range'
+  ) then
+    alter table public.player_positions
+      add constraint player_positions_health_range check (health between 0 and 100);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'player_positions_food_range'
+  ) then
+    alter table public.player_positions
+      add constraint player_positions_food_range check (food between 0 and 100);
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'player_positions_water_range'
+  ) then
+    alter table public.player_positions
+      add constraint player_positions_water_range check (water between 0 and 100);
+  end if;
 end $$;
 
 do $$
@@ -57,39 +105,27 @@ begin
   end if;
 end $$;
 
-create or replace function public.mn_broadcast_player_stats_changed()
+create or replace function public.mn_sync_player_vitals_to_positions()
 returns trigger
 language plpgsql
 security definer
-set search_path = public, realtime
+set search_path = public
 as $$
 begin
-  if
-    old.balance is not distinct from new.balance and
-    old.health is not distinct from new.health and
-    old.food is not distinct from new.food and
-    old.water is not distinct from new.water
-  then
-    return new;
-  end if;
-
-  perform realtime.broadcast_changes(
-    'mn-player-balance:' || new.id::text,
-    'balance_changed',
-    tg_op,
-    tg_table_name,
-    tg_table_schema,
-    new,
-    old
-  );
+  update public.player_positions
+  set
+    health = new.health,
+    food = new.food,
+    water = new.water
+  where player_id = 'tg_' || new.tg_id::text;
 
   return new;
 end;
 $$;
 
-drop trigger if exists mn_players_stats_realtime on public.players;
+drop trigger if exists mn_players_vitals_to_positions on public.players;
 
-create trigger mn_players_stats_realtime
-after update of balance, health, food, water on public.players
+create trigger mn_players_vitals_to_positions
+after insert or update of health, food, water on public.players
 for each row
-execute function public.mn_broadcast_player_stats_changed();
+execute function public.mn_sync_player_vitals_to_positions();
