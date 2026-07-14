@@ -131,11 +131,15 @@ export function setupGameRealtime({
   cityId,
   telegramId,
   playerRowId,
+  positionPlayerId,
   onBalanceChanged,
 } = {}) {
   const normalizedCityId = String(cityId || '').trim();
   const normalizedTelegramId = normalizeIdentifier(telegramId);
   const normalizedPlayerRowId = normalizeIdentifier(playerRowId);
+  const normalizedPositionPlayerId =
+    normalizeIdentifier(positionPlayerId) ||
+    (normalizedTelegramId ? `tg_${normalizedTelegramId}` : '');
 
   if (!normalizedCityId) {
     console.warn('[realtime] setup skipped: cityId missing');
@@ -242,6 +246,24 @@ export function setupGameRealtime({
     if (hasBalance && typeof onBalanceChanged === 'function') {
       onBalanceChanged(row, meta);
     }
+  }
+
+  function handlePositionVitalsUpdate(row = {}, payload = {}, source = 'realtime_position') {
+    if (destroyed) return;
+
+    const changedPositionPlayerId = normalizeIdentifier(row.player_id || row.playerId);
+
+    if (
+      normalizedPositionPlayerId &&
+      changedPositionPlayerId &&
+      changedPositionPlayerId !== normalizedPositionPlayerId
+    ) {
+      return;
+    }
+
+    if (!hasPlayerVitals(row)) return;
+
+    dispatchPlayerVitalsChanged(row, payload, source);
   }
 
   /*
@@ -436,6 +458,40 @@ export function setupGameRealtime({
         }
       });
     }
+  }
+
+  if (normalizedPositionPlayerId) {
+    const positionVitalsChannel = supabase.channel(
+      `mn-player-vitals-position:${normalizedPositionPlayerId}`
+    );
+    channels.push(positionVitalsChannel);
+
+    positionVitalsChannel.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'player_positions',
+        filter: `player_id=eq.${normalizedPositionPlayerId}`,
+      },
+      (payload) => {
+        handlePositionVitalsUpdate(payload?.new || {}, payload, 'realtime_position');
+      }
+    );
+
+    positionVitalsChannel.subscribe((status, error) => {
+      window.dispatchEvent(new CustomEvent('mn:vitals-realtime-status', {
+        detail: {
+          cityId: normalizedCityId,
+          telegramId: normalizedTelegramId,
+          playerRowId: normalizedPlayerRowId,
+          positionPlayerId: normalizedPositionPlayerId,
+          transport: 'player_positions_postgres_changes',
+          status,
+          error: error || null,
+        },
+      }));
+    });
   }
 
   return () => {
