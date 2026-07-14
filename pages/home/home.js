@@ -2006,6 +2006,7 @@ register('home', async (root) => {
     cityId,
     telegramId,
     playerRowId: state.player?.id,
+    positionPlayerId: localPlayerId,
   });
 
   let adminPanelReady = false;
