@@ -12,6 +12,24 @@ function getPlayerRowId(row = {}) {
   return normalizeIdentifier(row.id || row.player_id || row.playerId);
 }
 
+const PLAYER_VITAL_FIELDS = Object.freeze(['health', 'food', 'water']);
+
+function getPlayerVitalsFromRow(row = {}) {
+  return PLAYER_VITAL_FIELDS.reduce((vitals, field) => {
+    const value = Number(row?.[field]);
+
+    if (Number.isFinite(value)) {
+      vitals[field] = value;
+    }
+
+    return vitals;
+  }, {});
+}
+
+function hasPlayerVitals(row = {}) {
+  return Object.keys(getPlayerVitalsFromRow(row)).length > 0;
+}
+
 function dispatchMapObjectsChanged(cityId, payload) {
   window.dispatchEvent(new CustomEvent('mn:map-objects-changed', {
     detail: {
@@ -42,9 +60,42 @@ function createBalanceSignature(row = {}) {
   const rowId = getPlayerRowId(row);
   const telegramId = getPlayerTelegramId(row);
   const balance = Number(row.balance);
+  const vitals = getPlayerVitalsFromRow(row);
   const updatedAt = normalizeIdentifier(row.updated_at || row.updatedAt);
 
-  return `${rowId}|${telegramId}|${Number.isFinite(balance) ? balance : ''}|${updatedAt}`;
+  return [
+    rowId,
+    telegramId,
+    Number.isFinite(balance) ? balance : '',
+    vitals.health ?? '',
+    vitals.food ?? '',
+    vitals.water ?? '',
+    updatedAt,
+  ].join('|');
+}
+
+function dispatchPlayerVitalsChanged(row, payload = {}, source = 'realtime') {
+  const vitals = getPlayerVitalsFromRow(row);
+
+  if (!Object.keys(vitals).length) {
+    return null;
+  }
+
+  window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
+    detail: {
+      player: row,
+      oldPlayer: payload?.old || null,
+      vitals,
+      source,
+      payload,
+    },
+  }));
+
+  return {
+    vitals,
+    source,
+    payload,
+  };
 }
 
 function dispatchPlayerBalanceChanged(row, payload = {}, source = 'realtime') {
@@ -64,6 +115,8 @@ function dispatchPlayerBalanceChanged(row, payload = {}, source = 'realtime') {
       payload,
     },
   }));
+
+  dispatchPlayerVitalsChanged(row, payload, source);
 
   return {
     balance,
@@ -170,8 +223,10 @@ export function setupGameRealtime({
     }
 
     const balance = Number(row.balance);
+    const hasBalance = Number.isFinite(balance);
+    const hasVitals = hasPlayerVitals(row);
 
-    if (!Number.isFinite(balance)) return;
+    if (!hasBalance && !hasVitals) return;
 
     const signature = createBalanceSignature(row);
 
@@ -180,9 +235,11 @@ export function setupGameRealtime({
     if (signature && signature === lastBalanceSignature) return;
     lastBalanceSignature = signature;
 
-    const meta = dispatchPlayerBalanceChanged(row, payload, source);
+    const meta = hasBalance
+      ? dispatchPlayerBalanceChanged(row, payload, source)
+      : dispatchPlayerVitalsChanged(row, payload, source);
 
-    if (typeof onBalanceChanged === 'function') {
+    if (hasBalance && typeof onBalanceChanged === 'function') {
       onBalanceChanged(row, meta);
     }
   }
@@ -329,7 +386,7 @@ export function setupGameRealtime({
     /*
       Публичный Broadcast по UUID строки игрока обходит ситуацию, когда
       postgres_changes недоступен клиенту из-за RLS/custom Telegram auth.
-      SQL-триггер отправляет сюда только id/tg_id/balance/updated_at.
+      SQL-триггер отправляет сюда id/tg_id/balance/health/food/water/updated_at.
     */
     if (normalizedPlayerRowId) {
       const broadcastTopic = `mn-player-balance:${normalizedPlayerRowId}`;
