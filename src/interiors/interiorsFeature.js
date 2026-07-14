@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
 import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
@@ -10,6 +11,11 @@ const INTERIOR_COLLISION_TABLE = 'interior_collision_profiles';
 const INTERIOR_COLLISION_FALLBACK_RADIUS = 0;
 const INTERIOR_COLLISION_STORAGE_KEY = 'mn-interior-colliders-v1';
 const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
+const INTERIOR_VITALS_CONFIG = getPlayerVitalsConfig();
+const INTERIOR_HEALTH_LOW_CLASS = 'is-interior-health-low';
+const INTERIOR_HEALTH_HIT_CLASS = 'is-interior-health-hit';
+const INTERIOR_HEALTH_HIT_DURATION_MS = 620;
+const INTERIOR_VITAL_FEEDBACK_DURATION_MS = 520;
 
 const INTERIOR_COLLISION_PROFILES = {
   standard: {
@@ -131,6 +137,88 @@ function houseId(house) {
 function formatMoney(value) {
   const amount = Math.max(0, Math.round(Number(value || 0)));
   return `${amount.toLocaleString('ru-RU')} ₴`;
+}
+
+function clampVitalValue(value, config = {}) {
+  const min = Number.isFinite(Number(config.min)) ? Number(config.min) : 0;
+  const max = Number.isFinite(Number(config.max)) ? Number(config.max) : 100;
+  const fallback = Number.isFinite(Number(config.defaultValue))
+    ? Number(config.defaultValue)
+    : max;
+  const number = Number(value);
+  const resolved = Number.isFinite(number) ? number : fallback;
+
+  return Math.min(max, Math.max(min, resolved));
+}
+
+const INTERIOR_VITAL_FIELD_ALIASES = Object.freeze({
+  health: ['health', 'hp', 'healthPoints', 'health_points'],
+  food: ['food', 'hunger', 'satiety'],
+  water: ['water', 'thirst', 'hydration'],
+});
+
+function getPlayerVitalValue(player = state.player, key = 'health') {
+  const config = INTERIOR_VITALS_CONFIG[key] || {};
+  const aliases = INTERIOR_VITAL_FIELD_ALIASES[key] || [key];
+
+  for (const field of aliases) {
+    const candidate = player?.[field];
+
+    if (candidate === undefined || candidate === null || candidate === '') continue;
+
+    const number = Number(candidate);
+
+    if (Number.isFinite(number)) {
+      return clampVitalValue(number, config);
+    }
+  }
+
+  return clampVitalValue(config.defaultValue, config);
+}
+
+function hasPlayerVitalValue(player = {}, key = 'health') {
+  const aliases = INTERIOR_VITAL_FIELD_ALIASES[key] || [key];
+
+  return aliases.some((field) => {
+    const value = player?.[field];
+    return value !== undefined && value !== null && value !== '' && Number.isFinite(Number(value));
+  });
+}
+
+function mergeDefinedSnapshot(...sources) {
+  return sources.reduce((snapshot, source) => {
+    if (!source || typeof source !== 'object') return snapshot;
+
+    Object.entries(source).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        snapshot[key] = value;
+      }
+    });
+
+    return snapshot;
+  }, {});
+}
+
+function getPlayerStatsSnapshotFromEvent(event) {
+  const detail = event?.detail || {};
+  const payload = detail.payload || {};
+
+  return mergeDefinedSnapshot(
+    payload.record,
+    payload.new_record,
+    payload.new,
+    detail.player,
+    detail.vitals,
+    detail
+  );
+}
+
+function getVitalFillStyle(value, key = 'health') {
+  const config = INTERIOR_VITALS_CONFIG[key] || {};
+  const max = Number.isFinite(Number(config.max)) ? Number(config.max) : 100;
+  const fill = max > 0 ? (clampVitalValue(value, config) / max) * 100 : 0;
+
+  return `--mn-interior-vital-fill: ${Math.round(fill)}%`;
 }
 
 function clampPercent(value, fallback = 50) {
@@ -508,6 +596,10 @@ function houseExteriorSpawn(house = {}) {
 }
 
 function markup() {
+  const playerHealth = getPlayerVitalValue(state.player, 'health');
+  const playerFood = getPlayerVitalValue(state.player, 'food');
+  const playerWater = getPlayerVitalValue(state.player, 'water');
+
   return `
     <div class="mn-interior" hidden data-mn-interior>
       <div class="mn-interior-loading" data-interior-loading>
@@ -581,11 +673,53 @@ function markup() {
             <i>${String(state.nickname || 'И').charAt(0).toUpperCase()}</i>
             <span><b>${String(state.nickname || 'Игрок')}</b><small>Внутри дома</small></span>
           </div>
-          <div class="mn-interior-balance">
+          <div class="mn-interior-balance has-interior-vitals">
             <i>₴</i><b data-interior-balance>${formatMoney(state.player?.balance)}</b>
+            <div class="mn-interior-vitals-row" aria-label="Показатели игрока в интерьере">
+              <div
+                class="mn-interior-vital-pill mn-interior-vital-health"
+                data-interior-health
+                role="meter"
+                aria-label="Здоровье"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="${Math.round(playerHealth)}"
+                style="${getVitalFillStyle(playerHealth, 'health')}"
+              >
+                <span class="mn-interior-vital-icon" aria-hidden="true">🫀</span>
+                <b data-interior-health-value>${Math.round(playerHealth)}</b>
+              </div>
+              <div
+                class="mn-interior-vital-pill mn-interior-vital-food"
+                data-interior-food
+                role="meter"
+                aria-label="Еда"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="${Math.round(playerFood)}"
+                style="${getVitalFillStyle(playerFood, 'food')}"
+              >
+                <span class="mn-interior-vital-icon" aria-hidden="true">🍽</span>
+                <b data-interior-food-value>${Math.round(playerFood)}</b>
+              </div>
+              <div
+                class="mn-interior-vital-pill mn-interior-vital-water"
+                data-interior-water
+                role="meter"
+                aria-label="Вода"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="${Math.round(playerWater)}"
+                style="${getVitalFillStyle(playerWater, 'water')}"
+              >
+                <span class="mn-interior-vital-icon" aria-hidden="true">🥛</span>
+                <b data-interior-water-value>${Math.round(playerWater)}</b>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+      <div class="mn-interior-health-edge" data-interior-health-edge aria-hidden="true"></div>
       <div class="mn-interior-error" hidden data-interior-error>
         <strong>Интерьер пока не загружен</strong>
         <p data-interior-error-text></p>
@@ -623,6 +757,12 @@ export function enableInteriorsFeature() {
   const title = overlay.querySelector('[data-interior-title]');
   const meta = overlay.querySelector('[data-interior-meta]');
   const balance = overlay.querySelector('[data-interior-balance]');
+  const healthEl = overlay.querySelector('[data-interior-health]');
+  const healthValueEl = overlay.querySelector('[data-interior-health-value]');
+  const foodEl = overlay.querySelector('[data-interior-food]');
+  const foodValueEl = overlay.querySelector('[data-interior-food-value]');
+  const waterEl = overlay.querySelector('[data-interior-water]');
+  const waterValueEl = overlay.querySelector('[data-interior-water-value]');
   const exitButton = overlay.querySelector('[data-interior-exit]');
   const errorBox = overlay.querySelector('[data-interior-error]');
   const errorText = overlay.querySelector('[data-interior-error-text]');
@@ -657,8 +797,21 @@ export function enableInteriorsFeature() {
   let stamina = staminaConfig.max;
   let sprintLocked = false;
   let warmupTimer = 0;
+  let interiorHudRefreshTimer = 0;
+  let interiorHealthHitTimer = 0;
+  const vitalFeedbackTimers = new Map();
   const keys = new Set();
   const templateImageCache = new Map();
+  const vitalElements = {
+    health: { el: healthEl, valueEl: healthValueEl },
+    food: { el: foodEl, valueEl: foodValueEl },
+    water: { el: waterEl, valueEl: waterValueEl },
+  };
+  const currentVitals = {
+    health: getPlayerVitalValue(state.player, 'health'),
+    food: getPlayerVitalValue(state.player, 'food'),
+    water: getPlayerVitalValue(state.player, 'water'),
+  };
 
   function setPaused(value) {
     window.__MN_INTERIOR_ACTIVE__ = value;
@@ -676,6 +829,155 @@ export function enableInteriorsFeature() {
     staminaFill.style.width = `${percent}%`;
     staminaRing.style.setProperty('--mn-interior-stamina', `${percent * 3.6}deg`);
     staminaFill.dataset.state = sprintLocked ? 'locked' : percent < 30 ? 'low' : 'normal';
+  }
+
+  function renderBalance() {
+    balance.textContent = formatMoney(state.player?.balance);
+  }
+
+  function setVitalVisual(key, value, options = {}) {
+    const entry = vitalElements[key];
+    const vitalEl = entry?.el;
+
+    if (!vitalEl) return;
+
+    const config = INTERIOR_VITALS_CONFIG[key] || {};
+    const previousValue = currentVitals[key];
+    const maxValue = Number.isFinite(Number(config.max)) ? Number(config.max) : 100;
+    const nextValue = clampVitalValue(value, config);
+    const roundedValue = Math.round(nextValue);
+    const visualValueChanged = Math.round(previousValue) !== roundedValue;
+    const fillPercent = maxValue > 0
+      ? Math.round((nextValue / maxValue) * 100)
+      : 0;
+
+    currentVitals[key] = nextValue;
+    vitalEl.style.setProperty('--mn-interior-vital-fill', `${fillPercent}%`);
+    vitalEl.setAttribute('aria-valuenow', String(roundedValue));
+
+    if (entry.valueEl) {
+      entry.valueEl.textContent = String(roundedValue);
+    }
+
+    if (options.animateChange !== false && visualValueChanged) {
+      vitalEl.classList.remove('is-interior-vital-changing');
+
+      void vitalEl.offsetWidth;
+
+      vitalEl.classList.add('is-interior-vital-changing');
+      clearTimeout(vitalFeedbackTimers.get(key));
+      vitalFeedbackTimers.set(key, setTimeout(() => {
+        vitalEl.classList.remove('is-interior-vital-changing');
+        vitalFeedbackTimers.delete(key);
+      }, INTERIOR_VITAL_FEEDBACK_DURATION_MS));
+    }
+
+    if (key === 'health') {
+      const lowThreshold = Number.isFinite(Number(config.lowThreshold))
+        ? Number(config.lowThreshold)
+        : 50;
+      const isLow = nextValue < lowThreshold;
+      const tookDamage = nextValue < previousValue;
+
+      vitalEl.classList.toggle('is-interior-health-low', isLow);
+      overlay.classList.toggle(INTERIOR_HEALTH_LOW_CLASS, isLow);
+
+      if (options.animateDamage !== false && tookDamage) {
+        vitalEl.classList.remove('is-interior-health-draining');
+        overlay.classList.remove(INTERIOR_HEALTH_HIT_CLASS);
+
+        void vitalEl.offsetWidth;
+
+        vitalEl.classList.add('is-interior-health-draining');
+        overlay.classList.add(INTERIOR_HEALTH_HIT_CLASS);
+
+        clearTimeout(interiorHealthHitTimer);
+        interiorHealthHitTimer = setTimeout(() => {
+          vitalEl.classList.remove('is-interior-health-draining');
+          overlay.classList.remove(INTERIOR_HEALTH_HIT_CLASS);
+        }, INTERIOR_HEALTH_HIT_DURATION_MS);
+      }
+    }
+  }
+
+  function updateVitalsFromSnapshot(playerSnapshot = {}, options = {}) {
+    let changed = false;
+
+    ['health', 'food', 'water'].forEach((key) => {
+      if (!hasPlayerVitalValue(playerSnapshot, key)) return;
+
+      const nextValue = getPlayerVitalValue(playerSnapshot, key);
+
+      setVitalVisual(key, nextValue, {
+        animateChange: options.animateChange,
+        animateDamage: options.animateDamage,
+      });
+      changed = true;
+    });
+
+    return changed;
+  }
+
+  function refreshHudFromState(options = {}) {
+    renderBalance();
+
+    ['health', 'food', 'water'].forEach((key) => {
+      setVitalVisual(key, getPlayerVitalValue(state.player, key), {
+        animateChange: options.animateChange,
+        animateDamage: options.animateDamage,
+      });
+    });
+  }
+
+  function handleBalanceChanged(event) {
+    const nextBalance =
+      event?.detail?.balance ??
+      event?.detail?.player?.balance;
+
+    if (nextBalance !== undefined && nextBalance !== null) {
+      balance.textContent = formatMoney(nextBalance);
+    } else {
+      renderBalance();
+    }
+
+    updateVitalsFromSnapshot(getPlayerStatsSnapshotFromEvent(event), {
+      animateChange: true,
+      animateDamage: true,
+    });
+  }
+
+  function handleHealthChanged(event) {
+    const explicitHealth =
+      event?.detail?.health ??
+      event?.detail?.hp ??
+      event?.detail?.value;
+    const delta = Number(event?.detail?.delta);
+    const nextHealth = explicitHealth !== undefined && explicitHealth !== null
+      ? explicitHealth
+      : Number.isFinite(delta)
+        ? currentVitals.health + delta
+        : undefined;
+
+    if (nextHealth === undefined || nextHealth === null) return;
+
+    setVitalVisual('health', nextHealth, {
+      animateChange: true,
+      animateDamage: event?.detail?.animateDamage !== false,
+    });
+  }
+
+  function handleVitalsChanged(event) {
+    const changed = updateVitalsFromSnapshot(getPlayerStatsSnapshotFromEvent(event), {
+      animateChange: true,
+      animateDamage: event?.detail?.animateDamage !== false,
+    });
+
+    if (!changed) {
+      refreshHudFromState({
+        animateChange: true,
+        animateDamage: true,
+      });
+    }
   }
 
   function refreshPositionAfterCollisionChange(templateId) {
@@ -1201,7 +1503,10 @@ export function enableInteriorsFeature() {
       activeHouseId = id;
       title.textContent = `Дом · ${data.houseClassLabel || template.label}`;
       meta.textContent = `${template.rooms} комн. · кухня ${template.kitchen} · санузел ${template.bathroom}`;
-      balance.textContent = formatMoney(state.player?.balance);
+      refreshHudFromState({
+        animateChange: false,
+        animateDamage: false,
+      });
       position = snapInteriorPosition(template.id, template.spawn);
       stamina = staminaConfig.max;
       sprintLocked = false;
@@ -1399,8 +1704,19 @@ export function enableInteriorsFeature() {
   colliderLayer.addEventListener('pointercancel', handleColliderPointerEnd);
   exitButton.addEventListener('click', exit);
   errorClose.addEventListener('click', exit);
+  window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
+  window.addEventListener('mn:player-health-changed', handleHealthChanged);
+  window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   window.addEventListener('keydown', keyDown, true);
   window.addEventListener('keyup', keyUp, true);
+  interiorHudRefreshTimer = window.setInterval(() => {
+    if (!active) return;
+
+    refreshHudFromState({
+      animateChange: true,
+      animateDamage: true,
+    });
+  }, 2000);
 
   return {
     enter,
@@ -1409,7 +1725,14 @@ export function enableInteriorsFeature() {
       destroyed = true;
       window.clearTimeout(warmupTimer);
       window.clearTimeout(colliderSaveTimer);
+      window.clearInterval(interiorHudRefreshTimer);
+      window.clearTimeout(interiorHealthHitTimer);
+      vitalFeedbackTimers.forEach((timer) => window.clearTimeout(timer));
+      vitalFeedbackTimers.clear();
       exit();
+      window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
+      window.removeEventListener('mn:player-health-changed', handleHealthChanged);
+      window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
       window.removeEventListener('keydown', keyDown, true);
       window.removeEventListener('keyup', keyUp, true);
       if (collisionProfilesChannel) {
