@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
 
     const { data, error } = await supabaseAdmin
       .from('players')
-      .select('id, tg_id, nickname, city, balance, level, is_admin, created_at, updated_at')
+      .select('id, tg_id, nickname, city, balance, health, food, water, level, is_admin, created_at, updated_at')
       .eq('tg_id', tgId)
       .maybeSingle();
 

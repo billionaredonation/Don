@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
 
     const { data: existingPlayer, error: existingError } = await supabaseAdmin
       .from('players')
-      .select('id, tg_id, nickname, city, balance, level, is_admin, created_at, updated_at')
+      .select('id, tg_id, nickname, city, balance, health, food, water, level, is_admin, created_at, updated_at')
       .eq('tg_id', tgId)
       .maybeSingle();
 
@@ -73,10 +73,13 @@ Deno.serve(async (req) => {
         nickname,
         city,
         balance: 0,
+        health: 100,
+        food: 100,
+        water: 100,
         level: 1,
         is_admin: false,
       })
-      .select('id, tg_id, nickname, city, balance, level, is_admin, created_at, updated_at')
+      .select('id, tg_id, nickname, city, balance, health, food, water, level, is_admin, created_at, updated_at')
       .single();
 
     if (insertError) {
