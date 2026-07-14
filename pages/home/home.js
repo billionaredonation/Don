@@ -123,6 +123,34 @@ function hasPlayerVitalValue(player = {}, key = 'health') {
   });
 }
 
+function mergeDefinedSnapshot(...sources) {
+  return sources.reduce((snapshot, source) => {
+    if (!source || typeof source !== 'object') return snapshot;
+
+    Object.entries(source).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        snapshot[key] = value;
+      }
+    });
+
+    return snapshot;
+  }, {});
+}
+
+function getPlayerStatsSnapshotFromEvent(event) {
+  const detail = event?.detail || {};
+  const payload = detail.payload || {};
+
+  return mergeDefinedSnapshot(
+    payload.record,
+    payload.new_record,
+    payload.new,
+    detail.player,
+    detail.vitals,
+    detail
+  );
+}
+
 function getVitalFillStyle(value, key = 'health') {
   const config = PLAYER_VITALS_CONFIG[key] || {};
   const max = Number.isFinite(Number(config.max)) ? Number(config.max) : 100;
@@ -1372,6 +1400,7 @@ register('home', async (root) => {
   let balancePulseTimer = null;
   let balanceChangeTimer = null;
   let balanceSyncTimer = null;
+  let playerStatsSyncTimer = null;
   let balanceSyncInFlight = false;
   let balanceSyncTransport = 'direct';
   let healthHitTimer = null;
@@ -1626,6 +1655,8 @@ register('home', async (root) => {
     if (changed) {
       save();
     }
+
+    return changed;
   }
 
   function handleBalanceChanged(event) {
@@ -1635,11 +1666,20 @@ register('home', async (root) => {
 
     if (nextBalance === undefined || nextBalance === null) return;
 
+    const statsSnapshot = getPlayerStatsSnapshotFromEvent(event);
+    const vitalsChanged = updatePlayerVitalsFromSnapshot(statsSnapshot, {
+      animateDamage: true,
+    });
+
     updateBalance(nextBalance, {
       delta: event?.detail?.delta,
       source: event?.detail?.source,
       durationMs: BALANCE_COUNT_DURATION_MS,
     });
+
+    if (!vitalsChanged) {
+      schedulePlayerStatsDatabaseSync();
+    }
   }
 
   function handleHealthChanged(event) {
@@ -1663,11 +1703,14 @@ register('home', async (root) => {
   }
 
   function handleVitalsChanged(event) {
-    const playerSnapshot = event?.detail?.player || event?.detail?.vitals || event?.detail || {};
-
-    updatePlayerVitalsFromSnapshot(playerSnapshot, {
+    const playerSnapshot = getPlayerStatsSnapshotFromEvent(event);
+    const vitalsChanged = updatePlayerVitalsFromSnapshot(playerSnapshot, {
       animateDamage: event?.detail?.animateDamage !== false,
     });
+
+    if (!vitalsChanged || event?.detail?.source === 'realtime_broadcast') {
+      schedulePlayerStatsDatabaseSync();
+    }
   }
 
   setHealthVisual(currentVitals.health, {
@@ -1769,6 +1812,15 @@ register('home', async (root) => {
     } finally {
       balanceSyncInFlight = false;
     }
+  }
+
+  function schedulePlayerStatsDatabaseSync(delayMs = 180) {
+    clearTimeout(playerStatsSyncTimer);
+
+    playerStatsSyncTimer = window.setTimeout(() => {
+      playerStatsSyncTimer = null;
+      syncBalanceFromDatabase({ silent: true });
+    }, delayMs);
   }
 
   function startBalanceDatabaseSync() {
@@ -2052,6 +2104,7 @@ register('home', async (root) => {
     cancelAnimationFrame(balanceFrame);
     clearTimeout(balancePulseTimer);
     clearTimeout(balanceChangeTimer);
+    clearTimeout(playerStatsSyncTimer);
     clearTimeout(healthHitTimer);
     clearInterval(balanceSyncTimer);
     cleanupBalanceDatabaseSync?.();
