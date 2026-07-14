@@ -96,3 +96,4 @@ export function getPlayerVitalsConfig() {
     water: { ...VITALS_CONFIG.water },
   };
 }
+
