@@ -51,6 +51,7 @@ const PLAYER_VITALS_CONFIG = getPlayerVitalsConfig();
 const PLAYER_HEALTH_LOW_CLASS = 'is-player-health-low';
 const PLAYER_HEALTH_HIT_CLASS = 'is-player-health-hit';
 const PLAYER_HEALTH_HIT_DURATION_MS = 620;
+const PLAYER_VITAL_FEEDBACK_DURATION_MS = 520;
 
 function formatFullMoney(value) {
   const number = Math.round(Number(value || 0));
@@ -1272,7 +1273,7 @@ register('home', async (root) => {
             aria-valuenow="${Math.round(playerHealth)}"
             style="${getVitalFillStyle(playerHealth, 'health')}"
           >
-            <span>HP</span>
+            <span class="player-vital-icon" aria-hidden="true">🫀</span>
             <b data-player-health-value>${Math.round(playerHealth)}</b>
           </div>
           <div
@@ -1285,7 +1286,7 @@ register('home', async (root) => {
             aria-valuenow="${Math.round(playerFood)}"
             style="${getVitalFillStyle(playerFood, 'food')}"
           >
-            <span>Еда</span>
+            <span class="player-vital-icon" aria-hidden="true">🍽</span>
             <b data-player-food-value>${Math.round(playerFood)}</b>
           </div>
           <div
@@ -1298,7 +1299,7 @@ register('home', async (root) => {
             aria-valuenow="${Math.round(playerWater)}"
             style="${getVitalFillStyle(playerWater, 'water')}"
           >
-            <span>H2O</span>
+            <span class="player-vital-icon" aria-hidden="true">🥛</span>
             <b data-player-water-value>${Math.round(playerWater)}</b>
           </div>
         </div>
@@ -1404,6 +1405,7 @@ register('home', async (root) => {
   let balanceSyncInFlight = false;
   let balanceSyncTransport = 'direct';
   let healthHitTimer = null;
+  const vitalFeedbackTimers = new Map();
 
   function formatBalance(value) {
     return formatHudMoney(value);
@@ -1572,6 +1574,7 @@ register('home', async (root) => {
     const maxValue = Number.isFinite(Number(config.max)) ? Number(config.max) : 100;
     const nextValue = clampVitalValue(value, config);
     const roundedValue = Math.round(nextValue);
+    const visualValueChanged = Math.round(previousValue) !== roundedValue;
     const fillPercent = maxValue > 0
       ? Math.round((nextValue / maxValue) * 100)
       : 0;
@@ -1582,6 +1585,19 @@ register('home', async (root) => {
 
     if (entry.valueEl) {
       entry.valueEl.textContent = String(roundedValue);
+    }
+
+    if (options.animateChange !== false && visualValueChanged) {
+      vitalEl.classList.remove('is-vital-changing');
+
+      void vitalEl.offsetWidth;
+
+      vitalEl.classList.add('is-vital-changing');
+      clearTimeout(vitalFeedbackTimers.get(key));
+      vitalFeedbackTimers.set(key, setTimeout(() => {
+        vitalEl.classList.remove('is-vital-changing');
+        vitalFeedbackTimers.delete(key);
+      }, PLAYER_VITAL_FEEDBACK_DURATION_MS));
     }
 
     if (key === 'health') {
@@ -2144,6 +2160,8 @@ register('home', async (root) => {
     clearTimeout(balanceChangeTimer);
     clearTimeout(playerStatsSyncTimer);
     clearTimeout(healthHitTimer);
+    vitalFeedbackTimers.forEach((timer) => clearTimeout(timer));
+    vitalFeedbackTimers.clear();
     clearInterval(balanceSyncTimer);
     cleanupBalanceDatabaseSync?.();
     cleanupRenderPerformanceGuards?.();
