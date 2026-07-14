@@ -1460,7 +1460,7 @@ body.mn-session-blocked .gta-player-marker-self {
 
 
 /* =========================================================
-   PLAYER VITALS — HEALTH READY, FOOD/WATER DECORATIVE
+   PLAYER VITALS
    Small ellipses live under the balance card on PC and mobile.
    ========================================================= */
 .player-balance-card.has-player-vitals {
@@ -1482,6 +1482,7 @@ body.mn-session-blocked .gta-player-marker-self {
 
 .player-vital-pill {
   --mn-vital-fill: 100%;
+  --mn-vital-glow: rgba(255,255,255,0.18);
   position: relative;
   isolation: isolate;
   min-width: 0;
@@ -1489,7 +1490,7 @@ body.mn-session-blocked .gta-player-marker-self {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   padding: 0 3px;
   overflow: hidden;
   border-radius: 999px;
@@ -1501,6 +1502,11 @@ body.mn-session-blocked .gta-player-marker-self {
     inset 0 1px 0 rgba(255,255,255,0.06);
   backdrop-filter: blur(8px) saturate(1.05);
   -webkit-backdrop-filter: blur(8px) saturate(1.05);
+  transform-origin: center;
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    filter 220ms ease;
 }
 
 .player-vital-pill::before {
@@ -1519,7 +1525,11 @@ body.mn-session-blocked .gta-player-marker-self {
   inset: 0;
   z-index: -1;
   border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0));
+  background:
+    linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.24) 45%, rgba(255,255,255,0) 70%),
+    linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0));
+  background-size: 220% 100%, 100% 100%;
+  background-position: 180% 0, 0 0;
   opacity: 0.55;
 }
 
@@ -1534,10 +1544,19 @@ body.mn-session-blocked .gta-player-marker-self {
   text-shadow: 0 1px 3px rgba(0,0,0,0.55);
 }
 
-.player-vital-pill span {
-  font-size: 6.8px;
-  font-weight: 950;
-  letter-spacing: -0.035em;
+.player-vital-pill .player-vital-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 10px;
+  overflow: visible;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45));
+  transform-origin: center;
 }
 
 .player-vital-pill b {
@@ -1546,8 +1565,25 @@ body.mn-session-blocked .gta-player-marker-self {
   font-variant-numeric: tabular-nums;
 }
 
+.player-vital-pill.is-vital-changing {
+  animation: mn-vital-soft-pop 520ms ease both;
+  box-shadow:
+    0 6px 15px rgba(0,0,0,0.28),
+    0 0 13px var(--mn-vital-glow),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.player-vital-pill.is-vital-changing::after {
+  animation: mn-vital-glint 520ms ease both;
+}
+
+.player-vital-pill.is-vital-changing .player-vital-icon {
+  animation: mn-vital-icon-pop 520ms ease both;
+}
+
 .player-vital-health {
   border-color: rgba(255, 91, 91, 0.3);
+  --mn-vital-glow: rgba(255, 58, 70, 0.32);
 }
 
 .player-vital-health::before {
@@ -1571,6 +1607,7 @@ body.mn-session-blocked .gta-player-marker-self {
 
 .player-vital-food {
   border-color: rgba(255, 187, 85, 0.22);
+  --mn-vital-glow: rgba(255, 180, 58, 0.28);
 }
 
 .player-vital-food::before {
@@ -1579,6 +1616,7 @@ body.mn-session-blocked .gta-player-marker-self {
 
 .player-vital-water {
   border-color: rgba(76, 183, 255, 0.22);
+  --mn-vital-glow: rgba(65, 178, 255, 0.28);
 }
 
 .player-vital-water::before {
@@ -1649,6 +1687,44 @@ body.mn-session-blocked .player-health-edge {
   }
 }
 
+@keyframes mn-vital-soft-pop {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  36% {
+    transform: scale(1.045);
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes mn-vital-icon-pop {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+
+  36% {
+    transform: translateY(-1px) scale(1.13);
+  }
+}
+
+@keyframes mn-vital-glint {
+  0% {
+    background-position: 180% 0, 0 0;
+    opacity: 0.5;
+  }
+
+  44% {
+    opacity: 0.82;
+  }
+
+  100% {
+    background-position: -80% 0, 0 0;
+    opacity: 0.55;
+  }
+}
+
 @keyframes mn-health-edge-pulse {
   0%, 100% {
     opacity: 0.66;
@@ -1684,10 +1760,15 @@ body.mn-session-blocked .player-health-edge {
   padding-inline: 2px;
 }
 
-.home[data-mobile-controls="enabled"] .player-vital-pill span,
+.home[data-mobile-controls="enabled"] .player-vital-pill .player-vital-icon {
+  width: 9px;
+  font-size: 8.2px;
+  letter-spacing: 0;
+}
+
 .home[data-mobile-controls="enabled"] .player-vital-pill b {
   font-size: 6.4px;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
 }
 
 @media (max-width: 430px) {
@@ -1702,11 +1783,15 @@ body.mn-session-blocked .player-health-edge {
     padding-inline: 2px;
   }
 
-  .player-vital-pill span,
+  .player-vital-pill .player-vital-icon {
+    width: 9px;
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+
   .player-vital-pill b {
     font-size: 6.3px;
-    letter-spacing: -0.04em;
+    letter-spacing: 0;
   }
 }
-
 
