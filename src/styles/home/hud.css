@@ -1457,3 +1457,254 @@ body.mn-session-blocked .gta-player-marker-self {
     max-width: calc(100% - 10px) !important;
   }
 }
+
+
+/* =========================================================
+   PLAYER VITALS — HEALTH READY, FOOD/WATER DECORATIVE
+   Small ellipses live under the balance card on PC and mobile.
+   ========================================================= */
+.player-balance-card.has-player-vitals {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+.player-vitals-row {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 8;
+  width: min(128px, 100%);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  pointer-events: none;
+}
+
+.player-vital-pill {
+  --mn-vital-fill: 100%;
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(7, 12, 17, 0.62);
+  color: rgba(255,255,255,0.92);
+  box-shadow:
+    0 6px 15px rgba(0,0,0,0.26),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  backdrop-filter: blur(8px) saturate(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.05);
+}
+
+.player-vital-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: var(--mn-vital-fill);
+  border-radius: inherit;
+  transition: width 420ms cubic-bezier(0.18, 0.84, 0.22, 1);
+}
+
+.player-vital-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0));
+  opacity: 0.55;
+}
+
+.player-vital-pill span,
+.player-vital-pill b {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55);
+}
+
+.player-vital-pill span {
+  font-size: 6.8px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.player-vital-pill b {
+  font-size: 7px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-vital-health {
+  border-color: rgba(255, 91, 91, 0.3);
+}
+
+.player-vital-health::before {
+  background:
+    linear-gradient(90deg, rgba(167, 22, 31, 0.92), rgba(255, 64, 72, 0.94)),
+    #a7161f;
+  box-shadow: 0 0 12px rgba(255, 52, 64, 0.34);
+}
+
+.player-vital-health.is-health-low {
+  border-color: rgba(255, 74, 74, 0.58);
+  box-shadow:
+    0 6px 15px rgba(0,0,0,0.28),
+    0 0 14px rgba(255, 50, 60, 0.24),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.player-vital-health.is-health-draining {
+  animation: mn-health-drain-kick 620ms ease both;
+}
+
+.player-vital-food {
+  border-color: rgba(255, 187, 85, 0.22);
+}
+
+.player-vital-food::before {
+  background: linear-gradient(90deg, rgba(170, 104, 24, 0.76), rgba(255, 180, 58, 0.82));
+}
+
+.player-vital-water {
+  border-color: rgba(76, 183, 255, 0.22);
+}
+
+.player-vital-water::before {
+  background: linear-gradient(90deg, rgba(25, 103, 180, 0.76), rgba(65, 178, 255, 0.84));
+}
+
+.player-vital-pill.is-decorative {
+  opacity: 0.72;
+}
+
+.player-health-edge {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  background:
+    radial-gradient(ellipse at center, rgba(255,0,0,0) 42%, rgba(155, 0, 10, 0.09) 76%, rgba(155, 0, 10, 0.22) 100%),
+    linear-gradient(90deg, rgba(155, 0, 10, 0.22), rgba(155,0,10,0) 14%, rgba(155,0,10,0) 86%, rgba(155, 0, 10, 0.22));
+}
+
+.player-health-edge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  box-shadow:
+    inset 0 0 36px rgba(255, 42, 52, 0.34),
+    inset 0 0 98px rgba(130, 0, 12, 0.32);
+}
+
+.home.is-player-health-low .player-health-edge {
+  opacity: 0.78;
+}
+
+.home.is-player-health-low .player-health-edge::before {
+  opacity: 1;
+  animation: mn-health-edge-pulse 1750ms ease-in-out infinite;
+}
+
+.home.is-player-health-hit .player-health-edge {
+  opacity: 1;
+  animation: mn-health-edge-hit 620ms ease-out both;
+}
+
+html.mn-session-blocked .player-health-edge,
+body.mn-session-blocked .player-health-edge {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+@keyframes mn-health-drain-kick {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  30% {
+    transform: scale(1.08);
+    filter: brightness(1.35);
+  }
+
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+@keyframes mn-health-edge-pulse {
+  0%, 100% {
+    opacity: 0.66;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes mn-health-edge-hit {
+  0% {
+    opacity: 0;
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.78;
+  }
+}
+
+.home[data-mobile-controls="enabled"] .player-vitals-row {
+  top: calc(100% + 4px);
+  gap: 2px;
+  width: min(116px, 100%);
+}
+
+.home[data-mobile-controls="enabled"] .player-vital-pill {
+  height: 14px;
+  padding-inline: 2px;
+}
+
+.home[data-mobile-controls="enabled"] .player-vital-pill span,
+.home[data-mobile-controls="enabled"] .player-vital-pill b {
+  font-size: 6.4px;
+  letter-spacing: -0.04em;
+}
+
+@media (max-width: 430px) {
+  .player-vitals-row {
+    top: calc(100% + 4px);
+    gap: 2px;
+    width: min(116px, 100%);
+  }
+
+  .player-vital-pill {
+    height: 14px;
+    padding-inline: 2px;
+  }
+
+  .player-vital-pill span,
+  .player-vital-pill b {
+    font-size: 6.3px;
+    letter-spacing: -0.04em;
+  }
+}
