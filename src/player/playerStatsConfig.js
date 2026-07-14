@@ -26,10 +26,30 @@ const SKILLS_CONFIG = Object.freeze({
   }),
 });
 
+const VITALS_CONFIG = Object.freeze({
+  health: Object.freeze({
+    min: 0,
+    max: 100,
+    defaultValue: 100,
+    lowThreshold: 50,
+  }),
+  food: Object.freeze({
+    min: 0,
+    max: 100,
+    defaultValue: 100,
+  }),
+  water: Object.freeze({
+    min: 0,
+    max: 100,
+    defaultValue: 100,
+  }),
+});
+
 export const PLAYER_STATS_CONFIG = Object.freeze({
   movement: MOVEMENT_CONFIG,
   sync: SYNC_CONFIG,
   skills: SKILLS_CONFIG,
+  vitals: VITALS_CONFIG,
 });
 
 function toFiniteNumber(value, fallback) {
@@ -66,5 +86,13 @@ export function getMovementSyncConfig() {
     broadcastInterval: toFiniteNumber(SYNC_CONFIG.broadcastInterval, 35),
     dbSaveInterval: toFiniteNumber(SYNC_CONFIG.dbSaveInterval, 1400),
     heartbeatDelay: toFiniteNumber(SYNC_CONFIG.heartbeatDelay, 1000),
+  };
+}
+
+export function getPlayerVitalsConfig() {
+  return {
+    health: { ...VITALS_CONFIG.health },
+    food: { ...VITALS_CONFIG.food },
+    water: { ...VITALS_CONFIG.water },
   };
 }
