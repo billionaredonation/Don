@@ -89,16 +89,19 @@ function clampVitalValue(value, config = {}) {
   return Math.min(max, Math.max(min, resolved));
 }
 
-function getPlayerHealthValue(player = state.player) {
-  const config = PLAYER_VITALS_CONFIG.health || {};
-  const candidates = [
-    player?.health,
-    player?.hp,
-    player?.healthPoints,
-    player?.health_points,
-  ];
+const PLAYER_VITAL_FIELD_ALIASES = Object.freeze({
+  health: ['health', 'hp', 'healthPoints', 'health_points'],
+  food: ['food', 'hunger', 'satiety'],
+  water: ['water', 'thirst', 'hydration'],
+});
 
-  for (const candidate of candidates) {
+function getPlayerVitalValue(player = state.player, key = 'health') {
+  const config = PLAYER_VITALS_CONFIG[key] || {};
+  const aliases = PLAYER_VITAL_FIELD_ALIASES[key] || [key];
+
+  for (const field of aliases) {
+    const candidate = player?.[field];
+
     if (candidate === undefined || candidate === null || candidate === '') continue;
 
     const number = Number(candidate);
@@ -111,14 +114,21 @@ function getPlayerHealthValue(player = state.player) {
   return clampVitalValue(config.defaultValue, config);
 }
 
-function getDecorativeVitalValue(key) {
-  const config = PLAYER_VITALS_CONFIG[key] || {};
+function hasPlayerVitalValue(player = {}, key = 'health') {
+  const aliases = PLAYER_VITAL_FIELD_ALIASES[key] || [key];
 
-  return clampVitalValue(config.defaultValue, config);
+  return aliases.some((field) => {
+    const value = player?.[field];
+    return value !== undefined && value !== null && value !== '' && Number.isFinite(Number(value));
+  });
 }
 
-function getVitalFillStyle(value) {
-  return `--mn-vital-fill: ${Math.round(clampVitalValue(value))}%`;
+function getVitalFillStyle(value, key = 'health') {
+  const config = PLAYER_VITALS_CONFIG[key] || {};
+  const max = Number.isFinite(Number(config.max)) ? Number(config.max) : 100;
+  const fill = max > 0 ? (clampVitalValue(value, config) / max) * 100 : 0;
+
+  return `--mn-vital-fill: ${Math.round(fill)}%`;
 }
 
 const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif}', {
@@ -1111,9 +1121,9 @@ register('home', async (root) => {
     null;
 
   const playerBalance = Number(state.player?.balance || 0);
-  const playerHealth = getPlayerHealthValue(state.player);
-  const playerFood = getDecorativeVitalValue('food');
-  const playerWater = getDecorativeVitalValue('water');
+  const playerHealth = getPlayerVitalValue(state.player, 'health');
+  const playerFood = getPlayerVitalValue(state.player, 'food');
+  const playerWater = getPlayerVitalValue(state.player, 'water');
 
   root.dataset.city = cityId;
   root.dataset.time = dayMode;
@@ -1232,18 +1242,36 @@ register('home', async (root) => {
             aria-valuemin="0"
             aria-valuemax="100"
             aria-valuenow="${Math.round(playerHealth)}"
-            style="${getVitalFillStyle(playerHealth)}"
+            style="${getVitalFillStyle(playerHealth, 'health')}"
           >
             <span>HP</span>
             <b data-player-health-value>${Math.round(playerHealth)}</b>
           </div>
-          <div class="player-vital-pill player-vital-food is-decorative" aria-hidden="true" style="${getVitalFillStyle(playerFood)}">
+          <div
+            class="player-vital-pill player-vital-food"
+            data-player-food
+            role="meter"
+            aria-label="Еда"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="${Math.round(playerFood)}"
+            style="${getVitalFillStyle(playerFood, 'food')}"
+          >
             <span>Еда</span>
-            <b>${Math.round(playerFood)}</b>
+            <b data-player-food-value>${Math.round(playerFood)}</b>
           </div>
-          <div class="player-vital-pill player-vital-water is-decorative" aria-hidden="true" style="${getVitalFillStyle(playerWater)}">
+          <div
+            class="player-vital-pill player-vital-water"
+            data-player-water
+            role="meter"
+            aria-label="Вода"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="${Math.round(playerWater)}"
+            style="${getVitalFillStyle(playerWater, 'water')}"
+          >
             <span>H2O</span>
-            <b>${Math.round(playerWater)}</b>
+            <b data-player-water-value>${Math.round(playerWater)}</b>
           </div>
         </div>
       </div>
@@ -1323,10 +1351,23 @@ register('home', async (root) => {
   const balanceChangeEl = root.querySelector('[data-player-balance-change]');
   const healthEl = root.querySelector('[data-player-health]');
   const healthValueEl = root.querySelector('[data-player-health-value]');
+  const foodEl = root.querySelector('[data-player-food]');
+  const foodValueEl = root.querySelector('[data-player-food-value]');
+  const waterEl = root.querySelector('[data-player-water]');
+  const waterValueEl = root.querySelector('[data-player-water-value]');
 
   let currentBalance = Number(playerBalance || 0);
   let renderedBalance = currentBalance;
-  let currentHealth = playerHealth;
+  const vitalElements = {
+    health: { el: healthEl, valueEl: healthValueEl },
+    food: { el: foodEl, valueEl: foodValueEl },
+    water: { el: waterEl, valueEl: waterValueEl },
+  };
+  const currentVitals = {
+    health: playerHealth,
+    food: playerFood,
+    water: playerWater,
+  };
   let balanceFrame = null;
   let balancePulseTimer = null;
   let balanceChangeTimer = null;
@@ -1491,58 +1532,67 @@ register('home', async (root) => {
     setBalanceText(nextBalance);
   }
 
-  function setHealthVisual(health, options = {}) {
-    if (!healthEl) return;
+  function setVitalVisual(key, value, options = {}) {
+    const entry = vitalElements[key];
+    const vitalEl = entry?.el;
 
-    const previousHealth = currentHealth;
-    const healthConfig = PLAYER_VITALS_CONFIG.health || {};
-    const maxHealth = Number.isFinite(Number(healthConfig.max))
-      ? Number(healthConfig.max)
-      : 100;
-    const lowThreshold = Number.isFinite(Number(healthConfig.lowThreshold))
-      ? Number(healthConfig.lowThreshold)
-      : 50;
-    const nextHealth = clampVitalValue(health, healthConfig);
-    const roundedHealth = Math.round(nextHealth);
-    const fillPercent = maxHealth > 0
-      ? Math.round((nextHealth / maxHealth) * 100)
+    if (!vitalEl) return;
+
+    const config = PLAYER_VITALS_CONFIG[key] || {};
+    const previousValue = currentVitals[key];
+    const maxValue = Number.isFinite(Number(config.max)) ? Number(config.max) : 100;
+    const nextValue = clampVitalValue(value, config);
+    const roundedValue = Math.round(nextValue);
+    const fillPercent = maxValue > 0
+      ? Math.round((nextValue / maxValue) * 100)
       : 0;
 
-    currentHealth = nextHealth;
-    healthEl.style.setProperty('--mn-vital-fill', `${fillPercent}%`);
-    healthEl.setAttribute('aria-valuenow', String(roundedHealth));
-    healthEl.classList.toggle('is-health-low', nextHealth < lowThreshold);
-    root.classList.toggle(PLAYER_HEALTH_LOW_CLASS, nextHealth < lowThreshold);
+    currentVitals[key] = nextValue;
+    vitalEl.style.setProperty('--mn-vital-fill', `${fillPercent}%`);
+    vitalEl.setAttribute('aria-valuenow', String(roundedValue));
 
-    if (healthValueEl) {
-      healthValueEl.textContent = String(roundedHealth);
+    if (entry.valueEl) {
+      entry.valueEl.textContent = String(roundedValue);
+    }
+
+    if (key === 'health') {
+      const lowThreshold = Number.isFinite(Number(config.lowThreshold))
+        ? Number(config.lowThreshold)
+        : 50;
+
+      vitalEl.classList.toggle('is-health-low', nextValue < lowThreshold);
+      root.classList.toggle(PLAYER_HEALTH_LOW_CLASS, nextValue < lowThreshold);
+
+      const tookDamage = nextValue < previousValue;
+
+      if (options.animateDamage !== false && tookDamage) {
+        vitalEl.classList.remove('is-health-draining');
+        root.classList.remove(PLAYER_HEALTH_HIT_CLASS);
+
+        void vitalEl.offsetWidth;
+
+        vitalEl.classList.add('is-health-draining');
+        root.classList.add(PLAYER_HEALTH_HIT_CLASS);
+
+        clearTimeout(healthHitTimer);
+        healthHitTimer = setTimeout(() => {
+          vitalEl.classList.remove('is-health-draining');
+          root.classList.remove(PLAYER_HEALTH_HIT_CLASS);
+        }, PLAYER_HEALTH_HIT_DURATION_MS);
+      }
     }
 
     if (options.save !== false) {
       state.player = {
         ...(state.player || {}),
-        health: nextHealth,
+        [key]: nextValue,
       };
       save();
     }
+  }
 
-    const tookDamage = nextHealth < previousHealth;
-
-    if (options.animateDamage !== false && tookDamage) {
-      healthEl.classList.remove('is-health-draining');
-      root.classList.remove(PLAYER_HEALTH_HIT_CLASS);
-
-      void healthEl.offsetWidth;
-
-      healthEl.classList.add('is-health-draining');
-      root.classList.add(PLAYER_HEALTH_HIT_CLASS);
-
-      clearTimeout(healthHitTimer);
-      healthHitTimer = setTimeout(() => {
-        healthEl.classList.remove('is-health-draining');
-        root.classList.remove(PLAYER_HEALTH_HIT_CLASS);
-      }, PLAYER_HEALTH_HIT_DURATION_MS);
-    }
+  function setHealthVisual(health, options = {}) {
+    setVitalVisual('health', health, options);
   }
 
   function updatePlayerHealth(health, options = {}) {
@@ -1551,6 +1601,31 @@ register('home', async (root) => {
     if (!Number.isFinite(nextHealth)) return;
 
     setHealthVisual(nextHealth, options);
+  }
+
+  function updatePlayerVitalsFromSnapshot(playerSnapshot = {}, options = {}) {
+    let changed = false;
+
+    ['health', 'food', 'water'].forEach((key) => {
+      if (!hasPlayerVitalValue(playerSnapshot, key)) return;
+
+      const nextValue = getPlayerVitalValue(playerSnapshot, key);
+
+      setVitalVisual(key, nextValue, {
+        animateDamage: options.animateDamage,
+        save: false,
+      });
+
+      state.player = {
+        ...(state.player || {}),
+        [key]: nextValue,
+      };
+      changed = true;
+    });
+
+    if (changed) {
+      save();
+    }
   }
 
   function handleBalanceChanged(event) {
@@ -1576,7 +1651,7 @@ register('home', async (root) => {
     const nextHealth = explicitHealth !== undefined && explicitHealth !== null
       ? explicitHealth
       : Number.isFinite(delta)
-        ? currentHealth + delta
+        ? currentVitals.health + delta
         : undefined;
 
     if (nextHealth === undefined || nextHealth === null) return;
@@ -1587,21 +1662,47 @@ register('home', async (root) => {
     });
   }
 
-  setHealthVisual(currentHealth, {
+  function handleVitalsChanged(event) {
+    const playerSnapshot = event?.detail?.player || event?.detail?.vitals || event?.detail || {};
+
+    updatePlayerVitalsFromSnapshot(playerSnapshot, {
+      animateDamage: event?.detail?.animateDamage !== false,
+    });
+  }
+
+  setHealthVisual(currentVitals.health, {
     animateDamage: false,
     save: false,
   });
+  setVitalVisual('food', currentVitals.food, { save: false });
+  setVitalVisual('water', currentVitals.water, { save: false });
 
   async function loadBalanceSnapshot() {
     if (balanceSyncTransport === 'direct') {
       const { data, error } = await supabase
         .from('players')
-        .select('id, tg_id, balance, updated_at')
+        .select('id, tg_id, balance, health, food, water, updated_at')
         .eq('tg_id', String(telegramId))
         .maybeSingle();
 
       if (!error && data) {
         return data;
+      }
+
+      const missingVitalsColumns = error && /health|food|water|column|schema cache/i.test(
+        `${error.message || ''} ${error.details || ''} ${error.hint || ''}`
+      );
+
+      if (missingVitalsColumns) {
+        const fallback = await supabase
+          .from('players')
+          .select('id, tg_id, balance, updated_at')
+          .eq('tg_id', String(telegramId))
+          .maybeSingle();
+
+        if (!fallback.error && fallback.data) {
+          return fallback.data;
+        }
       }
 
       // При custom Telegram auth браузер остаётся anon для Supabase.
@@ -1626,11 +1727,7 @@ register('home', async (root) => {
     try {
       const playerSnapshot = await loadBalanceSnapshot();
 
-      if (
-        !playerSnapshot ||
-        playerSnapshot.balance === undefined ||
-        playerSnapshot.balance === null
-      ) {
+      if (!playerSnapshot) {
         return;
       }
 
@@ -1657,16 +1754,18 @@ register('home', async (root) => {
 
       const nextBalance = Number(playerSnapshot.balance || 0);
 
-      if (!Number.isFinite(nextBalance) || nextBalance === currentBalance) {
-        return;
+      if (Number.isFinite(nextBalance) && nextBalance !== currentBalance) {
+        updateBalance(nextBalance, {
+          source: silent ? 'db_sync' : 'db_poll',
+          durationMs: BALANCE_COUNT_DURATION_MS,
+        });
       }
 
-      updateBalance(nextBalance, {
-        source: silent ? 'db_sync' : 'db_poll',
-        durationMs: BALANCE_COUNT_DURATION_MS,
+      updatePlayerVitalsFromSnapshot(playerSnapshot, {
+        animateDamage: true,
       });
     } catch (error) {
-      console.warn('[home] balance db sync failed:', error);
+      console.warn('[home] player stats db sync failed:', error);
     } finally {
       balanceSyncInFlight = false;
     }
@@ -1811,6 +1910,7 @@ register('home', async (root) => {
   window.addEventListener('mn:session-blocked', handleSessionBlocked);
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
+  window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   cleanupBalanceDatabaseSync = startBalanceDatabaseSync();
 
   cleanupGameRealtime = setupGameRealtime({
@@ -1948,6 +2048,7 @@ register('home', async (root) => {
     window.removeEventListener('mn:session-blocked', handleSessionBlocked);
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
     window.removeEventListener('mn:player-health-changed', handleHealthChanged);
+    window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
     cancelAnimationFrame(balanceFrame);
     clearTimeout(balancePulseTimer);
     clearTimeout(balanceChangeTimer);
@@ -1995,4 +2096,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
