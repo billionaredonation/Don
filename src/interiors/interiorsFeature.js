@@ -585,6 +585,8 @@ function resolveInteriorMovement(templateId, current, delta) {
 }
 
 function houseExteriorSpawn(house = {}) {
+  const AUTO_EXIT_OFFSET_X = 0.34;
+  const AUTO_EXIT_OFFSET_Y = 0.38;
   const payload = house?.payload || {};
   const baseX = clampPercent(
     payload.exitX ??
@@ -629,8 +631,8 @@ function houseExteriorSpawn(house = {}) {
     house.exitY !== undefined;
 
   return {
-    x: hasExplicitExit ? baseX : clampPercent(baseX + 1.15, baseX),
-    y: hasExplicitExit ? baseY : clampPercent(baseY + 1.25, baseY),
+    x: hasExplicitExit ? baseX : clampPercent(baseX + AUTO_EXIT_OFFSET_X, baseX),
+    y: hasExplicitExit ? baseY : clampPercent(baseY + AUTO_EXIT_OFFSET_Y, baseY),
     angle: Number.isFinite(angle) ? angle : 0,
   };
 }
