@@ -6817,7 +6817,7 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
 @media (hover: none) and (pointer: coarse) {
   html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
   body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
-    left: calc(var(--mn-vh, 100vh) - 118px) !important;
+    left: max(420px, calc(var(--mn-vw, 100vw) - 420px)) !important;
     top: max(-46px, calc(env(safe-area-inset-top) - 46px)) !important;
     right: auto !important;
     bottom: auto !important;
@@ -6871,3 +6871,4 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
   box-shadow: none !important;
   text-shadow: none !important;
 }
+
