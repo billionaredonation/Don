@@ -8,7 +8,11 @@ import {
   findMapObjectElement,
 } from '../mapObjects/mapObjectsRenderer.js';
 
-import { dispatchEntityAction } from './entityActions.js';
+import {
+  dispatchEntityAction,
+  getEntityMetaText,
+  getEntityPrimaryActionLabel,
+} from './entityActions.js';
 
 const INTERACTION_RADIUS_PX = 108;
 const MOBILE_INTERACTION_RADIUS_PX = 150;
@@ -510,6 +514,21 @@ function renderMapObjectsOverview(canvas, viewport, objects) {
       context.fillStyle = 'rgba(235, 250, 255, 0.88)';
       context.fillRect(-4.2, -2, 2.3, 2.3);
       context.fillRect(1.9, -2, 2.3, 2.3);
+    } else if (kind === 'service' || kind === 'hospital') {
+      context.fillStyle = 'rgba(248, 250, 252, 0.96)';
+      context.strokeStyle = 'rgba(3, 8, 12, 0.9)';
+      context.lineWidth = 2.2;
+      context.beginPath();
+      context.roundRect?.(-6, -6, 12, 12, 2.4);
+      if (!context.roundRect) {
+        context.rect(-6, -6, 12, 12);
+      }
+      context.fill();
+      context.stroke();
+
+      context.fillStyle = '#ef3347';
+      context.fillRect(-1.5, -4.2, 3, 8.4);
+      context.fillRect(-4.2, -1.5, 8.4, 3);
     } else {
       context.fillStyle = 'rgba(235, 242, 250, 0.9)';
       context.beginPath();
@@ -587,11 +606,21 @@ export function createEntityInteractionPanel(root) {
   }
 
   function getObjectKind(object) {
-    return object?.category || object?.payload?.kind || object?.type || 'object';
+    const rawKind = object?.category || object?.payload?.kind || object?.type || 'object';
+    const type = object?.type || object?.payload?.type || object?.payload?.serviceType || '';
+
+    if (rawKind === 'hospital' || type === 'hospital') return 'service';
+
+    return rawKind;
   }
 
   function isHouseObject(object) {
     return getObjectKind(object) === 'house';
+  }
+
+  function isHospitalObject(object) {
+    const type = object?.type || object?.payload?.type || object?.payload?.serviceType || '';
+    return getObjectKind(object) === 'service' && type === 'hospital';
   }
 
   function getOwnerId(object) {
@@ -665,30 +694,37 @@ export function createEntityInteractionPanel(root) {
   function renderPrompt(object) {
     const mobile = isMobileGameplayDevice();
     const house = isHouseObject(object);
+    const hospital = isHospitalObject(object);
     const owned = house && isHouseOwned(object);
-    const locked = house && isHouseLocked(object);
+    const locked = (house && isHouseLocked(object)) || Boolean(object?.payload?.locked);
     const free = house && !owned && !locked;
+    const actionLabel = getEntityPrimaryActionLabel(object);
 
     panel.dataset.device = mobile ? 'mobile' : 'pc';
-    panel.dataset.kind = house ? 'house' : 'object';
-    panel.dataset.state = owned ? 'owned' : locked ? 'locked' : 'free';
+    panel.dataset.kind = hospital ? 'hospital' : house ? 'house' : 'object';
+    panel.dataset.state = owned ? 'owned' : locked ? 'locked' : hospital ? 'open' : 'free';
 
     if (titleEl) {
-      if (free) titleEl.textContent = 'Покупка дома';
+      if (hospital) titleEl.textContent = 'Больница';
+      else if (free) titleEl.textContent = 'Покупка дома';
       else if (owned) titleEl.textContent = 'Дом уже куплен';
       else if (locked) titleEl.textContent = 'Дом закрыт';
       else titleEl.textContent = 'Информация об объекте';
     }
 
     if (metaEl) {
-      if (mobile) {
+      if (hospital) {
+        metaEl.textContent = mobile
+          ? 'Чтобы войти в больницу, нажмите на I'
+          : 'Войти в больницу — Y / Н. Отмена — N / Т';
+      } else if (mobile) {
         metaEl.textContent = free
           ? 'Чтобы открыть покупку дома, нажмите на I'
-          : 'Чтобы узнать информацию про дом, нажмите на I';
+          : getEntityMetaText(object);
       } else if (free) {
         metaEl.textContent = 'Дом свободен. Открыть покупку — Y / Н. Отмена — N / Т';
       } else {
-        metaEl.textContent = 'Открыть информацию — Y / Н. Отмена — N / Т';
+        metaEl.textContent = `${getEntityMetaText(object)} · ${actionLabel} — Y / Н. Отмена — N / Т`;
       }
     }
 
@@ -696,7 +732,7 @@ export function createEntityInteractionPanel(root) {
       confirmButton.textContent = mobile ? 'I' : 'Y';
       confirmButton.setAttribute(
         'aria-label',
-        free ? 'Открыть покупку дома' : 'Показать информацию о доме'
+        hospital ? 'Войти в больницу' : free ? 'Открыть покупку дома' : actionLabel
       );
     }
 
