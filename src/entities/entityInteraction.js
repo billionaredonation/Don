@@ -645,6 +645,7 @@ export function createEntityInteractionPanel(root) {
   }
 
   function shouldSkipPrompt(object) {
+    if (isHospitalObject(object)) return true;
     if (isMobileGameplayDevice()) return false;
     if (!isHouseObject(object)) return false;
 
@@ -897,6 +898,7 @@ export function createEntityInteractionPanel(root) {
     handleKeyDown,
 
     shouldSkipPrompt,
+    isHospitalObject,
 
     isOpen() {
       return Boolean(selectedObject) && panel.hidden === false;
@@ -1463,12 +1465,14 @@ export function enableEntityInteraction({
     const keyEl = hint.querySelector('[data-interaction-hint-key]');
     const textEl = hint.querySelector('[data-interaction-hint-text]');
 
+    const hospital = panel?.isHospitalObject?.(object);
+
     if (isMobileGameplayDevice()) {
-      if (keyEl) keyEl.textContent = '🏠';
-      if (textEl) textEl.textContent = 'Нажми на дом на карте';
+      if (keyEl) keyEl.textContent = hospital ? '🏥' : '🏠';
+      if (textEl) textEl.textContent = hospital ? 'Нажми на больницу' : 'Нажми на дом на карте';
     } else {
-      if (keyEl) keyEl.textContent = 'E';
-      if (textEl) textEl.textContent = 'Взаимодействовать';
+      if (keyEl) keyEl.textContent = 'E/У';
+      if (textEl) textEl.textContent = hospital ? 'Войти в больницу' : 'Взаимодействовать';
     }
 
     hint.hidden = false;
