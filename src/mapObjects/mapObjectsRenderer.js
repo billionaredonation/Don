@@ -5,6 +5,11 @@ const DEFAULT_HOUSE_COLORS = Object.freeze({
   default: Object.freeze({ main: '#35e985', dark: '#0f8f52', soft: '#93ffc4', roof: '#20d977' }),
 });
 
+const DEFAULT_SERVICE_COLORS = Object.freeze({
+  hospital: Object.freeze({ main: '#f8fafc', dark: '#c91d32', soft: '#ff7789', roof: '#ef3347' }),
+  default: Object.freeze({ main: '#f8fafc', dark: '#2563eb', soft: '#93c5fd', roof: '#38bdf8' }),
+});
+
 const HOUSE_CLASS_ALIASES = Object.freeze({
   std: 'standard',
   standard: 'standard',
@@ -217,6 +222,7 @@ function getHouseTitle(object, houseClass, state) {
 
 function getObjectMeta(object) {
   const category = getCategory(object);
+  const type = getType(object, category);
 
   if (category === 'house') {
     const houseClass = getHouseClass(object);
@@ -235,11 +241,29 @@ function getObjectMeta(object) {
     };
   }
 
+  if (category === 'service' || type === 'hospital') {
+    const payload = getPayload(object);
+    const serviceType = String(payload.serviceType || type || 'service');
+    const locked = payload.locked === true || object?.locked === true;
+    const colors = DEFAULT_SERVICE_COLORS[serviceType] || DEFAULT_SERVICE_COLORS.default;
+
+    return {
+      category: 'service',
+      type: serviceType,
+      title: object?.name || payload.serviceLabel || 'Больница',
+      visualClass: serviceType,
+      state: locked ? 'locked' : 'open',
+      ownerId: null,
+      colors,
+      icon: object?.icon || payload.icon || (serviceType === 'hospital' ? '🏥' : '✚'),
+    };
+  }
+
   return {
     category,
-    type: getType(object, category),
+    type,
     title: object?.name || 'Маркер',
-    visualClass: getType(object, category),
+    visualClass: type,
     state: 'default',
     ownerId: null,
     colors: DEFAULT_HOUSE_COLORS.default,
@@ -248,6 +272,10 @@ function getObjectMeta(object) {
 }
 
 function getObjectRenderSize(category, visualClass) {
+  if (category === 'service') {
+    return visualClass === 'hospital' ? 28 : 24;
+  }
+
   if (category !== 'house') return 18;
 
   const normalized = normalizeHouseClass(visualClass);
@@ -318,8 +346,8 @@ function applyObjectStyle(element, object, meta) {
   element.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(${objectScale}) scale(var(--map-entity-scale, 1))`;
   element.style.transformOrigin = 'center center';
   element.style.pointerEvents = 'auto';
-  element.style.cursor = meta.category === 'house' ? 'pointer' : 'default';
-  element.style.zIndex = meta.category === 'house' ? '240' : '230';
+  element.style.cursor = ['house', 'business', 'npc', 'service'].includes(meta.category) ? 'pointer' : 'default';
+  element.style.zIndex = meta.category === 'service' ? '245' : meta.category === 'house' ? '240' : '230';
   element.style.contain = 'layout style paint';
   element.style.willChange = 'transform';
 
@@ -356,6 +384,31 @@ function createHouseIcon(meta) {
   return icon;
 }
 
+function createServiceIcon(meta) {
+  const icon = document.createElement('span');
+
+  icon.className = [
+    'map-service-icon',
+    `map-service-icon-${safeClassName(meta.visualClass)}`,
+    `map-service-icon-${safeClassName(meta.state)}`,
+  ].join(' ');
+
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = String(meta.icon || '🏥');
+  icon.style.display = 'grid';
+  icon.style.placeItems = 'center';
+  icon.style.width = '100%';
+  icon.style.height = '100%';
+  icon.style.borderRadius = '9px';
+  icon.style.background = 'rgba(248,250,252,0.94)';
+  icon.style.boxShadow = '0 2px 7px rgba(0,0,0,0.28), 0 0 0 2px rgba(239,51,71,0.72)';
+  icon.style.lineHeight = '1';
+  icon.style.fontSize = '18px';
+  icon.style.transform = 'translateZ(0)';
+
+  return icon;
+}
+
 function createMarkerIcon(meta) {
   const icon = document.createElement('span');
 
@@ -376,7 +429,13 @@ function updateObjectIcon(element, meta) {
 
   element.dataset.iconKey = nextIconKey;
   element.textContent = '';
-  element.appendChild(meta.category === 'house' ? createHouseIcon(meta) : createMarkerIcon(meta));
+  element.appendChild(
+    meta.category === 'house'
+      ? createHouseIcon(meta)
+      : meta.category === 'service'
+        ? createServiceIcon(meta)
+        : createMarkerIcon(meta)
+  );
 }
 
 function createObjectElement(object, state = null) {
@@ -955,5 +1014,4 @@ export function getMapObjectIdFromEvent(event) {
 
   return element?.dataset?.mapObjectId || null;
 }
-
 
