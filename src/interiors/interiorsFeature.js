@@ -157,6 +157,23 @@ function mapObjectId(object) {
   ).trim();
 }
 
+function ensureTemplatePreloadLinks() {
+  if (typeof document === 'undefined') return;
+
+  Object.values(TEMPLATES).forEach((template) => {
+    const id = `mn-interior-preload-${template.id}`;
+    if (document.getElementById(id)) return;
+
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = template.url;
+    link.fetchPriority = 'high';
+    document.head?.appendChild(link);
+  });
+}
+
 function formatMoney(value) {
   const amount = Math.max(0, Math.round(Number(value || 0)));
   return `${amount.toLocaleString('ru-RU')} ₴`;
@@ -625,10 +642,14 @@ function markup() {
 
   return `
     <div class="mn-interior" hidden data-mn-interior>
-      <div class="mn-interior-loading" data-interior-loading>
-        <span class="mn-interior-spinner"></span>
-        <strong>Загрузка интерьера…</strong>
-        <small data-interior-loading-text>Подготавливаем помещение</small>
+      <div class="mn-interior-loading" data-interior-loading data-visible="false" aria-hidden="true">
+        <div class="mn-interior-loader-card" aria-hidden="true">
+          <span class="mn-interior-loader-ring">
+            <i></i><i></i><i></i>
+          </span>
+          <span class="mn-interior-loader-line"><i></i></span>
+        </div>
+        <small data-interior-loading-text hidden></small>
       </div>
       <main class="mn-interior-scene" hidden data-interior-scene>
         <div class="mn-interior-map" data-interior-map>
@@ -823,6 +844,7 @@ export function enableInteriorsFeature() {
   let stamina = staminaConfig.max;
   let sprintLocked = false;
   let warmupTimer = 0;
+  let loadingRevealTimer = 0;
   let interiorHudRefreshTimer = 0;
   let interiorHealthHitTimer = 0;
   const vitalFeedbackTimers = new Map();
@@ -1414,6 +1436,25 @@ export function enableInteriorsFeature() {
     raf = requestAnimationFrame(frame);
   }
 
+  function showLoading(delayMs = 420) {
+    window.clearTimeout(loadingRevealTimer);
+    loading.dataset.visible = 'false';
+    loadingText.textContent = '';
+    loading.hidden = false;
+
+    loadingRevealTimer = window.setTimeout(() => {
+      if (destroyed || loading.hidden) return;
+      loading.dataset.visible = 'true';
+    }, delayMs);
+  }
+
+  function hideLoading() {
+    window.clearTimeout(loadingRevealTimer);
+    loadingRevealTimer = 0;
+    loading.dataset.visible = 'false';
+    loading.hidden = true;
+  }
+
   function showError(text) {
     active = false;
     activeHouse = null;
@@ -1423,7 +1464,7 @@ export function enableInteriorsFeature() {
     activeInteriorKind = 'house';
     activeTemplateId = 'standard';
     if (colliderEditorOpen) closeColliderEditor();
-    loading.hidden = true;
+    hideLoading();
     scene.hidden = true;
     controls.hidden = true;
     ui.hidden = true;
@@ -1440,22 +1481,40 @@ export function enableInteriorsFeature() {
     const image = document.createElement('img');
     image.alt = '';
     image.decoding = 'async';
+    image.loading = 'eager';
+    image.fetchPriority = 'high';
     image.dataset.interiorPreload = template.id;
     image.style.cssText = 'position:fixed;left:-2px;top:-2px;width:1px;height:1px;opacity:.001;pointer-events:none';
     overlay.appendChild(image);
 
     const promise = new Promise((resolve, reject) => {
-      image.onload = () => resolve(template.url);
+      let settled = false;
+      const finish = (error = null) => {
+        if (settled) return;
+        settled = true;
+        image.onload = null;
+        image.onerror = null;
+        if (error) reject(error);
+        else resolve(template.url);
+      };
+
+      image.onload = () => {
+        if (typeof image.decode === 'function') {
+          image.decode().then(() => finish()).catch(() => finish());
+          return;
+        }
+        finish();
+      };
       image.onerror = () => {
         templateImageCache.delete(template.id);
         image.remove();
-        reject(new Error('INTERIOR_IMAGE_NOT_FOUND'));
+        finish(new Error('INTERIOR_IMAGE_NOT_FOUND'));
       };
       image.src = template.url;
 
       if (image.complete) {
         queueMicrotask(() => {
-          if (image.naturalWidth > 0) resolve(template.url);
+          if (image.naturalWidth > 0) finish();
         });
       }
     });
@@ -1465,10 +1524,13 @@ export function enableInteriorsFeature() {
   }
 
   async function loadTemplateImage(template) {
-    await preloadTemplateImage(template);
+    preloadTemplateImage(template).catch(() => {});
 
     return new Promise((resolve, reject) => {
+      let settled = false;
       const finish = (error = null) => {
+        if (settled) return;
+        settled = true;
         interiorImage.onload = null;
         interiorImage.onerror = null;
         if (error) reject(error);
@@ -1479,6 +1541,14 @@ export function enableInteriorsFeature() {
       interiorImage.onerror = () => finish(new Error('INTERIOR_IMAGE_NOT_FOUND'));
       interiorImage.src = template.url;
 
+      if (typeof interiorImage.decode === 'function') {
+        interiorImage.decode()
+          .then(() => finish())
+          .catch(() => {
+            if (interiorImage.naturalWidth > 0) finish();
+          });
+      }
+
       if (interiorImage.complete) {
         queueMicrotask(() => {
           if (interiorImage.naturalWidth > 0) finish();
@@ -1488,13 +1558,18 @@ export function enableInteriorsFeature() {
     });
   }
 
-  // Warm up interiors in parallel once the city screen has settled. Entering a
-  // house or hospital then reuses the browser cache immediately.
+  ensureTemplatePreloadLinks();
+
+  // Warm up interiors immediately in the background. Entering a house or
+  // hospital then reuses the browser cache instead of starting from zero.
   warmupTimer = window.setTimeout(() => {
     if (destroyed) return;
     Promise.allSettled(Object.values(TEMPLATES).map(preloadTemplateImage));
-  }, 900);
+  }, 40);
   subscribeRemoteCollisionProfiles();
+  loadRemoteCollisionProfiles({ force: false }).catch((error) => {
+    console.warn('[interiors] background collider profiles load failed:', error);
+  });
 
   async function enter(house) {
     const id = houseId(house);
@@ -1505,8 +1580,7 @@ export function enableInteriorsFeature() {
     scene.hidden = true;
     controls.hidden = true;
     ui.hidden = true;
-    loading.hidden = false;
-    loadingText.textContent = 'Проверяем доступ к дому';
+    showLoading();
     setPaused(true);
 
     try {
@@ -1518,10 +1592,7 @@ export function enableInteriorsFeature() {
       if (!data?.allowed) throw new Error(data?.reason || 'INTERIOR_ACCESS_DENIED');
 
       const template = TEMPLATES[normalizeClass(data.houseClass || house?.payload?.houseClass || house?.variant)];
-      loadingText.textContent = `Загружаем ${template.file}`;
       await loadTemplateImage(template);
-      loadingText.textContent = 'Загружаем стены интерьера';
-      await loadRemoteCollisionProfiles({ force: true });
 
       map.style.backgroundImage = 'none';
       overlay.dataset.template = template.id;
@@ -1547,7 +1618,10 @@ export function enableInteriorsFeature() {
       sprintLocked = false;
       renderStamina();
       renderPosition();
-      loading.hidden = true;
+      loadRemoteCollisionProfiles({ force: false })
+        .then(() => refreshPositionAfterCollisionChange(template.id))
+        .catch((error) => console.warn('[interiors] collider profiles refresh failed:', error));
+      hideLoading();
       scene.hidden = false;
       controls.hidden = false;
       ui.hidden = false;
@@ -1563,9 +1637,10 @@ export function enableInteriorsFeature() {
       }));
     } catch (error) {
       const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
+      console.warn('[interiors] house enter failed:', error);
       if (code.includes('INTERIOR_NOT_OWNER')) showError('Вход доступен только владельцу дома.');
       else if (code.includes('INTERIOR_IMAGE_NOT_FOUND')) showError('PNG интерьера не найден. Добавьте нужный файл в корень проекта.');
-      else showError(`Не удалось открыть интерьер: ${code || 'неизвестная ошибка'}`);
+      else showError('Не удалось открыть интерьер. Попробуйте ещё раз через пару секунд.');
     }
   }
 
@@ -1578,16 +1653,12 @@ export function enableInteriorsFeature() {
     scene.hidden = true;
     controls.hidden = true;
     ui.hidden = true;
-    loading.hidden = false;
-    loadingText.textContent = 'Открываем больницу';
+    showLoading();
     setPaused(true);
 
     try {
       const template = TEMPLATES.hospital;
-      loadingText.textContent = `Загружаем ${template.file}`;
       await loadTemplateImage(template);
-      loadingText.textContent = 'Загружаем стены больницы';
-      await loadRemoteCollisionProfiles({ force: true });
 
       map.style.backgroundImage = 'none';
       overlay.dataset.template = template.id;
@@ -1613,7 +1684,10 @@ export function enableInteriorsFeature() {
       sprintLocked = false;
       renderStamina();
       renderPosition();
-      loading.hidden = true;
+      loadRemoteCollisionProfiles({ force: false })
+        .then(() => refreshPositionAfterCollisionChange(template.id))
+        .catch((error) => console.warn('[interiors] collider profiles refresh failed:', error));
+      hideLoading();
       scene.hidden = false;
       controls.hidden = false;
       ui.hidden = false;
@@ -1631,8 +1705,9 @@ export function enableInteriorsFeature() {
       }));
     } catch (error) {
       const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
+      console.warn('[interiors] hospital enter failed:', error);
       if (code.includes('INTERIOR_IMAGE_NOT_FOUND')) showError('PNG больницы не найден. Добавьте ambulance_interior.png в корень проекта.');
-      else showError(`Не удалось открыть больницу: ${code || 'неизвестная ошибка'}`);
+      else showError('Не удалось открыть больницу. Попробуйте ещё раз через пару секунд.');
     }
   }
 
@@ -1663,7 +1738,7 @@ export function enableInteriorsFeature() {
     scene.hidden = true;
     controls.hidden = true;
     ui.hidden = true;
-    loading.hidden = false;
+    hideLoading();
     errorBox.hidden = true;
     setPaused(false);
     if ((exitedHouseId || exitedServiceId) && exitSpawn) {
@@ -1856,6 +1931,7 @@ export function enableInteriorsFeature() {
     cleanup() {
       destroyed = true;
       window.clearTimeout(warmupTimer);
+      window.clearTimeout(loadingRevealTimer);
       window.clearTimeout(colliderSaveTimer);
       window.clearInterval(interiorHudRefreshTimer);
       window.clearTimeout(interiorHealthHitTimer);
