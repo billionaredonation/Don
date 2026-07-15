@@ -2,6 +2,7 @@ export const MAP_OBJECT_CATEGORIES = {
   DECOR: 'decor',
   HOUSE: 'house',
   BUSINESS: 'business',
+  SERVICE: 'service',
   NPC: 'npc',
   MARKER: 'marker',
 };
@@ -97,6 +98,16 @@ export const MAP_OBJECT_TYPES = {
     defaultRotation: 0,
     defaultAsset: 'house_standard_01',
     variants: HOUSE_CLASSES,
+  },
+
+  hospital: {
+    type: 'hospital',
+    category: MAP_OBJECT_CATEGORIES.SERVICE,
+    label: 'Больница',
+    icon: '🏥',
+    defaultScale: 1.18,
+    defaultRotation: 0,
+    defaultAsset: 'service_hospital_01',
   },
 
   shop: {
@@ -290,6 +301,30 @@ export function createMapObjectDraft({
     };
   }
 
+  if (config.category === MAP_OBJECT_CATEGORIES.SERVICE) {
+    objectName = name || config.label;
+
+    nextPayload = {
+      ...nextPayload,
+      kind: 'service',
+      serviceType: config.type,
+      serviceLabel: config.label,
+      buyable: false,
+      transferable: false,
+      serverOwned: true,
+      publicAccess: true,
+      interiorTemplate: config.type === 'hospital' ? 'hospital' : nextPayload.interiorTemplate,
+      locked: nextPayload.locked || false,
+      ownerId: null,
+      owner_id: null,
+      ownerName: null,
+      owner_name: null,
+      owned: false,
+      price: 0,
+      rentPerHour: 0,
+    };
+  }
+
   if (config.category === MAP_OBJECT_CATEGORIES.DECOR) {
     nextPayload = {
       ...nextPayload,
@@ -320,6 +355,17 @@ export function createMapObjectDraft({
     basePayload.visible = basePayload.visible ?? true;
   }
 
+  if (config.category === MAP_OBJECT_CATEGORIES.SERVICE) {
+    basePayload.serviceId = objectId;
+    basePayload.service_id = objectId;
+    basePayload.kind = 'service';
+    basePayload.buyable = false;
+    basePayload.transferable = false;
+    basePayload.serverOwned = true;
+    basePayload.publicAccess = true;
+    basePayload.visible = basePayload.visible ?? true;
+  }
+
   return {
     id: objectId,
     cityId: normalizedCityId,
@@ -338,4 +384,3 @@ export function createMapObjectDraft({
     updatedAt: new Date().toISOString(),
   };
 }
-
