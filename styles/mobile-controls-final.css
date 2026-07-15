@@ -6813,6 +6813,34 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
   }
 }
 
+/* City forced-landscape mobile: keep balance out of the city/profile row. */
+@media (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: calc(var(--mn-vh, 100vh) - 118px) !important;
+    top: max(-46px, calc(env(safe-area-inset-top) - 46px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 154px !important;
+    min-width: 154px !important;
+    max-width: 154px !important;
+    overflow: visible !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card strong,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card strong {
+    font-size: 9.2px !important;
+    letter-spacing: -0.065em !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-vitals-row,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-vitals-row {
+    top: calc(100% + 4px) !important;
+    right: 0 !important;
+    width: min(116px, 100%) !important;
+  }
+}
+
 /* House map icons are sharp: no blur/glow text leftovers. */
 .map-object.map-object-house,
 .map-object.map-object-house .map-house-clean,
