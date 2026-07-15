@@ -6789,3 +6789,57 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
     visibility: hidden !important;
   }
 }
+
+/* Final HUD nudge: balance moves, vitals stay attached to it. */
+@media (hover: hover) and (pointer: fine) {
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+    margin-left: 24px !important;
+    overflow: visible !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-vitals-row {
+    right: 0 !important;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card {
+    bottom: max(6px, env(safe-area-inset-bottom)) !important;
+    overflow: visible !important;
+  }
+
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    top: max(56px, calc(env(safe-area-inset-top) + 56px)) !important;
+    bottom: auto !important;
+  }
+
+  html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    left: calc(var(--mn-vh, 100vh) - 132px) !important;
+    top: max(-46px, calc(env(safe-area-inset-top) - 46px)) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-vitals-row,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-vitals-row,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-vitals-row {
+    top: calc(100% + 4px) !important;
+    right: 0 !important;
+  }
+}
+
+/* House map icons are sharp again. */
+.map-object.map-object-house .map-house-clean,
+.map-object.map-object-house .map-house-lite,
+.map-house-svg,
+.map-house-lite-shadow,
+.map-house-lite-roof,
+.map-house-lite-body,
+.map-house-lite-door {
+  filter: none !important;
+  opacity: 1 !important;
+}
