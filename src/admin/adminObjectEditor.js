@@ -70,6 +70,42 @@ export async function saveAdminObject({
     };
   }
 
+  if (config.category === 'service') {
+    const currentName = String(name || object.name || '').trim();
+
+    nextPatch.icon = config.icon;
+    nextPatch.asset = config.defaultAsset;
+    nextPatch.scale = object.scale || config.defaultScale;
+    nextPatch.name = currentName || config.label;
+    nextPatch.variant = '';
+    nextPatch.payload = {
+      ...(object.payload || {}),
+      kind: 'service',
+      type: selectedType,
+      category: 'service',
+      serviceType: selectedType,
+      serviceLabel: config.label,
+      id: String(object.id),
+      objectId: String(object.id),
+      mapObjectId: String(object.id),
+      serviceId: String(object.id),
+      service_id: String(object.id),
+      buyable: false,
+      transferable: false,
+      serverOwned: true,
+      publicAccess: true,
+      interiorTemplate: selectedType === 'hospital' ? 'hospital' : object.payload?.interiorTemplate,
+      locked: object.payload?.locked || false,
+      ownerId: null,
+      owner_id: null,
+      ownerName: null,
+      owner_name: null,
+      owned: false,
+      price: 0,
+      rentPerHour: 0,
+    };
+  }
+
   if (config.category === 'decor') {
     nextPatch.payload = {
       ...(object.payload || {}),
@@ -98,4 +134,3 @@ export async function saveAdminObject({
 
   return nextPatch;
 }
-
