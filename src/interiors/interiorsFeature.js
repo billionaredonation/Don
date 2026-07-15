@@ -5,6 +5,7 @@ import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
 import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
+import hospitalInteriorUrl from '../../ambulance_interior.png?url';
 import './interiors.css';
 
 const INTERIOR_COLLISION_TABLE = 'interior_collision_profiles';
@@ -35,12 +36,19 @@ const INTERIOR_COLLISION_PROFILES = {
     bounds: [],
     blocked: [],
   },
+
+  hospital: {
+    radius: 0,
+    bounds: [],
+    blocked: [],
+  },
 };
 
 const TEMPLATES = {
   standard: { id: 'standard', label: 'Стандарт', file: 'standart_interior.png', url: standardInteriorUrl, rooms: 1, kitchen: 1, bathroom: 1, spawn: { x: 50, y: 82 } },
   premium: { id: 'premium', label: 'Премиум', file: 'premium_interior.png', url: premiumInteriorUrl, rooms: 2, kitchen: 2, bathroom: 2, spawn: { x: 58, y: 82 } },
   ultra_lux: { id: 'ultra_lux', label: 'Ультра-люкс', file: 'luxe_interior.png', url: luxeInteriorUrl, rooms: 4, kitchen: 3, bathroom: 3, spawn: { x: 50, y: 90 } },
+  hospital: { id: 'hospital', label: 'Больница', file: 'ambulance_interior.png', url: hospitalInteriorUrl, rooms: 18, kitchen: 0, bathroom: 6, spawn: { x: 50, y: 61 } },
 };
 
 function roundPercent(value) {
@@ -132,6 +140,21 @@ function normalizeClass(value) {
 function houseId(house) {
   const p = house?.payload || {};
   return String(house?.mapObjectId || house?.objectId || house?.dbId || house?.id || p.mapObjectId || p.objectId || p.houseId || '').trim();
+}
+
+function mapObjectId(object) {
+  const p = object?.payload || {};
+  return String(
+    object?.mapObjectId ||
+      object?.objectId ||
+      object?.dbId ||
+      object?.id ||
+      p.mapObjectId ||
+      p.objectId ||
+      p.serviceId ||
+      p.id ||
+      ''
+  ).trim();
 }
 
 function formatMoney(value) {
@@ -779,8 +802,11 @@ export function enableInteriorsFeature() {
   let lastFrame = 0;
   let position = { x: 50, y: 82 };
   let activeTemplateId = 'standard';
+  let activeInteriorKind = 'house';
   let activeHouse = null;
   let activeHouseId = null;
+  let activeService = null;
+  let activeServiceId = null;
   let colliderEditorOpen = false;
   let colliderEditorMode = 'blocked';
   let colliderEditorProfile = null;
@@ -1392,6 +1418,9 @@ export function enableInteriorsFeature() {
     active = false;
     activeHouse = null;
     activeHouseId = null;
+    activeService = null;
+    activeServiceId = null;
+    activeInteriorKind = 'house';
     activeTemplateId = 'standard';
     if (colliderEditorOpen) closeColliderEditor();
     loading.hidden = true;
@@ -1459,8 +1488,8 @@ export function enableInteriorsFeature() {
     });
   }
 
-  // Warm up Standard, Premium and Ultra-Lux in parallel once the city screen
-  // has settled. Entering any house then reuses the browser cache immediately.
+  // Warm up interiors in parallel once the city screen has settled. Entering a
+  // house or hospital then reuses the browser cache immediately.
   warmupTimer = window.setTimeout(() => {
     if (destroyed) return;
     Promise.allSettled(Object.values(TEMPLATES).map(preloadTemplateImage));
@@ -1496,13 +1525,19 @@ export function enableInteriorsFeature() {
 
       map.style.backgroundImage = 'none';
       overlay.dataset.template = template.id;
+      overlay.dataset.interiorKind = 'house';
       overlay.dataset.houseId = id;
+      delete overlay.dataset.serviceId;
       activeTemplateId = template.id;
       colliderToggle.hidden = !isInteriorColliderAdmin();
       activeHouse = house;
       activeHouseId = id;
+      activeService = null;
+      activeServiceId = null;
+      activeInteriorKind = 'house';
       title.textContent = `Дом · ${data.houseClassLabel || template.label}`;
       meta.textContent = `${template.rooms} комн. · кухня ${template.kitchen} · санузел ${template.bathroom}`;
+      exitButton.textContent = '🚪 Выйти из дома';
       refreshHudFromState({
         animateChange: false,
         animateDamage: false,
@@ -1534,15 +1569,89 @@ export function enableInteriorsFeature() {
     }
   }
 
+  async function enterHospital(hospital) {
+    const id = mapObjectId(hospital);
+    if (!id) throw new Error('HOSPITAL_ID_INVALID');
+
+    overlay.hidden = false;
+    errorBox.hidden = true;
+    scene.hidden = true;
+    controls.hidden = true;
+    ui.hidden = true;
+    loading.hidden = false;
+    loadingText.textContent = 'Открываем больницу';
+    setPaused(true);
+
+    try {
+      const template = TEMPLATES.hospital;
+      loadingText.textContent = `Загружаем ${template.file}`;
+      await loadTemplateImage(template);
+      loadingText.textContent = 'Загружаем стены больницы';
+      await loadRemoteCollisionProfiles({ force: true });
+
+      map.style.backgroundImage = 'none';
+      overlay.dataset.template = template.id;
+      overlay.dataset.interiorKind = 'hospital';
+      overlay.dataset.serviceId = id;
+      delete overlay.dataset.houseId;
+      activeTemplateId = template.id;
+      colliderToggle.hidden = !isInteriorColliderAdmin();
+      activeHouse = null;
+      activeHouseId = null;
+      activeService = hospital;
+      activeServiceId = id;
+      activeInteriorKind = 'hospital';
+      title.textContent = hospital?.name || hospital?.payload?.serviceLabel || 'Больница';
+      meta.textContent = 'Палаты · процедурные · стерильная зона';
+      exitButton.textContent = '🚪 Выйти из больницы';
+      refreshHudFromState({
+        animateChange: false,
+        animateDamage: false,
+      });
+      position = snapInteriorPosition(template.id, template.spawn);
+      stamina = staminaConfig.max;
+      sprintLocked = false;
+      renderStamina();
+      renderPosition();
+      loading.hidden = true;
+      scene.hidden = false;
+      controls.hidden = false;
+      ui.hidden = false;
+      active = true;
+      startLoop();
+      window.dispatchEvent(new CustomEvent('mn:interior-entered', {
+        detail: {
+          kind: 'hospital',
+          serviceId: id,
+          object: hospital,
+          hospital,
+          template: template.id,
+          exitSpawn: houseExteriorSpawn(hospital),
+        },
+      }));
+    } catch (error) {
+      const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
+      if (code.includes('INTERIOR_IMAGE_NOT_FOUND')) showError('PNG больницы не найден. Добавьте ambulance_interior.png в корень проекта.');
+      else showError(`Не удалось открыть больницу: ${code || 'неизвестная ошибка'}`);
+    }
+  }
+
   function exit() {
+    const exitedKind = activeInteriorKind;
     const exitedHouse = activeHouse;
+    const exitedService = activeService;
     const exitedHouseId = overlay.dataset.houseId || activeHouseId || null;
-    const exitSpawn = exitedHouse ? houseExteriorSpawn(exitedHouse) : null;
+    const exitedServiceId = overlay.dataset.serviceId || activeServiceId || null;
+    const exitedObject = exitedKind === 'hospital' ? exitedService : exitedHouse;
+    const exitSpawn = exitedObject ? houseExteriorSpawn(exitedObject) : null;
 
     if (colliderEditorOpen) closeColliderEditor();
     active = false;
     activeHouse = null;
     activeHouseId = null;
+    activeService = null;
+    activeServiceId = null;
+    activeInteriorKind = 'house';
     activeTemplateId = 'standard';
     cancelAnimationFrame(raf);
     keys.clear();
@@ -1557,11 +1666,15 @@ export function enableInteriorsFeature() {
     loading.hidden = false;
     errorBox.hidden = true;
     setPaused(false);
-    if (exitedHouseId && exitSpawn) {
+    if ((exitedHouseId || exitedServiceId) && exitSpawn) {
       window.dispatchEvent(new CustomEvent('mn:interior-exited', {
         detail: {
-          houseId: exitedHouseId,
+          kind: exitedKind,
+          houseId: exitedKind === 'house' ? exitedHouseId : null,
+          serviceId: exitedKind === 'hospital' ? exitedServiceId : null,
           house: exitedHouse,
+          object: exitedObject,
+          hospital: exitedService,
           exitSpawn,
           x: exitSpawn.x,
           y: exitSpawn.y,
@@ -1570,6 +1683,8 @@ export function enableInteriorsFeature() {
       }));
     }
     delete overlay.dataset.houseId;
+    delete overlay.dataset.serviceId;
+    delete overlay.dataset.interiorKind;
   }
 
   function keyDown(event) {
@@ -1652,6 +1767,21 @@ export function enableInteriorsFeature() {
     stick.style.transform = `translate3d(${stickX}px,${stickY}px,0)`;
   }
 
+  async function handleHospitalEnterRequest(event) {
+    if (destroyed) return;
+
+    const detail = event?.detail || {};
+    const hospital = detail.hospital || detail.object;
+
+    if (!hospital) return;
+
+    try {
+      await enterHospital(hospital);
+    } catch (error) {
+      console.warn('[interiors] hospital enter failed:', error);
+    }
+  }
+
   joystick.addEventListener('pointerdown', (event) => {
     if (!active) return;
     joystickPointer = event.pointerId;
@@ -1707,6 +1837,7 @@ export function enableInteriorsFeature() {
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
+  window.addEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
   window.addEventListener('keydown', keyDown, true);
   window.addEventListener('keyup', keyUp, true);
   interiorHudRefreshTimer = window.setInterval(() => {
@@ -1720,6 +1851,7 @@ export function enableInteriorsFeature() {
 
   return {
     enter,
+    enterHospital,
     exit,
     cleanup() {
       destroyed = true;
@@ -1733,6 +1865,7 @@ export function enableInteriorsFeature() {
       window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
       window.removeEventListener('mn:player-health-changed', handleHealthChanged);
       window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
+      window.removeEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
       window.removeEventListener('keydown', keyDown, true);
       window.removeEventListener('keyup', keyUp, true);
       if (collisionProfilesChannel) {
