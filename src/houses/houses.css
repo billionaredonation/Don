@@ -4285,18 +4285,3 @@ body.mn-house-spawn-open .home .mobile-stamina {
     border-radius: 11px !important;
   }
 }
-
-/* Temporary soft map look for houses only; service icons stay sharp. */
-.map-object.map-object-house .map-house-clean,
-.map-object.map-object-house .map-house-lite {
-  filter: blur(1.05px) saturate(1.08) brightness(1.05) drop-shadow(0 0 7px var(--map-house-main, rgba(53, 233, 133, .46))) !important;
-  opacity: .84 !important;
-}
-
-.map-object.map-object-house.map-object-selected .map-house-clean,
-.map-object.map-object-house.map-object-nearby .map-house-clean,
-.map-object.map-object-house.map-object-selected .map-house-lite,
-.map-object.map-object-house.map-object-nearby .map-house-lite {
-  filter: blur(.55px) saturate(1.16) brightness(1.12) drop-shadow(0 0 9px var(--map-house-main, rgba(53, 233, 133, .58))) !important;
-  opacity: .95 !important;
-}
