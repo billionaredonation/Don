@@ -3,14 +3,26 @@ import { handleBusinessAction } from './businessActions.js';
 import { handleNpcAction } from './npcActions.js';
 
 export function getEntityKind(object) {
-  return object?.category || object?.payload?.kind || object?.type || 'marker';
+  const rawKind = object?.category || object?.payload?.kind || object?.type || 'marker';
+  const type = object?.type || object?.payload?.type || object?.payload?.serviceType || '';
+
+  if (rawKind === 'hospital' || type === 'hospital') return 'service';
+
+  return rawKind;
+}
+
+export function getEntityType(object) {
+  return object?.type || object?.payload?.type || object?.payload?.serviceType || '';
 }
 
 export function getEntityKindLabel(object) {
   const kind = getEntityKind(object);
+  const type = getEntityType(object);
 
   if (kind === 'house') return 'Дом';
   if (kind === 'business') return 'Бизнес';
+  if (kind === 'service' && type === 'hospital') return 'Больница';
+  if (kind === 'service') return 'Сервис';
   if (kind === 'decor') return 'Декор';
   if (kind === 'npc') return 'NPC';
   if (kind === 'marker') return 'Маркер';
@@ -20,6 +32,7 @@ export function getEntityKindLabel(object) {
 
 export function getEntityPrimaryActionLabel(object) {
   const kind = getEntityKind(object);
+  const type = getEntityType(object);
 
   if (kind === 'house') {
     if (object?.payload?.ownerId) return 'Информация';
@@ -33,6 +46,11 @@ export function getEntityPrimaryActionLabel(object) {
     return 'Купить бизнес';
   }
 
+  if (kind === 'service' && type === 'hospital') {
+    if (object?.payload?.locked) return 'Закрыто';
+    return 'Войти';
+  }
+
   if (kind === 'npc') return 'Говорить';
   if (kind === 'decor') return 'Осмотреть';
   if (kind === 'marker') return 'Выбрать';
@@ -42,6 +60,14 @@ export function getEntityPrimaryActionLabel(object) {
 
 export function getEntityMetaText(object) {
   const kindLabel = getEntityKindLabel(object);
+  const kind = getEntityKind(object);
+  const type = getEntityType(object);
+
+  if (kind === 'service' && type === 'hospital') {
+    return object?.payload?.locked
+      ? `${kindLabel} · вход закрыт`
+      : `${kindLabel} · серверный объект · вход свободный`;
+  }
 
   const classLabel =
     object?.payload?.houseClassLabel ||
@@ -70,6 +96,7 @@ export function getEntityMetaText(object) {
 
 export function dispatchEntityAction(object) {
   const kind = getEntityKind(object);
+  const type = getEntityType(object);
 
   window.dispatchEvent(new CustomEvent('mn:entity-action', {
     detail: {
@@ -90,6 +117,17 @@ export function dispatchEntityAction(object) {
 
   if (kind === 'npc') {
     handleNpcAction(object);
+    return;
+  }
+
+  if (kind === 'service' && type === 'hospital') {
+    window.dispatchEvent(new CustomEvent('mn:hospital-enter-request', {
+      detail: {
+        hospital: object,
+        object,
+        action: 'enter',
+      },
+    }));
     return;
   }
 
