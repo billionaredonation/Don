@@ -1050,32 +1050,25 @@ body.mn-force-rotate-landscape .mn-interior-vital-pill b {
   letter-spacing: 0 !important;
 }
 
-/* Final balance nudge: the vitals row remains attached to the balance card. */
+/* PC only: balance sits near Telegram controls without touching them. */
 @media (hover: hover) and (pointer: fine) {
   .mn-interior-balance {
-    margin-left: 24px !important;
+    position: fixed !important;
+    left: auto !important;
+    right: max(156px, calc(env(safe-area-inset-right) + 156px)) !important;
+    top: max(30px, calc(env(safe-area-inset-top) + 30px)) !important;
+    bottom: auto !important;
+    margin-left: 0 !important;
+    transform: none !important;
+    width: 170px !important;
+    min-width: 170px !important;
+    max-width: 170px !important;
+    z-index: 2147481700 !important;
     overflow: visible !important;
   }
 
   .mn-interior-vitals-row {
-    right: 0 !important;
-  }
-}
-
-@media (hover: none) and (pointer: coarse) {
-  html:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-interior-balance {
-    margin-top: 10px !important;
-    overflow: visible !important;
-  }
-
-  html.mn-force-rotate-landscape .mn-interior-balance,
-  body.mn-force-rotate-landscape .mn-interior-balance {
-    top: 622px !important;
-    overflow: visible !important;
-  }
-
-  .mn-interior-vitals-row {
-    top: calc(100% + 4px) !important;
+    top: calc(100% + 5px) !important;
     right: 0 !important;
   }
 }
