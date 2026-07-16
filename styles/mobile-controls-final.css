@@ -6968,10 +6968,10 @@ body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player
    Keep the money card beside Telegram's three-dot control and align its
    top edge with the city/profile cards. The vitals remain attached below.
    ========================================================= */
-@media (hover: hover) and (pointer: fine) and (min-width: 900px) {
-  html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"]) .player-balance-card,
-  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player-balance-card,
-  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+@media (min-width: 900px) {
+  html.mn-desktop-game-enabled body .home .player-balance-card,
+  body.mn-desktop-game-enabled .home .player-balance-card,
+  .home .player-balance-card {
     position: fixed !important;
     left: auto !important;
     right: max(128px, calc(env(safe-area-inset-right) + 128px)) !important;
@@ -6985,9 +6985,9 @@ body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player
     overflow: visible !important;
   }
 
-  html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"]) .player-vitals-row,
-  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player-vitals-row,
-  .home:not([data-mobile-controls="enabled"]) .player-vitals-row {
+  html.mn-desktop-game-enabled body .home .player-vitals-row,
+  body.mn-desktop-game-enabled .home .player-vitals-row,
+  .home .player-vitals-row {
     position: absolute !important;
     left: auto !important;
     right: 0 !important;
