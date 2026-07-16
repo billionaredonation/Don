@@ -6795,8 +6795,8 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
   .home:not([data-mobile-controls="enabled"]) .player-balance-card {
     position: fixed !important;
     left: auto !important;
-    right: max(156px, calc(env(safe-area-inset-right) + 156px)) !important;
-    top: max(30px, calc(env(safe-area-inset-top) + 30px)) !important;
+    right: max(74px, calc(env(safe-area-inset-right) + 74px)) !important;
+    top: max(18px, calc(env(safe-area-inset-top) + 18px)) !important;
     bottom: auto !important;
     margin-left: 0 !important;
     transform: none !important;
@@ -6813,11 +6813,34 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
   }
 }
 
-/* City forced-landscape mobile: keep balance out of the city/profile row. */
+/* City mobile: balance/vitals stay low and away from the top HUD row. */
 @media (hover: none) and (pointer: coarse) {
+  .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-balance-card,
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
+    right: max(12px, env(safe-area-inset-right)) !important;
+    bottom: max(10px, env(safe-area-inset-bottom)) !important;
+    left: auto !important;
+    top: auto !important;
+    overflow: visible !important;
+  }
+
+  .home[data-mobile-controls="enabled"] .player-vitals-row,
+  body.mn-mobile-game-enabled .home[data-mobile-controls="enabled"] .player-vitals-row,
+  body.mn-landscape-game .home[data-mobile-controls="enabled"] .player-vitals-row,
+  html.mn-real-landscape body .home[data-mobile-controls="enabled"] .player-vitals-row,
+  body.mn-real-landscape .home[data-mobile-controls="enabled"] .player-vitals-row {
+    top: auto !important;
+    bottom: calc(100% + 4px) !important;
+    right: 0 !important;
+    width: min(116px, 100%) !important;
+  }
+
   html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-balance-card,
   body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-balance-card {
-    left: max(420px, calc(var(--mn-vw, 100vw) - 420px)) !important;
+    left: clamp(484px, calc(var(--mn-vh, 100vh) - 178px), 670px) !important;
     top: max(-46px, calc(env(safe-area-inset-top) - 46px)) !important;
     right: auto !important;
     bottom: auto !important;
@@ -6836,6 +6859,7 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
   html.mn-force-rotate-landscape body .home[data-mobile-controls="enabled"] .player-vitals-row,
   body.mn-force-rotate-landscape .home[data-mobile-controls="enabled"] .player-vitals-row {
     top: calc(100% + 4px) !important;
+    bottom: auto !important;
     right: 0 !important;
     width: min(116px, 100%) !important;
   }
@@ -6871,4 +6895,3 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
   box-shadow: none !important;
   text-shadow: none !important;
 }
-
