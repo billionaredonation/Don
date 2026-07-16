@@ -6901,8 +6901,8 @@ html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"]) .p
 body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player-balance-card {
   position: fixed !important;
   left: auto !important;
-  right: max(40px, calc(env(safe-area-inset-right) + 84px)) !important;
-  top: max(38px, calc(env(safe-area-inset-top) + 42px)) !important;
+  right: max(40px, calc(env(safe-area-inset-right) + 40px)) !important;
+  top: max(38px, calc(env(safe-area-inset-top) + 38px)) !important;
   bottom: auto !important;
   margin: 0 !important;
   transform: none !important;
