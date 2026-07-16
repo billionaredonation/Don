@@ -6895,3 +6895,70 @@ body.mn-real-landscape.mn-landscape-game .house-selection-panel.house-info-promp
   box-shadow: none !important;
   text-shadow: none !important;
 }
+
+/* Desktop city: keep money/vitals next to Telegram controls, independent of pointer heuristics. */
+html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"]) .player-balance-card,
+body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+  position: fixed !important;
+  left: auto !important;
+  right: max(84px, calc(env(safe-area-inset-right) + 84px)) !important;
+  top: max(42px, calc(env(safe-area-inset-top) + 42px)) !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+  translate: 0 0 !important;
+  rotate: 0deg !important;
+  width: 170px !important;
+  min-width: 170px !important;
+  max-width: 170px !important;
+  z-index: 2147481700 !important;
+  overflow: visible !important;
+}
+
+html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"]) .player-vitals-row,
+body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player-vitals-row {
+  position: absolute !important;
+  left: auto !important;
+  right: 0 !important;
+  top: calc(100% + 5px) !important;
+  bottom: auto !important;
+  transform: none !important;
+  translate: 0 0 !important;
+  justify-content: flex-end !important;
+  width: min(150px, 100%) !important;
+  max-width: 150px !important;
+  z-index: 1 !important;
+}
+
+@media (min-width: 900px) {
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+    position: fixed !important;
+    left: auto !important;
+    right: max(84px, calc(env(safe-area-inset-right) + 84px)) !important;
+    top: max(42px, calc(env(safe-area-inset-top) + 42px)) !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    transform: none !important;
+    translate: 0 0 !important;
+    rotate: 0deg !important;
+    width: 170px !important;
+    min-width: 170px !important;
+    max-width: 170px !important;
+    z-index: 2147481700 !important;
+    overflow: visible !important;
+  }
+
+  .home:not([data-mobile-controls="enabled"]) .player-vitals-row {
+    position: absolute !important;
+    left: auto !important;
+    right: 0 !important;
+    top: calc(100% + 5px) !important;
+    bottom: auto !important;
+    transform: none !important;
+    translate: 0 0 !important;
+    justify-content: flex-end !important;
+    width: min(150px, 100%) !important;
+    max-width: 150px !important;
+    z-index: 1 !important;
+  }
+}
