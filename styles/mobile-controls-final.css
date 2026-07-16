@@ -6962,3 +6962,40 @@ body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player
     z-index: 1 !important;
   }
 }
+
+/* =========================================================
+   PC HUD FINAL POSITION — BALANCE + VITALS ONLY
+   Keep the money card beside Telegram's three-dot control and align its
+   top edge with the city/profile cards. The vitals remain attached below.
+   ========================================================= */
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) {
+  html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"]) .player-balance-card,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player-balance-card,
+  .home:not([data-mobile-controls="enabled"]) .player-balance-card {
+    position: fixed !important;
+    left: auto !important;
+    right: max(128px, calc(env(safe-area-inset-right) + 128px)) !important;
+    top: max(24px, calc(env(safe-area-inset-top) + 24px)) !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    transform: none !important;
+    translate: 0 0 !important;
+    rotate: 0deg !important;
+    z-index: 2147481700 !important;
+    overflow: visible !important;
+  }
+
+  html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"]) .player-vitals-row,
+  body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player-vitals-row,
+  .home:not([data-mobile-controls="enabled"]) .player-vitals-row {
+    position: absolute !important;
+    left: auto !important;
+    right: 0 !important;
+    top: calc(100% + 5px) !important;
+    bottom: auto !important;
+    transform: none !important;
+    translate: 0 0 !important;
+    justify-content: flex-end !important;
+    z-index: 1 !important;
+  }
+}
