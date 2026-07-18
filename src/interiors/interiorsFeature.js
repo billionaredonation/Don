@@ -1686,13 +1686,26 @@ export function enableInteriorsFeature() {
         updatedAt: 0,
         connectionId: '',
         packetSequence: 0,
+        lastNetworkPosition: null,
       };
       remoteInteriorPlayers.set(safePlayerId, entry);
     }
 
-    const x = clampPercent(player.x, 50);
-    const y = clampPercent(player.y, 50);
-    const seatedObjectId = String(player.seatedObjectId || '').trim();
+    const networkX = clampPercent(player.x, 50);
+    const networkY = clampPercent(player.y, 50);
+    const networkSeatObjectId = String(player.seatedObjectId || '').trim();
+    const authoritativeSeat = Array.from(seatStatesByObjectId.values()).find((seatState) => (
+      String(seatState?.playerId || '') === safePlayerId &&
+      (!player.sessionId || !seatState?.sessionId ||
+        String(seatState.sessionId) === String(player.sessionId))
+    ));
+    const seatedObjectId = String(authoritativeSeat?.objectId || networkSeatObjectId).trim();
+    const seatedChair = seatedObjectId
+      ? normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
+        .find((object) => object.type === 'chair' && object.id === seatedObjectId)
+      : null;
+    const x = seatedChair ? Number(seatedChair.x) : networkX;
+    const y = seatedChair ? Number(seatedChair.y) : networkY;
 
     entry.element.style.left = `${x}%`;
     entry.element.style.top = `${y}%`;
@@ -1704,6 +1717,11 @@ export function enableInteriorsFeature() {
     if (Number(player.packetSequence || 0) > 0) {
       entry.packetSequence = Number(player.packetSequence);
     }
+    entry.lastNetworkPosition = {
+      x: networkX,
+      y: networkY,
+      seatedObjectId: networkSeatObjectId || null,
+    };
     entry.updatedAt = Date.now();
   }
 
@@ -1742,6 +1760,19 @@ export function enableInteriorsFeature() {
 
     seatStatesByObjectId.set(String(seatState.objectId), seatState);
 
+    const remoteEntry = remoteInteriorPlayers.get(String(seatState.playerId || ''));
+    const chair = normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
+      .find((object) => object.type === 'chair' && object.id === String(seatState.objectId));
+
+    if (remoteEntry && chair) {
+      remoteEntry.element.style.left = `${Number(chair.x)}%`;
+      remoteEntry.element.style.top = `${Number(chair.y)}%`;
+      remoteEntry.element.classList.add('is-seated');
+      remoteEntry.element.dataset.seated = 'true';
+      remoteEntry.element.dataset.seatedObjectId = String(seatState.objectId);
+      remoteEntry.updatedAt = Date.now();
+    }
+
     if (
       activeSeatObjectId === String(seatState.objectId) &&
       !seatStateBelongsToLocalPlayer(seatState)
@@ -1761,6 +1792,24 @@ export function enableInteriorsFeature() {
     if (!objectId) return;
 
     seatStatesByObjectId.delete(objectId);
+
+    const remoteEntry = remoteInteriorPlayers.get(String(seatState?.playerId || ''));
+    if (
+      remoteEntry &&
+      String(remoteEntry.element.dataset.seatedObjectId || '') === objectId
+    ) {
+      const lastPosition = remoteEntry.lastNetworkPosition;
+      if (lastPosition) {
+        remoteEntry.element.style.left = `${clampPercent(lastPosition.x, 50)}%`;
+        remoteEntry.element.style.top = `${clampPercent(lastPosition.y, 50)}%`;
+      }
+      const stillSeated = Boolean(lastPosition?.seatedObjectId);
+      remoteEntry.element.classList.toggle('is-seated', stillSeated);
+      remoteEntry.element.dataset.seated = stillSeated ? 'true' : 'false';
+      remoteEntry.element.dataset.seatedObjectId = lastPosition?.seatedObjectId || '';
+      remoteEntry.updatedAt = Date.now();
+    }
+
     if (activeSeatObjectId === objectId) {
       activeSeatObjectId = null;
       position = snapInteriorPosition(activeTemplateId, position);
