@@ -1322,6 +1322,33 @@ register('home', async (root) => {
 
     if (desktopBalanceCard) {
       root.append(desktopBalanceCard);
+
+      /*
+        Telegram Desktop keeps several legacy HUD rules with !important.
+        Set the final PC anchor directly on the detached card so those rules
+        cannot pull it down or place it underneath Telegram's own controls.
+      */
+      const desktopBalancePosition = {
+        position: 'fixed',
+        left: 'auto',
+        right: 'max(104px, calc(env(safe-area-inset-right) + 104px))',
+        top: 'max(16px, calc(env(safe-area-inset-top) + 16px))',
+        bottom: 'auto',
+        margin: '0',
+        transform: 'none',
+        translate: '0 0',
+        rotate: '0deg',
+        width: '170px',
+        minWidth: '170px',
+        maxWidth: '170px',
+        overflow: 'visible',
+        zIndex: '2147481700',
+      };
+
+      Object.entries(desktopBalancePosition).forEach(([property, value]) => {
+        const cssProperty = property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+        desktopBalanceCard.style.setProperty(cssProperty, value, 'important');
+      });
     }
   }
 
@@ -2219,4 +2246,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
