@@ -30,7 +30,7 @@ const INTERIOR_DOOR_INTERACTION_RADIUS = 7.5;
 const INTERIOR_EXIT_INTERACTION_RADIUS = 6.5;
 const INTERIOR_CHAIR_INTERACTION_RADIUS = 6.5;
 const INTERIOR_DOOR_RADIUS_HYSTERESIS = 1.4;
-const INTERIOR_PRESENCE_REFRESH_MS = 2200;
+const INTERIOR_PRESENCE_REFRESH_MS = 1500;
 const INTERIOR_SEAT_HEARTBEAT_MS = 8000;
 const INTERIOR_SEAT_STALE_MS = 32000;
 const INTERIOR_REMOTE_PLAYER_STALE_MS = 18000;
@@ -1664,6 +1664,14 @@ export function enableInteriorsFeature() {
 
     let entry = remoteInteriorPlayers.get(safePlayerId);
 
+    if (
+      entry &&
+      player.connectionId &&
+      entry.connectionId === player.connectionId &&
+      Number(player.packetSequence || 0) > 0 &&
+      Number(player.packetSequence) <= Number(entry.packetSequence || 0)
+    ) return;
+
     if (!entry) {
       const element = document.createElement('div');
       const dot = document.createElement('i');
@@ -1672,7 +1680,13 @@ export function enableInteriorsFeature() {
       element.dataset.playerId = safePlayerId;
       element.append(dot, name);
       remotePlayersLayer.appendChild(element);
-      entry = { element, name, updatedAt: 0 };
+      entry = {
+        element,
+        name,
+        updatedAt: 0,
+        connectionId: '',
+        packetSequence: 0,
+      };
       remoteInteriorPlayers.set(safePlayerId, entry);
     }
 
@@ -1686,6 +1700,10 @@ export function enableInteriorsFeature() {
     entry.element.dataset.seated = seatedObjectId ? 'true' : 'false';
     entry.element.dataset.seatedObjectId = seatedObjectId;
     entry.name.textContent = String(player.nickname || 'Игрок').slice(0, 32);
+    if (player.connectionId) entry.connectionId = player.connectionId;
+    if (Number(player.packetSequence || 0) > 0) {
+      entry.packetSequence = Number(player.packetSequence);
+    }
     entry.updatedAt = Date.now();
   }
 
@@ -1956,8 +1974,25 @@ export function enableInteriorsFeature() {
         return false;
       }
 
-      applySeatState(result.seat);
+      const previousSeatObjectId = activeSeatObjectId;
+
+      // RPC атомарно переносит игрока на новый стул. Дублировавшееся место было
+      // только визуальным: старый chair ждал DELETE из Realtime. Убираем его
+      // локально сразу, чтобы даже при задержке канала игрок занимал ровно одно место.
+      seatStatesByObjectId.forEach((seatState, objectId) => {
+        if (
+          String(objectId) !== String(chair.id) &&
+          (
+            String(objectId) === String(previousSeatObjectId || '') ||
+            seatStateBelongsToLocalPlayer(seatState)
+          )
+        ) {
+          seatStatesByObjectId.delete(String(objectId));
+        }
+      });
+
       activeSeatObjectId = String(chair.id);
+      applySeatState(result.seat);
       position = { x: Number(chair.x), y: Number(chair.y) };
       renderPosition();
       renderInteriorObjects();
@@ -3832,4 +3867,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
