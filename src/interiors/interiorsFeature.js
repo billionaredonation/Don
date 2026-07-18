@@ -18,6 +18,7 @@ const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
 const INTERIOR_DESIGN_ASPECT = 16 / 9;
 const INTERIOR_MAPPED_OBJECT_LIMIT = 300;
 const INTERIOR_DOOR_INTERACTION_RADIUS = 7.5;
+const INTERIOR_DOOR_RADIUS_HYSTERESIS = 1.4;
 const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
   bed: Object.freeze({
     label: 'Кровать', defaultWidth: 11, defaultHeight: 6,
@@ -2142,7 +2143,13 @@ export function enableInteriorsFeature() {
         const radius = Number.isFinite(configuredRadius)
           ? Math.max(3, Math.min(14, configuredRadius))
           : INTERIOR_DOOR_INTERACTION_RADIUS;
-        if (distance > radius || (nearest && distance >= nearest.distance)) return;
+        const size = mappedInteriorObjectSize(door);
+        const sizeAllowance = Math.max(0, (size.width - 4.2) / 2);
+        const movementAllowance = door.id === nearestDoorId
+          ? INTERIOR_DOOR_RADIUS_HYSTERESIS
+          : 0;
+        const effectiveRadius = radius + sizeAllowance + movementAllowance;
+        if (distance > effectiveRadius || (nearest && distance >= nearest.distance)) return;
         nearest = { door, distance };
       });
 
@@ -3000,8 +3007,7 @@ export function enableInteriorsFeature() {
       event.stopPropagation();
       event.stopImmediatePropagation?.();
       if (event.repeat) return;
-      if (nearestInteractiveDoor()) void toggleNearestInteriorDoor();
-      else exit();
+      void toggleNearestInteriorDoor();
       return;
     }
     if (event.key === 'Escape') {
