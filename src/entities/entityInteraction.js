@@ -1540,6 +1540,7 @@ export function enableEntityInteraction({
   }
 
   function onObjectClick(event) {
+    if (window.__MN_INTERIOR_ACTIVE__ === true) return;
     if (panel?.isOpen?.()) return;
     if (panel?.isDirectInputBlocked?.()) return;
 
@@ -1560,6 +1561,7 @@ export function enableEntityInteraction({
   }
 
   function onViewportPointer(event) {
+    if (window.__MN_INTERIOR_ACTIVE__ === true) return;
     if (!isMobilePointerEvent(event)) return;
     if (panel?.isOpen?.()) return;
     if (panel?.isDirectInputBlocked?.()) return;
@@ -1598,6 +1600,10 @@ export function enableEntityInteraction({
   }
 
   function onKeyDown(event) {
+    // Внутри дома/больницы клавиша E/У принадлежит двери и выходу из
+    // интерьера. Город не должен повторно обработать это же событие и открыть
+    // карточку ближайшего дома поверх интерьера.
+    if (window.__MN_INTERIOR_ACTIVE__ === true) return;
     if (document.body.classList.contains('mn-house-trade-open')) return;
     if (!isInteractKey(event)) return;
     if (event.repeat) return;
