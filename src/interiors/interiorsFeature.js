@@ -96,12 +96,15 @@ function getInteriorColliderAdminIdentity() {
   const savedState = readJsonLocalStorage('mn-game-state', null);
   const savedAuth = readJsonLocalStorage('mn_auth_player', null);
   const playerId =
+    state.player?.id ||
     state.playerId ||
     state.player?.playerId ||
     state.player?.player_id ||
+    savedState?.player?.id ||
     savedState?.playerId ||
     savedState?.player?.playerId ||
     savedState?.player?.player_id ||
+    savedAuth?.id ||
     window.localStorage?.getItem('mn_player_id') ||
     null;
   const telegramId =
@@ -568,6 +571,29 @@ async function saveRemoteCollisionProfile(templateId, profile) {
   };
   writeStoredCollisionProfiles(customCollisionProfiles);
   return data || { ok: true, profile: savedProfile };
+}
+
+function collisionSaveErrorMessage(error) {
+  const raw = [error?.code, error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(' ');
+  const normalized = raw.toLowerCase();
+
+  if (normalized.includes('pgrst202') || normalized.includes('could not find the function')) {
+    return 'Supabase: функция не найдена — повторно выполни SQL-миграцию';
+  }
+  if (normalized.includes('42p01') || normalized.includes('interior_collision_profiles')) {
+    return 'Supabase: таблица стен не создана — выполни SQL-миграцию';
+  }
+  if (normalized.includes('admin_required')) {
+    return 'Supabase: текущий игрок не подтверждён как администратор';
+  }
+  if (normalized.includes('permission denied') || normalized.includes('42501')) {
+    return 'Supabase: нет разрешения на сохранение стен';
+  }
+
+  const message = String(error?.message || error?.code || 'неизвестная ошибка').trim();
+  return `Supabase: ${message.slice(0, 140)}`;
 }
 
 function collisionProfileFor(templateId) {
@@ -1611,7 +1637,7 @@ export function enableInteriorsFeature() {
     } catch (error) {
       console.warn('[interiors] collider profile save failed:', error);
       if (saveId === colliderSaveSequence) {
-        setColliderStatus('Локально работает, но в Supabase не сохранилось');
+        setColliderStatus(collisionSaveErrorMessage(error));
       }
       return false;
     }
