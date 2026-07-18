@@ -529,6 +529,42 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
 .mn-interior-mapped-object-door[data-open="true"]::after {
   opacity: .28;
 }
+.mn-interior-mapped-object-exit {
+  border: 2px solid rgba(122,255,188,.96);
+  border-radius: 50%;
+  color: #effff7;
+  background:
+    radial-gradient(circle at 38% 35%, rgba(122,255,188,.42), transparent 34%),
+    linear-gradient(145deg, rgba(24,183,114,.96), rgba(11,82,60,.98));
+  box-shadow:
+    0 0 0 2px rgba(5,18,13,.82),
+    0 0 15px rgba(56,230,145,.58),
+    inset 0 0 0 1px rgba(255,255,255,.2);
+}
+.mn-interior-mapped-object-exit::before {
+  content: "↪";
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  font: 950 clamp(13px, 1.45vw, 27px)/1 system-ui;
+  text-shadow: 0 2px 5px rgba(0,0,0,.58);
+}
+.mn-interior-mapped-object-exit::after {
+  content: "ВЫХОД";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 5px);
+  transform: translateX(-50%);
+  padding: 2px 5px;
+  border-radius: 5px;
+  color: #dfffee;
+  background: rgba(4,18,13,.88);
+  font: 950 7px/1 system-ui;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .mn-interior-mapped-object[data-selected="true"] {
   z-index: 4;
   outline: 2px solid #ffd45a;
@@ -867,6 +903,13 @@ body.mn-interior-object-editor-open .mn-interior-stamina {
   border-color: rgba(83,222,160,.48);
 }
 .mn-interior-door-action[data-open="true"] > span {
+  background: linear-gradient(135deg, #20b979, #177c59);
+}
+.mn-interior-door-action[data-kind="exit"] {
+  border-color: rgba(83,222,160,.5);
+  background: rgba(5,24,17,.92);
+}
+.mn-interior-door-action[data-kind="exit"] > span {
   background: linear-gradient(135deg, #20b979, #177c59);
 }
 .mn-interior-door-action:disabled {
