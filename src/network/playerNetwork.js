@@ -869,7 +869,7 @@ function enableOfflineOnExit() {
 }
 
 async function touchSelfOnline(selfPlayerId) {
-  if (!selfPlayerId) return;
+  if (!selfPlayerId || window.__MN_INTERIOR_ACTIVE__ === true) return;
 
   const { error } = await supabase
     .from('player_positions')
@@ -894,6 +894,9 @@ function startPresenceHeartbeat(cityId, selfPlayerId, options = {}) {
 
     try {
       await touchSelfOnline(selfPlayerId);
+      if (window.__MN_INTERIOR_ACTIVE__ === true) {
+        await setPlayerOffline();
+      }
     } catch (error) {
       console.warn('[network] presence heartbeat failed:', error);
     } finally {
