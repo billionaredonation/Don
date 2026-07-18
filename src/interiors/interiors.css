@@ -530,9 +530,44 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   opacity: .28;
 }
 .mn-interior-mapped-object[data-selected="true"] {
+  z-index: 4;
   outline: 2px solid #ffd45a;
   outline-offset: 3px;
   box-shadow: 0 0 0 1px rgba(0,0,0,.92), 0 0 14px rgba(255,212,90,.72);
+}
+.mn-interior-object-resize-handle {
+  position: absolute;
+  z-index: 8;
+  right: -10px;
+  bottom: -10px;
+  display: none;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 2px solid #16120a;
+  border-radius: 5px;
+  background:
+    linear-gradient(135deg, transparent 0 42%, rgba(57,39,0,.78) 43% 54%, transparent 55%),
+    #ffd45a;
+  box-shadow: 0 0 0 2px rgba(255,212,90,.42), 0 3px 9px rgba(0,0,0,.72);
+  cursor: nwse-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+.mn-interior-object-layer[data-editor="enabled"]
+  .mn-interior-mapped-object[data-selected="true"]
+  > .mn-interior-object-resize-handle {
+  display: block;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .mn-interior-object-resize-handle {
+    right: -13px;
+    bottom: -13px;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
 }
 
 .mn-interior-collider-layer {
