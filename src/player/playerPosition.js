@@ -370,7 +370,9 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
     x: clampPercent(x),
     y: clampPercent(y),
     angle: Number.isFinite(Number(angle)) ? Number(angle) : 0,
-    is_online: true,
+    // Интерьер — отдельная realtime-комната. Пока игрок внутри, его строка
+    // города сохраняется для будущего выхода, но не должна отображаться на улице.
+    is_online: window.__MN_INTERIOR_ACTIVE__ !== true,
     is_admin: isAdmin,
     session_id: sessionId,
     updated_at: new Date().toISOString(),
@@ -383,6 +385,14 @@ export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }
     });
 
   if (error) throw error;
+
+  // Запрос движения мог стартовать за миллисекунду до входа в интерьер и
+  // завершиться уже после offline-пакета. Повторно закрепляем offline, чтобы
+  // такая гонка не возвращала призрак игрока на улицу.
+  if (window.__MN_INTERIOR_ACTIVE__ === true && nextPosition.is_online === true) {
+    await setPlayerOffline();
+    nextPosition.is_online = false;
+  }
 
   return normalizePosition(nextPosition);
 }
@@ -559,6 +569,32 @@ export function createCityMovementChannel(cityId, handlers = {}) {
           MIN_CHANNEL_SEND_INTERVAL_MS - elapsed
         );
       }
+    },
+
+    sendPresence(player, isOnline) {
+      if (destroyed || !player) return;
+
+      const presencePayload = {
+        ...player,
+        isOnline: isOnline === true,
+        is_online: isOnline === true,
+        updatedAt: player.updatedAt || new Date().toISOString(),
+      };
+
+      queuedPayload = null;
+      if (sendTimer) {
+        clearTimeout(sendTimer);
+        sendTimer = null;
+      }
+
+      if (!subscribed) {
+        pendingPayloads.length = 0;
+        pendingPayloads.push(presencePayload);
+        return;
+      }
+
+      lastSendAt = Date.now();
+      safeSend(presencePayload);
     },
 
     unsubscribe() {
