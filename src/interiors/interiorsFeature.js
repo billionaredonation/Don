@@ -2,6 +2,15 @@ import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import { getStaminaConfig } from '../player/playerStaminaConfig.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
+import { getLocalPlayerId, getSessionId } from '../player/playerPosition.js';
+import {
+  claimInteriorSeat,
+  createInteriorRealtimeRoom,
+  heartbeatInteriorSeat,
+  loadInteriorSeatStates,
+  releaseInteriorSeat,
+  subscribeInteriorSeatStates,
+} from './interiorRealtime.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
 import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
@@ -19,7 +28,12 @@ const INTERIOR_DESIGN_ASPECT = 16 / 9;
 const INTERIOR_MAPPED_OBJECT_LIMIT = 300;
 const INTERIOR_DOOR_INTERACTION_RADIUS = 7.5;
 const INTERIOR_EXIT_INTERACTION_RADIUS = 6.5;
+const INTERIOR_CHAIR_INTERACTION_RADIUS = 6.5;
 const INTERIOR_DOOR_RADIUS_HYSTERESIS = 1.4;
+const INTERIOR_PRESENCE_REFRESH_MS = 2200;
+const INTERIOR_SEAT_HEARTBEAT_MS = 8000;
+const INTERIOR_SEAT_STALE_MS = 32000;
+const INTERIOR_REMOTE_PLAYER_STALE_MS = 18000;
 const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
   bed: Object.freeze({
     label: 'Кровать', defaultWidth: 11, defaultHeight: 6,
@@ -177,6 +191,84 @@ function normalizeClass(value) {
 function houseId(house) {
   const p = house?.payload || {};
   return String(house?.mapObjectId || house?.objectId || house?.dbId || house?.id || p.mapObjectId || p.objectId || p.houseId || '').trim();
+}
+
+function houseOwnerId(house) {
+  const payload = house?.payload || {};
+  return String(
+    house?.owner_id ||
+      house?.ownerId ||
+      payload.ownerId ||
+      payload.owner_id ||
+      ''
+  ).trim();
+}
+
+function houseOwnerName(house) {
+  const payload = house?.payload || {};
+  return String(
+    house?.ownerName ||
+      house?.owner_name ||
+      payload.ownerName ||
+      payload.owner_name ||
+      ''
+  ).trim();
+}
+
+function localHouseAccessSnapshot(house) {
+  const ownerId = houseOwnerId(house);
+  if (!ownerId) return null;
+
+  const houseClass = normalizeClass(
+    house?.class || house?.payload?.houseClass || house?.variant
+  );
+  const labels = {
+    standard: 'Стандарт',
+    premium: 'Премиум',
+    ultra_lux: 'Ультра-люкс',
+  };
+  const currentTgId = playerTgId();
+
+  return {
+    allowed: true,
+    role: currentTgId && currentTgId === ownerId ? 'owner' : 'guest',
+    ownerId,
+    ownerName: houseOwnerName(house) || null,
+    houseClass,
+    houseClassLabel: labels[houseClass],
+    source: 'map_object_snapshot',
+  };
+}
+
+async function getSharedHouseInteriorAccess(id, house) {
+  const tgId = playerTgId();
+  const sharedResult = await supabase.rpc('get_shared_house_interior_access', {
+    p_house_id: id,
+    p_tg_id: tgId || null,
+  });
+
+  if (!sharedResult.error && sharedResult.data?.allowed) {
+    return sharedResult.data;
+  }
+
+  const legacyResult = await supabase.rpc('get_house_interior_access', {
+    p_house_id: id,
+    p_tg_id: tgId,
+  });
+
+  if (!legacyResult.error && legacyResult.data?.allowed) {
+    return legacyResult.data;
+  }
+
+  // Старый RPC разрешал вход только владельцу. Карточка дома уже получена из
+  // map_objects, поэтому для купленного чужого дома разрешаем гостевой вход и
+  // используем серверную миграцию как окончательный источник после деплоя SQL.
+  const localAccess = localHouseAccessSnapshot(house);
+  if (localAccess) return localAccess;
+
+  throw sharedResult.error || legacyResult.error || new Error(
+    sharedResult.data?.reason || legacyResult.data?.reason || 'INTERIOR_ACCESS_DENIED'
+  );
 }
 
 function mapObjectId(object) {
@@ -1061,6 +1153,7 @@ function markup() {
           <div class="mn-interior-shade"></div>
           <div class="mn-interior-object-layer" data-interior-object-layer></div>
           <div class="mn-interior-collider-layer" hidden data-interior-collider-layer></div>
+          <div class="mn-interior-players-layer" data-interior-players-layer></div>
           <div class="mn-interior-player" data-interior-player><i></i><span>${String(state.nickname || 'Игрок')}</span></div>
         </div>
       </main>
@@ -1216,6 +1309,7 @@ export function enableInteriorsFeature() {
   const map = overlay.querySelector('[data-interior-map]');
   const interiorImage = overlay.querySelector('[data-interior-image]');
   const marker = overlay.querySelector('[data-interior-player]');
+  const remotePlayersLayer = overlay.querySelector('[data-interior-players-layer]');
   const objectLayer = overlay.querySelector('[data-interior-object-layer]');
   const objectToggle = overlay.querySelector('[data-interior-object-toggle]');
   const objectPanel = overlay.querySelector('[data-interior-object-panel]');
@@ -1297,10 +1391,20 @@ export function enableInteriorsFeature() {
   let collisionProfilesChannel = null;
   let mappedObjectsChannel = null;
   let doorStatesChannel = null;
+  let interiorRoom = null;
+  let cleanupSeatStatesSubscription = null;
+  let interiorPresenceTimer = 0;
+  let interiorSeatHeartbeatTimer = 0;
+  let interiorRemoteStaleTimer = 0;
   let mappedObjectsReloadTimer = 0;
   let nearestDoorId = null;
   let nearestExitId = null;
+  let nearestChairId = null;
   let doorTogglePending = false;
+  let seatActionPending = false;
+  let activeSeatObjectId = null;
+  let seatStatesByObjectId = new Map();
+  const remoteInteriorPlayers = new Map();
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
   const staminaConfig = getStaminaConfig();
@@ -1509,6 +1613,365 @@ export function enableInteriorsFeature() {
   function renderPosition() {
     marker.style.left = `${position.x}%`;
     marker.style.top = `${position.y}%`;
+    marker.classList.toggle('is-seated', Boolean(activeSeatObjectId));
+    marker.dataset.seated = activeSeatObjectId ? 'true' : 'false';
+  }
+
+  function localInteriorIdentity() {
+    return {
+      playerId: getLocalPlayerId(),
+      tgId: playerTgId() || null,
+      nickname: String(state.nickname || state.player?.nickname || 'Игрок').trim() || 'Игрок',
+      sessionId: getSessionId(),
+    };
+  }
+
+  function localInteriorSnapshot() {
+    const identity = localInteriorIdentity();
+    return {
+      ...identity,
+      instanceId: activeInteriorDoorInstanceId,
+      templateId: activeTemplateId,
+      x: position.x,
+      y: position.y,
+      seatedObjectId: activeSeatObjectId,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  function sendLocalInteriorPosition(force = false) {
+    interiorRoom?.sendPosition?.(localInteriorSnapshot(), { force });
+  }
+
+  function removeRemoteInteriorPlayer(playerId) {
+    const safePlayerId = String(playerId || '').trim();
+    const entry = remoteInteriorPlayers.get(safePlayerId);
+    entry?.element?.remove();
+    remoteInteriorPlayers.delete(safePlayerId);
+  }
+
+  function upsertRemoteInteriorPlayer(player = {}) {
+    const safePlayerId = String(player.playerId || '').trim();
+    const identity = localInteriorIdentity();
+
+    if (
+      !active ||
+      !safePlayerId ||
+      String(player.instanceId || '') !== String(activeInteriorDoorInstanceId || '') ||
+      (safePlayerId === String(identity.playerId) &&
+        (!player.sessionId || String(player.sessionId) === String(identity.sessionId)))
+    ) return;
+
+    let entry = remoteInteriorPlayers.get(safePlayerId);
+
+    if (!entry) {
+      const element = document.createElement('div');
+      const dot = document.createElement('i');
+      const name = document.createElement('span');
+      element.className = 'mn-interior-remote-player';
+      element.dataset.playerId = safePlayerId;
+      element.append(dot, name);
+      remotePlayersLayer.appendChild(element);
+      entry = { element, name, updatedAt: 0 };
+      remoteInteriorPlayers.set(safePlayerId, entry);
+    }
+
+    const x = clampPercent(player.x, 50);
+    const y = clampPercent(player.y, 50);
+    const seatedObjectId = String(player.seatedObjectId || '').trim();
+
+    entry.element.style.left = `${x}%`;
+    entry.element.style.top = `${y}%`;
+    entry.element.classList.toggle('is-seated', Boolean(seatedObjectId));
+    entry.element.dataset.seated = seatedObjectId ? 'true' : 'false';
+    entry.element.dataset.seatedObjectId = seatedObjectId;
+    entry.name.textContent = String(player.nickname || 'Игрок').slice(0, 32);
+    entry.updatedAt = Date.now();
+  }
+
+  function clearRemoteInteriorPlayers() {
+    remoteInteriorPlayers.forEach((entry) => entry.element?.remove());
+    remoteInteriorPlayers.clear();
+    remotePlayersLayer.replaceChildren();
+  }
+
+  function seatStateBelongsToLocalPlayer(seatState) {
+    if (!seatState) return false;
+    const identity = localInteriorIdentity();
+    return String(seatState.playerId || '') === String(identity.playerId || '') &&
+      (!seatState.sessionId || String(seatState.sessionId) === String(identity.sessionId));
+  }
+
+  function seatOccupantForObject(objectId) {
+    const safeObjectId = String(objectId || '').trim();
+    const seatState = seatStatesByObjectId.get(safeObjectId);
+    if (!seatState) return null;
+
+    const heartbeatAt = Date.parse(seatState.heartbeatAt || seatState.occupiedAt || '');
+    if (Number.isFinite(heartbeatAt) && heartbeatAt < Date.now() - INTERIOR_SEAT_STALE_MS) {
+      seatStatesByObjectId.delete(safeObjectId);
+      return null;
+    }
+
+    return seatState;
+  }
+
+  function applySeatState(seatState) {
+    if (
+      !seatState?.objectId ||
+      String(seatState.instanceId || '') !== String(activeInteriorDoorInstanceId || '')
+    ) return false;
+
+    seatStatesByObjectId.set(String(seatState.objectId), seatState);
+
+    if (
+      activeSeatObjectId === String(seatState.objectId) &&
+      !seatStateBelongsToLocalPlayer(seatState)
+    ) {
+      activeSeatObjectId = null;
+      position = snapInteriorPosition(activeTemplateId, position);
+      renderPosition();
+      sendLocalInteriorPosition(true);
+    }
+
+    renderInteriorObjects();
+    return true;
+  }
+
+  function removeSeatState(seatState) {
+    const objectId = String(seatState?.objectId || '').trim();
+    if (!objectId) return;
+
+    seatStatesByObjectId.delete(objectId);
+    if (activeSeatObjectId === objectId) {
+      activeSeatObjectId = null;
+      position = snapInteriorPosition(activeTemplateId, position);
+      renderPosition();
+      sendLocalInteriorPosition(true);
+    }
+    renderInteriorObjects();
+  }
+
+  async function refreshSeatStates(instanceId = activeInteriorDoorInstanceId) {
+    const safeInstanceId = String(instanceId || '').trim();
+    if (!safeInstanceId) return [];
+
+    try {
+      const rows = await loadInteriorSeatStates(safeInstanceId);
+      if (
+        destroyed ||
+        !active ||
+        safeInstanceId !== String(activeInteriorDoorInstanceId || '')
+      ) return rows;
+
+      seatStatesByObjectId = new Map(rows.map((row) => [String(row.objectId), row]));
+
+      if (activeSeatObjectId) {
+        const activeSeat = seatStatesByObjectId.get(String(activeSeatObjectId));
+        if (!activeSeat || !seatStateBelongsToLocalPlayer(activeSeat)) {
+          activeSeatObjectId = null;
+          position = snapInteriorPosition(activeTemplateId, position);
+          renderPosition();
+          sendLocalInteriorPosition(true);
+        }
+      }
+
+      renderInteriorObjects();
+      return rows;
+    } catch (error) {
+      console.warn('[interiors] seat states load failed:', error);
+      return [];
+    }
+  }
+
+  function disconnectInteriorSession({ releaseSeatState = true } = {}) {
+    const instanceId = activeInteriorDoorInstanceId;
+    const objectId = activeSeatObjectId;
+    const identity = localInteriorIdentity();
+
+    activeSeatObjectId = null;
+    marker.classList.remove('is-seated');
+    marker.dataset.seated = 'false';
+
+    if (releaseSeatState && instanceId && objectId) {
+      void releaseInteriorSeat({
+        instanceId,
+        objectId,
+        playerId: identity.playerId,
+        sessionId: identity.sessionId,
+      }).catch((error) => {
+        console.warn('[interiors] seat release on exit failed:', error);
+      });
+    }
+
+    interiorRoom?.destroy?.();
+    interiorRoom = null;
+    cleanupSeatStatesSubscription?.();
+    cleanupSeatStatesSubscription = null;
+    window.clearInterval(interiorPresenceTimer);
+    window.clearInterval(interiorSeatHeartbeatTimer);
+    window.clearInterval(interiorRemoteStaleTimer);
+    interiorPresenceTimer = 0;
+    interiorSeatHeartbeatTimer = 0;
+    interiorRemoteStaleTimer = 0;
+    seatStatesByObjectId.clear();
+    clearRemoteInteriorPlayers();
+  }
+
+  function connectInteriorSession() {
+    disconnectInteriorSession({ releaseSeatState: false });
+
+    const instanceId = activeInteriorDoorInstanceId;
+    if (!instanceId) return;
+
+    const identity = localInteriorIdentity();
+
+    cleanupSeatStatesSubscription = subscribeInteriorSeatStates(instanceId, {
+      onChange: applySeatState,
+      onDelete: removeSeatState,
+      onError(error) {
+        console.warn('[interiors] seat realtime subscription failed:', error);
+      },
+    });
+
+    interiorRoom = createInteriorRealtimeRoom({
+      instanceId,
+      templateId: activeTemplateId,
+      ...identity,
+      getLocalState: localInteriorSnapshot,
+      onRemotePlayer: upsertRemoteInteriorPlayer,
+      onRemoteLeave: removeRemoteInteriorPlayer,
+      onStatus(status, error) {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[interiors] room realtime subscription failed:', error || status);
+        }
+      },
+    });
+
+    void refreshSeatStates(instanceId);
+    sendLocalInteriorPosition(true);
+
+    interiorPresenceTimer = window.setInterval(() => {
+      if (!active) return;
+      interiorRoom?.refreshPresence?.(localInteriorSnapshot());
+    }, INTERIOR_PRESENCE_REFRESH_MS);
+
+    interiorSeatHeartbeatTimer = window.setInterval(() => {
+      if (!active || !activeSeatObjectId) return;
+      const currentIdentity = localInteriorIdentity();
+      void heartbeatInteriorSeat({
+        instanceId: activeInteriorDoorInstanceId,
+        objectId: activeSeatObjectId,
+        playerId: currentIdentity.playerId,
+        sessionId: currentIdentity.sessionId,
+      })
+        .then((result) => {
+          if (result?.ok === false || !activeSeatObjectId) return;
+          const seatState = seatStatesByObjectId.get(String(activeSeatObjectId));
+          if (seatState && seatStateBelongsToLocalPlayer(seatState)) {
+            seatStatesByObjectId.set(String(activeSeatObjectId), {
+              ...seatState,
+              heartbeatAt: new Date().toISOString(),
+            });
+          }
+        })
+        .catch((error) => {
+          console.warn('[interiors] seat heartbeat failed:', error);
+          void refreshSeatStates();
+        });
+    }, INTERIOR_SEAT_HEARTBEAT_MS);
+
+    interiorRemoteStaleTimer = window.setInterval(() => {
+      const staleBefore = Date.now() - INTERIOR_REMOTE_PLAYER_STALE_MS;
+      remoteInteriorPlayers.forEach((entry, playerId) => {
+        if (entry.updatedAt < staleBefore) removeRemoteInteriorPlayer(playerId);
+      });
+
+      let removedStaleSeat = false;
+      seatStatesByObjectId.forEach((_seatState, objectId) => {
+        if (!seatOccupantForObject(objectId)) removedStaleSeat = true;
+      });
+      if (removedStaleSeat) renderInteriorObjects();
+    }, 5000);
+  }
+
+  async function releaseActiveSeat() {
+    const objectId = activeSeatObjectId;
+    const instanceId = activeInteriorDoorInstanceId;
+    if (!objectId || !instanceId || seatActionPending) return false;
+
+    const identity = localInteriorIdentity();
+    const chair = normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
+      .find((object) => object.id === objectId && object.type === 'chair');
+
+    seatActionPending = true;
+    activeSeatObjectId = null;
+    seatStatesByObjectId.delete(String(objectId));
+    position = snapInteriorPosition(activeTemplateId, chair || position);
+    renderPosition();
+    renderInteriorObjects();
+    sendLocalInteriorPosition(true);
+
+    try {
+      await releaseInteriorSeat({
+        instanceId,
+        objectId,
+        playerId: identity.playerId,
+        sessionId: identity.sessionId,
+      });
+      return true;
+    } catch (error) {
+      console.warn('[interiors] seat release failed:', error);
+      void refreshSeatStates(instanceId);
+      return false;
+    } finally {
+      seatActionPending = false;
+      refreshDoorInteraction();
+    }
+  }
+
+  async function claimChair(chair) {
+    const instanceId = activeInteriorDoorInstanceId;
+    if (!chair || !instanceId || seatActionPending) return false;
+
+    if (activeSeatObjectId === chair.id) return releaseActiveSeat();
+
+    const occupied = seatOccupantForObject(chair.id);
+    if (occupied && !seatStateBelongsToLocalPlayer(occupied)) return false;
+
+    const identity = localInteriorIdentity();
+    seatActionPending = true;
+    refreshDoorInteraction();
+
+    try {
+      const result = await claimInteriorSeat({
+        instanceId,
+        templateId: activeTemplateId,
+        objectId: chair.id,
+        ...identity,
+      });
+
+      if (!result?.ok || !result?.seat) {
+        if (result?.seat) applySeatState(result.seat);
+        return false;
+      }
+
+      applySeatState(result.seat);
+      activeSeatObjectId = String(chair.id);
+      position = { x: Number(chair.x), y: Number(chair.y) };
+      renderPosition();
+      renderInteriorObjects();
+      sendLocalInteriorPosition(true);
+      interiorRoom?.refreshPresence?.(localInteriorSnapshot());
+      return true;
+    } catch (error) {
+      console.warn('[interiors] seat claim failed:', error);
+      void refreshSeatStates(instanceId);
+      return false;
+    } finally {
+      seatActionPending = false;
+      refreshDoorInteraction();
+    }
   }
 
   function renderStamina() {
@@ -1673,7 +2136,7 @@ export function enableInteriorsFeature() {
     renderInteriorObjects();
     if (colliderEditorOpen || objectEditorOpen) return;
 
-    position = snapInteriorPosition(activeTemplateId, position);
+    if (!activeSeatObjectId) position = snapInteriorPosition(activeTemplateId, position);
     renderPosition();
   }
 
@@ -1752,7 +2215,7 @@ export function enableInteriorsFeature() {
       templateId === activeTemplateId &&
       instanceId === activeInteriorDoorInstanceId
     ) {
-      position = snapInteriorPosition(activeTemplateId, position);
+      if (!activeSeatObjectId) position = snapInteriorPosition(activeTemplateId, position);
       renderPosition();
       renderInteriorObjects();
     }
@@ -2115,6 +2578,21 @@ export function enableInteriorsFeature() {
         element.dataset.open = isOpen ? 'true' : 'false';
         element.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
       }
+      if (object.type === 'chair') {
+        const occupant = seatOccupantForObject(object.id);
+        const occupied = Boolean(occupant);
+        element.dataset.occupied = occupied ? 'true' : 'false';
+        element.setAttribute('aria-pressed', occupied ? 'true' : 'false');
+
+        if (occupied) {
+          const occupantBadge = document.createElement('span');
+          occupantBadge.className = 'mn-interior-chair-occupant';
+          occupantBadge.textContent = seatStateBelongsToLocalPlayer(occupant)
+            ? 'Вы'
+            : String(occupant.nickname || 'Занято').slice(0, 18);
+          element.appendChild(occupantBadge);
+        }
+      }
       element.style.left = `${object.x}%`;
       element.style.top = `${object.y}%`;
       element.style.width = `${size.width}%`;
@@ -2197,32 +2675,82 @@ export function enableInteriorsFeature() {
     return nearest;
   }
 
+  function nearestInteractiveChair() {
+    if (!active || colliderEditorOpen || objectEditorOpen) return null;
+
+    let nearest = null;
+    normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
+      .filter((object) => object.type === 'chair')
+      .forEach((chair) => {
+        const dx = (Number(chair.x) - Number(position.x)) * INTERIOR_DESIGN_ASPECT;
+        const dy = Number(chair.y) - Number(position.y);
+        const distance = Math.hypot(dx, dy);
+        const configuredRadius = Number(chair?.properties?.interactionRadius);
+        const radius = Number.isFinite(configuredRadius)
+          ? Math.max(3, Math.min(12, configuredRadius))
+          : INTERIOR_CHAIR_INTERACTION_RADIUS;
+        const movementAllowance = chair.id === nearestChairId
+          ? INTERIOR_DOOR_RADIUS_HYSTERESIS
+          : 0;
+        if (distance > radius + movementAllowance || (nearest && distance >= nearest.distance)) return;
+        nearest = { chair, distance };
+      });
+
+    return nearest;
+  }
+
   function nearestInteriorInteraction() {
     const doorTarget = nearestInteractiveDoor();
     const exitTarget = nearestInteractiveExit();
+    const chairTarget = nearestInteractiveChair();
 
-    if (!doorTarget && !exitTarget) return null;
-    if (!exitTarget || (doorTarget && doorTarget.distance <= exitTarget.distance)) {
-      return { kind: 'door', object: doorTarget.door, distance: doorTarget.distance };
-    }
-    return { kind: 'exit', object: exitTarget.exitMarker, distance: exitTarget.distance };
+    const candidates = [
+      doorTarget ? { kind: 'door', object: doorTarget.door, distance: doorTarget.distance } : null,
+      exitTarget ? { kind: 'exit', object: exitTarget.exitMarker, distance: exitTarget.distance } : null,
+      chairTarget ? { kind: 'chair', object: chairTarget.chair, distance: chairTarget.distance } : null,
+    ].filter(Boolean);
+
+    if (!candidates.length) return null;
+    return candidates.sort((a, b) => a.distance - b.distance)[0];
   }
 
   function refreshDoorInteraction() {
     const nearest = nearestInteriorInteraction();
     nearestDoorId = nearest?.kind === 'door' ? nearest.object.id : null;
     nearestExitId = nearest?.kind === 'exit' ? nearest.object.id : null;
+    nearestChairId = nearest?.kind === 'chair' ? nearest.object.id : null;
 
     if (!nearest) {
       doorAction.hidden = true;
       doorAction.disabled = false;
       delete doorAction.dataset.kind;
       delete doorAction.dataset.open;
+      delete doorAction.dataset.occupied;
       return null;
     }
 
     doorAction.hidden = false;
     doorAction.dataset.kind = nearest.kind;
+
+    if (nearest.kind === 'chair') {
+      const occupant = seatOccupantForObject(nearest.object.id);
+      const isLocalOccupant = seatStateBelongsToLocalPlayer(occupant);
+      const occupiedByAnother = Boolean(occupant && !isLocalOccupant);
+
+      doorAction.disabled = seatActionPending || occupiedByAnother;
+      doorAction.dataset.open = 'false';
+      doorAction.dataset.occupied = occupiedByAnother ? 'true' : 'false';
+      doorActionLabel.textContent = seatActionPending
+        ? 'Подождите…'
+        : isLocalOccupant || activeSeatObjectId === nearest.object.id
+          ? 'Встать со стула'
+          : occupiedByAnother
+            ? `Занято: ${String(occupant.nickname || 'игрок').slice(0, 18)}`
+            : 'Сесть на стул';
+      return nearest;
+    }
+
+    delete doorAction.dataset.occupied;
 
     if (nearest.kind === 'exit') {
       doorAction.disabled = false;
@@ -2258,7 +2786,7 @@ export function enableInteriorsFeature() {
 
     try {
       await toggleRemoteInteriorDoorState(activeTemplateId, instanceId, door.id);
-      position = snapInteriorPosition(activeTemplateId, position);
+      if (!activeSeatObjectId) position = snapInteriorPosition(activeTemplateId, position);
       renderPosition();
       renderInteriorObjects();
       return true;
@@ -2279,6 +2807,11 @@ export function enableInteriorsFeature() {
 
     if (nearest.kind === 'exit') {
       exit();
+      return true;
+    }
+
+    if (nearest.kind === 'chair') {
+      void claimChair(nearest.object);
       return true;
     }
 
@@ -2592,7 +3125,7 @@ export function enableInteriorsFeature() {
   }
 
   function movementVector() {
-    if (colliderEditorOpen || objectEditorOpen) return { x: 0, y: 0 };
+    if (colliderEditorOpen || objectEditorOpen || activeSeatObjectId) return { x: 0, y: 0 };
 
     let x = joystickVector.x;
     let y = joystickVector.y;
@@ -2631,6 +3164,7 @@ export function enableInteriorsFeature() {
     renderStamina();
     renderPosition();
     refreshDoorInteraction();
+    sendLocalInteriorPosition();
     raf = requestAnimationFrame(frame);
   }
 
@@ -2660,6 +3194,7 @@ export function enableInteriorsFeature() {
   }
 
   function showError(text) {
+    disconnectInteriorSession();
     active = false;
     activeInteriorDoorInstanceId = null;
     activeHouse = null;
@@ -2794,11 +3329,7 @@ export function enableInteriorsFeature() {
     setPaused(true);
 
     try {
-      const { data, error } = await supabase.rpc('get_house_interior_access', {
-        p_house_id: id,
-        p_tg_id: playerTgId(),
-      });
-      if (error) throw error;
+      const data = await getSharedHouseInteriorAccess(id, house);
       if (!data?.allowed) throw new Error(data?.reason || 'INTERIOR_ACCESS_DENIED');
 
       const template = TEMPLATES[normalizeClass(data.houseClass || house?.payload?.houseClass || house?.variant)];
@@ -2847,6 +3378,7 @@ export function enableInteriorsFeature() {
       controls.hidden = false;
       ui.hidden = false;
       active = true;
+      connectInteriorSession();
       refreshDoorInteraction();
       startLoop();
       window.dispatchEvent(new CustomEvent('mn:interior-entered', {
@@ -2860,7 +3392,7 @@ export function enableInteriorsFeature() {
     } catch (error) {
       const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
       console.warn('[interiors] house enter failed:', error);
-      if (code.includes('INTERIOR_NOT_OWNER')) showError('Вход доступен только владельцу дома.');
+      if (code.includes('INTERIOR_HOUSE_UNOWNED')) showError('У этого дома пока нет владельца — гостевой интерьер недоступен.');
       else if (code.includes('INTERIOR_IMAGE_NOT_FOUND')) showError('PNG интерьера не найден. Добавьте нужный файл в корень проекта.');
       else showError('Не удалось открыть интерьер. Попробуйте ещё раз через пару секунд.');
     }
@@ -2925,6 +3457,7 @@ export function enableInteriorsFeature() {
       controls.hidden = false;
       ui.hidden = false;
       active = true;
+      connectInteriorSession();
       refreshDoorInteraction();
       startLoop();
       window.dispatchEvent(new CustomEvent('mn:interior-entered', {
@@ -2954,6 +3487,7 @@ export function enableInteriorsFeature() {
     const exitedObject = exitedKind === 'hospital' ? exitedService : exitedHouse;
     const exitSpawn = exitedObject ? houseExteriorSpawn(exitedObject) : null;
 
+    disconnectInteriorSession();
     if (colliderEditorOpen) closeColliderEditor();
     if (objectEditorOpen) closeObjectEditor();
     active = false;
@@ -2966,7 +3500,9 @@ export function enableInteriorsFeature() {
     activeInteriorDoorInstanceId = null;
     nearestDoorId = null;
     nearestExitId = null;
+    nearestChairId = null;
     doorTogglePending = false;
+    seatActionPending = false;
     doorAction.hidden = true;
     cancelAnimationFrame(raf);
     keys.clear();
