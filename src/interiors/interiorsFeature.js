@@ -550,47 +550,24 @@ async function saveRemoteCollisionProfile(templateId, profile) {
   const normalized = normalizeCollisionProfile(profile, INTERIOR_COLLISION_PROFILES[templateId]);
   const identity = getInteriorColliderAdminIdentity();
 
-  try {
-    const { data, error } = await supabase.rpc('admin_upsert_interior_collision_profile', {
-      p_template_id: templateId,
-      p_profile: normalized,
-      p_admin_player_id: identity.adminPlayerId,
-      p_admin_tg_id: identity.adminTgId,
-      p_admin_nickname: identity.adminNickname,
-    });
-
-    if (error) throw error;
-    if (data?.ok === false) throw new Error(data?.reason || 'admin_upsert_interior_collision_profile_failed');
-
-    const savedProfile = data?.profile || data?.row?.profile || normalized;
-    customCollisionProfiles = {
-      ...customCollisionProfiles,
-      [templateId]: normalizeCollisionProfile(savedProfile, normalized),
-    };
-    writeStoredCollisionProfiles(customCollisionProfiles);
-    return data || { ok: true };
-  } catch (rpcError) {
-    console.warn('[interiors] collider RPC save failed, trying direct table upsert:', rpcError);
-  }
-
-  const row = {
-    template_id: templateId,
-    profile: normalized,
-    updated_by_player_id: identity.adminPlayerId,
-    updated_by_tg_id: identity.adminTgId,
-    updated_by_nickname: identity.adminNickname,
-    updated_at: new Date().toISOString(),
-  };
-  const { data, error } = await supabase
-    .from(INTERIOR_COLLISION_TABLE)
-    .upsert(row, { onConflict: 'template_id' })
-    .select('template_id, profile')
-    .single();
+  const { data, error } = await supabase.rpc('admin_upsert_interior_collision_profile', {
+    p_template_id: templateId,
+    p_profile: normalized,
+    p_admin_player_id: identity.adminPlayerId,
+    p_admin_tg_id: identity.adminTgId,
+    p_admin_nickname: identity.adminNickname,
+  });
 
   if (error) throw error;
+  if (data?.ok === false) throw new Error(data?.reason || 'INTERIOR_COLLISION_SAVE_FAILED');
 
-  applyRemoteCollisionRow(data || row);
-  return { ok: true, row: data || row };
+  const savedProfile = data?.profile || data?.row?.profile || normalized;
+  customCollisionProfiles = {
+    ...customCollisionProfiles,
+    [templateId]: normalizeCollisionProfile(savedProfile, normalized),
+  };
+  writeStoredCollisionProfiles(customCollisionProfiles);
+  return data || { ok: true, profile: savedProfile };
 }
 
 function collisionProfileFor(templateId) {
