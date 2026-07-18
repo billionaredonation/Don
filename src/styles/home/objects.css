@@ -22,24 +22,117 @@
   z-index: 240 !important;
 }
 
-.map-objects-overview-canvas {
+.map-objects-overview-layer {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
   height: 100%;
+  overflow: visible;
   z-index: 235;
   pointer-events: none;
-  contain: strict;
+  contain: layout style;
 }
 
-.home[data-admin-mode="enabled"] .map-objects-overview-canvas,
-.home[data-admin-move-mode="enabled"] .map-objects-overview-canvas {
+.home[data-admin-mode="enabled"] .map-objects-overview-layer,
+.home[data-admin-move-mode="enabled"] .map-objects-overview-layer {
   display: none !important;
 }
 
-/* The public canvas owns the visible icon. Nearby DOM objects remain as
-   accessible/clickable hitboxes only, so canvas + DOM never form a double
+/* Overview icons are lightweight DOM shapes instead of one huge bitmap.
+   The inverse map scale keeps them at a fixed screen size, so zooming the
+   city cannot stretch them into blurry glowing squares. */
+.map-overview-icon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%) scale(var(--map-entity-scale, 1));
+  transform-origin: center center;
+  pointer-events: none;
+  opacity: 0.98;
+  filter: none;
+  box-shadow: none;
+}
+
+.map-overview-icon-house {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.94);
+  outline: 2px solid rgba(3, 8, 12, 0.94);
+  border-radius: 2px;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(3, 8, 12, 0.82) 0 4px,
+      var(--map-overview-color, #35e985) 4px 100%
+    );
+}
+
+.map-overview-icon-house::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 7px;
+  width: 3px;
+  height: 3px;
+  border-radius: 1px;
+  background: rgba(239, 249, 255, 0.96);
+  box-shadow: 8px 0 0 rgba(239, 249, 255, 0.96);
+}
+
+.map-overview-icon-house::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 4px;
+  height: 6px;
+  transform: translateX(-50%);
+  border-radius: 1px 1px 0 0;
+  background: rgba(3, 8, 12, 0.82);
+}
+
+.map-overview-icon-service {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(3, 8, 12, 0.94);
+  border-radius: 3px;
+  background: rgba(248, 250, 252, 0.98);
+}
+
+.map-overview-icon-service::before,
+.map-overview-icon-service::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: #ef3347;
+}
+
+.map-overview-icon-service::before {
+  width: 3px;
+  height: 10px;
+}
+
+.map-overview-icon-service::after {
+  width: 10px;
+  height: 3px;
+}
+
+.map-overview-icon-marker {
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%) rotate(45deg) scale(var(--map-entity-scale, 1));
+  border: 1px solid rgba(3, 8, 12, 0.92);
+  background: rgba(235, 242, 250, 0.94);
+}
+
+/* The public overview layer owns the visible icon. Nearby DOM objects remain as
+   accessible/clickable hitboxes only, so overview + DOM never form a double
    triangle/square marker. Admin objects keep their full editor visuals. */
 .map-objects-layer-public .map-object.map-object-house .map-house-svg,
 .map-objects-layer-public .map-object.map-object-house .map-house-lite,
