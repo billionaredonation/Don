@@ -2998,6 +2998,7 @@ export function enableInteriorsFeature() {
     if (pressedKey === 'e' || pressedKey === 'у') {
       event.preventDefault();
       event.stopPropagation();
+      event.stopImmediatePropagation?.();
       if (event.repeat) return;
       if (nearestInteractiveDoor()) void toggleNearestInteriorDoor();
       else exit();
