@@ -1286,6 +1286,13 @@ function markup() {
           </div>
         </div>
       </div>
+      <div
+        class="mn-interior-action-toast"
+        data-interior-action-toast
+        data-visible="false"
+        role="status"
+        aria-live="polite"
+      ></div>
       <div class="mn-interior-health-edge" data-interior-health-edge aria-hidden="true"></div>
       <div class="mn-interior-error" hidden data-interior-error>
         <strong>Интерьер пока не загружен</strong>
@@ -1353,6 +1360,7 @@ export function enableInteriorsFeature() {
   const staminaBox = overlay.querySelector('[data-interior-stamina]');
   const staminaFill = overlay.querySelector('[data-interior-stamina-fill]');
   const staminaRing = overlay.querySelector('[data-interior-stamina-ring]');
+  const actionToast = overlay.querySelector('[data-interior-action-toast]');
 
   let active = false;
   let destroyed = false;
@@ -1414,6 +1422,7 @@ export function enableInteriorsFeature() {
   let loadingRevealTimer = 0;
   let interiorHudRefreshTimer = 0;
   let interiorHealthHitTimer = 0;
+  let interiorActionToastTimer = 0;
   const vitalFeedbackTimers = new Map();
   const keys = new Set();
   const templateImageCache = new Map();
@@ -1615,6 +1624,21 @@ export function enableInteriorsFeature() {
     marker.style.top = `${position.y}%`;
     marker.classList.toggle('is-seated', Boolean(activeSeatObjectId));
     marker.dataset.seated = activeSeatObjectId ? 'true' : 'false';
+  }
+
+  function showInteriorActionToast(message, durationMs = 500) {
+    if (!actionToast) return;
+
+    window.clearTimeout(interiorActionToastTimer);
+    actionToast.textContent = String(message || '').trim();
+    actionToast.dataset.visible = actionToast.textContent ? 'true' : 'false';
+
+    if (!actionToast.textContent) return;
+
+    interiorActionToastTimer = window.setTimeout(() => {
+      actionToast.dataset.visible = 'false';
+      interiorActionToastTimer = 0;
+    }, Math.max(250, Number(durationMs) || 500));
   }
 
   function localInteriorIdentity() {
@@ -1981,9 +2005,12 @@ export function enableInteriorsFeature() {
     window.clearInterval(interiorPresenceTimer);
     window.clearInterval(interiorSeatHeartbeatTimer);
     window.clearInterval(interiorRemoteStaleTimer);
+    window.clearTimeout(interiorActionToastTimer);
     interiorPresenceTimer = 0;
     interiorSeatHeartbeatTimer = 0;
     interiorRemoteStaleTimer = 0;
+    interiorActionToastTimer = 0;
+    if (actionToast) actionToast.dataset.visible = 'false';
     seatStatesByObjectId.clear();
     clearRemoteInteriorPlayers();
   }
@@ -2085,6 +2112,7 @@ export function enableInteriorsFeature() {
     position = snapInteriorPosition(activeTemplateId, chair || position);
     renderPosition();
     renderInteriorObjects();
+    showInteriorActionToast('Вы встали', 500);
     sendLocalInteriorPosition(true);
     interiorRoom?.refreshPresence?.(localInteriorSnapshot());
 
@@ -2777,14 +2805,6 @@ export function enableInteriorsFeature() {
         element.dataset.occupied = occupied ? 'true' : 'false';
         element.setAttribute('aria-pressed', occupied ? 'true' : 'false');
 
-        if (occupied) {
-          const occupantBadge = document.createElement('span');
-          occupantBadge.className = 'mn-interior-chair-occupant';
-          occupantBadge.textContent = seatStateBelongsToLocalPlayer(occupant)
-            ? 'Вы'
-            : String(occupant.nickname || 'Занято').slice(0, 18);
-          element.appendChild(occupantBadge);
-        }
       }
       element.style.left = `${object.x}%`;
       element.style.top = `${object.y}%`;
