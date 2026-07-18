@@ -7005,11 +7005,14 @@ body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player
    Only the city money card and its attached vitals move. The city/profile
    cards and every mobile layout keep their existing positions.
    ========================================================= */
-.home > .player-balance-card.has-player-vitals {
+html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"])
+  > .player-balance-card.has-player-vitals,
+body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"])
+  > .player-balance-card.has-player-vitals {
   position: fixed !important;
   left: auto !important;
-  right: max(156px, calc(env(safe-area-inset-right) + 156px)) !important;
-  top: max(30px, calc(env(safe-area-inset-top) + 30px)) !important;
+  right: max(104px, calc(env(safe-area-inset-right) + 104px)) !important;
+  top: max(20px, calc(env(safe-area-inset-top) + 20px)) !important;
   bottom: auto !important;
   margin: 0 !important;
   transform: none !important;
@@ -7023,7 +7026,10 @@ body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player
   z-index: 2147481700 !important;
 }
 
-.home > .player-balance-card.has-player-vitals > .player-vitals-row {
+html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"])
+  > .player-balance-card.has-player-vitals > .player-vitals-row,
+body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"])
+  > .player-balance-card.has-player-vitals > .player-vitals-row {
   position: absolute !important;
   left: auto !important;
   right: 0 !important;
