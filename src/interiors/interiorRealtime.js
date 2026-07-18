@@ -353,9 +353,22 @@ export function createInteriorRealtimeRoom({
         return;
       }
 
+      // Сесть/встать/телепорт — авторитетный переход. Старый отложенный move
+      // нельзя отправлять после него, иначе он через несколько миллисекунд
+      // вернёт удалённого игрока в позицию до взаимодействия.
+      if (force) {
+        queuedPlayer = null;
+        if (sendTimer) {
+          window.clearTimeout(sendTimer);
+          sendTimer = 0;
+        }
+        sendNow(player, true);
+        return;
+      }
+
       const elapsed = Date.now() - lastSendAt;
-      if (force || elapsed >= MOVE_SEND_INTERVAL_MS) {
-        sendNow(player, force);
+      if (elapsed >= MOVE_SEND_INTERVAL_MS) {
+        sendNow(player);
         return;
       }
 
