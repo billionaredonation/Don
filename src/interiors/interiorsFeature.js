@@ -1664,12 +1664,16 @@ export function enableInteriorsFeature() {
 
     let entry = remoteInteriorPlayers.get(safePlayerId);
 
-    if (
+    const incomingPacketSequence = Number(player.packetSequence || 0);
+    const sameRemoteConnection = Boolean(
       entry &&
       player.connectionId &&
-      entry.connectionId === player.connectionId &&
-      Number(player.packetSequence || 0) > 0 &&
-      Number(player.packetSequence) <= Number(entry.packetSequence || 0)
+      entry.connectionId === player.connectionId
+    );
+    if (
+      sameRemoteConnection &&
+      Number(entry.packetSequence || 0) > 0 &&
+      incomingPacketSequence <= Number(entry.packetSequence || 0)
     ) return;
 
     if (!entry) {
@@ -1685,6 +1689,7 @@ export function enableInteriorsFeature() {
         name,
         updatedAt: 0,
         connectionId: '',
+        sessionId: '',
         packetSequence: 0,
         lastNetworkPosition: null,
       };
@@ -1694,12 +1699,51 @@ export function enableInteriorsFeature() {
     const networkX = clampPercent(player.x, 50);
     const networkY = clampPercent(player.y, 50);
     const networkSeatObjectId = String(player.seatedObjectId || '').trim();
-    const authoritativeSeat = Array.from(seatStatesByObjectId.values()).find((seatState) => (
-      String(seatState?.playerId || '') === safePlayerId &&
-      (!player.sessionId || !seatState?.sessionId ||
-        String(seatState.sessionId) === String(player.sessionId))
-    ));
-    const seatedObjectId = String(authoritativeSeat?.objectId || networkSeatObjectId).trim();
+
+    // Последний пакет самого игрока авторитетен для его позы. Таблица стульев
+    // остаётся арбитром занятости, но её локальный кэш не должен удерживать
+    // игрока сидящим, если DELETE из Postgres Realtime задержался/потерялся.
+    let seatCacheChanged = false;
+    seatStatesByObjectId.forEach((seatState, objectId) => {
+      const belongsToRemotePlayer =
+        String(seatState?.playerId || '') === safePlayerId &&
+        (!player.sessionId || !seatState?.sessionId ||
+          String(seatState.sessionId) === String(player.sessionId));
+
+      if (belongsToRemotePlayer && String(objectId) !== networkSeatObjectId) {
+        seatStatesByObjectId.delete(String(objectId));
+        seatCacheChanged = true;
+      }
+    });
+
+    // Broadcast отправляется только после успешного RPC claim. Поэтому можно
+    // сразу отрисовать занятость, не ожидая отдельного postgres_changes.
+    if (networkSeatObjectId) {
+      const cachedNetworkSeat = seatStatesByObjectId.get(networkSeatObjectId);
+      if (
+        !cachedNetworkSeat ||
+        (
+          String(cachedNetworkSeat.playerId || '') === safePlayerId &&
+          (!player.sessionId || !cachedNetworkSeat.sessionId ||
+            String(cachedNetworkSeat.sessionId) === String(player.sessionId))
+        )
+      ) {
+        if (!cachedNetworkSeat) seatCacheChanged = true;
+        seatStatesByObjectId.set(networkSeatObjectId, {
+          ...cachedNetworkSeat,
+          instanceId: String(player.instanceId || activeInteriorDoorInstanceId || ''),
+          objectId: networkSeatObjectId,
+          templateId: String(player.templateId || activeTemplateId || ''),
+          playerId: safePlayerId,
+          nickname: String(player.nickname || 'Игрок').slice(0, 32),
+          sessionId: String(player.sessionId || ''),
+          occupiedAt: cachedNetworkSeat?.occupiedAt || player.updatedAt || new Date().toISOString(),
+          heartbeatAt: cachedNetworkSeat?.heartbeatAt || player.updatedAt || new Date().toISOString(),
+        });
+      }
+    }
+
+    const seatedObjectId = networkSeatObjectId;
     const seatedChair = seatedObjectId
       ? normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
         .find((object) => object.type === 'chair' && object.id === seatedObjectId)
@@ -1713,7 +1757,11 @@ export function enableInteriorsFeature() {
     entry.element.dataset.seated = seatedObjectId ? 'true' : 'false';
     entry.element.dataset.seatedObjectId = seatedObjectId;
     entry.name.textContent = String(player.nickname || 'Игрок').slice(0, 32);
-    if (player.connectionId) entry.connectionId = player.connectionId;
+    if (player.connectionId && entry.connectionId !== player.connectionId) {
+      entry.connectionId = player.connectionId;
+      entry.packetSequence = 0;
+    }
+    if (player.sessionId) entry.sessionId = String(player.sessionId);
     if (Number(player.packetSequence || 0) > 0) {
       entry.packetSequence = Number(player.packetSequence);
     }
@@ -1723,6 +1771,8 @@ export function enableInteriorsFeature() {
       seatedObjectId: networkSeatObjectId || null,
     };
     entry.updatedAt = Date.now();
+
+    if (seatCacheChanged) renderInteriorObjects();
   }
 
   function clearRemoteInteriorPlayers() {
@@ -1758,13 +1808,52 @@ export function enableInteriorsFeature() {
       String(seatState.instanceId || '') !== String(activeInteriorDoorInstanceId || '')
     ) return false;
 
+    const remoteEntry = remoteInteriorPlayers.get(String(seatState.playerId || ''));
+    const remoteNetworkSeatObjectId = String(
+      remoteEntry?.lastNetworkPosition?.seatedObjectId || ''
+    );
+    const seatMatchesRemoteSession = remoteEntry && (
+      !seatState.sessionId ||
+      !remoteEntry.sessionId ||
+      String(seatState.sessionId) === String(remoteEntry.sessionId)
+    );
+
+    // Поздний heartbeat/INSERT от уже освобождённого стула не должен воскресить
+    // старую посадку после свежего сетевого состояния «стоит»/«сидит в другом месте».
+    if (
+      remoteEntry?.lastNetworkPosition &&
+      seatMatchesRemoteSession &&
+      remoteNetworkSeatObjectId !== String(seatState.objectId)
+    ) {
+      seatStatesByObjectId.delete(String(seatState.objectId));
+      renderInteriorObjects();
+      return false;
+    }
+
+    if (
+      seatStateBelongsToLocalPlayer(seatState) &&
+      activeSeatObjectId !== String(seatState.objectId)
+    ) {
+      seatStatesByObjectId.delete(String(seatState.objectId));
+      renderInteriorObjects();
+      return false;
+    }
+
     seatStatesByObjectId.set(String(seatState.objectId), seatState);
 
-    const remoteEntry = remoteInteriorPlayers.get(String(seatState.playerId || ''));
     const chair = normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
       .find((object) => object.type === 'chair' && object.id === String(seatState.objectId));
 
-    if (remoteEntry && chair) {
+    // Запись БД может первой сообщить о посадке, но не имеет права перетереть
+    // уже полученный от этого игрока переход в состояние «стоит».
+    if (
+      remoteEntry &&
+      chair &&
+      (
+        !remoteEntry.lastNetworkPosition ||
+        remoteNetworkSeatObjectId === String(seatState.objectId)
+      )
+    ) {
       remoteEntry.element.style.left = `${Number(chair.x)}%`;
       remoteEntry.element.style.top = `${Number(chair.y)}%`;
       remoteEntry.element.classList.add('is-seated');
@@ -1978,6 +2067,7 @@ export function enableInteriorsFeature() {
     renderPosition();
     renderInteriorObjects();
     sendLocalInteriorPosition(true);
+    interiorRoom?.refreshPresence?.(localInteriorSnapshot());
 
     try {
       await releaseInteriorSeat({
