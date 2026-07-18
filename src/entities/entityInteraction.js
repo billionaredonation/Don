@@ -459,7 +459,15 @@ function renderMapObjectsOverview(canvas, viewport, objects) {
 
   const width = Math.max(1, Number(viewport.clientWidth || viewport.offsetWidth || 1));
   const height = Math.max(1, Number(viewport.clientHeight || viewport.offsetHeight || 1));
-  const bitmapScale = Math.min(1, 1280 / width, 960 / height);
+  const mobile = isMobileGameplayDevice();
+  const maxBitmapDimension = mobile ? 4096 : 8192;
+  const maxBitmapPixels = mobile ? 4_000_000 : 24_000_000;
+  const bitmapScale = Math.min(
+    1,
+    maxBitmapDimension / width,
+    maxBitmapDimension / height,
+    Math.sqrt(maxBitmapPixels / Math.max(1, width * height))
+  );
   const bitmapWidth = Math.max(1, Math.round(width * bitmapScale));
   const bitmapHeight = Math.max(1, Math.round(height * bitmapScale));
 
@@ -482,8 +490,8 @@ function renderMapObjectsOverview(canvas, viewport, objects) {
     const yPercent = Number(object?.y);
     if (!Number.isFinite(xPercent) || !Number.isFinite(yPercent)) return;
 
-    const x = (xPercent / 100) * width;
-    const y = (yPercent / 100) * height;
+    const x = Math.round((xPercent / 100) * width);
+    const y = Math.round((yPercent / 100) * height);
     const kind = getOverviewObjectKind(object);
 
     context.save();
