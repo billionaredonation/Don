@@ -2,7 +2,9 @@ import { supabase } from '../supabaseClient.js';
 
 export const INTERIOR_SEAT_STATE_TABLE = 'interior_seat_states';
 
-const MOVE_SEND_INTERVAL_MS = 70;
+// Около 22 пакетов/с: движение заметно живее, но без бессмысленных 60
+// broadcast-сообщений в секунду от каждого игрока.
+const MOVE_SEND_INTERVAL_MS = 45;
 
 function safeText(value, maxLength = 180) {
   return String(value ?? '').trim().slice(0, maxLength);
@@ -41,6 +43,8 @@ function normalizeRemotePlayer(player = {}) {
     x: finitePercent(player.x),
     y: finitePercent(player.y),
     seatedObjectId: safeText(player.seatedObjectId || player.seated_object_id, 160) || null,
+    packetSequence: Number(player.packetSequence || player.packet_sequence || 0) || 0,
+    connectionId: safeText(player.connectionId || player.connection_id, 96),
     updatedAt: player.updatedAt || player.updated_at || new Date().toISOString(),
   };
 }
@@ -215,7 +219,10 @@ export function createInteriorRealtimeRoom({
   let queuedPlayer = null;
   let lastSendAt = 0;
   let lastSignature = '';
+  let packetSequence = 0;
   let presencePlayerIds = new Set();
+  const connectionId = globalThis.crypto?.randomUUID?.() ||
+    `interior-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
   const channel = supabase.channel(`mn-interior-room-${topicHash(safeInstanceId)}`, {
     config: {
@@ -234,6 +241,8 @@ export function createInteriorRealtimeRoom({
       playerId: safePlayerId,
       sessionId: safeSessionId,
       nickname: nickname || state.nickname || 'Игрок',
+      connectionId,
+      packetSequence,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -263,10 +272,17 @@ export function createInteriorRealtimeRoom({
     lastSignature = signature;
     lastSendAt = Date.now();
 
+    const outgoingPlayer = {
+      ...player,
+      connectionId,
+      packetSequence: ++packetSequence,
+      updatedAt: new Date().toISOString(),
+    };
+
     const result = channel.send({
       type: 'broadcast',
       event: 'player_move',
-      payload: player,
+      payload: outgoingPlayer,
     });
 
     result?.catch?.((error) => {
