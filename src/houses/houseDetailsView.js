@@ -610,7 +610,7 @@ export function createHouseDetailsController(root, {
       if (owned) {
         textEl.textContent = ownerIsCurrentPlayer
           ? 'Это твой дом. Можно войти в интерьер, продать его государству или передать другому игроку.'
-          : 'Кратко: дом уже куплен другим игроком. Войти в дом пока недоступно — функционал интерьера будет добавлен позже.';
+          : 'Дом принадлежит другому игроку. Можно зайти в гости: игроки, двери и занятые места внутри синхронизируются в реальном времени.';
       } else if (locked) {
         textEl.textContent = 'Этот дом сейчас закрыт. Покупка недоступна.';
       } else {
@@ -625,8 +625,9 @@ export function createHouseDetailsController(root, {
 
     if (enterButton) {
       enterButton.hidden = !owned;
-      enterButton.disabled = !ownerIsCurrentPlayer;
-      enterButton.title = ownerIsCurrentPlayer ? 'Войти в интерьер' : 'Дом принадлежит другому игроку';
+      enterButton.disabled = !owned;
+      enterButton.textContent = ownerIsCurrentPlayer ? 'Войти в дом' : 'Зайти в гости';
+      enterButton.title = ownerIsCurrentPlayer ? 'Войти в свой интерьер' : 'Зайти в гости к владельцу';
     }
 
     if (sellPlayerButton) {
@@ -719,8 +720,8 @@ export function createHouseDetailsController(root, {
     event.stopPropagation();
 
     if (!activeHouse || !onEnterHouse) return;
-    if (!isCurrentPlayerHouseOwner(activeHouse)) {
-      setMessage('Вход доступен только владельцу дома.', 'error');
+    if (!isHouseOwned(activeHouse)) {
+      setMessage('Сначала у дома должен появиться владелец.', 'error');
       return;
     }
 
