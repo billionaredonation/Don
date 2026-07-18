@@ -12,6 +12,7 @@ const INTERIOR_COLLISION_TABLE = 'interior_collision_profiles';
 const INTERIOR_MAPPED_OBJECT_TABLE = 'interior_mapped_objects';
 const INTERIOR_COLLISION_FALLBACK_RADIUS = 0;
 const INTERIOR_COLLISION_STORAGE_KEY = 'mn-interior-colliders-v1';
+const INTERIOR_COLLIDER_PANEL_POSITION_KEY = 'mn-interior-collider-panel-position-v1';
 const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
 const INTERIOR_DESIGN_ASPECT = 16 / 9;
 const INTERIOR_MAPPED_OBJECT_LIMIT = 300;
@@ -841,13 +842,14 @@ function markup() {
         <button type="button" class="mn-interior-collider-toggle" hidden data-interior-collider-toggle>Стены</button>
         <button type="button" class="mn-interior-object-toggle" hidden data-interior-object-toggle>Объекты</button>
         <section class="mn-interior-collider-panel" hidden data-interior-collider-panel>
-          <div class="mn-interior-collider-head">
+          <div class="mn-interior-collider-head" data-interior-collider-drag title="Перетащить окно">
+            <span class="mn-interior-collider-drag-icon" aria-hidden="true">⠿</span>
             <b>Стены интерьера</b>
             <button type="button" data-interior-collider-close>×</button>
           </div>
           <div class="mn-interior-collider-hint">
             Тяни по интерьеру, чтобы нарисовать красную стенку. Игроки не смогут проходить через красное.
-            Клик по стенке выбирает её, Delete удаляет.
+            Клик по стенке выбирает её, Delete удаляет. Само окно можно двигать за заголовок.
           </div>
           <div class="mn-interior-collider-actions">
             <button type="button" class="mn-interior-collider-primary" data-interior-collider-save>Сохранить всем</button>
@@ -981,6 +983,7 @@ export function enableInteriorsFeature() {
   const colliderLayer = overlay.querySelector('[data-interior-collider-layer]');
   const colliderToggle = overlay.querySelector('[data-interior-collider-toggle]');
   const colliderPanel = overlay.querySelector('[data-interior-collider-panel]');
+  const colliderPanelDragHandle = overlay.querySelector('[data-interior-collider-drag]');
   const colliderClose = overlay.querySelector('[data-interior-collider-close]');
   const colliderModeButtons = [...overlay.querySelectorAll('[data-interior-collider-mode]')];
   const colliderSave = overlay.querySelector('[data-interior-collider-save]');
@@ -1031,6 +1034,8 @@ export function enableInteriorsFeature() {
   let colliderEditorDraft = null;
   let colliderSaveTimer = 0;
   let colliderSaveSequence = 0;
+  let colliderPanelDrag = null;
+  let colliderPanelLayoutRaf = 0;
   let objectEditorOpen = false;
   let objectEditorTemplateId = 'hospital';
   let objectEditorType = 'bed';
@@ -1069,6 +1074,155 @@ export function enableInteriorsFeature() {
     window.__MN_INTERIOR_ACTIVE__ = value;
     document.body.classList.toggle('mn-interior-open', value);
     document.documentElement.classList.toggle('mn-interior-open', value);
+  }
+
+  function colliderPanelMode() {
+    const coarsePointer = window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches;
+    const portrait = window.matchMedia?.('(orientation: portrait)')?.matches;
+    const forcedLandscape = document.documentElement.classList.contains('mn-force-rotate-landscape');
+
+    if (!coarsePointer) return 'desktop';
+    return portrait && forcedLandscape ? 'mobile-forced-landscape' : 'mobile-landscape';
+  }
+
+  function colliderPanelMetrics() {
+    const rootRect = ui.getBoundingClientRect();
+    const panelRect = colliderPanel.getBoundingClientRect();
+    const margin = Math.min(8, Math.max(0, rootRect.width / 2), Math.max(0, rootRect.height / 2));
+    const minLeft = margin;
+    const minTop = margin;
+    const maxLeft = Math.max(minLeft, rootRect.width - panelRect.width - margin);
+    const maxTop = Math.max(minTop, rootRect.height - panelRect.height - margin);
+
+    return { rootRect, panelRect, minLeft, minTop, maxLeft, maxTop };
+  }
+
+  function setColliderPanelPosition(left, top, metrics = colliderPanelMetrics()) {
+    const safeLeft = Math.max(metrics.minLeft, Math.min(metrics.maxLeft, Number(left) || 0));
+    const safeTop = Math.max(metrics.minTop, Math.min(metrics.maxTop, Number(top) || 0));
+
+    colliderPanel.style.left = `${Math.round(safeLeft)}px`;
+    colliderPanel.style.top = `${Math.round(safeTop)}px`;
+    colliderPanel.style.right = 'auto';
+    colliderPanel.style.bottom = 'auto';
+    return { left: safeLeft, top: safeTop };
+  }
+
+  function readColliderPanelPositions() {
+    const stored = readJsonLocalStorage(INTERIOR_COLLIDER_PANEL_POSITION_KEY, {});
+    return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  }
+
+  function saveColliderPanelPosition() {
+    if (colliderPanel.hidden) return;
+
+    const metrics = colliderPanelMetrics();
+    const panelRect = colliderPanel.getBoundingClientRect();
+    const current = setColliderPanelPosition(
+      panelRect.left - metrics.rootRect.left,
+      panelRect.top - metrics.rootRect.top,
+      metrics
+    );
+    const horizontalRange = metrics.maxLeft - metrics.minLeft;
+    const verticalRange = metrics.maxTop - metrics.minTop;
+    const mode = colliderPanelMode();
+    const positions = readColliderPanelPositions();
+    positions[mode] = {
+      x: horizontalRange > 0 ? (current.left - metrics.minLeft) / horizontalRange : 0,
+      y: verticalRange > 0 ? (current.top - metrics.minTop) / verticalRange : 0,
+    };
+
+    try {
+      window.localStorage?.setItem(INTERIOR_COLLIDER_PANEL_POSITION_KEY, JSON.stringify(positions));
+    } catch (error) {
+      console.warn('[interiors] collider panel position save failed:', error);
+    }
+  }
+
+  function restoreColliderPanelPosition() {
+    if (colliderPanel.hidden) return;
+
+    const mode = colliderPanelMode();
+    const saved = readColliderPanelPositions()[mode];
+    colliderPanel.style.removeProperty('left');
+    colliderPanel.style.removeProperty('right');
+    colliderPanel.style.removeProperty('top');
+    colliderPanel.style.removeProperty('bottom');
+
+    const metrics = colliderPanelMetrics();
+    if (Number.isFinite(Number(saved?.x)) && Number.isFinite(Number(saved?.y))) {
+      const horizontalRange = metrics.maxLeft - metrics.minLeft;
+      const verticalRange = metrics.maxTop - metrics.minTop;
+      setColliderPanelPosition(
+        metrics.minLeft + horizontalRange * Math.max(0, Math.min(1, Number(saved.x))),
+        metrics.minTop + verticalRange * Math.max(0, Math.min(1, Number(saved.y))),
+        metrics
+      );
+    } else {
+      const panelRect = colliderPanel.getBoundingClientRect();
+      setColliderPanelPosition(
+        panelRect.left - metrics.rootRect.left,
+        panelRect.top - metrics.rootRect.top,
+        metrics
+      );
+    }
+  }
+
+  function scheduleColliderPanelLayout() {
+    window.cancelAnimationFrame(colliderPanelLayoutRaf);
+    colliderPanelLayoutRaf = window.requestAnimationFrame(() => {
+      colliderPanelLayoutRaf = 0;
+      if (!colliderEditorOpen || colliderPanelDrag) return;
+      restoreColliderPanelPosition();
+    });
+  }
+
+  function handleColliderPanelPointerDown(event) {
+    if (!colliderEditorOpen || event.button !== 0 || event.target.closest?.('button, input, textarea, summary')) return;
+
+    const metrics = colliderPanelMetrics();
+    const panelRect = colliderPanel.getBoundingClientRect();
+    const current = setColliderPanelPosition(
+      panelRect.left - metrics.rootRect.left,
+      panelRect.top - metrics.rootRect.top,
+      metrics
+    );
+    colliderPanelDrag = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startLeft: current.left,
+      startTop: current.top,
+    };
+    colliderPanel.dataset.dragging = 'true';
+    colliderPanelDragHandle.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  function handleColliderPanelPointerMove(event) {
+    if (!colliderPanelDrag || event.pointerId !== colliderPanelDrag.pointerId) return;
+
+    setColliderPanelPosition(
+      colliderPanelDrag.startLeft + event.clientX - colliderPanelDrag.startClientX,
+      colliderPanelDrag.startTop + event.clientY - colliderPanelDrag.startClientY
+    );
+    event.preventDefault();
+  }
+
+  function handleColliderPanelPointerEnd(event) {
+    if (!colliderPanelDrag || event.pointerId !== colliderPanelDrag.pointerId) return;
+
+    try {
+      if (colliderPanelDragHandle.hasPointerCapture?.(event.pointerId)) {
+        colliderPanelDragHandle.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+    colliderPanelDrag = null;
+    colliderPanel.dataset.dragging = 'false';
+    saveColliderPanelPosition();
+    event.preventDefault();
   }
 
   function layoutInteriorWorld() {
@@ -1510,6 +1664,7 @@ export function enableInteriorsFeature() {
     stick.style.transform = 'translate3d(0,0,0)';
     colliderLayer.hidden = false;
     colliderPanel.hidden = false;
+    scheduleColliderPanelLayout();
     overlay.dataset.colliderEditor = 'enabled';
     document.body.classList.add('mn-interior-collider-editor-open');
     document.documentElement.classList.add('mn-interior-collider-editor-open');
@@ -1518,6 +1673,15 @@ export function enableInteriorsFeature() {
   }
 
   function closeColliderEditor() {
+    try {
+      if (colliderPanelDrag && colliderPanelDragHandle.hasPointerCapture?.(colliderPanelDrag.pointerId)) {
+        colliderPanelDragHandle.releasePointerCapture(colliderPanelDrag.pointerId);
+      }
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+    colliderPanelDrag = null;
+    colliderPanel.dataset.dragging = 'false';
     colliderEditorOpen = false;
     colliderEditorPointer = null;
     colliderEditorStart = null;
@@ -2485,6 +2649,10 @@ export function enableInteriorsFeature() {
   objectLayer.addEventListener('pointerup', handleObjectPointerEnd);
   objectLayer.addEventListener('pointercancel', handleObjectPointerEnd);
   colliderClose.addEventListener('click', closeColliderEditor);
+  colliderPanelDragHandle.addEventListener('pointerdown', handleColliderPanelPointerDown);
+  colliderPanelDragHandle.addEventListener('pointermove', handleColliderPanelPointerMove);
+  colliderPanelDragHandle.addEventListener('pointerup', handleColliderPanelPointerEnd);
+  colliderPanelDragHandle.addEventListener('pointercancel', handleColliderPanelPointerEnd);
   colliderModeButtons.forEach((button) => {
     button.addEventListener('click', () => setColliderEditorMode(button.dataset.interiorColliderMode));
   });
@@ -2528,7 +2696,9 @@ export function enableInteriorsFeature() {
   window.addEventListener('keydown', keyDown, true);
   window.addEventListener('keyup', keyUp, true);
   window.addEventListener('resize', scheduleInteriorWorldLayout);
+  window.addEventListener('resize', scheduleColliderPanelLayout);
   window.addEventListener('orientationchange', scheduleInteriorWorldLayout);
+  window.addEventListener('orientationchange', scheduleColliderPanelLayout);
   const interiorWorldResizeObserver = typeof ResizeObserver === 'function'
     ? new ResizeObserver(scheduleInteriorWorldLayout)
     : null;
@@ -2555,6 +2725,7 @@ export function enableInteriorsFeature() {
       window.clearInterval(interiorHudRefreshTimer);
       window.clearTimeout(interiorHealthHitTimer);
       window.cancelAnimationFrame(worldLayoutRaf);
+      window.cancelAnimationFrame(colliderPanelLayoutRaf);
       vitalFeedbackTimers.forEach((timer) => window.clearTimeout(timer));
       vitalFeedbackTimers.clear();
       exit();
@@ -2565,7 +2736,9 @@ export function enableInteriorsFeature() {
       window.removeEventListener('keydown', keyDown, true);
       window.removeEventListener('keyup', keyUp, true);
       window.removeEventListener('resize', scheduleInteriorWorldLayout);
+      window.removeEventListener('resize', scheduleColliderPanelLayout);
       window.removeEventListener('orientationchange', scheduleInteriorWorldLayout);
+      window.removeEventListener('orientationchange', scheduleColliderPanelLayout);
       interiorWorldResizeObserver?.disconnect();
       if (collisionProfilesChannel) {
         supabase.removeChannel(collisionProfilesChannel);
