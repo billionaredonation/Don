@@ -419,8 +419,21 @@ let customCollisionProfiles = readStoredCollisionProfiles();
 let remoteCollisionProfilesPromise = null;
 let mappedInteriorObjectsByTemplate = {};
 let remoteMappedInteriorObjectsPromise = null;
-let interiorDoorStatesByObjectId = {};
-let remoteInteriorDoorStatesPromise = null;
+let interiorDoorStatesByInstanceAndObject = {};
+const remoteInteriorDoorStatePromisesByInstance = new Map();
+let activeInteriorDoorInstanceId = null;
+
+function createInteriorDoorInstanceId(kind, id) {
+  const safeKind = kind === 'hospital' ? 'hospital' : 'house';
+  const safeId = String(id || '').trim();
+  return safeId ? `${safeKind}:${safeId}`.slice(0, 160) : null;
+}
+
+function interiorDoorStateKey(instanceId, objectId) {
+  const safeInstanceId = String(instanceId || '').trim();
+  const safeObjectId = String(objectId || '').trim();
+  return safeInstanceId && safeObjectId ? `${safeInstanceId}\u0000${safeObjectId}` : '';
+}
 
 function setMappedObjectsForTemplate(templateId, objects) {
   if (!TEMPLATES[templateId]) return [];
@@ -501,20 +514,24 @@ async function saveRemoteMappedInteriorObjects(templateId, objects) {
   return data || { ok: true, objects: savedObjects };
 }
 
-function isInteriorDoorOpen(objectId) {
-  return interiorDoorStatesByObjectId[String(objectId || '')]?.isOpen === true;
+function isInteriorDoorOpen(objectId, instanceId = activeInteriorDoorInstanceId) {
+  const key = interiorDoorStateKey(instanceId, objectId);
+  return key ? interiorDoorStatesByInstanceAndObject[key]?.isOpen === true : false;
 }
 
 function applyRemoteInteriorDoorState(row) {
   const objectId = String(row?.object_id || row?.objectId || '').trim();
   const templateId = String(row?.template_id || row?.templateId || '').trim();
-  if (!objectId || !TEMPLATES[templateId]) return false;
+  const instanceId = String(row?.instance_id || row?.instanceId || '').trim();
+  const key = interiorDoorStateKey(instanceId, objectId);
+  if (!key || !TEMPLATES[templateId]) return false;
 
-  interiorDoorStatesByObjectId = {
-    ...interiorDoorStatesByObjectId,
-    [objectId]: {
+  interiorDoorStatesByInstanceAndObject = {
+    ...interiorDoorStatesByInstanceAndObject,
+    [key]: {
       objectId,
       templateId,
+      instanceId,
       isOpen: row?.is_open === true || row?.isOpen === true,
       updatedAt: row?.updated_at || row?.updatedAt || null,
     },
@@ -522,62 +539,83 @@ function applyRemoteInteriorDoorState(row) {
   return true;
 }
 
-function removeInteriorDoorState(objectId) {
-  const safeObjectId = String(objectId || '').trim();
-  if (!safeObjectId || !interiorDoorStatesByObjectId[safeObjectId]) return;
-  const nextStates = { ...interiorDoorStatesByObjectId };
-  delete nextStates[safeObjectId];
-  interiorDoorStatesByObjectId = nextStates;
+function removeInteriorDoorState(instanceId, objectId) {
+  const key = interiorDoorStateKey(instanceId, objectId);
+  if (!key || !interiorDoorStatesByInstanceAndObject[key]) return;
+  const nextStates = { ...interiorDoorStatesByInstanceAndObject };
+  delete nextStates[key];
+  interiorDoorStatesByInstanceAndObject = nextStates;
 }
 
-function setLocalInteriorDoorState(objectId, templateId, isOpen) {
+function setLocalInteriorDoorState(objectId, templateId, instanceId, isOpen) {
   return applyRemoteInteriorDoorState({
     object_id: objectId,
     template_id: templateId,
+    instance_id: instanceId,
     is_open: isOpen === true,
     updated_at: new Date().toISOString(),
   });
 }
 
-async function loadRemoteInteriorDoorStates({ force = false } = {}) {
-  if (remoteInteriorDoorStatesPromise && !force) return remoteInteriorDoorStatesPromise;
+async function loadRemoteInteriorDoorStates({
+  force = false,
+  instanceId = activeInteriorDoorInstanceId,
+} = {}) {
+  const safeInstanceId = String(instanceId || '').trim();
+  if (!safeInstanceId) return null;
 
-  remoteInteriorDoorStatesPromise = (async () => {
+  const currentPromise = remoteInteriorDoorStatePromisesByInstance.get(safeInstanceId);
+  if (currentPromise && !force) return currentPromise;
+
+  const request = (async () => {
     const { data, error } = await supabase
       .from(INTERIOR_DOOR_STATE_TABLE)
-      .select('object_id, template_id, is_open, updated_at');
+      .select('instance_id, object_id, template_id, is_open, updated_at')
+      .eq('instance_id', safeInstanceId);
 
     if (error) throw error;
 
-    const nextStates = {};
+    const nextStates = Object.entries(interiorDoorStatesByInstanceAndObject)
+      .reduce((result, [key, stateRow]) => {
+        if (stateRow?.instanceId !== safeInstanceId) result[key] = stateRow;
+        return result;
+      }, {});
     (Array.isArray(data) ? data : []).forEach((row) => {
       const objectId = String(row?.object_id || '').trim();
       const templateId = String(row?.template_id || '').trim();
-      if (!objectId || !TEMPLATES[templateId]) return;
-      nextStates[objectId] = {
+      const instanceId = String(row?.instance_id || '').trim();
+      const key = interiorDoorStateKey(instanceId, objectId);
+      if (!key || !TEMPLATES[templateId]) return;
+      nextStates[key] = {
         objectId,
         templateId,
+        instanceId,
         isOpen: row?.is_open === true,
         updatedAt: row?.updated_at || null,
       };
     });
-    interiorDoorStatesByObjectId = nextStates;
+    interiorDoorStatesByInstanceAndObject = nextStates;
     return nextStates;
   })();
+  remoteInteriorDoorStatePromisesByInstance.set(safeInstanceId, request);
 
   try {
-    return await remoteInteriorDoorStatesPromise;
+    return await request;
   } catch (error) {
-    remoteInteriorDoorStatesPromise = null;
     console.warn('[interiors] remote door states load failed:', error);
     return null;
+  } finally {
+    if (remoteInteriorDoorStatePromisesByInstance.get(safeInstanceId) === request) {
+      remoteInteriorDoorStatePromisesByInstance.delete(safeInstanceId);
+    }
   }
 }
 
-async function toggleRemoteInteriorDoorState(templateId, objectId) {
+async function toggleRemoteInteriorDoorState(templateId, instanceId, objectId) {
   const identity = getInteriorColliderAdminIdentity();
   const { data, error } = await supabase.rpc('toggle_interior_door_state', {
     p_template_id: templateId,
+    p_instance_id: instanceId,
     p_object_id: objectId,
     p_player_id: identity.adminPlayerId,
     p_tg_id: identity.adminTgId,
@@ -590,6 +628,7 @@ async function toggleRemoteInteriorDoorState(templateId, objectId) {
   applyRemoteInteriorDoorState({
     object_id: data?.objectId || objectId,
     template_id: data?.templateId || templateId,
+    instance_id: data?.instanceId || instanceId,
     is_open: data?.isOpen === true,
     updated_at: data?.updatedAt || new Date().toISOString(),
   });
@@ -1639,12 +1678,17 @@ export function enableInteriorsFeature() {
     const row = payload?.new || payload?.old;
     const templateId = String(row?.template_id || '').trim();
     const objectId = String(row?.object_id || '').trim();
-    if (!objectId || !TEMPLATES[templateId]) return;
+    const instanceId = String(row?.instance_id || '').trim();
+    if (!objectId || !instanceId || !TEMPLATES[templateId]) return;
 
-    if (payload?.eventType === 'DELETE') removeInteriorDoorState(objectId);
+    if (payload?.eventType === 'DELETE') removeInteriorDoorState(instanceId, objectId);
     else applyRemoteInteriorDoorState(row);
 
-    if (active && templateId === activeTemplateId) {
+    if (
+      active &&
+      templateId === activeTemplateId &&
+      instanceId === activeInteriorDoorInstanceId
+    ) {
       position = snapInteriorPosition(activeTemplateId, position);
       renderPosition();
       renderInteriorObjects();
@@ -2068,22 +2112,23 @@ export function enableInteriorsFeature() {
     if (doorTogglePending || colliderEditorOpen || objectEditorOpen) return false;
     const nearest = nearestInteractiveDoor();
     const door = nearest?.door;
-    if (!door) return false;
+    const instanceId = activeInteriorDoorInstanceId;
+    if (!door || !instanceId) return false;
 
     const wasOpen = isInteriorDoorOpen(door.id);
     doorTogglePending = true;
-    setLocalInteriorDoorState(door.id, activeTemplateId, !wasOpen);
+    setLocalInteriorDoorState(door.id, activeTemplateId, instanceId, !wasOpen);
     renderInteriorObjects();
 
     try {
-      await toggleRemoteInteriorDoorState(activeTemplateId, door.id);
+      await toggleRemoteInteriorDoorState(activeTemplateId, instanceId, door.id);
       position = snapInteriorPosition(activeTemplateId, position);
       renderPosition();
       renderInteriorObjects();
       return true;
     } catch (error) {
       console.warn('[interiors] door toggle failed:', error);
-      setLocalInteriorDoorState(door.id, activeTemplateId, wasOpen);
+      setLocalInteriorDoorState(door.id, activeTemplateId, instanceId, wasOpen);
       renderInteriorObjects();
       return false;
     } finally {
@@ -2415,6 +2460,7 @@ export function enableInteriorsFeature() {
 
   function showError(text) {
     active = false;
+    activeInteriorDoorInstanceId = null;
     activeHouse = null;
     activeHouseId = null;
     activeService = null;
@@ -2534,10 +2580,6 @@ export function enableInteriorsFeature() {
   loadRemoteMappedInteriorObjects({ force: false }).catch((error) => {
     console.warn('[interiors] background mapped objects load failed:', error);
   });
-  loadRemoteInteriorDoorStates({ force: false }).catch((error) => {
-    console.warn('[interiors] background door states load failed:', error);
-  });
-
   async function enter(house) {
     const id = houseId(house);
     if (!id) throw new Error('HOUSE_ID_INVALID');
@@ -2574,6 +2616,7 @@ export function enableInteriorsFeature() {
       activeService = null;
       activeServiceId = null;
       activeInteriorKind = 'house';
+      activeInteriorDoorInstanceId = createInteriorDoorInstanceId('house', id);
       title.textContent = `Дом · ${data.houseClassLabel || template.label}`;
       meta.textContent = `${template.rooms} комн. · кухня ${template.kitchen} · санузел ${template.bathroom}`;
       exitButton.textContent = '🚪 Выйти из дома';
@@ -2590,7 +2633,10 @@ export function enableInteriorsFeature() {
       Promise.allSettled([
         loadRemoteCollisionProfiles({ force: false }),
         loadRemoteMappedInteriorObjects({ force: false }),
-        loadRemoteInteriorDoorStates({ force: false }),
+        loadRemoteInteriorDoorStates({
+          force: true,
+          instanceId: activeInteriorDoorInstanceId,
+        }),
       ])
         .then(() => refreshPositionAfterCollisionChange(template.id))
         .catch((error) => console.warn('[interiors] interior profiles refresh failed:', error));
@@ -2649,6 +2695,7 @@ export function enableInteriorsFeature() {
       activeService = hospital;
       activeServiceId = id;
       activeInteriorKind = 'hospital';
+      activeInteriorDoorInstanceId = createInteriorDoorInstanceId('hospital', id);
       title.textContent = hospital?.name || hospital?.payload?.serviceLabel || 'Больница';
       meta.textContent = 'Палаты · процедурные · стерильная зона';
       exitButton.textContent = '🚪 Выйти из больницы';
@@ -2665,7 +2712,10 @@ export function enableInteriorsFeature() {
       Promise.allSettled([
         loadRemoteCollisionProfiles({ force: false }),
         loadRemoteMappedInteriorObjects({ force: false }),
-        loadRemoteInteriorDoorStates({ force: false }),
+        loadRemoteInteriorDoorStates({
+          force: true,
+          instanceId: activeInteriorDoorInstanceId,
+        }),
       ])
         .then(() => refreshPositionAfterCollisionChange(template.id))
         .catch((error) => console.warn('[interiors] interior profiles refresh failed:', error));
@@ -2714,6 +2764,7 @@ export function enableInteriorsFeature() {
     activeServiceId = null;
     activeInteriorKind = 'house';
     activeTemplateId = 'standard';
+    activeInteriorDoorInstanceId = null;
     nearestDoorId = null;
     doorTogglePending = false;
     doorAction.hidden = true;
