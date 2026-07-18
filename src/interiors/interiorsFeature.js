@@ -473,6 +473,39 @@ function mappedInteriorObjectSize(object) {
   };
 }
 
+function mappedInteriorChairSeatPosition(chair) {
+  const base = {
+    x: clampPercent(chair?.x, 50),
+    y: clampPercent(chair?.y, 50),
+  };
+  if (chair?.type !== 'chair') return base;
+
+  const size = mappedInteriorObjectSize(chair);
+  const rawOffsetX = Number(chair?.properties?.seatOffsetX);
+  const rawOffsetY = Number(chair?.properties?.seatOffsetY);
+  const localOffsetX = Number.isFinite(rawOffsetX)
+    ? Math.max(-0.45, Math.min(0.45, rawOffsetX)) * size.width
+    : 0;
+  const localOffsetY = Number.isFinite(rawOffsetY)
+    ? Math.max(-0.45, Math.min(0.45, rawOffsetY)) * size.height
+    : 0;
+  const angle = Number(chair.rotation || 0) * Math.PI / 180;
+
+  // CSS вращает объект в пикселях. Учитываем соотношение сторон мира,
+  // чтобы пользовательская точка сиденья не съезжала на поворотах 90/270°.
+  const rotatedX =
+    localOffsetX * Math.cos(angle) -
+    (localOffsetY / INTERIOR_DESIGN_ASPECT) * Math.sin(angle);
+  const rotatedY =
+    (localOffsetX * INTERIOR_DESIGN_ASPECT) * Math.sin(angle) +
+    localOffsetY * Math.cos(angle);
+
+  return {
+    x: roundPercent(clampPercent(base.x + rotatedX, base.x)),
+    y: roundPercent(clampPercent(base.y + rotatedY, base.y)),
+  };
+}
+
 function createMappedInteriorObjectProperties(type) {
   const size = mappedInteriorObjectSize({ type, properties: {} });
   if (type === 'door') {
@@ -1786,8 +1819,11 @@ export function enableInteriorsFeature() {
       ? normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
         .find((object) => object.type === 'chair' && object.id === seatedObjectId)
       : null;
-    const x = seatedChair ? Number(seatedChair.x) : networkX;
-    const y = seatedChair ? Number(seatedChair.y) : networkY;
+    const seatedPosition = seatedChair
+      ? mappedInteriorChairSeatPosition(seatedChair)
+      : null;
+    const x = seatedPosition ? seatedPosition.x : networkX;
+    const y = seatedPosition ? seatedPosition.y : networkY;
 
     entry.element.style.left = `${x}%`;
     entry.element.style.top = `${y}%`;
@@ -1892,8 +1928,9 @@ export function enableInteriorsFeature() {
         remoteNetworkSeatObjectId === String(seatState.objectId)
       )
     ) {
-      remoteEntry.element.style.left = `${Number(chair.x)}%`;
-      remoteEntry.element.style.top = `${Number(chair.y)}%`;
+      const seatedPosition = mappedInteriorChairSeatPosition(chair);
+      remoteEntry.element.style.left = `${seatedPosition.x}%`;
+      remoteEntry.element.style.top = `${seatedPosition.y}%`;
       remoteEntry.element.classList.add('is-seated');
       remoteEntry.element.dataset.seated = 'true';
       remoteEntry.element.dataset.seatedObjectId = String(seatState.objectId);
@@ -2179,7 +2216,7 @@ export function enableInteriorsFeature() {
 
       activeSeatObjectId = String(chair.id);
       applySeatState(result.seat);
-      position = { x: Number(chair.x), y: Number(chair.y) };
+      position = mappedInteriorChairSeatPosition(chair);
       renderPosition();
       renderInteriorObjects();
       sendLocalInteriorPosition(true);
