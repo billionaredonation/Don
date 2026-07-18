@@ -5,6 +5,7 @@ export const INTERIOR_SEAT_STATE_TABLE = 'interior_seat_states';
 // Около 22 пакетов/с: движение заметно живее, но без бессмысленных 60
 // broadcast-сообщений в секунду от каждого игрока.
 const MOVE_SEND_INTERVAL_MS = 45;
+const REMOTE_LEAVE_GRACE_MS = 2400;
 
 function safeText(value, maxLength = 180) {
   return String(value ?? '').trim().slice(0, maxLength);
@@ -209,6 +210,7 @@ export function createInteriorRealtimeRoom({
     return {
       sendPosition() {},
       refreshPresence() {},
+      hasRemotePlayer() { return false; },
       destroy() {},
     };
   }
@@ -220,7 +222,8 @@ export function createInteriorRealtimeRoom({
   let lastSendAt = 0;
   let lastSignature = '';
   let packetSequence = 0;
-  let presencePlayerIds = new Set();
+  let presencePlayersById = new Map();
+  const pendingLeaveTimers = new Map();
   const connectionId = globalThis.crypto?.randomUUID?.() ||
     `interior-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -256,7 +259,56 @@ export function createInteriorRealtimeRoom({
   function receivePlayer(rawPlayer) {
     const player = normalizeRemotePlayer(rawPlayer);
     if (!isRemotePlayer(player)) return;
+    cancelPendingLeave(player.playerId);
     onRemotePlayer?.(player);
+  }
+
+  function cancelPendingLeave(playerId) {
+    const safeRemotePlayerId = safeText(playerId, 120);
+    if (!safeRemotePlayerId) return;
+
+    pendingLeaveTimers.forEach((timer, key) => {
+      if (!key.startsWith(`${safeRemotePlayerId}\u0000`)) return;
+      window.clearTimeout(timer);
+      pendingLeaveTimers.delete(key);
+    });
+  }
+
+  function scheduleRemoteLeave(player = {}) {
+    const remotePlayerId = safeText(player.playerId, 120);
+    if (!remotePlayerId) return;
+
+    const remoteConnectionId = safeText(player.connectionId, 96);
+    const key = `${remotePlayerId}\u0000${remoteConnectionId}`;
+    if (pendingLeaveTimers.has(key)) return;
+
+    const timer = window.setTimeout(() => {
+      pendingLeaveTimers.delete(key);
+
+      // Любая актуальная Presence-запись с тем же playerId означает, что это
+      // был старый сокет при reload, а не реальный выход игрока из интерьера.
+      if (presencePlayersById.has(remotePlayerId)) return;
+      onRemoteLeave?.(remotePlayerId, {
+        connectionId: remoteConnectionId,
+        sessionId: safeText(player.sessionId, 160),
+      });
+    }, REMOTE_LEAVE_GRACE_MS);
+
+    pendingLeaveTimers.set(key, timer);
+  }
+
+  function newerPresencePlayer(current, candidate) {
+    if (!current) return candidate;
+
+    const currentTime = Date.parse(current.updatedAt || '') || 0;
+    const candidateTime = Date.parse(candidate.updatedAt || '') || 0;
+    if (candidateTime !== currentTime) {
+      return candidateTime > currentTime ? candidate : current;
+    }
+
+    return Number(candidate.packetSequence || 0) >= Number(current.packetSequence || 0)
+      ? candidate
+      : current;
   }
 
   function sendNow(player, force = false) {
@@ -300,20 +352,29 @@ export function createInteriorRealtimeRoom({
   function syncPresence() {
     if (destroyed) return;
 
-    const nextPlayerIds = new Set();
+    const previousPlayersById = presencePlayersById;
+    const nextPlayersById = new Map();
     const presenceState = channel.presenceState?.() || {};
 
     Object.values(presenceState).flat().forEach((presence) => {
       const player = normalizeRemotePlayer(presence);
       if (!isRemotePlayer(player)) return;
-      nextPlayerIds.add(player.playerId);
+      nextPlayersById.set(
+        player.playerId,
+        newerPresencePlayer(nextPlayersById.get(player.playerId), player)
+      );
+    });
+
+    presencePlayersById = nextPlayersById;
+
+    nextPlayersById.forEach((player) => {
+      cancelPendingLeave(player.playerId);
       onRemotePlayer?.(player);
     });
 
-    presencePlayerIds.forEach((remotePlayerId) => {
-      if (!nextPlayerIds.has(remotePlayerId)) onRemoteLeave?.(remotePlayerId);
+    previousPlayersById.forEach((player, remotePlayerId) => {
+      if (!nextPlayersById.has(remotePlayerId)) scheduleRemoteLeave(player);
     });
-    presencePlayerIds = nextPlayerIds;
   }
 
   channel
@@ -324,8 +385,16 @@ export function createInteriorRealtimeRoom({
     .on('broadcast', { event: 'player_leave' }, (message) => {
       const player = normalizeRemotePlayer(message?.payload);
       if (!isRemotePlayer(player)) return;
-      presencePlayerIds.delete(player.playerId);
-      onRemoteLeave?.(player.playerId);
+
+      const presencePlayer = presencePlayersById.get(player.playerId);
+      if (
+        presencePlayer &&
+        player.connectionId &&
+        presencePlayer.connectionId === player.connectionId
+      ) {
+        presencePlayersById.delete(player.playerId);
+      }
+      scheduleRemoteLeave(player);
     })
     .subscribe((status, error) => {
       if (destroyed) return;
@@ -333,13 +402,22 @@ export function createInteriorRealtimeRoom({
 
       if (status === 'SUBSCRIBED') {
         subscribed = true;
+        queuedPlayer = null;
         const player = localSnapshot();
-        if (player) {
-          channel.track(player).catch((trackError) => {
+        if (player) sendNow(player, true);
+
+        const presencePlayer = localSnapshot();
+        if (presencePlayer) {
+          channel.track(presencePlayer).catch((trackError) => {
             console.warn('[interiors] room presence track failed:', trackError);
           });
-          sendNow(player, true);
         }
+      } else if (
+        status === 'CLOSED' ||
+        status === 'CHANNEL_ERROR' ||
+        status === 'TIMED_OUT'
+      ) {
+        subscribed = false;
       }
     });
 
@@ -382,9 +460,19 @@ export function createInteriorRealtimeRoom({
       if (!subscribed || destroyed) return;
       const player = localSnapshot(extra);
       if (!player) return;
-      channel.track(player).catch((error) => {
+
+      // Периодический forced broadcast служит heartbeat позиции. Даже если
+      // Presence дал краткий пустой sync, активный игрок немедленно появится снова.
+      sendNow(player, true);
+
+      const presencePlayer = localSnapshot(extra);
+      channel.track(presencePlayer).catch((error) => {
         console.warn('[interiors] room presence refresh failed:', error);
       });
+    },
+
+    hasRemotePlayer(remotePlayerId) {
+      return presencePlayersById.has(safeText(remotePlayerId, 120));
     },
 
     destroy() {
@@ -410,8 +498,9 @@ export function createInteriorRealtimeRoom({
         // Supabase removes presence automatically with the channel as a fallback.
       }
       supabase.removeChannel(channel);
-      presencePlayerIds.clear();
+      pendingLeaveTimers.forEach((timer) => window.clearTimeout(timer));
+      pendingLeaveTimers.clear();
+      presencePlayersById.clear();
     },
   };
 }
-
