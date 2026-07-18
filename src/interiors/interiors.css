@@ -376,6 +376,96 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   }
 }
 
+/* Persistent furniture mapping layer. Beds and chairs live in the same
+   canonical 16:9 world as the player and colliders. */
+.mn-interior-object-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: visible;
+  pointer-events: none;
+  touch-action: none;
+}
+.mn-interior-object-layer[data-editor="enabled"] {
+  z-index: 6;
+  cursor: crosshair;
+  pointer-events: auto;
+}
+.mn-interior-mapped-object {
+  position: absolute;
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  transform-origin: center center;
+  pointer-events: none;
+  cursor: grab;
+  appearance: none;
+  -webkit-appearance: none;
+  filter: none;
+}
+.mn-interior-object-layer[data-editor="enabled"] .mn-interior-mapped-object {
+  pointer-events: auto;
+}
+.mn-interior-object-layer[data-editor="enabled"] .mn-interior-mapped-object:active {
+  cursor: grabbing;
+}
+.mn-interior-mapped-object-bed {
+  width: clamp(24px, 3.5%, 68px);
+  height: clamp(12px, 2.8%, 31px);
+  border: 1px solid rgba(238,248,255,.96);
+  border-radius: 4px;
+  background: rgba(23,45,64,.96);
+  box-shadow: 0 2px 7px rgba(0,0,0,.62), inset 0 0 0 1px rgba(74,176,226,.34);
+}
+.mn-interior-mapped-object-bed::before {
+  content: "";
+  position: absolute;
+  inset: 12% 7% 12% 24%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #d8edf7, #9fc7da);
+}
+.mn-interior-mapped-object-bed::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  top: 17%;
+  bottom: 17%;
+  width: 14%;
+  border-radius: 2px;
+  background: #f5fbff;
+}
+.mn-interior-mapped-object-chair {
+  width: clamp(17px, 1.7%, 33px);
+  height: clamp(17px, 3%, 33px);
+  border: 1px solid rgba(238,248,255,.96);
+  border-radius: 4px;
+  background: rgba(39,49,59,.98);
+  box-shadow: 0 2px 7px rgba(0,0,0,.62), inset 0 0 0 1px rgba(255,255,255,.18);
+}
+.mn-interior-mapped-object-chair::before {
+  content: "";
+  position: absolute;
+  inset: 22% 18% 13%;
+  border-radius: 2px 2px 4px 4px;
+  background: linear-gradient(180deg, #9b7654, #5f412d);
+}
+.mn-interior-mapped-object-chair::after {
+  content: "";
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  top: 7%;
+  height: 18%;
+  border-radius: 3px 3px 1px 1px;
+  background: #c3996b;
+}
+.mn-interior-mapped-object[data-selected="true"] {
+  outline: 2px solid #ffd45a;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.92), 0 0 14px rgba(255,212,90,.72);
+}
+
 .mn-interior-collider-layer {
   position: absolute;
   inset: 0;
@@ -386,7 +476,9 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
 }
 .mn-interior-collider-layer[hidden],
 .mn-interior-collider-panel[hidden],
-.mn-interior-collider-toggle[hidden] {
+.mn-interior-collider-toggle[hidden],
+.mn-interior-object-panel[hidden],
+.mn-interior-object-toggle[hidden] {
   display: none !important;
 }
 .mn-interior-collider-rect {
@@ -513,6 +605,96 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
 }
 body.mn-interior-collider-editor-open .mn-interior-joystick,
 body.mn-interior-collider-editor-open .mn-interior-stamina {
+  opacity: .25;
+  pointer-events: none !important;
+}
+
+.mn-interior-object-toggle {
+  position: absolute;
+  z-index: 8;
+  right: 18px;
+  bottom: 124px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid rgba(93,199,255,.34);
+  border-radius: 13px;
+  color: #fff;
+  background: rgba(8,29,43,.88);
+  backdrop-filter: blur(8px);
+  font: 900 12px/1 system-ui;
+  pointer-events: auto;
+}
+.mn-interior-object-panel {
+  position: absolute;
+  z-index: 10;
+  right: 18px;
+  top: 18px;
+  display: grid;
+  gap: 8px;
+  width: min(350px, calc(100vw - 36px));
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid rgba(93,199,255,.26);
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(5,13,20,.92);
+  box-shadow: 0 18px 42px rgba(0,0,0,.46);
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+.mn-interior-object-head,
+.mn-interior-object-types,
+.mn-interior-object-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.mn-interior-object-head {
+  justify-content: space-between;
+}
+.mn-interior-object-head b {
+  font: 950 13px/1.1 system-ui;
+}
+.mn-interior-object-panel button {
+  min-height: 32px;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 11px;
+  color: #fff;
+  background: rgba(255,255,255,.08);
+  font: 850 11px/1 system-ui;
+}
+.mn-interior-object-head button {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  font-size: 18px;
+}
+.mn-interior-object-types button,
+.mn-interior-object-actions button {
+  flex: 1;
+}
+.mn-interior-object-types button[data-active="true"] {
+  border-color: rgba(93,199,255,.76);
+  color: #eaf8ff;
+  background: linear-gradient(135deg, rgba(35,141,204,.94), rgba(31,91,151,.94));
+}
+.mn-interior-object-panel button.mn-interior-object-primary {
+  border-color: rgba(82,211,159,.62);
+  background: linear-gradient(135deg, rgba(24,181,112,.95), rgba(18,114,82,.94));
+}
+.mn-interior-object-panel button:disabled {
+  opacity: .38;
+}
+.mn-interior-object-hint,
+.mn-interior-object-panel small {
+  color: rgba(255,255,255,.64);
+  font: 750 10px/1.35 system-ui;
+}
+.mn-interior-object-panel small {
+  min-height: 14px;
+}
+body.mn-interior-object-editor-open .mn-interior-joystick,
+body.mn-interior-object-editor-open .mn-interior-stamina {
   opacity: .25;
   pointer-events: none !important;
 }
