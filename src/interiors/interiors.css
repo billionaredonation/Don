@@ -31,8 +31,28 @@
 .mn-interior-player.is-seated,
 .mn-interior-remote-player.is-seated { z-index: 6; }
 .mn-interior-player.is-seated i,
-.mn-interior-remote-player.is-seated i { width: 19px; height: 12px; border-radius: 55% 55% 42% 42%; box-shadow: 0 0 0 4px rgba(118,96,255,.18), 0 5px 13px rgba(0,0,0,.52); }
-.mn-interior-remote-player.is-seated i { box-shadow: 0 0 0 4px rgba(33,189,121,.18), 0 5px 13px rgba(0,0,0,.52); }
+.mn-interior-remote-player.is-seated i {
+  opacity: .56;
+  filter: saturate(.55) brightness(.78);
+  transform: scale(.9);
+  box-shadow: 0 3px 10px rgba(0,0,0,.48);
+}
+.mn-interior-player.is-seated span,
+.mn-interior-remote-player.is-seated span { opacity: .68; }
+.mn-interior-player.is-seated::after,
+.mn-interior-remote-player.is-seated::after {
+  content: "Сидит";
+  margin-top: 3px;
+  padding: 2px 6px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  color: rgba(255,255,255,.68);
+  background: rgba(4,8,13,.7);
+  box-shadow: 0 3px 9px rgba(0,0,0,.28);
+  font: 800 7px/1 system-ui;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
 .mn-interior-controls,
 .mn-interior-ui { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
 .mn-interior-ui { z-index: 9; }
@@ -470,8 +490,9 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   background: #c3996b;
 }
 .mn-interior-mapped-object-chair[data-occupied="true"] {
-  border-color: #62f2ae;
-  box-shadow: 0 0 0 2px rgba(27,214,126,.35), 0 0 13px rgba(27,214,126,.52), inset 0 0 0 1px rgba(255,255,255,.18);
+  border-color: rgba(238,248,255,.54);
+  filter: saturate(.62) brightness(.76);
+  box-shadow: 0 2px 7px rgba(0,0,0,.62), inset 0 0 0 1px rgba(255,255,255,.1);
 }
 .mn-interior-chair-occupant {
   position: absolute;
@@ -490,6 +511,33 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   white-space: nowrap;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+.mn-interior-action-toast {
+  position: fixed;
+  z-index: 1400;
+  left: 50%;
+  top: max(82px, calc(env(safe-area-inset-top) + 60px));
+  min-width: 88px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 11px;
+  color: rgba(255,255,255,.88);
+  background: rgba(5,10,16,.76);
+  box-shadow: 0 8px 24px rgba(0,0,0,.32);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transform: translate(-50%, -5px) scale(.97);
+  transition: opacity 110ms ease, transform 140ms ease;
+  font: 850 10px/1 system-ui;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.mn-interior-action-toast[data-visible="true"] {
+  opacity: 1;
+  transform: translate(-50%, 0) scale(1);
 }
 .mn-interior-mapped-object-table {
   width: clamp(25px, 4.2%, 82px);
