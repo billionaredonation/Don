@@ -13,6 +13,11 @@ const INTERIOR_COLLISION_FALLBACK_RADIUS = 0;
 const INTERIOR_COLLISION_STORAGE_KEY = 'mn-interior-colliders-v1';
 const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
 const INTERIOR_DESIGN_ASPECT = 16 / 9;
+const INTERIOR_MAPPED_OBJECT_LIMIT = 300;
+const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
+  bed: Object.freeze({ label: 'Койка' }),
+  chair: Object.freeze({ label: 'Стул' }),
+});
 const INTERIOR_VITALS_CONFIG = getPlayerVitalsConfig();
 const INTERIOR_HEALTH_LOW_CLASS = 'is-interior-health-low';
 const INTERIOR_HEALTH_HIT_CLASS = 'is-interior-health-hit';
@@ -24,24 +29,28 @@ const INTERIOR_COLLISION_PROFILES = {
     radius: 0,
     bounds: [],
     blocked: [],
+    objects: [],
   },
 
   premium: {
     radius: 0,
     bounds: [],
     blocked: [],
+    objects: [],
   },
 
   ultra_lux: {
     radius: 0,
     bounds: [],
     blocked: [],
+    objects: [],
   },
 
   hospital: {
     radius: 0,
     bounds: [],
     blocked: [],
+    objects: [],
   },
 };
 
@@ -293,17 +302,58 @@ function normalizeCollisionRect(rect) {
   };
 }
 
+function normalizeMappedInteriorObject(object, index = 0) {
+  const rawType = String(object?.type || object?.kind || '').trim().toLowerCase();
+  const type = INTERIOR_MAPPED_OBJECT_TYPES[rawType] ? rawType : null;
+  if (!type) return null;
+
+  const x = Number(object?.x);
+  const y = Number(object?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+  const rawRotation = Number(object?.rotation ?? object?.angle ?? 0);
+  const rotation = Number.isFinite(rawRotation)
+    ? ((Math.round(rawRotation) % 360) + 360) % 360
+    : 0;
+  const fallbackId = `mapped-${type}-${index}-${roundPercent(x)}-${roundPercent(y)}`;
+  const id = String(object?.id || fallbackId).trim().slice(0, 96) || fallbackId;
+
+  return {
+    id,
+    type,
+    x: roundPercent(clampPercent(x, 50)),
+    y: roundPercent(clampPercent(y, 50)),
+    rotation,
+  };
+}
+
+function normalizeMappedInteriorObjects(objects) {
+  return (Array.isArray(objects) ? objects : [])
+    .slice(0, INTERIOR_MAPPED_OBJECT_LIMIT)
+    .map(normalizeMappedInteriorObject)
+    .filter(Boolean);
+}
+
+function createMappedInteriorObjectId(type) {
+  if (globalThis.crypto?.randomUUID) return `${type}-${globalThis.crypto.randomUUID()}`;
+  return `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function normalizeCollisionProfile(profile, fallbackProfile = null) {
   const fallback = fallbackProfile || {};
   const radius = Number(profile?.radius ?? fallback.radius ?? INTERIOR_COLLISION_FALLBACK_RADIUS);
   const blocked = (Array.isArray(profile?.blocked) ? profile.blocked : fallback.blocked || [])
     .map(normalizeCollisionRect)
     .filter(Boolean);
+  const objects = normalizeMappedInteriorObjects(
+    Array.isArray(profile?.objects) ? profile.objects : fallback.objects || []
+  );
 
   return {
     radius: Number.isFinite(radius) ? Math.max(0, Math.min(4, roundPercent(radius))) : INTERIOR_COLLISION_FALLBACK_RADIUS,
     bounds: [],
     blocked,
+    objects,
   };
 }
 
@@ -338,7 +388,7 @@ function readStoredCollisionProfiles() {
 function writeStoredCollisionProfiles(profiles) {
   try {
     const payload = {
-      version: 1,
+      version: 2,
       updatedAt: new Date().toISOString(),
       profiles,
     };
@@ -357,7 +407,10 @@ function applyRemoteCollisionRow(row) {
   const templateId = String(row?.template_id || row?.templateId || '').trim();
   if (!TEMPLATES[templateId]) return false;
 
-  const profile = normalizeCollisionProfile(row?.profile || row, INTERIOR_COLLISION_PROFILES[templateId]);
+  const profile = normalizeCollisionProfile(
+    row?.profile || row,
+    customCollisionProfiles[templateId] || INTERIOR_COLLISION_PROFILES[templateId]
+  );
   customCollisionProfiles = {
     ...customCollisionProfiles,
     [templateId]: profile,
@@ -380,7 +433,10 @@ async function loadRemoteCollisionProfiles({ force = false } = {}) {
     (Array.isArray(data) ? data : []).forEach((row) => {
       const templateId = String(row?.template_id || '').trim();
       if (TEMPLATES[templateId]) {
-        nextProfiles[templateId] = normalizeCollisionProfile(row.profile, INTERIOR_COLLISION_PROFILES[templateId]);
+        nextProfiles[templateId] = normalizeCollisionProfile(
+          row.profile,
+          customCollisionProfiles[templateId] || INTERIOR_COLLISION_PROFILES[templateId]
+        );
       }
     });
 
@@ -420,7 +476,7 @@ async function saveRemoteCollisionProfile(templateId, profile) {
     const savedProfile = data?.profile || data?.row?.profile || normalized;
     customCollisionProfiles = {
       ...customCollisionProfiles,
-      [templateId]: normalizeCollisionProfile(savedProfile, INTERIOR_COLLISION_PROFILES[templateId]),
+      [templateId]: normalizeCollisionProfile(savedProfile, normalized),
     };
     writeStoredCollisionProfiles(customCollisionProfiles);
     return data || { ok: true };
@@ -667,6 +723,7 @@ function markup() {
             />
           </div>
           <div class="mn-interior-shade"></div>
+          <div class="mn-interior-object-layer" data-interior-object-layer></div>
           <div class="mn-interior-collider-layer" hidden data-interior-collider-layer></div>
           <div class="mn-interior-player" data-interior-player><i></i><span>${String(state.nickname || 'Игрок')}</span></div>
         </div>
@@ -686,6 +743,7 @@ function markup() {
       <div class="mn-interior-ui" hidden data-interior-ui>
         <button type="button" class="mn-interior-exit" data-interior-exit>🚪 Выйти из дома</button>
         <button type="button" class="mn-interior-collider-toggle" hidden data-interior-collider-toggle>Стены</button>
+        <button type="button" class="mn-interior-object-toggle" hidden data-interior-object-toggle>Объекты</button>
         <section class="mn-interior-collider-panel" hidden data-interior-collider-panel>
           <div class="mn-interior-collider-head">
             <b>Стены интерьера</b>
@@ -712,6 +770,29 @@ function markup() {
             <textarea data-interior-collider-json spellcheck="false" placeholder="JSON стен"></textarea>
           </details>
           <small data-interior-collider-status></small>
+        </section>
+        <section class="mn-interior-object-panel" hidden data-interior-object-panel>
+          <div class="mn-interior-object-head">
+            <b>Объекты больницы</b>
+            <button type="button" data-interior-object-close>×</button>
+          </div>
+          <div class="mn-interior-object-hint">
+            Выбери тип и нажми на план, чтобы поставить объект. Готовый объект можно перетащить,
+            повернуть или удалить. Пока это только маппинг без игровых свойств.
+          </div>
+          <div class="mn-interior-object-types">
+            <button type="button" data-interior-object-type="bed">Койка</button>
+            <button type="button" data-interior-object-type="chair">Стул</button>
+          </div>
+          <div class="mn-interior-object-actions">
+            <button type="button" class="mn-interior-object-primary" data-interior-object-save>Сохранить всем</button>
+            <button type="button" data-interior-object-rotate>Повернуть 90°</button>
+          </div>
+          <div class="mn-interior-object-actions">
+            <button type="button" data-interior-object-delete>Удалить</button>
+            <button type="button" data-interior-object-clear>Очистить всё</button>
+          </div>
+          <small data-interior-object-status></small>
         </section>
         <div class="mn-interior-hud">
           <div class="mn-interior-info">
@@ -791,6 +872,16 @@ export function enableInteriorsFeature() {
   const map = overlay.querySelector('[data-interior-map]');
   const interiorImage = overlay.querySelector('[data-interior-image]');
   const marker = overlay.querySelector('[data-interior-player]');
+  const objectLayer = overlay.querySelector('[data-interior-object-layer]');
+  const objectToggle = overlay.querySelector('[data-interior-object-toggle]');
+  const objectPanel = overlay.querySelector('[data-interior-object-panel]');
+  const objectClose = overlay.querySelector('[data-interior-object-close]');
+  const objectTypeButtons = [...overlay.querySelectorAll('[data-interior-object-type]')];
+  const objectSave = overlay.querySelector('[data-interior-object-save]');
+  const objectRotate = overlay.querySelector('[data-interior-object-rotate]');
+  const objectDelete = overlay.querySelector('[data-interior-object-delete]');
+  const objectClear = overlay.querySelector('[data-interior-object-clear]');
+  const objectStatus = overlay.querySelector('[data-interior-object-status]');
   const colliderLayer = overlay.querySelector('[data-interior-collider-layer]');
   const colliderToggle = overlay.querySelector('[data-interior-collider-toggle]');
   const colliderPanel = overlay.querySelector('[data-interior-collider-panel]');
@@ -844,6 +935,14 @@ export function enableInteriorsFeature() {
   let colliderEditorDraft = null;
   let colliderSaveTimer = 0;
   let colliderSaveSequence = 0;
+  let objectEditorOpen = false;
+  let objectEditorTemplateId = 'hospital';
+  let objectEditorType = 'bed';
+  let objectEditorProfile = null;
+  let objectEditorSelectedId = null;
+  let objectEditorPointer = null;
+  let objectEditorDraggingId = null;
+  let objectEditorDragOffset = null;
   let collisionProfilesChannel = null;
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
@@ -1063,7 +1162,10 @@ export function enableInteriorsFeature() {
   }
 
   function refreshPositionAfterCollisionChange(templateId) {
-    if (!active || templateId !== activeTemplateId || colliderEditorOpen) return;
+    if (!active || templateId !== activeTemplateId) return;
+
+    renderInteriorObjects();
+    if (colliderEditorOpen || objectEditorOpen) return;
 
     position = snapInteriorPosition(activeTemplateId, position);
     renderPosition();
@@ -1084,10 +1186,11 @@ export function enableInteriorsFeature() {
     }
 
     if (templateId === activeTemplateId) {
-      if (!colliderEditorOpen) {
+      if (!colliderEditorOpen && !objectEditorOpen) {
         refreshPositionAfterCollisionChange(templateId);
       } else if (!colliderEditorPointer) {
-        setColliderStatus('Сервер обновил стены');
+        if (colliderEditorOpen) setColliderStatus('Сервер обновил профиль интерьера');
+        if (objectEditorOpen && !objectEditorPointer) setObjectStatus('Сервер обновил объекты');
       }
     }
   }
@@ -1124,15 +1227,15 @@ export function enableInteriorsFeature() {
     return cloneCollisionProfile(collisionProfileFor(activeTemplateId));
   }
 
-  function setRuntimeEditorProfile(profile) {
+  function setRuntimeEditorProfile(profile, templateId = activeTemplateId) {
     customCollisionProfiles = {
       ...customCollisionProfiles,
-      [activeTemplateId]: normalizeCollisionProfile(profile, INTERIOR_COLLISION_PROFILES[activeTemplateId]),
+      [templateId]: normalizeCollisionProfile(profile, INTERIOR_COLLISION_PROFILES[templateId]),
     };
   }
 
-  function colliderLayerPoint(event) {
-    const rect = colliderLayer.getBoundingClientRect();
+  function interiorLayerPoint(event, layer) {
+    const rect = layer.getBoundingClientRect();
     const forceRotated = document.documentElement.classList.contains('mn-force-rotate-landscape') &&
       window.matchMedia?.('(orientation: portrait)')?.matches;
     const x = forceRotated
@@ -1146,6 +1249,10 @@ export function enableInteriorsFeature() {
       x: clampPercent(x, 0),
       y: clampPercent(y, 0),
     };
+  }
+
+  function colliderLayerPoint(event) {
+    return interiorLayerPoint(event, colliderLayer);
   }
 
   function rectFromPoints(start, end) {
@@ -1255,6 +1362,7 @@ export function enableInteriorsFeature() {
 
   function openColliderEditor() {
     if (!active || !isInteriorColliderAdmin()) return;
+    if (objectEditorOpen) closeObjectEditor();
 
     colliderEditorOpen = true;
     colliderEditorProfile = editorProfileForCurrentTemplate();
@@ -1371,13 +1479,251 @@ export function enableInteriorsFeature() {
     renderColliderEditorLayer();
   }
 
+  function setObjectStatus(text) {
+    objectStatus.textContent = text || '';
+  }
+
+  function objectCountsText(profile = objectEditorProfile) {
+    const objects = profile?.objects || [];
+    const beds = objects.filter((object) => object.type === 'bed').length;
+    const chairs = objects.filter((object) => object.type === 'chair').length;
+    return `Коек ${beds} · стульев ${chairs}`;
+  }
+
+  function setObjectEditorType(type) {
+    if (!INTERIOR_MAPPED_OBJECT_TYPES[type]) return;
+    objectEditorType = type;
+    objectTypeButtons.forEach((button) => {
+      button.dataset.active = button.dataset.interiorObjectType === objectEditorType ? 'true' : 'false';
+    });
+    setObjectStatus(`${INTERIOR_MAPPED_OBJECT_TYPES[type].label}: нажми на план для установки`);
+  }
+
+  function renderInteriorObjects() {
+    const profile = objectEditorOpen && objectEditorProfile
+      ? objectEditorProfile
+      : collisionProfileFor(activeTemplateId);
+    const fragment = document.createDocumentFragment();
+
+    normalizeMappedInteriorObjects(profile?.objects).forEach((object) => {
+      const element = document.createElement('button');
+      const meta = INTERIOR_MAPPED_OBJECT_TYPES[object.type];
+
+      element.type = 'button';
+      element.tabIndex = -1;
+      element.className = `mn-interior-mapped-object mn-interior-mapped-object-${object.type}`;
+      element.dataset.interiorObjectId = object.id;
+      element.dataset.interiorObjectType = object.type;
+      element.dataset.selected = objectEditorOpen && object.id === objectEditorSelectedId ? 'true' : 'false';
+      element.style.left = `${object.x}%`;
+      element.style.top = `${object.y}%`;
+      element.style.transform = `translate(-50%, -50%) rotate(${object.rotation}deg)`;
+      element.setAttribute('aria-label', `${meta?.label || object.type} · ${object.rotation}°`);
+      fragment.appendChild(element);
+    });
+
+    objectLayer.dataset.editor = objectEditorOpen ? 'enabled' : 'disabled';
+    objectLayer.replaceChildren(fragment);
+    objectRotate.disabled = !objectEditorSelectedId;
+    objectDelete.disabled = !objectEditorSelectedId;
+
+    if (objectEditorOpen) setObjectStatus(objectCountsText(profile));
+  }
+
+  function applyObjectEditorProfile({ persist = false } = {}) {
+    if (!objectEditorProfile) return false;
+
+    objectEditorProfile = normalizeCollisionProfile(
+      objectEditorProfile,
+      INTERIOR_COLLISION_PROFILES[objectEditorTemplateId]
+    );
+    setRuntimeEditorProfile(objectEditorProfile, objectEditorTemplateId);
+    writeStoredCollisionProfiles(customCollisionProfiles);
+    renderInteriorObjects();
+
+    if (persist) {
+      void persistObjectEditorProfile();
+      return true;
+    }
+
+    scheduleObjectEditorProfileSave();
+    return true;
+  }
+
+  async function persistObjectEditorProfile() {
+    if (!objectEditorProfile) return false;
+
+    window.clearTimeout(colliderSaveTimer);
+    const saveId = ++colliderSaveSequence;
+    const profile = normalizeCollisionProfile(
+      objectEditorProfile,
+      INTERIOR_COLLISION_PROFILES[objectEditorTemplateId]
+    );
+    setRuntimeEditorProfile(profile, objectEditorTemplateId);
+    writeStoredCollisionProfiles(customCollisionProfiles);
+    setObjectStatus(`Сохраняю для всех · ${objectCountsText(profile)}`);
+
+    try {
+      await saveRemoteCollisionProfile(objectEditorTemplateId, profile);
+      if (saveId === colliderSaveSequence) {
+        setObjectStatus(`Сохранено для всех · ${objectCountsText(profile)}`);
+      }
+      return true;
+    } catch (error) {
+      console.warn('[interiors] mapped objects save failed:', error);
+      if (saveId === colliderSaveSequence) {
+        setObjectStatus('Локально работает, но в Supabase не сохранилось');
+      }
+      return false;
+    }
+  }
+
+  function scheduleObjectEditorProfileSave() {
+    window.clearTimeout(colliderSaveTimer);
+    setObjectStatus(`Изменено, автосохраняю · ${objectCountsText()}`);
+    colliderSaveTimer = window.setTimeout(() => {
+      void persistObjectEditorProfile();
+    }, 450);
+  }
+
+  function openObjectEditor() {
+    if (!active || !isInteriorColliderAdmin() || activeTemplateId !== 'hospital') return;
+    if (colliderEditorOpen) closeColliderEditor();
+
+    objectEditorOpen = true;
+    objectEditorTemplateId = activeTemplateId;
+    objectEditorProfile = editorProfileForCurrentTemplate();
+    objectEditorSelectedId = null;
+    objectEditorPointer = null;
+    objectEditorDraggingId = null;
+    objectEditorDragOffset = null;
+    keys.clear();
+    joystickVector = { x: 0, y: 0 };
+    joystick.dataset.active = 'false';
+    stick.style.transform = 'translate3d(0,0,0)';
+    objectPanel.hidden = false;
+    overlay.dataset.objectEditor = 'enabled';
+    document.body.classList.add('mn-interior-object-editor-open');
+    document.documentElement.classList.add('mn-interior-object-editor-open');
+    setObjectEditorType(objectEditorType);
+    renderInteriorObjects();
+  }
+
+  function closeObjectEditor() {
+    objectEditorOpen = false;
+    objectEditorSelectedId = null;
+    objectEditorPointer = null;
+    objectEditorDraggingId = null;
+    objectEditorDragOffset = null;
+    objectPanel.hidden = true;
+    overlay.dataset.objectEditor = 'disabled';
+    document.body.classList.remove('mn-interior-object-editor-open');
+    document.documentElement.classList.remove('mn-interior-object-editor-open');
+    renderInteriorObjects();
+  }
+
+  function toggleObjectEditor() {
+    if (objectEditorOpen) closeObjectEditor();
+    else openObjectEditor();
+  }
+
+  function isObjectEditorHotkey(event) {
+    const key = String(event.key || '').toLowerCase();
+    return key === 'o' || key === 'щ';
+  }
+
+  function handleObjectPointerDown(event) {
+    if (!objectEditorOpen || !objectEditorProfile) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const point = interiorLayerPoint(event, objectLayer);
+    const objectButton = event.target.closest?.('[data-interior-object-id]');
+
+    if (objectButton) {
+      const objectId = String(objectButton.dataset.interiorObjectId || '');
+      const object = objectEditorProfile.objects.find((item) => item.id === objectId);
+      if (!object) return;
+
+      objectEditorSelectedId = objectId;
+      objectEditorPointer = event.pointerId;
+      objectEditorDraggingId = objectId;
+      objectEditorDragOffset = {
+        x: point.x - object.x,
+        y: point.y - object.y,
+      };
+      objectLayer.setPointerCapture?.(event.pointerId);
+      renderInteriorObjects();
+      return;
+    }
+
+    if (objectEditorProfile.objects.length >= INTERIOR_MAPPED_OBJECT_LIMIT) {
+      setObjectStatus(`Достигнут лимит ${INTERIOR_MAPPED_OBJECT_LIMIT} объектов`);
+      return;
+    }
+
+    const object = {
+      id: createMappedInteriorObjectId(objectEditorType),
+      type: objectEditorType,
+      x: roundPercent(point.x),
+      y: roundPercent(point.y),
+      rotation: 0,
+    };
+    objectEditorProfile.objects.push(object);
+    objectEditorSelectedId = object.id;
+    applyObjectEditorProfile();
+  }
+
+  function handleObjectPointerMove(event) {
+    if (!objectEditorOpen || event.pointerId !== objectEditorPointer || !objectEditorDraggingId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const point = interiorLayerPoint(event, objectLayer);
+    const object = objectEditorProfile?.objects?.find((item) => item.id === objectEditorDraggingId);
+    if (!object) return;
+
+    object.x = roundPercent(clampPercent(point.x - Number(objectEditorDragOffset?.x || 0), object.x));
+    object.y = roundPercent(clampPercent(point.y - Number(objectEditorDragOffset?.y || 0), object.y));
+    renderInteriorObjects();
+  }
+
+  function handleObjectPointerEnd(event) {
+    if (!objectEditorOpen || event.pointerId !== objectEditorPointer) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    objectEditorPointer = null;
+    objectEditorDraggingId = null;
+    objectEditorDragOffset = null;
+    applyObjectEditorProfile();
+  }
+
+  function rotateSelectedObject() {
+    const object = objectEditorProfile?.objects?.find((item) => item.id === objectEditorSelectedId);
+    if (!object) return;
+    object.rotation = (Number(object.rotation || 0) + 90) % 360;
+    applyObjectEditorProfile();
+  }
+
+  function deleteSelectedObject() {
+    if (!objectEditorProfile || !objectEditorSelectedId) return;
+    objectEditorProfile.objects = objectEditorProfile.objects.filter(
+      (object) => object.id !== objectEditorSelectedId
+    );
+    objectEditorSelectedId = null;
+    applyObjectEditorProfile();
+  }
+
   function exportColliderProfile() {
     const profile = normalizeCollisionProfile(
       colliderEditorProfile || collisionProfileFor(activeTemplateId),
       INTERIOR_COLLISION_PROFILES[activeTemplateId]
     );
     const payload = {
-      version: 1,
+      version: 2,
       template: activeTemplateId,
       profile,
       profiles: {
@@ -1402,7 +1748,10 @@ export function enableInteriorsFeature() {
         const nextProfiles = { ...customCollisionProfiles };
         Object.keys(TEMPLATES).forEach((templateId) => {
           if (sourceProfiles[templateId]) {
-            nextProfiles[templateId] = normalizeCollisionProfile(sourceProfiles[templateId], INTERIOR_COLLISION_PROFILES[templateId]);
+            nextProfiles[templateId] = normalizeCollisionProfile(
+              sourceProfiles[templateId],
+              customCollisionProfiles[templateId] || INTERIOR_COLLISION_PROFILES[templateId]
+            );
           }
         });
         customCollisionProfiles = nextProfiles;
@@ -1410,7 +1759,10 @@ export function enableInteriorsFeature() {
       } else {
         const templateId = parsed?.template && TEMPLATES[parsed.template] ? parsed.template : activeTemplateId;
         const sourceProfile = parsed?.profile || parsed;
-        const normalized = normalizeCollisionProfile(sourceProfile, INTERIOR_COLLISION_PROFILES[templateId]);
+        const normalized = normalizeCollisionProfile(
+          sourceProfile,
+          customCollisionProfiles[templateId] || INTERIOR_COLLISION_PROFILES[templateId]
+        );
         customCollisionProfiles = {
           ...customCollisionProfiles,
           [templateId]: normalized,
@@ -1429,7 +1781,7 @@ export function enableInteriorsFeature() {
   }
 
   function movementVector() {
-    if (colliderEditorOpen) return { x: 0, y: 0 };
+    if (colliderEditorOpen || objectEditorOpen) return { x: 0, y: 0 };
 
     let x = joystickVector.x;
     let y = joystickVector.y;
@@ -1504,6 +1856,7 @@ export function enableInteriorsFeature() {
     activeInteriorKind = 'house';
     activeTemplateId = 'standard';
     if (colliderEditorOpen) closeColliderEditor();
+    if (objectEditorOpen) closeObjectEditor();
     hideLoading();
     scene.hidden = true;
     controls.hidden = true;
@@ -1641,6 +1994,7 @@ export function enableInteriorsFeature() {
       delete overlay.dataset.serviceId;
       activeTemplateId = template.id;
       colliderToggle.hidden = !isInteriorColliderAdmin();
+      objectToggle.hidden = true;
       activeHouse = house;
       activeHouseId = id;
       activeService = null;
@@ -1658,6 +2012,7 @@ export function enableInteriorsFeature() {
       sprintLocked = false;
       renderStamina();
       renderPosition();
+      renderInteriorObjects();
       loadRemoteCollisionProfiles({ force: false })
         .then(() => refreshPositionAfterCollisionChange(template.id))
         .catch((error) => console.warn('[interiors] collider profiles refresh failed:', error));
@@ -1709,6 +2064,7 @@ export function enableInteriorsFeature() {
       delete overlay.dataset.houseId;
       activeTemplateId = template.id;
       colliderToggle.hidden = !isInteriorColliderAdmin();
+      objectToggle.hidden = !isInteriorColliderAdmin();
       activeHouse = null;
       activeHouseId = null;
       activeService = hospital;
@@ -1726,6 +2082,7 @@ export function enableInteriorsFeature() {
       sprintLocked = false;
       renderStamina();
       renderPosition();
+      renderInteriorObjects();
       loadRemoteCollisionProfiles({ force: false })
         .then(() => refreshPositionAfterCollisionChange(template.id))
         .catch((error) => console.warn('[interiors] collider profiles refresh failed:', error));
@@ -1765,6 +2122,7 @@ export function enableInteriorsFeature() {
     const exitSpawn = exitedObject ? houseExteriorSpawn(exitedObject) : null;
 
     if (colliderEditorOpen) closeColliderEditor();
+    if (objectEditorOpen) closeObjectEditor();
     active = false;
     activeHouse = null;
     activeHouseId = null;
@@ -1819,6 +2177,18 @@ export function enableInteriorsFeature() {
       return;
     }
 
+    if (
+      !isFormField &&
+      isInteriorColliderAdmin() &&
+      activeTemplateId === 'hospital' &&
+      isObjectEditorHotkey(event)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleObjectEditor();
+      return;
+    }
+
     if (colliderEditorOpen) {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -1831,6 +2201,36 @@ export function enableInteriorsFeature() {
         event.preventDefault();
         event.stopPropagation();
         deleteSelectedCollider();
+        return;
+      }
+
+      if (!isFormField) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
+      return;
+    }
+
+    if (objectEditorOpen) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeObjectEditor();
+        return;
+      }
+
+      if (!isFormField && (event.key === 'Delete' || event.key === 'Backspace')) {
+        event.preventDefault();
+        event.stopPropagation();
+        deleteSelectedObject();
+        return;
+      }
+
+      if (!isFormField && String(event.key || '').toLowerCase() === 'r') {
+        event.preventDefault();
+        event.stopPropagation();
+        rotateSelectedObject();
         return;
       }
 
@@ -1921,6 +2321,25 @@ export function enableInteriorsFeature() {
   joystick.addEventListener('pointerup', stopJoystick);
   joystick.addEventListener('pointercancel', stopJoystick);
   colliderToggle.addEventListener('click', toggleColliderEditor);
+  objectToggle.addEventListener('click', toggleObjectEditor);
+  objectClose.addEventListener('click', closeObjectEditor);
+  objectTypeButtons.forEach((button) => {
+    button.addEventListener('click', () => setObjectEditorType(button.dataset.interiorObjectType));
+  });
+  objectSave.addEventListener('click', () => applyObjectEditorProfile({ persist: true }));
+  objectRotate.addEventListener('click', rotateSelectedObject);
+  objectDelete.addEventListener('click', deleteSelectedObject);
+  objectClear.addEventListener('click', () => {
+    if (!objectEditorProfile) return;
+    objectEditorProfile.objects = [];
+    objectEditorSelectedId = null;
+    applyObjectEditorProfile();
+    setObjectStatus(`Очищено · ${objectCountsText()}`);
+  });
+  objectLayer.addEventListener('pointerdown', handleObjectPointerDown);
+  objectLayer.addEventListener('pointermove', handleObjectPointerMove);
+  objectLayer.addEventListener('pointerup', handleObjectPointerEnd);
+  objectLayer.addEventListener('pointercancel', handleObjectPointerEnd);
   colliderClose.addEventListener('click', closeColliderEditor);
   colliderModeButtons.forEach((button) => {
     button.addEventListener('click', () => setColliderEditorMode(button.dataset.interiorColliderMode));
@@ -1933,6 +2352,7 @@ export function enableInteriorsFeature() {
       radius: current.radius,
       bounds: [],
       blocked: [],
+      objects: current.objects,
     };
     colliderEditorSelected = null;
     applyColliderEditorProfile();
@@ -1940,7 +2360,11 @@ export function enableInteriorsFeature() {
     setColliderStatus(`Очищено · ${editorCountsText()}`);
   });
   colliderReset.addEventListener('click', () => {
-    colliderEditorProfile = cloneCollisionProfile(INTERIOR_COLLISION_PROFILES[activeTemplateId]);
+    const current = normalizeCollisionProfile(colliderEditorProfile, INTERIOR_COLLISION_PROFILES[activeTemplateId]);
+    colliderEditorProfile = {
+      ...cloneCollisionProfile(INTERIOR_COLLISION_PROFILES[activeTemplateId]),
+      objects: current.objects,
+    };
     colliderEditorSelected = null;
     applyColliderEditorProfile({ persist: true });
     renderColliderEditorLayer();
