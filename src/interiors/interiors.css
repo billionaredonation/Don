@@ -25,7 +25,7 @@
 .mn-interior-player { position: absolute; z-index: 5; display: grid; justify-items: center; transform: translate(-50%,-50%); pointer-events: none; will-change: left,top; }
 .mn-interior-player i { width: 17px; height: 17px; border: 3px solid #fff; border-radius: 50%; background: #7660ff; box-shadow: 0 0 0 5px rgba(118,96,255,.2), 0 6px 18px rgba(0,0,0,.5); }
 .mn-interior-player span { margin-top: 4px; padding: 3px 6px; border-radius: 7px; color: #fff; background: rgba(0,0,0,.62); font: 850 9px/1 system-ui; white-space: nowrap; }
-.mn-interior-remote-player { position: absolute; display: grid; justify-items: center; transform: translate(-50%,-50%); pointer-events: none; will-change: left,top; transition: left 90ms linear, top 90ms linear; }
+.mn-interior-remote-player { position: absolute; display: grid; justify-items: center; transform: translate(-50%,-50%); pointer-events: none; will-change: left,top; transition: left 52ms linear, top 52ms linear; }
 .mn-interior-remote-player i { width: 16px; height: 16px; border: 3px solid #fff; border-radius: 50%; background: #21bd79; box-shadow: 0 0 0 5px rgba(33,189,121,.2), 0 6px 18px rgba(0,0,0,.5); }
 .mn-interior-remote-player span { margin-top: 4px; padding: 3px 6px; border: 1px solid rgba(80,255,172,.24); border-radius: 7px; color: #fff; background: rgba(0,0,0,.68); font: 850 9px/1 system-ui; white-space: nowrap; }
 .mn-interior-player.is-seated,
