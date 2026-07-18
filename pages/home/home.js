@@ -11,6 +11,7 @@ import {
   getLocalPlayerId,
   getOrCreatePlayerPosition,
   getCityPlayers,
+  setPlayerOffline,
   updatePlayerPosition,
 } from '../../src/player/playerPosition.js';
 
@@ -477,6 +478,46 @@ function setupInteriorExitReturn({
 } = {}) {
   if (!root || !playerPosition) return () => {};
 
+  function handleInteriorEntered(event) {
+    if (root.dataset.destroyed === 'true') return;
+
+    const detail = event?.detail || {};
+    const updatedAt = new Date().toISOString();
+    const playerId = getLocalPlayerId();
+    const offlinePacket = {
+      playerId,
+      nickname,
+      cityId,
+      x: playerPosition.x,
+      y: playerPosition.y,
+      angle: playerPosition.angle || 0,
+      isOnline: false,
+      is_online: false,
+      locationType: 'interior',
+      interiorKind: detail.kind || 'house',
+      interiorId: detail.houseId || detail.serviceId || null,
+      updatedAt,
+    };
+
+    playerPosition.isOnline = false;
+    playerPosition.updatedAt = updatedAt;
+    state.player = {
+      ...(state.player || {}),
+      isOnline: false,
+      is_online: false,
+      locationType: 'interior',
+      updatedAt,
+    };
+    save();
+
+    movementChannel?.sendPresence?.(offlinePacket, false);
+    if (!movementChannel?.sendPresence) movementChannel?.sendMove?.(offlinePacket);
+
+    setPlayerOffline().catch((error) => {
+      console.warn('[home] interior enter city offline failed:', error);
+    });
+  }
+
   function handleInteriorExited(event) {
     if (root.dataset.destroyed === 'true') return;
 
@@ -488,6 +529,7 @@ function setupInteriorExitReturn({
     playerPosition.x = point.x;
     playerPosition.y = point.y;
     playerPosition.angle = point.angle;
+    playerPosition.isOnline = true;
     playerPosition.updatedAt = updatedAt;
 
     state.player = {
@@ -495,6 +537,9 @@ function setupInteriorExitReturn({
       x: point.x,
       y: point.y,
       angle: point.angle,
+      isOnline: true,
+      is_online: true,
+      locationType: 'city',
       updatedAt,
     };
     save();
@@ -515,15 +560,21 @@ function setupInteriorExitReturn({
       },
     }));
 
-    movementChannel?.sendMove?.({
+    const onlinePacket = {
       playerId,
       nickname,
       cityId,
       x: point.x,
       y: point.y,
       angle: point.angle,
+      isOnline: true,
+      is_online: true,
+      locationType: 'city',
       updatedAt,
-    });
+    };
+
+    movementChannel?.sendPresence?.(onlinePacket, true);
+    if (!movementChannel?.sendPresence) movementChannel?.sendMove?.(onlinePacket);
 
     updatePlayerPosition({
       cityId,
@@ -536,9 +587,11 @@ function setupInteriorExitReturn({
     });
   }
 
+  window.addEventListener('mn:interior-entered', handleInteriorEntered);
   window.addEventListener('mn:interior-exited', handleInteriorExited);
 
   return () => {
+    window.removeEventListener('mn:interior-entered', handleInteriorEntered);
     window.removeEventListener('mn:interior-exited', handleInteriorExited);
   };
 }
