@@ -10,15 +10,19 @@ import './interiors.css';
 
 const INTERIOR_COLLISION_TABLE = 'interior_collision_profiles';
 const INTERIOR_MAPPED_OBJECT_TABLE = 'interior_mapped_objects';
+const INTERIOR_DOOR_STATE_TABLE = 'interior_door_states';
 const INTERIOR_COLLISION_FALLBACK_RADIUS = 0;
 const INTERIOR_COLLISION_STORAGE_KEY = 'mn-interior-colliders-v1';
 const INTERIOR_COLLIDER_PANEL_POSITION_KEY = 'mn-interior-collider-panel-position-v1';
 const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
 const INTERIOR_DESIGN_ASPECT = 16 / 9;
 const INTERIOR_MAPPED_OBJECT_LIMIT = 300;
+const INTERIOR_DOOR_INTERACTION_RADIUS = 7.5;
 const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
-  bed: Object.freeze({ label: 'Койка' }),
+  bed: Object.freeze({ label: 'Кровать' }),
   chair: Object.freeze({ label: 'Стул' }),
+  table: Object.freeze({ label: 'Стол' }),
+  door: Object.freeze({ label: 'Дверь' }),
 });
 const INTERIOR_VITALS_CONFIG = getPlayerVitalsConfig();
 const INTERIOR_HEALTH_LOW_CLASS = 'is-interior-health-low';
@@ -318,7 +322,7 @@ function normalizeMappedInteriorObject(object, index = 0) {
 
   const rawRotation = Number(object?.rotation ?? object?.angle ?? 0);
   const rotation = Number.isFinite(rawRotation)
-    ? ((Math.round(rawRotation) % 360) + 360) % 360
+    ? ((Math.round(rawRotation / 90) * 90 % 360) + 360) % 360
     : 0;
   const fallbackId = `mapped-${type}-${index}-${roundPercent(x)}-${roundPercent(y)}`;
   const id = String(object?.id || fallbackId).trim().slice(0, 96) || fallbackId;
@@ -415,6 +419,8 @@ let customCollisionProfiles = readStoredCollisionProfiles();
 let remoteCollisionProfilesPromise = null;
 let mappedInteriorObjectsByTemplate = {};
 let remoteMappedInteriorObjectsPromise = null;
+let interiorDoorStatesByObjectId = {};
+let remoteInteriorDoorStatesPromise = null;
 
 function setMappedObjectsForTemplate(templateId, objects) {
   if (!TEMPLATES[templateId]) return [];
@@ -493,6 +499,101 @@ async function saveRemoteMappedInteriorObjects(templateId, objects) {
   const savedObjects = normalizeMappedInteriorObjects(data?.objects || normalizedObjects);
   setMappedObjectsForTemplate(templateId, savedObjects);
   return data || { ok: true, objects: savedObjects };
+}
+
+function isInteriorDoorOpen(objectId) {
+  return interiorDoorStatesByObjectId[String(objectId || '')]?.isOpen === true;
+}
+
+function applyRemoteInteriorDoorState(row) {
+  const objectId = String(row?.object_id || row?.objectId || '').trim();
+  const templateId = String(row?.template_id || row?.templateId || '').trim();
+  if (!objectId || !TEMPLATES[templateId]) return false;
+
+  interiorDoorStatesByObjectId = {
+    ...interiorDoorStatesByObjectId,
+    [objectId]: {
+      objectId,
+      templateId,
+      isOpen: row?.is_open === true || row?.isOpen === true,
+      updatedAt: row?.updated_at || row?.updatedAt || null,
+    },
+  };
+  return true;
+}
+
+function removeInteriorDoorState(objectId) {
+  const safeObjectId = String(objectId || '').trim();
+  if (!safeObjectId || !interiorDoorStatesByObjectId[safeObjectId]) return;
+  const nextStates = { ...interiorDoorStatesByObjectId };
+  delete nextStates[safeObjectId];
+  interiorDoorStatesByObjectId = nextStates;
+}
+
+function setLocalInteriorDoorState(objectId, templateId, isOpen) {
+  return applyRemoteInteriorDoorState({
+    object_id: objectId,
+    template_id: templateId,
+    is_open: isOpen === true,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function loadRemoteInteriorDoorStates({ force = false } = {}) {
+  if (remoteInteriorDoorStatesPromise && !force) return remoteInteriorDoorStatesPromise;
+
+  remoteInteriorDoorStatesPromise = (async () => {
+    const { data, error } = await supabase
+      .from(INTERIOR_DOOR_STATE_TABLE)
+      .select('object_id, template_id, is_open, updated_at');
+
+    if (error) throw error;
+
+    const nextStates = {};
+    (Array.isArray(data) ? data : []).forEach((row) => {
+      const objectId = String(row?.object_id || '').trim();
+      const templateId = String(row?.template_id || '').trim();
+      if (!objectId || !TEMPLATES[templateId]) return;
+      nextStates[objectId] = {
+        objectId,
+        templateId,
+        isOpen: row?.is_open === true,
+        updatedAt: row?.updated_at || null,
+      };
+    });
+    interiorDoorStatesByObjectId = nextStates;
+    return nextStates;
+  })();
+
+  try {
+    return await remoteInteriorDoorStatesPromise;
+  } catch (error) {
+    remoteInteriorDoorStatesPromise = null;
+    console.warn('[interiors] remote door states load failed:', error);
+    return null;
+  }
+}
+
+async function toggleRemoteInteriorDoorState(templateId, objectId) {
+  const identity = getInteriorColliderAdminIdentity();
+  const { data, error } = await supabase.rpc('toggle_interior_door_state', {
+    p_template_id: templateId,
+    p_object_id: objectId,
+    p_player_id: identity.adminPlayerId,
+    p_tg_id: identity.adminTgId,
+    p_nickname: identity.adminNickname,
+  });
+
+  if (error) throw error;
+  if (data?.ok === false) throw new Error(data?.reason || 'INTERIOR_DOOR_TOGGLE_FAILED');
+
+  applyRemoteInteriorDoorState({
+    object_id: data?.objectId || objectId,
+    template_id: data?.templateId || templateId,
+    is_open: data?.isOpen === true,
+    updated_at: data?.updatedAt || new Date().toISOString(),
+  });
+  return data;
 }
 
 function applyRemoteCollisionRow(row) {
@@ -646,6 +747,25 @@ function sanitizeInteriorPosition(point) {
   };
 }
 
+function mappedDoorCollisionRect(object) {
+  if (object?.type !== 'door') return null;
+
+  const configuredWidth = Number(object?.properties?.width);
+  const configuredDepth = Number(object?.properties?.depth);
+  const width = Number.isFinite(configuredWidth) ? Math.max(1.4, Math.min(9, configuredWidth)) : 4.2;
+  const depth = Number.isFinite(configuredDepth) ? Math.max(0.45, Math.min(3, configuredDepth)) : 1.15;
+  const quarterTurn = Math.abs(Math.round(Number(object.rotation || 0) / 90)) % 2 === 1;
+  const halfX = (quarterTurn ? depth : width) / 2;
+  const halfY = (quarterTurn ? width : depth) / 2;
+
+  return {
+    x1: Number(object.x) - halfX,
+    y1: Number(object.y) - halfY,
+    x2: Number(object.x) + halfX,
+    y2: Number(object.y) + halfY,
+  };
+}
+
 function isInteriorPointWalkable(templateId, point) {
   const profile = collisionProfileFor(templateId);
   const radius = Number(profile.radius ?? INTERIOR_COLLISION_FALLBACK_RADIUS);
@@ -656,8 +776,15 @@ function isInteriorPointWalkable(templateId, point) {
     : true;
 
   if (!insideBounds) return false;
+  if (profile.blocked.some((box) => hitsCollisionRect(safePoint, box, radius))) return false;
 
-  return !profile.blocked.some((box) => hitsCollisionRect(safePoint, box, radius));
+  const hitsClosedDoor = normalizeMappedInteriorObjects(profile.objects).some((object) => {
+    if (object.type !== 'door' || isInteriorDoorOpen(object.id)) return false;
+    const doorRect = mappedDoorCollisionRect(object);
+    return doorRect ? hitsCollisionRect(safePoint, doorRect, radius) : false;
+  });
+
+  return !hitsClosedDoor;
 }
 
 function snapInteriorPosition(templateId, point) {
@@ -885,16 +1012,18 @@ function markup() {
         </section>
         <section class="mn-interior-object-panel" hidden data-interior-object-panel>
           <div class="mn-interior-object-head">
-            <b>Объекты больницы</b>
+            <b>Объекты интерьера</b>
             <button type="button" data-interior-object-close>×</button>
           </div>
           <div class="mn-interior-object-hint">
             Выбери тип и нажми на план, чтобы поставить объект. Готовый объект можно перетащить,
-            повернуть или удалить. Пока это только маппинг без игровых свойств.
+            повернуть или удалить. Раскладка общая для всех игроков.
           </div>
           <div class="mn-interior-object-types">
-            <button type="button" data-interior-object-type="bed">Койка</button>
+            <button type="button" data-interior-object-type="bed">Кровать</button>
             <button type="button" data-interior-object-type="chair">Стул</button>
+            <button type="button" data-interior-object-type="table">Стол</button>
+            <button type="button" data-interior-object-type="door">Дверь</button>
           </div>
           <div class="mn-interior-object-actions">
             <button type="button" class="mn-interior-object-primary" data-interior-object-save>Сохранить всем</button>
@@ -906,6 +1035,10 @@ function markup() {
           </div>
           <small data-interior-object-status></small>
         </section>
+        <button type="button" class="mn-interior-door-action" hidden data-interior-door-action>
+          <span>E / У</span>
+          <b data-interior-door-action-label>Открыть дверь</b>
+        </button>
         <div class="mn-interior-hud">
           <div class="mn-interior-info">
             <b data-interior-title>Интерьер</b>
@@ -994,6 +1127,8 @@ export function enableInteriorsFeature() {
   const objectDelete = overlay.querySelector('[data-interior-object-delete]');
   const objectClear = overlay.querySelector('[data-interior-object-clear]');
   const objectStatus = overlay.querySelector('[data-interior-object-status]');
+  const doorAction = overlay.querySelector('[data-interior-door-action]');
+  const doorActionLabel = overlay.querySelector('[data-interior-door-action-label]');
   const colliderLayer = overlay.querySelector('[data-interior-collider-layer]');
   const colliderToggle = overlay.querySelector('[data-interior-collider-toggle]');
   const colliderPanel = overlay.querySelector('[data-interior-collider-panel]');
@@ -1060,7 +1195,10 @@ export function enableInteriorsFeature() {
   let objectEditorDragOffset = null;
   let collisionProfilesChannel = null;
   let mappedObjectsChannel = null;
+  let doorStatesChannel = null;
   let mappedObjectsReloadTimer = 0;
+  let nearestDoorId = null;
+  let doorTogglePending = false;
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
   const staminaConfig = getStaminaConfig();
@@ -1497,6 +1635,22 @@ export function enableInteriorsFeature() {
     }, 140);
   }
 
+  function handleRemoteInteriorDoorStateChange(payload) {
+    const row = payload?.new || payload?.old;
+    const templateId = String(row?.template_id || '').trim();
+    const objectId = String(row?.object_id || '').trim();
+    if (!objectId || !TEMPLATES[templateId]) return;
+
+    if (payload?.eventType === 'DELETE') removeInteriorDoorState(objectId);
+    else applyRemoteInteriorDoorState(row);
+
+    if (active && templateId === activeTemplateId) {
+      position = snapInteriorPosition(activeTemplateId, position);
+      renderPosition();
+      renderInteriorObjects();
+    }
+  }
+
   function subscribeRemoteMappedInteriorObjects() {
     if (mappedObjectsChannel) return;
 
@@ -1510,6 +1664,23 @@ export function enableInteriorsFeature() {
       .subscribe((status, error) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.warn('[interiors] mapped objects realtime subscription failed:', error || status);
+        }
+      });
+  }
+
+  function subscribeRemoteInteriorDoorStates() {
+    if (doorStatesChannel) return;
+
+    doorStatesChannel = supabase
+      .channel('mn-interior-door-states')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: INTERIOR_DOOR_STATE_TABLE },
+        handleRemoteInteriorDoorStateChange
+      )
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[interiors] door states realtime subscription failed:', error || status);
         }
       });
   }
@@ -1799,7 +1970,9 @@ export function enableInteriorsFeature() {
     const objects = profile?.objects || [];
     const beds = objects.filter((object) => object.type === 'bed').length;
     const chairs = objects.filter((object) => object.type === 'chair').length;
-    return `Коек ${beds} · стульев ${chairs}`;
+    const tables = objects.filter((object) => object.type === 'table').length;
+    const doors = objects.filter((object) => object.type === 'door').length;
+    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · двери ${doors}`;
   }
 
   function setObjectEditorType(type) {
@@ -1827,6 +2000,11 @@ export function enableInteriorsFeature() {
       element.dataset.interiorObjectId = object.id;
       element.dataset.interiorObjectType = object.type;
       element.dataset.selected = objectEditorOpen && object.id === objectEditorSelectedId ? 'true' : 'false';
+      if (object.type === 'door') {
+        const isOpen = isInteriorDoorOpen(object.id);
+        element.dataset.open = isOpen ? 'true' : 'false';
+        element.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
+      }
       element.style.left = `${object.x}%`;
       element.style.top = `${object.y}%`;
       element.style.transform = `translate(-50%, -50%) rotate(${object.rotation}deg)`;
@@ -1840,6 +2018,78 @@ export function enableInteriorsFeature() {
     objectDelete.disabled = !objectEditorSelectedId;
 
     if (objectEditorOpen) setObjectStatus(objectCountsText(profile));
+    refreshDoorInteraction();
+  }
+
+  function nearestInteractiveDoor() {
+    if (!active || colliderEditorOpen || objectEditorOpen) return null;
+
+    let nearest = null;
+    normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
+      .filter((object) => object.type === 'door')
+      .forEach((door) => {
+        const dx = (Number(door.x) - Number(position.x)) * INTERIOR_DESIGN_ASPECT;
+        const dy = Number(door.y) - Number(position.y);
+        const distance = Math.hypot(dx, dy);
+        const configuredRadius = Number(door?.properties?.interactionRadius);
+        const radius = Number.isFinite(configuredRadius)
+          ? Math.max(3, Math.min(14, configuredRadius))
+          : INTERIOR_DOOR_INTERACTION_RADIUS;
+        if (distance > radius || (nearest && distance >= nearest.distance)) return;
+        nearest = { door, distance };
+      });
+
+    return nearest;
+  }
+
+  function refreshDoorInteraction() {
+    const nearest = nearestInteractiveDoor();
+    nearestDoorId = nearest?.door?.id || null;
+
+    if (!nearestDoorId) {
+      doorAction.hidden = true;
+      doorAction.disabled = false;
+      return null;
+    }
+
+    const isOpen = isInteriorDoorOpen(nearestDoorId);
+    doorAction.hidden = false;
+    doorAction.disabled = doorTogglePending;
+    doorAction.dataset.open = isOpen ? 'true' : 'false';
+    doorActionLabel.textContent = doorTogglePending
+      ? 'Подождите…'
+      : isOpen
+        ? 'Закрыть дверь'
+        : 'Открыть дверь';
+    return nearest;
+  }
+
+  async function toggleNearestInteriorDoor() {
+    if (doorTogglePending || colliderEditorOpen || objectEditorOpen) return false;
+    const nearest = nearestInteractiveDoor();
+    const door = nearest?.door;
+    if (!door) return false;
+
+    const wasOpen = isInteriorDoorOpen(door.id);
+    doorTogglePending = true;
+    setLocalInteriorDoorState(door.id, activeTemplateId, !wasOpen);
+    renderInteriorObjects();
+
+    try {
+      await toggleRemoteInteriorDoorState(activeTemplateId, door.id);
+      position = snapInteriorPosition(activeTemplateId, position);
+      renderPosition();
+      renderInteriorObjects();
+      return true;
+    } catch (error) {
+      console.warn('[interiors] door toggle failed:', error);
+      setLocalInteriorDoorState(door.id, activeTemplateId, wasOpen);
+      renderInteriorObjects();
+      return false;
+    } finally {
+      doorTogglePending = false;
+      refreshDoorInteraction();
+    }
   }
 
   function applyObjectEditorProfile({ persist = false } = {}) {
@@ -1899,7 +2149,7 @@ export function enableInteriorsFeature() {
   }
 
   function openObjectEditor() {
-    if (!active || !isInteriorColliderAdmin() || activeTemplateId !== 'hospital') return;
+    if (!active || !isInteriorColliderAdmin()) return;
     if (colliderEditorOpen) closeColliderEditor();
 
     objectEditorOpen = true;
@@ -1981,6 +2231,9 @@ export function enableInteriorsFeature() {
       x: roundPercent(point.x),
       y: roundPercent(point.y),
       rotation: 0,
+      properties: objectEditorType === 'door'
+        ? { width: 4.2, depth: 1.15, interactionRadius: INTERIOR_DOOR_INTERACTION_RADIUS }
+        : {},
     };
     objectEditorProfile.objects.push(object);
     objectEditorSelectedId = object.id;
@@ -2131,6 +2384,7 @@ export function enableInteriorsFeature() {
     staminaBox.dataset.visible = moving ? 'true' : 'false';
     renderStamina();
     renderPosition();
+    refreshDoorInteraction();
     raf = requestAnimationFrame(frame);
   }
 
@@ -2273,11 +2527,15 @@ export function enableInteriorsFeature() {
   }, 40);
   subscribeRemoteCollisionProfiles();
   subscribeRemoteMappedInteriorObjects();
+  subscribeRemoteInteriorDoorStates();
   loadRemoteCollisionProfiles({ force: false }).catch((error) => {
     console.warn('[interiors] background collider profiles load failed:', error);
   });
   loadRemoteMappedInteriorObjects({ force: false }).catch((error) => {
     console.warn('[interiors] background mapped objects load failed:', error);
+  });
+  loadRemoteInteriorDoorStates({ force: false }).catch((error) => {
+    console.warn('[interiors] background door states load failed:', error);
   });
 
   async function enter(house) {
@@ -2310,7 +2568,7 @@ export function enableInteriorsFeature() {
       delete overlay.dataset.serviceId;
       activeTemplateId = template.id;
       colliderToggle.hidden = !isInteriorColliderAdmin();
-      objectToggle.hidden = true;
+      objectToggle.hidden = !isInteriorColliderAdmin();
       activeHouse = house;
       activeHouseId = id;
       activeService = null;
@@ -2332,6 +2590,7 @@ export function enableInteriorsFeature() {
       Promise.allSettled([
         loadRemoteCollisionProfiles({ force: false }),
         loadRemoteMappedInteriorObjects({ force: false }),
+        loadRemoteInteriorDoorStates({ force: false }),
       ])
         .then(() => refreshPositionAfterCollisionChange(template.id))
         .catch((error) => console.warn('[interiors] interior profiles refresh failed:', error));
@@ -2342,6 +2601,7 @@ export function enableInteriorsFeature() {
       controls.hidden = false;
       ui.hidden = false;
       active = true;
+      refreshDoorInteraction();
       startLoop();
       window.dispatchEvent(new CustomEvent('mn:interior-entered', {
         detail: {
@@ -2405,6 +2665,7 @@ export function enableInteriorsFeature() {
       Promise.allSettled([
         loadRemoteCollisionProfiles({ force: false }),
         loadRemoteMappedInteriorObjects({ force: false }),
+        loadRemoteInteriorDoorStates({ force: false }),
       ])
         .then(() => refreshPositionAfterCollisionChange(template.id))
         .catch((error) => console.warn('[interiors] interior profiles refresh failed:', error));
@@ -2415,6 +2676,7 @@ export function enableInteriorsFeature() {
       controls.hidden = false;
       ui.hidden = false;
       active = true;
+      refreshDoorInteraction();
       startLoop();
       window.dispatchEvent(new CustomEvent('mn:interior-entered', {
         detail: {
@@ -2452,6 +2714,9 @@ export function enableInteriorsFeature() {
     activeServiceId = null;
     activeInteriorKind = 'house';
     activeTemplateId = 'standard';
+    nearestDoorId = null;
+    doorTogglePending = false;
+    doorAction.hidden = true;
     cancelAnimationFrame(raf);
     keys.clear();
     joystickVector = { x: 0, y: 0 };
@@ -2502,7 +2767,6 @@ export function enableInteriorsFeature() {
     if (
       !isFormField &&
       isInteriorColliderAdmin() &&
-      activeTemplateId === 'hospital' &&
       isObjectEditorHotkey(event)
     ) {
       event.preventDefault();
@@ -2564,7 +2828,16 @@ export function enableInteriorsFeature() {
       return;
     }
 
-    if (event.key === 'Escape' || String(event.key).toLowerCase() === 'e' || String(event.key).toLowerCase() === 'у') {
+    const pressedKey = String(event.key || '').toLowerCase();
+    if (pressedKey === 'e' || pressedKey === 'у') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.repeat) return;
+      if (nearestInteractiveDoor()) void toggleNearestInteriorDoor();
+      else exit();
+      return;
+    }
+    if (event.key === 'Escape') {
       event.preventDefault(); exit(); return;
     }
     keys.add(String(event.key).toLowerCase());
@@ -2644,6 +2917,7 @@ export function enableInteriorsFeature() {
   joystick.addEventListener('pointercancel', stopJoystick);
   colliderToggle.addEventListener('click', toggleColliderEditor);
   objectToggle.addEventListener('click', toggleObjectEditor);
+  doorAction.addEventListener('click', () => void toggleNearestInteriorDoor());
   objectClose.addEventListener('click', closeObjectEditor);
   objectTypeButtons.forEach((button) => {
     button.addEventListener('click', () => setObjectEditorType(button.dataset.interiorObjectType));
@@ -2761,6 +3035,10 @@ export function enableInteriorsFeature() {
       if (mappedObjectsChannel) {
         supabase.removeChannel(mappedObjectsChannel);
         mappedObjectsChannel = null;
+      }
+      if (doorStatesChannel) {
+        supabase.removeChannel(doorStatesChannel);
+        doorStatesChannel = null;
       }
       overlay.remove();
     },
