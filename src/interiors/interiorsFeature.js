@@ -578,22 +578,33 @@ function collisionSaveErrorMessage(error) {
     .filter(Boolean)
     .join(' ');
   const normalized = raw.toLowerCase();
+  let projectRef = '';
+
+  try {
+    projectRef = new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split('.')[0] || '';
+  } catch {
+    projectRef = '';
+  }
+  const projectLabel = projectRef ? ` [${projectRef}]` : '';
 
   if (normalized.includes('pgrst202') || normalized.includes('could not find the function')) {
-    return 'Supabase: функция не найдена — повторно выполни SQL-миграцию';
+    return `Supabase${projectLabel}: RPC не найдена — выполни repair SQL`;
   }
-  if (normalized.includes('42p01') || normalized.includes('interior_collision_profiles')) {
-    return 'Supabase: таблица стен не создана — выполни SQL-миграцию';
+  if (normalized.includes('pgrst205') || normalized.includes('schema cache')) {
+    return `Supabase${projectLabel}: старый schema cache — выполни repair SQL`;
+  }
+  if (normalized.includes('42p01') || normalized.includes('does not exist')) {
+    return `Supabase${projectLabel}: таблица стен отсутствует — выполни repair SQL`;
   }
   if (normalized.includes('admin_required')) {
-    return 'Supabase: текущий игрок не подтверждён как администратор';
+    return `Supabase${projectLabel}: игрок не подтверждён как администратор`;
   }
   if (normalized.includes('permission denied') || normalized.includes('42501')) {
-    return 'Supabase: нет разрешения на сохранение стен';
+    return `Supabase${projectLabel}: нет разрешения на сохранение стен`;
   }
 
   const message = String(error?.message || error?.code || 'неизвестная ошибка').trim();
-  return `Supabase: ${message.slice(0, 140)}`;
+  return `Supabase${projectLabel}: ${message.slice(0, 140)}`;
 }
 
 function collisionProfileFor(templateId) {
