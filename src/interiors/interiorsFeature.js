@@ -33,7 +33,7 @@ const INTERIOR_DOOR_RADIUS_HYSTERESIS = 1.4;
 const INTERIOR_PRESENCE_REFRESH_MS = 1500;
 const INTERIOR_SEAT_HEARTBEAT_MS = 8000;
 const INTERIOR_SEAT_STALE_MS = 32000;
-const INTERIOR_REMOTE_PLAYER_STALE_MS = 18000;
+const INTERIOR_REMOTE_PLAYER_STALE_MS = 60000;
 const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
   bed: Object.freeze({
     label: 'Кровать', defaultWidth: 11, defaultHeight: 6,
@@ -1643,11 +1643,25 @@ export function enableInteriorsFeature() {
     interiorRoom?.sendPosition?.(localInteriorSnapshot(), { force });
   }
 
-  function removeRemoteInteriorPlayer(playerId) {
+  function removeRemoteInteriorPlayer(playerId, leaveInfo = {}) {
     const safePlayerId = String(playerId || '').trim();
     const entry = remoteInteriorPlayers.get(safePlayerId);
+    const expectedConnectionId = String(
+      typeof leaveInfo === 'string' ? leaveInfo : leaveInfo?.connectionId || ''
+    ).trim();
+
+    // player_leave от старого сокета часто приходит уже после reload и не
+    // должен удалять новый экземпляр того же игрока.
+    if (
+      entry &&
+      expectedConnectionId &&
+      entry.connectionId &&
+      entry.connectionId !== expectedConnectionId
+    ) return false;
+
     entry?.element?.remove();
     remoteInteriorPlayers.delete(safePlayerId);
+    return true;
   }
 
   function upsertRemoteInteriorPlayer(player = {}) {
@@ -2040,7 +2054,12 @@ export function enableInteriorsFeature() {
     interiorRemoteStaleTimer = window.setInterval(() => {
       const staleBefore = Date.now() - INTERIOR_REMOTE_PLAYER_STALE_MS;
       remoteInteriorPlayers.forEach((entry, playerId) => {
-        if (entry.updatedAt < staleBefore) removeRemoteInteriorPlayer(playerId);
+        if (
+          entry.updatedAt < staleBefore &&
+          !interiorRoom?.hasRemotePlayer?.(playerId)
+        ) {
+          removeRemoteInteriorPlayer(playerId, { connectionId: entry.connectionId });
+        }
       });
 
       let removedStaleSeat = false;
