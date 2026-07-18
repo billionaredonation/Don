@@ -1311,6 +1311,20 @@ register('home', async (root) => {
     <div class="mobile-controls-layer"></div>
   `;
 
+  /*
+    On desktop the balance must use the viewport as its positioning frame,
+    exactly like the interior balance. Keeping it inside the grid HUD lets
+    Telegram Desktop pull it back toward the nickname card in some viewports.
+    Mobile keeps the original HUD structure and is not changed here.
+  */
+  if (!isMobileGameplay) {
+    const desktopBalanceCard = root.querySelector('[data-player-balance-card]');
+
+    if (desktopBalanceCard) {
+      root.append(desktopBalanceCard);
+    }
+  }
+
   resetHouseModalsOnHomeEnter();
 
   const stage = root.querySelector('.gta-map-stage');
@@ -2205,5 +2219,4 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
 
