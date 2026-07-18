@@ -9,6 +9,7 @@ import hospitalInteriorUrl from '../../ambulance_interior.png?url';
 import './interiors.css';
 
 const INTERIOR_COLLISION_TABLE = 'interior_collision_profiles';
+const INTERIOR_MAPPED_OBJECT_TABLE = 'interior_mapped_objects';
 const INTERIOR_COLLISION_FALLBACK_RADIUS = 0;
 const INTERIOR_COLLISION_STORAGE_KEY = 'mn-interior-colliders-v1';
 const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
@@ -303,7 +304,7 @@ function normalizeCollisionRect(rect) {
 }
 
 function normalizeMappedInteriorObject(object, index = 0) {
-  const rawType = String(object?.type || object?.kind || '').trim().toLowerCase();
+  const rawType = String(object?.type || object?.object_type || object?.kind || '').trim().toLowerCase();
   const type = INTERIOR_MAPPED_OBJECT_TYPES[rawType] ? rawType : null;
   if (!type) return null;
 
@@ -317,6 +318,11 @@ function normalizeMappedInteriorObject(object, index = 0) {
     : 0;
   const fallbackId = `mapped-${type}-${index}-${roundPercent(x)}-${roundPercent(y)}`;
   const id = String(object?.id || fallbackId).trim().slice(0, 96) || fallbackId;
+  const properties = object?.properties &&
+    typeof object.properties === 'object' &&
+    !Array.isArray(object.properties)
+    ? { ...object.properties }
+    : {};
 
   return {
     id,
@@ -324,6 +330,7 @@ function normalizeMappedInteriorObject(object, index = 0) {
     x: roundPercent(clampPercent(x, 50)),
     y: roundPercent(clampPercent(y, 50)),
     rotation,
+    properties,
   };
 }
 
@@ -402,6 +409,87 @@ function writeStoredCollisionProfiles(profiles) {
 
 let customCollisionProfiles = readStoredCollisionProfiles();
 let remoteCollisionProfilesPromise = null;
+let mappedInteriorObjectsByTemplate = {};
+let remoteMappedInteriorObjectsPromise = null;
+
+function setMappedObjectsForTemplate(templateId, objects) {
+  if (!TEMPLATES[templateId]) return [];
+
+  const normalizedObjects = normalizeMappedInteriorObjects(objects);
+  mappedInteriorObjectsByTemplate = {
+    ...mappedInteriorObjectsByTemplate,
+    [templateId]: normalizedObjects,
+  };
+
+  const currentProfile = customCollisionProfiles[templateId] || INTERIOR_COLLISION_PROFILES[templateId];
+  customCollisionProfiles = {
+    ...customCollisionProfiles,
+    [templateId]: normalizeCollisionProfile(
+      { ...currentProfile, objects: normalizedObjects },
+      INTERIOR_COLLISION_PROFILES[templateId]
+    ),
+  };
+  writeStoredCollisionProfiles(customCollisionProfiles);
+  return normalizedObjects;
+}
+
+async function loadRemoteMappedInteriorObjects({ force = false } = {}) {
+  if (remoteMappedInteriorObjectsPromise && !force) return remoteMappedInteriorObjectsPromise;
+
+  remoteMappedInteriorObjectsPromise = (async () => {
+    const { data, error } = await supabase
+      .from(INTERIOR_MAPPED_OBJECT_TABLE)
+      .select('id, template_id, object_type, x, y, rotation, properties, created_at, updated_at')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    const nextObjects = Object.keys(TEMPLATES).reduce((result, templateId) => {
+      result[templateId] = [];
+      return result;
+    }, {});
+
+    (Array.isArray(data) ? data : []).forEach((row, index) => {
+      const templateId = String(row?.template_id || '').trim();
+      if (!TEMPLATES[templateId]) return;
+      const object = normalizeMappedInteriorObject(row, index);
+      if (object) nextObjects[templateId].push(object);
+    });
+
+    Object.entries(nextObjects).forEach(([templateId, objects]) => {
+      setMappedObjectsForTemplate(templateId, objects);
+    });
+
+    return nextObjects;
+  })();
+
+  try {
+    return await remoteMappedInteriorObjectsPromise;
+  } catch (error) {
+    remoteMappedInteriorObjectsPromise = null;
+    console.warn('[interiors] remote mapped objects load failed:', error);
+    return null;
+  }
+}
+
+async function saveRemoteMappedInteriorObjects(templateId, objects) {
+  const normalizedObjects = normalizeMappedInteriorObjects(objects);
+  const identity = getInteriorColliderAdminIdentity();
+  const { data, error } = await supabase.rpc('admin_replace_interior_mapped_objects', {
+    p_template_id: templateId,
+    p_objects: normalizedObjects,
+    p_admin_player_id: identity.adminPlayerId,
+    p_admin_tg_id: identity.adminTgId,
+    p_admin_nickname: identity.adminNickname,
+  });
+
+  if (error) throw error;
+  if (data?.ok === false) throw new Error(data?.reason || 'INTERIOR_OBJECT_SAVE_FAILED');
+
+  const savedObjects = normalizeMappedInteriorObjects(data?.objects || normalizedObjects);
+  setMappedObjectsForTemplate(templateId, savedObjects);
+  return data || { ok: true, objects: savedObjects };
+}
 
 function applyRemoteCollisionRow(row) {
   const templateId = String(row?.template_id || row?.templateId || '').trim();
@@ -505,9 +593,17 @@ async function saveRemoteCollisionProfile(templateId, profile) {
 }
 
 function collisionProfileFor(templateId) {
-  return customCollisionProfiles[templateId] ||
+  const profile = customCollisionProfiles[templateId] ||
     INTERIOR_COLLISION_PROFILES[templateId] ||
     INTERIOR_COLLISION_PROFILES.standard;
+  const hasRemoteObjectState = Object.prototype.hasOwnProperty.call(
+    mappedInteriorObjectsByTemplate,
+    templateId
+  );
+
+  return hasRemoteObjectState
+    ? { ...profile, objects: mappedInteriorObjectsByTemplate[templateId] }
+    : profile;
 }
 
 function insideCollisionRect(point, box, padding = 0) {
@@ -944,6 +1040,8 @@ export function enableInteriorsFeature() {
   let objectEditorDraggingId = null;
   let objectEditorDragOffset = null;
   let collisionProfilesChannel = null;
+  let mappedObjectsChannel = null;
+  let mappedObjectsReloadTimer = 0;
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
   const staminaConfig = getStaminaConfig();
@@ -1208,6 +1306,42 @@ export function enableInteriorsFeature() {
       .subscribe((status, error) => {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.warn('[interiors] collider realtime subscription failed:', error || status);
+        }
+      });
+  }
+
+  function handleRemoteMappedObjectsChange(payload) {
+    const row = payload?.new || payload?.old;
+    const templateId = String(row?.template_id || '').trim();
+    if (!TEMPLATES[templateId]) return;
+
+    window.clearTimeout(mappedObjectsReloadTimer);
+    mappedObjectsReloadTimer = window.setTimeout(async () => {
+      const loaded = await loadRemoteMappedInteriorObjects({ force: true });
+      if (!loaded || destroyed) return;
+
+      if (active && templateId === activeTemplateId) {
+        renderInteriorObjects();
+        if (objectEditorOpen && !objectEditorPointer) {
+          setObjectStatus('Сервер обновил раскладку объектов');
+        }
+      }
+    }, 140);
+  }
+
+  function subscribeRemoteMappedInteriorObjects() {
+    if (mappedObjectsChannel) return;
+
+    mappedObjectsChannel = supabase
+      .channel('mn-interior-mapped-objects')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: INTERIOR_MAPPED_OBJECT_TABLE },
+        handleRemoteMappedObjectsChange
+      )
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[interiors] mapped objects realtime subscription failed:', error || status);
         }
       });
   }
@@ -1538,7 +1672,7 @@ export function enableInteriorsFeature() {
       INTERIOR_COLLISION_PROFILES[objectEditorTemplateId]
     );
     setRuntimeEditorProfile(objectEditorProfile, objectEditorTemplateId);
-    writeStoredCollisionProfiles(customCollisionProfiles);
+    setMappedObjectsForTemplate(objectEditorTemplateId, objectEditorProfile.objects);
     renderInteriorObjects();
 
     if (persist) {
@@ -1560,11 +1694,11 @@ export function enableInteriorsFeature() {
       INTERIOR_COLLISION_PROFILES[objectEditorTemplateId]
     );
     setRuntimeEditorProfile(profile, objectEditorTemplateId);
-    writeStoredCollisionProfiles(customCollisionProfiles);
+    setMappedObjectsForTemplate(objectEditorTemplateId, profile.objects);
     setObjectStatus(`Сохраняю для всех · ${objectCountsText(profile)}`);
 
     try {
-      await saveRemoteCollisionProfile(objectEditorTemplateId, profile);
+      await saveRemoteMappedInteriorObjects(objectEditorTemplateId, profile.objects);
       if (saveId === colliderSaveSequence) {
         setObjectStatus(`Сохранено для всех · ${objectCountsText(profile)}`);
       }
@@ -1960,8 +2094,12 @@ export function enableInteriorsFeature() {
     Promise.allSettled(Object.values(TEMPLATES).map(preloadTemplateImage));
   }, 40);
   subscribeRemoteCollisionProfiles();
+  subscribeRemoteMappedInteriorObjects();
   loadRemoteCollisionProfiles({ force: false }).catch((error) => {
     console.warn('[interiors] background collider profiles load failed:', error);
+  });
+  loadRemoteMappedInteriorObjects({ force: false }).catch((error) => {
+    console.warn('[interiors] background mapped objects load failed:', error);
   });
 
   async function enter(house) {
@@ -2013,9 +2151,12 @@ export function enableInteriorsFeature() {
       renderStamina();
       renderPosition();
       renderInteriorObjects();
-      loadRemoteCollisionProfiles({ force: false })
+      Promise.allSettled([
+        loadRemoteCollisionProfiles({ force: false }),
+        loadRemoteMappedInteriorObjects({ force: false }),
+      ])
         .then(() => refreshPositionAfterCollisionChange(template.id))
-        .catch((error) => console.warn('[interiors] collider profiles refresh failed:', error));
+        .catch((error) => console.warn('[interiors] interior profiles refresh failed:', error));
       hideLoading();
       scene.hidden = false;
       layoutInteriorWorld();
@@ -2083,9 +2224,12 @@ export function enableInteriorsFeature() {
       renderStamina();
       renderPosition();
       renderInteriorObjects();
-      loadRemoteCollisionProfiles({ force: false })
+      Promise.allSettled([
+        loadRemoteCollisionProfiles({ force: false }),
+        loadRemoteMappedInteriorObjects({ force: false }),
+      ])
         .then(() => refreshPositionAfterCollisionChange(template.id))
-        .catch((error) => console.warn('[interiors] collider profiles refresh failed:', error));
+        .catch((error) => console.warn('[interiors] interior profiles refresh failed:', error));
       hideLoading();
       scene.hidden = false;
       layoutInteriorWorld();
@@ -2407,6 +2551,7 @@ export function enableInteriorsFeature() {
       window.clearTimeout(warmupTimer);
       window.clearTimeout(loadingRevealTimer);
       window.clearTimeout(colliderSaveTimer);
+      window.clearTimeout(mappedObjectsReloadTimer);
       window.clearInterval(interiorHudRefreshTimer);
       window.clearTimeout(interiorHealthHitTimer);
       window.cancelAnimationFrame(worldLayoutRaf);
@@ -2425,6 +2570,10 @@ export function enableInteriorsFeature() {
       if (collisionProfilesChannel) {
         supabase.removeChannel(collisionProfilesChannel);
         collisionProfilesChannel = null;
+      }
+      if (mappedObjectsChannel) {
+        supabase.removeChannel(mappedObjectsChannel);
+        mappedObjectsChannel = null;
       }
       overlay.remove();
     },
