@@ -12,6 +12,7 @@ const INTERIOR_COLLISION_TABLE = 'interior_collision_profiles';
 const INTERIOR_COLLISION_FALLBACK_RADIUS = 0;
 const INTERIOR_COLLISION_STORAGE_KEY = 'mn-interior-colliders-v1';
 const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
+const INTERIOR_DESIGN_ASPECT = 16 / 9;
 const INTERIOR_VITALS_CONFIG = getPlayerVitalsConfig();
 const INTERIOR_HEALTH_LOW_CLASS = 'is-interior-health-low';
 const INTERIOR_HEALTH_HIT_CLASS = 'is-interior-health-hit';
@@ -654,19 +655,21 @@ function markup() {
         <small data-interior-loading-text hidden></small>
       </div>
       <main class="mn-interior-scene" hidden data-interior-scene>
-        <div class="mn-interior-map" data-interior-map>
-          <img
-            data-interior-image
-            alt=""
-            draggable="false"
-            decoding="async"
-            fetchpriority="high"
-            style="display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none"
-          />
+        <div class="mn-interior-world" data-interior-world>
+          <div class="mn-interior-map" data-interior-map>
+            <img
+              data-interior-image
+              alt=""
+              draggable="false"
+              decoding="async"
+              fetchpriority="high"
+              style="display:block;width:100%;height:100%;object-fit:contain;user-select:none;pointer-events:none"
+            />
+          </div>
+          <div class="mn-interior-shade"></div>
+          <div class="mn-interior-collider-layer" hidden data-interior-collider-layer></div>
+          <div class="mn-interior-player" data-interior-player><i></i><span>${String(state.nickname || 'Игрок')}</span></div>
         </div>
-        <div class="mn-interior-shade"></div>
-        <div class="mn-interior-collider-layer" hidden data-interior-collider-layer></div>
-        <div class="mn-interior-player" data-interior-player><i></i><span>${String(state.nickname || 'Игрок')}</span></div>
       </main>
       <div class="mn-interior-controls" hidden data-interior-controls>
         <div class="mn-interior-joystick" data-interior-joystick data-active="false">
@@ -784,6 +787,7 @@ export function enableInteriorsFeature() {
   const scene = overlay.querySelector('[data-interior-scene]');
   const controls = overlay.querySelector('[data-interior-controls]');
   const ui = overlay.querySelector('[data-interior-ui]');
+  const world = overlay.querySelector('[data-interior-world]');
   const map = overlay.querySelector('[data-interior-map]');
   const interiorImage = overlay.querySelector('[data-interior-image]');
   const marker = overlay.querySelector('[data-interior-player]');
@@ -822,6 +826,7 @@ export function enableInteriorsFeature() {
   let active = false;
   let destroyed = false;
   let raf = 0;
+  let worldLayoutRaf = 0;
   let lastFrame = 0;
   let position = { x: 50, y: 82 };
   let activeTemplateId = 'standard';
@@ -867,6 +872,33 @@ export function enableInteriorsFeature() {
     window.__MN_INTERIOR_ACTIVE__ = value;
     document.body.classList.toggle('mn-interior-open', value);
     document.documentElement.classList.toggle('mn-interior-open', value);
+  }
+
+  function layoutInteriorWorld() {
+    if (!scene || !world) return;
+
+    const sceneWidth = Math.max(0, Number(scene.clientWidth || 0));
+    const sceneHeight = Math.max(0, Number(scene.clientHeight || 0));
+    if (sceneWidth <= 0 || sceneHeight <= 0) return;
+
+    let width = sceneWidth;
+    let height = width / INTERIOR_DESIGN_ASPECT;
+
+    if (height > sceneHeight) {
+      height = sceneHeight;
+      width = height * INTERIOR_DESIGN_ASPECT;
+    }
+
+    world.style.width = `${Math.round(width * 100) / 100}px`;
+    world.style.height = `${Math.round(height * 100) / 100}px`;
+  }
+
+  function scheduleInteriorWorldLayout() {
+    window.cancelAnimationFrame(worldLayoutRaf);
+    worldLayoutRaf = window.requestAnimationFrame(() => {
+      worldLayoutRaf = 0;
+      layoutInteriorWorld();
+    });
   }
 
   function renderPosition() {
@@ -1101,8 +1133,14 @@ export function enableInteriorsFeature() {
 
   function colliderLayerPoint(event) {
     const rect = colliderLayer.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100;
-    const y = ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100;
+    const forceRotated = document.documentElement.classList.contains('mn-force-rotate-landscape') &&
+      window.matchMedia?.('(orientation: portrait)')?.matches;
+    const x = forceRotated
+      ? ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100
+      : ((event.clientX - rect.left) / Math.max(1, rect.width)) * 100;
+    const y = forceRotated
+      ? ((rect.right - event.clientX) / Math.max(1, rect.width)) * 100
+      : ((event.clientY - rect.top) / Math.max(1, rect.height)) * 100;
 
     return {
       x: clampPercent(x, 0),
@@ -1625,6 +1663,8 @@ export function enableInteriorsFeature() {
         .catch((error) => console.warn('[interiors] collider profiles refresh failed:', error));
       hideLoading();
       scene.hidden = false;
+      layoutInteriorWorld();
+      scheduleInteriorWorldLayout();
       controls.hidden = false;
       ui.hidden = false;
       active = true;
@@ -1691,6 +1731,8 @@ export function enableInteriorsFeature() {
         .catch((error) => console.warn('[interiors] collider profiles refresh failed:', error));
       hideLoading();
       scene.hidden = false;
+      layoutInteriorWorld();
+      scheduleInteriorWorldLayout();
       controls.hidden = false;
       ui.hidden = false;
       active = true;
@@ -1917,6 +1959,12 @@ export function enableInteriorsFeature() {
   window.addEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
   window.addEventListener('keydown', keyDown, true);
   window.addEventListener('keyup', keyUp, true);
+  window.addEventListener('resize', scheduleInteriorWorldLayout);
+  window.addEventListener('orientationchange', scheduleInteriorWorldLayout);
+  const interiorWorldResizeObserver = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(scheduleInteriorWorldLayout)
+    : null;
+  interiorWorldResizeObserver?.observe(scene);
   interiorHudRefreshTimer = window.setInterval(() => {
     if (!active) return;
 
@@ -1937,6 +1985,7 @@ export function enableInteriorsFeature() {
       window.clearTimeout(colliderSaveTimer);
       window.clearInterval(interiorHudRefreshTimer);
       window.clearTimeout(interiorHealthHitTimer);
+      window.cancelAnimationFrame(worldLayoutRaf);
       vitalFeedbackTimers.forEach((timer) => window.clearTimeout(timer));
       vitalFeedbackTimers.clear();
       exit();
@@ -1946,6 +1995,9 @@ export function enableInteriorsFeature() {
       window.removeEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
       window.removeEventListener('keydown', keyDown, true);
       window.removeEventListener('keyup', keyUp, true);
+      window.removeEventListener('resize', scheduleInteriorWorldLayout);
+      window.removeEventListener('orientationchange', scheduleInteriorWorldLayout);
+      interiorWorldResizeObserver?.disconnect();
       if (collisionProfilesChannel) {
         supabase.removeChannel(collisionProfilesChannel);
         collisionProfilesChannel = null;
