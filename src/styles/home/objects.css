@@ -95,11 +95,12 @@
 }
 
 .map-overview-icon-service {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(3, 8, 12, 0.94);
-  border-radius: 3px;
-  background: rgba(248, 250, 252, 0.98);
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.98);
+  outline: 2px solid rgba(3, 8, 12, 0.94);
+  border-radius: 6px;
+  background: #e83249;
 }
 
 .map-overview-icon-service::before,
@@ -109,18 +110,18 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  border-radius: 1px;
-  background: #ef3347;
+  border-radius: 2px;
+  background: #ffffff;
 }
 
 .map-overview-icon-service::before {
-  width: 3px;
-  height: 10px;
+  width: 5px;
+  height: 14px;
 }
 
 .map-overview-icon-service::after {
-  width: 10px;
-  height: 3px;
+  width: 14px;
+  height: 5px;
 }
 
 .map-overview-icon-marker {
@@ -137,7 +138,9 @@
 .map-objects-layer-public .map-object.map-object-house .map-house-svg,
 .map-objects-layer-public .map-object.map-object-house .map-house-lite,
 .map-objects-layer-public .map-object.map-object-house .map-house-clean,
-.map-objects-layer-public .map-object.map-object-house .map-object-icon {
+.map-objects-layer-public .map-object.map-object-house .map-object-icon,
+.map-objects-layer-public .map-object.map-object-service .map-service-icon,
+.map-objects-layer-public .map-object.map-object-service .map-object-icon {
   opacity: 0 !important;
   visibility: hidden !important;
 }
