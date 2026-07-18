@@ -19,10 +19,22 @@ const INTERIOR_DESIGN_ASPECT = 16 / 9;
 const INTERIOR_MAPPED_OBJECT_LIMIT = 300;
 const INTERIOR_DOOR_INTERACTION_RADIUS = 7.5;
 const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
-  bed: Object.freeze({ label: 'Кровать' }),
-  chair: Object.freeze({ label: 'Стул' }),
-  table: Object.freeze({ label: 'Стол' }),
-  door: Object.freeze({ label: 'Дверь' }),
+  bed: Object.freeze({
+    label: 'Кровать', defaultWidth: 11, defaultHeight: 6,
+    minWidth: 1.5, maxWidth: 24, minHeight: 1, maxHeight: 18,
+  }),
+  chair: Object.freeze({
+    label: 'Стул', defaultWidth: 4, defaultHeight: 4,
+    minWidth: 1, maxWidth: 10, minHeight: 1, maxHeight: 12,
+  }),
+  table: Object.freeze({
+    label: 'Стол', defaultWidth: 8, defaultHeight: 6,
+    minWidth: 1.5, maxWidth: 24, minHeight: 1, maxHeight: 18,
+  }),
+  door: Object.freeze({
+    label: 'Дверь', defaultWidth: 4.2, defaultHeight: 1.15,
+    minWidth: 1.4, maxWidth: 12, minHeight: 0.45, maxHeight: 4,
+  }),
 });
 const INTERIOR_VITALS_CONFIG = getPlayerVitalsConfig();
 const INTERIOR_HEALTH_LOW_CLASS = 'is-interior-health-low';
@@ -331,6 +343,10 @@ function normalizeMappedInteriorObject(object, index = 0) {
     !Array.isArray(object.properties)
     ? { ...object.properties }
     : {};
+  const size = mappedInteriorObjectSize({ type, properties });
+  properties.width = size.width;
+  properties.height = size.height;
+  if (type === 'door') properties.depth = size.height;
 
   return {
     id,
@@ -340,6 +356,35 @@ function normalizeMappedInteriorObject(object, index = 0) {
     rotation,
     properties,
   };
+}
+
+function mappedInteriorObjectSize(object) {
+  const type = String(object?.type || '').trim().toLowerCase();
+  const meta = INTERIOR_MAPPED_OBJECT_TYPES[type] || INTERIOR_MAPPED_OBJECT_TYPES.chair;
+  const rawWidth = Number(object?.properties?.width);
+  const rawHeight = Number(
+    object?.properties?.height ??
+    (type === 'door' ? object?.properties?.depth : undefined)
+  );
+  const width = Number.isFinite(rawWidth) ? rawWidth : meta.defaultWidth;
+  const height = Number.isFinite(rawHeight) ? rawHeight : meta.defaultHeight;
+
+  return {
+    width: roundPercent(Math.max(meta.minWidth, Math.min(meta.maxWidth, width))),
+    height: roundPercent(Math.max(meta.minHeight, Math.min(meta.maxHeight, height))),
+  };
+}
+
+function createMappedInteriorObjectProperties(type) {
+  const size = mappedInteriorObjectSize({ type, properties: {} });
+  return type === 'door'
+    ? {
+      width: size.width,
+      height: size.height,
+      depth: size.height,
+      interactionRadius: INTERIOR_DOOR_INTERACTION_RADIUS,
+    }
+    : { width: size.width, height: size.height };
 }
 
 function normalizeMappedInteriorObjects(objects) {
@@ -1056,7 +1101,8 @@ function markup() {
           </div>
           <div class="mn-interior-object-hint">
             Выбери тип и нажми на план, чтобы поставить объект. Готовый объект можно перетащить,
-            повернуть или удалить. Раскладка общая для всех игроков.
+            повернуть или удалить. Потяни жёлтый угол выбранного объекта, чтобы изменить его размер.
+            Раскладка общая для всех игроков.
           </div>
           <div class="mn-interior-object-types">
             <button type="button" data-interior-object-type="bed">Кровать</button>
@@ -1232,6 +1278,9 @@ export function enableInteriorsFeature() {
   let objectEditorPointer = null;
   let objectEditorDraggingId = null;
   let objectEditorDragOffset = null;
+  let objectEditorResizeId = null;
+  let objectEditorResizeStart = null;
+  let objectEditorResizeOrigin = null;
   let collisionProfilesChannel = null;
   let mappedObjectsChannel = null;
   let doorStatesChannel = null;
@@ -2037,13 +2086,15 @@ export function enableInteriorsFeature() {
     normalizeMappedInteriorObjects(profile?.objects).forEach((object) => {
       const element = document.createElement('button');
       const meta = INTERIOR_MAPPED_OBJECT_TYPES[object.type];
+      const size = mappedInteriorObjectSize(object);
+      const selected = objectEditorOpen && object.id === objectEditorSelectedId;
 
       element.type = 'button';
       element.tabIndex = -1;
       element.className = `mn-interior-mapped-object mn-interior-mapped-object-${object.type}`;
       element.dataset.interiorObjectId = object.id;
       element.dataset.interiorObjectType = object.type;
-      element.dataset.selected = objectEditorOpen && object.id === objectEditorSelectedId ? 'true' : 'false';
+      element.dataset.selected = selected ? 'true' : 'false';
       if (object.type === 'door') {
         const isOpen = isInteriorDoorOpen(object.id);
         element.dataset.open = isOpen ? 'true' : 'false';
@@ -2051,8 +2102,20 @@ export function enableInteriorsFeature() {
       }
       element.style.left = `${object.x}%`;
       element.style.top = `${object.y}%`;
+      element.style.width = `${size.width}%`;
+      element.style.height = `${size.height}%`;
       element.style.transform = `translate(-50%, -50%) rotate(${object.rotation}deg)`;
-      element.setAttribute('aria-label', `${meta?.label || object.type} · ${object.rotation}°`);
+      element.setAttribute(
+        'aria-label',
+        `${meta?.label || object.type} · ${object.rotation}° · ${size.width} × ${size.height}`
+      );
+      if (selected) {
+        const resizeHandle = document.createElement('span');
+        resizeHandle.className = 'mn-interior-object-resize-handle';
+        resizeHandle.dataset.interiorObjectResize = object.id;
+        resizeHandle.setAttribute('aria-hidden', 'true');
+        element.appendChild(resizeHandle);
+      }
       fragment.appendChild(element);
     });
 
@@ -2204,6 +2267,9 @@ export function enableInteriorsFeature() {
     objectEditorPointer = null;
     objectEditorDraggingId = null;
     objectEditorDragOffset = null;
+    objectEditorResizeId = null;
+    objectEditorResizeStart = null;
+    objectEditorResizeOrigin = null;
     keys.clear();
     joystickVector = { x: 0, y: 0 };
     joystick.dataset.active = 'false';
@@ -2222,6 +2288,9 @@ export function enableInteriorsFeature() {
     objectEditorPointer = null;
     objectEditorDraggingId = null;
     objectEditorDragOffset = null;
+    objectEditorResizeId = null;
+    objectEditorResizeStart = null;
+    objectEditorResizeOrigin = null;
     objectPanel.hidden = true;
     overlay.dataset.objectEditor = 'disabled';
     document.body.classList.remove('mn-interior-object-editor-open');
@@ -2247,6 +2316,7 @@ export function enableInteriorsFeature() {
 
     const point = interiorLayerPoint(event, objectLayer);
     const objectButton = event.target.closest?.('[data-interior-object-id]');
+    const resizeHandle = event.target.closest?.('[data-interior-object-resize]');
 
     if (objectButton) {
       const objectId = String(objectButton.dataset.interiorObjectId || '');
@@ -2255,11 +2325,22 @@ export function enableInteriorsFeature() {
 
       objectEditorSelectedId = objectId;
       objectEditorPointer = event.pointerId;
-      objectEditorDraggingId = objectId;
-      objectEditorDragOffset = {
-        x: point.x - object.x,
-        y: point.y - object.y,
-      };
+      if (resizeHandle) {
+        objectEditorDraggingId = null;
+        objectEditorDragOffset = null;
+        objectEditorResizeId = objectId;
+        objectEditorResizeStart = point;
+        objectEditorResizeOrigin = mappedInteriorObjectSize(object);
+      } else {
+        objectEditorResizeId = null;
+        objectEditorResizeStart = null;
+        objectEditorResizeOrigin = null;
+        objectEditorDraggingId = objectId;
+        objectEditorDragOffset = {
+          x: point.x - object.x,
+          y: point.y - object.y,
+        };
+      }
       objectLayer.setPointerCapture?.(event.pointerId);
       renderInteriorObjects();
       return;
@@ -2276,9 +2357,7 @@ export function enableInteriorsFeature() {
       x: roundPercent(point.x),
       y: roundPercent(point.y),
       rotation: 0,
-      properties: objectEditorType === 'door'
-        ? { width: 4.2, depth: 1.15, interactionRadius: INTERIOR_DOOR_INTERACTION_RADIUS }
-        : {},
+      properties: createMappedInteriorObjectProperties(objectEditorType),
     };
     objectEditorProfile.objects.push(object);
     objectEditorSelectedId = object.id;
@@ -2286,14 +2365,47 @@ export function enableInteriorsFeature() {
   }
 
   function handleObjectPointerMove(event) {
-    if (!objectEditorOpen || event.pointerId !== objectEditorPointer || !objectEditorDraggingId) return;
+    if (
+      !objectEditorOpen ||
+      event.pointerId !== objectEditorPointer ||
+      (!objectEditorDraggingId && !objectEditorResizeId)
+    ) return;
 
     event.preventDefault();
     event.stopPropagation();
 
     const point = interiorLayerPoint(event, objectLayer);
-    const object = objectEditorProfile?.objects?.find((item) => item.id === objectEditorDraggingId);
+    const activeObjectId = objectEditorResizeId || objectEditorDraggingId;
+    const object = objectEditorProfile?.objects?.find((item) => item.id === activeObjectId);
     if (!object) return;
+
+    if (objectEditorResizeId && objectEditorResizeStart && objectEditorResizeOrigin) {
+      const screenDx = Number(point.x) - Number(objectEditorResizeStart.x);
+      const screenDy = Number(point.y) - Number(objectEditorResizeStart.y);
+      const angle = Number(object.rotation || 0) * Math.PI / 180;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const aspectDx = screenDx * INTERIOR_DESIGN_ASPECT;
+      const localDx = (aspectDx * cos + screenDy * sin) / INTERIOR_DESIGN_ASPECT;
+      const localDy = -aspectDx * sin + screenDy * cos;
+      const nextSize = mappedInteriorObjectSize({
+        ...object,
+        properties: {
+          ...object.properties,
+          width: objectEditorResizeOrigin.width + localDx * 2,
+          height: objectEditorResizeOrigin.height + localDy * 2,
+        },
+      });
+      object.properties = {
+        ...object.properties,
+        width: nextSize.width,
+        height: nextSize.height,
+        ...(object.type === 'door' ? { depth: nextSize.height } : {}),
+      };
+      renderInteriorObjects();
+      setObjectStatus(`Размер ${nextSize.width} × ${nextSize.height} · отпусти для сохранения`);
+      return;
+    }
 
     object.x = roundPercent(clampPercent(point.x - Number(objectEditorDragOffset?.x || 0), object.x));
     object.y = roundPercent(clampPercent(point.y - Number(objectEditorDragOffset?.y || 0), object.y));
@@ -2308,6 +2420,9 @@ export function enableInteriorsFeature() {
     objectEditorPointer = null;
     objectEditorDraggingId = null;
     objectEditorDragOffset = null;
+    objectEditorResizeId = null;
+    objectEditorResizeStart = null;
+    objectEditorResizeOrigin = null;
     applyObjectEditorProfile();
   }
 
