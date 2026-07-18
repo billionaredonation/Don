@@ -435,52 +435,20 @@ function getOverviewObjectColor(object) {
   return '#35e985';
 }
 
-function createMapObjectsOverviewCanvas(viewport) {
-  const canvas = document.createElement('canvas');
+function createMapObjectsOverviewLayer(viewport) {
+  const overviewLayer = document.createElement('div');
 
-  canvas.className = 'map-objects-overview-canvas';
-  canvas.setAttribute('aria-hidden', 'true');
-  canvas.style.position = 'absolute';
-  canvas.style.inset = '0';
-  canvas.style.display = 'block';
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.zIndex = '235';
-  canvas.style.pointerEvents = 'none';
-  canvas.style.contain = 'strict';
+  overviewLayer.className = 'map-objects-overview-layer';
+  overviewLayer.setAttribute('aria-hidden', 'true');
+  viewport.appendChild(overviewLayer);
 
-  viewport.appendChild(canvas);
-
-  return canvas;
+  return overviewLayer;
 }
 
-function renderMapObjectsOverview(canvas, viewport, objects) {
-  if (!canvas || !viewport) return;
+function renderMapObjectsOverview(overviewLayer, viewport, objects) {
+  if (!overviewLayer || !viewport) return;
 
-  const width = Math.max(1, Number(viewport.clientWidth || viewport.offsetWidth || 1));
-  const height = Math.max(1, Number(viewport.clientHeight || viewport.offsetHeight || 1));
-  const mobile = isMobileGameplayDevice();
-  const maxBitmapDimension = mobile ? 4096 : 8192;
-  const maxBitmapPixels = mobile ? 4_000_000 : 24_000_000;
-  const bitmapScale = Math.min(
-    1,
-    maxBitmapDimension / width,
-    maxBitmapDimension / height,
-    Math.sqrt(maxBitmapPixels / Math.max(1, width * height))
-  );
-  const bitmapWidth = Math.max(1, Math.round(width * bitmapScale));
-  const bitmapHeight = Math.max(1, Math.round(height * bitmapScale));
-
-  if (canvas.width !== bitmapWidth || canvas.height !== bitmapHeight) {
-    canvas.width = bitmapWidth;
-    canvas.height = bitmapHeight;
-  }
-
-  const context = canvas.getContext('2d', { alpha: true });
-  if (!context) return;
-
-  context.setTransform(bitmapScale, 0, 0, bitmapScale, 0, 0);
-  context.clearRect(0, 0, width, height);
+  const fragment = document.createDocumentFragment();
 
   (Array.isArray(objects) ? objects : []).forEach((object) => {
     const id = String(object?.id || '');
@@ -490,66 +458,23 @@ function renderMapObjectsOverview(canvas, viewport, objects) {
     const yPercent = Number(object?.y);
     if (!Number.isFinite(xPercent) || !Number.isFinite(yPercent)) return;
 
-    const x = Math.round((xPercent / 100) * width);
-    const y = Math.round((yPercent / 100) * height);
     const kind = getOverviewObjectKind(object);
+    const icon = document.createElement('span');
 
-    context.save();
-    context.translate(x, y);
-    context.scale(1.11, 1.11);
-    context.globalAlpha = 0.94;
+    icon.className = `map-overview-icon map-overview-icon-${
+      kind === 'hospital' ? 'service' : kind
+    }`;
+    icon.style.left = `${xPercent}%`;
+    icon.style.top = `${yPercent}%`;
 
     if (kind === 'house') {
-      const color = getOverviewObjectColor(object);
-
-      context.lineJoin = 'round';
-      context.lineCap = 'round';
-
-      // No triangular roof: forced-landscape rotated it into an arrow. A small
-      // building with a flat roof, windows and door stays readable at any angle.
-      context.fillStyle = color;
-      context.fillRect(-6, -6, 12, 12);
-      context.strokeStyle = 'rgba(3, 8, 12, 0.94)';
-      context.lineWidth = 2.6;
-      context.strokeRect(-6, -6, 12, 12);
-      context.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-      context.lineWidth = 0.8;
-      context.strokeRect(-6, -6, 12, 12);
-
-      context.fillStyle = 'rgba(3, 8, 12, 0.76)';
-      context.fillRect(-6, -6, 12, 2.4);
-      context.fillRect(-1.5, 1.5, 3, 4.5);
-      context.fillStyle = 'rgba(235, 250, 255, 0.88)';
-      context.fillRect(-4.2, -2, 2.3, 2.3);
-      context.fillRect(1.9, -2, 2.3, 2.3);
-    } else if (kind === 'service' || kind === 'hospital') {
-      context.fillStyle = 'rgba(248, 250, 252, 0.96)';
-      context.strokeStyle = 'rgba(3, 8, 12, 0.9)';
-      context.lineWidth = 2.2;
-      context.beginPath();
-      context.roundRect?.(-6, -6, 12, 12, 2.4);
-      if (!context.roundRect) {
-        context.rect(-6, -6, 12, 12);
-      }
-      context.fill();
-      context.stroke();
-
-      context.fillStyle = '#ef3347';
-      context.fillRect(-1.5, -4.2, 3, 8.4);
-      context.fillRect(-4.2, -1.5, 8.4, 3);
-    } else {
-      context.fillStyle = 'rgba(235, 242, 250, 0.9)';
-      context.beginPath();
-      context.moveTo(0, -4);
-      context.lineTo(4, 0);
-      context.lineTo(0, 4);
-      context.lineTo(-4, 0);
-      context.closePath();
-      context.fill();
+      icon.style.setProperty('--map-overview-color', getOverviewObjectColor(object));
     }
 
-    context.restore();
+    fragment.appendChild(icon);
   });
+
+  overviewLayer.replaceChildren(fragment);
 }
 
 export function createEntityInteractionPanel(root) {
@@ -956,8 +881,8 @@ export function enableEntityInteraction({
 
   moveLayerAboveMap(viewport, layer);
 
-  const overviewCanvas = createMapObjectsOverviewCanvas(viewport);
-  viewport.insertBefore(overviewCanvas, layer);
+  const overviewLayer = createMapObjectsOverviewLayer(viewport);
+  viewport.insertBefore(overviewLayer, layer);
 
   const hint = createInteractionHint(root);
 
@@ -986,17 +911,11 @@ export function enableEntityInteraction({
 
   function renderOverview() {
     renderMapObjectsOverview(
-      overviewCanvas,
+      overviewLayer,
       viewport,
       mapObjects
     );
   }
-
-  const overviewResizeObserver = typeof ResizeObserver === 'function'
-    ? new ResizeObserver(() => renderOverview())
-    : null;
-
-  overviewResizeObserver?.observe(viewport);
 
   function getGridCell(value) {
     const number = Number(value);
@@ -1241,7 +1160,6 @@ export function enableEntityInteraction({
 
     moveLayerAboveMap(viewport, layer);
     renderMapObjects(layer, renderedObjects);
-    renderOverview();
 
     window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
       detail: {
@@ -1937,8 +1855,7 @@ export function enableEntityInteraction({
 
     clearNearestVisual();
 
-    overviewResizeObserver?.disconnect();
-    overviewCanvas.remove();
+    overviewLayer.remove();
 
     hint.remove();
     layer.remove();
