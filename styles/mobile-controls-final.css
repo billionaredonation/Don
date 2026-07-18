@@ -6999,3 +6999,44 @@ body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"]) .player
     z-index: 1 !important;
   }
 }
+
+/* =========================================================
+   PC CITY HUD — MATCH THE INTERIOR BALANCE ANCHOR
+   Only the city money card and its attached vitals move. The city/profile
+   cards and every mobile layout keep their existing positions.
+   ========================================================= */
+html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"])
+  .player-glass-hud > .player-balance-card.has-player-vitals,
+body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"])
+  .player-glass-hud > .player-balance-card.has-player-vitals {
+  position: fixed !important;
+  left: auto !important;
+  right: max(156px, calc(env(safe-area-inset-right) + 156px)) !important;
+  top: max(30px, calc(env(safe-area-inset-top) + 30px)) !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+  translate: 0 0 !important;
+  rotate: 0deg !important;
+  width: 170px !important;
+  min-width: 170px !important;
+  max-width: 170px !important;
+  justify-self: auto !important;
+  overflow: visible !important;
+  z-index: 2147481700 !important;
+}
+
+html.mn-desktop-game-enabled body .home:not([data-mobile-controls="enabled"])
+  .player-glass-hud > .player-balance-card.has-player-vitals > .player-vitals-row,
+body.mn-desktop-game-enabled .home:not([data-mobile-controls="enabled"])
+  .player-glass-hud > .player-balance-card.has-player-vitals > .player-vitals-row {
+  position: absolute !important;
+  left: auto !important;
+  right: 0 !important;
+  top: calc(100% + 5px) !important;
+  bottom: auto !important;
+  transform: none !important;
+  translate: 0 0 !important;
+  justify-content: flex-end !important;
+  z-index: 1 !important;
+}
