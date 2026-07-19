@@ -26,6 +26,7 @@ const INTERIOR_COLLIDER_PANEL_POSITION_KEY = 'mn-interior-collider-panel-positio
 const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
 const INTERIOR_DESIGN_ASPECT = 16 / 9;
 const INTERIOR_MAPPED_OBJECT_LIMIT = 300;
+const INTERIOR_GUIDE_LIMIT = 160;
 const INTERIOR_DOOR_INTERACTION_RADIUS = 7.5;
 const INTERIOR_EXIT_INTERACTION_RADIUS = 6.5;
 const INTERIOR_CHAIR_INTERACTION_RADIUS = 6.5;
@@ -55,6 +56,12 @@ const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
     label: 'Выход', defaultWidth: 3.2, defaultHeight: 5.4,
     minWidth: 1.4, maxWidth: 10, minHeight: 2.4, maxHeight: 16,
   }),
+});
+const INTERIOR_GUIDE_TYPES = Object.freeze({
+  label: Object.freeze({ label: 'Подпись', defaultText: 'Новая зона' }),
+  arrow: Object.freeze({ label: 'Стрелка', defaultText: 'Туда' }),
+  allow: Object.freeze({ label: 'Можно пройти', defaultText: 'Можно войти' }),
+  deny: Object.freeze({ label: 'Проход закрыт', defaultText: 'Проход закрыт' }),
 });
 const INTERIOR_VITALS_CONFIG = getPlayerVitalsConfig();
 const INTERIOR_HEALTH_LOW_CLASS = 'is-interior-health-low';
@@ -421,6 +428,45 @@ function normalizeCollisionRect(rect) {
   };
 }
 
+function normalizeInteriorGuide(guide, index = 0) {
+  const rawType = String(guide?.type || guide?.kind || 'label').trim().toLowerCase();
+  const type = INTERIOR_GUIDE_TYPES[rawType] ? rawType : 'label';
+  const x = Number(guide?.x);
+  const y = Number(guide?.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+  const rawRotation = Number(guide?.rotation ?? guide?.angle ?? 0);
+  const rotation = Number.isFinite(rawRotation)
+    ? ((Math.round(rawRotation / 45) * 45 % 360) + 360) % 360
+    : 0;
+  const fallbackId = `guide-${type}-${index}-${roundPercent(x)}-${roundPercent(y)}`;
+  const id = String(guide?.id || fallbackId).trim().slice(0, 96) || fallbackId;
+  const text = String(guide?.text || guide?.label || INTERIOR_GUIDE_TYPES[type].defaultText)
+    .trim()
+    .slice(0, 48) || INTERIOR_GUIDE_TYPES[type].defaultText;
+
+  return {
+    id,
+    type,
+    x: roundPercent(clampPercent(x, 50)),
+    y: roundPercent(clampPercent(y, 50)),
+    rotation,
+    text,
+  };
+}
+
+function normalizeInteriorGuides(guides) {
+  return (Array.isArray(guides) ? guides : [])
+    .slice(0, INTERIOR_GUIDE_LIMIT)
+    .map(normalizeInteriorGuide)
+    .filter(Boolean);
+}
+
+function createInteriorGuideId(type) {
+  if (globalThis.crypto?.randomUUID) return `guide-${type}-${globalThis.crypto.randomUUID()}`;
+  return `guide-${type}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function normalizeMappedInteriorObject(object, index = 0) {
   const rawType = String(object?.type || object?.object_type || object?.kind || '').trim().toLowerCase();
   const type = INTERIOR_MAPPED_OBJECT_TYPES[rawType] ? rawType : null;
@@ -541,17 +587,24 @@ function createMappedInteriorObjectId(type) {
 function normalizeCollisionProfile(profile, fallbackProfile = null) {
   const fallback = fallbackProfile || {};
   const radius = Number(profile?.radius ?? fallback.radius ?? INTERIOR_COLLISION_FALLBACK_RADIUS);
+  const bounds = (Array.isArray(profile?.bounds) ? profile.bounds : fallback.bounds || [])
+    .map(normalizeCollisionRect)
+    .filter(Boolean);
   const blocked = (Array.isArray(profile?.blocked) ? profile.blocked : fallback.blocked || [])
     .map(normalizeCollisionRect)
     .filter(Boolean);
+  const guides = normalizeInteriorGuides(
+    Array.isArray(profile?.guides) ? profile.guides : fallback.guides || []
+  );
   const objects = normalizeMappedInteriorObjects(
     Array.isArray(profile?.objects) ? profile.objects : fallback.objects || []
   );
 
   return {
     radius: Number.isFinite(radius) ? Math.max(0, Math.min(4, roundPercent(radius))) : INTERIOR_COLLISION_FALLBACK_RADIUS,
-    bounds: [],
+    bounds,
     blocked,
+    guides,
     objects,
   };
 }
@@ -1184,6 +1237,7 @@ function markup() {
             />
           </div>
           <div class="mn-interior-shade"></div>
+          <div class="mn-interior-guide-layer" data-interior-guide-layer></div>
           <div class="mn-interior-object-layer" data-interior-object-layer></div>
           <div class="mn-interior-collider-layer" hidden data-interior-collider-layer></div>
           <div class="mn-interior-players-layer" data-interior-players-layer></div>
@@ -1203,17 +1257,36 @@ function markup() {
         </div>
       </div>
       <div class="mn-interior-ui" hidden data-interior-ui>
-        <button type="button" class="mn-interior-collider-toggle" hidden data-interior-collider-toggle>Стены</button>
+        <button type="button" class="mn-interior-collider-toggle" hidden data-interior-collider-toggle>Зоны</button>
         <button type="button" class="mn-interior-object-toggle" hidden data-interior-object-toggle>Объекты</button>
         <section class="mn-interior-collider-panel" hidden data-interior-collider-panel>
           <div class="mn-interior-collider-head" data-interior-collider-drag title="Перетащить окно">
             <span class="mn-interior-collider-drag-icon" aria-hidden="true">⠿</span>
-            <b>Стены интерьера</b>
+            <b>Зоны и указатели</b>
             <button type="button" data-interior-collider-close>×</button>
           </div>
           <div class="mn-interior-collider-hint">
-            Тяни по интерьеру, чтобы нарисовать красную стенку. Игроки не смогут проходить через красное.
-            Клик по стенке выбирает её, Delete удаляет. Само окно можно двигать за заголовок.
+            Выбери режим. Зоны рисуются протягиванием, указатели ставятся обычным нажатием.
+            Выбранный элемент можно удалить клавишей Delete. Всё сохраняется для игроков.
+          </div>
+          <div class="mn-interior-collider-modes">
+            <button type="button" data-interior-collider-mode="bounds">✓ Можно ходить</button>
+            <button type="button" data-interior-collider-mode="blocked">× Проход закрыт</button>
+          </div>
+          <div class="mn-interior-collider-modes mn-interior-collider-guide-modes">
+            <button type="button" data-interior-collider-mode="label">Подпись</button>
+            <button type="button" data-interior-collider-mode="arrow">Стрелка</button>
+            <button type="button" data-interior-collider-mode="allow">Можно войти</button>
+            <button type="button" data-interior-collider-mode="deny">Нельзя входить</button>
+          </div>
+          <div class="mn-interior-guide-editor-row">
+            <input
+              type="text"
+              maxlength="48"
+              data-interior-guide-text
+              placeholder="Название: Кухня, Палата №2…"
+            />
+            <button type="button" data-interior-guide-rotate title="Повернуть указатель">↻ 45°</button>
           </div>
           <div class="mn-interior-collider-actions">
             <button type="button" class="mn-interior-collider-primary" data-interior-collider-save>Сохранить всем</button>
@@ -1229,7 +1302,7 @@ function markup() {
               <button type="button" data-interior-collider-export>Экспорт</button>
               <button type="button" data-interior-collider-import>Импорт</button>
             </div>
-            <textarea data-interior-collider-json spellcheck="false" placeholder="JSON стен"></textarea>
+            <textarea data-interior-collider-json spellcheck="false" placeholder="JSON зон и указателей"></textarea>
           </details>
           <small data-interior-collider-status></small>
         </section>
@@ -1350,6 +1423,7 @@ export function enableInteriorsFeature() {
   const interiorImage = overlay.querySelector('[data-interior-image]');
   const marker = overlay.querySelector('[data-interior-player]');
   const remotePlayersLayer = overlay.querySelector('[data-interior-players-layer]');
+  const guideLayer = overlay.querySelector('[data-interior-guide-layer]');
   const objectLayer = overlay.querySelector('[data-interior-object-layer]');
   const objectToggle = overlay.querySelector('[data-interior-object-toggle]');
   const objectPanel = overlay.querySelector('[data-interior-object-panel]');
@@ -1376,6 +1450,8 @@ export function enableInteriorsFeature() {
   const colliderImport = overlay.querySelector('[data-interior-collider-import]');
   const colliderJson = overlay.querySelector('[data-interior-collider-json]');
   const colliderStatus = overlay.querySelector('[data-interior-collider-status]');
+  const guideTextInput = overlay.querySelector('[data-interior-guide-text]');
+  const guideRotate = overlay.querySelector('[data-interior-guide-rotate]');
   const title = overlay.querySelector('[data-interior-title]');
   const meta = overlay.querySelector('[data-interior-meta]');
   const balance = overlay.querySelector('[data-interior-balance]');
@@ -1414,6 +1490,8 @@ export function enableInteriorsFeature() {
   let colliderEditorPointer = null;
   let colliderEditorStart = null;
   let colliderEditorDraft = null;
+  let colliderGuideRotation = 0;
+  let colliderGuideDraggingIndex = null;
   let colliderSaveTimer = 0;
   let colliderSaveSequence = 0;
   let colliderPanelDrag = null;
@@ -2518,10 +2596,21 @@ export function enableInteriorsFeature() {
   }
 
   function setColliderEditorMode(mode) {
-    colliderEditorMode = 'blocked';
+    const safeMode = String(mode || '').trim();
+    colliderEditorMode = safeMode === 'bounds' || safeMode === 'blocked' ||
+      INTERIOR_GUIDE_TYPES[safeMode]
+      ? safeMode
+      : 'blocked';
     colliderModeButtons.forEach((button) => {
       button.dataset.active = button.dataset.interiorColliderMode === colliderEditorMode ? 'true' : 'false';
     });
+    setColliderStatus(
+      colliderEditorMode === 'bounds'
+        ? 'Протяни зелёную область, внутри которой разрешено ходить'
+        : colliderEditorMode === 'blocked'
+          ? 'Протяни красную область, через которую нельзя проходить'
+          : `${INTERIOR_GUIDE_TYPES[colliderEditorMode].label}: нажми на нужную точку`
+    );
   }
 
   function editorProfileForCurrentTemplate() {
@@ -2570,9 +2659,88 @@ export function enableInteriorsFeature() {
     return `left:${safe.x1}%;top:${safe.y1}%;width:${safe.x2 - safe.x1}%;height:${safe.y2 - safe.y1}%`;
   }
 
+  function appendInteriorGuideElement(fragment, guide, extraClass = '') {
+    const element = document.createElement('div');
+    const icon = document.createElement('i');
+    const label = document.createElement('span');
+    const type = INTERIOR_GUIDE_TYPES[guide.type] ? guide.type : 'label';
+    const icons = { label: '•', arrow: '➜', allow: '✓', deny: '×' };
+
+    element.className = `mn-interior-guide mn-interior-guide-${type}${extraClass ? ` ${extraClass}` : ''}`;
+    element.style.left = `${clampPercent(guide.x, 50)}%`;
+    element.style.top = `${clampPercent(guide.y, 50)}%`;
+    element.dataset.guideType = type;
+    icon.textContent = icons[type];
+    icon.style.transform = `rotate(${Number(guide.rotation || 0)}deg)`;
+    label.textContent = String(guide.text || INTERIOR_GUIDE_TYPES[type].defaultText).slice(0, 48);
+    element.append(icon, label);
+    fragment.appendChild(element);
+  }
+
+  function appendInteriorZoneElement(fragment, rect, type) {
+    const safeRect = normalizeCollisionRect(rect);
+    if (!safeRect) return;
+
+    const zone = document.createElement('div');
+    const label = document.createElement('span');
+    zone.className = `mn-interior-zone mn-interior-zone-${type}`;
+    zone.style.left = `${safeRect.x1}%`;
+    zone.style.top = `${safeRect.y1}%`;
+    zone.style.width = `${safeRect.x2 - safeRect.x1}%`;
+    zone.style.height = `${safeRect.y2 - safeRect.y1}%`;
+    label.textContent = type === 'walkable' ? '✓ Можно ходить' : '× Нет прохода';
+    if (safeRect.x2 - safeRect.x1 >= 5 && safeRect.y2 - safeRect.y1 >= 3) {
+      zone.appendChild(label);
+    }
+    fragment.appendChild(zone);
+  }
+
+  function renderInteriorGuides() {
+    if (!guideLayer) return;
+
+    const profile = collisionProfileFor(activeTemplateId);
+    const fragment = document.createDocumentFragment();
+
+    (profile?.bounds || []).forEach((rect) => {
+      appendInteriorZoneElement(fragment, rect, 'walkable');
+    });
+    (profile?.blocked || []).forEach((rect) => {
+      appendInteriorZoneElement(fragment, rect, 'blocked');
+    });
+    normalizeInteriorGuides(profile?.guides).forEach((guide) => {
+      appendInteriorGuideElement(fragment, guide);
+    });
+
+    normalizeMappedInteriorObjects(profile?.objects).forEach((object) => {
+      if (object.type === 'door') {
+        const isOpen = isInteriorDoorOpen(object.id);
+        appendInteriorGuideElement(fragment, {
+          type: isOpen ? 'allow' : 'deny',
+          x: object.x,
+          y: object.y,
+          rotation: object.rotation,
+          text: isOpen ? 'Можно пройти' : 'Закрыто',
+        }, 'is-automatic-door');
+      } else if (object.type === 'exit') {
+        appendInteriorGuideElement(fragment, {
+          type: 'allow',
+          x: object.x,
+          y: object.y,
+          rotation: object.rotation,
+          text: 'Выход',
+        }, 'is-automatic-exit');
+      }
+    });
+
+    guideLayer.dataset.editor = colliderEditorOpen ? 'true' : 'false';
+    guideLayer.replaceChildren(fragment);
+  }
+
   function editorCountsText(profile = colliderEditorProfile) {
+    const boundsCount = profile?.bounds?.length || 0;
     const blockedCount = profile?.blocked?.length || 0;
-    return `${activeTemplateId}: стен ${blockedCount}`;
+    const guideCount = profile?.guides?.length || 0;
+    return `${activeTemplateId}: проходных зон ${boundsCount} · запретов ${blockedCount} · указателей ${guideCount}`;
   }
 
   function renderColliderEditorLayer() {
@@ -2582,7 +2750,7 @@ export function enableInteriorsFeature() {
     }
 
     const fragments = [];
-    ['blocked'].forEach((kind) => {
+    ['bounds', 'blocked'].forEach((kind) => {
       (colliderEditorProfile[kind] || []).forEach((rect, index) => {
         const selected = colliderEditorSelected?.kind === kind && colliderEditorSelected?.index === index;
         fragments.push(`
@@ -2598,7 +2766,21 @@ export function enableInteriorsFeature() {
       });
     });
 
-    if (colliderEditorDraft) {
+    normalizeInteriorGuides(colliderEditorProfile.guides).forEach((guide, index) => {
+      const selected = colliderEditorSelected?.kind === 'guides' &&
+        colliderEditorSelected?.index === index;
+      fragments.push(`
+        <button
+          type="button"
+          class="mn-interior-collider-guide mn-interior-collider-guide-${guide.type}${selected ? ' is-selected' : ''}"
+          data-collider-guide-index="${index}"
+          style="left:${guide.x}%;top:${guide.y}%;--guide-rotation:${guide.rotation}deg"
+          aria-label="${guide.type} ${index + 1}"
+        ><i></i><span></span></button>
+      `);
+    });
+
+    if (colliderEditorDraft && (colliderEditorMode === 'bounds' || colliderEditorMode === 'blocked')) {
       fragments.push(`
         <div
           class="mn-interior-collider-rect mn-interior-collider-rect-${colliderEditorMode} is-draft"
@@ -2608,6 +2790,14 @@ export function enableInteriorsFeature() {
     }
 
     colliderLayer.innerHTML = fragments.join('');
+    const selectedGuide = colliderEditorSelected?.kind === 'guides'
+      ? colliderEditorProfile.guides?.[colliderEditorSelected.index]
+      : null;
+    if (selectedGuide && document.activeElement !== guideTextInput) {
+      guideTextInput.value = selectedGuide.text || '';
+      colliderGuideRotation = Number(selectedGuide.rotation || 0);
+    }
+    guideRotate.textContent = `↻ ${colliderGuideRotation}°`;
     setColliderStatus(editorCountsText());
   }
 
@@ -2618,6 +2808,7 @@ export function enableInteriorsFeature() {
     colliderEditorProfile = normalized;
     setRuntimeEditorProfile(normalized);
     writeStoredCollisionProfiles(customCollisionProfiles);
+    renderInteriorGuides();
 
     if (persist) {
       void persistColliderEditorProfile();
@@ -2671,6 +2862,7 @@ export function enableInteriorsFeature() {
     colliderEditorPointer = null;
     colliderEditorStart = null;
     colliderEditorDraft = null;
+    colliderGuideDraggingIndex = null;
     keys.clear();
     joystickVector = { x: 0, y: 0 };
     joystick.dataset.active = 'false';
@@ -2683,6 +2875,7 @@ export function enableInteriorsFeature() {
     document.documentElement.classList.add('mn-interior-collider-editor-open');
     setColliderEditorMode(colliderEditorMode);
     renderColliderEditorLayer();
+    renderInteriorGuides();
   }
 
   function closeColliderEditor() {
@@ -2700,12 +2893,14 @@ export function enableInteriorsFeature() {
     colliderEditorStart = null;
     colliderEditorDraft = null;
     colliderEditorSelected = null;
+    colliderGuideDraggingIndex = null;
     colliderLayer.hidden = true;
     colliderPanel.hidden = true;
     overlay.dataset.colliderEditor = 'disabled';
     document.body.classList.remove('mn-interior-collider-editor-open');
     document.documentElement.classList.remove('mn-interior-collider-editor-open');
     renderColliderEditorLayer();
+    renderInteriorGuides();
   }
 
   function toggleColliderEditor() {
@@ -2734,6 +2929,49 @@ export function enableInteriorsFeature() {
       return;
     }
 
+    const guideButton = event.target.closest?.('[data-collider-guide-index]');
+    if (guideButton) {
+      const guideIndex = Number(guideButton.dataset.colliderGuideIndex);
+      colliderEditorSelected = {
+        kind: 'guides',
+        index: guideIndex,
+      };
+      colliderEditorPointer = event.pointerId;
+      colliderGuideDraggingIndex = guideIndex;
+      colliderLayer.setPointerCapture?.(event.pointerId);
+      renderColliderEditorLayer();
+      return;
+    }
+
+    if (INTERIOR_GUIDE_TYPES[colliderEditorMode]) {
+      const point = colliderLayerPoint(event);
+      const meta = INTERIOR_GUIDE_TYPES[colliderEditorMode];
+      const text = String(guideTextInput.value || meta.defaultText).trim().slice(0, 48) || meta.defaultText;
+      const guide = normalizeInteriorGuide({
+        id: createInteriorGuideId(colliderEditorMode),
+        type: colliderEditorMode,
+        x: point.x,
+        y: point.y,
+        rotation: colliderGuideRotation,
+        text,
+      }, colliderEditorProfile.guides?.length || 0);
+      if (!guide) return;
+
+      colliderEditorProfile.guides = normalizeInteriorGuides(colliderEditorProfile.guides);
+      if (colliderEditorProfile.guides.length >= INTERIOR_GUIDE_LIMIT) {
+        setColliderStatus(`Достигнут лимит ${INTERIOR_GUIDE_LIMIT} указателей`);
+        return;
+      }
+      colliderEditorProfile.guides.push(guide);
+      colliderEditorSelected = {
+        kind: 'guides',
+        index: colliderEditorProfile.guides.length - 1,
+      };
+      applyColliderEditorProfile();
+      renderColliderEditorLayer();
+      return;
+    }
+
     colliderEditorPointer = event.pointerId;
     colliderEditorStart = colliderLayerPoint(event);
     colliderEditorDraft = null;
@@ -2743,7 +2981,29 @@ export function enableInteriorsFeature() {
   }
 
   function handleColliderPointerMove(event) {
-    if (!colliderEditorOpen || event.pointerId !== colliderEditorPointer || !colliderEditorStart) return;
+    if (
+      colliderEditorOpen &&
+      event.pointerId === colliderEditorPointer &&
+      colliderGuideDraggingIndex !== null
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      const guide = colliderEditorProfile?.guides?.[colliderGuideDraggingIndex];
+      if (!guide) return;
+      const point = colliderLayerPoint(event);
+      guide.x = roundPercent(point.x);
+      guide.y = roundPercent(point.y);
+      renderColliderEditorLayer();
+      setColliderStatus('Перемещаю указатель · отпусти для сохранения');
+      return;
+    }
+
+    if (
+      !colliderEditorOpen ||
+      event.pointerId !== colliderEditorPointer ||
+      !colliderEditorStart ||
+      (colliderEditorMode !== 'bounds' && colliderEditorMode !== 'blocked')
+    ) return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -2756,6 +3016,14 @@ export function enableInteriorsFeature() {
 
     event.preventDefault();
     event.stopPropagation();
+
+    if (colliderGuideDraggingIndex !== null) {
+      colliderEditorPointer = null;
+      colliderGuideDraggingIndex = null;
+      applyColliderEditorProfile();
+      renderColliderEditorLayer();
+      return;
+    }
 
     const rect = colliderEditorDraft || rectFromPoints(colliderEditorStart, colliderLayerPoint(event));
     colliderEditorPointer = null;
@@ -2786,6 +3054,33 @@ export function enableInteriorsFeature() {
 
     colliderEditorProfile[selected.kind].splice(selected.index, 1);
     colliderEditorSelected = null;
+    applyColliderEditorProfile();
+    renderColliderEditorLayer();
+  }
+
+  function rotateSelectedInteriorGuide() {
+    colliderGuideRotation = (Number(colliderGuideRotation || 0) + 45) % 360;
+    const selected = colliderEditorSelected;
+    const guide = selected?.kind === 'guides'
+      ? colliderEditorProfile?.guides?.[selected.index]
+      : null;
+
+    if (guide) {
+      guide.rotation = colliderGuideRotation;
+      applyColliderEditorProfile();
+    }
+    renderColliderEditorLayer();
+  }
+
+  function updateSelectedInteriorGuideText() {
+    const selected = colliderEditorSelected;
+    const guide = selected?.kind === 'guides'
+      ? colliderEditorProfile?.guides?.[selected.index]
+      : null;
+    if (!guide) return;
+
+    const fallback = INTERIOR_GUIDE_TYPES[guide.type]?.defaultText || 'Зона';
+    guide.text = String(guideTextInput.value || fallback).trim().slice(0, 48) || fallback;
     applyColliderEditorProfile();
     renderColliderEditorLayer();
   }
@@ -2868,6 +3163,7 @@ export function enableInteriorsFeature() {
     objectDelete.disabled = !objectEditorSelectedId;
 
     if (objectEditorOpen) setObjectStatus(objectCountsText(profile));
+    renderInteriorGuides();
     refreshDoorInteraction();
   }
 
@@ -3827,6 +4123,13 @@ export function enableInteriorsFeature() {
         return;
       }
 
+      if (!isFormField && String(event.key || '').toLowerCase() === 'r') {
+        event.preventDefault();
+        event.stopPropagation();
+        rotateSelectedInteriorGuide();
+        return;
+      }
+
       if (!isFormField) {
         event.preventDefault();
         event.stopPropagation();
@@ -3983,6 +4286,8 @@ export function enableInteriorsFeature() {
   colliderModeButtons.forEach((button) => {
     button.addEventListener('click', () => setColliderEditorMode(button.dataset.interiorColliderMode));
   });
+  guideRotate.addEventListener('click', rotateSelectedInteriorGuide);
+  guideTextInput.addEventListener('change', updateSelectedInteriorGuideText);
   colliderSave.addEventListener('click', () => applyColliderEditorProfile({ persist: true }));
   colliderDelete.addEventListener('click', deleteSelectedCollider);
   colliderClear.addEventListener('click', () => {
@@ -3991,6 +4296,7 @@ export function enableInteriorsFeature() {
       radius: current.radius,
       bounds: [],
       blocked: [],
+      guides: [],
       objects: current.objects,
     };
     colliderEditorSelected = null;
