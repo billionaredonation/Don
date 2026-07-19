@@ -862,6 +862,57 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   white-space: nowrap;
   pointer-events: none;
 }
+.mn-interior-mapped-object-warehouse_refill,
+.mn-interior-mapped-object-warehouse_take {
+  border: 2px solid rgba(127, 228, 255, .96);
+  border-radius: 50%;
+  color: #effcff;
+  background:
+    radial-gradient(circle at 38% 35%, rgba(148, 237, 255, .42), transparent 34%),
+    linear-gradient(145deg, rgba(31, 151, 191, .97), rgba(12, 55, 83, .98));
+  box-shadow:
+    0 0 0 2px rgba(4, 14, 21, .84),
+    0 0 16px rgba(74, 205, 244, .58),
+    inset 0 0 0 1px rgba(255, 255, 255, .2);
+}
+.mn-interior-mapped-object-warehouse_refill::before,
+.mn-interior-mapped-object-warehouse_take::before {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  font: 950 clamp(12px, 1.35vw, 25px)/1 system-ui;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, .58);
+}
+.mn-interior-mapped-object-warehouse_refill::before { content: "+"; }
+.mn-interior-mapped-object-warehouse_take::before { content: "⇩"; }
+.mn-interior-mapped-object-warehouse_refill::after,
+.mn-interior-mapped-object-warehouse_take::after {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 5px);
+  transform: translateX(-50%);
+  padding: 2px 5px;
+  border-radius: 5px;
+  color: #e6faff;
+  background: rgba(4, 16, 24, .9);
+  font: 950 7px/1 system-ui;
+  letter-spacing: .03em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.mn-interior-mapped-object-warehouse_refill::after { content: "ПОПОЛНИТЬ"; }
+.mn-interior-mapped-object-warehouse_take::after { content: "СКЛАД"; }
+.mn-interior-mapped-object-warehouse_refill {
+  border-color: rgba(255, 208, 92, .98);
+  background:
+    radial-gradient(circle at 38% 35%, rgba(255, 230, 145, .42), transparent 34%),
+    linear-gradient(145deg, rgba(212, 147, 31, .97), rgba(95, 54, 9, .98));
+  box-shadow:
+    0 0 0 2px rgba(22, 15, 4, .84),
+    0 0 16px rgba(255, 193, 58, .58),
+    inset 0 0 0 1px rgba(255, 255, 255, .2);
+}
 .mn-interior-mapped-object[data-selected="true"] {
   z-index: 4;
   outline: 2px solid #ffd45a;
@@ -1318,6 +1369,21 @@ body.mn-interior-object-editor-open .mn-interior-stamina {
 }
 .mn-interior-door-action[data-kind="exit"] > span {
   background: linear-gradient(135deg, #20b979, #177c59);
+}
+.mn-interior-door-action[data-kind="warehouse_refill"],
+.mn-interior-door-action[data-kind="warehouse_take"] {
+  border-color: rgba(93, 213, 242, .46);
+  background: rgba(6, 29, 42, .93);
+}
+.mn-interior-door-action[data-kind="warehouse_refill"] {
+  border-color: rgba(255, 199, 70, .48);
+  background: rgba(49, 31, 5, .93);
+}
+.mn-interior-door-action[data-kind="warehouse_refill"] > span {
+  background: linear-gradient(135deg, #d89b2d, #936018);
+}
+.mn-interior-door-action[data-kind="warehouse_take"] > span {
+  background: linear-gradient(135deg, #299cca, #17668a);
 }
 .mn-interior-door-action:disabled {
   opacity: .65;
