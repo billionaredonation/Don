@@ -11,6 +11,7 @@ import {
   releaseInteriorSeat,
   subscribeInteriorSeatStates,
 } from './interiorRealtime.js';
+import { enableHospitalWarehouseFeature } from '../hospital/hospitalWarehouseFeature.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
 import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
@@ -31,6 +32,7 @@ const INTERIOR_GUIDE_LIMIT = 160;
 const INTERIOR_DOOR_INTERACTION_RADIUS = 7.5;
 const INTERIOR_EXIT_INTERACTION_RADIUS = 6.5;
 const INTERIOR_CHAIR_INTERACTION_RADIUS = 6.5;
+const INTERIOR_WAREHOUSE_INTERACTION_RADIUS = 7;
 const INTERIOR_DOOR_RADIUS_HYSTERESIS = 1.4;
 const INTERIOR_PRESENCE_REFRESH_MS = 1500;
 const INTERIOR_SEAT_HEARTBEAT_MS = 8000;
@@ -68,6 +70,14 @@ const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
   exit: Object.freeze({
     label: 'Выход', defaultWidth: 3.2, defaultHeight: 5.4,
     minWidth: 1.4, maxWidth: 10, minHeight: 2.4, maxHeight: 16,
+  }),
+  warehouse_refill: Object.freeze({
+    label: 'Пополнение склада', defaultWidth: 5.4, defaultHeight: 5.4,
+    minWidth: 2.4, maxWidth: 12, minHeight: 2.4, maxHeight: 12,
+  }),
+  warehouse_take: Object.freeze({
+    label: 'Получение со склада', defaultWidth: 5.4, defaultHeight: 5.4,
+    minWidth: 2.4, maxWidth: 12, minHeight: 2.4, maxHeight: 12,
   }),
 });
 const INTERIOR_GUIDE_TYPES = Object.freeze({
@@ -582,6 +592,13 @@ function createMappedInteriorObjectProperties(type) {
       width: size.width,
       height: size.height,
       interactionRadius: INTERIOR_EXIT_INTERACTION_RADIUS,
+    };
+  }
+  if (type === 'warehouse_refill' || type === 'warehouse_take') {
+    return {
+      width: size.width,
+      height: size.height,
+      interactionRadius: INTERIOR_WAREHOUSE_INTERACTION_RADIUS,
     };
   }
   return { width: size.width, height: size.height };
@@ -1358,6 +1375,8 @@ function markup() {
             <button type="button" data-interior-object-type="reception">Рецепшен</button>
             <button type="button" data-interior-object-type="door">Дверь</button>
             <button type="button" data-interior-object-type="exit">Выход</button>
+            <button type="button" data-interior-object-type="warehouse_refill">Пополнение склада</button>
+            <button type="button" data-interior-object-type="warehouse_take">Получение со склада</button>
           </div>
           <div class="mn-interior-object-actions">
             <button type="button" class="mn-interior-object-primary" data-interior-object-save>Сохранить всем</button>
@@ -1507,6 +1526,7 @@ export function enableInteriorsFeature() {
   const staminaFill = overlay.querySelector('[data-interior-stamina-fill]');
   const staminaRing = overlay.querySelector('[data-interior-stamina-ring]');
   const actionToast = overlay.querySelector('[data-interior-action-toast]');
+  const hospitalWarehouse = enableHospitalWarehouseFeature();
 
   let active = false;
   let destroyed = false;
@@ -1560,6 +1580,7 @@ export function enableInteriorsFeature() {
   let nearestDoorId = null;
   let nearestExitId = null;
   let nearestChairId = null;
+  let nearestWarehousePickupId = null;
   let doorTogglePending = false;
   let seatActionPending = false;
   let activeSeatObjectId = null;
@@ -3256,11 +3277,20 @@ export function enableInteriorsFeature() {
     const receptions = objects.filter((object) => object.type === 'reception').length;
     const doors = objects.filter((object) => object.type === 'door').length;
     const exits = objects.filter((object) => object.type === 'exit').length;
-    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits}`;
+    const warehouseRefills = objects.filter((object) => object.type === 'warehouse_refill').length;
+    const warehouseTakes = objects.filter((object) => object.type === 'warehouse_take').length;
+    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits} · пополнение склада ${warehouseRefills} · выдача склада ${warehouseTakes}`;
   }
 
   function setObjectEditorType(type) {
     if (!INTERIOR_MAPPED_OBJECT_TYPES[type]) return;
+    if (
+      (type === 'warehouse_refill' || type === 'warehouse_take') &&
+      objectEditorTemplateId !== 'hospital'
+    ) {
+      setObjectStatus('Пикапы склада доступны только для шаблона больницы');
+      return;
+    }
     objectEditorType = type;
     objectTypeButtons.forEach((button) => {
       button.dataset.active = button.dataset.interiorObjectType === objectEditorType ? 'true' : 'false';
@@ -3405,15 +3435,50 @@ export function enableInteriorsFeature() {
     return nearest;
   }
 
+  function nearestInteractiveWarehousePickup() {
+    if (
+      !active ||
+      activeInteriorKind !== 'hospital' ||
+      activeTemplateId !== 'hospital' ||
+      colliderEditorOpen ||
+      objectEditorOpen ||
+      window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true
+    ) return null;
+
+    let nearest = null;
+    normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
+      .filter((object) => object.type === 'warehouse_refill' || object.type === 'warehouse_take')
+      .forEach((pickup) => {
+        const dx = (Number(pickup.x) - Number(position.x)) * INTERIOR_DESIGN_ASPECT;
+        const dy = Number(pickup.y) - Number(position.y);
+        const distance = Math.hypot(dx, dy);
+        const configuredRadius = Number(pickup?.properties?.interactionRadius);
+        const radius = Number.isFinite(configuredRadius)
+          ? Math.max(3, Math.min(14, configuredRadius))
+          : INTERIOR_WAREHOUSE_INTERACTION_RADIUS;
+        const size = mappedInteriorObjectSize(pickup);
+        const sizeAllowance = Math.max(0, (size.width - 5.4) / 2);
+        const movementAllowance = pickup.id === nearestWarehousePickupId
+          ? INTERIOR_DOOR_RADIUS_HYSTERESIS
+          : 0;
+        if (distance > radius + sizeAllowance + movementAllowance || (nearest && distance >= nearest.distance)) return;
+        nearest = { pickup, distance };
+      });
+
+    return nearest;
+  }
+
   function nearestInteriorInteraction() {
     const doorTarget = nearestInteractiveDoor();
     const exitTarget = nearestInteractiveExit();
     const chairTarget = nearestInteractiveChair();
+    const warehouseTarget = nearestInteractiveWarehousePickup();
 
     const candidates = [
       doorTarget ? { kind: 'door', object: doorTarget.door, distance: doorTarget.distance } : null,
       exitTarget ? { kind: 'exit', object: exitTarget.exitMarker, distance: exitTarget.distance } : null,
       chairTarget ? { kind: 'chair', object: chairTarget.chair, distance: chairTarget.distance } : null,
+      warehouseTarget ? { kind: warehouseTarget.pickup.type, object: warehouseTarget.pickup, distance: warehouseTarget.distance } : null,
     ].filter(Boolean);
 
     if (!candidates.length) return null;
@@ -3425,6 +3490,9 @@ export function enableInteriorsFeature() {
     nearestDoorId = nearest?.kind === 'door' ? nearest.object.id : null;
     nearestExitId = nearest?.kind === 'exit' ? nearest.object.id : null;
     nearestChairId = nearest?.kind === 'chair' ? nearest.object.id : null;
+    nearestWarehousePickupId = nearest?.kind === 'warehouse_refill' || nearest?.kind === 'warehouse_take'
+      ? nearest.object.id
+      : null;
 
     if (!nearest) {
       doorAction.hidden = true;
@@ -3437,6 +3505,16 @@ export function enableInteriorsFeature() {
 
     doorAction.hidden = false;
     doorAction.dataset.kind = nearest.kind;
+
+    if (nearest.kind === 'warehouse_refill' || nearest.kind === 'warehouse_take') {
+      doorAction.disabled = false;
+      doorAction.dataset.open = 'false';
+      delete doorAction.dataset.occupied;
+      doorActionLabel.textContent = nearest.kind === 'warehouse_refill'
+        ? 'Пополнить склад больницы'
+        : 'Открыть склад больницы';
+      return nearest;
+    }
 
     if (nearest.kind === 'chair') {
       const occupant = seatOccupantForObject(nearest.object.id);
@@ -3518,6 +3596,15 @@ export function enableInteriorsFeature() {
 
     if (nearest.kind === 'chair') {
       void claimChair(nearest.object);
+      return true;
+    }
+
+    if (nearest.kind === 'warehouse_refill' || nearest.kind === 'warehouse_take') {
+      void hospitalWarehouse.open({
+        mode: nearest.kind === 'warehouse_refill' ? 'refill' : 'take',
+        hospitalId: activeServiceId || mapObjectId(activeService),
+        hospitalName: activeService?.name || activeService?.payload?.serviceLabel || 'Больница',
+      });
       return true;
     }
 
@@ -3851,7 +3938,8 @@ export function enableInteriorsFeature() {
       colliderEditorOpen ||
       objectEditorOpen ||
       activeSeatObjectId ||
-      window.__MN_INVENTORY_OPEN__ === true
+      window.__MN_INVENTORY_OPEN__ === true ||
+      window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true
     ) return { x: 0, y: 0 };
 
     let x = joystickVector.x;
@@ -4223,6 +4311,7 @@ export function enableInteriorsFeature() {
   function exit() {
     if (interiorExitPending && !destroyed) return;
 
+    hospitalWarehouse.close();
     const exitedKind = activeInteriorKind;
     const exitedHouse = activeHouse;
     const exitedService = activeService;
@@ -4245,6 +4334,7 @@ export function enableInteriorsFeature() {
     nearestDoorId = null;
     nearestExitId = null;
     nearestChairId = null;
+    nearestWarehousePickupId = null;
     doorTogglePending = false;
     seatActionPending = false;
     doorAction.hidden = true;
@@ -4303,6 +4393,12 @@ export function enableInteriorsFeature() {
 
   function keyDown(event) {
     if (!active) return;
+
+    if (window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true) {
+      keys.clear();
+      joystickVector = { x: 0, y: 0 };
+      return;
+    }
 
     if (window.__MN_INVENTORY_OPEN__ === true) {
       keys.clear();
@@ -4616,6 +4712,7 @@ export function enableInteriorsFeature() {
       window.removeEventListener('orientationchange', scheduleColliderPanelLayout);
       window.removeEventListener('orientationchange', scheduleObjectPanelLayout);
       interiorWorldResizeObserver?.disconnect();
+      hospitalWarehouse.cleanup();
       if (collisionProfilesChannel) {
         supabase.removeChannel(collisionProfilesChannel);
         collisionProfilesChannel = null;
