@@ -11,7 +11,11 @@ import {
   releaseInteriorSeat,
   subscribeInteriorSeatStates,
 } from './interiorRealtime.js';
-import { enableHospitalWarehouseFeature } from '../hospital/hospitalWarehouseFeature.js';
+import {
+  enableHospitalWarehouseFeature,
+  loadHospitalWarehousePickupLayout,
+  saveHospitalWarehousePickupLayout,
+} from '../hospital/hospitalWarehouseFeature.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
 import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
@@ -748,6 +752,25 @@ async function loadRemoteMappedInteriorObjects({ force = false } = {}) {
       if (object) nextObjects[templateId].push(object);
     });
 
+    try {
+      const hospitalPickups = normalizeMappedInteriorObjects(
+        await loadHospitalWarehousePickupLayout()
+      ).filter((object) => (
+        object.type === 'warehouse_refill' || object.type === 'warehouse_take'
+      ));
+      const legacyHospitalPickups = nextObjects.hospital.filter((object) => (
+        object.type === 'warehouse_refill' || object.type === 'warehouse_take'
+      ));
+      nextObjects.hospital = [
+        ...nextObjects.hospital.filter((object) => (
+          object.type !== 'warehouse_refill' && object.type !== 'warehouse_take'
+        )),
+        ...(hospitalPickups.length ? hospitalPickups : legacyHospitalPickups),
+      ];
+    } catch (error) {
+      console.warn('[interiors] hospital pickup layout load failed:', error);
+    }
+
     Object.entries(nextObjects).forEach(([templateId, objects]) => {
       setMappedObjectsForTemplate(templateId, objects);
     });
@@ -766,10 +789,18 @@ async function loadRemoteMappedInteriorObjects({ force = false } = {}) {
 
 async function saveRemoteMappedInteriorObjects(templateId, objects) {
   const normalizedObjects = normalizeMappedInteriorObjects(objects);
+  const warehousePickups = templateId === 'hospital'
+    ? normalizedObjects.filter((object) => (
+      object.type === 'warehouse_refill' || object.type === 'warehouse_take'
+    ))
+    : [];
+  const regularObjects = normalizedObjects.filter((object) => (
+    object.type !== 'warehouse_refill' && object.type !== 'warehouse_take'
+  ));
   const identity = getInteriorColliderAdminIdentity();
   const { data, error } = await supabase.rpc('admin_replace_interior_mapped_objects', {
     p_template_id: templateId,
-    p_objects: normalizedObjects,
+    p_objects: regularObjects,
     p_admin_player_id: identity.adminPlayerId,
     p_admin_tg_id: identity.adminTgId,
     p_admin_nickname: identity.adminNickname,
@@ -777,6 +808,12 @@ async function saveRemoteMappedInteriorObjects(templateId, objects) {
 
   if (error) throw error;
   if (data?.ok === false) throw new Error(data?.reason || 'INTERIOR_OBJECT_SAVE_FAILED');
+
+  const savedWarehousePickups = templateId === 'hospital'
+    ? normalizeMappedInteriorObjects(
+      await saveHospitalWarehousePickupLayout(warehousePickups)
+    )
+    : [];
 
   // The database is authoritative. Re-read the exact template after the RPC
   // instead of treating the local payload as saved when an old server function
@@ -789,7 +826,12 @@ async function saveRemoteMappedInteriorObjects(templateId, objects) {
 
   if (verifyError) throw verifyError;
 
-  const savedObjects = normalizeMappedInteriorObjects(storedRows);
+  const savedObjects = [
+    ...normalizeMappedInteriorObjects(storedRows).filter((object) => (
+      object.type !== 'warehouse_refill' && object.type !== 'warehouse_take'
+    )),
+    ...savedWarehousePickups,
+  ];
   const savedIds = new Set(savedObjects.map((object) => object.id));
   const saveConfirmed = savedObjects.length === normalizedObjects.length &&
     normalizedObjects.every((object) => savedIds.has(object.id));
@@ -3776,6 +3818,18 @@ export function enableInteriorsFeature() {
 
     if (objectEditorProfile.objects.length >= INTERIOR_MAPPED_OBJECT_LIMIT) {
       setObjectStatus(`Достигнут лимит ${INTERIOR_MAPPED_OBJECT_LIMIT} объектов`);
+      return;
+    }
+
+    if (
+      (objectEditorType === 'warehouse_refill' || objectEditorType === 'warehouse_take') &&
+      objectEditorProfile.objects.some((object) => object.type === objectEditorType)
+    ) {
+      setObjectStatus(
+        objectEditorType === 'warehouse_refill'
+          ? 'Пикап пополнения уже установлен — перемести существующий'
+          : 'Пикап получения уже установлен — перемести существующий'
+      );
       return;
     }
 
