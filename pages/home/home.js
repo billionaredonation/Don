@@ -34,6 +34,7 @@ import {
 } from '../../src/entities/entityInteraction.js';
 
 import { enableHousesFeature } from '../../src/houses/housesFeature.js';
+import { enableInventoryFeature } from '../../src/inventory/inventoryFeature.js';
 import {
   fetchPlayerOwnedHouses,
   PLAYER_HOUSE_SLOT_LIMIT,
@@ -1413,6 +1414,7 @@ register('home', async (root) => {
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
+  const cleanupInventoryFeature = enableInventoryFeature();
 
   const cleanupHousesFeature = enableHousesFeature(root, {
     cityId,
@@ -2260,6 +2262,7 @@ register('home', async (root) => {
     cleanupBalanceDatabaseSync?.();
     cleanupRenderPerformanceGuards?.();
 
+    cleanupInventoryFeature?.();
     cleanupHousesFeature?.();
     cleanupSingleHouseModalMode?.();
     cleanupMovement?.();
