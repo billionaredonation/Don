@@ -3847,7 +3847,12 @@ export function enableInteriorsFeature() {
   }
 
   function movementVector() {
-    if (colliderEditorOpen || objectEditorOpen || activeSeatObjectId) return { x: 0, y: 0 };
+    if (
+      colliderEditorOpen ||
+      objectEditorOpen ||
+      activeSeatObjectId ||
+      window.__MN_INVENTORY_OPEN__ === true
+    ) return { x: 0, y: 0 };
 
     let x = joystickVector.x;
     let y = joystickVector.y;
@@ -4299,6 +4304,12 @@ export function enableInteriorsFeature() {
   function keyDown(event) {
     if (!active) return;
 
+    if (window.__MN_INVENTORY_OPEN__ === true) {
+      keys.clear();
+      joystickVector = { x: 0, y: 0 };
+      return;
+    }
+
     const target = event.target;
     const isFormField = Boolean(target?.closest?.('input, textarea, select'));
 
@@ -4401,6 +4412,15 @@ export function enableInteriorsFeature() {
   function keyUp(event) {
     if (!active) return;
     keys.delete(String(event.key).toLowerCase());
+  }
+
+  function pauseForInventory() {
+    keys.clear();
+    joystickVector = { x: 0, y: 0 };
+    joystickPointer = null;
+    joystick.dataset.active = 'false';
+    staminaBox.dataset.visible = 'false';
+    stick.style.transform = 'translate3d(0,0,0)';
   }
 
   function updateJoystick(event) {
@@ -4541,6 +4561,7 @@ export function enableInteriorsFeature() {
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   window.addEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
+  window.addEventListener('mn:inventory-opened', pauseForInventory);
   window.addEventListener('keydown', keyDown, true);
   window.addEventListener('keyup', keyUp, true);
   window.addEventListener('resize', scheduleInteriorWorldLayout);
@@ -4585,6 +4606,7 @@ export function enableInteriorsFeature() {
       window.removeEventListener('mn:player-health-changed', handleHealthChanged);
       window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
       window.removeEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
+      window.removeEventListener('mn:inventory-opened', pauseForInventory);
       window.removeEventListener('keydown', keyDown, true);
       window.removeEventListener('keyup', keyUp, true);
       window.removeEventListener('resize', scheduleInteriorWorldLayout);
