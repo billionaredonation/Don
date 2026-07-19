@@ -82,6 +82,18 @@ async function invokeHospitalAction(action, payload = {}) {
   return data.result;
 }
 
+export async function loadHospitalWarehousePickupLayout() {
+  const result = await invokeHospitalAction('pickup_layout');
+  return Array.isArray(result?.pickups) ? result.pickups : [];
+}
+
+export async function saveHospitalWarehousePickupLayout(pickups) {
+  const result = await invokeHospitalAction('save_pickup_layout', {
+    pickups: Array.isArray(pickups) ? pickups : [],
+  });
+  return Array.isArray(result?.pickups) ? result.pickups : [];
+}
+
 function rankLevel(rank) {
   const levels = { junior: 1, middle: 2, senior: 3, admin: 4 };
   return levels[String(rank || '').toLowerCase()] || 0;
@@ -277,6 +289,7 @@ export function enableHospitalWarehouseFeature() {
   const staffEditor = overlay?.querySelector('[data-hospital-staff-editor]');
   const staffTarget = overlay?.querySelector('[data-hospital-staff-target]');
   const staffRank = overlay?.querySelector('[data-hospital-staff-rank]');
+  const staffSeniorRankOption = staffRank?.querySelector('option[value="senior"]');
   const staffSave = overlay?.querySelector('[data-hospital-staff-save]');
   const staffList = overlay?.querySelector('[data-hospital-staff-list]');
   const statsList = overlay?.querySelector('[data-hospital-stats-list]');
@@ -333,6 +346,11 @@ export function enableHospitalWarehouseFeature() {
     treatButton.hidden = !MEDICINE_TYPES.some((itemType) => canTreatWith(context, itemType));
     sellButton.hidden = !MEDICINE_TYPES.some((itemType) => canSellItem(context, itemType));
     staffEditor.hidden = context.permissions?.canManageEmployees !== true;
+    if (staffSeniorRankOption) {
+      staffSeniorRankOption.hidden = context.isAdmin !== true;
+      staffSeniorRankOption.disabled = context.isAdmin !== true;
+      if (staffRank.value === 'senior' && context.isAdmin !== true) staffRank.value = 'junior';
+    }
     tabs.find((button) => button.dataset.hospitalWarehouseTab === 'staff').hidden = context.permissions?.canManageEmployees !== true;
     tabs.find((button) => button.dataset.hospitalWarehouseTab === 'stats').hidden = context.permissions?.canViewStats !== true;
 
