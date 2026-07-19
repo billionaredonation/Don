@@ -25,9 +25,19 @@ function telegramInitData() {
   return String(window.Telegram?.WebApp?.initData || '').trim();
 }
 
-function normalizeError(error, fallback = 'HOSPITAL_REQUEST_FAILED') {
+async function normalizeError(error, fallback = 'HOSPITAL_REQUEST_FAILED') {
   const source = error?.context || error;
+  let responseMessage = '';
+  if (typeof source?.clone === 'function') {
+    try {
+      const payload = await source.clone().json();
+      responseMessage = [payload?.error, payload?.message, payload?.reason].filter(Boolean).join(' ');
+    } catch {
+      // The response is not JSON; the standard error fields below are enough.
+    }
+  }
   const message = [
+    responseMessage,
     error?.message,
     error?.details,
     error?.hint,
@@ -58,13 +68,19 @@ function userErrorMessage(error) {
     BUYER_BALANCE_NOT_ENOUGH: 'У покупателя недостаточно денег.',
     ADMIN_REQUIRED_FOR_SENIOR_RANK: 'Назначать или снимать старший состав может только администрация.',
     CANNOT_CHANGE_OWN_RANK: 'Нельзя изменить собственную должность.',
+    SERVER_NOT_CONFIGURED: 'Серверная функция больницы не настроена.',
+    NOT_FOUND: 'Edge Function hospital-warehouse не задеплоена в Supabase.',
   };
+
+  if (raw.toLowerCase().includes('requested function was not found')) {
+    return 'Edge Function hospital-warehouse не задеплоена в Supabase.';
+  }
 
   const code = Object.keys(messages).find((key) => raw.includes(key));
   return code ? messages[code] : raw;
 }
 
-async function invokeHospitalAction(action, payload = {}) {
+export async function invokeHospitalAction(action, payload = {}) {
   const initData = telegramInitData();
 
   if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
@@ -77,9 +93,51 @@ async function invokeHospitalAction(action, payload = {}) {
     },
   });
 
-  if (error) throw normalizeError(error);
+  if (error) throw await normalizeError(error);
   if (!data?.ok) throw new Error(data?.error || data?.reason || 'HOSPITAL_REQUEST_FAILED');
   return data.result;
+}
+
+export async function registerHospitalIdentity({ hospitalId, cityId, cityName, hospitalNumber } = {}) {
+  return invokeHospitalAction('register_hospital', {
+    hospitalId,
+    hospitalCityId: cityId,
+    hospitalCityName: cityName,
+    hospitalNumber,
+  });
+}
+
+export async function loadMyHospitalEmployments() {
+  const result = await invokeHospitalAction('my_employments');
+  return Array.isArray(result?.employments) ? result.employments : [];
+}
+
+export async function treatPlayerFromInteraction({ hospitalId, target, medicineType } = {}) {
+  return invokeHospitalAction('treat', { hospitalId, target, medicineType });
+}
+
+export async function notifyHospitalTreatmentStarted(targetTgId, hospitalId) {
+  const target = String(targetTgId || '').trim();
+  if (!target) return;
+
+  const channel = supabase.channel(`mn-hospital-treatment:${target}`);
+  await new Promise((resolve) => {
+    const timeout = window.setTimeout(resolve, 900);
+    channel.subscribe(async (status) => {
+      if (status !== 'SUBSCRIBED') return;
+      window.clearTimeout(timeout);
+      try {
+        await channel.send({ type: 'broadcast', event: 'treatment_started', payload: { hospitalId } });
+      } finally {
+        resolve();
+      }
+    });
+  });
+  supabase.removeChannel(channel);
+}
+
+export function getHospitalUserErrorMessage(error) {
+  return userErrorMessage(error);
 }
 
 export async function loadHospitalWarehousePickupLayout() {
@@ -298,6 +356,9 @@ export function enableHospitalWarehouseFeature() {
 
   let currentHospitalId = '';
   let currentHospitalName = 'Больница';
+  let currentHospitalCityId = '';
+  let currentHospitalCityName = '';
+  let currentHospitalNumber = null;
   let currentMode = 'take';
   let context = null;
   let requestBusy = false;
@@ -339,7 +400,14 @@ export function enableHospitalWarehouseFeature() {
     role.textContent = rankLabel(context.rank);
     role.dataset.rank = context.rank || 'none';
     modeLabel.textContent = currentMode === 'refill' ? 'Пополнение' : 'Получение';
-    hospitalIdLabel.textContent = String(currentHospitalId).slice(-12);
+    const identity = context.hospital || {};
+    if (identity.displayName) {
+      currentHospitalName = identity.displayName;
+      subtitle.textContent = identity.displayName;
+    }
+    hospitalIdLabel.textContent = identity.hospitalNumber
+      ? `№${identity.hospitalNumber} · ${identity.cityName || identity.cityId || 'город не указан'}`
+      : String(currentHospitalId).slice(-12);
     employeeAccessLabel.textContent = context.employeeAccessEnabled ? 'Включён' : 'Только администрация';
     employeeAccessLabel.dataset.enabled = context.employeeAccessEnabled ? 'true' : 'false';
     patientTools.hidden = currentMode !== 'take' || !context.allowed;
@@ -366,7 +434,12 @@ export function enableHospitalWarehouseFeature() {
   }
 
   async function refreshContext() {
-    context = await invokeHospitalAction('context', { hospitalId: currentHospitalId });
+    context = await invokeHospitalAction('context', {
+      hospitalId: currentHospitalId,
+      hospitalCityId: currentHospitalCityId,
+      hospitalCityName: currentHospitalCityName,
+      hospitalNumber: currentHospitalNumber,
+    });
 
     if (!context?.allowed) {
       body.hidden = true;
@@ -486,26 +559,6 @@ export function enableHospitalWarehouseFeature() {
     }
   }
 
-  async function sendTreatmentWakeup(targetTgId) {
-    const target = String(targetTgId || '').trim();
-    if (!target) return;
-
-    const channel = supabase.channel(`mn-hospital-treatment:${target}`);
-    await new Promise((resolve) => {
-      const timeout = window.setTimeout(resolve, 900);
-      channel.subscribe(async (status) => {
-        if (status !== 'SUBSCRIBED') return;
-        window.clearTimeout(timeout);
-        try {
-          await channel.send({ type: 'broadcast', event: 'treatment_started', payload: { hospitalId: currentHospitalId } });
-        } finally {
-          resolve();
-        }
-      });
-    });
-    supabase.removeChannel(channel);
-  }
-
   async function treatPatient() {
     const target = String(patientTarget.value || '').trim();
     const medicineType = String(patientMedicine.value || '').trim();
@@ -518,7 +571,7 @@ export function enableHospitalWarehouseFeature() {
         target,
         medicineType,
       });
-      await sendTreatmentWakeup(result?.patientTgId);
+      await notifyHospitalTreatmentStarted(result?.patientTgId, currentHospitalId);
       setMessage(`Лечение для ${result?.patientNickname || target} запущено на 60 секунд.`, 'success');
       await refreshContext();
     } catch (error) {
@@ -559,9 +612,17 @@ export function enableHospitalWarehouseFeature() {
     window.__MN_HOSPITAL_WAREHOUSE_OPEN__ = false;
   }
 
-  async function open({ mode = 'take', hospitalId, hospitalName = 'Больница' } = {}) {
+  async function open({
+    mode = 'take', hospitalId, hospitalName = 'Больница', hospitalCityId = '',
+    hospitalCityName = '', hospitalNumber = null, initialTab = 'stock',
+  } = {}) {
     currentHospitalId = String(hospitalId || '').trim();
     currentHospitalName = String(hospitalName || 'Больница').trim();
+    currentHospitalCityId = String(hospitalCityId || '').trim();
+    currentHospitalCityName = String(hospitalCityName || '').trim();
+    currentHospitalNumber = Number.isSafeInteger(Number(hospitalNumber)) && Number(hospitalNumber) > 0
+      ? Number(hospitalNumber)
+      : null;
     currentMode = mode === 'refill' ? 'refill' : 'take';
 
     if (!currentHospitalId) return false;
@@ -579,7 +640,13 @@ export function enableHospitalWarehouseFeature() {
     window.__MN_HOSPITAL_WAREHOUSE_OPEN__ = true;
 
     try {
-      return await refreshContext();
+      const opened = await refreshContext();
+      if (
+        opened &&
+        initialTab === 'staff' &&
+        context?.permissions?.canManageEmployees === true
+      ) showTab('staff');
+      return opened;
     } catch (error) {
       loading.hidden = true;
       body.hidden = true;
