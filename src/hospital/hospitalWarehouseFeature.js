@@ -58,6 +58,10 @@ function userErrorMessage(error) {
     WAREHOUSE_STOCK_NOT_ENOUGH: 'На складе недостаточно предметов.',
     PERSONAL_MEDICINE_NOT_ENOUGH: 'Сначала получите этот препарат со склада.',
     PATIENT_FOOD_TOO_LOW: 'У пациента меньше 40 еды. Сначала его нужно накормить.',
+    PATIENT_WATER_TOO_LOW: 'У пациента недостаточно воды. Сначала ему нужно попить.',
+    PLAYER_FOOD_TOO_LOW: 'Сначала поешьте: для применения препарата не хватает еды.',
+    PLAYER_WATER_TOO_LOW: 'Сначала попейте: для применения препарата не хватает воды.',
+    PLAYER_MEDICINE_NOT_ENOUGH: 'У вас нет этого препарата в инвентаре.',
     PATIENT_HEALTH_FULL: 'У пациента уже полное здоровье.',
     MEDICINE_HEALTH_RANGE_MISMATCH: 'Этот препарат не подходит для текущего уровня HP пациента.',
     PATIENT_ALREADY_TREATED: 'На пациента уже действует препарат.',
@@ -66,6 +70,10 @@ function userErrorMessage(error) {
     SALE_RANK_REQUIRED: 'Ваша должность не позволяет продавать этот препарат.',
     SALE_PRICE_NOT_CONFIGURED: 'Цена препарата ещё не задана администрацией в БД.',
     BUYER_BALANCE_NOT_ENOUGH: 'У покупателя недостаточно денег.',
+    EMPLOYEE_MANAGEMENT_DENIED: 'У вас нет доступа к управлению сотрудниками этой больницы.',
+    HOSPITAL_BUDGET_NOT_ENOUGH: 'В бюджете больницы недостаточно денег для закупки.',
+    PURCHASE_PRICE_NOT_CONFIGURED: 'Цена закупки для этого предмета не настроена в БД.',
+    STAFF_PANEL_DENIED: 'Меню больницы доступно только сотрудникам больницы и администрации.',
     ADMIN_REQUIRED_FOR_SENIOR_RANK: 'Назначать или снимать старший состав может только администрация.',
     CANNOT_CHANGE_OWN_RANK: 'Нельзя изменить собственную должность.',
     SERVER_NOT_CONFIGURED: 'Серверная функция больницы не настроена.',
@@ -114,6 +122,18 @@ export async function loadMyHospitalEmployments() {
 
 export async function treatPlayerFromInteraction({ hospitalId, target, medicineType } = {}) {
   return invokeHospitalAction('treat', { hospitalId, target, medicineType });
+}
+
+export async function issueMedicineFromInteraction({ hospitalId, target, medicineType, price = 0 } = {}) {
+  return invokeHospitalAction('issue_medicine', { hospitalId, target, medicineType, price });
+}
+
+export async function loadMyMedicalInventory() {
+  return invokeHospitalAction('my_medicine');
+}
+
+export async function useMyMedicine(medicineType) {
+  return invokeHospitalAction('use_medicine', { medicineType });
 }
 
 export async function notifyHospitalTreatmentStarted(targetTgId, hospitalId) {
@@ -700,6 +720,11 @@ export function enableHospitalWarehouseFeature() {
     if (event.code === 'Escape' && !event.repeat) close();
   }
 
+  function handleLocalTreatmentStarted() {
+    window.clearTimeout(treatmentTimer);
+    treatmentTimer = window.setTimeout(processMyTreatment, 250);
+  }
+
   closeTargets.forEach((button) => button.addEventListener('click', close));
   tabs.forEach((button) => button.addEventListener('click', () => showTab(button.dataset.hospitalWarehouseTab)));
   stockGrid.addEventListener('click', handleStockClick);
@@ -707,6 +732,7 @@ export function enableHospitalWarehouseFeature() {
   sellButton.addEventListener('click', sellMedicine);
   staffSave.addEventListener('click', saveEmployeeRank);
   window.addEventListener('keydown', handleKeyDown, true);
+  window.addEventListener('mn:hospital-treatment-started-local', handleLocalTreatmentStarted);
 
   const tgId = localTelegramId();
   if (tgId) {
@@ -731,6 +757,7 @@ export function enableHospitalWarehouseFeature() {
       sellButton.removeEventListener('click', sellMedicine);
       staffSave.removeEventListener('click', saveEmployeeRank);
       window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('mn:hospital-treatment-started-local', handleLocalTreatmentStarted);
       if (treatmentChannel) supabase.removeChannel(treatmentChannel);
       overlay.remove();
     },
