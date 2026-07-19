@@ -691,18 +691,20 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   background: rgba(255,238,213,.2);
 }
 .mn-interior-mapped-object-cabinet {
-  border: 1px solid rgba(224,205,179,.94);
+  border: 1px solid rgba(222,242,249,.96);
   border-radius: 4px;
-  background: linear-gradient(145deg, #72533d, #37271f);
-  box-shadow: 0 3px 9px rgba(0,0,0,.64), inset 0 0 0 2px rgba(255,226,188,.12);
+  background: linear-gradient(145deg, #8ba0a8, #394b53);
+  box-shadow: 0 3px 9px rgba(0,0,0,.64), inset 0 0 0 2px rgba(235,252,255,.14);
 }
 .mn-interior-mapped-object-cabinet::before {
   content: "";
   position: absolute;
   inset: 9%;
-  border: 1px solid rgba(255,235,207,.3);
+  border: 1px solid rgba(235,250,255,.38);
   border-radius: 2px;
-  background: linear-gradient(90deg, transparent 49%, rgba(255,231,198,.25) 49% 51%, transparent 51%);
+  background:
+    linear-gradient(180deg, transparent 47%, rgba(225,245,252,.22) 47% 50%, transparent 50%),
+    linear-gradient(90deg, transparent 49%, rgba(225,245,252,.32) 49% 51%, transparent 51%);
 }
 .mn-interior-mapped-object-cabinet::after {
   content: "";
@@ -712,7 +714,7 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   width: 6%;
   height: 16%;
   border-radius: 999px;
-  background: #e8c99c;
+  background: #dff7ff;
   box-shadow: 0 0 0 1px rgba(0,0,0,.35);
 }
 .mn-interior-mapped-object-kitchen_counter {
