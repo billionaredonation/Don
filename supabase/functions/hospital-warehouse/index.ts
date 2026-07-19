@@ -162,6 +162,17 @@ serve(async (req) => {
         functionName = 'hospital_process_my_treatment';
         args = { p_patient_tg_id: actorTgId };
         break;
+      case 'pickup_layout':
+        functionName = 'hospital_get_pickup_layout';
+        args = { p_actor_tg_id: actorTgId };
+        break;
+      case 'save_pickup_layout': {
+        const pickups = Array.isArray(body.pickups) ? body.pickups.slice(0, 20) : null;
+        if (!pickups) return jsonResponse({ ok: false, error: 'INVALID_PICKUP_LAYOUT' });
+        functionName = 'hospital_save_pickup_layout';
+        args = { p_actor_tg_id: actorTgId, p_pickups: pickups };
+        break;
+      }
       default:
         return jsonResponse({ ok: false, error: 'UNKNOWN_ACTION' });
     }
