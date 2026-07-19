@@ -3811,21 +3811,11 @@ export function enableInteriorsFeature() {
   function openHospitalAdminPanel() {
     if (
       activeInteriorKind !== 'hospital' ||
-      !activeServiceId ||
       !isInteriorColliderAdmin()
     ) return;
 
     closeObjectEditor();
-    const identity = hospitalIdentityInput(activeService, activeServiceId);
-    void hospitalWarehouse.open({
-      mode: 'take',
-      hospitalId: activeServiceId,
-      hospitalName: activeService?.name || activeService?.payload?.serviceLabel || 'Больница',
-      hospitalCityId: identity.cityId,
-      hospitalCityName: identity.cityName,
-      hospitalNumber: identity.hospitalNumber,
-      initialTab: 'staff',
-    });
+    window.dispatchEvent(new CustomEvent('mn:hospital-management-open'));
   }
 
   function toggleObjectEditor() {
