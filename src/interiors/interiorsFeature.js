@@ -761,9 +761,26 @@ async function saveRemoteMappedInteriorObjects(templateId, objects) {
   if (error) throw error;
   if (data?.ok === false) throw new Error(data?.reason || 'INTERIOR_OBJECT_SAVE_FAILED');
 
-  const savedObjects = normalizeMappedInteriorObjects(data?.objects || normalizedObjects);
+  // The database is authoritative. Re-read the exact template after the RPC
+  // instead of treating the local payload as saved when an old server function
+  // silently ignores a newly added object type.
+  const { data: storedRows, error: verifyError } = await supabase
+    .from(INTERIOR_MAPPED_OBJECT_TABLE)
+    .select('id, template_id, object_type, x, y, rotation, properties, created_at, updated_at')
+    .eq('template_id', templateId)
+    .order('created_at', { ascending: true });
+
+  if (verifyError) throw verifyError;
+
+  const savedObjects = normalizeMappedInteriorObjects(storedRows);
+  const savedIds = new Set(savedObjects.map((object) => object.id));
+  const saveConfirmed = savedObjects.length === normalizedObjects.length &&
+    normalizedObjects.every((object) => savedIds.has(object.id));
+
+  if (!saveConfirmed) throw new Error('INTERIOR_OBJECT_SAVE_NOT_CONFIRMED');
+
   setMappedObjectsForTemplate(templateId, savedObjects);
-  return data || { ok: true, objects: savedObjects };
+  return { ...(data || {}), ok: true, objects: savedObjects };
 }
 
 function isInteriorDoorOpen(objectId, instanceId = activeInteriorDoorInstanceId) {
@@ -2692,6 +2709,15 @@ export function enableInteriorsFeature() {
       if (!loaded || destroyed) return;
 
       if (active && templateId === activeTemplateId) {
+        if (objectEditorOpen && !objectEditorPointer) {
+          objectEditorProfile = editorProfileForCurrentTemplate();
+          if (
+            objectEditorSelectedId &&
+            !objectEditorProfile.objects.some((object) => object.id === objectEditorSelectedId)
+          ) {
+            objectEditorSelectedId = null;
+          }
+        }
         renderInteriorObjects();
         if (objectEditorOpen && !objectEditorPointer) {
           setObjectStatus('Сервер обновил раскладку объектов');
@@ -3541,7 +3567,13 @@ export function enableInteriorsFeature() {
     } catch (error) {
       console.warn('[interiors] mapped objects save failed:', error);
       if (saveId === colliderSaveSequence) {
-        setObjectStatus('Локально работает, но в Supabase не сохранилось');
+        const loaded = await loadRemoteMappedInteriorObjects({ force: true });
+        if (loaded) {
+          objectEditorProfile = editorProfileForCurrentTemplate();
+          objectEditorSelectedId = null;
+          renderInteriorObjects();
+        }
+        setObjectStatus('Не сохранено в БД · локальная копия отменена');
       }
       return false;
     }
