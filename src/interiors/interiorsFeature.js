@@ -14,6 +14,7 @@ import {
 import {
   enableHospitalWarehouseFeature,
   loadHospitalWarehousePickupLayout,
+  registerHospitalIdentity,
   saveHospitalWarehousePickupLayout,
 } from '../hospital/hospitalWarehouseFeature.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
@@ -320,6 +321,26 @@ function mapObjectId(object) {
       p.id ||
       ''
   ).trim();
+}
+
+function hospitalIdentityInput(object, hospitalId = mapObjectId(object)) {
+  const payload = object?.payload || {};
+  const cityId = String(
+    object?.cityId || object?.city_id || payload.cityId || payload.city_id || state.cityId || state.city || ''
+  ).trim();
+  const cityName = String(
+    object?.cityName || object?.city_name || payload.cityName || payload.city_name || state.cityName || cityId
+  ).trim();
+  const rawNumber = Number(
+    object?.hospitalNumber || object?.hospital_number || payload.hospitalNumber || payload.hospital_number
+  );
+
+  return {
+    hospitalId: String(hospitalId || '').trim(),
+    cityId,
+    cityName,
+    hospitalNumber: Number.isSafeInteger(rawNumber) && rawNumber > 0 ? rawNumber : null,
+  };
 }
 
 function ensureTemplatePreloadLinks() {
@@ -1428,6 +1449,9 @@ function markup() {
             <button type="button" data-interior-object-delete>Удалить</button>
             <button type="button" data-interior-object-clear>Очистить всё</button>
           </div>
+          <div class="mn-interior-object-actions" hidden data-hospital-admin-actions>
+            <button type="button" class="mn-interior-object-primary" data-hospital-admin-open>Управление больницей</button>
+          </div>
           <small data-interior-object-status></small>
         </section>
         <button type="button" class="mn-interior-door-action" hidden data-interior-door-action>
@@ -1532,6 +1556,8 @@ export function enableInteriorsFeature() {
   const objectDelete = overlay.querySelector('[data-interior-object-delete]');
   const objectClear = overlay.querySelector('[data-interior-object-clear]');
   const objectStatus = overlay.querySelector('[data-interior-object-status]');
+  const hospitalAdminActions = overlay.querySelector('[data-hospital-admin-actions]');
+  const hospitalAdminOpen = overlay.querySelector('[data-hospital-admin-open]');
   const doorAction = overlay.querySelector('[data-interior-door-action]');
   const doorActionLabel = overlay.querySelector('[data-interior-door-action-label]');
   const colliderLayer = overlay.querySelector('[data-interior-collider-layer]');
@@ -2152,6 +2178,8 @@ export function enableInteriorsFeature() {
     entry.element.classList.toggle('is-seated', Boolean(seatedObjectId));
     entry.element.dataset.seated = seatedObjectId ? 'true' : 'false';
     entry.element.dataset.seatedObjectId = seatedObjectId;
+    entry.element.dataset.nickname = String(player.nickname || 'Игрок').slice(0, 32);
+    entry.element.dataset.tgId = String(player.tgId || safePlayerId.replace(/^tg_/, '') || '').trim();
     entry.name.textContent = String(player.nickname || 'Игрок').slice(0, 32);
     if (player.connectionId && entry.connectionId !== player.connectionId) {
       entry.connectionId = player.connectionId;
@@ -3642,10 +3670,14 @@ export function enableInteriorsFeature() {
     }
 
     if (nearest.kind === 'warehouse_refill' || nearest.kind === 'warehouse_take') {
+      const identity = hospitalIdentityInput(activeService, activeServiceId || mapObjectId(activeService));
       void hospitalWarehouse.open({
         mode: nearest.kind === 'warehouse_refill' ? 'refill' : 'take',
-        hospitalId: activeServiceId || mapObjectId(activeService),
+        hospitalId: identity.hospitalId,
         hospitalName: activeService?.name || activeService?.payload?.serviceLabel || 'Больница',
+        hospitalCityId: identity.cityId,
+        hospitalCityName: identity.cityName,
+        hospitalNumber: identity.hospitalNumber,
       });
       return true;
     }
@@ -3702,7 +3734,14 @@ export function enableInteriorsFeature() {
           objectEditorSelectedId = null;
           renderInteriorObjects();
         }
-        setObjectStatus('Не сохранено в БД · локальная копия отменена');
+        const rawError = String(error?.message || error || 'неизвестная ошибка');
+        const errorText = rawError.toLowerCase().includes('requested function was not found') ||
+          rawError.includes('NOT_FOUND')
+          ? 'Edge Function hospital-warehouse не задеплоена'
+          : rawError.includes('PGRST202') || rawError.toLowerCase().includes('could not find the function')
+            ? 'не применён SQL для сохранения пикапов'
+            : rawError.slice(0, 120);
+        setObjectStatus(`Не сохранено · ${errorText}`);
       }
       return false;
     }
@@ -3735,6 +3774,7 @@ export function enableInteriorsFeature() {
     joystick.dataset.active = 'false';
     stick.style.transform = 'translate3d(0,0,0)';
     objectPanel.hidden = false;
+    hospitalAdminActions.hidden = activeInteriorKind !== 'hospital';
     scheduleObjectPanelLayout();
     overlay.dataset.objectEditor = 'enabled';
     document.body.classList.add('mn-interior-object-editor-open');
@@ -3766,6 +3806,26 @@ export function enableInteriorsFeature() {
     document.body.classList.remove('mn-interior-object-editor-open');
     document.documentElement.classList.remove('mn-interior-object-editor-open');
     renderInteriorObjects();
+  }
+
+  function openHospitalAdminPanel() {
+    if (
+      activeInteriorKind !== 'hospital' ||
+      !activeServiceId ||
+      !isInteriorColliderAdmin()
+    ) return;
+
+    closeObjectEditor();
+    const identity = hospitalIdentityInput(activeService, activeServiceId);
+    void hospitalWarehouse.open({
+      mode: 'take',
+      hospitalId: activeServiceId,
+      hospitalName: activeService?.name || activeService?.payload?.serviceLabel || 'Больница',
+      hospitalCityId: identity.cityId,
+      hospitalCityName: identity.cityName,
+      hospitalNumber: identity.hospitalNumber,
+      initialTab: 'staff',
+    });
   }
 
   function toggleObjectEditor() {
@@ -4323,6 +4383,17 @@ export function enableInteriorsFeature() {
       renderStamina();
       renderPosition();
       renderInteriorObjects();
+      const identityInput = hospitalIdentityInput(hospital, id);
+      if (identityInput.cityId) {
+        void registerHospitalIdentity(identityInput)
+          .then((identity) => {
+            if (activeServiceId === id && identity?.displayName) {
+              title.textContent = identity.displayName;
+              meta.textContent = `${identity.cityName || identity.cityId} · больница №${identity.hospitalNumber}`;
+            }
+          })
+          .catch((error) => console.warn('[interiors] hospital identity registration failed:', error));
+      }
       Promise.allSettled([
         loadRemoteCollisionProfiles({ force: false }),
         loadRemoteMappedInteriorObjects({ force: false }),
@@ -4660,6 +4731,7 @@ export function enableInteriorsFeature() {
     applyObjectEditorProfile();
     setObjectStatus(`Очищено · ${objectCountsText()}`);
   });
+  hospitalAdminOpen.addEventListener('click', openHospitalAdminPanel);
   objectLayer.addEventListener('pointerdown', handleObjectPointerDown);
   objectLayer.addEventListener('pointermove', handleObjectPointerMove);
   objectLayer.addEventListener('pointerup', handleObjectPointerEnd);
@@ -4765,6 +4837,7 @@ export function enableInteriorsFeature() {
       window.removeEventListener('orientationchange', scheduleInteriorWorldLayout);
       window.removeEventListener('orientationchange', scheduleColliderPanelLayout);
       window.removeEventListener('orientationchange', scheduleObjectPanelLayout);
+      hospitalAdminOpen.removeEventListener('click', openHospitalAdminPanel);
       interiorWorldResizeObserver?.disconnect();
       hospitalWarehouse.cleanup();
       if (collisionProfilesChannel) {
