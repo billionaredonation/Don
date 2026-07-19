@@ -1,0 +1,222 @@
+.mn-hospital-warehouse {
+  position: fixed;
+  z-index: 2147482600;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 12px;
+  color: #ecf7ff;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.mn-hospital-warehouse[hidden] { display: none !important; }
+
+.mn-hospital-warehouse-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(2, 8, 13, .84);
+  backdrop-filter: blur(10px);
+}
+
+.mn-hospital-warehouse-panel {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  width: min(980px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
+  border: 1px solid rgba(111, 224, 200, .28);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 7% 0, rgba(36, 185, 143, .14), transparent 38%),
+    linear-gradient(155deg, rgba(12, 25, 34, .99), rgba(5, 13, 20, .99));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .62), inset 0 1px rgba(255, 255, 255, .05);
+}
+
+.mn-hospital-warehouse-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 66px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+
+.mn-hospital-warehouse-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border: 1px solid rgba(113, 255, 201, .32);
+  border-radius: 13px;
+  color: #b8ffe2;
+  background: rgba(31, 183, 126, .17);
+  font-size: 21px;
+  font-weight: 950;
+}
+
+.mn-hospital-warehouse-heading { display: grid; gap: 2px; min-width: 0; }
+.mn-hospital-warehouse-heading small { overflow: hidden; color: rgba(218, 238, 248, .62); font-size: 10px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.mn-hospital-warehouse-heading strong { font-size: 17px; line-height: 1.1; }
+
+.mn-hospital-warehouse-role {
+  margin-left: auto;
+  padding: 7px 10px;
+  border: 1px solid rgba(113, 255, 201, .2);
+  border-radius: 999px;
+  color: #caffe9;
+  background: rgba(31, 183, 126, .11);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.mn-hospital-warehouse-role[data-rank="admin"] { border-color: rgba(255, 210, 94, .34); color: #ffe7a1; background: rgba(255, 196, 44, .1); }
+.mn-hospital-warehouse-close {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, .06);
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.mn-hospital-warehouse-tabs { display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid rgba(255, 255, 255, .07); }
+.mn-hospital-warehouse-tabs button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 10px;
+  color: rgba(230, 243, 250, .72);
+  background: rgba(255, 255, 255, .035);
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.mn-hospital-warehouse-tabs button[data-active="true"] { border-color: rgba(99, 238, 182, .34); color: #d9ffef; background: rgba(31, 183, 126, .14); }
+.mn-hospital-warehouse-tabs button[hidden] { display: none; }
+
+.mn-hospital-warehouse-loading,
+.mn-hospital-warehouse-message { margin: 10px 14px 0; padding: 10px 12px; border: 1px solid rgba(120, 202, 255, .18); border-radius: 12px; color: #d8efff; background: rgba(56, 145, 205, .08); font-size: 11px; font-weight: 750; }
+.mn-hospital-warehouse-message[data-type="error"] { border-color: rgba(255, 100, 116, .27); color: #ffd6db; background: rgba(155, 28, 43, .14); }
+.mn-hospital-warehouse-message[data-type="success"] { border-color: rgba(85, 229, 161, .27); color: #d4ffeb; background: rgba(21, 133, 83, .14); }
+
+.mn-hospital-warehouse-body { min-height: 0; overflow: auto; padding: 12px 14px 16px; overscroll-behavior: contain; }
+.mn-hospital-warehouse-body > section[hidden] { display: none; }
+.mn-hospital-warehouse-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.mn-hospital-warehouse-summary > span,
+.mn-hospital-stock-numbers > span { display: grid; gap: 2px; min-width: 0; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, .07); border-radius: 10px; background: rgba(255, 255, 255, .025); }
+.mn-hospital-warehouse-summary small,
+.mn-hospital-stock-numbers small,
+.mn-hospital-stat-row small { color: rgba(218, 238, 248, .53); font-size: 9px; font-weight: 800; }
+.mn-hospital-warehouse-summary b { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.mn-hospital-stock-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+.mn-hospital-stock-card { display: grid; gap: 10px; padding: 12px; border: 1px solid rgba(255, 255, 255, .08); border-radius: 15px; background: rgba(255, 255, 255, .035); }
+.mn-hospital-stock-card-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.mn-hospital-stock-card-head > span:last-child { display: grid; gap: 4px; min-width: 0; }
+.mn-hospital-stock-card-head strong { font-size: 12px; }
+.mn-hospital-stock-card-head small { color: rgba(218, 238, 248, .58); font-size: 9px; font-weight: 700; line-height: 1.35; }
+.mn-hospital-stock-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border: 1px solid rgba(106, 237, 190, .2); border-radius: 12px; background: rgba(31, 183, 126, .1); font-size: 20px; }
+.mn-hospital-stock-numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mn-hospital-stock-numbers b { font-size: 15px; }
+.mn-hospital-stock-actions,
+.mn-hospital-patient-form,
+.mn-hospital-staff-editor { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.mn-hospital-warehouse input,
+.mn-hospital-warehouse select,
+.mn-hospital-warehouse button { font-family: inherit; }
+.mn-hospital-warehouse input,
+.mn-hospital-warehouse select { min-height: 34px; box-sizing: border-box; border: 1px solid rgba(255, 255, 255, .1); border-radius: 9px; outline: none; color: #f2fbff; background: rgba(0, 0, 0, .23); font-size: 10px; font-weight: 750; }
+.mn-hospital-warehouse input:focus,
+.mn-hospital-warehouse select:focus { border-color: rgba(102, 239, 183, .55); }
+.mn-hospital-warehouse select option { color: #eef8fc; background: #10202a; }
+.mn-hospital-stock-actions input { width: 86px; padding: 0 9px; }
+.mn-hospital-stock-actions button,
+.mn-hospital-patient-form button,
+.mn-hospital-staff-editor button { min-height: 34px; padding: 0 12px; border: 1px solid rgba(255, 255, 255, .1); border-radius: 9px; color: #eaf8ff; background: rgba(255, 255, 255, .055); font-size: 10px; font-weight: 900; cursor: pointer; }
+.mn-hospital-stock-actions .is-refill,
+.mn-hospital-stock-actions .is-take,
+.mn-hospital-warehouse .is-primary { border-color: rgba(87, 231, 168, .28); color: #d8ffed; background: rgba(31, 183, 126, .16); }
+.mn-hospital-warehouse-panel[data-busy="true"] { cursor: wait; }
+.mn-hospital-warehouse button:disabled,
+.mn-hospital-warehouse input:disabled,
+.mn-hospital-warehouse select:disabled { opacity: .45; cursor: not-allowed; }
+
+.mn-hospital-patient-tools { margin-top: 12px; padding: 12px; border: 1px solid rgba(92, 216, 171, .15); border-radius: 15px; background: rgba(17, 83, 62, .09); }
+.mn-hospital-section-title { margin-bottom: 8px; }
+.mn-hospital-section-title > span { display: grid; gap: 3px; }
+.mn-hospital-section-title b { font-size: 12px; }
+.mn-hospital-section-title small,
+.mn-hospital-patient-rule { color: rgba(218, 238, 248, .56); font-size: 9px; font-weight: 700; }
+.mn-hospital-patient-form input { flex: 1 1 180px; padding: 0 10px; }
+.mn-hospital-patient-form select { flex: 1 1 170px; padding: 0 8px; }
+.mn-hospital-patient-rule { display: block; margin-top: 7px; }
+
+.mn-hospital-staff-editor { margin-bottom: 10px; }
+.mn-hospital-staff-editor input { flex: 1 1 220px; padding: 0 10px; }
+.mn-hospital-staff-editor select { flex: 0 1 190px; padding: 0 8px; }
+.mn-hospital-staff-list,
+.mn-hospital-stats-list { display: grid; gap: 7px; }
+.mn-hospital-staff-row,
+.mn-hospital-stat-row { display: grid; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid rgba(255, 255, 255, .07); border-radius: 12px; background: rgba(255, 255, 255, .03); }
+.mn-hospital-staff-row { grid-template-columns: minmax(130px, 1fr) auto minmax(160px, auto); }
+.mn-hospital-staff-row > span:first-child,
+.mn-hospital-stat-row > span:first-child { display: grid; gap: 3px; min-width: 0; }
+.mn-hospital-staff-row strong,
+.mn-hospital-stat-row strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.mn-hospital-staff-row small { color: rgba(218, 238, 248, .5); font-size: 9px; }
+.mn-hospital-staff-row > b { color: #caffe9; font-size: 10px; }
+.mn-hospital-staff-mini-stats { color: rgba(218, 238, 248, .62); font-size: 9px; text-align: right; }
+.mn-hospital-stat-row { grid-template-columns: minmax(150px, 1.4fr) repeat(4, minmax(72px, .65fr)); }
+.mn-hospital-stat-row > span:not(:first-child) { display: grid; gap: 2px; }
+.mn-hospital-stat-row b { font-size: 12px; }
+.mn-hospital-empty { padding: 24px 12px; border: 1px dashed rgba(255, 255, 255, .1); border-radius: 12px; color: rgba(224, 240, 248, .62); font-size: 10px; font-weight: 800; text-align: center; }
+.mn-hospital-empty.is-error { border-color: rgba(255, 100, 116, .24); color: #ffd1d7; }
+
+body.mn-hospital-warehouse-open .mn-interior-joystick,
+body.mn-hospital-warehouse-open .mn-interior-stamina,
+body.mn-hospital-warehouse-open .mn-interior-door-action { opacity: 0 !important; pointer-events: none !important; }
+
+@media (max-width: 720px) {
+  .mn-hospital-warehouse { padding: 8px; }
+  .mn-hospital-warehouse-panel { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 16px; }
+  .mn-hospital-warehouse-header { min-height: 52px; padding: 7px 10px; }
+  .mn-hospital-warehouse-mark { width: 34px; height: 34px; flex-basis: 34px; border-radius: 10px; font-size: 18px; }
+  .mn-hospital-warehouse-heading strong { font-size: 14px; }
+  .mn-hospital-warehouse-role { max-width: 130px; overflow: hidden; padding: 6px 8px; text-overflow: ellipsis; }
+  .mn-hospital-warehouse-close { width: 34px; height: 34px; }
+  .mn-hospital-warehouse-tabs { padding: 6px 10px; }
+  .mn-hospital-warehouse-tabs button { min-height: 30px; padding: 0 10px; font-size: 9px; }
+  .mn-hospital-warehouse-body { padding: 8px 10px 12px; }
+  .mn-hospital-stock-card { padding: 9px; }
+  .mn-hospital-stat-row { grid-template-columns: minmax(130px, 1.4fr) repeat(4, minmax(56px, .6fr)); }
+}
+
+@media (max-width: 560px) {
+  .mn-hospital-stock-grid { grid-template-columns: 1fr; }
+  .mn-hospital-warehouse-summary { grid-template-columns: 1fr 1fr; }
+  .mn-hospital-warehouse-summary > span:last-child { grid-column: 1 / -1; }
+  .mn-hospital-staff-row { grid-template-columns: minmax(120px, 1fr) auto; }
+  .mn-hospital-staff-mini-stats { grid-column: 1 / -1; text-align: left; }
+  .mn-hospital-stat-row { grid-template-columns: 1fr 1fr 1fr; }
+  .mn-hospital-stat-row > span:first-child { grid-column: 1 / -1; }
+}
+
+@media (max-height: 560px) {
+  .mn-hospital-warehouse-header { min-height: 48px; }
+  .mn-hospital-warehouse-loading,
+  .mn-hospital-warehouse-message { margin-top: 6px; padding: 7px 9px; }
+  .mn-hospital-stock-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mn-hospital-stock-card { gap: 6px; }
+  .mn-hospital-stock-icon { width: 32px; height: 32px; flex-basis: 32px; font-size: 17px; }
+}
