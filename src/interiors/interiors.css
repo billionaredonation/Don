@@ -17,7 +17,7 @@
 .mn-interior-loader-line i { position: absolute; inset: 0 auto 0 0; width: 38%; border-radius: inherit; background: linear-gradient(90deg, rgba(129,101,255,0), rgba(129,101,255,.95), rgba(31,214,128,.95)); animation: mn-interior-loader-line 1050ms cubic-bezier(.55,.08,.25,1) infinite; }
 @keyframes mn-interior-loader-spin { to { transform: rotate(360deg); } }
 @keyframes mn-interior-loader-line { 0% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
-.mn-interior-scene { position: absolute; inset: 0; overflow: hidden; background: #05070b; }
+.mn-interior-scene { position: absolute; inset: 0; overflow: hidden; background: #05070b; opacity: 1; scale: 1; transition: opacity 220ms ease, scale 280ms cubic-bezier(.2,.78,.25,1); }
 .mn-interior-world { position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; transform: translate3d(-50%,-50%,0); transform-origin: center center; }
 .mn-interior-map { position: absolute; inset: 0; background-position: center; background-repeat: no-repeat; background-size: contain; image-rendering: auto; }
 .mn-interior-shade { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% 50%, transparent 45%, rgba(0,0,0,.32)); }
@@ -82,8 +82,14 @@
   transform: translateX(-50%);
 }
 .mn-interior-controls,
-.mn-interior-ui { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.mn-interior-ui { position: absolute; inset: 0; z-index: 8; opacity: 1; transition: opacity 180ms ease; pointer-events: none; }
 .mn-interior-ui { z-index: 9; }
+.mn-interior[data-transition="entering"] .mn-interior-scene { opacity: 0; scale: .965; }
+.mn-interior[data-transition="entering"] .mn-interior-controls,
+.mn-interior[data-transition="entering"] .mn-interior-ui { opacity: 0; }
+.mn-interior[data-transition="leaving"] .mn-interior-scene { opacity: 0; scale: .95; }
+.mn-interior[data-transition="leaving"] .mn-interior-controls,
+.mn-interior[data-transition="leaving"] .mn-interior-ui { opacity: 0; }
 .mn-interior-exit { position: absolute; z-index: 6; right: 18px; bottom: 18px; min-height: 44px; padding: 10px 15px; border: 1px solid rgba(255,255,255,.13); border-radius: 15px; color: #fff; background: rgba(5,8,14,.82); backdrop-filter: blur(8px); font-weight: 900; pointer-events: auto; }
 .mn-interior-info { position: absolute; z-index: 6; left: 18px; top: 18px; display: grid; gap: 3px; padding: 10px 13px; border: 1px solid rgba(255,255,255,.11); border-radius: 14px; background: rgba(5,8,14,.74); backdrop-filter: blur(8px); }
 .mn-interior-info b { font: 950 13px/1.1 system-ui; }
@@ -425,6 +431,11 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   width: min(118px, 100%) !important;
 }
 @media (prefers-reduced-motion: reduce) {
+  .mn-interior-scene,
+  .mn-interior-controls,
+  .mn-interior-ui {
+    transition-duration: 1ms !important;
+  }
   .mn-interior-loader-ring::before,
   .mn-interior-loader-ring::after,
   .mn-interior-loader-ring i,
@@ -696,13 +707,13 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   width: 100%;
   height: 72%;
   box-sizing: border-box;
-  border: 1px solid rgba(231,244,255,.96);
+  border: 1px solid rgba(255,176,184,.98);
   border-radius: 2px;
-  background: linear-gradient(180deg, #688095, #314454);
-  box-shadow: 0 2px 7px rgba(0,0,0,.68), inset 0 0 0 1px rgba(255,255,255,.12);
+  background: linear-gradient(180deg, #e34c5c, #79232f);
+  box-shadow: 0 0 9px rgba(255,57,82,.72), 0 2px 7px rgba(0,0,0,.68), inset 0 0 0 1px rgba(255,255,255,.17);
   transform: translateY(-50%) rotate(0deg);
   transform-origin: 4% 50%;
-  transition: transform 220ms cubic-bezier(.2,.78,.25,1), filter 180ms ease;
+  transition: transform 220ms cubic-bezier(.2,.78,.25,1), filter 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 .mn-interior-mapped-object-door::after {
   content: "";
@@ -711,17 +722,21 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   top: 50%;
   width: 100%;
   height: 180%;
-  border-top: 1px dashed rgba(120,205,255,.36);
+  border-top: 1px dashed rgba(255,82,102,.52);
   border-radius: 50% 50% 0 0;
   transform: translateY(-1px);
   opacity: .7;
   pointer-events: none;
 }
 .mn-interior-mapped-object-door[data-open="true"]::before {
+  border-color: rgba(166,255,211,.98);
+  background: linear-gradient(180deg, #35d68d, #14714e);
+  box-shadow: 0 0 10px rgba(41,232,143,.72), 0 2px 7px rgba(0,0,0,.68), inset 0 0 0 1px rgba(255,255,255,.18);
   transform: translateY(-50%) rotate(-82deg);
   filter: brightness(1.18);
 }
 .mn-interior-mapped-object-door[data-open="true"]::after {
+  border-top-color: rgba(75,240,163,.5);
   opacity: .28;
 }
 .mn-interior-mapped-object-exit {
