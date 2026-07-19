@@ -1,0 +1,53 @@
+.mn-player-interaction[hidden], .mn-player-interaction-hint[hidden] { display: none !important; }
+.mn-player-interaction { position: fixed; inset: 0; z-index: 2147482500; display: grid; place-items: center; color: #f6fbff; font-family: Inter, system-ui, -apple-system, sans-serif; }
+.mn-player-interaction-backdrop { position: absolute; inset: 0; border: 0; background: rgba(1, 5, 8, .78); backdrop-filter: blur(9px); }
+.mn-player-interaction-panel { position: relative; width: min(610px, calc(100vw - 30px)); max-height: min(690px, calc(100dvh - 28px)); overflow: auto; padding: 18px; border: 1px solid rgba(111, 194, 239, .25); border-radius: 24px; background: linear-gradient(155deg, rgba(11, 24, 32, .98), rgba(5, 11, 16, .98)); box-shadow: 0 26px 90px rgba(0, 0, 0, .65); }
+.mn-player-interaction-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 15px; }
+.mn-player-interaction-panel > header span { display: grid; gap: 3px; }
+.mn-player-interaction-panel > header small { color: rgba(210, 234, 247, .56); font-size: 10px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.mn-player-interaction-panel > header strong { font-size: 22px; line-height: 1.1; }
+.mn-player-interaction-panel > header button { width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.12); border-radius: 13px; color: #fff; background: rgba(255,255,255,.07); font-size: 25px; }
+.mn-player-interaction nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.mn-player-interaction nav > button { display: flex; align-items: center; gap: 9px; min-height: 66px; padding: 10px; border: 1px solid rgba(255,255,255,.10); border-radius: 16px; color: #f6fbff; background: rgba(255,255,255,.055); text-align: left; }
+.mn-player-interaction nav > button[data-active="true"] { border-color: rgba(72, 183, 242, .65); background: rgba(44, 145, 207, .22); }
+.mn-player-interaction nav i { display: grid; place-items: center; flex: 0 0 34px; height: 34px; border-radius: 11px; color: #bbebff; background: rgba(55, 171, 230, .18); font-style: normal; font-weight: 950; }
+.mn-player-interaction nav span { display: grid; gap: 3px; font-size: 12px; font-weight: 900; }
+.mn-player-interaction nav small { color: rgba(226, 241, 249, .48); font-size: 9px; font-weight: 700; }
+.mn-player-interaction-content { margin-top: 13px; padding: 14px; border-radius: 17px; background: rgba(255,255,255,.045); }
+.mn-player-interaction-content > p { margin: 0; color: rgba(226, 241, 249, .68); font-size: 12px; font-weight: 750; }
+.mn-player-action-form { display: grid; gap: 10px; }
+.mn-player-action-form > strong { font-size: 12px; }
+.mn-player-action-form label { display: grid; gap: 5px; }
+.mn-player-action-form label > span { display: flex; justify-content: space-between; gap: 8px; color: rgba(237,247,252,.78); font-size: 11px; font-weight: 850; }
+.mn-player-action-form label small { color: rgba(226,241,249,.46); font-size: 9px; }
+.mn-player-action-form input, .mn-player-action-form select { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; outline: none; color: #fff; background: rgba(0,0,0,.26); font: 800 12px/1 system-ui; box-sizing: border-box; }
+.mn-player-action-form select option { color: #111; }
+.mn-player-action-form button { min-height: 43px; padding: 0 13px; border: 1px solid rgba(255,255,255,.12); border-radius: 13px; color: #fff; background: rgba(255,255,255,.08); font-weight: 900; }
+.mn-player-action-form button.is-primary { border-color: rgba(70,190,241,.48); background: linear-gradient(135deg, #197db2, #2aa9d8); }
+.mn-player-action-form button:disabled, .mn-player-interaction-panel[data-busy="true"] button:not([data-player-interaction-close]) { opacity: .45; }
+.mn-player-trade-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mn-player-trade-incoming { display: grid; gap: 4px; padding: 11px; border: 1px solid rgba(84,220,157,.24); border-radius: 13px; background: rgba(39,156,105,.12); }
+.mn-player-trade-incoming small { color: rgba(209,255,233,.56); font-size: 9px; font-weight: 850; text-transform: uppercase; }
+.mn-player-trade-incoming b { color: #dfffee; font-size: 12px; }
+.mn-player-trade-actions { display: grid; grid-template-columns: 1fr 1.3fr; gap: 8px; }
+.mn-player-interaction-message { margin-top: 10px; padding: 10px 12px; border-radius: 12px; color: #dcefff; background: rgba(58,137,190,.14); font-size: 11px; font-weight: 800; }
+.mn-player-interaction-message[data-type="error"] { color: #ffd8dd; background: rgba(185,45,65,.15); }
+.mn-player-interaction-message[data-type="success"] { color: #d9ffea; background: rgba(39,156,105,.15); }
+.mn-player-interaction-hint { position: fixed; left: 50%; bottom: max(30px, env(safe-area-inset-bottom)); z-index: 2147481300; display: flex; align-items: center; gap: 9px; transform: translateX(-50%); padding: 7px 13px 7px 7px; border: 1px solid rgba(99,192,238,.34); border-radius: 15px; color: #eefaff; background: rgba(5,16,23,.90); box-shadow: 0 12px 35px rgba(0,0,0,.45); font: 850 11px/1 system-ui; }
+.mn-player-interaction-hint b { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 9px; color: #081017; background: #b9eaff; font-size: 13px; }
+body.mn-player-interaction-open .mobile-controls-layer, body.mn-player-interaction-open .mn-interior-joystick { pointer-events: none !important; opacity: .18 !important; }
+
+@media (max-width: 720px) {
+  .mn-player-interaction-panel { width: min(560px, calc(100vw - 18px)); max-height: calc(100dvh - 16px); padding: 13px; border-radius: 18px; }
+  .mn-player-interaction-panel > header { margin-bottom: 10px; }
+  .mn-player-interaction-panel > header strong { font-size: 17px; }
+  .mn-player-interaction nav { gap: 6px; }
+  .mn-player-interaction nav > button { min-height: 53px; padding: 7px; }
+  .mn-player-interaction nav i { flex-basis: 28px; height: 28px; }
+  .mn-player-interaction nav span { font-size: 10px; }
+  .mn-player-interaction nav small { display: none; }
+  .mn-player-interaction-content { margin-top: 8px; padding: 10px; }
+  .mn-player-action-form { gap: 7px; }
+  .mn-player-action-form input, .mn-player-action-form select, .mn-player-action-form button { min-height: 36px; }
+  .mn-player-interaction-hint { bottom: 18px; }
+}
