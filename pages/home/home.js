@@ -35,6 +35,7 @@ import {
 
 import { enableHousesFeature } from '../../src/houses/housesFeature.js';
 import { enableInventoryFeature } from '../../src/inventory/inventoryFeature.js';
+import { enableHospitalManagementFeature } from '../../src/hospital/hospitalManagementFeature.js';
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
 import {
   fetchPlayerOwnedHouses,
@@ -1416,6 +1417,7 @@ register('home', async (root) => {
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
   const cleanupInventoryFeature = enableInventoryFeature();
+  const cleanupHospitalManagement = enableHospitalManagementFeature();
   const cleanupPlayerInteraction = enablePlayerInteractionFeature({ playerPosition });
 
   const cleanupHousesFeature = enableHousesFeature(root, {
@@ -2265,6 +2267,7 @@ register('home', async (root) => {
     cleanupRenderPerformanceGuards?.();
 
     cleanupInventoryFeature?.();
+    cleanupHospitalManagement?.();
     cleanupPlayerInteraction?.();
     cleanupHousesFeature?.();
     cleanupSingleHouseModalMode?.();
