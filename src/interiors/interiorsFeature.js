@@ -68,6 +68,8 @@ const INTERIOR_HEALTH_LOW_CLASS = 'is-interior-health-low';
 const INTERIOR_HEALTH_HIT_CLASS = 'is-interior-health-hit';
 const INTERIOR_HEALTH_HIT_DURATION_MS = 620;
 const INTERIOR_VITAL_FEEDBACK_DURATION_MS = 520;
+const INTERIOR_ENTER_TRANSITION_MS = 280;
+const INTERIOR_EXIT_TRANSITION_MS = 220;
 
 const INTERIOR_COLLISION_PROFILES = {
   standard: {
@@ -1475,6 +1477,8 @@ export function enableInteriorsFeature() {
   let destroyed = false;
   let raf = 0;
   let worldLayoutRaf = 0;
+  let interiorTransitionTimer = 0;
+  let interiorExitPending = false;
   let lastFrame = 0;
   let position = { x: 50, y: 82 };
   let activeTemplateId = 'standard';
@@ -2677,51 +2681,18 @@ export function enableInteriorsFeature() {
     fragment.appendChild(element);
   }
 
-  function appendInteriorZoneElement(fragment, rect, type) {
-    const safeRect = normalizeCollisionRect(rect);
-    if (!safeRect) return;
-
-    const zone = document.createElement('div');
-    const label = document.createElement('span');
-    zone.className = `mn-interior-zone mn-interior-zone-${type}`;
-    zone.style.left = `${safeRect.x1}%`;
-    zone.style.top = `${safeRect.y1}%`;
-    zone.style.width = `${safeRect.x2 - safeRect.x1}%`;
-    zone.style.height = `${safeRect.y2 - safeRect.y1}%`;
-    label.textContent = type === 'walkable' ? '✓ Можно ходить' : '× Нет прохода';
-    if (safeRect.x2 - safeRect.x1 >= 5 && safeRect.y2 - safeRect.y1 >= 3) {
-      zone.appendChild(label);
-    }
-    fragment.appendChild(zone);
-  }
-
   function renderInteriorGuides() {
     if (!guideLayer) return;
 
     const profile = collisionProfileFor(activeTemplateId);
     const fragment = document.createDocumentFragment();
 
-    (profile?.bounds || []).forEach((rect) => {
-      appendInteriorZoneElement(fragment, rect, 'walkable');
-    });
-    (profile?.blocked || []).forEach((rect) => {
-      appendInteriorZoneElement(fragment, rect, 'blocked');
-    });
     normalizeInteriorGuides(profile?.guides).forEach((guide) => {
       appendInteriorGuideElement(fragment, guide);
     });
 
     normalizeMappedInteriorObjects(profile?.objects).forEach((object) => {
-      if (object.type === 'door') {
-        const isOpen = isInteriorDoorOpen(object.id);
-        appendInteriorGuideElement(fragment, {
-          type: isOpen ? 'allow' : 'deny',
-          x: object.x,
-          y: object.y,
-          rotation: object.rotation,
-          text: isOpen ? 'Можно пройти' : 'Закрыто',
-        }, 'is-automatic-door');
-      } else if (object.type === 'exit') {
+      if (object.type === 'exit') {
         appendInteriorGuideElement(fragment, {
           type: 'allow',
           x: object.x,
@@ -3847,6 +3818,19 @@ export function enableInteriorsFeature() {
 
   ensureTemplatePreloadLinks();
 
+  function playInteriorEnterTransition() {
+    window.clearTimeout(interiorTransitionTimer);
+    interiorExitPending = false;
+    overlay.dataset.transition = 'entering';
+    // Force the initial transition frame before revealing the scene.
+    void scene.offsetWidth;
+    overlay.dataset.transition = 'ready';
+    interiorTransitionTimer = window.setTimeout(() => {
+      if (overlay.dataset.transition === 'ready') delete overlay.dataset.transition;
+      interiorTransitionTimer = 0;
+    }, INTERIOR_ENTER_TRANSITION_MS);
+  }
+
   // Warm up interiors immediately in the background. Entering a house or
   // hospital then reuses the browser cache instead of starting from zero.
   warmupTimer = window.setTimeout(() => {
@@ -3924,6 +3908,7 @@ export function enableInteriorsFeature() {
       controls.hidden = false;
       ui.hidden = false;
       active = true;
+      playInteriorEnterTransition();
       connectInteriorSession();
       refreshDoorInteraction();
       startLoop();
@@ -4003,6 +3988,7 @@ export function enableInteriorsFeature() {
       controls.hidden = false;
       ui.hidden = false;
       active = true;
+      playInteriorEnterTransition();
       connectInteriorSession();
       refreshDoorInteraction();
       startLoop();
@@ -4025,6 +4011,8 @@ export function enableInteriorsFeature() {
   }
 
   function exit() {
+    if (interiorExitPending && !destroyed) return;
+
     const exitedKind = activeInteriorKind;
     const exitedHouse = activeHouse;
     const exitedService = activeService;
@@ -4056,32 +4044,51 @@ export function enableInteriorsFeature() {
     joystick.dataset.active = 'false';
     staminaBox.dataset.visible = 'false';
     stick.style.transform = 'translate3d(0,0,0)';
-    overlay.hidden = true;
-    scene.hidden = true;
-    controls.hidden = true;
-    ui.hidden = true;
     hideLoading();
     errorBox.hidden = true;
-    setPaused(false);
-    if ((exitedHouseId || exitedServiceId) && exitSpawn) {
-      window.dispatchEvent(new CustomEvent('mn:interior-exited', {
-        detail: {
-          kind: exitedKind,
-          houseId: exitedKind === 'house' ? exitedHouseId : null,
-          serviceId: exitedKind === 'hospital' ? exitedServiceId : null,
-          house: exitedHouse,
-          object: exitedObject,
-          hospital: exitedService,
-          exitSpawn,
-          x: exitSpawn.x,
-          y: exitSpawn.y,
-          angle: exitSpawn.angle,
-        },
-      }));
+
+    const finalizeExit = () => {
+      window.clearTimeout(interiorTransitionTimer);
+      interiorTransitionTimer = 0;
+      interiorExitPending = false;
+      overlay.hidden = true;
+      scene.hidden = true;
+      controls.hidden = true;
+      ui.hidden = true;
+      delete overlay.dataset.transition;
+      setPaused(false);
+      if ((exitedHouseId || exitedServiceId) && exitSpawn) {
+        window.dispatchEvent(new CustomEvent('mn:interior-exited', {
+          detail: {
+            kind: exitedKind,
+            houseId: exitedKind === 'house' ? exitedHouseId : null,
+            serviceId: exitedKind === 'hospital' ? exitedServiceId : null,
+            house: exitedHouse,
+            object: exitedObject,
+            hospital: exitedService,
+            exitSpawn,
+            x: exitSpawn.x,
+            y: exitSpawn.y,
+            angle: exitSpawn.angle,
+          },
+        }));
+      }
+      delete overlay.dataset.houseId;
+      delete overlay.dataset.serviceId;
+      delete overlay.dataset.interiorKind;
+    };
+
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const canAnimate = !destroyed && !overlay.hidden && !scene.hidden && !reduceMotion;
+    if (!canAnimate) {
+      finalizeExit();
+      return;
     }
-    delete overlay.dataset.houseId;
-    delete overlay.dataset.serviceId;
-    delete overlay.dataset.interiorKind;
+
+    window.clearTimeout(interiorTransitionTimer);
+    interiorExitPending = true;
+    overlay.dataset.transition = 'leaving';
+    interiorTransitionTimer = window.setTimeout(finalizeExit, INTERIOR_EXIT_TRANSITION_MS);
   }
 
   function keyDown(event) {
@@ -4352,6 +4359,7 @@ export function enableInteriorsFeature() {
       destroyed = true;
       window.clearTimeout(warmupTimer);
       window.clearTimeout(loadingRevealTimer);
+      window.clearTimeout(interiorTransitionTimer);
       window.clearTimeout(colliderSaveTimer);
       window.clearTimeout(mappedObjectsReloadTimer);
       window.clearInterval(interiorHudRefreshTimer);
