@@ -35,6 +35,7 @@ import {
 
 import { enableHousesFeature } from '../../src/houses/housesFeature.js';
 import { enableInventoryFeature } from '../../src/inventory/inventoryFeature.js';
+import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
 import {
   fetchPlayerOwnedHouses,
   PLAYER_HOUSE_SLOT_LIMIT,
@@ -1415,6 +1416,7 @@ register('home', async (root) => {
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
   const entityInteractionPanel = createEntityInteractionPanel(root);
   const cleanupInventoryFeature = enableInventoryFeature();
+  const cleanupPlayerInteraction = enablePlayerInteractionFeature({ playerPosition });
 
   const cleanupHousesFeature = enableHousesFeature(root, {
     cityId,
@@ -2263,6 +2265,7 @@ register('home', async (root) => {
     cleanupRenderPerformanceGuards?.();
 
     cleanupInventoryFeature?.();
+    cleanupPlayerInteraction?.();
     cleanupHousesFeature?.();
     cleanupSingleHouseModalMode?.();
     cleanupMovement?.();
@@ -2302,5 +2305,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
-
