@@ -23,6 +23,7 @@ const INTERIOR_DOOR_STATE_TABLE = 'interior_door_states';
 const INTERIOR_COLLISION_FALLBACK_RADIUS = 0;
 const INTERIOR_COLLISION_STORAGE_KEY = 'mn-interior-colliders-v1';
 const INTERIOR_COLLIDER_PANEL_POSITION_KEY = 'mn-interior-collider-panel-position-v1';
+const INTERIOR_OBJECT_PANEL_POSITION_KEY = 'mn-interior-object-panel-position-v1';
 const INTERIOR_COLLIDER_MIN_SIZE = 0.7;
 const INTERIOR_DESIGN_ASPECT = 16 / 9;
 const INTERIOR_MAPPED_OBJECT_LIMIT = 300;
@@ -47,6 +48,18 @@ const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
   table: Object.freeze({
     label: 'Стол', defaultWidth: 8, defaultHeight: 6,
     minWidth: 1.5, maxWidth: 24, minHeight: 1, maxHeight: 18,
+  }),
+  cabinet: Object.freeze({
+    label: 'Шкаф', defaultWidth: 5.5, defaultHeight: 5,
+    minWidth: 1.5, maxWidth: 18, minHeight: 1.5, maxHeight: 18,
+  }),
+  kitchen_counter: Object.freeze({
+    label: 'Кухонная стойка', defaultWidth: 10, defaultHeight: 4.5,
+    minWidth: 2.5, maxWidth: 28, minHeight: 1.5, maxHeight: 14,
+  }),
+  reception: Object.freeze({
+    label: 'Рецепшен', defaultWidth: 12, defaultHeight: 6,
+    minWidth: 3, maxWidth: 30, minHeight: 2.5, maxHeight: 18,
   }),
   door: Object.freeze({
     label: 'Дверь', defaultWidth: 4.2, defaultHeight: 1.15,
@@ -1309,7 +1322,8 @@ function markup() {
           <small data-interior-collider-status></small>
         </section>
         <section class="mn-interior-object-panel" hidden data-interior-object-panel>
-          <div class="mn-interior-object-head">
+          <div class="mn-interior-object-head" data-interior-object-drag title="Перетащить окно">
+            <span class="mn-interior-object-drag-icon" aria-hidden="true">⠿</span>
             <b>Объекты интерьера</b>
             <button type="button" data-interior-object-close>×</button>
           </div>
@@ -1322,6 +1336,9 @@ function markup() {
             <button type="button" data-interior-object-type="bed">Кровать</button>
             <button type="button" data-interior-object-type="chair">Стул</button>
             <button type="button" data-interior-object-type="table">Стол</button>
+            <button type="button" data-interior-object-type="cabinet">Шкаф</button>
+            <button type="button" data-interior-object-type="kitchen_counter">Кухонная стойка</button>
+            <button type="button" data-interior-object-type="reception">Рецепшен</button>
             <button type="button" data-interior-object-type="door">Дверь</button>
             <button type="button" data-interior-object-type="exit">Выход</button>
           </div>
@@ -1429,6 +1446,7 @@ export function enableInteriorsFeature() {
   const objectLayer = overlay.querySelector('[data-interior-object-layer]');
   const objectToggle = overlay.querySelector('[data-interior-object-toggle]');
   const objectPanel = overlay.querySelector('[data-interior-object-panel]');
+  const objectPanelDragHandle = overlay.querySelector('[data-interior-object-drag]');
   const objectClose = overlay.querySelector('[data-interior-object-close]');
   const objectTypeButtons = [...overlay.querySelectorAll('[data-interior-object-type]')];
   const objectSave = overlay.querySelector('[data-interior-object-save]');
@@ -1500,6 +1518,8 @@ export function enableInteriorsFeature() {
   let colliderSaveSequence = 0;
   let colliderPanelDrag = null;
   let colliderPanelLayoutRaf = 0;
+  let objectPanelDrag = null;
+  let objectPanelLayoutRaf = 0;
   let objectEditorOpen = false;
   let objectEditorTemplateId = 'hospital';
   let objectEditorType = 'bed';
@@ -1704,6 +1724,146 @@ export function enableInteriorsFeature() {
     colliderPanelDrag = null;
     colliderPanel.dataset.dragging = 'false';
     saveColliderPanelPosition();
+    event.preventDefault();
+  }
+
+  function objectPanelMetrics() {
+    const rootRect = ui.getBoundingClientRect();
+    const panelRect = objectPanel.getBoundingClientRect();
+    const margin = Math.min(8, Math.max(0, rootRect.width / 2), Math.max(0, rootRect.height / 2));
+    const minLeft = margin;
+    const minTop = margin;
+    const maxLeft = Math.max(minLeft, rootRect.width - panelRect.width - margin);
+    const maxTop = Math.max(minTop, rootRect.height - panelRect.height - margin);
+
+    return { rootRect, panelRect, minLeft, minTop, maxLeft, maxTop };
+  }
+
+  function setObjectPanelPosition(left, top, metrics = objectPanelMetrics()) {
+    const safeLeft = Math.max(metrics.minLeft, Math.min(metrics.maxLeft, Number(left) || 0));
+    const safeTop = Math.max(metrics.minTop, Math.min(metrics.maxTop, Number(top) || 0));
+
+    objectPanel.style.left = `${Math.round(safeLeft)}px`;
+    objectPanel.style.top = `${Math.round(safeTop)}px`;
+    objectPanel.style.right = 'auto';
+    objectPanel.style.bottom = 'auto';
+    return { left: safeLeft, top: safeTop };
+  }
+
+  function readObjectPanelPositions() {
+    const stored = readJsonLocalStorage(INTERIOR_OBJECT_PANEL_POSITION_KEY, {});
+    return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
+  }
+
+  function saveObjectPanelPosition() {
+    if (objectPanel.hidden) return;
+
+    const metrics = objectPanelMetrics();
+    const panelRect = objectPanel.getBoundingClientRect();
+    const current = setObjectPanelPosition(
+      panelRect.left - metrics.rootRect.left,
+      panelRect.top - metrics.rootRect.top,
+      metrics
+    );
+    const horizontalRange = metrics.maxLeft - metrics.minLeft;
+    const verticalRange = metrics.maxTop - metrics.minTop;
+    const mode = colliderPanelMode();
+    const positions = readObjectPanelPositions();
+    positions[mode] = {
+      x: horizontalRange > 0 ? (current.left - metrics.minLeft) / horizontalRange : 0,
+      y: verticalRange > 0 ? (current.top - metrics.minTop) / verticalRange : 0,
+    };
+
+    try {
+      window.localStorage?.setItem(INTERIOR_OBJECT_PANEL_POSITION_KEY, JSON.stringify(positions));
+    } catch (error) {
+      console.warn('[interiors] object panel position save failed:', error);
+    }
+  }
+
+  function restoreObjectPanelPosition() {
+    if (objectPanel.hidden) return;
+
+    const mode = colliderPanelMode();
+    const saved = readObjectPanelPositions()[mode];
+    objectPanel.style.removeProperty('left');
+    objectPanel.style.removeProperty('right');
+    objectPanel.style.removeProperty('top');
+    objectPanel.style.removeProperty('bottom');
+
+    const metrics = objectPanelMetrics();
+    if (Number.isFinite(Number(saved?.x)) && Number.isFinite(Number(saved?.y))) {
+      const horizontalRange = metrics.maxLeft - metrics.minLeft;
+      const verticalRange = metrics.maxTop - metrics.minTop;
+      setObjectPanelPosition(
+        metrics.minLeft + horizontalRange * Math.max(0, Math.min(1, Number(saved.x))),
+        metrics.minTop + verticalRange * Math.max(0, Math.min(1, Number(saved.y))),
+        metrics
+      );
+    } else {
+      const panelRect = objectPanel.getBoundingClientRect();
+      setObjectPanelPosition(
+        panelRect.left - metrics.rootRect.left,
+        panelRect.top - metrics.rootRect.top,
+        metrics
+      );
+    }
+  }
+
+  function scheduleObjectPanelLayout() {
+    window.cancelAnimationFrame(objectPanelLayoutRaf);
+    objectPanelLayoutRaf = window.requestAnimationFrame(() => {
+      objectPanelLayoutRaf = 0;
+      if (!objectEditorOpen || objectPanelDrag) return;
+      restoreObjectPanelPosition();
+    });
+  }
+
+  function handleObjectPanelPointerDown(event) {
+    if (!objectEditorOpen || event.button !== 0 || event.target.closest?.('button, input, textarea, summary')) return;
+
+    const metrics = objectPanelMetrics();
+    const panelRect = objectPanel.getBoundingClientRect();
+    const current = setObjectPanelPosition(
+      panelRect.left - metrics.rootRect.left,
+      panelRect.top - metrics.rootRect.top,
+      metrics
+    );
+    objectPanelDrag = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startLeft: current.left,
+      startTop: current.top,
+    };
+    objectPanel.dataset.dragging = 'true';
+    objectPanelDragHandle.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  function handleObjectPanelPointerMove(event) {
+    if (!objectPanelDrag || event.pointerId !== objectPanelDrag.pointerId) return;
+
+    setObjectPanelPosition(
+      objectPanelDrag.startLeft + event.clientX - objectPanelDrag.startClientX,
+      objectPanelDrag.startTop + event.clientY - objectPanelDrag.startClientY
+    );
+    event.preventDefault();
+  }
+
+  function handleObjectPanelPointerEnd(event) {
+    if (!objectPanelDrag || event.pointerId !== objectPanelDrag.pointerId) return;
+
+    try {
+      if (objectPanelDragHandle.hasPointerCapture?.(event.pointerId)) {
+        objectPanelDragHandle.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+    objectPanelDrag = null;
+    objectPanel.dataset.dragging = 'false';
+    saveObjectPanelPosition();
     event.preventDefault();
   }
 
@@ -3065,9 +3225,12 @@ export function enableInteriorsFeature() {
     const beds = objects.filter((object) => object.type === 'bed').length;
     const chairs = objects.filter((object) => object.type === 'chair').length;
     const tables = objects.filter((object) => object.type === 'table').length;
+    const cabinets = objects.filter((object) => object.type === 'cabinet').length;
+    const kitchenCounters = objects.filter((object) => object.type === 'kitchen_counter').length;
+    const receptions = objects.filter((object) => object.type === 'reception').length;
     const doors = objects.filter((object) => object.type === 'door').length;
     const exits = objects.filter((object) => object.type === 'exit').length;
-    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · двери ${doors} · выходы ${exits}`;
+    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits}`;
   }
 
   function setObjectEditorType(type) {
@@ -3411,6 +3574,7 @@ export function enableInteriorsFeature() {
     joystick.dataset.active = 'false';
     stick.style.transform = 'translate3d(0,0,0)';
     objectPanel.hidden = false;
+    scheduleObjectPanelLayout();
     overlay.dataset.objectEditor = 'enabled';
     document.body.classList.add('mn-interior-object-editor-open');
     document.documentElement.classList.add('mn-interior-object-editor-open');
@@ -3419,6 +3583,15 @@ export function enableInteriorsFeature() {
   }
 
   function closeObjectEditor() {
+    try {
+      if (objectPanelDrag && objectPanelDragHandle.hasPointerCapture?.(objectPanelDrag.pointerId)) {
+        objectPanelDragHandle.releasePointerCapture(objectPanelDrag.pointerId);
+      }
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+    objectPanelDrag = null;
+    objectPanel.dataset.dragging = 'false';
     objectEditorOpen = false;
     objectEditorSelectedId = null;
     objectEditorPointer = null;
@@ -4268,6 +4441,10 @@ export function enableInteriorsFeature() {
   objectToggle.addEventListener('click', toggleObjectEditor);
   doorAction.addEventListener('click', activateNearestInteriorInteraction);
   objectClose.addEventListener('click', closeObjectEditor);
+  objectPanelDragHandle.addEventListener('pointerdown', handleObjectPanelPointerDown);
+  objectPanelDragHandle.addEventListener('pointermove', handleObjectPanelPointerMove);
+  objectPanelDragHandle.addEventListener('pointerup', handleObjectPanelPointerEnd);
+  objectPanelDragHandle.addEventListener('pointercancel', handleObjectPanelPointerEnd);
   objectTypeButtons.forEach((button) => {
     button.addEventListener('click', () => setObjectEditorType(button.dataset.interiorObjectType));
   });
@@ -4336,8 +4513,10 @@ export function enableInteriorsFeature() {
   window.addEventListener('keyup', keyUp, true);
   window.addEventListener('resize', scheduleInteriorWorldLayout);
   window.addEventListener('resize', scheduleColliderPanelLayout);
+  window.addEventListener('resize', scheduleObjectPanelLayout);
   window.addEventListener('orientationchange', scheduleInteriorWorldLayout);
   window.addEventListener('orientationchange', scheduleColliderPanelLayout);
+  window.addEventListener('orientationchange', scheduleObjectPanelLayout);
   const interiorWorldResizeObserver = typeof ResizeObserver === 'function'
     ? new ResizeObserver(scheduleInteriorWorldLayout)
     : null;
@@ -4366,6 +4545,7 @@ export function enableInteriorsFeature() {
       window.clearTimeout(interiorHealthHitTimer);
       window.cancelAnimationFrame(worldLayoutRaf);
       window.cancelAnimationFrame(colliderPanelLayoutRaf);
+      window.cancelAnimationFrame(objectPanelLayoutRaf);
       vitalFeedbackTimers.forEach((timer) => window.clearTimeout(timer));
       vitalFeedbackTimers.clear();
       exit();
@@ -4377,8 +4557,10 @@ export function enableInteriorsFeature() {
       window.removeEventListener('keyup', keyUp, true);
       window.removeEventListener('resize', scheduleInteriorWorldLayout);
       window.removeEventListener('resize', scheduleColliderPanelLayout);
+      window.removeEventListener('resize', scheduleObjectPanelLayout);
       window.removeEventListener('orientationchange', scheduleInteriorWorldLayout);
       window.removeEventListener('orientationchange', scheduleColliderPanelLayout);
+      window.removeEventListener('orientationchange', scheduleObjectPanelLayout);
       interiorWorldResizeObserver?.disconnect();
       if (collisionProfilesChannel) {
         supabase.removeChannel(collisionProfilesChannel);
