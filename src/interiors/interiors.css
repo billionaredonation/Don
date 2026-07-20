@@ -1,3 +1,4 @@
+/* Hospital batch refresh 2026-07-20: interior warehouse pickup styles deploy marker. */
 .mn-interior { position: fixed; inset: 0; z-index: 1000200; overflow: hidden; color: #fff; background: #020407; }
 .mn-interior[hidden], .mn-interior [hidden] { display: none !important; }
 .mn-interior-loading, .mn-interior-error { position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 22px; text-align: center; background: radial-gradient(circle at center, rgba(12,18,30,.94), #020407 70%); }
@@ -862,6 +863,7 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   white-space: nowrap;
   pointer-events: none;
 }
+.mn-interior-mapped-object-warehouse,
 .mn-interior-mapped-object-warehouse_refill,
 .mn-interior-mapped-object-warehouse_take {
   border: 2px solid rgba(127, 228, 255, .96);
@@ -875,6 +877,7 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
     0 0 16px rgba(74, 205, 244, .58),
     inset 0 0 0 1px rgba(255, 255, 255, .2);
 }
+.mn-interior-mapped-object-warehouse::before,
 .mn-interior-mapped-object-warehouse_refill::before,
 .mn-interior-mapped-object-warehouse_take::before {
   position: absolute;
@@ -884,8 +887,10 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   font: 950 clamp(12px, 1.35vw, 25px)/1 system-ui;
   text-shadow: 0 2px 5px rgba(0, 0, 0, .58);
 }
+.mn-interior-mapped-object-warehouse::before { content: "↕"; }
 .mn-interior-mapped-object-warehouse_refill::before { content: "+"; }
 .mn-interior-mapped-object-warehouse_take::before { content: "⇩"; }
+.mn-interior-mapped-object-warehouse::after,
 .mn-interior-mapped-object-warehouse_refill::after,
 .mn-interior-mapped-object-warehouse_take::after {
   position: absolute;
@@ -901,6 +906,7 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
   white-space: nowrap;
   pointer-events: none;
 }
+.mn-interior-mapped-object-warehouse::after { content: "СКЛАД"; }
 .mn-interior-mapped-object-warehouse_refill::after { content: "ПОПОЛНИТЬ"; }
 .mn-interior-mapped-object-warehouse_take::after { content: "СКЛАД"; }
 .mn-interior-mapped-object-warehouse_refill {
@@ -1370,6 +1376,7 @@ body.mn-interior-object-editor-open .mn-interior-stamina {
 .mn-interior-door-action[data-kind="exit"] > span {
   background: linear-gradient(135deg, #20b979, #177c59);
 }
+.mn-interior-door-action[data-kind="warehouse"],
 .mn-interior-door-action[data-kind="warehouse_refill"],
 .mn-interior-door-action[data-kind="warehouse_take"] {
   border-color: rgba(93, 213, 242, .46);
@@ -1382,6 +1389,7 @@ body.mn-interior-object-editor-open .mn-interior-stamina {
 .mn-interior-door-action[data-kind="warehouse_refill"] > span {
   background: linear-gradient(135deg, #d89b2d, #936018);
 }
+.mn-interior-door-action[data-kind="warehouse"] > span,
 .mn-interior-door-action[data-kind="warehouse_take"] > span {
   background: linear-gradient(135deg, #299cca, #17668a);
 }
