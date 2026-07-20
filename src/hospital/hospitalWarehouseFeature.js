@@ -1,3 +1,4 @@
+// Hospital batch refresh 2026-07-20: warehouse feature deploy marker.
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import './hospitalWarehouse.css';
@@ -62,6 +63,11 @@ function userErrorMessage(error) {
     PLAYER_FOOD_TOO_LOW: 'Сначала поешьте: для применения препарата не хватает еды.',
     PLAYER_WATER_TOO_LOW: 'Сначала попейте: для применения препарата не хватает воды.',
     PLAYER_MEDICINE_NOT_ENOUGH: 'У вас нет этого препарата в инвентаре.',
+    PLAYER_ITEM_NOT_ENOUGH: 'У вас нет этого предмета в инвентаре.',
+    PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег для покупки.',
+    CAFETERIA_ITEM_NOT_FOUND: 'Этот продукт столовки пока недоступен.',
+    INVENTORY_ITEM_NOT_USABLE: 'Этот предмет пока нельзя применить.',
+    SERVICE_ITEM_NOT_ENOUGH: 'У вас нет этого служебного предмета.',
     PATIENT_HEALTH_FULL: 'У пациента уже полное здоровье.',
     MEDICINE_HEALTH_RANGE_MISMATCH: 'Этот препарат не подходит для текущего уровня HP пациента.',
     PATIENT_ALREADY_TREATED: 'На пациента уже действует препарат.',
@@ -134,6 +140,18 @@ export async function loadMyMedicalInventory() {
 
 export async function useMyMedicine(medicineType) {
   return invokeHospitalAction('use_medicine', { medicineType });
+}
+
+export async function useInventoryItem({ itemType, source = 'personal', hospitalId = null } = {}) {
+  return invokeHospitalAction('use_inventory_item', { itemType, source, hospitalId });
+}
+
+export async function loadCafeteriaMenu() {
+  return invokeHospitalAction('cafeteria_menu');
+}
+
+export async function buyCafeteriaItem({ itemType = 'food', quantity = 1 } = {}) {
+  return invokeHospitalAction('cafeteria_buy', { itemType, quantity });
 }
 
 export async function notifyHospitalTreatmentStarted(targetTgId, hospitalId) {
@@ -450,7 +468,9 @@ export function enableHospitalWarehouseFeature() {
     if (statsTab) statsTab.hidden = true;
 
     const fragment = document.createDocumentFragment();
-    (Array.isArray(context.items) ? context.items : []).forEach((item) => {
+    (Array.isArray(context.items) ? context.items : [])
+      .filter((item) => String(item.itemType || '') !== 'food')
+      .forEach((item) => {
       fragment.appendChild(createStockCard(item, context, currentMode));
     });
     stockGrid.replaceChildren(fragment);
@@ -774,4 +794,3 @@ export function enableHospitalWarehouseFeature() {
     },
   };
 }
-
