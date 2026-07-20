@@ -1,3 +1,4 @@
+// Hospital batch refresh 2026-07-20: inventory medical items deploy marker.
 import './inventory.css';
 import { state } from '../state.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
