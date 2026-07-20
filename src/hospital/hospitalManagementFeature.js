@@ -1,3 +1,4 @@
+// Hospital batch refresh 2026-07-20: management feature deploy marker.
 import {
   getHospitalUserErrorMessage,
   invokeHospitalAction,
@@ -69,7 +70,7 @@ function markup() {
       <b>F2</b><span>Меню больницы</span>
     </button>
     <div class="mn-hospital-management" data-hospital-management hidden aria-hidden="true">
-      <button type="button" class="mn-hospital-management-backdrop" data-hospital-management-close aria-label="Закрыть"></button>
+      <div class="mn-hospital-management-backdrop" data-hospital-management-close aria-hidden="true"></div>
       <section class="mn-hospital-management-panel" role="dialog" aria-modal="true" aria-labelledby="mn-hospital-management-title">
         <header>
           <span>
@@ -206,7 +207,17 @@ export function enableHospitalManagementFeature() {
       <div class="mn-hospital-management-section">
         <h3>Сотрудники</h3>
         <div class="mn-hospital-management-staff-form">
-          <input type="text" maxlength="32" autocomplete="off" placeholder="Ник или Telegram ID" data-management-staff-target>
+          <input
+            type="text"
+            maxlength="48"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            inputmode="text"
+            enterkeyhint="done"
+            placeholder="Ник или Telegram ID"
+            data-management-staff-target
+          >
           <select data-management-staff-rank>
             <option value="junior">Младший состав</option>
             <option value="middle">Средний состав</option>
@@ -367,6 +378,23 @@ export function enableHospitalManagementFeature() {
     void open();
   }
 
+  function handlePanelEditableEvent(event) {
+    if (!isTypingTarget(event.target)) return;
+    const target = event.target;
+    window.setTimeout(() => target?.focus?.({ preventScroll: true }), 0);
+  }
+
+  function handlePanelEditableKeyDown(event) {
+    if (!isTypingTarget(event.target)) return;
+
+    event.stopPropagation();
+
+    if (event.code === 'Enter' && event.target?.matches?.('[data-management-staff-target]')) {
+      event.preventDefault();
+      void saveStaff();
+    }
+  }
+
   function handleOpenEvent() {
     void open();
   }
@@ -379,6 +407,14 @@ export function enableHospitalManagementFeature() {
   hint.addEventListener('click', handleHintClick);
   body.addEventListener('click', handleBodyClick);
   body.addEventListener('change', handleBodyChange);
+  panel.addEventListener('pointerdown', handlePanelEditableEvent, true);
+  panel.addEventListener('click', handlePanelEditableEvent, true);
+  panel.addEventListener('keydown', handlePanelEditableKeyDown);
+  panel.addEventListener('beforeinput', handlePanelEditableEvent, true);
+  panel.addEventListener('input', handlePanelEditableEvent, true);
+  panel.addEventListener('compositionstart', handlePanelEditableEvent, true);
+  panel.addEventListener('compositionupdate', handlePanelEditableEvent, true);
+  panel.addEventListener('compositionend', handlePanelEditableEvent, true);
   window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('mn:hospital-management-open', handleOpenEvent);
 
@@ -393,6 +429,14 @@ export function enableHospitalManagementFeature() {
     hint.removeEventListener('click', handleHintClick);
     body.removeEventListener('click', handleBodyClick);
     body.removeEventListener('change', handleBodyChange);
+    panel.removeEventListener('pointerdown', handlePanelEditableEvent, true);
+    panel.removeEventListener('click', handlePanelEditableEvent, true);
+    panel.removeEventListener('keydown', handlePanelEditableKeyDown);
+    panel.removeEventListener('beforeinput', handlePanelEditableEvent, true);
+    panel.removeEventListener('input', handlePanelEditableEvent, true);
+    panel.removeEventListener('compositionstart', handlePanelEditableEvent, true);
+    panel.removeEventListener('compositionupdate', handlePanelEditableEvent, true);
+    panel.removeEventListener('compositionend', handlePanelEditableEvent, true);
     window.removeEventListener('keydown', handleKeyDown, true);
     window.removeEventListener('mn:hospital-management-open', handleOpenEvent);
     document.body.classList.remove(PANEL_CLASS);
