@@ -6,7 +6,7 @@ import {
   getHospitalUserErrorMessage,
   loadMyMedicalInventory,
   notifyHospitalTreatmentStarted,
-  useMyMedicine,
+  useInventoryItem,
 } from '../hospital/hospitalWarehouseFeature.js';
 
 export const INVENTORY_ROWS = 10;
@@ -21,7 +21,7 @@ const HUNGER_WARNING_THRESHOLD = 40;
 const THIRST_WARNING_THRESHOLD = 40;
 const CRITICAL_VITAL_THRESHOLD = 20;
 const ITEM_META = Object.freeze({
-  food: { label: 'Продукты', icon: '🍱' },
+  food: { label: 'Обед', icon: '🍔' },
   medicine_light: { label: 'Слабоседативные таблетки', icon: '💊' },
   medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
@@ -196,6 +196,7 @@ function isVisible(element) {
 function hasBlockingInterface() {
   if (
     window.__MN_HOUSE_SPAWN_PICKER_ACTIVE__ === true ||
+    window.__MN_HOSPITAL_CAFETERIA_OPEN__ === true ||
     document.body.classList.contains('mn-house-trade-open') ||
     document.body.classList.contains('mn-houses-modal-open') ||
     document.body.classList.contains('mn-house-details-open') ||
@@ -261,8 +262,6 @@ function renderMedicalItems(items = []) {
     const quantity = Number(item.quantity || 0);
     const source = String(item.source || item.inventorySource || 'personal').toLowerCase();
     const isServiceStock = source === 'employee' || source === 'staff' || source === 'service';
-    const isMedicine = itemType.startsWith('medicine_');
-    const canUseFromInventory = !isServiceStock && isMedicine;
     const label = item.label || meta.label;
     const sourceLabel = isServiceStock
       ? `Служебные${item.hospitalName ? ` · ${item.hospitalName}` : ''}`
@@ -270,42 +269,27 @@ function renderMedicalItems(items = []) {
     const safeLabel = escapeHtml(label);
     const safeSourceLabel = escapeHtml(sourceLabel);
     const safeItemType = escapeHtml(itemType);
-
-    if (!canUseFromInventory) {
-      const markerText = isServiceStock ? 'Служ.' : itemType === 'food' ? 'Еда' : 'Инв.';
-      const hint = itemType === 'food'
-        ? 'Продукты отображаются в инвентаре, но применяются через систему питания/больницы.'
-        : 'Эти предметы используются через больничный функционал.';
-      return `
-        <div
-          class="mn-inventory-slot mn-inventory-item mn-inventory-item-service${itemType === 'food' ? ' mn-inventory-item-food' : ''}"
-          role="gridcell"
-          aria-label="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}"
-          title="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}. ${escapeHtml(hint)}"
-          data-inventory-slot="${index}"
-          data-inventory-row="${row}"
-          data-inventory-column="${column}"
-          data-inventory-item-type="${safeItemType}"
-          data-inventory-item-source="${escapeHtml(source)}"
-        >
-          <span>${meta.icon}</span>
-          <b>${quantity}</b>
-          <em>${escapeHtml(markerText)}</em>
-        </div>`;
-    }
+    const safeHospitalId = escapeHtml(item.hospitalId || '');
+    const classes = [
+      'mn-inventory-slot',
+      'mn-inventory-item',
+      isServiceStock ? 'mn-inventory-item-service' : '',
+      itemType === 'food' ? 'mn-inventory-item-food' : '',
+    ].filter(Boolean).join(' ');
 
     return `
       <button
-        class="mn-inventory-slot mn-inventory-item"
+        class="${classes}"
         type="button"
         role="gridcell"
-        aria-label="${safeLabel}: ${quantity} шт."
-        title="${safeLabel}: ${quantity} шт. · применить"
+        aria-label="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}"
         data-inventory-slot="${index}"
         data-inventory-row="${row}"
         data-inventory-column="${column}"
-        data-medicine-type="${safeItemType}"
-        data-medicine-source="personal"
+        data-inventory-item-index="${index}"
+        data-inventory-item-type="${safeItemType}"
+        data-inventory-item-source="${escapeHtml(source)}"
+        data-inventory-item-hospital-id="${safeHospitalId}"
       >
         <span>${meta.icon}</span>
         <b>${quantity}</b>
@@ -435,6 +419,22 @@ function inventoryMarkup(initialVitals) {
           <span class="mn-inventory-hotkey"><kbd>I</kbd><i>/</i><kbd>Ш</kbd> закрыть</span>
         </footer>
       </section>
+
+      <aside class="mn-inventory-item-menu" data-inventory-item-menu hidden aria-hidden="true">
+        <div class="mn-inventory-item-menu-card" role="dialog" aria-modal="false" aria-label="Действия с предметом">
+          <header>
+            <span data-inventory-item-menu-icon aria-hidden="true">□</span>
+            <strong data-inventory-item-menu-title>Предмет</strong>
+            <small data-inventory-item-menu-quantity>0 шт.</small>
+          </header>
+          <div class="mn-inventory-item-menu-actions">
+            <button type="button" class="is-primary" data-inventory-item-apply>Применить</button>
+            <button type="button" data-inventory-item-info-button>Информация</button>
+            <button type="button" data-inventory-item-menu-close>Закрыть</button>
+          </div>
+          <div class="mn-inventory-item-info" data-inventory-item-info hidden></div>
+        </div>
+      </aside>
     </div>`;
 }
 
@@ -473,6 +473,14 @@ export function enableInventoryFeature() {
   const vitalNoticeIcon = vitalNotice?.querySelector('[data-vital-notice-icon]');
   const vitalNoticeTitle = vitalNotice?.querySelector('[data-vital-notice-title]');
   const vitalNoticeText = vitalNotice?.querySelector('[data-vital-notice-text]');
+  const itemMenu = overlay?.querySelector('[data-inventory-item-menu]');
+  const itemMenuIcon = itemMenu?.querySelector('[data-inventory-item-menu-icon]');
+  const itemMenuTitle = itemMenu?.querySelector('[data-inventory-item-menu-title]');
+  const itemMenuQuantity = itemMenu?.querySelector('[data-inventory-item-menu-quantity]');
+  const itemMenuInfo = itemMenu?.querySelector('[data-inventory-item-info]');
+  const itemMenuApply = itemMenu?.querySelector('[data-inventory-item-apply]');
+  const itemMenuInfoButton = itemMenu?.querySelector('[data-inventory-item-info-button]');
+  const itemMenuClose = itemMenu?.querySelector('[data-inventory-item-menu-close]');
 
   if (!overlay || !panel || !closeButton) {
     return () => {};
@@ -483,6 +491,7 @@ export function enableInventoryFeature() {
   let currentVitals = { ...initialVitals };
   let medicalItems = [];
   let inventoryBusy = false;
+  let selectedInventoryItem = null;
   let activeWarningCodes = new Set();
   let vitalNoticeTimer = 0;
   let vitalNoticeHideTimer = 0;
@@ -562,6 +571,102 @@ export function enableInventoryFeature() {
     grid.dataset.busy = inventoryBusy ? 'true' : 'false';
   }
 
+  function visibleInventoryItems() {
+    return medicalItems.filter((item) => Number(item.quantity || 0) > 0).slice(0, INVENTORY_SLOT_COUNT);
+  }
+
+  function getItemMeta(item = {}) {
+    const itemType = String(item.itemType || '');
+    return ITEM_META[itemType] || { label: item.label || itemType || 'Предмет', icon: item.icon || '□' };
+  }
+
+  function getItemLabel(item = {}) {
+    return item.label || getItemMeta(item).label || 'Предмет';
+  }
+
+  function getItemSourceLabel(item = {}) {
+    const source = String(item.source || item.inventorySource || 'personal').toLowerCase();
+    if (source === 'employee' || source === 'staff' || source === 'service') {
+      return `Служебный запас${item.hospitalName ? ` · ${item.hospitalName}` : ''}`;
+    }
+    return 'Личный инвентарь';
+  }
+
+  function getItemInfoText(item = {}) {
+    const itemType = String(item.itemType || '');
+    const quantity = Number(item.quantity || 0);
+    const sourceLabel = getItemSourceLabel(item);
+
+    if (itemType === 'food') {
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nПрименение восстанавливает сытость и немного воды. Покупается в столовке.`;
+    }
+
+    if (itemType.startsWith('medicine_')) {
+      const heal = Number(item.healPerTick || 0);
+      const tick = Number(item.tickSeconds || 0);
+      const duration = Number(item.durationSeconds || 60);
+      const minFood = Number(item.minFood || MEDICINE_MIN_FOOD);
+      const minWater = Number(item.minWater || MEDICINE_MIN_FOOD);
+      const minHealth = Number(item.minHealth || 0);
+      const maxHealth = Number(item.maxHealth || 100);
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nЛечение: +${heal} HP каждые ${tick} сек., максимум ${duration} сек.\nУсловия: HP от ${minHealth} до ${maxHealth - 1}, еда от ${minFood}, вода от ${minWater}.`;
+    }
+
+    return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nДля этого типа предмета информация и действие будут дополняться позже.`;
+  }
+
+  function positionItemMenu(anchor, event) {
+    if (!itemMenu) return;
+    const rect = anchor?.getBoundingClientRect?.();
+    const viewportPadding = 12;
+    const fallbackX = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const fallbackY = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+    const rawX = Number(event?.clientX) || fallbackX;
+    const rawY = Number(event?.clientY) || fallbackY;
+    const x = Math.min(window.innerWidth - viewportPadding, Math.max(viewportPadding, rawX));
+    const y = Math.min(window.innerHeight - viewportPadding, Math.max(viewportPadding, rawY));
+
+    itemMenu.style.setProperty('--mn-inventory-item-menu-x', `${x}px`);
+    itemMenu.style.setProperty('--mn-inventory-item-menu-y', `${y}px`);
+  }
+
+  function closeItemMenu() {
+    selectedInventoryItem = null;
+    if (!itemMenu) return;
+    itemMenu.hidden = true;
+    itemMenu.setAttribute('aria-hidden', 'true');
+    if (itemMenuInfo) {
+      itemMenuInfo.hidden = true;
+      itemMenuInfo.textContent = '';
+    }
+  }
+
+  function openItemMenu(anchor, event) {
+    const index = Number(anchor?.dataset?.inventoryItemIndex);
+    const item = visibleInventoryItems()[index];
+    if (!item || !itemMenu) return false;
+
+    const meta = getItemMeta(item);
+    selectedInventoryItem = item;
+    itemMenu.hidden = false;
+    itemMenu.setAttribute('aria-hidden', 'false');
+    if (itemMenuIcon) itemMenuIcon.textContent = item.icon || meta.icon || '□';
+    if (itemMenuTitle) itemMenuTitle.textContent = getItemLabel(item);
+    if (itemMenuQuantity) itemMenuQuantity.textContent = `${Number(item.quantity || 0).toLocaleString('ru-RU')} шт.`;
+    if (itemMenuInfo) {
+      itemMenuInfo.hidden = true;
+      itemMenuInfo.textContent = '';
+    }
+    positionItemMenu(anchor, event);
+    return true;
+  }
+
+  function showSelectedItemInfo() {
+    if (!selectedInventoryItem || !itemMenuInfo) return;
+    itemMenuInfo.hidden = false;
+    itemMenuInfo.textContent = getItemInfoText(selectedInventoryItem);
+  }
+
   async function refreshMedicalInventory() {
     try {
       const result = await loadMyMedicalInventory();
@@ -574,18 +679,48 @@ export function enableInventoryFeature() {
     }
   }
 
-  async function useMedicine(medicineType) {
-    if (!medicineType || inventoryBusy) return;
+  async function applySelectedInventoryItem() {
+    const item = selectedInventoryItem;
+    const itemType = String(item?.itemType || '');
+    if (!itemType || inventoryBusy) return;
     inventoryBusy = true;
     renderMedicalInventory();
     try {
-      const result = await useMyMedicine(medicineType);
-      await notifyHospitalTreatmentStarted(localTelegramId(), result?.hospitalId);
-      window.dispatchEvent(new CustomEvent('mn:hospital-treatment-started-local'));
+      const result = await useInventoryItem({
+        itemType,
+        source: item.source || item.inventorySource || 'personal',
+        hospitalId: item.hospitalId || null,
+      });
+      if (Number.isFinite(Number(result?.balance))) {
+        state.player = { ...(state.player || {}), balance: Number(result.balance) };
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+          detail: { balance: Number(result.balance), source: 'inventory_item_use', result },
+        }));
+      }
+      if (Number.isFinite(Number(result?.food)) || Number.isFinite(Number(result?.water))) {
+        state.player = {
+          ...(state.player || {}),
+          ...(Number.isFinite(Number(result?.food)) ? { food: Number(result.food) } : {}),
+          ...(Number.isFinite(Number(result?.water)) ? { water: Number(result.water) } : {}),
+        };
+        window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
+          detail: { vitals: { food: result?.food, water: result?.water }, source: 'inventory_item_use', result },
+        }));
+      }
+      if (itemType.startsWith('medicine_')) {
+        await notifyHospitalTreatmentStarted(localTelegramId(), result?.hospitalId);
+        window.dispatchEvent(new CustomEvent('mn:hospital-treatment-started-local'));
+      }
       window.dispatchEvent(new CustomEvent('mn:toast', {
-        detail: { type: 'success', message: `${result?.medicineLabel || 'Препарат'} применён. Восстановление HP началось.` },
+        detail: {
+          type: 'success',
+          message: itemType === 'food'
+            ? `${result?.itemLabel || getItemLabel(item)} применён. Сытость восстановлена.`
+            : `${result?.medicineLabel || getItemLabel(item)} применён. Восстановление HP началось.`,
+        },
       }));
       await refreshMedicalInventory();
+      closeItemMenu();
     } catch (error) {
       window.dispatchEvent(new CustomEvent('mn:toast', {
         detail: { type: 'error', message: getHospitalUserErrorMessage(error) },
@@ -715,6 +850,7 @@ export function enableInventoryFeature() {
   function hideInventory({ restoreFocus = true } = {}) {
     if (!open) return false;
 
+    closeItemMenu();
     open = false;
     overlay.dataset.state = 'closing';
     overlay.setAttribute('aria-hidden', 'true');
@@ -750,6 +886,10 @@ export function enableInventoryFeature() {
       event.stopImmediatePropagation?.();
 
       if ((isInventoryHotkey || event.code === 'Escape') && !event.repeat) {
+        if (event.code === 'Escape' && itemMenu && !itemMenu.hidden) {
+          closeItemMenu();
+          return;
+        }
         hideInventory();
         return;
       }
@@ -777,14 +917,42 @@ export function enableInventoryFeature() {
   }
 
   function handleGridClick(event) {
-    const item = event.target.closest('[data-medicine-type]');
+    const item = event.target.closest('[data-inventory-item-index]');
     if (!item) return;
     event.preventDefault();
-    void useMedicine(item.dataset.medicineType);
+    openItemMenu(item, event);
+  }
+
+  function handleGridContextMenu(event) {
+    const item = event.target.closest('[data-inventory-item-index]');
+    if (!item) return;
+    event.preventDefault();
+    openItemMenu(item, event);
+  }
+
+  function handleItemMenuClick(event) {
+    if (event.target.closest('[data-inventory-item-menu-close]')) {
+      event.preventDefault();
+      closeItemMenu();
+      return;
+    }
+
+    if (event.target.closest('[data-inventory-item-info-button]')) {
+      event.preventDefault();
+      showSelectedItemInfo();
+      return;
+    }
+
+    if (event.target.closest('[data-inventory-item-apply]')) {
+      event.preventDefault();
+      void applySelectedInventoryItem();
+    }
   }
 
   closeTargets.forEach((target) => target.addEventListener('click', handleCloseClick));
   overlay.querySelector('[data-inventory-grid]')?.addEventListener('click', handleGridClick);
+  overlay.querySelector('[data-inventory-grid]')?.addEventListener('contextmenu', handleGridContextMenu);
+  itemMenu?.addEventListener('click', handleItemMenuClick);
   window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('mn:player-balance-changed', handleVitalsChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
@@ -818,6 +986,8 @@ export function enableInventoryFeature() {
     bodyClassObserver.disconnect();
     closeTargets.forEach((target) => target.removeEventListener('click', handleCloseClick));
     overlay.querySelector('[data-inventory-grid]')?.removeEventListener('click', handleGridClick);
+    overlay.querySelector('[data-inventory-grid]')?.removeEventListener('contextmenu', handleGridContextMenu);
+    itemMenu?.removeEventListener('click', handleItemMenuClick);
     window.removeEventListener('keydown', handleKeyDown, true);
     window.removeEventListener('mn:player-balance-changed', handleVitalsChanged);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
