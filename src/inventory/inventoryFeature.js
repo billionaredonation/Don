@@ -32,6 +32,15 @@ const VITAL_ALIASES = Object.freeze({
   water: ['water', 'thirst', 'hydration'],
 });
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function localTelegramId() {
   return String(
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
@@ -247,20 +256,50 @@ function renderMedicalItems(items = []) {
     }
 
     const meta = MEDICINE_META[item.itemType] || { label: item.label || item.itemType, icon: '□' };
+    const quantity = Number(item.quantity || 0);
+    const source = String(item.source || item.inventorySource || 'personal').toLowerCase();
+    const isServiceStock = source === 'employee' || source === 'staff' || source === 'service';
+    const label = item.label || meta.label;
+    const sourceLabel = isServiceStock
+      ? `Служебные${item.hospitalName ? ` · ${item.hospitalName}` : ''}`
+      : 'Личные';
+    const safeLabel = escapeHtml(label);
+    const safeSourceLabel = escapeHtml(sourceLabel);
+    const safeItemType = escapeHtml(item.itemType);
+
+    if (isServiceStock) {
+      return `
+        <div
+          class="mn-inventory-slot mn-inventory-item mn-inventory-item-service"
+          role="gridcell"
+          aria-label="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}"
+          title="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}. Эти препараты выдаются игрокам через лечение."
+          data-inventory-slot="${index}"
+          data-inventory-row="${row}"
+          data-inventory-column="${column}"
+          data-medicine-source="employee"
+        >
+          <span>${meta.icon}</span>
+          <b>${quantity}</b>
+          <em>Служ.</em>
+        </div>`;
+    }
+
     return `
       <button
         class="mn-inventory-slot mn-inventory-item"
         type="button"
         role="gridcell"
-        aria-label="${meta.label}: ${Number(item.quantity || 0)} шт."
-        title="${meta.label}: ${Number(item.quantity || 0)} шт. · применить"
+        aria-label="${safeLabel}: ${quantity} шт."
+        title="${safeLabel}: ${quantity} шт. · применить"
         data-inventory-slot="${index}"
         data-inventory-row="${row}"
         data-inventory-column="${column}"
-        data-medicine-type="${item.itemType}"
+        data-medicine-type="${safeItemType}"
+        data-medicine-source="personal"
       >
         <span>${meta.icon}</span>
-        <b>${Number(item.quantity || 0)}</b>
+        <b>${quantity}</b>
       </button>`;
   }).join('');
 }
