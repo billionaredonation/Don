@@ -709,6 +709,26 @@ body.mn-inventory-open .mn-vital-notice {
     linear-gradient(145deg, rgba(18, 36, 68, 0.9), rgba(9, 14, 21, 0.94));
 }
 
+.mn-inventory-item-food {
+  border-color: rgba(60, 211, 139, 0.3);
+  background:
+    radial-gradient(circle at 38% 28%, rgba(60, 211, 139, 0.18), transparent 52%),
+    linear-gradient(145deg, rgba(17, 53, 37, 0.88), rgba(8, 17, 14, 0.93));
+}
+
+.mn-inventory-item-food:hover,
+.mn-inventory-item-food:focus-visible {
+  border-color: rgba(83, 234, 164, 0.68);
+  background:
+    radial-gradient(circle at 38% 28%, rgba(83, 234, 164, 0.24), transparent 52%),
+    linear-gradient(145deg, rgba(19, 67, 45, 0.92), rgba(8, 17, 14, 0.95));
+}
+
+.mn-inventory-item-food em {
+  background: rgba(43, 185, 127, 0.22);
+  color: #c9ffe4;
+}
+
 .mn-inventory-grid[data-busy="true"] .mn-inventory-item {
   pointer-events: none;
   opacity: 0.55;
