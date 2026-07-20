@@ -1,5 +1,5 @@
-/* Hospital batch refresh 2026-07-20: interior warehouse pickup styles deploy marker. */
-.mn-interior { position: fixed; inset: 0; z-index: 1000200; overflow: hidden; color: #fff; background: #020407; }
+/* Hospital interiors.css rewrite 2026-07-20 03:16: deploy marker. */
+.mn-interior { position: fixed; inset: 0; z-index: 1000200; overflow: hidden; box-sizing: border-box; color: #fff; background: #020407; }
 .mn-interior[hidden], .mn-interior [hidden] { display: none !important; }
 .mn-interior-loading, .mn-interior-error { position: absolute; inset: 0; z-index: 5; display: grid; place-content: center; justify-items: center; gap: 10px; padding: 22px; text-align: center; background: radial-gradient(circle at center, rgba(12,18,30,.94), #020407 70%); }
 .mn-interior-loading { transition: opacity 180ms ease; }
@@ -1963,4 +1963,3 @@ body.mn-force-rotate-landscape .mn-interior-vital-pill b {
     right: 0 !important;
   }
 }
-
