@@ -833,6 +833,18 @@ body.mn-inventory-open .mn-vital-notice {
   line-height: 1.35;
 }
 
+.mn-inventory-item-info[data-type="error"] {
+  border-color: rgba(242, 109, 105, 0.36);
+  background: rgba(90, 23, 32, 0.38);
+  color: #ffd8dc;
+}
+
+.mn-inventory-item-info[data-type="success"] {
+  border-color: rgba(80, 218, 144, 0.38);
+  background: rgba(22, 86, 58, 0.35);
+  color: #dcffec;
+}
+
 .mn-inventory-footer {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
