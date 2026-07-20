@@ -919,6 +919,42 @@ body.mn-force-rotate-landscape .mn-interior-vitals-row {
     0 0 16px rgba(255, 193, 58, .58),
     inset 0 0 0 1px rgba(255, 255, 255, .2);
 }
+.mn-interior-mapped-object-cafeteria {
+  border: 2px solid rgba(83, 234, 164, .98);
+  border-radius: 50%;
+  color: #effff7;
+  background:
+    radial-gradient(circle at 38% 35%, rgba(83, 234, 164, .42), transparent 34%),
+    linear-gradient(145deg, rgba(24, 178, 105, .97), rgba(10, 72, 50, .98));
+  box-shadow:
+    0 0 0 2px rgba(4, 20, 14, .84),
+    0 0 16px rgba(83, 234, 164, .58),
+    inset 0 0 0 1px rgba(255, 255, 255, .2);
+}
+.mn-interior-mapped-object-cafeteria::before {
+  content: "🍔";
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  font: 950 clamp(12px, 1.35vw, 25px)/1 system-ui;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, .58);
+}
+.mn-interior-mapped-object-cafeteria::after {
+  content: "СТОЛОВКА";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 5px);
+  transform: translateX(-50%);
+  padding: 2px 5px;
+  border-radius: 5px;
+  color: #e8fff2;
+  background: rgba(4, 22, 15, .9);
+  font: 950 7px/1 system-ui;
+  letter-spacing: .03em;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .mn-interior-mapped-object[data-selected="true"] {
   z-index: 4;
   outline: 2px solid #ffd45a;
@@ -1392,6 +1428,13 @@ body.mn-interior-object-editor-open .mn-interior-stamina {
 .mn-interior-door-action[data-kind="warehouse"] > span,
 .mn-interior-door-action[data-kind="warehouse_take"] > span {
   background: linear-gradient(135deg, #299cca, #17668a);
+}
+.mn-interior-door-action[data-kind="cafeteria"] {
+  border-color: rgba(83, 234, 164, .5);
+  background: rgba(5, 34, 23, .93);
+}
+.mn-interior-door-action[data-kind="cafeteria"] > span {
+  background: linear-gradient(135deg, #21bc74, #167a55);
 }
 .mn-interior-door-action:disabled {
   opacity: .65;
