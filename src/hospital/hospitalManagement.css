@@ -1,3 +1,4 @@
+/* Hospital batch refresh 2026-07-20: management styles deploy marker. */
 .mn-hospital-management[hidden],
 .mn-hospital-management-hint[hidden] {
   display: none !important;
@@ -25,9 +26,11 @@
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgba(1, 5, 9, 0.78);
-  backdrop-filter: blur(10px) saturate(0.7);
-  -webkit-backdrop-filter: blur(10px) saturate(0.7);
+  border-radius: 0;
+  background: rgba(1, 5, 9, 0.12);
+  backdrop-filter: blur(4px) saturate(0.92);
+  -webkit-backdrop-filter: blur(4px) saturate(0.92);
+  cursor: default;
 }
 
 .mn-hospital-management-panel {
@@ -41,7 +44,11 @@
   background:
     linear-gradient(145deg, rgba(43, 130, 181, 0.14), transparent 28%),
     linear-gradient(180deg, rgba(9, 22, 31, 0.985), rgba(4, 9, 14, 0.99));
-  box-shadow: 0 32px 95px rgba(0, 0, 0, 0.68), 0 0 0 1px rgba(255, 255, 255, 0.035) inset;
+  box-shadow:
+    0 0 0 999px rgba(0, 0, 0, 0.08),
+    0 0 38px rgba(116, 212, 255, 0.08),
+    0 32px 95px rgba(0, 0, 0, 0.68),
+    0 0 0 1px rgba(255, 255, 255, 0.035) inset;
 }
 
 .mn-hospital-management-panel > header {
@@ -112,6 +119,20 @@
   padding: 0 12px;
   outline: none;
   font: 850 12px/1 system-ui;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+  caret-color: #fff;
+}
+
+.mn-hospital-management input::placeholder {
+  color: rgba(230, 241, 248, 0.48);
+}
+
+.mn-hospital-management input:focus,
+.mn-hospital-management select:focus {
+  border-color: rgba(119, 215, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(67, 170, 225, 0.16);
 }
 
 .mn-hospital-management select option {
