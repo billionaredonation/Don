@@ -694,7 +694,6 @@ body.mn-inventory-open .mn-vital-notice {
 }
 
 .mn-inventory-item-service {
-  cursor: help;
   border-color: rgba(93, 160, 255, 0.24);
   background:
     radial-gradient(circle at 38% 28%, rgba(90, 148, 255, 0.14), transparent 52%),
@@ -732,6 +731,106 @@ body.mn-inventory-open .mn-vital-notice {
 .mn-inventory-grid[data-busy="true"] .mn-inventory-item {
   pointer-events: none;
   opacity: 0.55;
+}
+
+.mn-inventory-item-menu {
+  position: fixed;
+  z-index: 2147483002;
+  left: var(--mn-inventory-item-menu-x, 50vw);
+  top: var(--mn-inventory-item-menu-y, 50vh);
+  transform: translate(-10px, 10px);
+  pointer-events: auto;
+}
+
+.mn-inventory-item-menu[hidden] {
+  display: none !important;
+}
+
+.mn-inventory-item-menu-card {
+  display: grid;
+  gap: 8px;
+  width: min(245px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid rgba(231, 183, 75, 0.34);
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, rgba(231, 183, 75, 0.1), transparent 38%),
+    rgba(5, 10, 15, 0.96);
+  box-shadow:
+    0 18px 45px rgba(0, 0, 0, 0.58),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.mn-inventory-item-menu-card header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.mn-inventory-item-menu-card header span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(231, 183, 75, 0.26);
+  border-radius: 10px;
+  background: rgba(231, 183, 75, 0.08);
+  font-size: 20px;
+}
+
+.mn-inventory-item-menu-card header strong {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-inventory-item-menu-card header small {
+  color: rgba(255, 232, 174, 0.9);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.mn-inventory-item-menu-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.mn-inventory-item-menu-actions button {
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  font: 900 11px/1 system-ui;
+  cursor: pointer;
+}
+
+.mn-inventory-item-menu-actions button.is-primary {
+  border-color: rgba(86, 221, 153, 0.45);
+  background: linear-gradient(135deg, rgba(31, 172, 101, 0.95), rgba(24, 126, 87, 0.94));
+}
+
+.mn-inventory-item-menu-actions button:last-child {
+  grid-column: 1 / -1;
+}
+
+.mn-inventory-item-info {
+  white-space: pre-line;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(232, 241, 248, 0.74);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .mn-inventory-footer {
