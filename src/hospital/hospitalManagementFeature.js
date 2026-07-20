@@ -401,4 +401,3 @@ export function enableHospitalManagementFeature() {
     hint.remove();
   };
 }
-
