@@ -1,0 +1,318 @@
+.mn-hospital-management[hidden],
+.mn-hospital-management-hint[hidden] {
+  display: none !important;
+}
+
+.mn-hospital-management {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482600;
+  display: grid;
+  place-items: center;
+  padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  color: #f6fbff;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.mn-hospital-management *,
+.mn-hospital-management *::before,
+.mn-hospital-management *::after {
+  box-sizing: border-box;
+}
+
+.mn-hospital-management-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(1, 5, 9, 0.78);
+  backdrop-filter: blur(10px) saturate(0.7);
+  -webkit-backdrop-filter: blur(10px) saturate(0.7);
+}
+
+.mn-hospital-management-panel {
+  position: relative;
+  width: min(940px, calc(100vw - 28px));
+  max-height: min(760px, calc(100dvh - 28px));
+  overflow: auto;
+  padding: clamp(14px, 1.5vw, 22px);
+  border: 1px solid rgba(94, 206, 255, 0.28);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(43, 130, 181, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(9, 22, 31, 0.985), rgba(4, 9, 14, 0.99));
+  box-shadow: 0 32px 95px rgba(0, 0, 0, 0.68), 0 0 0 1px rgba(255, 255, 255, 0.035) inset;
+}
+
+.mn-hospital-management-panel > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.mn-hospital-management-panel > header span {
+  display: grid;
+  gap: 4px;
+}
+
+.mn-hospital-management-panel > header small,
+.mn-hospital-management-top span,
+.mn-hospital-management-summary small,
+.mn-hospital-management-note {
+  color: rgba(216, 238, 249, 0.56);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mn-hospital-management-panel > header strong {
+  font-size: clamp(21px, 2vw, 30px);
+  letter-spacing: -0.04em;
+}
+
+.mn-hospital-management-panel > header button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  font-size: 25px;
+  cursor: pointer;
+}
+
+.mn-hospital-management-body {
+  display: grid;
+  gap: 14px;
+}
+
+.mn-hospital-management-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.mn-hospital-management-top label {
+  display: grid;
+  gap: 6px;
+}
+
+.mn-hospital-management select,
+.mn-hospital-management input {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 13px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  padding: 0 12px;
+  outline: none;
+  font: 850 12px/1 system-ui;
+}
+
+.mn-hospital-management select option {
+  color: #121820;
+}
+
+.mn-hospital-management button {
+  min-height: 42px;
+  border: 1px solid rgba(92, 204, 255, 0.34);
+  border-radius: 13px;
+  background: linear-gradient(135deg, rgba(28, 120, 172, 0.92), rgba(37, 154, 205, 0.92));
+  color: #fff;
+  padding: 0 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.mn-hospital-management button:disabled,
+.mn-hospital-management-panel[data-busy="true"] button:not([data-hospital-management-close]) {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.mn-hospital-management h2,
+.mn-hospital-management h3 {
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.mn-hospital-management-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.mn-hospital-management-summary span,
+.mn-hospital-management-section {
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.mn-hospital-management-summary span {
+  display: grid;
+  gap: 6px;
+  padding: 11px;
+}
+
+.mn-hospital-management-summary b {
+  overflow: hidden;
+  color: #fff;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-hospital-management-section {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+}
+
+.mn-hospital-management-stock,
+.mn-hospital-management-employees {
+  display: grid;
+  gap: 8px;
+}
+
+.mn-hospital-management-stock article,
+.mn-hospital-management-employees article,
+.mn-hospital-management-staff-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.mn-hospital-management-employees article {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.mn-hospital-management-staff-form {
+  grid-template-columns: minmax(0, 1fr) 180px auto;
+}
+
+.mn-hospital-management-stock span,
+.mn-hospital-management-employees span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mn-hospital-management-stock b,
+.mn-hospital-management-employees b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-hospital-management-stock small,
+.mn-hospital-management-employees small,
+.mn-hospital-management-limited,
+.mn-hospital-management-empty {
+  color: rgba(224, 241, 249, 0.62);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.mn-hospital-management-employees i {
+  color: rgba(187, 235, 255, 0.86);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.mn-hospital-management-message {
+  margin-bottom: 11px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(58, 137, 190, 0.14);
+  color: #dcefff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mn-hospital-management-message[data-type="error"] {
+  background: rgba(185, 45, 65, 0.16);
+  color: #ffd8dd;
+}
+
+.mn-hospital-management-message[data-type="success"] {
+  background: rgba(39, 156, 105, 0.16);
+  color: #d9ffea;
+}
+
+.mn-hospital-management-hint {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(95px, env(safe-area-inset-bottom));
+  z-index: 2147481300;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 12px 7px 7px;
+  border: 1px solid rgba(99, 192, 238, 0.34);
+  border-radius: 15px;
+  background: rgba(5, 16, 23, 0.9);
+  color: #eefaff;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
+  font: 850 11px/1 system-ui;
+}
+
+.mn-hospital-management-hint[data-flash="true"] {
+  animation: mn-hospital-management-hint-pulse 1.2s ease-in-out 4;
+}
+
+.mn-hospital-management-hint b {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 29px;
+  border-radius: 9px;
+  background: #b9eaff;
+  color: #081017;
+  font-size: 13px;
+}
+
+body.mn-hospital-management-open .mobile-controls-layer,
+body.mn-hospital-management-open .mn-interior-joystick {
+  pointer-events: none !important;
+  opacity: 0.18 !important;
+}
+
+@keyframes mn-hospital-management-hint-pulse {
+  50% {
+    border-color: rgba(123, 222, 255, 0.8);
+    box-shadow: 0 0 28px rgba(86, 195, 246, 0.35);
+  }
+}
+
+@media (max-width: 760px) {
+  .mn-hospital-management-panel {
+    width: min(560px, calc(100vw - 18px));
+    max-height: calc(100dvh - 16px);
+    padding: 13px;
+    border-radius: 18px;
+  }
+
+  .mn-hospital-management-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mn-hospital-management-stock article,
+  .mn-hospital-management-staff-form {
+    grid-template-columns: 1fr;
+  }
+
+  .mn-hospital-management-top {
+    grid-template-columns: 1fr;
+  }
+}
