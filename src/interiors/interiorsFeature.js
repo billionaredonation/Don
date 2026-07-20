@@ -1,3 +1,4 @@
+// Hospital batch refresh 2026-07-20: interior warehouse pickup deploy marker.
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import { getStaminaConfig } from '../player/playerStaminaConfig.js';
@@ -76,12 +77,8 @@ const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
     label: 'Выход', defaultWidth: 3.2, defaultHeight: 5.4,
     minWidth: 1.4, maxWidth: 10, minHeight: 2.4, maxHeight: 16,
   }),
-  warehouse_refill: Object.freeze({
-    label: 'Пополнение склада', defaultWidth: 5.4, defaultHeight: 5.4,
-    minWidth: 2.4, maxWidth: 12, minHeight: 2.4, maxHeight: 12,
-  }),
-  warehouse_take: Object.freeze({
-    label: 'Получение со склада', defaultWidth: 5.4, defaultHeight: 5.4,
+  warehouse: Object.freeze({
+    label: 'Склад больницы', defaultWidth: 5.4, defaultHeight: 5.4,
     minWidth: 2.4, maxWidth: 12, minHeight: 2.4, maxHeight: 12,
   }),
 });
@@ -95,6 +92,17 @@ const INTERIOR_VITALS_CONFIG = getPlayerVitalsConfig();
 const INTERIOR_HEALTH_LOW_CLASS = 'is-interior-health-low';
 const INTERIOR_HEALTH_HIT_CLASS = 'is-interior-health-hit';
 const INTERIOR_HEALTH_HIT_DURATION_MS = 620;
+
+function isHospitalWarehousePickupType(type) {
+  const safeType = String(type || '').trim().toLowerCase();
+  return safeType === 'warehouse' || safeType === 'warehouse_refill' || safeType === 'warehouse_take';
+}
+
+function normalizeHospitalWarehousePickupType(type) {
+  return isHospitalWarehousePickupType(type)
+    ? 'warehouse'
+    : String(type || '').trim().toLowerCase();
+}
 const INTERIOR_VITAL_FEEDBACK_DURATION_MS = 520;
 const INTERIOR_ENTER_TRANSITION_MS = 280;
 const INTERIOR_EXIT_TRANSITION_MS = 220;
@@ -519,7 +527,8 @@ function createInteriorGuideId(type) {
 
 function normalizeMappedInteriorObject(object, index = 0) {
   const rawType = String(object?.type || object?.object_type || object?.kind || '').trim().toLowerCase();
-  const type = INTERIOR_MAPPED_OBJECT_TYPES[rawType] ? rawType : null;
+  const normalizedType = normalizeHospitalWarehousePickupType(rawType);
+  const type = INTERIOR_MAPPED_OBJECT_TYPES[normalizedType] ? normalizedType : null;
   if (!type) return null;
 
   const x = Number(object?.x);
@@ -619,7 +628,7 @@ function createMappedInteriorObjectProperties(type) {
       interactionRadius: INTERIOR_EXIT_INTERACTION_RADIUS,
     };
   }
-  if (type === 'warehouse_refill' || type === 'warehouse_take') {
+  if (isHospitalWarehousePickupType(type)) {
     return {
       width: size.width,
       height: size.height,
@@ -634,6 +643,15 @@ function normalizeMappedInteriorObjects(objects) {
     .slice(0, INTERIOR_MAPPED_OBJECT_LIMIT)
     .map(normalizeMappedInteriorObject)
     .filter(Boolean);
+}
+
+function collapseHospitalWarehousePickups(objects) {
+  const normalized = normalizeMappedInteriorObjects(objects);
+  const firstWarehouse = normalized.find((object) => isHospitalWarehousePickupType(object.type));
+  return [
+    ...normalized.filter((object) => !isHospitalWarehousePickupType(object.type)),
+    ...(firstWarehouse ? [{ ...firstWarehouse, type: 'warehouse' }] : []),
+  ];
 }
 
 function createMappedInteriorObjectId(type) {
@@ -774,18 +792,14 @@ async function loadRemoteMappedInteriorObjects({ force = false } = {}) {
     });
 
     try {
-      const hospitalPickups = normalizeMappedInteriorObjects(
+      const hospitalPickups = collapseHospitalWarehousePickups(
         await loadHospitalWarehousePickupLayout()
-      ).filter((object) => (
-        object.type === 'warehouse_refill' || object.type === 'warehouse_take'
-      ));
-      const legacyHospitalPickups = nextObjects.hospital.filter((object) => (
-        object.type === 'warehouse_refill' || object.type === 'warehouse_take'
-      ));
+      ).filter((object) => isHospitalWarehousePickupType(object.type));
+      const legacyHospitalPickups = collapseHospitalWarehousePickups(
+        nextObjects.hospital.filter((object) => isHospitalWarehousePickupType(object.type))
+      );
       nextObjects.hospital = [
-        ...nextObjects.hospital.filter((object) => (
-          object.type !== 'warehouse_refill' && object.type !== 'warehouse_take'
-        )),
+        ...nextObjects.hospital.filter((object) => !isHospitalWarehousePickupType(object.type)),
         ...(hospitalPickups.length ? hospitalPickups : legacyHospitalPickups),
       ];
     } catch (error) {
@@ -811,13 +825,10 @@ async function loadRemoteMappedInteriorObjects({ force = false } = {}) {
 async function saveRemoteMappedInteriorObjects(templateId, objects) {
   const normalizedObjects = normalizeMappedInteriorObjects(objects);
   const warehousePickups = templateId === 'hospital'
-    ? normalizedObjects.filter((object) => (
-      object.type === 'warehouse_refill' || object.type === 'warehouse_take'
-    ))
+    ? collapseHospitalWarehousePickups(normalizedObjects.filter((object) => isHospitalWarehousePickupType(object.type)))
     : [];
-  const regularObjects = normalizedObjects.filter((object) => (
-    object.type !== 'warehouse_refill' && object.type !== 'warehouse_take'
-  ));
+  const regularObjects = normalizedObjects.filter((object) => !isHospitalWarehousePickupType(object.type));
+  const expectedObjects = [...regularObjects, ...warehousePickups];
   const identity = getInteriorColliderAdminIdentity();
   const { data, error } = await supabase.rpc('admin_replace_interior_mapped_objects', {
     p_template_id: templateId,
@@ -848,14 +859,12 @@ async function saveRemoteMappedInteriorObjects(templateId, objects) {
   if (verifyError) throw verifyError;
 
   const savedObjects = [
-    ...normalizeMappedInteriorObjects(storedRows).filter((object) => (
-      object.type !== 'warehouse_refill' && object.type !== 'warehouse_take'
-    )),
+    ...normalizeMappedInteriorObjects(storedRows).filter((object) => !isHospitalWarehousePickupType(object.type)),
     ...savedWarehousePickups,
   ];
   const savedIds = new Set(savedObjects.map((object) => object.id));
-  const saveConfirmed = savedObjects.length === normalizedObjects.length &&
-    normalizedObjects.every((object) => savedIds.has(object.id));
+  const saveConfirmed = savedObjects.length === expectedObjects.length &&
+    expectedObjects.every((object) => savedIds.has(object.id));
 
   if (!saveConfirmed) throw new Error('INTERIOR_OBJECT_SAVE_NOT_CONFIRMED');
 
@@ -1438,8 +1447,7 @@ function markup() {
             <button type="button" data-interior-object-type="reception">Рецепшен</button>
             <button type="button" data-interior-object-type="door">Дверь</button>
             <button type="button" data-interior-object-type="exit">Выход</button>
-            <button type="button" data-interior-object-type="warehouse_refill">Пополнение склада</button>
-            <button type="button" data-interior-object-type="warehouse_take">Получение со склада</button>
+            <button type="button" data-interior-object-type="warehouse">Склад</button>
           </div>
           <div class="mn-interior-object-actions">
             <button type="button" class="mn-interior-object-primary" data-interior-object-save>Сохранить всем</button>
@@ -3347,18 +3355,17 @@ export function enableInteriorsFeature() {
     const receptions = objects.filter((object) => object.type === 'reception').length;
     const doors = objects.filter((object) => object.type === 'door').length;
     const exits = objects.filter((object) => object.type === 'exit').length;
-    const warehouseRefills = objects.filter((object) => object.type === 'warehouse_refill').length;
-    const warehouseTakes = objects.filter((object) => object.type === 'warehouse_take').length;
-    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits} · пополнение склада ${warehouseRefills} · выдача склада ${warehouseTakes}`;
+    const warehouses = objects.filter((object) => isHospitalWarehousePickupType(object.type)).length;
+    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits} · склад ${warehouses}`;
   }
 
   function setObjectEditorType(type) {
     if (!INTERIOR_MAPPED_OBJECT_TYPES[type]) return;
     if (
-      (type === 'warehouse_refill' || type === 'warehouse_take') &&
+      isHospitalWarehousePickupType(type) &&
       objectEditorTemplateId !== 'hospital'
     ) {
-      setObjectStatus('Пикапы склада доступны только для шаблона больницы');
+      setObjectStatus('Пикап склада доступен только для шаблона больницы');
       return;
     }
     objectEditorType = type;
@@ -3517,7 +3524,7 @@ export function enableInteriorsFeature() {
 
     let nearest = null;
     normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
-      .filter((object) => object.type === 'warehouse_refill' || object.type === 'warehouse_take')
+      .filter((object) => isHospitalWarehousePickupType(object.type))
       .forEach((pickup) => {
         const dx = (Number(pickup.x) - Number(position.x)) * INTERIOR_DESIGN_ASPECT;
         const dy = Number(pickup.y) - Number(position.y);
@@ -3548,7 +3555,7 @@ export function enableInteriorsFeature() {
       doorTarget ? { kind: 'door', object: doorTarget.door, distance: doorTarget.distance } : null,
       exitTarget ? { kind: 'exit', object: exitTarget.exitMarker, distance: exitTarget.distance } : null,
       chairTarget ? { kind: 'chair', object: chairTarget.chair, distance: chairTarget.distance } : null,
-      warehouseTarget ? { kind: warehouseTarget.pickup.type, object: warehouseTarget.pickup, distance: warehouseTarget.distance } : null,
+      warehouseTarget ? { kind: 'warehouse', object: warehouseTarget.pickup, distance: warehouseTarget.distance } : null,
     ].filter(Boolean);
 
     if (!candidates.length) return null;
@@ -3560,7 +3567,7 @@ export function enableInteriorsFeature() {
     nearestDoorId = nearest?.kind === 'door' ? nearest.object.id : null;
     nearestExitId = nearest?.kind === 'exit' ? nearest.object.id : null;
     nearestChairId = nearest?.kind === 'chair' ? nearest.object.id : null;
-    nearestWarehousePickupId = nearest?.kind === 'warehouse_refill' || nearest?.kind === 'warehouse_take'
+    nearestWarehousePickupId = nearest?.kind === 'warehouse'
       ? nearest.object.id
       : null;
 
@@ -3576,13 +3583,11 @@ export function enableInteriorsFeature() {
     doorAction.hidden = false;
     doorAction.dataset.kind = nearest.kind;
 
-    if (nearest.kind === 'warehouse_refill' || nearest.kind === 'warehouse_take') {
+    if (nearest.kind === 'warehouse') {
       doorAction.disabled = false;
       doorAction.dataset.open = 'false';
       delete doorAction.dataset.occupied;
-      doorActionLabel.textContent = nearest.kind === 'warehouse_refill'
-        ? 'Пополнить склад больницы'
-        : 'Открыть склад больницы';
+      doorActionLabel.textContent = 'Открыть склад больницы';
       return nearest;
     }
 
@@ -3669,10 +3674,10 @@ export function enableInteriorsFeature() {
       return true;
     }
 
-    if (nearest.kind === 'warehouse_refill' || nearest.kind === 'warehouse_take') {
+    if (nearest.kind === 'warehouse') {
       const identity = hospitalIdentityInput(activeService, activeServiceId || mapObjectId(activeService));
       void hospitalWarehouse.open({
-        mode: nearest.kind === 'warehouse_refill' ? 'refill' : 'take',
+        mode: 'manage',
         hospitalId: identity.hospitalId,
         hospitalName: activeService?.name || activeService?.payload?.serviceLabel || 'Больница',
         hospitalCityId: identity.cityId,
@@ -3872,14 +3877,10 @@ export function enableInteriorsFeature() {
     }
 
     if (
-      (objectEditorType === 'warehouse_refill' || objectEditorType === 'warehouse_take') &&
-      objectEditorProfile.objects.some((object) => object.type === objectEditorType)
+      isHospitalWarehousePickupType(objectEditorType) &&
+      objectEditorProfile.objects.some((object) => isHospitalWarehousePickupType(object.type))
     ) {
-      setObjectStatus(
-        objectEditorType === 'warehouse_refill'
-          ? 'Пикап пополнения уже установлен — перемести существующий'
-          : 'Пикап получения уже установлен — перемести существующий'
-      );
+      setObjectStatus('Пикап склада уже установлен — перемести существующий');
       return;
     }
 
@@ -4846,4 +4847,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
