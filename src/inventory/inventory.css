@@ -674,6 +674,41 @@ body.mn-inventory-open .mn-vital-notice {
   line-height: 1;
 }
 
+.mn-inventory-item em {
+  position: absolute;
+  left: 3px;
+  bottom: 2px;
+  max-width: calc(100% - 22px);
+  overflow: hidden;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: rgba(61, 133, 255, 0.18);
+  color: #b9d8ff;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mn-inventory-item-service {
+  cursor: help;
+  border-color: rgba(93, 160, 255, 0.24);
+  background:
+    radial-gradient(circle at 38% 28%, rgba(90, 148, 255, 0.14), transparent 52%),
+    linear-gradient(145deg, rgba(18, 31, 55, 0.86), rgba(9, 14, 21, 0.92));
+}
+
+.mn-inventory-item-service:hover,
+.mn-inventory-item-service:focus-visible {
+  border-color: rgba(111, 177, 255, 0.62);
+  background:
+    radial-gradient(circle at 38% 28%, rgba(111, 177, 255, 0.2), transparent 52%),
+    linear-gradient(145deg, rgba(18, 36, 68, 0.9), rgba(9, 14, 21, 0.94));
+}
+
 .mn-inventory-grid[data-busy="true"] .mn-inventory-item {
   pointer-events: none;
   opacity: 0.55;
