@@ -1,4 +1,4 @@
-import { createClient } from 'supabase';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') || '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
@@ -13,6 +13,14 @@ function normalizeText(value: unknown) {
 
 function normalizeNickname(value: unknown) {
   return normalizeText(value).replace(/^@/, '').toLowerCase();
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
 function isOwnerTelegramId(id: unknown) {
@@ -45,18 +53,8 @@ async function sendTelegramMessage(chatId: string | number, text: string) {
 
 function parseCommand(text: string) {
   const parts = text.trim().split(/\s+/);
-
-  const command = parts[0]?.toLowerCase() || '';
-  const action = parts[1]?.toLowerCase() || '';
-  const role = parts[2]?.toLowerCase() || '';
-  const nickname = parts[3] || '';
-
-  return {
-    command,
-    action,
-    role,
-    nickname,
-  };
+  const command = (parts.shift()?.toLowerCase() || '').split('@')[0];
+  return { command, args: parts };
 }
 
 Deno.serve(async (req) => {
@@ -84,11 +82,53 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, ignored: true });
     }
 
-    const { command, action, role, nickname } = parseCommand(text);
+    const { command, args } = parseCommand(text);
 
-    if (command !== '/set') {
+    if (command !== '/set' && command !== '/setambulance') {
       return Response.json({ ok: true, ignored: true });
     }
+
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    if (command === '/setambulance') {
+      const [nickname, city, hospitalNumberRaw] = args;
+      const hospitalNumber = Number(hospitalNumberRaw);
+
+      if (!nickname || !city || !Number.isSafeInteger(hospitalNumber) || hospitalNumber <= 0) {
+        await sendTelegramMessage(chatId, 'Команда: <code>/setambulance ник город номер_больницы</code>');
+        return Response.json({ ok: true });
+      }
+
+      const { data, error } = await supabase.rpc('hospital_assign_senior_by_command', {
+        p_actor_tg_id: String(fromId),
+        p_target: nickname,
+        p_city: city,
+        p_hospital_number: hospitalNumber,
+      });
+
+      if (error) {
+        const source = String(error.message || error);
+        const message = source.includes('PLAYER_NOT_FOUND')
+          ? `Игрок <b>${escapeHtml(normalizeNickname(nickname))}</b> не найден.`
+          : source.includes('HOSPITAL_NOT_FOUND')
+            ? `Больница №${hospitalNumber} в городе <b>${escapeHtml(city)}</b> не найдена. Сначала примените SQL нумерации больниц.`
+            : source.includes('ADMIN_REQUIRED')
+              ? 'Команда доступна только игровому администратору (is_admin=true).'
+              : `Не удалось назначить сотрудника: <code>${escapeHtml(source)}</code>`;
+        await sendTelegramMessage(chatId, message);
+        return Response.json({ ok: true, assigned: false, error: source });
+      }
+
+      await sendTelegramMessage(
+        chatId,
+        `Сотрудник <b>${escapeHtml(data.employeeNickname)}</b> назначен в старший состав.\n<b>${escapeHtml(data.displayName)}</b>.`
+      );
+      return Response.json({ ok: true, assigned: true, result: data });
+    }
+
+    const [action, nickname] = args;
 
     if (action !== 'admin') {
       await sendTelegramMessage(chatId, 'Команда: /set admin nickname');
@@ -101,18 +141,6 @@ Deno.serve(async (req) => {
     }
 
     const cleanNickname = normalizeNickname(nickname);
-
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
-
-    if (role && role !== cleanNickname && role !== nickname.toLowerCase()) {
-      // поддержка формата /set admin nickname уже есть.
-      // role тут не используется отдельно, чтобы не ломать команду.
-    }
 
     const { data: player, error: findError } = await supabase
       .from('players')
@@ -127,7 +155,7 @@ Deno.serve(async (req) => {
     if (!player) {
       await sendTelegramMessage(
         chatId,
-        `Игрок <b>${cleanNickname}</b> не найден в БД. Админка не выдана.`
+        `Игрок <b>${escapeHtml(cleanNickname)}</b> не найден в БД. Админка не выдана.`
       );
 
       return Response.json({
@@ -152,7 +180,7 @@ Deno.serve(async (req) => {
 
     await sendTelegramMessage(
       chatId,
-      `Админка выдана игроку <b>${updatedPlayer.nickname}</b>.`
+      `Админка выдана игроку <b>${escapeHtml(updatedPlayer.nickname)}</b>.`
     );
 
     return Response.json({
