@@ -216,3 +216,113 @@
     grid-column: span 2;
   }
 }
+
+/* Responsive modal pass: cafeteria stays simple and tappable. */
+.mn-hospital-cafeteria-panel {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 680px), (max-height: 560px) {
+  .mn-hospital-cafeteria {
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+
+  .mn-hospital-cafeteria-panel {
+    width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    gap: 10px;
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .mn-hospital-cafeteria-panel header button,
+  .mn-hospital-cafeteria-list input,
+  .mn-hospital-cafeteria-list button {
+    min-height: 42px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mn-hospital-cafeteria-panel > header {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    gap: 9px;
+  }
+
+  .mn-hospital-cafeteria-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+    font-size: 23px;
+  }
+
+  .mn-hospital-cafeteria-panel header strong {
+    font-size: 23px;
+  }
+
+  .mn-hospital-cafeteria-list article {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 8px;
+    padding: 9px;
+    border-radius: 14px;
+  }
+
+  .mn-hospital-cafeteria-food-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 26px;
+  }
+
+  .mn-hospital-cafeteria-food-copy b {
+    font-size: 15px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .mn-hospital-cafeteria-panel {
+    max-width: min(560px, calc(100vw - 18px));
+    padding: 10px;
+    border-radius: 15px;
+  }
+
+  .mn-hospital-cafeteria-panel > header {
+    gap: 9px;
+  }
+
+  .mn-hospital-cafeteria-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 22px;
+  }
+
+  .mn-hospital-cafeteria-list article {
+    min-height: 58px;
+    padding: 8px;
+  }
+}
+
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape .mn-hospital-cafeteria,
+  body.mn-force-rotate-landscape .mn-hospital-cafeteria {
+    inset: auto !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 100dvh !important;
+    height: 100vw !important;
+    min-width: 100dvh !important;
+    min-height: 100vw !important;
+    padding: 10px !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-hospital-cafeteria-panel,
+  body.mn-force-rotate-landscape .mn-hospital-cafeteria-panel {
+    width: min(560px, calc(100dvh - 20px)) !important;
+    max-height: calc(100vw - 20px) !important;
+  }
+}
