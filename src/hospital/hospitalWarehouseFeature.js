@@ -257,8 +257,8 @@ function markup() {
 
         <nav class="mn-hospital-warehouse-tabs" aria-label="Разделы склада">
           <button type="button" data-hospital-warehouse-tab="stock" data-active="true">Склад</button>
-          <button type="button" data-hospital-warehouse-tab="staff">Сотрудники</button>
-          <button type="button" data-hospital-warehouse-tab="stats">Статистика</button>
+          <button type="button" data-hospital-warehouse-tab="staff" hidden>Сотрудники</button>
+          <button type="button" data-hospital-warehouse-tab="stats" hidden>Статистика</button>
         </nav>
 
         <div class="mn-hospital-warehouse-loading" data-hospital-warehouse-loading>Загрузка данных склада…</div>
@@ -316,9 +316,10 @@ function markup() {
 function createStockCard(item, context, mode) {
   const meta = itemMeta(item);
   const element = document.createElement('article');
-  const mayRefill = context?.permissions?.canRefill === true && mode === 'refill';
-  const mayTake = mode === 'take' && canTakeItem(context, item.itemType);
-  const mayOrderFood = item.itemType === 'food' && context?.permissions?.canOrderFood === true;
+  const isUnifiedWarehouse = mode === 'manage' || mode === 'warehouse';
+  const mayRefill = context?.permissions?.canRefill === true && (mode === 'refill' || isUnifiedWarehouse);
+  const mayTake = (mode === 'take' || isUnifiedWarehouse) && canTakeItem(context, item.itemType);
+  const mayOrderFood = false;
 
   element.className = 'mn-hospital-stock-card';
   element.dataset.itemType = item.itemType;
@@ -333,7 +334,7 @@ function createStockCard(item, context, mode) {
     </div>
     <div class="mn-hospital-stock-actions">
       <input type="number" min="1" max="100000" step="1" value="10" aria-label="Количество" data-hospital-item-quantity />
-      ${mayRefill ? '<button type="button" class="is-refill" data-hospital-refill>Пополнить</button>' : ''}
+      ${mayRefill ? '<button type="button" class="is-refill" data-hospital-refill>Положить</button>' : ''}
       ${mayTake ? '<button type="button" class="is-take" data-hospital-take>Взять</button>' : ''}
       ${mayOrderFood && mode === 'take' ? '<button type="button" data-hospital-order-food>Заказать</button>' : ''}
     </div>`;
@@ -419,7 +420,11 @@ export function enableHospitalWarehouseFeature() {
 
     role.textContent = rankLabel(context.rank);
     role.dataset.rank = context.rank || 'none';
-    modeLabel.textContent = currentMode === 'refill' ? 'Пополнение' : 'Получение';
+    modeLabel.textContent = currentMode === 'refill'
+      ? 'Пополнение'
+      : currentMode === 'manage'
+        ? 'Склад'
+        : 'Получение';
     const identity = context.hospital || {};
     if (identity.displayName) {
       currentHospitalName = identity.displayName;
@@ -439,8 +444,10 @@ export function enableHospitalWarehouseFeature() {
       staffSeniorRankOption.disabled = context.isAdmin !== true;
       if (staffRank.value === 'senior' && context.isAdmin !== true) staffRank.value = 'junior';
     }
-    tabs.find((button) => button.dataset.hospitalWarehouseTab === 'staff').hidden = context.permissions?.canManageEmployees !== true;
-    tabs.find((button) => button.dataset.hospitalWarehouseTab === 'stats').hidden = context.permissions?.canViewStats !== true;
+    const staffTab = tabs.find((button) => button.dataset.hospitalWarehouseTab === 'staff');
+    const statsTab = tabs.find((button) => button.dataset.hospitalWarehouseTab === 'stats');
+    if (staffTab) staffTab.hidden = true;
+    if (statsTab) statsTab.hidden = true;
 
     const fragment = document.createDocumentFragment();
     (Array.isArray(context.items) ? context.items : []).forEach((item) => {
@@ -499,7 +506,7 @@ export function enableHospitalWarehouseFeature() {
         quantity,
       });
       await refreshContext();
-      setMessage(action === 'refill' ? 'Склад пополнен.' : action === 'take' ? 'Препараты выданы вам со склада.' : 'Заказ продуктов создан.', 'success');
+      setMessage(action === 'refill' ? 'Предметы положены на склад.' : action === 'take' ? 'Предметы выданы вам со склада.' : 'Заказ продуктов создан.', 'success');
     } catch (error) {
       setMessage(userErrorMessage(error), 'error');
     } finally {
@@ -643,7 +650,11 @@ export function enableHospitalWarehouseFeature() {
     currentHospitalNumber = Number.isSafeInteger(Number(hospitalNumber)) && Number(hospitalNumber) > 0
       ? Number(hospitalNumber)
       : null;
-    currentMode = mode === 'refill' ? 'refill' : 'take';
+    currentMode = mode === 'refill'
+      ? 'refill'
+      : mode === 'manage' || mode === 'warehouse'
+        ? 'manage'
+        : 'take';
 
     if (!currentHospitalId) return false;
 
