@@ -1,3 +1,4 @@
+/* Hospital batch refresh 2026-07-20: warehouse styles deploy marker. */
 .mn-hospital-warehouse,
 .mn-hospital-warehouse * {
   box-sizing: border-box;
@@ -223,4 +224,157 @@ body.mn-hospital-warehouse-open .mn-interior-door-action { opacity: 0 !important
   .mn-hospital-stock-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mn-hospital-stock-card { gap: 6px; }
   .mn-hospital-stock-icon { width: 32px; height: 32px; flex-basis: 32px; font-size: 17px; }
+}
+
+/* Responsive modal pass: one stock window, readable on phone and PC. */
+.mn-hospital-warehouse-panel,
+.mn-hospital-warehouse-body {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 860px), (max-height: 620px) {
+  .mn-hospital-warehouse {
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+
+  .mn-hospital-warehouse-panel {
+    width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    border-radius: 18px;
+  }
+
+  .mn-hospital-warehouse-close,
+  .mn-hospital-warehouse-tabs button,
+  .mn-hospital-stock-actions button,
+  .mn-hospital-patient-form button,
+  .mn-hospital-staff-editor button,
+  .mn-hospital-warehouse input,
+  .mn-hospital-warehouse select {
+    min-height: 40px;
+  }
+
+  .mn-hospital-stock-actions input {
+    width: 96px;
+  }
+}
+
+@media (max-width: 640px) {
+  .mn-hospital-warehouse-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    display: grid;
+    gap: 9px;
+  }
+
+  .mn-hospital-warehouse-role {
+    grid-column: 2 / 3;
+    grid-row: 2;
+    justify-self: start;
+    max-width: min(210px, 100%);
+    margin-left: 0;
+  }
+
+  .mn-hospital-warehouse-close {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .mn-hospital-stock-grid,
+  .mn-hospital-stock-grid:where(*) {
+    grid-template-columns: 1fr;
+  }
+
+  .mn-hospital-stock-actions,
+  .mn-hospital-patient-form,
+  .mn-hospital-staff-editor {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .mn-hospital-stock-actions input,
+  .mn-hospital-patient-form input,
+  .mn-hospital-patient-form select,
+  .mn-hospital-staff-editor input,
+  .mn-hospital-staff-editor select {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+
+  .mn-hospital-patient-form button,
+  .mn-hospital-staff-editor button {
+    grid-column: 1 / -1;
+  }
+
+  .mn-hospital-staff-row,
+  .mn-hospital-stat-row {
+    grid-template-columns: 1fr;
+  }
+
+  .mn-hospital-staff-mini-stats {
+    text-align: left;
+  }
+
+  .mn-hospital-stat-row > span:first-child {
+    grid-column: auto;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .mn-hospital-warehouse-panel {
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    border-radius: 15px;
+  }
+
+  .mn-hospital-warehouse-header {
+    min-height: 44px;
+    padding: 6px 10px;
+  }
+
+  .mn-hospital-warehouse-tabs {
+    padding: 5px 10px;
+  }
+
+  .mn-hospital-warehouse-tabs button {
+    min-height: 38px;
+  }
+
+  .mn-hospital-warehouse-body {
+    padding: 8px 10px 10px;
+  }
+
+  .mn-hospital-stock-card {
+    padding: 8px;
+  }
+
+  .mn-hospital-stock-card-head small,
+  .mn-hospital-patient-rule {
+    display: none;
+  }
+}
+
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape .mn-hospital-warehouse,
+  body.mn-force-rotate-landscape .mn-hospital-warehouse {
+    inset: auto !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 100dvh !important;
+    height: 100vw !important;
+    min-width: 100dvh !important;
+    min-height: 100vw !important;
+    padding: 10px !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-hospital-warehouse-panel,
+  body.mn-force-rotate-landscape .mn-hospital-warehouse-panel {
+    width: min(980px, calc(100dvh - 20px)) !important;
+    max-height: calc(100vw - 20px) !important;
+  }
 }
