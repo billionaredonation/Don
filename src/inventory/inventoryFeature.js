@@ -20,7 +20,8 @@ const MEDICINE_MIN_FOOD = 40;
 const HUNGER_WARNING_THRESHOLD = 40;
 const THIRST_WARNING_THRESHOLD = 40;
 const CRITICAL_VITAL_THRESHOLD = 20;
-const MEDICINE_META = Object.freeze({
+const ITEM_META = Object.freeze({
+  food: { label: 'Продукты', icon: '🍱' },
   medicine_light: { label: 'Слабоседативные таблетки', icon: '💊' },
   medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
@@ -255,33 +256,41 @@ function renderMedicalItems(items = []) {
         ></div>`;
     }
 
-    const meta = MEDICINE_META[item.itemType] || { label: item.label || item.itemType, icon: '□' };
+    const itemType = String(item.itemType || '');
+    const meta = ITEM_META[itemType] || { label: item.label || itemType, icon: '□' };
     const quantity = Number(item.quantity || 0);
     const source = String(item.source || item.inventorySource || 'personal').toLowerCase();
     const isServiceStock = source === 'employee' || source === 'staff' || source === 'service';
+    const isMedicine = itemType.startsWith('medicine_');
+    const canUseFromInventory = !isServiceStock && isMedicine;
     const label = item.label || meta.label;
     const sourceLabel = isServiceStock
       ? `Служебные${item.hospitalName ? ` · ${item.hospitalName}` : ''}`
       : 'Личные';
     const safeLabel = escapeHtml(label);
     const safeSourceLabel = escapeHtml(sourceLabel);
-    const safeItemType = escapeHtml(item.itemType);
+    const safeItemType = escapeHtml(itemType);
 
-    if (isServiceStock) {
+    if (!canUseFromInventory) {
+      const markerText = isServiceStock ? 'Служ.' : itemType === 'food' ? 'Еда' : 'Инв.';
+      const hint = itemType === 'food'
+        ? 'Продукты отображаются в инвентаре, но применяются через систему питания/больницы.'
+        : 'Эти предметы используются через больничный функционал.';
       return `
         <div
-          class="mn-inventory-slot mn-inventory-item mn-inventory-item-service"
+          class="mn-inventory-slot mn-inventory-item mn-inventory-item-service${itemType === 'food' ? ' mn-inventory-item-food' : ''}"
           role="gridcell"
           aria-label="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}"
-          title="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}. Эти препараты выдаются игрокам через лечение."
+          title="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}. ${escapeHtml(hint)}"
           data-inventory-slot="${index}"
           data-inventory-row="${row}"
           data-inventory-column="${column}"
-          data-medicine-source="employee"
+          data-inventory-item-type="${safeItemType}"
+          data-inventory-item-source="${escapeHtml(source)}"
         >
           <span>${meta.icon}</span>
           <b>${quantity}</b>
-          <em>Служ.</em>
+          <em>${escapeHtml(markerText)}</em>
         </div>`;
     }
 
