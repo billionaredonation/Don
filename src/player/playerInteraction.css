@@ -1,3 +1,4 @@
+/* Hospital batch refresh 2026-07-20: player interaction styles deploy marker. */
 .mn-player-interaction[hidden], .mn-player-interaction-hint[hidden] { display: none !important; }
 .mn-player-interaction { position: fixed; inset: 0; z-index: 2147482500; display: grid; place-items: center; color: #f6fbff; font-family: Inter, system-ui, -apple-system, sans-serif; }
 .mn-player-interaction-backdrop { position: absolute; inset: 0; border: 0; background: rgba(1, 5, 8, .78); backdrop-filter: blur(9px); }
@@ -52,3 +53,101 @@ body.mn-player-interaction-open .mobile-controls-layer, body.mn-player-interacti
   .mn-player-interaction-hint { bottom: 18px; }
 }
 
+/* Responsive modal pass: nearby-player actions must stay readable and clickable. */
+.mn-player-interaction-panel {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 760px), (max-height: 560px) {
+  .mn-player-interaction {
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+
+  .mn-player-interaction-panel {
+    width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .mn-player-interaction-panel > header button,
+  .mn-player-interaction nav > button,
+  .mn-player-action-form input,
+  .mn-player-action-form select,
+  .mn-player-action-form button,
+  .mn-player-trade-actions button {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 520px) {
+  .mn-player-interaction nav {
+    grid-template-columns: 1fr;
+  }
+
+  .mn-player-interaction nav > button {
+    min-height: 48px;
+  }
+
+  .mn-player-interaction nav small {
+    display: block;
+  }
+
+  .mn-player-trade-fields,
+  .mn-player-trade-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .mn-player-interaction-panel {
+    width: min(640px, calc(100vw - 18px));
+    padding: 10px;
+    border-radius: 15px;
+  }
+
+  .mn-player-interaction-panel > header {
+    margin-bottom: 8px;
+  }
+
+  .mn-player-interaction nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .mn-player-interaction nav > button {
+    min-height: 44px;
+    padding: 7px;
+  }
+
+  .mn-player-interaction-content {
+    margin-top: 8px;
+    padding: 9px;
+  }
+}
+
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape .mn-player-interaction,
+  body.mn-force-rotate-landscape .mn-player-interaction {
+    inset: auto !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 100dvh !important;
+    height: 100vw !important;
+    min-width: 100dvh !important;
+    min-height: 100vw !important;
+    padding: 10px !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-player-interaction-panel,
+  body.mn-force-rotate-landscape .mn-player-interaction-panel {
+    width: min(610px, calc(100dvh - 20px)) !important;
+    max-height: calc(100vw - 20px) !important;
+  }
+}
