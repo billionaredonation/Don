@@ -615,6 +615,18 @@ export function enableInventoryFeature() {
     return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nДля этого типа предмета информация и действие будут дополняться позже.`;
   }
 
+  function setItemMenuNotice(message, type = 'info') {
+    if (!itemMenuInfo) return;
+    const text = String(message || '').trim();
+    itemMenuInfo.hidden = !text;
+    itemMenuInfo.textContent = text;
+    if (text) {
+      itemMenuInfo.dataset.type = type;
+    } else {
+      delete itemMenuInfo.dataset.type;
+    }
+  }
+
   function positionItemMenu(anchor, event) {
     if (!itemMenu) return;
     const rect = anchor?.getBoundingClientRect?.();
@@ -635,10 +647,7 @@ export function enableInventoryFeature() {
     if (!itemMenu) return;
     itemMenu.hidden = true;
     itemMenu.setAttribute('aria-hidden', 'true');
-    if (itemMenuInfo) {
-      itemMenuInfo.hidden = true;
-      itemMenuInfo.textContent = '';
-    }
+    setItemMenuNotice('');
   }
 
   function openItemMenu(anchor, event) {
@@ -653,18 +662,14 @@ export function enableInventoryFeature() {
     if (itemMenuIcon) itemMenuIcon.textContent = item.icon || meta.icon || '□';
     if (itemMenuTitle) itemMenuTitle.textContent = getItemLabel(item);
     if (itemMenuQuantity) itemMenuQuantity.textContent = `${Number(item.quantity || 0).toLocaleString('ru-RU')} шт.`;
-    if (itemMenuInfo) {
-      itemMenuInfo.hidden = true;
-      itemMenuInfo.textContent = '';
-    }
+    setItemMenuNotice('');
     positionItemMenu(anchor, event);
     return true;
   }
 
   function showSelectedItemInfo() {
-    if (!selectedInventoryItem || !itemMenuInfo) return;
-    itemMenuInfo.hidden = false;
-    itemMenuInfo.textContent = getItemInfoText(selectedInventoryItem);
+    if (!selectedInventoryItem) return;
+    setItemMenuNotice(getItemInfoText(selectedInventoryItem), 'info');
   }
 
   async function refreshMedicalInventory() {
@@ -683,7 +688,16 @@ export function enableInventoryFeature() {
     const item = selectedInventoryItem;
     const itemType = String(item?.itemType || '');
     if (!itemType || inventoryBusy) return;
+    if (itemType === 'food' && Number(currentVitals.food || 0) >= 100) {
+      setItemMenuNotice('Вы и так сыты на 100, еда не требуется.', 'error');
+      return;
+    }
+    if (itemType.startsWith('medicine_') && Number(currentVitals.health || 0) >= 100) {
+      setItemMenuNotice('Вы здоровы на 100 HP, таблетки не требуются.', 'error');
+      return;
+    }
     inventoryBusy = true;
+    setItemMenuNotice('Применяю предмет...', 'info');
     renderMedicalInventory();
     try {
       const result = await useInventoryItem({
@@ -698,11 +712,14 @@ export function enableInventoryFeature() {
         }));
       }
       if (Number.isFinite(Number(result?.food)) || Number.isFinite(Number(result?.water))) {
+        const nextFood = Number.isFinite(Number(result?.food)) ? Number(result.food) : currentVitals.food;
+        const nextWater = Number.isFinite(Number(result?.water)) ? Number(result.water) : currentVitals.water;
         state.player = {
           ...(state.player || {}),
-          ...(Number.isFinite(Number(result?.food)) ? { food: Number(result.food) } : {}),
-          ...(Number.isFinite(Number(result?.water)) ? { water: Number(result.water) } : {}),
+          ...(Number.isFinite(Number(result?.food)) ? { food: nextFood } : {}),
+          ...(Number.isFinite(Number(result?.water)) ? { water: nextWater } : {}),
         };
+        renderVitals({ ...currentVitals, food: nextFood, water: nextWater });
         window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
           detail: { vitals: { food: result?.food, water: result?.water }, source: 'inventory_item_use', result },
         }));
@@ -719,9 +736,15 @@ export function enableInventoryFeature() {
             : `${result?.medicineLabel || getItemLabel(item)} применён. Восстановление HP началось.`,
         },
       }));
+      setItemMenuNotice(
+        itemType === 'food'
+          ? `${result?.itemLabel || getItemLabel(item)} применён. Сытость: ${Math.round(Number(result?.food ?? currentVitals.food))}/100, вода: ${Math.round(Number(result?.water ?? currentVitals.water))}/100.`
+          : `${result?.medicineLabel || getItemLabel(item)} применён. Восстановление HP началось.`,
+        'success'
+      );
       await refreshMedicalInventory();
-      closeItemMenu();
     } catch (error) {
+      setItemMenuNotice(getHospitalUserErrorMessage(error), 'error');
       window.dispatchEvent(new CustomEvent('mn:toast', {
         detail: { type: 'error', message: getHospitalUserErrorMessage(error) },
       }));
