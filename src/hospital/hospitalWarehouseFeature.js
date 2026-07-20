@@ -61,6 +61,7 @@ function userErrorMessage(error) {
     PATIENT_FOOD_TOO_LOW: 'У пациента меньше 40 еды. Сначала его нужно накормить.',
     PATIENT_WATER_TOO_LOW: 'У пациента недостаточно воды. Сначала ему нужно попить.',
     PLAYER_FOOD_TOO_LOW: 'Сначала поешьте: для применения препарата не хватает еды.',
+    PLAYER_FOOD_FULL: 'Вы и так сыты на 100, еда не требуется.',
     PLAYER_WATER_TOO_LOW: 'Сначала попейте: для применения препарата не хватает воды.',
     PLAYER_MEDICINE_NOT_ENOUGH: 'У вас нет этого препарата в инвентаре.',
     PLAYER_ITEM_NOT_ENOUGH: 'У вас нет этого предмета в инвентаре.',
@@ -68,7 +69,7 @@ function userErrorMessage(error) {
     CAFETERIA_ITEM_NOT_FOUND: 'Этот продукт столовки пока недоступен.',
     INVENTORY_ITEM_NOT_USABLE: 'Этот предмет пока нельзя применить.',
     SERVICE_ITEM_NOT_ENOUGH: 'У вас нет этого служебного предмета.',
-    PATIENT_HEALTH_FULL: 'У пациента уже полное здоровье.',
+    PATIENT_HEALTH_FULL: 'Здоровье уже 100 HP, таблетки не требуются.',
     MEDICINE_HEALTH_RANGE_MISMATCH: 'Этот препарат не подходит для текущего уровня HP пациента.',
     PATIENT_ALREADY_TREATED: 'На пациента уже действует препарат.',
     PLAYER_NOT_FOUND: 'Игрок с таким ником или Telegram ID не найден.',
@@ -83,6 +84,7 @@ function userErrorMessage(error) {
     ADMIN_REQUIRED_FOR_SENIOR_RANK: 'Назначать или снимать старший состав может только администрация.',
     CANNOT_CHANGE_OWN_RANK: 'Нельзя изменить собственную должность.',
     SERVER_NOT_CONFIGURED: 'Серверная функция больницы не настроена.',
+    UNKNOWN_ACTION: 'Edge Function hospital-warehouse старая: задеплойте свежий supabase/functions/hospital-warehouse/index.ts.',
     NOT_FOUND: 'Edge Function hospital-warehouse не задеплоена в Supabase.',
   };
 
@@ -794,3 +796,4 @@ export function enableHospitalWarehouseFeature() {
     },
   };
 }
+
