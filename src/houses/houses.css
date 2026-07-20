@@ -4285,3 +4285,110 @@ body.mn-house-spawn-open .home .mobile-stamina {
     border-radius: 11px !important;
   }
 }
+
+/* Responsive modal pass: houses/trade/spawn overlays stay readable on every screen. */
+.houses-panel,
+.house-details-panel,
+.house-trade-offer-card,
+.house-spawn-card {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px), (max-height: 620px) {
+  .houses-modal,
+  .house-details-modal,
+  .house-spawn-picker,
+  [data-house-trade-offer] {
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left)) !important;
+  }
+
+  .houses-panel,
+  .house-details-panel,
+  .house-trade-offer-card,
+  .house-spawn-card {
+    max-width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+  }
+
+  .house-trade-offer-card button,
+  .house-spawn-card button,
+  .houses-panel button,
+  .house-details-panel button,
+  .houses-panel input,
+  .house-details-panel input,
+  .houses-panel select,
+  .house-details-panel select {
+    min-height: 40px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .house-spawn-card {
+    padding: 14px !important;
+    border-radius: 20px !important;
+  }
+
+  .house-spawn-card h3 {
+    font-size: 24px !important;
+  }
+
+  .house-spawn-card p {
+    margin: 8px 0 12px !important;
+    font-size: 12px !important;
+  }
+
+  .house-spawn-stats {
+    grid-template-columns: 1fr !important;
+  }
+
+  .house-spawn-option {
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+    min-height: 74px !important;
+    padding: 18px 10px 10px !important;
+  }
+
+  .house-spawn-option-cta,
+  .house-spawn-option-state {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    min-height: 40px !important;
+  }
+
+  .house-trade-offer-card {
+    width: calc(100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+    padding: 14px !important;
+    border-radius: 18px !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .houses-panel,
+  .house-details-panel,
+  .house-spawn-card {
+    padding: 12px !important;
+    border-radius: 18px !important;
+  }
+
+  .house-spawn-card h3 {
+    font-size: 24px !important;
+  }
+
+  .house-spawn-card p {
+    margin: 7px 0 9px !important;
+    font-size: 12px !important;
+  }
+
+  .house-spawn-stats {
+    margin: 8px 0 !important;
+  }
+
+  .house-spawn-option {
+    min-height: 62px !important;
+    padding: 16px 9px 8px !important;
+  }
+}
