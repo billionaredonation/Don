@@ -688,14 +688,6 @@ export function enableInventoryFeature() {
     const item = selectedInventoryItem;
     const itemType = String(item?.itemType || '');
     if (!itemType || inventoryBusy) return;
-    if (itemType === 'food' && Number(currentVitals.food || 0) >= 100) {
-      setItemMenuNotice('Вы и так сыты на 100, еда не требуется.', 'error');
-      return;
-    }
-    if (itemType.startsWith('medicine_') && Number(currentVitals.health || 0) >= 100) {
-      setItemMenuNotice('Вы здоровы на 100 HP, таблетки не требуются.', 'error');
-      return;
-    }
     inventoryBusy = true;
     setItemMenuNotice('Применяю предмет...', 'info');
     renderMedicalInventory();
@@ -711,17 +703,23 @@ export function enableInventoryFeature() {
           detail: { balance: Number(result.balance), source: 'inventory_item_use', result },
         }));
       }
-      if (Number.isFinite(Number(result?.food)) || Number.isFinite(Number(result?.water))) {
+      if (
+        Number.isFinite(Number(result?.health)) ||
+        Number.isFinite(Number(result?.food)) ||
+        Number.isFinite(Number(result?.water))
+      ) {
+        const nextHealth = Number.isFinite(Number(result?.health)) ? Number(result.health) : currentVitals.health;
         const nextFood = Number.isFinite(Number(result?.food)) ? Number(result.food) : currentVitals.food;
         const nextWater = Number.isFinite(Number(result?.water)) ? Number(result.water) : currentVitals.water;
         state.player = {
           ...(state.player || {}),
+          ...(Number.isFinite(Number(result?.health)) ? { health: nextHealth } : {}),
           ...(Number.isFinite(Number(result?.food)) ? { food: nextFood } : {}),
           ...(Number.isFinite(Number(result?.water)) ? { water: nextWater } : {}),
         };
-        renderVitals({ ...currentVitals, food: nextFood, water: nextWater });
+        renderVitals({ ...currentVitals, health: nextHealth, food: nextFood, water: nextWater });
         window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
-          detail: { vitals: { food: result?.food, water: result?.water }, source: 'inventory_item_use', result },
+          detail: { vitals: { health: result?.health, food: result?.food, water: result?.water }, source: 'inventory_item_use', result },
         }));
       }
       if (itemType.startsWith('medicine_')) {
