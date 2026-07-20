@@ -23,6 +23,11 @@ function normalizeQuantity(value: unknown, max = 100000) {
   return Number.isSafeInteger(quantity) && quantity > 0 && quantity <= max ? quantity : null;
 }
 
+function normalizeMoney(value: unknown, max = 1_000_000_000) {
+  const amount = Math.floor(Number(value));
+  return Number.isSafeInteger(amount) && amount >= 0 && amount <= max ? amount : null;
+}
+
 function bytesToHex(bytes: ArrayBuffer) {
   return [...new Uint8Array(bytes)]
     .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -93,6 +98,12 @@ serve(async (req) => {
     const actorTgId = String(verified.user.id);
     const action = normalizeText(body.action, 40);
     const hospitalId = normalizeText(body.hospitalId);
+    const hospitalCityId = normalizeText(body.hospitalCityId, 80);
+    const hospitalCityName = normalizeText(body.hospitalCityName, 80);
+    const requestedHospitalNumber = Number(body.hospitalNumber);
+    const hospitalNumber = Number.isSafeInteger(requestedHospitalNumber) && requestedHospitalNumber > 0
+      ? requestedHospitalNumber
+      : null;
     const itemType = normalizeText(body.itemType, 48);
     const medicineType = normalizeText(body.medicineType, 48);
     const target = normalizeText(body.target, 64);
@@ -105,11 +116,48 @@ serve(async (req) => {
     let args: Record<string, unknown> = {};
 
     switch (action) {
+      case 'register_hospital':
+        if (!hospitalId || !hospitalCityId) return jsonResponse({ ok: false, error: 'HOSPITAL_IDENTITY_REQUIRED' });
+        functionName = 'hospital_register_identity';
+        args = {
+          p_hospital_id: hospitalId,
+          p_city_id: hospitalCityId,
+          p_city_name: hospitalCityName || null,
+          p_preferred_number: hospitalNumber,
+        };
+        break;
       case 'context':
         if (!hospitalId) return jsonResponse({ ok: false, error: 'HOSPITAL_ID_REQUIRED' });
+        if (hospitalCityId) {
+          const registration = await supabase.rpc('hospital_register_identity', {
+            p_hospital_id: hospitalId,
+            p_city_id: hospitalCityId,
+            p_city_name: hospitalCityName || null,
+            p_preferred_number: hospitalNumber,
+          });
+          if (registration.error) {
+            console.warn('[hospital-warehouse] hospital_register_identity failed:', registration.error.message);
+            return jsonResponse({ ok: false, error: registration.error.message, code: registration.error.code });
+          }
+        }
         functionName = 'hospital_get_context';
         args = { p_hospital_id: hospitalId, p_actor_tg_id: actorTgId };
         break;
+      case 'my_employments':
+        functionName = 'hospital_get_my_employments';
+        args = { p_actor_tg_id: actorTgId };
+        break;
+      case 'management_panel':
+        functionName = 'hospital_get_management_panel';
+        args = { p_actor_tg_id: actorTgId };
+        break;
+      case 'management_purchase': {
+        const quantity = normalizeQuantity(body.quantity);
+        if (!hospitalId || !itemType || !quantity) return jsonResponse({ ok: false, error: 'INVALID_PURCHASE_REQUEST' });
+        functionName = 'hospital_management_purchase';
+        args = { p_hospital_id: hospitalId, p_actor_tg_id: actorTgId, p_item_type: itemType, p_quantity: quantity };
+        break;
+      }
       case 'refill':
       case 'take': {
         const quantity = normalizeQuantity(body.quantity);
@@ -158,6 +206,30 @@ serve(async (req) => {
         };
         break;
       }
+      case 'issue_medicine': {
+        const price = normalizeMoney(body.price);
+        if (!hospitalId || !target || !medicineType || price === null) {
+          return jsonResponse({ ok: false, error: 'INVALID_ISSUE_REQUEST' });
+        }
+        functionName = 'hospital_issue_medicine';
+        args = {
+          p_hospital_id: hospitalId,
+          p_actor_tg_id: actorTgId,
+          p_target: target,
+          p_medicine_type: medicineType,
+          p_price: price,
+        };
+        break;
+      }
+      case 'my_medicine':
+        functionName = 'player_get_medical_inventory';
+        args = { p_actor_tg_id: actorTgId };
+        break;
+      case 'use_medicine':
+        if (!medicineType) return jsonResponse({ ok: false, error: 'INVALID_MEDICINE_REQUEST' });
+        functionName = 'player_use_medicine';
+        args = { p_actor_tg_id: actorTgId, p_medicine_type: medicineType };
+        break;
       case 'process_treatment':
         functionName = 'hospital_process_my_treatment';
         args = { p_patient_tg_id: actorTgId };
