@@ -218,6 +218,7 @@ export function enableHospitalManagementFeature() {
             placeholder="Ник или Telegram ID"
             data-management-staff-target
           >
+          <button type="button" class="mn-hospital-management-prompt-button" data-management-staff-prompt>Ввести</button>
           <select data-management-staff-rank>
             <option value="junior">Младший состав</option>
             <option value="middle">Средний состав</option>
@@ -326,9 +327,13 @@ export function enableHospitalManagementFeature() {
 
   async function saveStaff() {
     const hospital = selectedHospital();
-    const target = String(body.querySelector('[data-management-staff-target]')?.value || '').trim();
+    let target = String(body.querySelector('[data-management-staff-target]')?.value || '').trim();
     const rank = String(body.querySelector('[data-management-staff-rank]')?.value || '').trim();
-    if (!hospital || !target || !rank || busy) return;
+    if (!target) target = promptStaffTarget();
+    if (!hospital || !target || !rank || busy) {
+      if (!target) setMessage('Введите ник или Telegram ID сотрудника.', 'error');
+      return;
+    }
     setBusy(true);
     try {
       await invokeHospitalAction('set_employee_rank', { hospitalId: hospital.hospitalId, target, rank });
@@ -342,7 +347,35 @@ export function enableHospitalManagementFeature() {
     }
   }
 
+  function promptStaffTarget() {
+    const input = body.querySelector('[data-management-staff-target]');
+    if (!input || input.disabled) return '';
+
+    const current = String(input.value || '').trim();
+    const value = window.prompt('Введите ник или Telegram ID сотрудника:', current);
+    if (value === null) {
+      input.focus({ preventScroll: true });
+      return current;
+    }
+
+    const nextValue = String(value || '').trim();
+    input.value = nextValue;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus({ preventScroll: true });
+    return nextValue;
+  }
+
   function handleBodyClick(event) {
+    if (event.target.closest('[data-management-staff-target]')) {
+      event.target.closest('[data-management-staff-target]')?.focus?.({ preventScroll: true });
+      return;
+    }
+
+    if (event.target.closest('[data-management-staff-prompt]')) {
+      promptStaffTarget();
+      return;
+    }
+
     const purchaseButton = event.target.closest('[data-management-purchase]');
     if (purchaseButton) {
       void purchase(purchaseButton);
@@ -366,6 +399,25 @@ export function enableHospitalManagementFeature() {
 
   function handleKeyDown(event) {
     if (!overlay.hidden) {
+      if (isTypingTarget(event.target)) {
+        if (event.code === 'Escape' && !event.repeat) {
+          event.preventDefault();
+          event.stopImmediatePropagation?.();
+          close();
+          return;
+        }
+
+        if (event.code === 'Enter' && event.target?.matches?.('[data-management-staff-target]')) {
+          event.preventDefault();
+          event.stopImmediatePropagation?.();
+          void saveStaff();
+          return;
+        }
+
+        event.stopImmediatePropagation?.();
+        return;
+      }
+
       if (event.code === 'Escape' && !event.repeat) {
         event.preventDefault();
         close();
@@ -386,8 +438,6 @@ export function enableHospitalManagementFeature() {
 
   function handlePanelEditableKeyDown(event) {
     if (!isTypingTarget(event.target)) return;
-
-    event.stopPropagation();
 
     if (event.code === 'Enter' && event.target?.matches?.('[data-management-staff-target]')) {
       event.preventDefault();
