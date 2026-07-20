@@ -344,3 +344,133 @@ body.mn-hospital-management-open .mn-interior-joystick {
     grid-template-columns: 1fr;
   }
 }
+
+/* Responsive modal pass: management is a remote control, not a pickup window. */
+.mn-hospital-management-panel {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px), (max-height: 620px) {
+  .mn-hospital-management {
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+
+  .mn-hospital-management-panel {
+    width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .mn-hospital-management button,
+  .mn-hospital-management select,
+  .mn-hospital-management input {
+    min-height: 40px;
+  }
+
+  .mn-hospital-management-stock article,
+  .mn-hospital-management-staff-form {
+    grid-template-columns: minmax(0, 1fr) 88px auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .mn-hospital-management-panel > header {
+    align-items: flex-start;
+  }
+
+  .mn-hospital-management-panel > header strong {
+    font-size: 22px;
+    line-height: 1.05;
+  }
+
+  .mn-hospital-management-top,
+  .mn-hospital-management-stock article,
+  .mn-hospital-management-employees article,
+  .mn-hospital-management-staff-form {
+    grid-template-columns: 1fr;
+  }
+
+  .mn-hospital-management-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mn-hospital-management-stock article > input,
+  .mn-hospital-management-stock article > button,
+  .mn-hospital-management-staff-form > input,
+  .mn-hospital-management-staff-form > select,
+  .mn-hospital-management-staff-form > button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 440px) {
+  .mn-hospital-management-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .mn-hospital-management-section {
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .mn-hospital-management-panel > header small,
+  .mn-hospital-management-note {
+    font-size: 9px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .mn-hospital-management-panel {
+    padding: 10px;
+    border-radius: 15px;
+  }
+
+  .mn-hospital-management-panel > header {
+    margin-bottom: 9px;
+  }
+
+  .mn-hospital-management-panel > header strong {
+    font-size: 20px;
+  }
+
+  .mn-hospital-management-body,
+  .mn-hospital-management-section {
+    gap: 8px;
+  }
+
+  .mn-hospital-management-section {
+    padding: 9px;
+  }
+
+  .mn-hospital-management-note {
+    display: none;
+  }
+}
+
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape .mn-hospital-management,
+  body.mn-force-rotate-landscape .mn-hospital-management {
+    inset: auto !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 100dvh !important;
+    height: 100vw !important;
+    min-width: 100dvh !important;
+    min-height: 100vw !important;
+    padding: 10px !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-hospital-management-panel,
+  body.mn-force-rotate-landscape .mn-hospital-management-panel {
+    width: min(940px, calc(100dvh - 20px)) !important;
+    max-height: calc(100vw - 20px) !important;
+  }
+}
