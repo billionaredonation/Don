@@ -2,9 +2,8 @@ import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import {
   getHospitalUserErrorMessage,
+  issueMedicineFromInteraction,
   loadMyHospitalEmployments,
-  notifyHospitalTreatmentStarted,
-  treatPlayerFromInteraction,
 } from '../hospital/hospitalWarehouseFeature.js';
 import './playerInteraction.css';
 
@@ -12,9 +11,9 @@ const FUNCTION_NAME = 'player-interaction';
 const CITY_DISTANCE = 3.4;
 const INTERIOR_DISTANCE = 5.2;
 const MEDICINES = Object.freeze([
-  { type: 'medicine_light', label: 'Простые таблетки' },
-  { type: 'medicine_strong', label: 'Сильные таблетки' },
-  { type: 'medicine_resuscitation', label: 'Реанимационные таблетки' },
+  { type: 'medicine_light', label: 'Слабоседативные / простые таблетки' },
+  { type: 'medicine_strong', label: 'Среднеседативные / сильные таблетки' },
+  { type: 'medicine_resuscitation', label: 'Сильные седативные / реанимационные таблетки' },
 ]);
 
 function telegramInitData() {
@@ -257,11 +256,13 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
         <div class="mn-player-action-form">
           <label><span>Больница</span><select data-heal-hospital>${employments.map((employment, index) => `<option value="${index}">${employment.displayName || 'Больница'}</option>`).join('')}</select></label>
           <label><span>Препарат</span><select data-heal-medicine></select></label>
-          <button type="button" class="is-primary" data-heal-submit>Начать лечение</button>
-          <small>Лечение работает рядом с игроком и не требует пикапа. Препарат списывается из вашей личной выдачи.</small>
+          <label><span>Цена для игрока <small>можно 0</small></span><input type="number" min="0" step="1" inputmode="numeric" value="0" data-heal-price></label>
+          <button type="button" class="is-primary" data-heal-submit>Выдать препарат</button>
+          <small>Сервер проверит должность врача, личные таблетки, HP пациента, еду и воду. Игрок получит таблетку в инвентарь и применит её сам.</small>
         </div>`;
       const hospitalSelect = content.querySelector('[data-heal-hospital]');
       const medicineSelect = content.querySelector('[data-heal-medicine]');
+      const priceInput = content.querySelector('[data-heal-price]');
       const submit = content.querySelector('[data-heal-submit]');
       const renderMedicines = () => {
         const employment = employments[Number(hospitalSelect.value || 0)] || employments[0];
@@ -281,15 +282,24 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
       submit.addEventListener('click', async () => {
         if (busy || !medicineSelect.value || !target) return;
         const employment = employments[Number(hospitalSelect.value || 0)] || employments[0];
+        const price = Math.max(0, Math.floor(Number(priceInput.value || 0)));
         setBusy(true);
         try {
-          const result = await treatPlayerFromInteraction({
+          const result = await issueMedicineFromInteraction({
             hospitalId: employment.hospitalId,
             target: target.target,
             medicineType: medicineSelect.value,
+            price,
           });
-          await notifyHospitalTreatmentStarted(result?.patientTgId, employment.hospitalId);
-          setMessage(`Лечение игрока ${result?.patientNickname || target.nickname} начато.`, 'success');
+          await broadcastTo(result?.patientTgId, 'medicine_received', {
+            medicineLabel: result?.medicineLabel,
+            doctorNickname: state.nickname || 'Врач',
+            price: result?.price || 0,
+          });
+          setMessage(
+            `${result?.medicineLabel || 'Препарат'} выдан игроку ${result?.patientNickname || target.nickname}. Игрок должен открыть инвентарь и применить таблетку.`,
+            'success'
+          );
         } catch (error) {
           setMessage(getHospitalUserErrorMessage(error), 'error');
         } finally {
@@ -415,6 +425,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
           window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
             detail: { balance: Number(result.actorBalance), source: 'player_trade' },
           }));
+          window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
           await broadcastTo(result.initiatorTgId, 'trade_resolved', result);
           setMessage('Трейд успешно завершён.', 'success');
           incomingOffer = null;
@@ -446,6 +457,17 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
       return;
     }
     openFor(markerTarget(nearest.marker));
+  }
+
+  function handleMarkerPointer(event) {
+    if (!overlay.hidden || document.body.classList.contains('mn-inventory-open') || window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true) return;
+    const marker = event.target?.closest?.('.mn-interior-remote-player, .gta-player-marker-other');
+    if (!marker) return;
+    const nearest = nearestMarker(playerPosition);
+    if (!nearest || nearest.marker !== marker) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openFor(markerTarget(marker));
   }
 
   function handleKeyDown(event) {
@@ -482,6 +504,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   });
   closeButtons.forEach((button) => button.addEventListener('click', close));
   hint.addEventListener('click', openNearest);
+  document.addEventListener('click', handleMarkerPointer, true);
   window.addEventListener('keydown', handleKeyDown, true);
 
   const tgId = localTelegramId();
@@ -493,11 +516,17 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
       window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
         detail: { balance: Number(payload.initiatorBalance), source: 'player_trade' },
       }));
+      window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
       toast('Трейд завершён.', 'success');
     } else toast('Предложение трейда закрыто.');
   });
   channel?.on('broadcast', { event: 'money_received' }, ({ payload }) => {
     toast(`${payload?.senderNickname || 'Игрок'} передал вам ${Number(payload?.amount || 0).toLocaleString('ru-RU')} ₴.`, 'success');
+  });
+  channel?.on('broadcast', { event: 'medicine_received' }, ({ payload }) => {
+    const price = Number(payload?.price || 0);
+    toast(`${payload?.doctorNickname || 'Врач'} выдал препарат: ${payload?.medicineLabel || 'таблетка'}${price ? ` за ${price.toLocaleString('ru-RU')} ₴` : ''}. Откройте инвентарь, чтобы применить.`, 'success');
+    window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
   });
   channel?.subscribe();
 
@@ -513,6 +542,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     window.removeEventListener('keydown', handleKeyDown, true);
     closeButtons.forEach((button) => button.removeEventListener('click', close));
     hint.removeEventListener('click', openNearest);
+    document.removeEventListener('click', handleMarkerPointer, true);
     if (channel) supabase.removeChannel(channel);
     overlay.remove();
     hint.remove();
