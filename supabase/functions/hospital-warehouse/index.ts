@@ -1,3 +1,4 @@
+// Hospital batch refresh 2026-07-20: warehouse edge function deploy marker.
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
@@ -108,6 +109,7 @@ serve(async (req) => {
     const medicineType = normalizeText(body.medicineType, 48);
     const target = normalizeText(body.target, 64);
     const rank = normalizeText(body.rank, 24).toLowerCase();
+    const source = normalizeText(body.source, 32).toLowerCase();
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -230,6 +232,27 @@ serve(async (req) => {
         functionName = 'player_use_medicine';
         args = { p_actor_tg_id: actorTgId, p_medicine_type: medicineType };
         break;
+      case 'use_inventory_item':
+        if (!itemType) return jsonResponse({ ok: false, error: 'INVALID_ITEM_REQUEST' });
+        functionName = 'player_use_inventory_item';
+        args = {
+          p_actor_tg_id: actorTgId,
+          p_item_type: itemType,
+          p_source: source || 'personal',
+          p_hospital_id: hospitalId || null,
+        };
+        break;
+      case 'cafeteria_menu':
+        functionName = 'cafeteria_get_menu';
+        args = {};
+        break;
+      case 'cafeteria_buy': {
+        const quantity = normalizeQuantity(body.quantity, 100);
+        if (!itemType || !quantity) return jsonResponse({ ok: false, error: 'INVALID_CAFETERIA_BUY_REQUEST' });
+        functionName = 'cafeteria_buy_item';
+        args = { p_actor_tg_id: actorTgId, p_item_type: itemType, p_quantity: quantity };
+        break;
+      }
       case 'process_treatment':
         functionName = 'hospital_process_my_treatment';
         args = { p_patient_tg_id: actorTgId };
@@ -263,4 +286,3 @@ serve(async (req) => {
     });
   }
 });
-
