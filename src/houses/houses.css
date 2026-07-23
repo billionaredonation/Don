@@ -5207,6 +5207,201 @@ body.mn-house-spawn-open .home .mobile-stamina {
 }
 
 /*
+ * Mobile density pass
+ * -------------------
+ * Leave a little breathing room around every gameplay window and switch to a
+ * tighter layout while the operating-system keyboard owns part of the screen.
+ */
+@media (hover: none) and (pointer: coarse) {
+  html body.mn-mobile-game-enabled :is(
+    .houses-panel,
+    .house-details-panel,
+    .house-trade-offer-card,
+    .house-spawn-card,
+    .mn-inventory-panel,
+    .mn-hospital-warehouse-panel,
+    .mn-hospital-cafeteria-panel,
+    .mn-hospital-management-panel,
+    .mn-player-interaction-panel
+  ),
+  html body.mn-landscape-game :is(
+    .houses-panel,
+    .house-details-panel,
+    .house-trade-offer-card,
+    .house-spawn-card,
+    .mn-inventory-panel,
+    .mn-hospital-warehouse-panel,
+    .mn-hospital-cafeteria-panel,
+    .mn-hospital-management-panel,
+    .mn-player-interaction-panel
+  ) {
+    max-width: 94% !important;
+    max-height: 92% !important;
+  }
+
+  html body.mn-mobile-game-enabled .houses-panel,
+  html body.mn-landscape-game .houses-panel {
+    width: min(680px, 94%) !important;
+  }
+
+  html body.mn-mobile-game-enabled .house-details-panel,
+  html body.mn-landscape-game .house-details-panel {
+    width: min(490px, 94%) !important;
+  }
+
+  html body.mn-mobile-game-enabled .house-trade-offer-card,
+  html body.mn-landscape-game .house-trade-offer-card {
+    width: min(420px, 94%) !important;
+  }
+
+  html body.mn-mobile-game-enabled .house-spawn-card,
+  html body.mn-landscape-game .house-spawn-card {
+    width: min(610px, 94%) !important;
+  }
+
+  html body.mn-mobile-game-enabled .mn-hospital-warehouse-panel,
+  html body.mn-landscape-game .mn-hospital-warehouse-panel {
+    width: min(920px, 94%) !important;
+  }
+
+  html body.mn-mobile-game-enabled .mn-hospital-cafeteria-panel,
+  html body.mn-landscape-game .mn-hospital-cafeteria-panel {
+    width: min(520px, 94%) !important;
+  }
+
+  html body.mn-mobile-game-enabled .mn-hospital-management-panel,
+  html body.mn-landscape-game .mn-hospital-management-panel {
+    width: min(880px, 94%) !important;
+  }
+
+  html body.mn-mobile-game-enabled .mn-player-interaction-panel,
+  html body.mn-landscape-game .mn-player-interaction-panel {
+    width: min(600px, 94%) !important;
+  }
+
+  /* F2 is a quiet affordance on touch screens, not a permanent HUD panel. */
+  .mn-hospital-management-hint {
+    right: max(9px, env(safe-area-inset-right)) !important;
+    bottom: max(12px, env(safe-area-inset-bottom)) !important;
+    gap: 5px !important;
+    padding: 4px 7px 4px 4px !important;
+    border-radius: 11px !important;
+    opacity: 0.7;
+    font-size: 9px !important;
+    box-shadow: 0 7px 20px rgba(0, 0, 0, 0.34) !important;
+    transition: opacity 140ms ease;
+  }
+
+  .mn-hospital-management-hint b {
+    width: 25px !important;
+    height: 23px !important;
+    border-radius: 7px !important;
+    font-size: 10px !important;
+  }
+
+  .mn-hospital-management-hint span {
+    white-space: nowrap;
+  }
+
+  .mn-hospital-management-hint:active {
+    opacity: 1;
+  }
+
+  html.mn-text-entry-focused body .mn-hospital-management-hint,
+  body.mn-text-entry-focused .mn-hospital-management-hint {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  html.mn-virtual-keyboard-open body :is(
+    .houses-panel,
+    .house-details-panel,
+    .house-trade-offer-card,
+    .house-spawn-card,
+    .mn-inventory-panel,
+    .mn-hospital-warehouse-panel,
+    .mn-hospital-cafeteria-panel,
+    .mn-hospital-management-panel,
+    .mn-player-interaction-panel
+  ),
+  body.mn-virtual-keyboard-open :is(
+    .houses-panel,
+    .house-details-panel,
+    .house-trade-offer-card,
+    .house-spawn-card,
+    .mn-inventory-panel,
+    .mn-hospital-warehouse-panel,
+    .mn-hospital-cafeteria-panel,
+    .mn-hospital-management-panel,
+    .mn-player-interaction-panel
+  ) {
+    max-width: 90% !important;
+    max-height: 88% !important;
+  }
+
+  html.mn-virtual-keyboard-open body .mn-hospital-management-panel,
+  body.mn-virtual-keyboard-open .mn-hospital-management-panel {
+    width: min(820px, 90%) !important;
+    padding: 8px !important;
+  }
+
+  html.mn-virtual-keyboard-open body .mn-hospital-management-panel > header,
+  body.mn-virtual-keyboard-open .mn-hospital-management-panel > header {
+    gap: 8px !important;
+    margin-bottom: 6px !important;
+  }
+
+  html.mn-virtual-keyboard-open body .mn-hospital-management-panel > header strong,
+  body.mn-virtual-keyboard-open .mn-hospital-management-panel > header strong {
+    font-size: 18px !important;
+  }
+
+  html.mn-virtual-keyboard-open body :is(
+    .mn-hospital-management-body,
+    .mn-hospital-management-section
+  ),
+  body.mn-virtual-keyboard-open :is(
+    .mn-hospital-management-body,
+    .mn-hospital-management-section
+  ) {
+    gap: 7px !important;
+  }
+
+  html.mn-virtual-keyboard-open body .mn-hospital-management-section,
+  body.mn-virtual-keyboard-open .mn-hospital-management-section {
+    padding: 8px !important;
+  }
+
+  html.mn-virtual-keyboard-open body :is(
+    .mn-hospital-management-summary span,
+    .mn-hospital-management-stock article,
+    .mn-hospital-management-employees article,
+    .mn-hospital-management-staff-form
+  ),
+  body.mn-virtual-keyboard-open :is(
+    .mn-hospital-management-summary span,
+    .mn-hospital-management-stock article,
+    .mn-hospital-management-employees article,
+    .mn-hospital-management-staff-form
+  ) {
+    padding: 8px !important;
+  }
+}
+
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape body .mn-hospital-management-hint,
+  body.mn-force-rotate-landscape .mn-hospital-management-hint {
+    left: max(18px, calc(env(safe-area-inset-left) + 18px)) !important;
+    right: auto !important;
+    top: 58% !important;
+    bottom: auto !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+}
+
+/*
  * Visibility invariant
  * --------------------
  * JavaScript owns when a modal is open. Mobile layout rules must never
