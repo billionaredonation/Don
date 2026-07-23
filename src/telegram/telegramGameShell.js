@@ -1,3 +1,6 @@
+let largestTouchViewportHeight = 0;
+let lastTouchOrientation = '';
+
 function getViewportSize() {
   const width = Math.max(
     1,
@@ -38,14 +41,51 @@ function isDesktopDevice() {
   );
 }
 
+function getViewportOrientation(width, height) {
+  const portraitQuery = window.matchMedia?.('(orientation: portrait)');
+
+  if (typeof portraitQuery?.matches === 'boolean') {
+    return portraitQuery.matches ? 'portrait' : 'landscape';
+  }
+
+  return height > width ? 'portrait' : 'landscape';
+}
+
+function isTextEntryFocused() {
+  const activeElement = document.activeElement;
+
+  return Boolean(
+    activeElement?.matches?.(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
+    )
+  );
+}
+
 function syncViewportState() {
   const { width, height } = getViewportSize();
   const viewportLeft = Math.max(0, Math.round(window.visualViewport?.offsetLeft || 0));
   const viewportTop = Math.max(0, Math.round(window.visualViewport?.offsetTop || 0));
   const mobile = isTouchDevice();
   const desktop = isDesktopDevice();
-  const landscape = width >= height;
-  const portrait = height > width;
+  const orientation = getViewportOrientation(width, height);
+  const landscape = orientation === 'landscape';
+  const portrait = orientation === 'portrait';
+  const textEntryFocused = isTextEntryFocused();
+
+  if (!mobile) {
+    largestTouchViewportHeight = 0;
+    lastTouchOrientation = '';
+  } else if (lastTouchOrientation !== orientation) {
+    lastTouchOrientation = orientation;
+    largestTouchViewportHeight = height;
+  } else if (!textEntryFocused) {
+    largestTouchViewportHeight = Math.max(largestTouchViewportHeight, height);
+  }
+
+  const hiddenViewportHeight = Math.max(0, largestTouchViewportHeight - height);
+  const keyboardThreshold = Math.max(110, largestTouchViewportHeight * 0.16);
+  const virtualKeyboardOpen =
+    mobile && textEntryFocused && hiddenViewportHeight >= keyboardThreshold;
 
   document.documentElement.style.setProperty('--mn-vw', `${width}px`);
   document.documentElement.style.setProperty('--mn-vh', `${height}px`);
@@ -53,16 +93,27 @@ function syncViewportState() {
   document.documentElement.style.setProperty('--tg-vh', `${height}px`);
   document.documentElement.style.setProperty('--mn-vv-left', `${viewportLeft}px`);
   document.documentElement.style.setProperty('--mn-vv-top', `${viewportTop}px`);
+  document.documentElement.style.setProperty(
+    '--mn-keyboard-height',
+    `${hiddenViewportHeight}px`
+  );
 
   document.documentElement.classList.toggle('mn-real-landscape', mobile && landscape);
   document.documentElement.classList.toggle('mn-force-rotate-landscape', mobile && portrait);
   document.documentElement.classList.toggle('mn-real-portrait', mobile && portrait);
   document.documentElement.classList.toggle('mn-desktop-game-enabled', desktop);
+  document.documentElement.classList.toggle(
+    'mn-text-entry-focused',
+    mobile && textEntryFocused
+  );
+  document.documentElement.classList.toggle('mn-virtual-keyboard-open', virtualKeyboardOpen);
 
   document.body?.classList.toggle('mn-real-landscape', mobile && landscape);
   document.body?.classList.toggle('mn-force-rotate-landscape', mobile && portrait);
   document.body?.classList.toggle('mn-real-portrait', mobile && portrait);
   document.body?.classList.toggle('mn-desktop-game-enabled', desktop);
+  document.body?.classList.toggle('mn-text-entry-focused', mobile && textEntryFocused);
+  document.body?.classList.toggle('mn-virtual-keyboard-open', virtualKeyboardOpen);
 }
 
 async function requestFullscreenSafe(options = {}) {
@@ -150,6 +201,15 @@ export function setupTelegramGameShell() {
 
   window.visualViewport?.addEventListener?.('resize', syncViewportState, { passive: true });
   window.visualViewport?.addEventListener?.('scroll', syncViewportState, { passive: true });
+
+  const syncFocusedViewport = () => {
+    syncViewportState();
+    window.requestAnimationFrame(syncViewportState);
+    window.setTimeout(syncViewportState, 280);
+  };
+
+  document.addEventListener('focusin', syncFocusedViewport, true);
+  document.addEventListener('focusout', syncFocusedViewport, true);
 
   document.addEventListener(
     'touchmove',
