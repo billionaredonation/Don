@@ -40,6 +40,8 @@ function isDesktopDevice() {
 
 function syncViewportState() {
   const { width, height } = getViewportSize();
+  const viewportLeft = Math.max(0, Math.round(window.visualViewport?.offsetLeft || 0));
+  const viewportTop = Math.max(0, Math.round(window.visualViewport?.offsetTop || 0));
   const mobile = isTouchDevice();
   const desktop = isDesktopDevice();
   const landscape = width >= height;
@@ -49,6 +51,8 @@ function syncViewportState() {
   document.documentElement.style.setProperty('--mn-vh', `${height}px`);
   document.documentElement.style.setProperty('--tg-vw', `${width}px`);
   document.documentElement.style.setProperty('--tg-vh', `${height}px`);
+  document.documentElement.style.setProperty('--mn-vv-left', `${viewportLeft}px`);
+  document.documentElement.style.setProperty('--mn-vv-top', `${viewportTop}px`);
 
   document.documentElement.classList.toggle('mn-real-landscape', mobile && landscape);
   document.documentElement.classList.toggle('mn-force-rotate-landscape', mobile && portrait);
@@ -156,7 +160,20 @@ export function setupTelegramGameShell() {
         target?.closest?.('.houses-panel') ||
         target?.closest?.('.house-details-panel') ||
         target?.closest?.('.admin-panel') ||
-        target?.closest?.('.houses-filter-menu');
+        target?.closest?.('.houses-filter-menu') ||
+        target?.closest?.('.house-trade-offer-card') ||
+        target?.closest?.('.house-spawn-card') ||
+        target?.closest?.('.mn-inventory-panel') ||
+        target?.closest?.('.mn-inventory-content') ||
+        target?.closest?.('.mn-inventory-item-menu-card') ||
+        target?.closest?.('.mn-hospital-warehouse-panel') ||
+        target?.closest?.('.mn-hospital-warehouse-body') ||
+        target?.closest?.('.mn-hospital-cafeteria-panel') ||
+        target?.closest?.('.mn-hospital-management-panel') ||
+        target?.closest?.('.mn-player-interaction-panel') ||
+        target?.closest?.('.map-modal-panel') ||
+        target?.closest?.('.mn-interior-object-panel') ||
+        target?.closest?.('.mn-interior-collider-panel');
 
       if (allowScroll) return;
 
