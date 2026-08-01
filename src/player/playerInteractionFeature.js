@@ -1,10 +1,9 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import {
-  getHospitalUserErrorMessage,
-  issueMedicineFromInteraction,
-  loadMyHospitalEmployments,
-} from '../hospital/hospitalWarehouseFeature.js';
+  invalidateProfessionalPlayerActions,
+  loadAvailableProfessionalPlayerActions,
+} from './professionalActions.js';
 import './playerInteraction.css';
 
 const FUNCTION_NAME = 'player-interaction';
@@ -131,10 +130,6 @@ function formatOffer(offer = {}) {
   return parts.length ? parts.join(' · ') : 'Ничего';
 }
 
-function rankLevel(rank) {
-  return ({ junior: 1, middle: 2, senior: 3, admin: 4 })[String(rank || '').toLowerCase()] || 0;
-}
-
 function markup() {
   return `
     <button type="button" class="mn-player-interaction-hint" data-player-interaction-hint hidden>
@@ -148,7 +143,6 @@ function markup() {
           <button type="button" data-player-interaction-close aria-label="Закрыть">×</button>
         </header>
         <nav data-player-interaction-actions>
-          <button type="button" data-player-action="heal"><i>✚</i><span>Вылечить<small>Применить препарат</small></span></button>
           <button type="button" data-player-action="money"><i>₴</i><span>Передать деньги<small>Мгновенный перевод</small></span></button>
           <button type="button" data-player-action="trade"><i>⇄</i><span>Совершить трейд<small>Деньги и препараты</small></span></button>
         </nav>
@@ -206,6 +200,8 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   let busy = false;
   let incomingOffer = null;
   let destroyed = false;
+  let professionalRefreshToken = 0;
+  let professionalActions = new Map();
 
   function setMessage(value, type = 'info') {
     message.hidden = !value;
@@ -218,8 +214,56 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     panel.dataset.busy = busy ? 'true' : 'false';
     panel.querySelectorAll('button, input, select').forEach((element) => {
       if (element.matches('[data-player-interaction-close]')) return;
-      element.disabled = busy;
+
+      if (busy) {
+        element.dataset.disabledBeforeBusy = element.disabled ? 'true' : 'false';
+        element.disabled = true;
+        return;
+      }
+
+      element.disabled = element.dataset.disabledBeforeBusy === 'true';
+      delete element.dataset.disabledBeforeBusy;
     });
+  }
+
+  function renderProfessionalActionButtons(entries) {
+    actions.querySelectorAll('[data-professional-player-action]').forEach((element) => {
+      element.remove();
+    });
+
+    const firstBaseAction = actions.querySelector('[data-player-action="money"]');
+
+    entries.forEach(({ action }) => {
+      const button = document.createElement('button');
+      const icon = document.createElement('i');
+      const labels = document.createElement('span');
+      const label = document.createTextNode(action.button?.label || action.id);
+      const description = document.createElement('small');
+
+      button.type = 'button';
+      button.dataset.playerAction = action.id;
+      button.dataset.professionalPlayerAction = action.id;
+      icon.textContent = action.button?.icon || '◆';
+      description.textContent = action.button?.description || 'Профессиональное действие';
+      labels.append(label, description);
+      button.append(icon, labels);
+      actions.insertBefore(button, firstBaseAction);
+    });
+  }
+
+  async function refreshProfessionalActions({ force = false } = {}) {
+    const refreshToken = ++professionalRefreshToken;
+    const entries = await loadAvailableProfessionalPlayerActions(
+      { actorTgId: localTelegramId() },
+      { force }
+    );
+
+    if (destroyed || refreshToken !== professionalRefreshToken) return;
+
+    professionalActions = new Map(
+      entries.map((entry) => [entry.action.id, entry])
+    );
+    renderProfessionalActionButtons(entries);
   }
 
   function close() {
@@ -241,75 +285,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     overlay.hidden = false;
     overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-player-interaction-open');
-  }
-
-  async function showHeal() {
-    content.innerHTML = '<p>Проверяю место работы и личные препараты…</p>';
-    setMessage('');
-    try {
-      const employments = await loadMyHospitalEmployments();
-      if (!employments.length) {
-        content.innerHTML = '<p>Лечение доступно только сотруднику больницы. Назначение старшего состава выполняется командой Telegram.</p>';
-        return;
-      }
-      content.innerHTML = `
-        <div class="mn-player-action-form">
-          <label><span>Больница</span><select data-heal-hospital>${employments.map((employment, index) => `<option value="${index}">${employment.displayName || 'Больница'}</option>`).join('')}</select></label>
-          <label><span>Препарат</span><select data-heal-medicine></select></label>
-          <label><span>Цена для игрока <small>можно 0</small></span><input type="number" min="0" step="1" inputmode="numeric" value="0" data-heal-price></label>
-          <button type="button" class="is-primary" data-heal-submit>Выдать препарат</button>
-          <small>Сервер проверит должность врача, личные таблетки, HP пациента, еду и воду. Игрок получит таблетку в инвентарь и применит её сам.</small>
-        </div>`;
-      const hospitalSelect = content.querySelector('[data-heal-hospital]');
-      const medicineSelect = content.querySelector('[data-heal-medicine]');
-      const priceInput = content.querySelector('[data-heal-price]');
-      const submit = content.querySelector('[data-heal-submit]');
-      const renderMedicines = () => {
-        const employment = employments[Number(hospitalSelect.value || 0)] || employments[0];
-        const level = rankLevel(employment.rank);
-        const available = (employment.items || []).filter((item) =>
-          Number(item.personalQuantity || 0) > 0 && level >= Number(item.minTreatRank || 1)
-        );
-        medicineSelect.innerHTML = available.map((item) =>
-          `<option value="${item.itemType}">${item.label} · ${Number(item.personalQuantity || 0)} шт.</option>`
-        ).join('');
-        submit.disabled = !available.length;
-        if (!available.length) setMessage('Нет доступных препаратов. Получите их со склада больницы.', 'error');
-        else setMessage('');
-      };
-      hospitalSelect.addEventListener('change', renderMedicines);
-      renderMedicines();
-      submit.addEventListener('click', async () => {
-        if (busy || !medicineSelect.value || !target) return;
-        const employment = employments[Number(hospitalSelect.value || 0)] || employments[0];
-        const price = Math.max(0, Math.floor(Number(priceInput.value || 0)));
-        setBusy(true);
-        try {
-          const result = await issueMedicineFromInteraction({
-            hospitalId: employment.hospitalId,
-            target: target.target,
-            medicineType: medicineSelect.value,
-            price,
-          });
-          await broadcastTo(result?.patientTgId, 'medicine_received', {
-            medicineLabel: result?.medicineLabel,
-            doctorNickname: state.nickname || 'Врач',
-            price: result?.price || 0,
-          });
-          setMessage(
-            `${result?.medicineLabel || 'Препарат'} выдан игроку ${result?.patientNickname || target.nickname}. Игрок должен открыть инвентарь и применить таблетку.`,
-            'success'
-          );
-        } catch (error) {
-          setMessage(getHospitalUserErrorMessage(error), 'error');
-        } finally {
-          setBusy(false);
-        }
-      });
-    } catch (error) {
-      content.innerHTML = '<p>Не удалось загрузить данные больницы.</p>';
-      setMessage(getHospitalUserErrorMessage(error), 'error');
-    }
+    void refreshProfessionalActions();
   }
 
   function showMoney() {
@@ -498,14 +474,44 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     actions.querySelectorAll('[data-player-action]').forEach((element) => {
       element.dataset.active = element === button ? 'true' : 'false';
     });
-    if (button.dataset.playerAction === 'heal') void showHeal();
-    if (button.dataset.playerAction === 'money') showMoney();
-    if (button.dataset.playerAction === 'trade') void showTrade();
+
+    const actionId = button.dataset.playerAction;
+    const professionalEntry = professionalActions.get(actionId);
+
+    if (professionalEntry) {
+      const selectedTarget = target;
+
+      void professionalEntry.action.render({
+        access: professionalEntry.access,
+        target: selectedTarget,
+        content,
+        setBusy,
+        isBusy: () => busy,
+        setMessage,
+        broadcastTo,
+        isTargetActive: () => (
+          !overlay.hidden &&
+          target === selectedTarget &&
+          professionalActions.has(actionId)
+        ),
+      });
+      return;
+    }
+
+    if (actionId === 'money') showMoney();
+    if (actionId === 'trade') void showTrade();
   });
+
+  function handleProfessionalActionsChanged() {
+    invalidateProfessionalPlayerActions();
+    void refreshProfessionalActions({ force: true });
+  }
+
   closeButtons.forEach((button) => button.addEventListener('click', close));
   hint.addEventListener('click', openNearest);
   document.addEventListener('click', handleMarkerPointer, true);
   window.addEventListener('keydown', handleKeyDown, true);
+  window.addEventListener('mn:professional-actions-changed', handleProfessionalActionsChanged);
 
   const tgId = localTelegramId();
   const channel = tgId ? supabase.channel(`mn-player-interactions:${tgId}`) : null;
@@ -533,6 +539,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   const hintTimer = window.setInterval(updateHint, 260);
   const pollTimer = window.setInterval(checkIncoming, 4200);
   window.setTimeout(checkIncoming, 1200);
+  void refreshProfessionalActions();
   updateHint();
 
   return () => {
@@ -540,6 +547,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     window.clearInterval(hintTimer);
     window.clearInterval(pollTimer);
     window.removeEventListener('keydown', handleKeyDown, true);
+    window.removeEventListener('mn:professional-actions-changed', handleProfessionalActionsChanged);
     closeButtons.forEach((button) => button.removeEventListener('click', close));
     hint.removeEventListener('click', openNearest);
     document.removeEventListener('click', handleMarkerPointer, true);
@@ -549,5 +557,3 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     document.body.classList.remove('mn-player-interaction-open');
   };
 }
-
-
