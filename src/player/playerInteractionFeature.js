@@ -4,11 +4,14 @@ import {
   invalidateProfessionalPlayerActions,
   loadAvailableProfessionalPlayerActions,
 } from './professionalActions.js';
+import { loadMyMedicalInventory } from '../hospital/hospitalWarehouseFeature.js';
 import './playerInteraction.css';
 
 const FUNCTION_NAME = 'player-interaction';
 const CITY_DISTANCE = 3.4;
 const INTERIOR_DISTANCE = 5.2;
+const TRADE_SLOT_COUNT = 9;
+const TRADE_CONFIRM_DELAY_MS = 4000;
 const MEDICINES = Object.freeze([
   { type: 'medicine_light', label: 'Слабоседативные / простые таблетки', shortLabel: 'Простые таблетки' },
   { type: 'medicine_strong', label: 'Среднеседативные / сильные таблетки', shortLabel: 'Сильные таблетки' },
@@ -57,10 +60,10 @@ function errorText(error) {
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела. Перезапустите игру.',
     BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
     CANNOT_TRANSFER_TO_SELF: 'Нельзя перевести деньги самому себе.',
-    TRADE_OFFER_EMPTY: 'Добавьте в предложение деньги или препарат.',
+    TRADE_OFFER_EMPTY: 'Добавьте в предложение деньги или предмет.',
     TRADE_ALREADY_PENDING: 'У вас уже есть активное предложение обмена.',
     TRADE_BALANCE_NOT_ENOUGH: 'Для этой сделки недостаточно денег.',
-    TRADE_ITEM_NOT_ENOUGH: 'Для этой сделки недостаточно препаратов.',
+    TRADE_ITEM_NOT_ENOUGH: 'Для этой сделки недостаточно предметов.',
     TRADE_NOT_PENDING: 'Предложение уже закрыто.',
     TRADE_EXPIRED: 'Время предложения истекло.',
     PLAYER_NOT_FOUND: 'Игрок не найден.',
@@ -109,23 +112,122 @@ function nearestMarker(playerPosition) {
     .sort((a, b) => a.distance - b.distance)[0] || null;
 }
 
-function tradeOfferFrom(container) {
-  const read = (key) => Math.max(0, Math.floor(Number(container.querySelector(`[data-trade-value="${key}"]`)?.value || 0)));
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function tradeItemMeta(itemType, item = {}) {
+  const medicine = MEDICINES.find((entry) => entry.type === itemType);
+  if (medicine) return { label: item.label || medicine.shortLabel, icon: item.icon || '💊' };
+  if (itemType === 'food') return { label: item.label || 'Обед', icon: item.icon || '🍔' };
   return {
-    money: read('money'),
-    medicine_light: read('medicine_light'),
-    medicine_strong: read('medicine_strong'),
-    medicine_resuscitation: read('medicine_resuscitation'),
+    label: item.label || item.name || itemType || 'Предмет',
+    icon: item.icon || '◈',
   };
+}
+
+function tradeItemKey(item = {}) {
+  return [item.itemType, item.source || 'personal', item.hospitalId || ''].join('::');
+}
+
+function normalizeTradeInventory(inventory = {}) {
+  const source = inventory.items;
+  const rawItems = Array.isArray(source)
+    ? source
+    : Object.entries(source && typeof source === 'object' ? source : {})
+      .map(([itemType, value]) => (
+        value && typeof value === 'object'
+          ? { ...value, itemType: value.itemType || itemType }
+          : { itemType, quantity: value }
+      ));
+
+  return rawItems
+    .map((item) => {
+      const itemType = String(item?.itemType || item?.type || '').trim();
+      const quantity = Math.max(0, Math.floor(Number(item?.quantity || 0)));
+      const meta = tradeItemMeta(itemType, item || {});
+      return {
+        itemType,
+        quantity,
+        source: String(item?.source || item?.inventorySource || 'personal').trim() || 'personal',
+        hospitalId: String(item?.hospitalId || '').trim() || null,
+        label: meta.label,
+        icon: meta.icon,
+      };
+    })
+    .filter((item) => item.itemType && item.quantity > 0);
+}
+
+function normalizeOfferItems(offer = {}) {
+  if (Array.isArray(offer.items)) {
+    return offer.items
+      .map((item) => {
+        const itemType = String(item?.itemType || item?.type || '').trim();
+        const quantity = Math.max(0, Math.floor(Number(item?.quantity || 0)));
+        const meta = tradeItemMeta(itemType, item || {});
+        return {
+          itemType,
+          quantity,
+          source: String(item?.source || 'personal').trim() || 'personal',
+          hospitalId: String(item?.hospitalId || '').trim() || null,
+          label: meta.label,
+          icon: meta.icon,
+        };
+      })
+      .filter((item) => item.itemType && item.quantity > 0)
+      .slice(0, TRADE_SLOT_COUNT);
+  }
+
+  return Object.entries(offer || {})
+    .filter(([itemType, quantity]) => itemType !== 'money' && itemType !== 'items' && Number(quantity) > 0)
+    .map(([itemType, quantity]) => {
+      const meta = tradeItemMeta(itemType);
+      return {
+        itemType,
+        quantity: Math.max(0, Math.floor(Number(quantity || 0))),
+        source: 'personal',
+        hospitalId: null,
+        label: meta.label,
+        icon: meta.icon,
+      };
+    })
+    .slice(0, TRADE_SLOT_COUNT);
+}
+
+function buildTradeOffer(money, slots = []) {
+  const items = slots
+    .filter((item) => item?.itemType && Number(item.quantity) > 0)
+    .slice(0, TRADE_SLOT_COUNT)
+    .map((item) => ({
+      itemType: String(item.itemType),
+      quantity: Math.max(1, Math.floor(Number(item.quantity))),
+      source: String(item.source || 'personal'),
+      hospitalId: item.hospitalId || null,
+    }));
+  const result = {
+    money: Math.max(0, Math.floor(Number(money || 0))),
+    items,
+  };
+
+  // Keep top-level quantities for the already deployed trade RPC while the
+  // items array lets the same endpoint accept every current and future item.
+  items.forEach((item) => {
+    result[item.itemType] = Math.max(0, Math.floor(Number(result[item.itemType] || 0))) + item.quantity;
+  });
+  return result;
 }
 
 function formatOffer(offer = {}) {
   const parts = [];
   const money = Math.max(0, Math.floor(Number(offer.money || 0)));
   if (money) parts.push(`${money.toLocaleString('ru-RU')} ₴`);
-  MEDICINES.forEach((item) => {
-    const quantity = Math.max(0, Math.floor(Number(offer[item.type] || 0)));
-    if (quantity) parts.push(`${item.label}: ${quantity}`);
+  normalizeOfferItems(offer).forEach((item) => {
+    parts.push(`${item.label}: ${item.quantity}`);
   });
   return parts.length ? parts.join(' · ') : 'Ничего';
 }
@@ -170,13 +272,87 @@ function markup() {
     </div>`;
 }
 
-function tradeFieldsMarkup(inventory = {}) {
-  const items = inventory.items || {};
-  return `
-    <div class="mn-player-trade-fields">
-      <label><span>Деньги <small>доступно ${Number(inventory.balance || 0).toLocaleString('ru-RU')} ₴</small></span><input type="number" min="0" max="1000000000" step="1" value="0" data-trade-value="money"></label>
-      ${MEDICINES.map((item) => `<label><span>${item.shortLabel}<small>доступно ${Number(items[item.type] || 0)}</small></span><input type="number" min="0" max="1000" step="1" value="0" data-trade-value="${item.type}"></label>`).join('')}
-    </div>`;
+function tradeSlotsMarkup(slots = [], { readonly = false } = {}) {
+  return Array.from({ length: TRADE_SLOT_COUNT }, (_, index) => {
+    const item = slots[index];
+    if (!item) {
+      return `<span class="mn-player-trade-slot is-empty" aria-label="Пустая ячейка ${index + 1}"></span>`;
+    }
+    const meta = tradeItemMeta(item.itemType, item);
+    const label = escapeHtml(meta.label);
+    const icon = escapeHtml(meta.icon);
+    const quantity = Math.max(1, Math.floor(Number(item.quantity || 1)));
+    const tag = readonly ? 'span' : 'button';
+    const attributes = readonly
+      ? ''
+      : ` type="button" data-trade-offer-slot="${index}" title="Убрать одну единицу"`;
+    return `<${tag} class="mn-player-trade-slot is-filled"${attributes} aria-label="${label}: ${quantity}">
+      <i aria-hidden="true">${icon}</i><b>${quantity}</b><small>${label}</small>
+    </${tag}>`;
+  }).join('');
+}
+
+function tradeInventoryMarkup(items = [], reserved = new Map()) {
+  if (!items.length) {
+    return '<p class="mn-player-trade-empty">Нет доступных предметов.</p>';
+  }
+  return items.map((item, index) => {
+    const available = Math.max(0, item.quantity - Number(reserved.get(tradeItemKey(item)) || 0));
+    const disabled = available <= 0 ? ' disabled' : '';
+    return `<button type="button" class="mn-player-trade-inventory-item" data-trade-inventory-index="${index}"${disabled} aria-label="Добавить ${escapeHtml(item.label)}">
+      <i aria-hidden="true">${escapeHtml(item.icon)}</i>
+      <span><strong>${escapeHtml(item.label)}</strong><small>Доступно: ${available}</small></span>
+      <b>+</b>
+    </button>`;
+  }).join('');
+}
+
+function readonlyTradeOfferMarkup(offer = {}, title = 'Игрок отдаёт') {
+  const items = normalizeOfferItems(offer);
+  const money = Math.max(0, Math.floor(Number(offer.money || 0)));
+  return `<section class="mn-player-trade-offer-card is-readonly">
+    <header><strong>${escapeHtml(title)}</strong><small>${escapeHtml(formatOffer(offer))}</small></header>
+    <div class="mn-player-trade-slot-grid" aria-label="Предметы второго игрока">${tradeSlotsMarkup(items, { readonly: true })}</div>
+    <div class="mn-player-trade-money-summary"><span>Деньги</span><b>${money.toLocaleString('ru-RU')} ₴</b></div>
+  </section>`;
+}
+
+function editableTradeMarkup(inventory = {}, title = 'Вы отдаёте') {
+  return `<section class="mn-player-trade-offer-card" data-trade-composer>
+    <header><strong>${escapeHtml(title)}</strong><small>Нажмите предмет в инвентаре, чтобы положить его в обмен</small></header>
+    <div class="mn-player-trade-slot-grid" data-trade-offer-grid aria-label="Ваше поле обмена"></div>
+    <label class="mn-player-trade-money"><span>Деньги <small>доступно ${Number(inventory.balance || 0).toLocaleString('ru-RU')} ₴</small></span><input type="number" min="0" max="1000000000" step="1" value="0" data-trade-money></label>
+  </section>
+  <section class="mn-player-trade-inventory-card">
+    <header><strong>Ваш инвентарь</strong><small>Предметы добавляются по одной единице</small></header>
+    <div class="mn-player-trade-inventory-list" data-trade-inventory-list></div>
+  </section>`;
+}
+
+async function loadTradeInventory() {
+  const tradeInventory = await invokePlayerAction('trade_inventory');
+  let playerInventory = null;
+  try {
+    playerInventory = await loadMyMedicalInventory();
+  } catch {
+    // The trade endpoint remains the source of truth and is enough for the
+    // existing items if the general inventory endpoint is temporarily down.
+  }
+
+  const items = new Map();
+  const addPersonalItems = (source) => {
+    normalizeTradeInventory(source).forEach((item) => {
+      const inventorySource = String(item.source || 'personal').toLowerCase();
+      if (['employee', 'staff', 'service'].includes(inventorySource)) return;
+      const key = tradeItemKey(item);
+      const current = items.get(key);
+      if (!current || item.quantity > current.quantity) items.set(key, item);
+    });
+  };
+
+  addPersonalItems(tradeInventory);
+  addPersonalItems(playerInventory || {});
+  return { ...tradeInventory, items: [...items.values()] };
 }
 
 function toast(message, type = 'info') {
@@ -232,6 +408,8 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   let layoutFrame = 0;
   let numberPadTarget = null;
   let numberPadInitialValue = '';
+  let tradeCountdownTimer = 0;
+  let tradeComposerCleanup = null;
 
   const customNumberPadEnabled = Boolean(
     numberPad &&
@@ -313,6 +491,105 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
       input.setAttribute('inputmode', 'none');
       input.setAttribute('data-player-custom-number', 'true');
     });
+  }
+
+  function clearTradeUi() {
+    window.clearInterval(tradeCountdownTimer);
+    tradeCountdownTimer = 0;
+    tradeComposerCleanup?.();
+    tradeComposerCleanup = null;
+    delete panel.dataset.trade;
+  }
+
+  function createTradeComposer(root, inventory, { onChange } = {}) {
+    const inventoryItems = normalizeTradeInventory(inventory);
+    const offerGrid = root.querySelector('[data-trade-offer-grid]');
+    const inventoryList = root.querySelector('[data-trade-inventory-list]');
+    const moneyInput = root.querySelector('[data-trade-money]');
+    let slots = [];
+    let locked = false;
+
+    function reservedItems() {
+      return slots.reduce((result, item) => {
+        result.set(tradeItemKey(item), Number(result.get(tradeItemKey(item)) || 0) + Number(item.quantity || 0));
+        return result;
+      }, new Map());
+    }
+
+    function render() {
+      if (offerGrid) offerGrid.innerHTML = tradeSlotsMarkup(slots);
+      if (inventoryList) inventoryList.innerHTML = tradeInventoryMarkup(inventoryItems, reservedItems());
+      root.querySelectorAll('[data-trade-offer-slot], [data-trade-inventory-index], [data-trade-money]').forEach((element) => {
+        if (element.matches('[data-trade-money], [data-trade-offer-slot]')) {
+          element.disabled = locked;
+        } else {
+          element.disabled = locked || element.disabled;
+        }
+      });
+      root.dataset.tradeLocked = locked ? 'true' : 'false';
+    }
+
+    function changed() {
+      render();
+      onChange?.();
+    }
+
+    function addItem(index) {
+      if (locked) return;
+      const item = inventoryItems[index];
+      if (!item) return;
+      const key = tradeItemKey(item);
+      const reserved = Number(reservedItems().get(key) || 0);
+      if (reserved >= item.quantity) return;
+      const existing = slots.find((slot) => tradeItemKey(slot) === key);
+      if (existing) existing.quantity += 1;
+      else if (slots.length < TRADE_SLOT_COUNT) slots.push({ ...item, quantity: 1 });
+      else {
+        setMessage('Поле обмена заполнено: доступно 9 ячеек.', 'error');
+        return;
+      }
+      setMessage('');
+      changed();
+    }
+
+    function removeItem(index) {
+      if (locked) return;
+      const item = slots[index];
+      if (!item) return;
+      item.quantity -= 1;
+      if (item.quantity <= 0) slots.splice(index, 1);
+      changed();
+    }
+
+    function handleClick(event) {
+      const inventoryButton = event.target.closest('[data-trade-inventory-index]');
+      const offerButton = event.target.closest('[data-trade-offer-slot]');
+      if (inventoryButton) addItem(Number(inventoryButton.dataset.tradeInventoryIndex));
+      if (offerButton) removeItem(Number(offerButton.dataset.tradeOfferSlot));
+    }
+
+    function handleMoneyInput() {
+      if (!locked) onChange?.();
+    }
+
+    root.addEventListener('click', handleClick);
+    moneyInput?.addEventListener('input', handleMoneyInput);
+    prepareCustomNumberFields(root);
+    render();
+
+    return {
+      offer() {
+        return buildTradeOffer(moneyInput?.value, slots);
+      },
+      setLocked(value) {
+        locked = Boolean(value);
+        render();
+      },
+      destroy() {
+        root.removeEventListener('click', handleClick);
+        moneyInput?.removeEventListener('input', handleMoneyInput);
+      },
+    };
   }
 
   function handleNumberFieldPointer(event) {
@@ -471,6 +748,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
 
   function close() {
     closeNumberPad();
+    clearTradeUi();
     overlay.hidden = true;
     overlay.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mn-player-interaction-open');
@@ -483,6 +761,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
 
   function openFor(nextTarget) {
     closeNumberPad();
+    clearTradeUi();
     target = nextTarget;
     incomingOffer = null;
     name.textContent = target.nickname;
@@ -499,6 +778,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   }
 
   function showMoney() {
+    clearTradeUi();
     content.innerHTML = `
       <div class="mn-player-action-form">
         <label><span>Сумма перевода</span><input type="number" min="1" max="1000000000" step="1" inputmode="numeric" placeholder="0" data-money-amount></label>
@@ -529,30 +809,45 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   }
 
   async function showTrade() {
+    clearTradeUi();
+    panel.dataset.trade = 'true';
     content.innerHTML = '<p>Загружаю доступные предметы…</p>';
     setMessage('');
     try {
-      const inventory = await invokePlayerAction('trade_inventory');
+      const inventory = await loadTradeInventory();
       content.innerHTML = `
-        <div class="mn-player-action-form" data-trade-form>
-          <strong>Вы отдаёте</strong>
-          ${tradeFieldsMarkup(inventory)}
+        <div class="mn-player-action-form mn-player-trade-workspace" data-trade-form>
+          <div class="mn-player-trade-columns">
+            ${editableTradeMarkup(inventory)}
+          </div>
           <button type="button" class="is-primary" data-trade-submit>Предложить трейд</button>
-          <small>Второй игрок увидит ваше предложение и сможет добавить встречные предметы или деньги.</small>
+          <small>Количество предметов задаётся нажатием: повторное нажатие добавляет ещё один, нажатие по ячейке убирает один.</small>
         </div>`;
       const form = content.querySelector('[data-trade-form]');
-      prepareCustomNumberFields(form);
+      const composer = createTradeComposer(form, inventory);
+      tradeComposerCleanup = () => composer.destroy();
       form.querySelector('[data-trade-submit]').addEventListener('click', async () => {
         if (!target || busy) return;
+        const offer = composer.offer();
+        if (!offer.money && !offer.items.length) {
+          setMessage('Положите предмет в поле обмена или добавьте деньги.', 'error');
+          return;
+        }
+        let sent = false;
         setBusy(true);
         try {
-          const result = await invokePlayerAction('create_trade', { target: target.target, offer: tradeOfferFrom(form) });
+          const result = await invokePlayerAction('create_trade', { target: target.target, offer });
           await broadcastTo(result.targetTgId, 'trade_created', result);
           setMessage(`Предложение отправлено игроку ${result.targetNickname || target.nickname}.`, 'success');
+          sent = true;
         } catch (error) {
           setMessage(errorText(error), 'error');
         } finally {
           setBusy(false);
+          if (sent) {
+            composer.setLocked(true);
+            form.querySelector('[data-trade-submit]').disabled = true;
+          }
         }
       });
     } catch (error) {
@@ -564,6 +859,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   async function showIncoming(offer) {
     if (!offer?.offerId || destroyed) return;
     closeNumberPad();
+    clearTradeUi();
     incomingOffer = offer;
     target = {
       tgId: String(offer.initiatorTgId || ''),
@@ -573,6 +869,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     name.textContent = target.nickname;
     actions.hidden = true;
     panel.dataset.mode = 'detail';
+    panel.dataset.trade = 'true';
     content.hidden = false;
     overlay.hidden = false;
     overlay.setAttribute('aria-hidden', 'false');
@@ -581,20 +878,69 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     setMessage('');
     content.innerHTML = '<p>Загружаю ваши предметы…</p>';
     try {
-      const inventory = await invokePlayerAction('trade_inventory');
+      const inventory = await loadTradeInventory();
       content.innerHTML = `
-        <div class="mn-player-action-form" data-trade-counter-form>
-          <span class="mn-player-trade-incoming"><small>${target.nickname} предлагает</small><b>${formatOffer(offer.initiatorOffer)}</b></span>
-          <strong>Вы отдаёте взамен</strong>
-          ${tradeFieldsMarkup(inventory)}
+        <div class="mn-player-action-form mn-player-trade-workspace" data-trade-counter-form>
+          <div class="mn-player-trade-columns has-counter-offer">
+            ${readonlyTradeOfferMarkup(offer.initiatorOffer, `${target.nickname} отдаёт`)}
+            ${editableTradeMarkup(inventory, 'Вы отдаёте взамен')}
+          </div>
+          <div class="mn-player-trade-countdown" data-trade-countdown hidden>
+            <i aria-hidden="true"></i><span>Предложение зафиксировано. Проверьте обе стороны обмена.</span>
+          </div>
           <div class="mn-player-trade-actions">
             <button type="button" data-trade-reject>Отказаться</button>
-            <button type="button" class="is-primary" data-trade-accept>Принять трейд</button>
+            <button type="button" data-trade-change hidden>Изменить предложение</button>
+            <button type="button" class="is-primary" data-trade-accept data-stage="ready">Готов к обмену</button>
           </div>
-          <small>При принятии сервер ещё раз проверит деньги и препараты у обоих игроков.</small>
+          <small>После готовности запустится обязательная проверка на 4 секунды. Сервер повторно проверит деньги и предметы у обоих игроков.</small>
         </div>`;
       const form = content.querySelector('[data-trade-counter-form]');
-      prepareCustomNumberFields(form);
+      const acceptButton = form.querySelector('[data-trade-accept]');
+      const changeButton = form.querySelector('[data-trade-change]');
+      const countdown = form.querySelector('[data-trade-countdown]');
+      const composer = createTradeComposer(form, inventory, { onChange: resetCountdown });
+      tradeComposerCleanup = () => composer.destroy();
+
+      function resetCountdown() {
+        window.clearInterval(tradeCountdownTimer);
+        tradeCountdownTimer = 0;
+        composer.setLocked(false);
+        acceptButton.dataset.stage = 'ready';
+        acceptButton.textContent = 'Готов к обмену';
+        acceptButton.disabled = false;
+        changeButton.hidden = true;
+        countdown.hidden = true;
+      }
+
+      function startCountdown() {
+        closeNumberPad();
+        composer.setLocked(true);
+        changeButton.hidden = false;
+        countdown.hidden = false;
+        acceptButton.dataset.stage = 'countdown';
+        acceptButton.disabled = true;
+        const readyAt = Date.now() + TRADE_CONFIRM_DELAY_MS;
+
+        const update = () => {
+          const remainingMs = Math.max(0, readyAt - Date.now());
+          const remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+          acceptButton.textContent = `Подтвердить через ${remainingSeconds}`;
+          countdown.style.setProperty('--mn-trade-countdown-progress', `${100 - (remainingMs / TRADE_CONFIRM_DELAY_MS) * 100}%`);
+          if (remainingMs > 0) return;
+          window.clearInterval(tradeCountdownTimer);
+          tradeCountdownTimer = 0;
+          acceptButton.dataset.stage = 'confirm';
+          acceptButton.textContent = 'Подтвердить обмен';
+          acceptButton.disabled = false;
+          countdown.querySelector('span').textContent = 'Проверка завершена. Подтвердите обмен.';
+        };
+
+        update();
+        tradeCountdownTimer = window.setInterval(update, 100);
+      }
+
+      changeButton.addEventListener('click', resetCountdown);
       form.querySelector('[data-trade-reject]').addEventListener('click', async () => {
         if (busy || !incomingOffer) return;
         setBusy(true);
@@ -606,13 +952,18 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
           setMessage(errorText(error), 'error');
         } finally { setBusy(false); }
       });
-      form.querySelector('[data-trade-accept]').addEventListener('click', async () => {
+      acceptButton.addEventListener('click', async () => {
         if (busy || !incomingOffer) return;
+        if (acceptButton.dataset.stage !== 'confirm') {
+          startCountdown();
+          return;
+        }
+        const counterOffer = composer.offer();
         setBusy(true);
         try {
           const result = await invokePlayerAction('accept_trade', {
             offerId: incomingOffer.offerId,
-            offer: tradeOfferFrom(form),
+            offer: counterOffer,
           });
           state.player = { ...(state.player || {}), balance: Number(result.actorBalance) };
           window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
@@ -622,8 +973,10 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
           await broadcastTo(result.initiatorTgId, 'trade_resolved', result);
           setMessage('Трейд успешно завершён.', 'success');
           incomingOffer = null;
+          clearTradeUi();
         } catch (error) {
           setMessage(errorText(error), 'error');
+          resetCountdown();
         } finally { setBusy(false); }
       });
     } catch (error) {
@@ -695,6 +1048,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     const button = event.target.closest('[data-player-action]');
     if (!button || busy) return;
     closeNumberPad();
+    clearTradeUi();
     actions.querySelectorAll('[data-player-action]').forEach((element) => {
       element.dataset.active = element === button ? 'true' : 'false';
     });
@@ -843,6 +1197,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
 
   return () => {
     destroyed = true;
+    clearTradeUi();
     window.cancelAnimationFrame(layoutFrame);
     window.clearInterval(hintTimer);
     window.clearInterval(pollTimer);
