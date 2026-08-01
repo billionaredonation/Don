@@ -47,7 +47,7 @@ async function renderDoctorTreatment({
       <strong>Подсистема лечения</strong>
       <label><span>Больница</span><select data-heal-hospital>${employments.map((employment, index) => `<option value="${index}">${employment.displayName || 'Больница'}</option>`).join('')}</select></label>
       <label><span>Препарат</span><select data-heal-medicine></select></label>
-      <label><span>Цена лечения <small>можно 0</small></span><input type="number" min="0" step="1" inputmode="numeric" value="0" data-heal-price></label>
+      <label><span>Цена лечения <small>можно 0</small></span><input type="number" min="0" max="1000000000" step="1" inputmode="numeric" value="0" data-heal-price></label>
       <button type="button" class="is-primary" data-heal-submit>Вылечить</button>
       <small>Таблетка сразу применяется к HP пациента и не попадает в его инвентарь. Если не хватает еды, воды или денег, ничего не списывается.</small>
     </div>`;
