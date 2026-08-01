@@ -25,16 +25,56 @@ function positiveInteger(value: unknown, max = 1_000_000_000) {
 
 function normalizeOffer(value: unknown) {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
-  const amount = (key: string) => {
-    const number = Math.floor(Number(source[key] || 0));
+  const amount = (input: unknown) => {
+    const number = Math.floor(Number(input || 0));
     return Number.isSafeInteger(number) && number > 0 ? Math.min(number, 1_000_000_000) : 0;
   };
-  return {
-    money: amount('money'),
-    medicine_light: amount('medicine_light'),
-    medicine_strong: amount('medicine_strong'),
-    medicine_resuscitation: amount('medicine_resuscitation'),
+  const validItemType = (input: unknown) => {
+    const itemType = text(input, 64).toLowerCase();
+    return /^[a-z0-9][a-z0-9_:-]{0,63}$/.test(itemType) ? itemType : '';
   };
+  const normalizedItems = new Map<string, {
+    itemType: string;
+    quantity: number;
+    source: string;
+    hospitalId: string | null;
+  }>();
+  const addItem = (rawItem: Record<string, unknown>) => {
+    const itemType = validItemType(rawItem.itemType || rawItem.type);
+    const quantity = amount(rawItem.quantity);
+    if (!itemType || !quantity) return;
+    const itemSource = text(rawItem.source || 'personal', 24).toLowerCase();
+    const inventorySource = /^[a-z0-9_-]{1,24}$/.test(itemSource) ? itemSource : 'personal';
+    const hospitalId = text(rawItem.hospitalId, 80) || null;
+    const key = `${itemType}::${inventorySource}::${hospitalId || ''}`;
+    const current = normalizedItems.get(key);
+    if (current) current.quantity = Math.min(1_000_000_000, current.quantity + quantity);
+    else if (normalizedItems.size < 9) {
+      normalizedItems.set(key, { itemType, quantity, source: inventorySource, hospitalId });
+    }
+  };
+
+  if (Array.isArray(source.items)) {
+    source.items.slice(0, 9).forEach((item) => {
+      if (item && typeof item === 'object') addItem(item as Record<string, unknown>);
+    });
+  }
+
+  // Accept the legacy top-level shape as well. This keeps the deployed SQL
+  // functions compatible while allowing the client to send arbitrary items.
+  Object.entries(source).forEach(([key, quantity]) => {
+    const itemType = validItemType(key);
+    if (!itemType || itemType === 'money' || itemType === 'items') return;
+    if ([...normalizedItems.values()].some((item) => item.itemType === itemType)) return;
+    addItem({ itemType, quantity, source: 'personal' });
+  });
+
+  const items = [...normalizedItems.values()];
+  const result: Record<string, unknown> = { money: amount(source.money) };
+  items.forEach((item) => {
+    result[item.itemType] = Math.min(1_000_000_000, amount(result[item.itemType]) + item.quantity);
+  });
+  return result;
 }
 
 function bytesToHex(bytes: ArrayBuffer) {
@@ -139,4 +179,3 @@ serve(async (req) => {
     return jsonResponse({ ok: false, error: error instanceof Error ? error.message : 'INVALID_REQUEST' }, 500);
   }
 });
-
