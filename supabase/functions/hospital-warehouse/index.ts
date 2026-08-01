@@ -29,6 +29,47 @@ function normalizeMoney(value: unknown, max = 1_000_000_000) {
   return Number.isSafeInteger(amount) && amount >= 0 && amount <= max ? amount : null;
 }
 
+function mergeProfessionalTreatmentStats(panelValue: unknown, statsValue: unknown) {
+  if (!panelValue || typeof panelValue !== 'object' || Array.isArray(panelValue)) return panelValue;
+
+  const panel = panelValue as Record<string, unknown>;
+  const hospitals = Array.isArray(panel.hospitals) ? panel.hospitals : [];
+  const statsPayload = statsValue && typeof statsValue === 'object' && !Array.isArray(statsValue)
+    ? statsValue as Record<string, unknown>
+    : {};
+  const rows = Array.isArray(statsPayload.stats) ? statsPayload.stats : [];
+  const treatmentCountByHospital = new Map<string, number>();
+
+  rows.forEach((value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const row = value as Record<string, unknown>;
+    const hospitalId = String(row.hospitalId ?? row.hospital_id ?? '');
+    const count = Number(row.professionalTreatments ?? row.playersTreated ?? row.players_treated ?? 0);
+    if (hospitalId && Number.isFinite(count)) treatmentCountByHospital.set(hospitalId, Math.max(0, count));
+  });
+
+  return {
+    ...panel,
+    hospitals: hospitals.map((value) => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+      const hospital = value as Record<string, unknown>;
+      const hospitalId = String(hospital.hospitalId ?? hospital.hospital_id ?? '');
+      const extraTreatments = treatmentCountByHospital.get(hospitalId) || 0;
+      const ownStats = hospital.ownStats && typeof hospital.ownStats === 'object' && !Array.isArray(hospital.ownStats)
+        ? hospital.ownStats as Record<string, unknown>
+        : {};
+
+      return {
+        ...hospital,
+        ownStats: {
+          ...ownStats,
+          playersTreated: Math.max(0, Number(ownStats.playersTreated ?? ownStats.players_treated ?? 0)) + extraTreatments,
+        },
+      };
+    }),
+  };
+}
+
 function bytesToHex(bytes: ArrayBuffer) {
   return [...new Uint8Array(bytes)]
     .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -228,7 +269,7 @@ serve(async (req) => {
         if (!hospitalId || !target || !medicineType || price === null) {
           return jsonResponse({ ok: false, error: 'INVALID_TREATMENT_REQUEST' });
         }
-        functionName = 'hospital_treat_player_for_price';
+        functionName = 'hospital_treat_player_for_price_counted';
         args = {
           p_hospital_id: hospitalId,
           p_actor_tg_id: actorTgId,
@@ -249,13 +290,23 @@ serve(async (req) => {
         break;
       case 'use_inventory_item':
         if (!itemType) return jsonResponse({ ok: false, error: 'INVALID_ITEM_REQUEST' });
-        functionName = 'player_use_inventory_item';
-        args = {
-          p_actor_tg_id: actorTgId,
-          p_item_type: itemType,
-          p_source: source || 'personal',
-          p_hospital_id: hospitalId || null,
-        };
+        if (itemType.startsWith('medicine_') && hospitalId) {
+          functionName = 'hospital_use_own_inventory_medicine';
+          args = {
+            p_hospital_id: hospitalId,
+            p_actor_tg_id: actorTgId,
+            p_item_type: itemType,
+            p_source: source || 'service',
+          };
+        } else {
+          functionName = 'player_use_inventory_item';
+          args = {
+            p_actor_tg_id: actorTgId,
+            p_item_type: itemType,
+            p_source: source || 'personal',
+            p_hospital_id: hospitalId || null,
+          };
+        }
         break;
       case 'cafeteria_menu':
         functionName = 'cafeteria_get_menu';
@@ -292,7 +343,21 @@ serve(async (req) => {
       console.warn(`[hospital-warehouse] ${functionName} failed:`, error.message);
       return jsonResponse({ ok: false, error: error.message, code: error.code });
     }
-    return jsonResponse({ ok: true, result: data });
+
+    let result = data;
+    if (action === 'management_panel') {
+      const treatmentStats = await supabase.rpc('hospital_get_professional_treatment_stats', {
+        p_actor_tg_id: actorTgId,
+      });
+
+      if (treatmentStats.error) {
+        console.warn('[hospital-warehouse] hospital_get_professional_treatment_stats failed:', treatmentStats.error.message);
+      } else {
+        result = mergeProfessionalTreatmentStats(data, treatmentStats.data);
+      }
+    }
+
+    return jsonResponse({ ok: true, result });
   } catch (error) {
     console.error('[hospital-warehouse] Unexpected error:', error);
     return jsonResponse({
@@ -301,4 +366,3 @@ serve(async (req) => {
     });
   }
 });
-
