@@ -1,0 +1,253 @@
+/* Compact radial interaction layer. Imported after the global modal contract. */
+.mn-player-interaction-backdrop {
+  background: rgba(1, 5, 8, .18) !important;
+  -webkit-backdrop-filter: blur(3px) saturate(.92) !important;
+  backdrop-filter: blur(3px) saturate(.92) !important;
+}
+
+.mn-player-interaction-panel {
+  position: relative !important;
+  width: min(760px, calc(100vw - 24px)) !important;
+  height: min(500px, calc(100dvh - 20px)) !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  isolation: isolate;
+}
+
+.mn-player-interaction-panel > header {
+  position: absolute !important;
+  z-index: 5;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  width: 196px;
+  min-height: 92px;
+  margin: 0 !important;
+  padding: 13px 42px 13px 18px;
+  border: 1px solid rgba(149, 218, 250, .28);
+  border-radius: 28px;
+  background: linear-gradient(155deg, rgba(11, 24, 32, .94), rgba(5, 11, 16, .91)) !important;
+  box-shadow: 0 18px 54px rgba(0, 0, 0, .46), inset 0 1px rgba(255, 255, 255, .06);
+  transform: translate(-50%, -50%);
+  transition: top 180ms ease, width 180ms ease, min-height 180ms ease, border-radius 180ms ease;
+}
+
+.mn-player-interaction-panel > header span {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+  text-align: center;
+}
+
+.mn-player-interaction-panel > header strong {
+  overflow: hidden;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-player-interaction-panel > header button {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 30px;
+  height: 30px;
+  min-height: 30px !important;
+  border-radius: 50%;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.mn-player-interaction-panel[data-mode="detail"] > header {
+  top: 8px;
+  width: 214px;
+  min-height: 52px;
+  padding-block: 8px;
+  border-radius: 18px;
+  transform: translate(-50%, 0);
+}
+
+.mn-player-interaction nav {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: block !important;
+  pointer-events: none;
+}
+
+.mn-player-interaction nav > button {
+  --mn-radial-x: 0px;
+  --mn-radial-y: 0px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  width: 172px;
+  min-height: 62px;
+  padding: 9px 11px;
+  border-color: rgba(167, 224, 249, .22);
+  border-radius: 19px;
+  background: linear-gradient(145deg, rgba(13, 30, 40, .93), rgba(5, 13, 19, .88));
+  box-shadow: 0 15px 42px rgba(0, 0, 0, .4), inset 0 1px rgba(255, 255, 255, .05);
+  transform: translate(
+    calc(-50% + var(--mn-radial-x)),
+    calc(-50% + var(--mn-radial-y))
+  );
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 160ms ease, width 160ms ease, min-height 160ms ease, opacity 160ms ease, background 160ms ease;
+}
+
+.mn-player-interaction nav > button:hover,
+.mn-player-interaction nav > button:focus-visible {
+  transform: translate(
+    calc(-50% + var(--mn-radial-x)),
+    calc(-50% + var(--mn-radial-y) - 3px)
+  ) scale(1.035);
+}
+
+.mn-player-interaction nav > button[data-active="true"] {
+  border-color: rgba(107, 214, 255, .72);
+  background: linear-gradient(145deg, rgba(28, 112, 151, .94), rgba(8, 42, 58, .92));
+}
+
+.mn-player-interaction-panel[data-mode="detail"] nav > button {
+  width: 52px;
+  height: 52px;
+  min-height: 52px !important;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  opacity: .74;
+}
+
+.mn-player-interaction-panel[data-mode="detail"] nav > button[data-active="true"] {
+  opacity: 1;
+  transform: translate(
+    calc(-50% + var(--mn-radial-x)),
+    calc(-50% + var(--mn-radial-y))
+  ) scale(1.08);
+}
+
+.mn-player-interaction-panel[data-mode="detail"] nav > button > span {
+  display: none;
+}
+
+.mn-player-interaction-panel[data-mode="detail"] nav i {
+  flex: 0 0 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.mn-player-interaction-content {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 54%;
+  width: clamp(280px, calc(100% - 210px), 430px);
+  max-height: calc(100% - 100px);
+  margin: 0 !important;
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid rgba(139, 210, 244, .2);
+  border-radius: 19px;
+  background: linear-gradient(155deg, rgba(9, 22, 30, .95), rgba(4, 10, 15, .93));
+  box-shadow: 0 20px 64px rgba(0, 0, 0, .48);
+  transform: translate(-50%, -50%);
+}
+
+.mn-player-interaction-content[hidden] {
+  display: none !important;
+}
+
+.mn-player-interaction-message {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  bottom: 7px;
+  width: clamp(280px, calc(100% - 210px), 430px);
+  margin: 0;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .38);
+  transform: translateX(-50%);
+}
+
+body.mn-player-interaction-open .mobile-controls-layer,
+body.mn-player-interaction-open .mn-interior-joystick {
+  opacity: .58 !important;
+}
+
+@media (max-width: 760px), (max-height: 560px) {
+  .mn-player-interaction-panel {
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+  }
+
+  .mn-player-interaction-panel > header {
+    width: 166px;
+    min-height: 72px;
+    padding: 9px 36px 9px 12px;
+    border-radius: 22px;
+  }
+
+  .mn-player-interaction-panel > header strong {
+    font-size: 14px;
+  }
+
+  .mn-player-interaction-panel[data-mode="detail"] > header {
+    top: 4px;
+    width: 185px;
+    min-height: 44px;
+    padding-block: 5px;
+    border-radius: 15px;
+  }
+
+  .mn-player-interaction nav > button {
+    width: 142px;
+    min-height: 50px;
+    padding: 6px 8px;
+    border-radius: 15px;
+  }
+
+  .mn-player-interaction nav i {
+    flex-basis: 30px;
+    height: 30px;
+  }
+
+  .mn-player-interaction nav span {
+    font-size: 10px;
+  }
+
+  .mn-player-interaction-panel[data-mode="detail"] nav > button {
+    width: 44px;
+    height: 44px;
+    min-height: 44px !important;
+  }
+
+  .mn-player-interaction-content {
+    top: 55%;
+    width: clamp(260px, calc(100% - 164px), 400px);
+    max-height: calc(100% - 76px);
+    padding: 10px;
+    border-radius: 15px;
+  }
+
+  .mn-player-interaction-message {
+    bottom: 3px;
+    width: clamp(260px, calc(100% - 164px), 400px);
+    padding: 7px 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mn-player-interaction-panel > header,
+  .mn-player-interaction nav > button {
+    transition: none;
+  }
+}
