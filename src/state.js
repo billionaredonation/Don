@@ -48,26 +48,18 @@ function nowIso() {
 }
 
 function isRemotePlayerNotFoundError(error) {
-  const raw = [
-    error?.code,
-    error?.status,
-    error?.name,
-    error?.message,
-    error?.details,
-    error?.hint,
-    String(error || ''),
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
+  const code = String(error?.code || '').trim().toLowerCase();
+  const message = String(error?.message || error || '').trim().toLowerCase();
 
+  // A missing player normally arrives as { ok: true, player: null } and does
+  // not throw. Only recognise explicit database/player codes here. Generic
+  // text such as "Function not found" describes broken infrastructure and
+  // must never wipe the player's local registration state.
   return (
-    raw.includes('pgrst116') ||
-    raw.includes('no rows') ||
-    raw.includes('0 rows') ||
-    raw.includes('not found') ||
-    raw.includes('row not found') ||
-    raw.includes('player not found')
+    code === 'pgrst116' ||
+    code === 'player_not_found' ||
+    message === 'player not found' ||
+    message === 'row not found'
   );
 }
 
