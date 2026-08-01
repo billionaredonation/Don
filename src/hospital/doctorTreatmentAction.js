@@ -1,8 +1,9 @@
 import { state } from '../state.js';
 import {
   getHospitalUserErrorMessage,
-  issueMedicineFromInteraction,
   loadMyHospitalEmployments,
+  notifyHospitalTreatmentStarted,
+  treatPlayerForPriceFromInteraction,
 } from './hospitalWarehouseFeature.js';
 
 function rankLevel(rank) {
@@ -47,8 +48,8 @@ async function renderDoctorTreatment({
       <label><span>Больница</span><select data-heal-hospital>${employments.map((employment, index) => `<option value="${index}">${employment.displayName || 'Больница'}</option>`).join('')}</select></label>
       <label><span>Препарат</span><select data-heal-medicine></select></label>
       <label><span>Цена лечения <small>можно 0</small></span><input type="number" min="0" step="1" inputmode="numeric" value="0" data-heal-price></label>
-      <button type="button" class="is-primary" data-heal-submit>Предложить лечение</button>
-      <small>Доступ определяется профессией и рангом врача. Сервер повторно проверит должность, личные препараты и состояние пациента.</small>
+      <button type="button" class="is-primary" data-heal-submit>Вылечить</button>
+      <small>Таблетка сразу применяется к HP пациента и не попадает в его инвентарь. Если не хватает еды, воды или денег, ничего не списывается.</small>
     </div>`;
 
   const hospitalSelect = content.querySelector('[data-heal-hospital]');
@@ -88,32 +89,65 @@ async function renderDoctorTreatment({
     ) return;
 
     const employment = employments[Number(hospitalSelect.value || 0)] || employments[0];
+    const medicineType = medicineSelect.value;
     const price = Math.max(0, Math.floor(Number(priceInput.value || 0)));
+    let medicineConsumed = false;
+    let successMessage = '';
 
     setBusy(true);
 
     try {
-      const result = await issueMedicineFromInteraction({
+      const result = await treatPlayerForPriceFromInteraction({
         hospitalId: employment.hospitalId,
         target: target.target,
-        medicineType: medicineSelect.value,
+        medicineType,
         price,
       });
 
-      await broadcastTo(result?.patientTgId, 'medicine_received', {
-        medicineLabel: result?.medicineLabel,
-        doctorNickname: state.nickname || 'Врач',
-        price: result?.price || 0,
-      });
+      await Promise.allSettled([
+        notifyHospitalTreatmentStarted(result?.patientTgId, employment.hospitalId),
+        broadcastTo(result?.patientTgId, 'treatment_applied', {
+          medicineLabel: result?.medicineLabel,
+          doctorNickname: state.nickname || 'Врач',
+          price: result?.price ?? price,
+          patientBalance: result?.patientBalance,
+          health: result?.health,
+          food: result?.food,
+          water: result?.water,
+        }),
+      ]);
 
-      setMessage(
-        `Лечение оформлено для ${result?.patientNickname || target.nickname}: ${result?.medicineLabel || 'препарат'}.`,
-        'success'
+      const nextDoctorBalance = Number(
+        result?.doctorBalance ??
+        result?.employeeBalance ??
+        result?.actorBalance
       );
+
+      if (Number.isFinite(nextDoctorBalance)) {
+        state.player = { ...(state.player || {}), balance: nextDoctorBalance };
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+          detail: {
+            balance: nextDoctorBalance,
+            source: 'doctor_treatment',
+            result,
+          },
+        }));
+      }
+
+      const usedItem = (employment.items || []).find((item) => item.itemType === medicineType);
+      if (usedItem) {
+        usedItem.personalQuantity = Math.max(0, Number(usedItem.personalQuantity || 0) - 1);
+      }
+      medicineConsumed = true;
+      window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
+
+      successMessage = `${result?.medicineLabel || 'Таблетка'} применена к ${result?.patientNickname || target.nickname}. Восстановление HP началось.`;
     } catch (error) {
       setMessage(getHospitalUserErrorMessage(error), 'error');
     } finally {
       setBusy(false);
+      if (medicineConsumed) renderMedicines();
+      if (successMessage) setMessage(successMessage, 'success');
     }
   });
 }
@@ -124,7 +158,7 @@ export const doctorTreatmentAction = Object.freeze({
   accessCacheMs: 15_000,
   button: Object.freeze({
     icon: '✚',
-    label: 'Лечение',
+    label: 'Вылечить',
     description: 'Подсистема врача',
   }),
   resolveAccess: resolveDoctorAccess,
