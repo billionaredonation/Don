@@ -144,7 +144,7 @@ function markup() {
         </header>
         <nav data-player-interaction-actions>
           <button type="button" data-player-action="money"><i>₴</i><span>Передать деньги<small>Мгновенный перевод</small></span></button>
-          <button type="button" data-player-action="trade"><i>⇄</i><span>Совершить трейд<small>Деньги и препараты</small></span></button>
+          <button type="button" data-player-action="trade"><i>⇄</i><span>Передать предмет<small>Обмен предметами</small></span></button>
         </nav>
         <div class="mn-player-interaction-content" data-player-interaction-content>
           <p>Выберите действие с игроком.</p>
@@ -533,6 +533,47 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     const price = Number(payload?.price || 0);
     toast(`${payload?.doctorNickname || 'Врач'} выдал препарат: ${payload?.medicineLabel || 'таблетка'}${price ? ` за ${price.toLocaleString('ru-RU')} ₴` : ''}. Откройте инвентарь, чтобы применить.`, 'success');
     window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
+  });
+  channel?.on('broadcast', { event: 'treatment_applied' }, ({ payload }) => {
+    const vitals = {};
+
+    ['health', 'food', 'water'].forEach((key) => {
+      const rawValue = payload?.[key];
+      if (rawValue === undefined || rawValue === null) return;
+      const value = Number(rawValue);
+      if (Number.isFinite(value)) vitals[key] = value;
+    });
+
+    if (Object.keys(vitals).length) {
+      state.player = { ...(state.player || {}), ...vitals };
+      window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
+        detail: {
+          vitals,
+          source: 'doctor_treatment',
+          animateDamage: false,
+        },
+      }));
+    }
+
+    const rawPatientBalance = payload?.patientBalance;
+    const patientBalance = Number(rawPatientBalance);
+    if (rawPatientBalance !== undefined && rawPatientBalance !== null && Number.isFinite(patientBalance)) {
+      state.player = { ...(state.player || {}), balance: patientBalance };
+      window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+        detail: {
+          balance: patientBalance,
+          source: 'doctor_treatment',
+        },
+      }));
+    }
+
+    window.dispatchEvent(new CustomEvent('mn:hospital-treatment-started-local'));
+
+    const price = Number(payload?.price || 0);
+    toast(
+      `${payload?.doctorNickname || 'Врач'} применил ${payload?.medicineLabel || 'таблетку'}${price ? ` за ${price.toLocaleString('ru-RU')} ₴` : ''}. Восстановление HP началось.`,
+      'success'
+    );
   });
   channel?.subscribe();
 
