@@ -177,6 +177,105 @@
   transform: translateX(-50%);
 }
 
+.mn-player-number-pad {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  top: 50%;
+  width: min(310px, calc(100% - 12px));
+  max-height: calc(100% - 6px);
+  overflow: auto;
+  scrollbar-width: none;
+  padding: 10px;
+  border: 1px solid rgba(123, 207, 248, .3);
+  border-radius: 18px;
+  background: linear-gradient(155deg, rgba(8, 21, 30, .99), rgba(3, 9, 14, .985));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .72), inset 0 1px rgba(255, 255, 255, .06);
+  transform: translate(-50%, -50%);
+}
+
+.mn-player-number-pad::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.mn-player-number-pad[hidden] {
+  display: none !important;
+}
+
+.mn-player-number-pad-display {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(92px, .72fr);
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+}
+
+.mn-player-number-pad-display span {
+  overflow: hidden;
+  color: rgba(220, 241, 251, .7);
+  font-size: 10px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-player-number-pad-display output {
+  overflow: hidden;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 11px;
+  color: #fff;
+  background: rgba(0, 0, 0, .3);
+  font-size: 17px;
+  font-weight: 950;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-player-number-pad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.mn-player-number-pad button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 11px;
+  color: #fff;
+  background: rgba(255, 255, 255, .085);
+  font-size: 15px;
+  font-weight: 950;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.mn-player-number-pad-actions {
+  display: grid;
+  grid-template-columns: .8fr 1.2fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.mn-player-number-pad-actions button.is-done {
+  border-color: rgba(96, 207, 255, .45);
+  background: linear-gradient(135deg, #187eb5, #29a9d8);
+}
+
+.mn-player-interaction-panel[data-number-pad="true"] > header,
+.mn-player-interaction-panel[data-number-pad="true"] > nav,
+.mn-player-interaction-panel[data-number-pad="true"] > .mn-player-interaction-content,
+.mn-player-interaction-panel[data-number-pad="true"] > .mn-player-interaction-message {
+  opacity: .16;
+  filter: saturate(.55);
+  pointer-events: none;
+}
+
 body.mn-player-interaction-open .mobile-controls-layer,
 body.mn-player-interaction-open .mn-interior-joystick {
   opacity: .58 !important;
@@ -348,17 +447,33 @@ body.mn-player-interaction-open .mn-interior-joystick {
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     transform: translateX(-50%);
+    scrollbar-width: none;
+  }
+
+  .mn-player-interaction-content::-webkit-scrollbar {
+    width: 0;
+    height: 0;
   }
 
   .mn-player-interaction-message {
     bottom: 58px;
     width: min(500px, calc(100% - 20px));
-    max-height: 64px;
+    max-height: 48px;
     overflow: auto;
+    padding: 6px 8px;
+    font-size: 9px;
+    line-height: 1.25;
   }
 
   .mn-player-action-form {
     gap: 8px;
+  }
+
+  .mn-player-action-form > small,
+  [data-trade-form] > small,
+  [data-trade-counter-form] > small,
+  [data-doctor-treatment-form] > small {
+    display: none;
   }
 
   .mn-player-action-form input,
@@ -370,6 +485,45 @@ body.mn-player-interaction-open .mn-interior-joystick {
   .mn-player-trade-fields,
   .mn-player-trade-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px;
+  }
+
+  .mn-player-trade-fields label {
+    gap: 3px;
+  }
+
+  .mn-player-trade-fields label > span {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 9px;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mn-player-trade-fields label > span small {
+    flex: 0 0 auto;
+    margin-left: 5px;
+    font-size: 7px;
+    white-space: nowrap;
+  }
+
+  .mn-player-trade-incoming {
+    padding: 7px 9px;
+  }
+
+  .mn-player-trade-incoming b {
+    max-height: 30px;
+    overflow: auto;
+    font-size: 10px;
+  }
+
+  [data-trade-submit],
+  [data-heal-submit],
+  .mn-player-trade-actions {
+    position: sticky;
+    z-index: 2;
+    bottom: 0;
   }
 
   [data-doctor-treatment-form] {
