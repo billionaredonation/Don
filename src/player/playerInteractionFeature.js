@@ -133,7 +133,7 @@ function formatOffer(offer = {}) {
 function markup() {
   return `
     <button type="button" class="mn-player-interaction-hint" data-player-interaction-hint hidden>
-      <b>G</b><span>Взаимодействовать с игроком</span>
+      <b data-player-interaction-hint-key>G</b><span data-player-interaction-hint-text>Взаимодействовать с игроком</span>
     </button>
     <div class="mn-player-interaction" data-player-interaction hidden aria-hidden="true">
       <button type="button" class="mn-player-interaction-backdrop" data-player-interaction-close aria-label="Закрыть"></button>
@@ -193,8 +193,16 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   const actions = overlay?.querySelector('[data-player-interaction-actions]');
   const content = overlay?.querySelector('[data-player-interaction-content]');
   const message = overlay?.querySelector('[data-player-interaction-message]');
+  const hintKey = hint?.querySelector('[data-player-interaction-hint-key]');
+  const hintText = hint?.querySelector('[data-player-interaction-hint-text]');
   const closeButtons = Array.from(overlay?.querySelectorAll('[data-player-interaction-close]') || []);
   if (!overlay || !panel || !hint || !actions || !content) return () => {};
+
+  if (window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches) {
+    if (hintKey) hintKey.textContent = '●';
+    if (hintText) hintText.textContent = 'Игрок рядом — нажмите';
+    hint.setAttribute('aria-label', 'Взаимодействовать с игроком рядом');
+  }
 
   let target = null;
   let busy = false;
@@ -202,6 +210,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   let destroyed = false;
   let professionalRefreshToken = 0;
   let professionalActions = new Map();
+  let layoutFrame = 0;
 
   function setMessage(value, type = 'info') {
     message.hidden = !value;
@@ -233,9 +242,17 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     const count = buttons.length;
     if (!count) return;
 
-    const rect = panel.getBoundingClientRect();
-    const radiusX = Math.max(125, Math.min(250, rect.width * 0.37));
-    const radiusY = Math.max(78, Math.min(150, rect.height * 0.31));
+    // clientWidth/clientHeight stay in the panel's own coordinate system.
+    // getBoundingClientRect swaps them when the mobile shell rotates portrait
+    // Telegram into landscape, which used to stretch the radial menu sideways.
+    const width = Math.max(1, panel.clientWidth);
+    const height = Math.max(1, panel.clientHeight);
+    const widestButton = Math.max(44, ...buttons.map((button) => button.offsetWidth || 0));
+    const tallestButton = Math.max(44, ...buttons.map((button) => button.offsetHeight || 0));
+    const maxRadiusX = Math.max(72, (width - widestButton) / 2 - 10);
+    const maxRadiusY = Math.max(58, (height - tallestButton) / 2 - 10);
+    const radiusX = Math.min(250, width * 0.37, maxRadiusX);
+    const radiusY = Math.min(150, height * 0.31, maxRadiusY);
     const presets = {
       1: [-90],
       2: [180, 0],
@@ -249,6 +266,14 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
       const radians = (angles[index] * Math.PI) / 180;
       button.style.setProperty('--mn-radial-x', `${Math.cos(radians) * radiusX}px`);
       button.style.setProperty('--mn-radial-y', `${Math.sin(radians) * radiusY}px`);
+    });
+  }
+
+  function scheduleRadialLayout() {
+    window.cancelAnimationFrame(layoutFrame);
+    layoutFrame = window.requestAnimationFrame(() => {
+      layoutFrame = 0;
+      layoutRadialActions();
     });
   }
 
@@ -276,7 +301,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
       actions.insertBefore(button, firstBaseAction);
     });
 
-    layoutRadialActions();
+    scheduleRadialLayout();
   }
 
   async function refreshProfessionalActions({ force = false } = {}) {
@@ -317,7 +342,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     overlay.hidden = false;
     overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-player-interaction-open');
-    window.requestAnimationFrame(layoutRadialActions);
+    scheduleRadialLayout();
     void refreshProfessionalActions();
   }
 
@@ -397,6 +422,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     overlay.hidden = false;
     overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-player-interaction-open');
+    scheduleRadialLayout();
     setMessage('');
     content.innerHTML = '<p>Загружаю ваши предметы…</p>';
     try {
@@ -515,6 +541,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
 
     panel.dataset.mode = 'detail';
     content.hidden = false;
+    scheduleRadialLayout();
 
     if (professionalEntry) {
       const selectedTarget = target;
@@ -545,11 +572,36 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     void refreshProfessionalActions({ force: true });
   }
 
+  function handlePanelFocusIn(event) {
+    const field = event.target?.closest?.('input, textarea, select');
+    if (!field) return;
+
+    panel.dataset.textEntry = 'true';
+    window.setTimeout(() => {
+      if (destroyed || !field.isConnected || document.activeElement !== field) return;
+      field.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+      scheduleRadialLayout();
+    }, 320);
+  }
+
+  function handlePanelFocusOut() {
+    window.setTimeout(() => {
+      if (destroyed || panel.contains(document.activeElement)) return;
+      delete panel.dataset.textEntry;
+      scheduleRadialLayout();
+    }, 80);
+  }
+
   closeButtons.forEach((button) => button.addEventListener('click', close));
   hint.addEventListener('click', openNearest);
+  panel.addEventListener('focusin', handlePanelFocusIn);
+  panel.addEventListener('focusout', handlePanelFocusOut);
   document.addEventListener('click', handleMarkerPointer, true);
   window.addEventListener('keydown', handleKeyDown, true);
-  window.addEventListener('resize', layoutRadialActions);
+  window.addEventListener('resize', scheduleRadialLayout);
+  window.addEventListener('orientationchange', scheduleRadialLayout);
+  window.visualViewport?.addEventListener?.('resize', scheduleRadialLayout, { passive: true });
+  window.visualViewport?.addEventListener?.('scroll', scheduleRadialLayout, { passive: true });
   window.addEventListener('mn:professional-actions-changed', handleProfessionalActionsChanged);
 
   const tgId = localTelegramId();
@@ -620,18 +672,24 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   const pollTimer = window.setInterval(checkIncoming, 4200);
   window.setTimeout(checkIncoming, 1200);
   void refreshProfessionalActions();
-  layoutRadialActions();
+  scheduleRadialLayout();
   updateHint();
 
   return () => {
     destroyed = true;
+    window.cancelAnimationFrame(layoutFrame);
     window.clearInterval(hintTimer);
     window.clearInterval(pollTimer);
     window.removeEventListener('keydown', handleKeyDown, true);
-    window.removeEventListener('resize', layoutRadialActions);
+    window.removeEventListener('resize', scheduleRadialLayout);
+    window.removeEventListener('orientationchange', scheduleRadialLayout);
+    window.visualViewport?.removeEventListener?.('resize', scheduleRadialLayout);
+    window.visualViewport?.removeEventListener?.('scroll', scheduleRadialLayout);
     window.removeEventListener('mn:professional-actions-changed', handleProfessionalActionsChanged);
     closeButtons.forEach((button) => button.removeEventListener('click', close));
     hint.removeEventListener('click', openNearest);
+    panel.removeEventListener('focusin', handlePanelFocusIn);
+    panel.removeEventListener('focusout', handlePanelFocusOut);
     document.removeEventListener('click', handleMarkerPointer, true);
     if (channel) supabase.removeChannel(channel);
     overlay.remove();
