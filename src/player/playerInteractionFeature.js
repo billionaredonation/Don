@@ -137,7 +137,7 @@ function markup() {
     </button>
     <div class="mn-player-interaction" data-player-interaction hidden aria-hidden="true">
       <button type="button" class="mn-player-interaction-backdrop" data-player-interaction-close aria-label="Закрыть"></button>
-      <section class="mn-player-interaction-panel" role="dialog" aria-modal="true">
+      <section class="mn-player-interaction-panel" data-mode="radial" role="dialog" aria-modal="true">
         <header>
           <span><small>Игрок рядом</small><strong data-player-interaction-name>Игрок</strong></span>
           <button type="button" data-player-interaction-close aria-label="Закрыть">×</button>
@@ -146,7 +146,7 @@ function markup() {
           <button type="button" data-player-action="money"><i>₴</i><span>Передать деньги<small>Мгновенный перевод</small></span></button>
           <button type="button" data-player-action="trade"><i>⇄</i><span>Передать предмет<small>Обмен предметами</small></span></button>
         </nav>
-        <div class="mn-player-interaction-content" data-player-interaction-content>
+        <div class="mn-player-interaction-content" data-player-interaction-content hidden>
           <p>Выберите действие с игроком.</p>
         </div>
         <div class="mn-player-interaction-message" data-player-interaction-message hidden></div>
@@ -226,6 +226,32 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     });
   }
 
+  function layoutRadialActions() {
+    if (overlay.hidden) return;
+
+    const buttons = Array.from(actions.querySelectorAll('[data-player-action]'));
+    const count = buttons.length;
+    if (!count) return;
+
+    const rect = panel.getBoundingClientRect();
+    const radiusX = Math.max(125, Math.min(250, rect.width * 0.37));
+    const radiusY = Math.max(78, Math.min(150, rect.height * 0.31));
+    const presets = {
+      1: [-90],
+      2: [180, 0],
+      3: [-90, 150, 30],
+      4: [-90, 0, 90, 180],
+      5: [-90, -18, 54, 126, 198],
+    };
+    const angles = presets[count] || buttons.map((_, index) => -90 + (360 / count) * index);
+
+    buttons.forEach((button, index) => {
+      const radians = (angles[index] * Math.PI) / 180;
+      button.style.setProperty('--mn-radial-x', `${Math.cos(radians) * radiusX}px`);
+      button.style.setProperty('--mn-radial-y', `${Math.sin(radians) * radiusY}px`);
+    });
+  }
+
   function renderProfessionalActionButtons(entries) {
     actions.querySelectorAll('[data-professional-player-action]').forEach((element) => {
       element.remove();
@@ -249,6 +275,8 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
       button.append(icon, labels);
       actions.insertBefore(button, firstBaseAction);
     });
+
+    layoutRadialActions();
   }
 
   async function refreshProfessionalActions({ force = false } = {}) {
@@ -272,6 +300,8 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     document.body.classList.remove('mn-player-interaction-open');
     incomingOffer = null;
     target = null;
+    panel.dataset.mode = 'radial';
+    content.hidden = true;
     setMessage('');
   }
 
@@ -280,11 +310,14 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     incomingOffer = null;
     name.textContent = target.nickname;
     actions.hidden = false;
+    panel.dataset.mode = 'radial';
     content.innerHTML = '<p>Выберите действие с игроком.</p>';
+    content.hidden = true;
     setMessage('');
     overlay.hidden = false;
     overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-player-interaction-open');
+    window.requestAnimationFrame(layoutRadialActions);
     void refreshProfessionalActions();
   }
 
@@ -359,6 +392,8 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     };
     name.textContent = target.nickname;
     actions.hidden = true;
+    panel.dataset.mode = 'detail';
+    content.hidden = false;
     overlay.hidden = false;
     overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-player-interaction-open');
@@ -478,6 +513,9 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     const actionId = button.dataset.playerAction;
     const professionalEntry = professionalActions.get(actionId);
 
+    panel.dataset.mode = 'detail';
+    content.hidden = false;
+
     if (professionalEntry) {
       const selectedTarget = target;
 
@@ -511,6 +549,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   hint.addEventListener('click', openNearest);
   document.addEventListener('click', handleMarkerPointer, true);
   window.addEventListener('keydown', handleKeyDown, true);
+  window.addEventListener('resize', layoutRadialActions);
   window.addEventListener('mn:professional-actions-changed', handleProfessionalActionsChanged);
 
   const tgId = localTelegramId();
@@ -581,6 +620,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   const pollTimer = window.setInterval(checkIncoming, 4200);
   window.setTimeout(checkIncoming, 1200);
   void refreshProfessionalActions();
+  layoutRadialActions();
   updateHint();
 
   return () => {
@@ -588,6 +628,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     window.clearInterval(hintTimer);
     window.clearInterval(pollTimer);
     window.removeEventListener('keydown', handleKeyDown, true);
+    window.removeEventListener('resize', layoutRadialActions);
     window.removeEventListener('mn:professional-actions-changed', handleProfessionalActionsChanged);
     closeButtons.forEach((button) => button.removeEventListener('click', close));
     hint.removeEventListener('click', openNearest);
