@@ -245,6 +245,224 @@ body.mn-player-interaction-open .mn-interior-joystick {
   }
 }
 
+/* Telegram mobile: keep the radial choice, then turn the actions into a
+   compact bottom dock while the selected form remains fully scrollable. */
+@media (hover: none) and (pointer: coarse) {
+  .mn-player-interaction-hint {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    min-height: 44px;
+    padding: 5px 10px 5px 5px;
+    border-radius: 14px;
+    font-size: 10px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mn-player-interaction-hint b {
+    width: 34px;
+    height: 34px;
+    font-size: 11px;
+  }
+
+  .mn-player-interaction {
+    touch-action: none;
+  }
+
+  .mn-player-interaction-panel {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
+  .mn-player-interaction-panel > header button {
+    top: 4px;
+    right: 4px;
+    width: 44px;
+    height: 44px;
+    min-height: 44px !important;
+    font-size: 21px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mn-player-interaction-panel > header {
+    padding-right: 50px;
+  }
+
+  .mn-player-interaction nav > button,
+  .mn-player-action-form button,
+  .mn-player-trade-actions button {
+    min-height: 44px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mn-player-interaction nav > button {
+    width: clamp(124px, 24dvw, 150px);
+  }
+
+  .mn-player-interaction-panel[data-mode="detail"] nav {
+    z-index: 6;
+    inset: auto auto 3px 50%;
+    display: flex !important;
+    width: max-content;
+    height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transform: translateX(-50%);
+  }
+
+  .mn-player-interaction-panel[data-mode="detail"] nav[hidden] {
+    display: none !important;
+  }
+
+  .mn-player-interaction-panel[data-mode="detail"] nav > button,
+  .mn-player-interaction-panel[data-mode="detail"] nav > button:hover,
+  .mn-player-interaction-panel[data-mode="detail"] nav > button:focus-visible,
+  .mn-player-interaction-panel[data-mode="detail"] nav > button[data-active="true"] {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 46px;
+    height: 46px;
+    min-height: 46px !important;
+    flex: 0 0 46px;
+    transform: none !important;
+  }
+
+  .mn-player-interaction-panel[data-mode="detail"] > header {
+    top: 2px;
+    min-height: 48px;
+    padding-block: 5px;
+  }
+
+  .mn-player-interaction-content {
+    top: 54px;
+    bottom: 57px;
+    width: min(500px, calc(100% - 12px));
+    max-height: none;
+    padding: 10px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    transform: translateX(-50%);
+  }
+
+  .mn-player-interaction-message {
+    bottom: 58px;
+    width: min(500px, calc(100% - 20px));
+    max-height: 64px;
+    overflow: auto;
+  }
+
+  .mn-player-action-form {
+    gap: 8px;
+  }
+
+  .mn-player-action-form input,
+  .mn-player-action-form select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .mn-player-trade-fields,
+  .mn-player-trade-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  [data-doctor-treatment-form] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+  }
+
+  [data-doctor-treatment-form] > strong,
+  [data-doctor-treatment-form] > small {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Native keyboard already shrinks --mn-vh. Hide decorative radial controls
+   and give every remaining pixel to the focused form. */
+html.mn-virtual-keyboard-open .mn-player-interaction-panel[data-mode="detail"] > header,
+html.mn-virtual-keyboard-open .mn-player-interaction-panel[data-mode="detail"] nav,
+body.mn-virtual-keyboard-open .mn-player-interaction-panel[data-mode="detail"] > header,
+body.mn-virtual-keyboard-open .mn-player-interaction-panel[data-mode="detail"] nav {
+  display: none !important;
+}
+
+html.mn-virtual-keyboard-open .mn-player-interaction-content,
+body.mn-virtual-keyboard-open .mn-player-interaction-content {
+  top: 4px;
+  bottom: 4px;
+  width: calc(100% - 8px);
+  max-height: none;
+  padding: 8px;
+  transform: translateX(-50%);
+}
+
+html.mn-virtual-keyboard-open .mn-player-interaction-message,
+body.mn-virtual-keyboard-open .mn-player-interaction-message {
+  bottom: 5px;
+  width: calc(100% - 16px);
+}
+
+@media (hover: none) and (pointer: coarse) and (max-height: 340px),
+       (hover: none) and (pointer: coarse) and (orientation: portrait) and (max-width: 430px) {
+  .mn-player-interaction-panel[data-mode="radial"] > header {
+    width: 152px;
+    min-height: 64px;
+    padding-block: 7px;
+  }
+
+  .mn-player-interaction-panel[data-mode="radial"] nav > button {
+    width: 124px;
+    min-height: 46px;
+    padding: 5px 7px;
+  }
+
+  .mn-player-interaction-panel[data-mode="radial"] nav small,
+  .mn-player-action-form > small {
+    display: none;
+  }
+
+  .mn-player-interaction-content {
+    top: 50px;
+    bottom: 52px;
+    padding: 8px;
+  }
+
+  .mn-player-interaction-panel[data-mode="detail"] nav {
+    bottom: 1px;
+    height: 44px;
+  }
+
+  .mn-player-interaction-panel[data-mode="detail"] nav > button,
+  .mn-player-interaction-panel[data-mode="detail"] nav > button:hover,
+  .mn-player-interaction-panel[data-mode="detail"] nav > button:focus-visible,
+  .mn-player-interaction-panel[data-mode="detail"] nav > button[data-active="true"] {
+    width: 44px;
+    height: 44px;
+    min-height: 44px !important;
+    flex-basis: 44px;
+  }
+
+  .mn-player-action-form {
+    gap: 6px;
+  }
+
+  .mn-player-action-form label {
+    gap: 3px;
+  }
+
+  .mn-player-action-form input,
+  .mn-player-action-form select,
+  .mn-player-action-form button {
+    min-height: 44px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mn-player-interaction-panel > header,
   .mn-player-interaction nav > button {
