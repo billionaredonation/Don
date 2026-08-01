@@ -46,6 +46,7 @@ import { getPlayerVitalsConfig } from '../../src/player/playerStatsConfig.js';
 import '../../src/admin/adminPanel.css';
 import '../../src/houses/houses.css';
 import '../../src/styles/modal-responsive-final.css';
+import '../../src/player/playerInteractionRadial.css';
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 
@@ -2309,5 +2310,6 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
+
 
 
