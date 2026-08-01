@@ -201,6 +201,7 @@ function hasBlockingInterface() {
     document.body.classList.contains('mn-houses-modal-open') ||
     document.body.classList.contains('mn-house-details-open') ||
     document.body.classList.contains('mn-house-spawn-open') ||
+    document.body.classList.contains('mn-player-interaction-open') ||
     document.body.classList.contains('admin-mode') ||
     document.body.classList.contains('mn-interior-collider-editor-open') ||
     document.body.classList.contains('mn-interior-object-editor-open')
@@ -944,6 +945,11 @@ export function enableInventoryFeature() {
     hideInventory();
   }
 
+  function handleMobileToggleRequest() {
+    if (open) hideInventory();
+    else showInventory();
+  }
+
   function handleGridClick(event) {
     const item = event.target.closest('[data-inventory-item-index]');
     if (!item) return;
@@ -986,6 +992,7 @@ export function enableInventoryFeature() {
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
+  window.addEventListener('mn:inventory-toggle-request', handleMobileToggleRequest);
 
   const bodyClassObserver = new MutationObserver(() => {
     if (open && hasBlockingInterface()) {
@@ -1021,6 +1028,7 @@ export function enableInventoryFeature() {
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
     window.removeEventListener('mn:player-health-changed', handleHealthChanged);
     window.removeEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
+    window.removeEventListener('mn:inventory-toggle-request', handleMobileToggleRequest);
     window.clearTimeout(initialNoticeTimer);
     window.clearTimeout(vitalNoticeTimer);
     window.clearTimeout(vitalNoticeHideTimer);
