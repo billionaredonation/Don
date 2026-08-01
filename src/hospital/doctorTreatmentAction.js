@@ -1,9 +1,9 @@
 import { state } from '../state.js';
 import {
   getHospitalUserErrorMessage,
+  invokeHospitalAction,
   loadMyHospitalEmployments,
   notifyHospitalTreatmentStarted,
-  treatPlayerForPriceFromInteraction,
 } from './hospitalWarehouseFeature.js';
 
 function rankLevel(rank) {
@@ -97,7 +97,7 @@ async function renderDoctorTreatment({
     setBusy(true);
 
     try {
-      const result = await treatPlayerForPriceFromInteraction({
+      const result = await invokeHospitalAction('treat_player_for_price', {
         hospitalId: employment.hospitalId,
         target: target.target,
         medicineType,
@@ -140,6 +140,13 @@ async function renderDoctorTreatment({
       }
       medicineConsumed = true;
       window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
+      window.dispatchEvent(new CustomEvent('mn:hospital-professional-stats-changed', {
+        detail: {
+          hospitalId: employment.hospitalId,
+          activity: 'treatment',
+          stats: result?.professionalStats || null,
+        },
+      }));
 
       successMessage = `${result?.medicineLabel || 'Таблетка'} применена к ${result?.patientNickname || target.nickname}. Восстановление HP началось.`;
     } catch (error) {
@@ -164,5 +171,3 @@ export const doctorTreatmentAction = Object.freeze({
   resolveAccess: resolveDoctorAccess,
   render: renderDoctorTreatment,
 });
-
-
