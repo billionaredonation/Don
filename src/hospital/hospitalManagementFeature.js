@@ -449,6 +449,34 @@ export function enableHospitalManagementFeature() {
     void open();
   }
 
+  function handleProfessionalStatsChanged(event) {
+    const detail = event?.detail || {};
+    const hospitalId = String(detail.hospitalId || '');
+    const hospital = hospitals().find((entry) => (
+      !hospitalId || String(entry.hospitalId || '') === hospitalId
+    ));
+
+    if (!hospital) return;
+
+    const current = hospital.ownStats || {};
+    const supplied = detail.stats || {};
+    const suppliedSold = Number(supplied.medicinesSold ?? supplied.medicines_sold);
+    const next = { ...current };
+
+    if (detail.activity === 'treatment') {
+      next.playersTreated = Number(current.playersTreated || 0) + 1;
+    }
+
+    if (Number.isFinite(suppliedSold)) {
+      next.medicinesSold = Math.max(Number(current.medicinesSold || 0), suppliedSold);
+    } else if (detail.activity === 'sale') {
+      next.medicinesSold = Number(current.medicinesSold || 0) + 1;
+    }
+
+    hospital.ownStats = next;
+    if (!overlay.hidden) render();
+  }
+
   function handleHintClick() {
     void open();
   }
@@ -467,6 +495,7 @@ export function enableHospitalManagementFeature() {
   panel.addEventListener('compositionend', handlePanelEditableEvent, true);
   window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('mn:hospital-management-open', handleOpenEvent);
+  window.addEventListener('mn:hospital-professional-stats-changed', handleProfessionalStatsChanged);
 
   window.setTimeout(() => {
     if (!destroyed) void loadData({ silent: true });
@@ -489,6 +518,7 @@ export function enableHospitalManagementFeature() {
     panel.removeEventListener('compositionend', handlePanelEditableEvent, true);
     window.removeEventListener('keydown', handleKeyDown, true);
     window.removeEventListener('mn:hospital-management-open', handleOpenEvent);
+    window.removeEventListener('mn:hospital-professional-stats-changed', handleProfessionalStatsChanged);
     document.body.classList.remove(PANEL_CLASS);
     document.documentElement.classList.remove(PANEL_CLASS);
     overlay.remove();
