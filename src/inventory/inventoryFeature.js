@@ -725,6 +725,13 @@ export function enableInventoryFeature() {
       if (itemType.startsWith('medicine_')) {
         await notifyHospitalTreatmentStarted(localTelegramId(), result?.hospitalId);
         window.dispatchEvent(new CustomEvent('mn:hospital-treatment-started-local'));
+        window.dispatchEvent(new CustomEvent('mn:hospital-professional-stats-changed', {
+          detail: {
+            hospitalId: result?.hospitalId || item.hospitalId || null,
+            activity: 'treatment',
+            stats: result?.professionalStats || null,
+          },
+        }));
       }
       window.dispatchEvent(new CustomEvent('mn:toast', {
         detail: {
