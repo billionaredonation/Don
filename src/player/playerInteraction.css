@@ -8,10 +8,13 @@
 .mn-player-interaction-panel > header small { color: rgba(210, 234, 247, .56); font-size: 10px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
 .mn-player-interaction-panel > header strong { font-size: 22px; line-height: 1.1; }
 .mn-player-interaction-panel > header button { width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.12); border-radius: 13px; color: #fff; background: rgba(255,255,255,.07); font-size: 25px; }
-.mn-player-interaction nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.mn-player-interaction nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; }
 .mn-player-interaction nav > button { display: flex; align-items: center; gap: 9px; min-height: 66px; padding: 10px; border: 1px solid rgba(255,255,255,.10); border-radius: 16px; color: #f6fbff; background: rgba(255,255,255,.055); text-align: left; }
 .mn-player-interaction nav > button[data-active="true"] { border-color: rgba(72, 183, 242, .65); background: rgba(44, 145, 207, .22); }
 .mn-player-interaction nav i { display: grid; place-items: center; flex: 0 0 34px; height: 34px; border-radius: 11px; color: #bbebff; background: rgba(55, 171, 230, .18); font-style: normal; font-weight: 950; }
+.mn-player-interaction nav > button[data-professional-player-action] { border-color: rgba(72, 210, 151, .22); background: rgba(35, 142, 98, .10); }
+.mn-player-interaction nav > button[data-professional-player-action] i { color: #d7ffea; background: rgba(54, 190, 130, .20); }
+.mn-player-interaction nav > button[data-professional-player-action][data-active="true"] { border-color: rgba(72, 210, 151, .64); background: rgba(35, 142, 98, .24); }
 .mn-player-interaction nav span { display: grid; gap: 3px; font-size: 12px; font-weight: 900; }
 .mn-player-interaction nav small { color: rgba(226, 241, 249, .48); font-size: 9px; font-weight: 700; }
 .mn-player-interaction-content { margin-top: 13px; padding: 14px; border-radius: 17px; background: rgba(255,255,255,.045); }
@@ -116,7 +119,7 @@ body.mn-player-interaction-open .mobile-controls-layer, body.mn-player-interacti
   }
 
   .mn-player-interaction nav {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 
   .mn-player-interaction nav > button {
