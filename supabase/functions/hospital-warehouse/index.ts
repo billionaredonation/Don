@@ -223,6 +223,21 @@ serve(async (req) => {
         };
         break;
       }
+      case 'treat_player_for_price': {
+        const price = normalizeMoney(body.price);
+        if (!hospitalId || !target || !medicineType || price === null) {
+          return jsonResponse({ ok: false, error: 'INVALID_TREATMENT_REQUEST' });
+        }
+        functionName = 'hospital_treat_player_for_price';
+        args = {
+          p_hospital_id: hospitalId,
+          p_actor_tg_id: actorTgId,
+          p_target: target,
+          p_medicine_type: medicineType,
+          p_price: price,
+        };
+        break;
+      }
       case 'my_medicine':
         functionName = 'player_get_medical_inventory';
         args = { p_actor_tg_id: actorTgId };
@@ -286,5 +301,4 @@ serve(async (req) => {
     });
   }
 });
-
 
