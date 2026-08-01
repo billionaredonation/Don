@@ -209,6 +209,11 @@ export function enableMobileJoystick(
         <div class="mobile-stamina-fill" data-mobile-stamina-fill></div>
       </div>
     </div>
+
+    <button class="mobile-inventory-toggle" type="button" data-mobile-inventory-toggle aria-label="Открыть инвентарь">
+      <span aria-hidden="true">🎒</span>
+      <b>Инвентарь</b>
+    </button>
   `;
 
   const joystick = container.querySelector('[data-mobile-joystick]');
@@ -216,6 +221,7 @@ export function enableMobileJoystick(
   const stick = container.querySelector('[data-mobile-joystick-stick]');
   const staminaBox = container.querySelector('[data-mobile-stamina]');
   const staminaFill = container.querySelector('[data-mobile-stamina-fill]');
+  const inventoryButton = container.querySelector('[data-mobile-inventory-toggle]');
 
   if (!base || !stick) return null;
 
@@ -1034,7 +1040,18 @@ export function enableMobileJoystick(
     stopInput();
   }
 
+  function openMobileInventory(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (window.__MN_INTERIOR_ACTIVE__ === true || isHouseSpawnPickerActive()) return;
+    stopInput();
+    window.dispatchEvent(new CustomEvent('mn:inventory-toggle-request', {
+      detail: { source: 'mobile-control' },
+    }));
+  }
+
   base.addEventListener('pointerdown', onPointerDown, { passive: false });
+  inventoryButton?.addEventListener('click', openMobileInventory);
   window.addEventListener('pointermove', onPointerMove, { passive: false });
   window.addEventListener('pointerup', onPointerEnd, { passive: false });
   window.addEventListener('pointercancel', onPointerEnd, { passive: false });
@@ -1064,6 +1081,7 @@ export function enableMobileJoystick(
     }
 
     base.removeEventListener('pointerdown', onPointerDown);
+    inventoryButton?.removeEventListener('click', openMobileInventory);
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerEnd);
     window.removeEventListener('pointercancel', onPointerEnd);
