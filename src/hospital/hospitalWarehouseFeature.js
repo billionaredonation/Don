@@ -77,6 +77,11 @@ function userErrorMessage(error) {
     SALE_RANK_REQUIRED: 'Ваша должность не позволяет продавать этот препарат.',
     SALE_PRICE_NOT_CONFIGURED: 'Цена препарата ещё не задана администрацией в БД.',
     BUYER_BALANCE_NOT_ENOUGH: 'У покупателя недостаточно денег.',
+    PATIENT_BALANCE_NOT_ENOUGH: 'У пациента недостаточно денег для лечения.',
+    INVALID_TREATMENT_PRICE: 'Укажите корректную цену лечения.',
+    SELF_TREATMENT_USE_INVENTORY: 'Для лечения себя примените таблетку через собственный инвентарь.',
+    TREATMENT_ISSUE_FAILED: 'Не удалось оформить лечение. Деньги и таблетка не списаны.',
+    TREATMENT_APPLY_FAILED: 'Таблетка не применилась. Деньги и таблетка не списаны.',
     EMPLOYEE_MANAGEMENT_DENIED: 'У вас нет доступа к управлению сотрудниками этой больницы.',
     HOSPITAL_BUDGET_NOT_ENOUGH: 'В бюджете больницы недостаточно денег для закупки.',
     PURCHASE_PRICE_NOT_CONFIGURED: 'Цена закупки для этого предмета не настроена в БД.',
@@ -134,6 +139,15 @@ export async function treatPlayerFromInteraction({ hospitalId, target, medicineT
 
 export async function issueMedicineFromInteraction({ hospitalId, target, medicineType, price = 0 } = {}) {
   return invokeHospitalAction('issue_medicine', { hospitalId, target, medicineType, price });
+}
+
+export async function treatPlayerForPriceFromInteraction({ hospitalId, target, medicineType, price = 0 } = {}) {
+  return invokeHospitalAction('treat_player_for_price', {
+    hospitalId,
+    target,
+    medicineType,
+    price,
+  });
 }
 
 export async function loadMyMedicalInventory() {
@@ -714,10 +728,24 @@ export function enableHospitalWarehouseFeature() {
 
     try {
       const result = await invokeHospitalAction('process_treatment');
-      if (Number.isFinite(Number(result?.health))) {
-        state.player = { ...(state.player || {}), health: Number(result.health) };
-        window.dispatchEvent(new CustomEvent('mn:player-health-changed', {
-          detail: { health: Number(result.health), source: 'hospital_treatment', animateDamage: false },
+      const vitals = {};
+
+      ['health', 'food', 'water'].forEach((key) => {
+        const rawValue = result?.[key];
+        if (rawValue === undefined || rawValue === null) return;
+        const value = Number(rawValue);
+        if (Number.isFinite(value)) vitals[key] = value;
+      });
+
+      if (Object.keys(vitals).length) {
+        state.player = { ...(state.player || {}), ...vitals };
+        window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
+          detail: {
+            vitals,
+            source: 'hospital_treatment',
+            animateDamage: false,
+            result,
+          },
         }));
       }
 
@@ -796,4 +824,3 @@ export function enableHospitalWarehouseFeature() {
     },
   };
 }
-
