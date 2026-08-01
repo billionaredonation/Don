@@ -10,9 +10,9 @@ const FUNCTION_NAME = 'player-interaction';
 const CITY_DISTANCE = 3.4;
 const INTERIOR_DISTANCE = 5.2;
 const MEDICINES = Object.freeze([
-  { type: 'medicine_light', label: 'Слабоседативные / простые таблетки' },
-  { type: 'medicine_strong', label: 'Среднеседативные / сильные таблетки' },
-  { type: 'medicine_resuscitation', label: 'Сильные седативные / реанимационные таблетки' },
+  { type: 'medicine_light', label: 'Слабоседативные / простые таблетки', shortLabel: 'Простые таблетки' },
+  { type: 'medicine_strong', label: 'Среднеседативные / сильные таблетки', shortLabel: 'Сильные таблетки' },
+  { type: 'medicine_resuscitation', label: 'Сильные седативные / реанимационные таблетки', shortLabel: 'Реанимационные таблетки' },
 ]);
 
 function telegramInitData() {
@@ -150,6 +150,22 @@ function markup() {
           <p>Выберите действие с игроком.</p>
         </div>
         <div class="mn-player-interaction-message" data-player-interaction-message hidden></div>
+        <div class="mn-player-number-pad" data-player-number-pad hidden aria-hidden="true">
+          <div class="mn-player-number-pad-display">
+            <span data-player-number-pad-label>Введите число</span>
+            <output data-player-number-pad-output>0</output>
+          </div>
+          <div class="mn-player-number-pad-grid">
+            ${['1','2','3','4','5','6','7','8','9'].map((key) => `<button type="button" data-player-number-key="${key}">${key}</button>`).join('')}
+            <button type="button" data-player-number-action="clear">C</button>
+            <button type="button" data-player-number-key="0">0</button>
+            <button type="button" data-player-number-action="backspace">⌫</button>
+          </div>
+          <div class="mn-player-number-pad-actions">
+            <button type="button" data-player-number-action="cancel">Отмена</button>
+            <button type="button" class="is-done" data-player-number-action="done">Готово</button>
+          </div>
+        </div>
       </section>
     </div>`;
 }
@@ -158,8 +174,8 @@ function tradeFieldsMarkup(inventory = {}) {
   const items = inventory.items || {};
   return `
     <div class="mn-player-trade-fields">
-      <label><span>Деньги <small>доступно ${Number(inventory.balance || 0).toLocaleString('ru-RU')} ₴</small></span><input type="number" min="0" step="1" value="0" data-trade-value="money"></label>
-      ${MEDICINES.map((item) => `<label><span>${item.label}<small>доступно ${Number(items[item.type] || 0)}</small></span><input type="number" min="0" step="1" value="0" data-trade-value="${item.type}"></label>`).join('')}
+      <label><span>Деньги <small>доступно ${Number(inventory.balance || 0).toLocaleString('ru-RU')} ₴</small></span><input type="number" min="0" max="1000000000" step="1" value="0" data-trade-value="money"></label>
+      ${MEDICINES.map((item) => `<label><span>${item.shortLabel}<small>доступно ${Number(items[item.type] || 0)}</small></span><input type="number" min="0" max="1000" step="1" value="0" data-trade-value="${item.type}"></label>`).join('')}
     </div>`;
 }
 
@@ -193,6 +209,9 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   const actions = overlay?.querySelector('[data-player-interaction-actions]');
   const content = overlay?.querySelector('[data-player-interaction-content]');
   const message = overlay?.querySelector('[data-player-interaction-message]');
+  const numberPad = overlay?.querySelector('[data-player-number-pad]');
+  const numberPadLabel = numberPad?.querySelector('[data-player-number-pad-label]');
+  const numberPadOutput = numberPad?.querySelector('[data-player-number-pad-output]');
   const hintKey = hint?.querySelector('[data-player-interaction-hint-key]');
   const hintText = hint?.querySelector('[data-player-interaction-hint-text]');
   const closeButtons = Array.from(overlay?.querySelectorAll('[data-player-interaction-close]') || []);
@@ -211,6 +230,137 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   let professionalRefreshToken = 0;
   let professionalActions = new Map();
   let layoutFrame = 0;
+  let numberPadTarget = null;
+  let numberPadInitialValue = '';
+
+  const customNumberPadEnabled = Boolean(
+    numberPad &&
+    navigator.maxTouchPoints > 0 &&
+    Math.min(
+      window.screen?.width || window.innerWidth,
+      window.screen?.height || window.innerHeight
+    ) <= 920
+  );
+
+  function numberPadFieldLabel(input) {
+    const label = input?.closest?.('label')?.querySelector?.('span');
+    const ownText = Array.from(label?.childNodes || [])
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent)
+      .join(' ')
+      .trim();
+    return ownText || 'Введите число';
+  }
+
+  function renderNumberPadValue() {
+    if (!numberPadOutput) return;
+    const raw = String(numberPadTarget?.value || '').replace(/\D/g, '');
+    const value = Number(raw || 0);
+    numberPadOutput.textContent = Number.isFinite(value)
+      ? value.toLocaleString('ru-RU')
+      : '0';
+  }
+
+  function writeNumberPadValue(rawValue) {
+    if (!numberPadTarget) return;
+
+    let digits = String(rawValue || '').replace(/\D/g, '').slice(0, 10);
+    digits = digits.replace(/^0+(?=\d)/, '');
+    const max = Number(numberPadTarget.max);
+    if (digits && Number.isFinite(max)) {
+      digits = String(Math.min(max, Number(digits)));
+    }
+
+    numberPadTarget.value = digits;
+    numberPadTarget.dispatchEvent(new Event('input', { bubbles: true }));
+    renderNumberPadValue();
+  }
+
+  function closeNumberPad({ restore = false } = {}) {
+    if (!numberPad || numberPad.hidden) return;
+    const targetInput = numberPadTarget;
+    if (restore && targetInput) {
+      targetInput.value = numberPadInitialValue;
+      targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    numberPad.hidden = true;
+    numberPad.setAttribute('aria-hidden', 'true');
+    delete panel.dataset.numberPad;
+    numberPadTarget = null;
+    numberPadInitialValue = '';
+    scheduleRadialLayout();
+  }
+
+  function openNumberPad(input, event) {
+    if (!customNumberPadEnabled || !numberPad || !input || input.disabled) return;
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    input.blur();
+    numberPadTarget = input;
+    numberPadInitialValue = String(input.value || '');
+    if (numberPadLabel) numberPadLabel.textContent = numberPadFieldLabel(input);
+    renderNumberPadValue();
+    numberPad.hidden = false;
+    numberPad.setAttribute('aria-hidden', 'false');
+    panel.dataset.numberPad = 'true';
+    scheduleRadialLayout();
+  }
+
+  function prepareCustomNumberFields(root = content) {
+    if (!customNumberPadEnabled) return;
+    root?.querySelectorAll?.('input[type="number"]').forEach((input) => {
+      input.readOnly = true;
+      input.setAttribute('inputmode', 'none');
+      input.setAttribute('data-player-custom-number', 'true');
+    });
+  }
+
+  function handleNumberFieldPointer(event) {
+    const input = event.target?.closest?.('input[type="number"][data-player-custom-number]');
+    if (!input || !content.contains(input)) return;
+    if (numberPadTarget === input && !numberPad?.hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    openNumberPad(input, event);
+  }
+
+  function handleNumberPadClick(event) {
+    const keyButton = event.target?.closest?.('[data-player-number-key]');
+    const actionButton = event.target?.closest?.('[data-player-number-action]');
+    if (!numberPadTarget || (!keyButton && !actionButton)) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (keyButton) {
+      const current = String(numberPadTarget.value || '').replace(/\D/g, '');
+      const key = String(keyButton.dataset.playerNumberKey || '');
+      writeNumberPadValue(`${current === '0' ? '' : current}${key}`);
+      return;
+    }
+
+    const action = actionButton.dataset.playerNumberAction;
+    if (action === 'clear') writeNumberPadValue('');
+    if (action === 'backspace') {
+      writeNumberPadValue(String(numberPadTarget.value || '').slice(0, -1));
+    }
+    if (action === 'cancel') closeNumberPad({ restore: true });
+    if (action === 'done') {
+      const targetInput = numberPadTarget;
+      closeNumberPad();
+      targetInput?.dispatchEvent?.(new Event('change', { bubbles: true }));
+    }
+  }
+
+  const numberFieldObserver = customNumberPadEnabled
+    ? new MutationObserver(() => {
+        if (numberPadTarget && !numberPadTarget.isConnected) closeNumberPad();
+        prepareCustomNumberFields();
+      })
+    : null;
+  numberFieldObserver?.observe(content, { childList: true, subtree: true });
+  prepareCustomNumberFields();
 
   function setMessage(value, type = 'info') {
     message.hidden = !value;
@@ -320,6 +470,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   }
 
   function close() {
+    closeNumberPad();
     overlay.hidden = true;
     overlay.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mn-player-interaction-open');
@@ -331,6 +482,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   }
 
   function openFor(nextTarget) {
+    closeNumberPad();
     target = nextTarget;
     incomingOffer = null;
     name.textContent = target.nickname;
@@ -349,11 +501,12 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   function showMoney() {
     content.innerHTML = `
       <div class="mn-player-action-form">
-        <label><span>Сумма перевода</span><input type="number" min="1" step="1" inputmode="numeric" placeholder="0" data-money-amount></label>
+        <label><span>Сумма перевода</span><input type="number" min="1" max="1000000000" step="1" inputmode="numeric" placeholder="0" data-money-amount></label>
         <button type="button" class="is-primary" data-money-submit>Передать деньги</button>
         <small>Деньги сразу списываются с вашего баланса и зачисляются игроку.</small>
       </div>`;
     const amount = content.querySelector('[data-money-amount]');
+    prepareCustomNumberFields(content);
     content.querySelector('[data-money-submit]').addEventListener('click', async () => {
       const value = Math.floor(Number(amount.value || 0));
       if (!target || busy || value <= 0) return;
@@ -372,7 +525,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
         setBusy(false);
       }
     });
-    amount.focus();
+    if (!customNumberPadEnabled) amount.focus();
   }
 
   async function showTrade() {
@@ -388,6 +541,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
           <small>Второй игрок увидит ваше предложение и сможет добавить встречные предметы или деньги.</small>
         </div>`;
       const form = content.querySelector('[data-trade-form]');
+      prepareCustomNumberFields(form);
       form.querySelector('[data-trade-submit]').addEventListener('click', async () => {
         if (!target || busy) return;
         setBusy(true);
@@ -409,6 +563,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
 
   async function showIncoming(offer) {
     if (!offer?.offerId || destroyed) return;
+    closeNumberPad();
     incomingOffer = offer;
     target = {
       tgId: String(offer.initiatorTgId || ''),
@@ -439,6 +594,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
           <small>При принятии сервер ещё раз проверит деньги и препараты у обоих игроков.</small>
         </div>`;
       const form = content.querySelector('[data-trade-counter-form]');
+      prepareCustomNumberFields(form);
       form.querySelector('[data-trade-reject]').addEventListener('click', async () => {
         if (busy || !incomingOffer) return;
         setBusy(true);
@@ -510,6 +666,12 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   function handleKeyDown(event) {
     const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement;
     if (!overlay.hidden) {
+      if (!numberPad?.hidden) {
+        if (event.code === 'Escape' && !event.repeat) closeNumberPad({ restore: true });
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
       if (event.code === 'Escape' && !event.repeat) close();
       if (!typing) {
         event.preventDefault();
@@ -532,6 +694,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   actions.addEventListener('click', (event) => {
     const button = event.target.closest('[data-player-action]');
     if (!button || busy) return;
+    closeNumberPad();
     actions.querySelectorAll('[data-player-action]').forEach((element) => {
       element.dataset.active = element === button ? 'true' : 'false';
     });
@@ -594,6 +757,9 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
 
   closeButtons.forEach((button) => button.addEventListener('click', close));
   hint.addEventListener('click', openNearest);
+  content.addEventListener('pointerdown', handleNumberFieldPointer, true);
+  content.addEventListener('click', handleNumberFieldPointer, true);
+  numberPad?.addEventListener('click', handleNumberPadClick);
   panel.addEventListener('focusin', handlePanelFocusIn);
   panel.addEventListener('focusout', handlePanelFocusOut);
   document.addEventListener('click', handleMarkerPointer, true);
@@ -688,6 +854,10 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     window.removeEventListener('mn:professional-actions-changed', handleProfessionalActionsChanged);
     closeButtons.forEach((button) => button.removeEventListener('click', close));
     hint.removeEventListener('click', openNearest);
+    content.removeEventListener('pointerdown', handleNumberFieldPointer, true);
+    content.removeEventListener('click', handleNumberFieldPointer, true);
+    numberPad?.removeEventListener('click', handleNumberPadClick);
+    numberFieldObserver?.disconnect();
     panel.removeEventListener('focusin', handlePanelFocusIn);
     panel.removeEventListener('focusout', handlePanelFocusOut);
     document.removeEventListener('click', handleMarkerPointer, true);
