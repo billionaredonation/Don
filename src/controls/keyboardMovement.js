@@ -1,5 +1,6 @@
-import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import { getStaminaConfig, getStaminaRecoveryPerFrame } from '../player/playerStaminaConfig.js';
 import { MOVEMENT_CONFIG } from '../config/movement.js';
+import { state } from '../state.js';
 
 import {
   getKeyboardMoveSpeed,
@@ -81,7 +82,7 @@ export function enableKeyboardPlayerMovement(
 
     staminaFill.style.width = `${percent}%`;
 
-    if (sprintLocked) {
+    if (sprintLocked || window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true) {
       staminaFill.dataset.state = 'locked';
     } else if (percent < 30) {
       staminaFill.dataset.state = 'low';
@@ -95,7 +96,8 @@ export function enableKeyboardPlayerMovement(
   }
 
   function updateSprintState(isMoving, frameScale = 1) {
-    const wantsSprint = isMoving && isSprintPressed() && !sprintLocked;
+    const sprintBlockedByVitals = window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true;
+    const wantsSprint = isMoving && isSprintPressed() && !sprintLocked && !sprintBlockedByVitals;
 
     if (wantsSprint) {
       stamina = Math.max(
@@ -104,13 +106,19 @@ export function enableKeyboardPlayerMovement(
       );
 
       if (stamina <= STAMINA.emptyAt) {
+        const wasLocked = sprintLocked;
         sprintLocked = true;
         stamina = STAMINA.emptyAt;
+        if (!wasLocked) {
+          window.dispatchEvent(new CustomEvent('mn:player-stamina-exhausted', {
+            detail: { source: 'keyboard' },
+          }));
+        }
       }
     } else {
       stamina = Math.min(
         STAMINA.max,
-        stamina + STAMINA.recoverPerFrame * frameScale
+        stamina + getStaminaRecoveryPerFrame(state.player?.water) * frameScale
       );
 
       if (stamina >= STAMINA.recoveredAt) {
@@ -489,6 +497,11 @@ export function enableKeyboardPlayerMovement(
     }
   }
 
+  function handleSprintAvailabilityChanged() {
+    updateStaminaUi();
+    ensureLoopRunning();
+  }
+
   function onExternalTeleport(event) {
     const detail = event?.detail || {};
 
@@ -583,6 +596,7 @@ export function enableKeyboardPlayerMovement(
   window.addEventListener('mn:player-teleported', onExternalTeleport);
   window.addEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
   window.addEventListener('mn:inventory-opened', pauseForHouseSpawnPicker);
+  window.addEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
 
   forceSyncPosition();
   savePositionToDb(true);
@@ -598,6 +612,7 @@ export function enableKeyboardPlayerMovement(
     window.removeEventListener('mn:player-teleported', onExternalTeleport);
     window.removeEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
     window.removeEventListener('mn:inventory-opened', pauseForHouseSpawnPicker);
+    window.removeEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
 
     if (animationId) {
       cancelAnimationFrame(animationId);
