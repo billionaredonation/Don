@@ -37,6 +37,7 @@ import { enableHousesFeature } from '../../src/houses/housesFeature.js';
 import { enableInventoryFeature } from '../../src/inventory/inventoryFeature.js';
 import { enableHospitalManagementFeature } from '../../src/hospital/hospitalManagementFeature.js';
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
+import { enablePlayerStatusEffects } from '../../src/player/playerStatusEffects.js';
 import {
   fetchPlayerOwnedHouses,
   PLAYER_HOUSE_SLOT_LIMIT,
@@ -1421,6 +1422,7 @@ register('home', async (root) => {
   const cleanupInventoryFeature = enableInventoryFeature();
   const cleanupHospitalManagement = enableHospitalManagementFeature();
   const cleanupPlayerInteraction = enablePlayerInteractionFeature({ playerPosition });
+  const cleanupPlayerStatusEffects = enablePlayerStatusEffects();
 
   const cleanupHousesFeature = enableHousesFeature(root, {
     cityId,
@@ -2271,6 +2273,7 @@ register('home', async (root) => {
     cleanupInventoryFeature?.();
     cleanupHospitalManagement?.();
     cleanupPlayerInteraction?.();
+    cleanupPlayerStatusEffects?.();
     cleanupHousesFeature?.();
     cleanupSingleHouseModalMode?.();
     cleanupMovement?.();
@@ -2310,6 +2313,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
-
-
