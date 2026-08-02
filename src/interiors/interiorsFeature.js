@@ -1,7 +1,7 @@
 // Hospital batch refresh 2026-07-20: interior warehouse pickup deploy marker.
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
-import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import { getStaminaConfig, getStaminaRecoveryPerFrame } from '../player/playerStaminaConfig.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import { getLocalPlayerId, getSessionId } from '../player/playerPosition.js';
 import {
@@ -1708,6 +1708,7 @@ export function enableInteriorsFeature() {
 
   function setPaused(value) {
     window.__MN_INTERIOR_ACTIVE__ = value;
+    if (!value) window.__MN_INTERIOR_PLAYER_MOVING__ = false;
     document.body.classList.toggle('mn-interior-open', value);
     document.documentElement.classList.toggle('mn-interior-open', value);
   }
@@ -2614,7 +2615,15 @@ export function enableInteriorsFeature() {
     const percent = Math.max(0, Math.min(100, (stamina / staminaConfig.max) * 100));
     staminaFill.style.width = `${percent}%`;
     staminaRing.style.setProperty('--mn-interior-stamina', `${percent * 3.6}deg`);
-    staminaFill.dataset.state = sprintLocked ? 'locked' : percent < 30 ? 'low' : 'normal';
+    staminaFill.dataset.state = sprintLocked || window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true
+      ? 'locked'
+      : percent < 30
+        ? 'low'
+        : 'normal';
+  }
+
+  function handleSprintAvailabilityChanged() {
+    renderStamina();
   }
 
   function renderBalance() {
@@ -4137,19 +4146,32 @@ export function enableInteriorsFeature() {
     lastFrame = time;
     const vector = movementVector();
     const moving = Math.hypot(vector.x, vector.y) > 0.04;
-    const wantsSprint = moving && (keys.has('shift') || Math.hypot(joystickVector.x, joystickVector.y) >= 0.62);
+    const sprintBlockedByVitals = window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true;
+    const wantsSprint = moving && !sprintBlockedByVitals && (keys.has('shift') || Math.hypot(joystickVector.x, joystickVector.y) >= 0.62);
     const frameScale = dt * 60;
 
     if (wantsSprint && !sprintLocked) {
       stamina = Math.max(staminaConfig.emptyAt, stamina - staminaConfig.drainPerFrame * frameScale);
-      if (stamina <= staminaConfig.emptyAt) sprintLocked = true;
+      if (stamina <= staminaConfig.emptyAt) {
+        const wasLocked = sprintLocked;
+        sprintLocked = true;
+        if (!wasLocked) {
+          window.dispatchEvent(new CustomEvent('mn:player-stamina-exhausted', {
+            detail: { source: 'interior' },
+          }));
+        }
+      }
     } else {
-      stamina = Math.min(staminaConfig.max, stamina + staminaConfig.recoverPerFrame * frameScale);
+      stamina = Math.min(
+        staminaConfig.max,
+        stamina + getStaminaRecoveryPerFrame(state.player?.water) * frameScale
+      );
       if (sprintLocked && stamina >= staminaConfig.recoveredAt) sprintLocked = false;
     }
 
     const sprint = wantsSprint && !sprintLocked;
     const speed = sprint ? 23 : 15;
+    window.__MN_INTERIOR_PLAYER_MOVING__ = moving;
     position = resolveInteriorMovement(activeTemplateId, position, {
       x: vector.x * speed * dt,
       y: vector.y * speed * dt,
@@ -4855,6 +4877,7 @@ export function enableInteriorsFeature() {
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
+  window.addEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
   window.addEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
   window.addEventListener('mn:inventory-opened', pauseForInventory);
   window.addEventListener('keydown', keyDown, true);
@@ -4900,6 +4923,7 @@ export function enableInteriorsFeature() {
       window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
       window.removeEventListener('mn:player-health-changed', handleHealthChanged);
       window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
+      window.removeEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
       window.removeEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
       window.removeEventListener('mn:inventory-opened', pauseForInventory);
       window.removeEventListener('keydown', keyDown, true);
