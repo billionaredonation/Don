@@ -728,6 +728,21 @@ body.mn-inventory-open .mn-vital-notice {
   color: #c9ffe4;
 }
 
+.mn-inventory-item-water {
+  border-color: rgba(74, 177, 255, 0.34);
+  background:
+    radial-gradient(circle at 38% 28%, rgba(74, 177, 255, 0.2), transparent 52%),
+    linear-gradient(145deg, rgba(14, 43, 67, 0.9), rgba(7, 17, 27, 0.94));
+}
+
+.mn-inventory-item-water:hover,
+.mn-inventory-item-water:focus-visible {
+  border-color: rgba(116, 205, 255, 0.72);
+  background:
+    radial-gradient(circle at 38% 28%, rgba(116, 205, 255, 0.27), transparent 52%),
+    linear-gradient(145deg, rgba(14, 57, 89, 0.94), rgba(7, 17, 27, 0.96));
+}
+
 .mn-inventory-grid[data-busy="true"] .mn-inventory-item {
   pointer-events: none;
   opacity: 0.55;
