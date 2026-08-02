@@ -4,7 +4,6 @@ import { state } from '../state.js';
 import './hospitalWarehouse.css';
 
 const HOSPITAL_FUNCTION_NAME = 'hospital-warehouse';
-const PLAYER_INTERACTION_FUNCTION_NAME = 'player-interaction';
 const MEDICINE_TYPES = ['medicine_light', 'medicine_strong', 'medicine_resuscitation'];
 const ITEM_FALLBACKS = Object.freeze({
   food: { label: 'Продукты', icon: '🍱' },
@@ -87,7 +86,6 @@ function userErrorMessage(error) {
     SELF_TREATMENT_USE_INVENTORY: 'Для лечения себя примените таблетку через собственный инвентарь.',
     TREATMENT_ISSUE_FAILED: 'Не удалось оформить лечение. Деньги и таблетка не списаны.',
     TREATMENT_APPLY_FAILED: 'Таблетка не применилась. Деньги и таблетка не списаны.',
-    PLAYER_INTERACTION_EDGE_OUTDATED: 'Обновите Edge Function player-interaction: в ней отсутствует действие лечения.',
     EMPLOYEE_MANAGEMENT_DENIED: 'У вас нет доступа к управлению сотрудниками этой больницы.',
     HOSPITAL_BUDGET_NOT_ENOUGH: 'В бюджете больницы недостаточно денег для закупки.',
     PURCHASE_PRICE_NOT_CONFIGURED: 'Цена закупки для этого предмета не настроена в БД.',
@@ -148,26 +146,15 @@ export async function issueMedicineFromInteraction({ hospitalId, target, medicin
 }
 
 export async function treatPlayerForPriceFromInteraction({ hospitalId, target, medicineType, price = 0 } = {}) {
-  const initData = telegramInitData();
-  if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
-
-  const { data, error } = await supabase.functions.invoke(PLAYER_INTERACTION_FUNCTION_NAME, {
-    body: {
-      initData,
-      action: 'treat_player_for_price',
-      hospitalId,
-      target,
-      medicineType,
-      price,
-    },
+  // Professional treatment belongs to the hospital backend. Keeping it on the
+  // already authenticated hospital route avoids making the doctor action
+  // depend on the optional player-interaction Edge Function used by trades.
+  return invokeHospitalAction('treat_player_for_price', {
+    hospitalId,
+    target,
+    medicineType,
+    price,
   });
-
-  if (error) throw await normalizeError(error);
-  if (!data?.ok) {
-    if (data?.error === 'UNKNOWN_ACTION') throw new Error('PLAYER_INTERACTION_EDGE_OUTDATED');
-    throw new Error(data?.error || data?.reason || 'HOSPITAL_REQUEST_FAILED');
-  }
-  return data.result;
 }
 
 export async function loadMyMedicalInventory() {
