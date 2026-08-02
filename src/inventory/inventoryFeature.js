@@ -22,9 +22,15 @@ const THIRST_WARNING_THRESHOLD = 40;
 const CRITICAL_VITAL_THRESHOLD = 20;
 const ITEM_META = Object.freeze({
   food: { label: 'Обед', icon: '🍔' },
+  water_bottle: { label: 'Бутылка воды', icon: '💧' },
   medicine_light: { label: 'Слабоседативные таблетки', icon: '💊' },
   medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
+});
+const MEDICINE_METABOLIC_COST = Object.freeze({
+  medicine_light: { food: '1–2', water: '3–4' },
+  medicine_strong: { food: '3–5', water: '5–7' },
+  medicine_resuscitation: { food: '10–12', water: '8–18' },
 });
 
 const VITAL_ALIASES = Object.freeze({
@@ -285,6 +291,7 @@ function renderMedicalItems(items = []) {
       'mn-inventory-item',
       isServiceStock ? 'mn-inventory-item-service' : '',
       itemType === 'food' ? 'mn-inventory-item-food' : '',
+      itemType === 'water_bottle' ? 'mn-inventory-item-water' : '',
     ].filter(Boolean).join(' ');
 
     return `
@@ -611,6 +618,10 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nПрименение восстанавливает сытость и немного воды. Покупается в столовке.`;
     }
 
+    if (itemType === 'water_bottle') {
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nВосстанавливает 20 единиц воды. Хорошая гидратация ускоряет восстановление стамины до 3 минут.`;
+    }
+
     if (itemType.startsWith('medicine_')) {
       const heal = Number(item.healPerTick || 0);
       const tick = Number(item.tickSeconds || 0);
@@ -619,7 +630,11 @@ export function enableInventoryFeature() {
       const minWater = Number(item.minWater || MEDICINE_MIN_FOOD);
       const minHealth = Number(item.minHealth || 0);
       const maxHealth = Number(item.maxHealth || 100);
-      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nЛечение: +${heal} HP каждые ${tick} сек., максимум ${duration} сек.\nУсловия: HP от ${minHealth} до ${maxHealth - 1}, еда от ${minFood}, вода от ${minWater}.`;
+      const cost = MEDICINE_METABOLIC_COST[itemType];
+      const metabolicRule = cost
+        ? `\nРасход при приёме: ${cost.food} еды и ${cost.water} воды.`
+        : '';
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nЛечение: +${heal} HP каждые ${tick} сек., максимум ${duration} сек.\nУсловия: HP от ${minHealth} до ${maxHealth - 1}, еда от ${minFood}, вода от ${minWater}.${metabolicRule}`;
     }
 
     return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nДля этого типа предмета информация и действие будут дополняться позже.`;
@@ -754,13 +769,17 @@ export function enableInventoryFeature() {
           type: 'success',
           message: itemType === 'food'
             ? `${result?.itemLabel || getItemLabel(item)} применён. Сытость восстановлена.`
-            : `${result?.medicineLabel || getItemLabel(item)} применён. Восстановление HP началось.`,
+            : itemType === 'water_bottle'
+              ? `${result?.itemLabel || getItemLabel(item)} выпита. Вода восстановлена на 20.`
+              : `${result?.medicineLabel || getItemLabel(item)} применён. Восстановление HP началось.`,
         },
       }));
       setItemMenuNotice(
         itemType === 'food'
           ? `${result?.itemLabel || getItemLabel(item)} применён. Сытость: ${Math.round(Number(result?.food ?? currentVitals.food))}/100, вода: ${Math.round(Number(result?.water ?? currentVitals.water))}/100.`
-          : `${result?.medicineLabel || getItemLabel(item)} применён. Восстановление HP началось.`,
+          : itemType === 'water_bottle'
+            ? `${result?.itemLabel || getItemLabel(item)} выпита. Вода: ${Math.round(Number(result?.water ?? currentVitals.water))}/100.`
+            : `${result?.medicineLabel || getItemLabel(item)} применён. Потрачено ${Number(result?.foodCost || 0)} еды и ${Number(result?.waterCost || 0)} воды. Восстановление HP началось.`,
         'success'
       );
       await refreshMedicalInventory();
