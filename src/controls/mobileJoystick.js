@@ -212,7 +212,6 @@ export function enableMobileJoystick(
 
     <button class="mobile-inventory-toggle" type="button" data-mobile-inventory-toggle aria-label="Открыть инвентарь">
       <span aria-hidden="true">🎒</span>
-      <b>Инвентарь</b>
     </button>
   `;
 
