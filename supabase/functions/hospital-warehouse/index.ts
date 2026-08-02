@@ -209,6 +209,7 @@ serve(async (req) => {
     });
 
     let functionName = '';
+    let fallbackFunctionName = '';
     let args: Record<string, unknown> = {};
 
     switch (action) {
@@ -323,6 +324,7 @@ serve(async (req) => {
           return jsonResponse({ ok: false, error: 'INVALID_TREATMENT_REQUEST' });
         }
         functionName = 'hospital_treat_player_for_price_counted';
+        fallbackFunctionName = 'hospital_treat_player_for_price';
         args = {
           p_hospital_id: hospitalId,
           p_actor_tg_id: actorTgId,
@@ -414,7 +416,24 @@ serve(async (req) => {
         return jsonResponse({ ok: false, error: 'UNKNOWN_ACTION' });
     }
 
-    const { data, error } = await supabase.rpc(functionName, args);
+    let { data, error } = await supabase.rpc(functionName, args);
+    const missingRpc = error && (
+      error.code === 'PGRST202' ||
+      error.code === '42883' ||
+      /function .* does not exist|could not find the function/i.test(error.message || '')
+    );
+
+    // The treatment itself must keep working during a rolling deployment when
+    // the base atomic RPC is present but the statistics wrapper is not yet in
+    // PostgREST's schema cache. Statistics can catch up after the migration;
+    // medicine, money and HP still remain one transaction in the base RPC.
+    if (missingRpc && fallbackFunctionName) {
+      const fallback = await supabase.rpc(fallbackFunctionName, args);
+      data = fallback.data;
+      error = fallback.error;
+      functionName = fallbackFunctionName;
+    }
+
     if (error) {
       console.warn(`[hospital-warehouse] ${functionName} failed:`, error.message);
       return jsonResponse({ ok: false, error: error.message, code: error.code });
@@ -479,4 +498,3 @@ serve(async (req) => {
     });
   }
 });
-
