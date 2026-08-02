@@ -811,38 +811,50 @@
   }
 }
 
-/* Inventory on phones keeps desktop-sized touch cells. The 10x10 storage
-   scrolls inside its own viewport instead of compressing every slot. */
+/* Mobile inventory stays compact so the live game remains visible behind it. */
 @media (hover: none) and (pointer: coarse) {
   .mn-inventory,
   html.mn-force-rotate-landscape body .mn-inventory,
   body.mn-force-rotate-landscape .mn-inventory {
-    --mn-inventory-cell: 46px !important;
-    --mn-inventory-gap: 5px !important;
-    --mn-inventory-grid-padding: 7px !important;
-    padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)) !important;
+    --mn-inventory-cell: 36px !important;
+    --mn-inventory-gap: 4px !important;
+    --mn-inventory-grid-padding: 6px !important;
+    padding: max(18px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)) !important;
+  }
+
+  .mn-inventory-backdrop {
+    background:
+      radial-gradient(circle at 50% 44%, rgba(21, 43, 57, .15), transparent 54%),
+      rgba(1, 5, 8, .30) !important;
+    backdrop-filter: blur(4px) saturate(.9) !important;
+    -webkit-backdrop-filter: blur(4px) saturate(.9) !important;
   }
 
   .mn-inventory-panel,
   html.mn-force-rotate-landscape body .mn-inventory-panel,
   body.mn-force-rotate-landscape .mn-inventory-panel {
-    width: calc(100% - 4px) !important;
-    height: calc(100% - 4px) !important;
-    max-width: calc(100% - 4px) !important;
-    max-height: calc(100% - 4px) !important;
-    padding: 10px !important;
+    width: min(780px, calc(100% - 48px)) !important;
+    height: min(520px, calc(100% - 36px)) !important;
+    max-width: calc(100% - 48px) !important;
+    max-height: calc(100% - 36px) !important;
+    padding: 9px !important;
     overflow: hidden !important;
+    border-radius: 18px !important;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, .05), transparent 30%),
+      linear-gradient(180deg, rgba(14, 22, 30, .965), rgba(5, 10, 15, .97)) !important;
+    box-shadow: 0 26px 70px rgba(0, 0, 0, .56), 0 0 0 1px rgba(255, 255, 255, .035) inset !important;
   }
 
   .mn-inventory-header {
     grid-template-columns: auto minmax(0, 1fr) auto auto !important;
-    min-height: 44px !important;
+    min-height: 38px !important;
   }
 
   .mn-inventory-emblem {
     display: grid !important;
-    width: 42px !important;
-    height: 42px !important;
+    width: 36px !important;
+    height: 36px !important;
   }
 
   .mn-inventory-capacity {
@@ -851,13 +863,13 @@
 
   .mn-inventory-description {
     display: block !important;
-    margin: 6px 0 !important;
+    margin: 4px 0 6px !important;
   }
 
   .mn-inventory-content,
   html.mn-force-rotate-landscape body .mn-inventory-content,
   body.mn-force-rotate-landscape .mn-inventory-content {
-    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) !important;
+    grid-template-columns: minmax(138px, 160px) minmax(0, 1fr) !important;
     min-height: 0 !important;
     overflow: hidden !important;
   }
@@ -875,7 +887,7 @@
   html.mn-force-rotate-landscape body .mn-inventory-character-card,
   body.mn-force-rotate-landscape .mn-inventory-character-card {
     display: grid !important;
-    flex-basis: 112px !important;
+    flex-basis: 98px !important;
   }
 
   .mn-inventory-character-caption,
@@ -901,21 +913,21 @@
   }
 
   .mn-inventory-slot {
-    width: 46px !important;
-    height: 46px !important;
-    min-width: 46px !important;
-    min-height: 46px !important;
-    border-radius: 9px !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    border-radius: 8px !important;
   }
 
   .mn-inventory-item span {
-    font-size: 22px !important;
+    font-size: 18px !important;
   }
 
   .mn-inventory-footer {
     display: grid !important;
-    min-height: 30px !important;
-    padding-top: 6px !important;
+    min-height: 25px !important;
+    padding-top: 4px !important;
   }
 
   .mn-inventory-hotkey {
@@ -923,7 +935,7 @@
   }
 
   .mn-inventory-item-menu-card {
-    width: min(360px, calc(100% - 20px)) !important;
+    width: min(330px, calc(100% - 28px)) !important;
   }
 
   .mn-inventory-item-menu-actions button {
