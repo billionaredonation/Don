@@ -754,8 +754,11 @@ export function enableInventoryFeature() {
         }));
       }
       if (itemType.startsWith('medicine_')) {
-        await notifyHospitalTreatmentStarted(localTelegramId(), result?.hospitalId);
+        // Start the map effect immediately. The inventory deliberately stays
+        // open and covers it; if the player closes the inventory while the
+        // treatment is still active, the running effect becomes visible.
         window.dispatchEvent(new CustomEvent('mn:hospital-treatment-started-local'));
+        await notifyHospitalTreatmentStarted(localTelegramId(), result?.hospitalId);
         window.dispatchEvent(new CustomEvent('mn:hospital-professional-stats-changed', {
           detail: {
             hospitalId: result?.hospitalId || item.hospitalId || null,
