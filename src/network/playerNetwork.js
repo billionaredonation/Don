@@ -1202,6 +1202,16 @@ export function setupPlayerNetwork({
 
   let movementChannel = null;
 
+  function broadcastLocalTreatment(event) {
+    const detail = event?.detail || {};
+    movementChannel?.sendTreatment?.({
+      playerId: selfPlayerId,
+      active: detail.active === true,
+      activeUntil: Number(detail.activeUntil || Date.now()),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
   try {
     movementChannel = createCityMovementChannel(cityId, {
       onMove(player) {
@@ -1210,7 +1220,15 @@ export function setupPlayerNetwork({
           skipFreshnessCheck: true,
         });
       },
+      onTreatment(treatment) {
+        const remotePlayerId = getPlayerId(treatment);
+        if (!remotePlayerId || isSamePlayer(remotePlayerId, selfPlayerId)) return;
+        window.dispatchEvent(new CustomEvent('mn:remote-player-treatment-state-changed', {
+          detail: { ...treatment, playerId: remotePlayerId },
+        }));
+      },
     });
+    window.addEventListener('mn:local-player-treatment-state-changed', broadcastLocalTreatment);
   } catch (error) {
     console.warn('[network] movement channel failed:', error);
   }
@@ -1301,6 +1319,7 @@ export function setupPlayerNetwork({
       cleanupSnapshotRefresh?.();
       cleanupOffline?.();
 
+      window.removeEventListener('mn:local-player-treatment-state-changed', broadcastLocalTreatment);
       movementChannel?.unsubscribe?.();
 
       remoteMarkers.forEach((state) => {
