@@ -7,6 +7,7 @@ const DAMAGE_EMIT_MS = 95;
 const CONSUMPTION_EMIT_MS = 115;
 const DAMAGE_ACTIVITY_MS = 950;
 const TREATMENT_WATCHDOG_MS = 90000;
+const TREATMENT_BROADCAST_HEARTBEAT_MS = 15000;
 
 function finiteNumber(value) {
   const number = Number(value);
@@ -47,6 +48,33 @@ function findLocalPlayerMarker() {
 
   const mapMarker = document.querySelector('.gta-player-marker-self');
   return isElementVisible(mapMarker) ? mapMarker : null;
+}
+
+function escapeCss(value) {
+  return window.CSS?.escape
+    ? CSS.escape(String(value))
+    : String(value).replaceAll('"', '\\"');
+}
+
+function localPlayerId() {
+  return String(
+    state.telegramId ||
+    state.player?.telegramId ||
+    state.player?.tg_id ||
+    document.querySelector('.gta-player-marker-self')?.dataset?.playerId ||
+    ''
+  ).trim();
+}
+
+function findRemotePlayerMarker(playerId) {
+  const safePlayerId = String(playerId || '').trim();
+  if (!safePlayerId) return null;
+  const escaped = escapeCss(safePlayerId);
+  const marker = document.querySelector(
+    `.mn-interior-remote-player[data-player-id="${escaped}"], ` +
+    `.gta-player-marker-other[data-player-id="${escaped}"]`
+  );
+  return isElementVisible(marker) ? marker : null;
 }
 
 function healthFromEvent(event, fallback) {
@@ -95,32 +123,61 @@ export function enablePlayerStatusEffects() {
   let destroyed = false;
   let treatmentActive = false;
   let treatmentWatchdog = 0;
+  let lastTreatmentBroadcastAt = 0;
   let damageUntil = 0;
   let activeConsumption = '';
+  const remoteTreatments = new Map();
   let lastHealth = finiteNumber(state.player?.health ?? state.player?.hp);
   let nextHealAt = 0;
   let nextDamageAt = 0;
   let nextConsumptionAt = 0;
 
-  function clearParticles(kind = '') {
-    const selector = kind
-      ? `.mn-player-status-particle[data-kind="${CSS.escape(kind)}"]`
-      : '.mn-player-status-particle';
+  function clearParticles(kind = '', playerId = '') {
+    const kindSelector = kind ? `[data-kind="${escapeCss(kind)}"]` : '';
+    const playerSelector = playerId ? `[data-player-id="${escapeCss(playerId)}"]` : '';
+    const selector = `.mn-player-status-particle${kindSelector}${playerSelector}`;
     layer.querySelectorAll(selector).forEach((particle) => particle.remove());
   }
 
+  function clearLocalParticles(kind) {
+    layer.querySelectorAll(
+      `.mn-player-status-particle[data-kind="${escapeCss(kind)}"]:not([data-player-id])`
+    ).forEach((particle) => particle.remove());
+  }
+
+  function publishLocalTreatment(active, watchdogMs) {
+    const now = Date.now();
+    if (
+      active === treatmentActive &&
+      active === true &&
+      now - lastTreatmentBroadcastAt < TREATMENT_BROADCAST_HEARTBEAT_MS
+    ) return;
+
+    lastTreatmentBroadcastAt = now;
+    window.dispatchEvent(new CustomEvent('mn:local-player-treatment-state-changed', {
+      detail: {
+        playerId: localPlayerId(),
+        active: active === true,
+        activeUntil: active === true ? now + watchdogMs : now,
+      },
+    }));
+  }
+
   function setTreatmentActive(active, watchdogMs = TREATMENT_WATCHDOG_MS) {
-    treatmentActive = active === true;
+    const nextActive = active === true;
+    const safeWatchdogMs = Math.max(5000, Number(watchdogMs) || TREATMENT_WATCHDOG_MS);
+    publishLocalTreatment(nextActive, safeWatchdogMs);
+    treatmentActive = nextActive;
     window.clearTimeout(treatmentWatchdog);
     treatmentWatchdog = 0;
 
     if (!treatmentActive) {
-      clearParticles('heal');
+      clearLocalParticles('heal');
       return;
     }
 
     nextHealAt = 0;
-    treatmentWatchdog = window.setTimeout(() => setTreatmentActive(false), Math.max(5000, watchdogMs));
+    treatmentWatchdog = window.setTimeout(() => setTreatmentActive(false), safeWatchdogMs);
   }
 
   function setConsumption(active, kind) {
@@ -136,25 +193,14 @@ export function enablePlayerStatusEffects() {
     }
   }
 
-  function positionLayer() {
-    const marker = findLocalPlayerMarker();
-    if (!marker) {
-      layer.hidden = true;
-      return false;
-    }
+  function spawnParticle(kind, index = 0, marker = null, playerId = '') {
+    const targetMarker = marker || findLocalPlayerMarker();
+    if (!targetMarker) return;
 
-    const rect = marker.getBoundingClientRect();
+    const rect = targetMarker.getBoundingClientRect();
     const markerHasSize = rect.width > 1 || rect.height > 1;
     const centerX = markerHasSize ? rect.left + rect.width / 2 : rect.left;
     const centerY = markerHasSize ? rect.top + rect.height / 2 : rect.top;
-    layer.style.setProperty('--mn-player-fx-x', `${Math.round(centerX * 10) / 10}px`);
-    layer.style.setProperty('--mn-player-fx-y', `${Math.round(centerY * 10) / 10}px`);
-    layer.hidden = false;
-    return true;
-  }
-
-  function spawnParticle(kind, index = 0) {
-    if (!positionLayer()) return;
 
     const particle = document.createElement('i');
     const angle = randomBetween(0, Math.PI * 2);
@@ -178,7 +224,10 @@ export function enablePlayerStatusEffects() {
 
     particle.className = 'mn-player-status-particle';
     particle.dataset.kind = kind;
+    if (playerId) particle.dataset.playerId = String(playerId);
     if (kind === 'heal' || kind === 'damage') particle.textContent = '+';
+    particle.style.setProperty('--mn-player-fx-x', `${Math.round(centerX * 10) / 10}px`);
+    particle.style.setProperty('--mn-player-fx-y', `${Math.round(centerY * 10) / 10}px`);
     particle.style.setProperty('--mn-fx-dx', `${x.toFixed(1)}px`);
     particle.style.setProperty('--mn-fx-dy', `${y.toFixed(1)}px`);
     particle.style.setProperty('--mn-fx-rotation', `${Math.round(randomBetween(-150, 150))}deg`);
@@ -191,9 +240,11 @@ export function enablePlayerStatusEffects() {
     window.setTimeout(() => particle.remove(), duration + 250);
   }
 
-  function emit(kind, amount) {
+  function emit(kind, amount, marker = null, playerId = '') {
     const limitedAmount = reducedMotion ? 1 : amount;
-    for (let index = 0; index < limitedAmount; index += 1) spawnParticle(kind, index);
+    for (let index = 0; index < limitedAmount; index += 1) {
+      spawnParticle(kind, index, marker, playerId);
+    }
   }
 
   function handleTreatmentStarted() {
@@ -206,6 +257,24 @@ export function enablePlayerStatusEffects() {
     setTreatmentActive(detail.active === true, nextPollMs !== null
       ? Math.max(TREATMENT_WATCHDOG_MS, nextPollMs * 5)
       : TREATMENT_WATCHDOG_MS);
+  }
+
+  function handleRemoteTreatmentState(event) {
+    const detail = event?.detail || {};
+    const playerId = String(detail.playerId || detail.player_id || '').trim();
+    if (!playerId || playerId === localPlayerId()) return;
+
+    if (detail.active !== true) {
+      remoteTreatments.delete(playerId);
+      clearParticles('heal', playerId);
+      return;
+    }
+
+    const requestedUntil = finiteNumber(detail.activeUntil ?? detail.active_until);
+    const activeUntil = requestedUntil !== null
+      ? Math.max(Date.now() + 5000, Math.min(requestedUntil, Date.now() + TREATMENT_WATCHDOG_MS))
+      : Date.now() + TREATMENT_WATCHDOG_MS;
+    remoteTreatments.set(playerId, { activeUntil, nextHealAt: 0 });
   }
 
   function handleConsumptionState(event) {
@@ -238,13 +307,13 @@ export function enablePlayerStatusEffects() {
     if (destroyed || document.hidden) return;
 
     const now = performance.now();
-    const hasEmitter = treatmentActive || damageUntil > now || Boolean(activeConsumption);
+    const hasEmitter = treatmentActive || damageUntil > now || Boolean(activeConsumption) || remoteTreatments.size > 0;
     if (!hasEmitter && !layer.childElementCount) {
       layer.hidden = true;
       return;
     }
 
-    positionLayer();
+    layer.hidden = false;
 
     const takingDamage = damageUntil > now;
 
@@ -262,21 +331,37 @@ export function enablePlayerStatusEffects() {
       emit(activeConsumption, 3);
       nextConsumptionAt = now + (reducedMotion ? CONSUMPTION_EMIT_MS * 3 : CONSUMPTION_EMIT_MS);
     }
+
+    const wallNow = Date.now();
+    remoteTreatments.forEach((remote, playerId) => {
+      if (remote.activeUntil <= wallNow) {
+        remoteTreatments.delete(playerId);
+        clearParticles('heal', playerId);
+        return;
+      }
+      if (now < remote.nextHealAt) return;
+      const marker = findRemotePlayerMarker(playerId);
+      if (marker) emit('heal', 3, marker, playerId);
+      remote.nextHealAt = now + (reducedMotion ? HEAL_EMIT_MS * 3 : HEAL_EMIT_MS);
+    });
   }, TICK_MS);
 
   window.addEventListener('mn:hospital-treatment-started-local', handleTreatmentStarted);
   window.addEventListener('mn:player-treatment-state-changed', handleTreatmentState);
+  window.addEventListener('mn:remote-player-treatment-state-changed', handleRemoteTreatmentState);
   window.addEventListener('mn:player-consumption-state-changed', handleConsumptionState);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   window.addEventListener('mn:player-health-changed', handleVitalsChanged);
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
   return () => {
+    if (treatmentActive) setTreatmentActive(false);
     destroyed = true;
     window.clearInterval(timer);
     window.clearTimeout(treatmentWatchdog);
     window.removeEventListener('mn:hospital-treatment-started-local', handleTreatmentStarted);
     window.removeEventListener('mn:player-treatment-state-changed', handleTreatmentState);
+    window.removeEventListener('mn:remote-player-treatment-state-changed', handleRemoteTreatmentState);
     window.removeEventListener('mn:player-consumption-state-changed', handleConsumptionState);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
     window.removeEventListener('mn:player-health-changed', handleVitalsChanged);
