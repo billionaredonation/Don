@@ -765,6 +765,15 @@ export function enableHospitalWarehouseFeature() {
         }));
       }
 
+      window.dispatchEvent(new CustomEvent('mn:player-treatment-state-changed', {
+        detail: {
+          active: result?.active === true,
+          nextPollMs: Number(result?.nextPollMs || 0),
+          source: 'hospital_treatment',
+          result,
+        },
+      }));
+
       window.clearTimeout(treatmentTimer);
       treatmentTimer = result?.active
         ? window.setTimeout(processMyTreatment, Math.max(1500, Number(result.nextPollMs || 2000)))
