@@ -387,6 +387,10 @@ serve(async (req) => {
         functionName = 'player_apply_stamina_exhaustion';
         args = { p_actor_tg_id: actorTgId };
         break;
+      case 'sprint_usage':
+        functionName = 'player_apply_sprint_usage';
+        args = { p_actor_tg_id: actorTgId };
+        break;
       case 'survival_tick':
         functionName = 'player_process_survival_tick';
         args = { p_actor_tg_id: actorTgId, p_is_active: isActive };
@@ -450,7 +454,7 @@ serve(async (req) => {
     }
 
     if (
-      (action === 'survival_tick' || action === 'stamina_exhausted') &&
+      (action === 'survival_tick' || action === 'stamina_exhausted' || action === 'sprint_usage') &&
       result && typeof result === 'object' && !Array.isArray(result) &&
       (result as Record<string, unknown>).notificationRequired === true
     ) {
