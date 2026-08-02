@@ -477,6 +477,7 @@ export function createCityMovementChannel(cityId, handlers = {}) {
   let queuedPayload = null;
 
   const pendingPayloads = [];
+  const pendingTreatmentPayloads = [];
   const MIN_CHANNEL_SEND_INTERVAL_MS = 45;
 
   const channel = supabase.channel(`city_movement_${cityId}`, {
@@ -492,23 +493,28 @@ export function createCityMovementChannel(cityId, handlers = {}) {
     handlers.onMove?.(payload.payload);
   });
 
-  function safeSend(payload) {
+  channel.on('broadcast', { event: 'player_treatment' }, (payload) => {
+    if (destroyed) return;
+    handlers.onTreatment?.(payload.payload);
+  });
+
+  function safeSend(payload, event = 'player_move') {
     if (destroyed || !payload) return;
 
     try {
       const result = channel.send({
         type: 'broadcast',
-        event: 'player_move',
+        event,
         payload,
       });
 
       if (result?.catch) {
         result.catch((error) => {
-          console.warn('[playerPosition] movement broadcast failed:', error);
+          console.warn(`[playerPosition] ${event} broadcast failed:`, error);
         });
       }
     } catch (error) {
-      console.warn('[playerPosition] movement broadcast crashed:', error);
+      console.warn(`[playerPosition] ${event} broadcast crashed:`, error);
     }
   }
 
@@ -536,6 +542,9 @@ export function createCityMovementChannel(cityId, handlers = {}) {
     }
 
     flushQueuedSend();
+    while (pendingTreatmentPayloads.length) {
+      safeSend(pendingTreatmentPayloads.shift(), 'player_treatment');
+    }
   });
 
   return {
@@ -597,9 +606,20 @@ export function createCityMovementChannel(cityId, handlers = {}) {
       safeSend(presencePayload);
     },
 
+    sendTreatment(treatment) {
+      if (destroyed || !treatment) return;
+      if (!subscribed) {
+        pendingTreatmentPayloads.push(treatment);
+        if (pendingTreatmentPayloads.length > 2) pendingTreatmentPayloads.shift();
+        return;
+      }
+      safeSend(treatment, 'player_treatment');
+    },
+
     unsubscribe() {
       destroyed = true;
       pendingPayloads.length = 0;
+      pendingTreatmentPayloads.length = 0;
       queuedPayload = null;
 
       if (sendTimer) {
