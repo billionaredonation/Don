@@ -844,6 +844,7 @@
       linear-gradient(145deg, rgba(255, 255, 255, .05), transparent 30%),
       linear-gradient(180deg, rgba(14, 22, 30, .965), rgba(5, 10, 15, .97)) !important;
     box-shadow: 0 26px 70px rgba(0, 0, 0, .56), 0 0 0 1px rgba(255, 255, 255, .035) inset !important;
+    translate: 12px 0 !important;
   }
 
   .mn-inventory-header {
