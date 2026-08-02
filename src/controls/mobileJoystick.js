@@ -355,6 +355,7 @@ export function enableMobileJoystick(
   let dbSaveInFlight = false;
   let dbSavePending = false;
   let lastRuntimeMovingState = null;
+  let lastRuntimeSprintingState = null;
 
   let lastSentX = x;
   let lastSentY = y;
@@ -385,6 +386,13 @@ export function enableMobileJoystick(
     if (moving) {
       window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = now + 1100;
     }
+  }
+
+  function setMobileRuntimeSprinting(isSprinting) {
+    const sprinting = Boolean(isSprinting);
+    if (lastRuntimeSprintingState === sprinting) return;
+    lastRuntimeSprintingState = sprinting;
+    window.__MN_MOBILE_PLAYER_SPRINTING__ = sprinting;
   }
 
   function setMovingUi(isMoving) {
@@ -737,6 +745,7 @@ export function enableMobileJoystick(
     }
 
     setMovingUi(false);
+    setMobileRuntimeSprinting(false);
 
     stick.style.transform =
       'translate(-50%, -50%) translate3d(0px, 0px, 0)';
@@ -802,6 +811,7 @@ export function enableMobileJoystick(
       targetMoveX = 0; targetMoveY = 0; moveX = 0; moveY = 0;
       velocityX = 0; velocityY = 0;
       setMovingUi(false);
+      setMobileRuntimeSprinting(false);
       animationId = null;
       return;
     }
@@ -821,6 +831,7 @@ export function enableMobileJoystick(
     moveY += (targetMoveY - moveY) * inputLerp;
 
     const isSprinting = updateSprintState(wantsMove, frameScale);
+    setMobileRuntimeSprinting(isSprinting);
 
     const speed = isSprinting
       ? MOBILE_SPRINT_SPEED
@@ -1085,6 +1096,7 @@ export function enableMobileJoystick(
   return () => {
     destroyed = true;
     window.__MN_MOBILE_PLAYER_MOVING__ = false;
+    window.__MN_MOBILE_PLAYER_SPRINTING__ = false;
     window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = 0;
     document.body?.classList?.remove('mn-player-moving');
     document.documentElement?.classList?.remove('mn-player-moving');
