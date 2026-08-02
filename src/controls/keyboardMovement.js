@@ -190,6 +190,7 @@ export function enableKeyboardPlayerMovement(
   let lastDbSaved = { x, y };
   let lastDbSavedAngle = angle;
   let lastDesktopMovingState = null;
+  let lastDesktopSprintingState = null;
   let lastSentX = x;
   let lastSentY = y;
   let lastSentAngle = angle;
@@ -207,6 +208,13 @@ export function enableKeyboardPlayerMovement(
     if (document.body?.dataset) {
       document.body.dataset.mnPlayerMoving = moving ? 'true' : 'false';
     }
+  }
+
+  function setDesktopRuntimeSprinting(isSprinting) {
+    const sprinting = Boolean(isSprinting);
+    if (lastDesktopSprintingState === sprinting) return;
+    lastDesktopSprintingState = sprinting;
+    window.__MN_DESKTOP_PLAYER_SPRINTING__ = sprinting;
   }
 
   function syncPlayerPosition() {
@@ -418,6 +426,7 @@ export function enableKeyboardPlayerMovement(
       keys.clear();
       inputX = 0; inputY = 0; velocityX = 0; velocityY = 0;
       setDesktopRuntimeMoving(false);
+      setDesktopRuntimeSprinting(false);
       animationId = null;
       return;
     }
@@ -438,6 +447,7 @@ export function enableKeyboardPlayerMovement(
     if (!wantsMove && Math.abs(inputY) < 0.002) inputY = 0;
 
     const isSprinting = updateSprintState(wantsMove, frameScale);
+    setDesktopRuntimeSprinting(isSprinting);
     const speed = isSprinting ? SPRINT_SPEED : WALK_SPEED;
 
     const targetVelocityX = inputX * speed;
@@ -482,6 +492,7 @@ export function enableKeyboardPlayerMovement(
     if (shouldSleepLoop(wantsMove, isMoving)) {
       animationId = null;
       setDesktopRuntimeMoving(false);
+      setDesktopRuntimeSprinting(false);
       updateStaminaUi();
       paintPlayer(true);
       return;
@@ -534,6 +545,7 @@ export function enableKeyboardPlayerMovement(
   function pauseForHouseSpawnPicker() {
     keys.clear();
     setDesktopRuntimeMoving(false);
+    setDesktopRuntimeSprinting(false);
     forceSyncPosition();
   }
 
@@ -619,6 +631,7 @@ export function enableKeyboardPlayerMovement(
     }
 
     setDesktopRuntimeMoving(false);
+    setDesktopRuntimeSprinting(false);
 
     forceSyncPosition();
     broadcastMove(true);
