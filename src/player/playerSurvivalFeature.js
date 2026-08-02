@@ -1,12 +1,13 @@
 import { state } from '../state.js';
 import {
-  applyPlayerStaminaExhaustion,
+  applyPlayerSprintUsage,
   processPlayerSurvivalTick,
 } from '../hospital/hospitalWarehouseFeature.js';
 
 const SURVIVAL_POLL_MS = 30_000;
 const ACTIVITY_SAMPLE_MS = 1_000;
 const ACTIVE_MEMORY_MS = 120_000;
+const SPRINT_COST_INTERVAL_SECONDS = 2;
 const CRITICAL_FOOD = 10;
 const CRITICAL_WATER = 15;
 
@@ -37,10 +38,6 @@ function currentVitals() {
   };
 }
 
-function toast(message, type = 'info') {
-  window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
-}
-
 function hasTelegramSession() {
   return Boolean(String(window.Telegram?.WebApp?.initData || '').trim());
 }
@@ -48,7 +45,8 @@ function hasTelegramSession() {
 export function enablePlayerSurvivalFeature() {
   let destroyed = false;
   let tickInFlight = false;
-  let exhaustionInFlight = false;
+  let sprintUsageInFlight = false;
+  let sprintUsageSeconds = 0;
   let pollTimer = 0;
   let activityTimer = 0;
   let lastActiveAt = 0;
@@ -62,7 +60,16 @@ export function enablePlayerSurvivalFeature() {
     );
   }
 
-  function publishSprintAvailability(nextBlocked, { notify = false } = {}) {
+  function isSprintingNow() {
+    if (document.hidden) return false;
+    return (
+      window.__MN_DESKTOP_PLAYER_SPRINTING__ === true ||
+      window.__MN_MOBILE_PLAYER_SPRINTING__ === true ||
+      window.__MN_INTERIOR_PLAYER_SPRINTING__ === true
+    );
+  }
+
+  function publishSprintAvailability(nextBlocked) {
     const blocked = nextBlocked === true;
     const changed = blocked !== sprintBlocked;
     sprintBlocked = blocked;
@@ -74,21 +81,12 @@ export function enablePlayerSurvivalFeature() {
       }));
     }
 
-    if (notify && changed) {
-      toast(
-        blocked
-          ? 'Попейте и поешьте, чтобы вернуть быстрый бег и не терять здоровье.'
-          : 'Еда и вода восстановлены — быстрый бег снова доступен.',
-        blocked ? 'warning' : 'success'
-      );
-    }
   }
 
-  function syncSprintFromVitals(vitals, options = {}) {
+  function syncSprintFromVitals(vitals) {
     const snapshot = { ...currentVitals(), ...(vitals || {}) };
     publishSprintAvailability(
-      snapshot.food < CRITICAL_FOOD || snapshot.water < CRITICAL_WATER,
-      options
+      snapshot.food < CRITICAL_FOOD || snapshot.water < CRITICAL_WATER
     );
   }
 
@@ -110,12 +108,8 @@ export function enablePlayerSurvivalFeature() {
     const serverBlocked = typeof result?.sprintBlocked === 'boolean'
       ? result.sprintBlocked
       : null;
-    if (serverBlocked !== null) publishSprintAvailability(serverBlocked, { notify: true });
-    else syncSprintFromVitals(vitals, { notify: true });
-
-    if (Number(result?.healthDamage || 0) > 0) {
-      toast(`Голод и обезвоживание отняли ${Number(result.healthDamage)} HP. Осталось ${Math.round(Number(result.health ?? vitals.health ?? 0))} HP.`, 'error');
-    }
+    if (serverBlocked !== null) publishSprintAvailability(serverBlocked);
+    else syncSprintFromVitals(vitals);
 
     if (result?.hospitalizationRequired === true) {
       window.dispatchEvent(new CustomEvent('mn:player-hospitalization-required', {
@@ -141,35 +135,43 @@ export function enablePlayerSurvivalFeature() {
     }
   }
 
-  async function handleStaminaExhausted() {
-    toast('Стамина закончилась. Попейте воды — так она восстановится быстрее.', 'warning');
-    if (destroyed || exhaustionInFlight || !hasTelegramSession()) return;
-    exhaustionInFlight = true;
-
+  async function processSprintUsage() {
+    if (destroyed || sprintUsageInFlight || !hasTelegramSession()) return;
+    sprintUsageInFlight = true;
     try {
-      const result = await applyPlayerStaminaExhaustion();
-      if (!destroyed) applyServerResult(result || {}, 'stamina_exhausted');
+      const result = await applyPlayerSprintUsage();
+      if (!destroyed) applyServerResult(result || {}, 'sprint_usage');
     } catch (error) {
+      sprintUsageSeconds = Math.max(sprintUsageSeconds, SPRINT_COST_INTERVAL_SECONDS);
       if (!String(error?.message || '').includes('TELEGRAM_SESSION')) {
-        console.warn('[playerSurvival] stamina exhaustion sync failed:', error);
+        console.warn('[playerSurvival] sprint usage sync failed:', error);
       }
     } finally {
-      exhaustionInFlight = false;
+      sprintUsageInFlight = false;
     }
   }
 
   function handleVitalsChanged(event) {
     const detail = event?.detail || {};
     const snapshot = detail.vitals || detail.player || detail;
-    syncSprintFromVitals(resultVitals(snapshot), { notify: true });
+    syncSprintFromVitals(resultVitals(snapshot));
   }
 
   function sampleActivity() {
     if (isMovingNow()) lastActiveAt = Date.now();
+    if (!isSprintingNow()) return;
+
+    sprintUsageSeconds = Math.min(
+      SPRINT_COST_INTERVAL_SECONDS,
+      sprintUsageSeconds + ACTIVITY_SAMPLE_MS / 1000
+    );
+    if (sprintUsageSeconds < SPRINT_COST_INTERVAL_SECONDS) return;
+    if (sprintUsageInFlight || !hasTelegramSession()) return;
+    sprintUsageSeconds -= SPRINT_COST_INTERVAL_SECONDS;
+    void processSprintUsage();
   }
 
   syncSprintFromVitals(currentVitals());
-  window.addEventListener('mn:player-stamina-exhausted', handleStaminaExhausted);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   activityTimer = window.setInterval(sampleActivity, ACTIVITY_SAMPLE_MS);
   pollTimer = window.setInterval(processSurvival, SURVIVAL_POLL_MS);
@@ -179,7 +181,6 @@ export function enablePlayerSurvivalFeature() {
     destroyed = true;
     window.clearInterval(activityTimer);
     window.clearInterval(pollTimer);
-    window.removeEventListener('mn:player-stamina-exhausted', handleStaminaExhausted);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
     window.__MN_SPRINT_BLOCKED_BY_VITALS__ = false;
   };
