@@ -38,6 +38,7 @@ import { enableInventoryFeature } from '../../src/inventory/inventoryFeature.js'
 import { enableHospitalManagementFeature } from '../../src/hospital/hospitalManagementFeature.js';
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
 import { enablePlayerStatusEffects } from '../../src/player/playerStatusEffects.js';
+import { enablePlayerSurvivalFeature } from '../../src/player/playerSurvivalFeature.js';
 import {
   fetchPlayerOwnedHouses,
   PLAYER_HOUSE_SLOT_LIMIT,
@@ -1423,6 +1424,7 @@ register('home', async (root) => {
   const cleanupHospitalManagement = enableHospitalManagementFeature();
   const cleanupPlayerInteraction = enablePlayerInteractionFeature({ playerPosition });
   const cleanupPlayerStatusEffects = enablePlayerStatusEffects();
+  const cleanupPlayerSurvival = enablePlayerSurvivalFeature();
 
   const cleanupHousesFeature = enableHousesFeature(root, {
     cityId,
@@ -2274,6 +2276,7 @@ register('home', async (root) => {
     cleanupHospitalManagement?.();
     cleanupPlayerInteraction?.();
     cleanupPlayerStatusEffects?.();
+    cleanupPlayerSurvival?.();
     cleanupHousesFeature?.();
     cleanupSingleHouseModalMode?.();
     cleanupMovement?.();
