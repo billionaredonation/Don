@@ -198,6 +198,10 @@ export async function applyPlayerStaminaExhaustion() {
   return invokeHospitalAction('stamina_exhausted');
 }
 
+export async function applyPlayerSprintUsage() {
+  return invokeHospitalAction('sprint_usage');
+}
+
 export async function notifyHospitalTreatmentStarted(targetTgId, hospitalId) {
   const target = String(targetTgId || '').trim();
   if (!target) return;
