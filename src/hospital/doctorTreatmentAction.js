@@ -1,9 +1,9 @@
 import { state } from '../state.js';
 import {
   getHospitalUserErrorMessage,
-  invokeHospitalAction,
   loadMyHospitalEmployments,
   notifyHospitalTreatmentStarted,
+  treatPlayerForPriceFromInteraction,
 } from './hospitalWarehouseFeature.js';
 
 function rankLevel(rank) {
@@ -97,7 +97,7 @@ async function renderDoctorTreatment({
     setBusy(true);
 
     try {
-      const result = await invokeHospitalAction('treat_player_for_price', {
+      const result = await treatPlayerForPriceFromInteraction({
         hospitalId: employment.hospitalId,
         target: target.target,
         medicineType,
