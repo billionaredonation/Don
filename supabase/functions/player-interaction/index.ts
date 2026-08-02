@@ -23,6 +23,11 @@ function positiveInteger(value: unknown, max = 1_000_000_000) {
   return Number.isSafeInteger(number) && number > 0 && number <= max ? number : null;
 }
 
+function nonNegativeInteger(value: unknown, max = 1_000_000_000) {
+  const number = Math.floor(Number(value));
+  return Number.isSafeInteger(number) && number >= 0 && number <= max ? number : null;
+}
+
 function normalizeOffer(value: unknown) {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const amount = (input: unknown) => {
@@ -70,6 +75,9 @@ function normalizeOffer(value: unknown) {
   });
 
   const items = [...normalizedItems.values()];
+  // Keep the RPC payload flat: deployed trade SQL reads item types directly
+  // from JSON keys. This still includes food and every other personal item,
+  // while avoiding an array value that older generic SQL cannot cast.
   const result: Record<string, unknown> = { money: amount(source.money) };
   items.forEach((item) => {
     result[item.itemType] = Math.min(1_000_000_000, amount(result[item.itemType]) + item.quantity);
@@ -131,11 +139,14 @@ serve(async (req) => {
     const action = text(body.action, 40);
     const target = text(body.target, 64);
     const offerId = text(body.offerId, 80);
+    const hospitalId = text(body.hospitalId, 160);
+    const medicineType = text(body.medicineType, 48).toLowerCase();
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
     let functionName = '';
+    let fallbackFunctionName = '';
     let args: Record<string, unknown> = {};
     switch (action) {
       case 'transfer_money': {
@@ -168,13 +179,50 @@ serve(async (req) => {
         functionName = 'player_reject_trade';
         args = { p_actor_tg_id: actorTgId, p_offer_id: offerId };
         break;
+      case 'treat_player_for_price': {
+        const price = nonNegativeInteger(body.price);
+        if (!hospitalId || !target || !medicineType || price === null) {
+          return jsonResponse({ ok: false, error: 'INVALID_TREATMENT_REQUEST' });
+        }
+        functionName = 'hospital_treat_player_for_price_counted';
+        fallbackFunctionName = 'hospital_treat_player_for_price';
+        args = {
+          p_hospital_id: hospitalId,
+          p_actor_tg_id: actorTgId,
+          p_target: target,
+          p_medicine_type: medicineType,
+          p_price: price,
+        };
+        break;
+      }
       default:
         return jsonResponse({ ok: false, error: 'UNKNOWN_ACTION' });
     }
 
-    const { data, error } = await supabase.rpc(functionName, args);
-    if (error) return jsonResponse({ ok: false, error: error.message, code: error.code });
-    return jsonResponse({ ok: true, result: data });
+    let { data, error } = await supabase.rpc(functionName, args);
+    const missingRpc = error && (
+      error.code === 'PGRST202' ||
+      error.code === '42883' ||
+      /function .* does not exist|could not find the function/i.test(error.message || '')
+    );
+
+    if (missingRpc && fallbackFunctionName) {
+      const fallback = await supabase.rpc(fallbackFunctionName, args);
+      data = fallback.data;
+      error = fallback.error;
+      functionName = fallbackFunctionName;
+    }
+
+    if (error) {
+      return jsonResponse({
+        ok: false,
+        error: error.message,
+        code: error.code,
+        action,
+        rpc: functionName,
+      });
+    }
+    return jsonResponse({ ok: true, result: data, action, rpc: functionName });
   } catch (error) {
     return jsonResponse({ ok: false, error: error instanceof Error ? error.message : 'INVALID_REQUEST' }, 500);
   }
