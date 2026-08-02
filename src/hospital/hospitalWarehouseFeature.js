@@ -9,9 +9,9 @@ const MEDICINE_TYPES = ['medicine_light', 'medicine_strong', 'medicine_resuscita
 const ITEM_FALLBACKS = Object.freeze({
   food: { label: 'Продукты', icon: '🍱' },
   water_bottle: { label: 'Бутылка воды', icon: '💧' },
-  medicine_light: { label: 'Простые таблетки', icon: '💊' },
-  medicine_strong: { label: 'Сильные таблетки', icon: '💉' },
-  medicine_resuscitation: { label: 'Реанимационные таблетки', icon: '⚕' },
+  medicine_light: { label: 'Слабоседативные таблетки', icon: '💊' },
+  medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
+  medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
 });
 
 function localTelegramId() {
@@ -71,6 +71,7 @@ function userErrorMessage(error) {
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег для покупки.',
     CAFETERIA_ITEM_NOT_FOUND: 'Этот продукт столовки пока недоступен.',
     CONSUMABLE_ITEM_NOT_FOUND: 'Этот расходник пока недоступен в магазине.',
+    SURVIVAL_STATE_UNAVAILABLE: 'Не удалось обновить состояние персонажа. Попробуйте ещё раз.',
     INVENTORY_ITEM_NOT_USABLE: 'Этот предмет пока нельзя применить.',
     SERVICE_ITEM_NOT_ENOUGH: 'У вас нет этого служебного предмета.',
     PATIENT_HEALTH_FULL: 'Здоровье уже 100 HP, таблетки не требуются.',
@@ -187,6 +188,14 @@ export async function loadCafeteriaMenu() {
 
 export async function buyCafeteriaItem({ itemType = 'food', quantity = 1 } = {}) {
   return invokeHospitalAction('cafeteria_buy', { itemType, quantity });
+}
+
+export async function processPlayerSurvivalTick({ active = false } = {}) {
+  return invokeHospitalAction('survival_tick', { active: active === true });
+}
+
+export async function applyPlayerStaminaExhaustion() {
+  return invokeHospitalAction('stamina_exhausted');
 }
 
 export async function notifyHospitalTreatmentStarted(targetTgId, hospitalId) {
@@ -333,9 +342,9 @@ function markup() {
               <div class="mn-hospital-patient-form">
                 <input type="text" maxlength="32" autocomplete="off" placeholder="Ник или Telegram ID пациента" data-hospital-patient-target />
                 <select data-hospital-patient-medicine>
-                  <option value="medicine_light">Простые таблетки</option>
-                  <option value="medicine_strong">Сильные таблетки</option>
-                  <option value="medicine_resuscitation">Реанимационные таблетки</option>
+                  <option value="medicine_light">Слабоседативные таблетки</option>
+                  <option value="medicine_strong">Среднеседативные таблетки</option>
+                  <option value="medicine_resuscitation">Сильные седативные таблетки</option>
                 </select>
                 <button type="button" class="is-primary" data-hospital-treat>Начать лечение</button>
                 <button type="button" data-hospital-sell>Продать 1 шт.</button>
