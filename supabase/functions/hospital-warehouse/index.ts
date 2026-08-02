@@ -70,6 +70,58 @@ function mergeProfessionalTreatmentStats(panelValue: unknown, statsValue: unknow
   };
 }
 
+function mergeItemPayload(primaryValue: unknown, extraValue: unknown) {
+  const primary = primaryValue && typeof primaryValue === 'object' && !Array.isArray(primaryValue)
+    ? primaryValue as Record<string, unknown>
+    : {};
+  const extra = extraValue && typeof extraValue === 'object' && !Array.isArray(extraValue)
+    ? extraValue as Record<string, unknown>
+    : {};
+  const itemsByType = new Map<string, Record<string, unknown>>();
+
+  const addItems = (value: unknown) => {
+    if (!Array.isArray(value)) return;
+    value.forEach((rawItem) => {
+      if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) return;
+      const item = rawItem as Record<string, unknown>;
+      const itemType = String(item.itemType ?? item.item_type ?? '').trim();
+      if (!itemType) return;
+      itemsByType.set(itemType, { ...(itemsByType.get(itemType) || {}), ...item, itemType });
+    });
+  };
+
+  addItems(primary.items);
+  addItems(extra.items);
+
+  return {
+    ...primary,
+    ...Object.fromEntries(Object.entries(extra).filter(([key]) => key !== 'items')),
+    items: [...itemsByType.values()],
+  };
+}
+
+async function sendSurvivalWarning(botToken: string, actorTgId: string, result: unknown) {
+  if (!botToken || !actorTgId || !result || typeof result !== 'object' || Array.isArray(result)) return false;
+  const payload = result as Record<string, unknown>;
+  const health = Math.max(0, Math.round(Number(payload.health || 0)));
+  const food = Math.max(0, Math.round(Number(payload.food || 0)));
+  const water = Math.max(0, Math.round(Number(payload.water || 0)));
+  const needs = [food < 10 ? 'покушать' : '', water < 15 ? 'попить' : ''].filter(Boolean).join(' и ');
+  const message = `⚠️ Вашему персонажу срочно нужно ${needs || 'покушать и попить'}, чтобы не умереть от голода и обезвоживания. Осталось HP: ${health}/100.`;
+
+  try {
+    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: actorTgId, text: message }),
+    });
+    return response.ok;
+  } catch (error) {
+    console.warn('[hospital-warehouse] Telegram survival warning failed:', error);
+    return false;
+  }
+}
+
 function bytesToHex(bytes: ArrayBuffer) {
   return [...new Uint8Array(bytes)]
     .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -285,18 +337,29 @@ serve(async (req) => {
         break;
       case 'use_medicine':
         if (!medicineType) return jsonResponse({ ok: false, error: 'INVALID_MEDICINE_REQUEST' });
-        functionName = 'player_use_medicine';
+        functionName = 'player_apply_medicine_with_metabolic_cost';
         args = { p_actor_tg_id: actorTgId, p_medicine_type: medicineType };
         break;
       case 'use_inventory_item':
         if (!itemType) return jsonResponse({ ok: false, error: 'INVALID_ITEM_REQUEST' });
-        if (itemType.startsWith('medicine_') && hospitalId) {
+        if (itemType === 'water_bottle') {
+          functionName = 'player_use_consumable_item';
+          args = { p_actor_tg_id: actorTgId, p_item_type: itemType };
+        } else if (itemType.startsWith('medicine_') && hospitalId) {
           functionName = 'hospital_use_own_inventory_medicine';
           args = {
             p_hospital_id: hospitalId,
             p_actor_tg_id: actorTgId,
             p_item_type: itemType,
             p_source: source || 'service',
+          };
+        } else if (itemType.startsWith('medicine_')) {
+          functionName = 'player_use_inventory_item_with_metabolic_cost';
+          args = {
+            p_actor_tg_id: actorTgId,
+            p_item_type: itemType,
+            p_source: source || 'personal',
+            p_hospital_id: hospitalId || null,
           };
         } else {
           functionName = 'player_use_inventory_item';
@@ -315,10 +378,18 @@ serve(async (req) => {
       case 'cafeteria_buy': {
         const quantity = normalizeQuantity(body.quantity, 100);
         if (!itemType || !quantity) return jsonResponse({ ok: false, error: 'INVALID_CAFETERIA_BUY_REQUEST' });
-        functionName = 'cafeteria_buy_item';
+        functionName = itemType === 'water_bottle' ? 'player_buy_consumable_item' : 'cafeteria_buy_item';
         args = { p_actor_tg_id: actorTgId, p_item_type: itemType, p_quantity: quantity };
         break;
       }
+      case 'stamina_exhausted':
+        functionName = 'player_apply_stamina_exhaustion';
+        args = { p_actor_tg_id: actorTgId };
+        break;
+      case 'survival_tick':
+        functionName = 'player_process_survival_tick';
+        args = { p_actor_tg_id: actorTgId };
+        break;
       case 'process_treatment':
         functionName = 'hospital_process_my_treatment';
         args = { p_patient_tg_id: actorTgId };
@@ -357,6 +428,35 @@ serve(async (req) => {
       }
     }
 
+    if (action === 'my_medicine') {
+      const consumables = await supabase.rpc('player_get_consumable_inventory', {
+        p_actor_tg_id: actorTgId,
+      });
+      if (consumables.error) {
+        console.warn('[hospital-warehouse] player_get_consumable_inventory failed:', consumables.error.message);
+      } else {
+        result = mergeItemPayload(result, consumables.data);
+      }
+    }
+
+    if (action === 'cafeteria_menu') {
+      const consumables = await supabase.rpc('player_get_consumable_catalog');
+      if (consumables.error) {
+        console.warn('[hospital-warehouse] player_get_consumable_catalog failed:', consumables.error.message);
+      } else {
+        result = mergeItemPayload(result, consumables.data);
+      }
+    }
+
+    if (
+      action === 'survival_tick' &&
+      result && typeof result === 'object' && !Array.isArray(result) &&
+      (result as Record<string, unknown>).notificationRequired === true
+    ) {
+      const telegramWarningSent = await sendSurvivalWarning(botToken, actorTgId, result);
+      result = { ...(result as Record<string, unknown>), telegramWarningSent };
+    }
+
     return jsonResponse({ ok: true, result });
   } catch (error) {
     console.error('[hospital-warehouse] Unexpected error:', error);
@@ -366,5 +466,3 @@ serve(async (req) => {
     });
   }
 });
-
-
