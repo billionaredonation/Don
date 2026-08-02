@@ -1,5 +1,6 @@
-import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import { getStaminaConfig, getStaminaRecoveryPerFrame } from '../player/playerStaminaConfig.js';
 import { MOVEMENT_CONFIG } from '../config/movement.js';
+import { state as gameState } from '../state.js';
 
 import {
   getMobileMoveSpeed,
@@ -406,12 +407,12 @@ export function enableMobileJoystick(
     const percent = clamp((stamina / STAMINA.max) * 100, 0, 100);
     const arcAngle = (percent / 100) * STAMINA_ARC_MAX_DEG;
 
-    let state = 'normal';
+    let staminaState = 'normal';
 
-    if (sprintLocked) {
-      state = 'locked';
+    if (sprintLocked || window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true) {
+      staminaState = 'locked';
     } else if (percent < 30) {
-      state = 'low';
+      staminaState = 'low';
     }
 
     const now = performance.now();
@@ -420,28 +421,29 @@ export function enableMobileJoystick(
       !force &&
       now - lastStaminaPaintAt < STAMINA_PAINT_INTERVAL &&
       Math.abs(percent - lastStaminaPercent) < 0.25 &&
-      state === lastStaminaState
+      staminaState === lastStaminaState
     ) {
       return;
     }
 
     lastStaminaPaintAt = now;
     lastStaminaPercent = percent;
-    lastStaminaState = state;
+    lastStaminaState = staminaState;
 
     staminaFill.style.width = `${percent}%`;
-    staminaFill.dataset.state = state;
+    staminaFill.dataset.state = staminaState;
 
     if (staminaBox) {
       staminaBox.style.setProperty('--mobile-stamina-percent', `${percent.toFixed(2)}%`);
       staminaBox.style.setProperty('--mobile-stamina-angle', `${arcAngle.toFixed(2)}deg`);
-      staminaBox.dataset.staminaState = state;
+      staminaBox.dataset.staminaState = staminaState;
     }
   }
 
   function updateSprintState(isMoving, frameScale) {
     const joystickPower = getJoystickPower(moveX, moveY);
-    const wantsSprint = isMoving && joystickPower >= SPRINT_POWER && !sprintLocked;
+    const sprintBlockedByVitals = window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true;
+    const wantsSprint = isMoving && joystickPower >= SPRINT_POWER && !sprintLocked && !sprintBlockedByVitals;
 
     if (wantsSprint) {
       stamina = Math.max(
@@ -450,13 +452,19 @@ export function enableMobileJoystick(
       );
 
       if (stamina <= STAMINA.emptyAt) {
+        const wasLocked = sprintLocked;
         sprintLocked = true;
         stamina = STAMINA.emptyAt;
+        if (!wasLocked) {
+          window.dispatchEvent(new CustomEvent('mn:player-stamina-exhausted', {
+            detail: { source: 'mobile' },
+          }));
+        }
       }
     } else {
       stamina = Math.min(
         STAMINA.max,
-        stamina + STAMINA.recoverPerFrame * frameScale
+        stamina + getStaminaRecoveryPerFrame(gameState.player?.water) * frameScale
       );
 
       if (stamina >= STAMINA.recoveredAt) {
@@ -468,6 +476,11 @@ export function enableMobileJoystick(
     updateStaminaUi();
 
     return wantsSprint;
+  }
+
+  function handleSprintAvailabilityChanged() {
+    updateStaminaUi(true);
+    ensureLoopRunning();
   }
 
   function syncPlayerPosition() {
@@ -1059,6 +1072,7 @@ export function enableMobileJoystick(
   window.visualViewport?.addEventListener?.('resize', handleViewportChange, { passive: true });
   window.addEventListener('mn:player-teleported', onExternalTeleport);
   window.addEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
+  window.addEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
 
   syncViewportSize();
   renderPlayer(true);
@@ -1089,6 +1103,7 @@ export function enableMobileJoystick(
     window.visualViewport?.removeEventListener?.('resize', handleViewportChange);
     window.removeEventListener('mn:player-teleported', onExternalTeleport);
     window.removeEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
+    window.removeEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
 
     clearInterval(heartbeatTimer);
 
