@@ -1708,7 +1708,10 @@ export function enableInteriorsFeature() {
 
   function setPaused(value) {
     window.__MN_INTERIOR_ACTIVE__ = value;
-    if (!value) window.__MN_INTERIOR_PLAYER_MOVING__ = false;
+    if (!value) {
+      window.__MN_INTERIOR_PLAYER_MOVING__ = false;
+      window.__MN_INTERIOR_PLAYER_SPRINTING__ = false;
+    }
     document.body.classList.toggle('mn-interior-open', value);
     document.documentElement.classList.toggle('mn-interior-open', value);
   }
@@ -4172,6 +4175,7 @@ export function enableInteriorsFeature() {
     const sprint = wantsSprint && !sprintLocked;
     const speed = sprint ? 23 : 15;
     window.__MN_INTERIOR_PLAYER_MOVING__ = moving;
+    window.__MN_INTERIOR_PLAYER_SPRINTING__ = sprint;
     position = resolveInteriorMovement(activeTemplateId, position, {
       x: vector.x * speed * dt,
       y: vector.y * speed * dt,
@@ -4186,6 +4190,7 @@ export function enableInteriorsFeature() {
 
   function startLoop() {
     cancelAnimationFrame(raf);
+    window.__MN_INTERIOR_PLAYER_SPRINTING__ = false;
     lastFrame = 0;
     raf = requestAnimationFrame(frame);
   }
