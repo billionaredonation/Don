@@ -125,6 +125,7 @@ function tradeItemMeta(itemType, item = {}) {
   const medicine = MEDICINES.find((entry) => entry.type === itemType);
   if (medicine) return { label: item.label || medicine.shortLabel, icon: item.icon || '💊' };
   if (itemType === 'food') return { label: item.label || 'Обед', icon: item.icon || '🍔' };
+  if (itemType === 'water_bottle') return { label: item.label || 'Бутылка воды', icon: item.icon || '💧' };
   return {
     label: item.label || item.name || itemType || 'Предмет',
     icon: item.icon || '◈',
