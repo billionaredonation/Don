@@ -1223,3 +1223,4 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     document.body.classList.remove('mn-player-interaction-open');
   };
 }
+
