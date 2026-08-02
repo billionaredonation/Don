@@ -51,6 +51,15 @@ function localTelegramId() {
   ).trim();
 }
 
+function getConsumptionEffectType(itemType) {
+  const normalized = String(itemType || '').trim().toLowerCase();
+  if (normalized === 'water' || normalized === 'drink' || normalized.includes('water') || normalized.includes('drink')) {
+    return 'water';
+  }
+  if (normalized === 'food' || normalized.includes('food') || normalized.includes('meal')) return 'food';
+  return '';
+}
+
 function clampVital(value, key) {
   const config = VITALS_CONFIG[key] || {};
   const min = Number.isFinite(Number(config.min)) ? Number(config.min) : 0;
@@ -688,10 +697,16 @@ export function enableInventoryFeature() {
   async function applySelectedInventoryItem() {
     const item = selectedInventoryItem;
     const itemType = String(item?.itemType || '');
+    const consumptionEffect = getConsumptionEffectType(itemType);
     if (!itemType || inventoryBusy) return;
     inventoryBusy = true;
     setItemMenuNotice('Применяю предмет...', 'info');
     renderMedicalInventory();
+    if (consumptionEffect) {
+      window.dispatchEvent(new CustomEvent('mn:player-consumption-state-changed', {
+        detail: { active: true, type: consumptionEffect, itemType },
+      }));
+    }
     try {
       const result = await useInventoryItem({
         itemType,
@@ -755,6 +770,11 @@ export function enableInventoryFeature() {
         detail: { type: 'error', message: getHospitalUserErrorMessage(error) },
       }));
     } finally {
+      if (consumptionEffect) {
+        window.dispatchEvent(new CustomEvent('mn:player-consumption-state-changed', {
+          detail: { active: false, type: consumptionEffect, itemType },
+        }));
+      }
       inventoryBusy = false;
       renderMedicalInventory();
     }
