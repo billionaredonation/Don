@@ -5283,20 +5283,20 @@ body.mn-house-spawn-open .home .mobile-stamina {
   .mn-hospital-management-hint {
     right: max(9px, env(safe-area-inset-right)) !important;
     bottom: max(12px, env(safe-area-inset-bottom)) !important;
-    gap: 5px !important;
-    padding: 4px 7px 4px 4px !important;
-    border-radius: 11px !important;
+    gap: 4px !important;
+    padding: 3px 6px 3px 3px !important;
+    border-radius: 10px !important;
     opacity: 0.7;
-    font-size: 9px !important;
+    font-size: 8px !important;
     box-shadow: 0 7px 20px rgba(0, 0, 0, 0.34) !important;
     transition: opacity 140ms ease;
   }
 
   .mn-hospital-management-hint b {
-    width: 25px !important;
-    height: 23px !important;
-    border-radius: 7px !important;
-    font-size: 10px !important;
+    width: 22px !important;
+    height: 20px !important;
+    border-radius: 6px !important;
+    font-size: 9px !important;
   }
 
   .mn-hospital-management-hint span {
@@ -5392,9 +5392,9 @@ body.mn-house-spawn-open .home .mobile-stamina {
 @media (orientation: portrait) and (hover: none) and (pointer: coarse) {
   html.mn-force-rotate-landscape body .mn-hospital-management-hint,
   body.mn-force-rotate-landscape .mn-hospital-management-hint {
-    left: max(18px, calc(env(safe-area-inset-left) + 18px)) !important;
+    left: max(56px, calc(env(safe-area-inset-left) + 56px)) !important;
     right: auto !important;
-    top: 58% !important;
+    top: 88% !important;
     bottom: auto !important;
     transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
     transform-origin: center center !important;
