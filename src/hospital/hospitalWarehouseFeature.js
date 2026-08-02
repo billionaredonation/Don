@@ -8,6 +8,7 @@ const PLAYER_INTERACTION_FUNCTION_NAME = 'player-interaction';
 const MEDICINE_TYPES = ['medicine_light', 'medicine_strong', 'medicine_resuscitation'];
 const ITEM_FALLBACKS = Object.freeze({
   food: { label: 'Продукты', icon: '🍱' },
+  water_bottle: { label: 'Бутылка воды', icon: '💧' },
   medicine_light: { label: 'Простые таблетки', icon: '💊' },
   medicine_strong: { label: 'Сильные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Реанимационные таблетки', icon: '⚕' },
@@ -63,11 +64,13 @@ function userErrorMessage(error) {
     PATIENT_WATER_TOO_LOW: 'У пациента недостаточно воды. Сначала ему нужно попить.',
     PLAYER_FOOD_TOO_LOW: 'Сначала поешьте: для применения препарата не хватает еды.',
     PLAYER_FOOD_FULL: 'Вы и так сыты на 100, еда не требуется.',
+    PLAYER_WATER_FULL: 'Вода уже восстановлена до 100.',
     PLAYER_WATER_TOO_LOW: 'Сначала попейте: для применения препарата не хватает воды.',
     PLAYER_MEDICINE_NOT_ENOUGH: 'У вас нет этого препарата в инвентаре.',
     PLAYER_ITEM_NOT_ENOUGH: 'У вас нет этого предмета в инвентаре.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег для покупки.',
     CAFETERIA_ITEM_NOT_FOUND: 'Этот продукт столовки пока недоступен.',
+    CONSUMABLE_ITEM_NOT_FOUND: 'Этот расходник пока недоступен в магазине.',
     INVENTORY_ITEM_NOT_USABLE: 'Этот предмет пока нельзя применить.',
     SERVICE_ITEM_NOT_ENOUGH: 'У вас нет этого служебного предмета.',
     PATIENT_HEALTH_FULL: 'Здоровье уже 100 HP, таблетки не требуются.',
