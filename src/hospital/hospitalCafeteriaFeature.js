@@ -141,8 +141,9 @@ export function enableHospitalCafeteriaFeature() {
         }));
       }
       window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
-      setMessage(`Куплено: ${number(result?.quantity || quantity)} шт. · ${money(result?.totalPrice || 0)}. Еда добавлена в инвентарь.`, 'success');
-      toast('Еда добавлена в инвентарь.', 'success');
+      const purchasedLabel = result?.itemLabel || (itemType === 'water_bottle' ? 'Бутылка воды' : 'Еда');
+      setMessage(`Куплено: ${number(result?.quantity || quantity)} шт. · ${money(result?.totalPrice || 0)}. ${purchasedLabel} добавлена в инвентарь.`, 'success');
+      toast(`${purchasedLabel} добавлена в инвентарь.`, 'success');
     } catch (error) {
       setMessage(getHospitalUserErrorMessage(error), 'error');
     } finally {
