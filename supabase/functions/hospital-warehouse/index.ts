@@ -203,6 +203,7 @@ serve(async (req) => {
     const target = normalizeText(body.target, 64);
     const rank = normalizeText(body.rank, 24).toLowerCase();
     const source = normalizeText(body.source, 32).toLowerCase();
+    const isActive = body.active === true;
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
@@ -285,7 +286,7 @@ serve(async (req) => {
         break;
       case 'treat':
         if (!hospitalId || !target || !medicineType) return jsonResponse({ ok: false, error: 'INVALID_TREATMENT_REQUEST' });
-        functionName = 'hospital_treat_player';
+        functionName = 'hospital_treat_player_with_metabolic_cost';
         args = { p_hospital_id: hospitalId, p_actor_tg_id: actorTgId, p_target: target, p_medicine_type: medicineType };
         break;
       case 'sell': {
@@ -388,7 +389,7 @@ serve(async (req) => {
         break;
       case 'survival_tick':
         functionName = 'player_process_survival_tick';
-        args = { p_actor_tg_id: actorTgId };
+        args = { p_actor_tg_id: actorTgId, p_is_active: isActive };
         break;
       case 'process_treatment':
         functionName = 'hospital_process_my_treatment';
@@ -449,11 +450,19 @@ serve(async (req) => {
     }
 
     if (
-      action === 'survival_tick' &&
+      (action === 'survival_tick' || action === 'stamina_exhausted') &&
       result && typeof result === 'object' && !Array.isArray(result) &&
       (result as Record<string, unknown>).notificationRequired === true
     ) {
       const telegramWarningSent = await sendSurvivalWarning(botToken, actorTgId, result);
+      if (!telegramWarningSent) {
+        const retryNotification = await supabase.rpc('player_retry_survival_notification', {
+          p_actor_tg_id: actorTgId,
+        });
+        if (retryNotification.error) {
+          console.warn('[hospital-warehouse] survival notification retry reset failed:', retryNotification.error.message);
+        }
+      }
       result = { ...(result as Record<string, unknown>), telegramWarningSent };
     }
 
@@ -466,5 +475,3 @@ serve(async (req) => {
     });
   }
 });
-
-
