@@ -1,11 +1,6 @@
 .mn-player-status-effects {
-  --mn-player-fx-x: 50vw;
-  --mn-player-fx-y: 50vh;
   position: fixed;
-  left: var(--mn-player-fx-x);
-  top: var(--mn-player-fx-y);
-  width: 0;
-  height: 0;
+  inset: 0;
   z-index: 1000250;
   overflow: visible;
   pointer-events: none;
@@ -25,8 +20,8 @@
   --mn-fx-delay: 0ms;
   --mn-fx-scale: 1;
   position: absolute;
-  left: 0;
-  top: 0;
+  left: var(--mn-player-fx-x, 50vw);
+  top: var(--mn-player-fx-y, 50vh);
   display: block;
   margin: 0;
   opacity: 0;
