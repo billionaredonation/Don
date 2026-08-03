@@ -386,8 +386,11 @@ serve(async (req) => {
         break;
       }
       case 'stamina_exhausted':
-        functionName = 'player_apply_stamina_exhaustion';
-        args = { p_actor_tg_id: actorTgId };
+        // Charge the first recovery interval immediately. The legacy
+        // player_apply_stamina_exhaustion RPC did not consistently mutate
+        // food/water across older database revisions.
+        functionName = 'player_apply_stamina_recovery';
+        args = { p_actor_tg_id: actorTgId, p_intervals: 1 };
         break;
       case 'stamina_recovery': {
         const intervals = normalizeQuantity(body.intervals, 10);
@@ -505,5 +508,3 @@ serve(async (req) => {
     });
   }
 });
-
-
