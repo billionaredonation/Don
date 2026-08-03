@@ -389,6 +389,13 @@ serve(async (req) => {
         functionName = 'player_apply_stamina_exhaustion';
         args = { p_actor_tg_id: actorTgId };
         break;
+      case 'stamina_recovery': {
+        const intervals = normalizeQuantity(body.intervals, 10);
+        if (!intervals) return jsonResponse({ ok: false, error: 'INVALID_STAMINA_RECOVERY_REQUEST' });
+        functionName = 'player_apply_stamina_recovery';
+        args = { p_actor_tg_id: actorTgId, p_intervals: intervals };
+        break;
+      }
       case 'sprint_usage':
         functionName = 'player_apply_sprint_usage';
         args = { p_actor_tg_id: actorTgId };
