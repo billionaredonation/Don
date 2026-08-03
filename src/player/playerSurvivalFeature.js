@@ -175,6 +175,16 @@ export function enablePlayerSurvivalFeature() {
       }
     } finally {
       staminaUsageInFlight = false;
+
+      // Stamina events keep arriving while the request is in flight. Process
+      // the accumulated full intervals immediately instead of waiting for the
+      // player to stop or for another movement event.
+      if (
+        !destroyed &&
+        staminaUsagePendingPoints >= STAMINA_USAGE_POINTS_PER_INTERVAL
+      ) {
+        queueMicrotask(() => void processStaminaUsage());
+      }
     }
   }
 
