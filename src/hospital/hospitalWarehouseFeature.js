@@ -105,22 +105,26 @@ function userErrorMessage(error) {
   return code ? messages[code] : raw;
 }
 
-export async function invokeHospitalAction(action, payload = {}) {
+async function invokeAuthenticatedFunction(functionName, action, payload = {}) {
   const initData = telegramInitData();
 
   if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
 
-  const { data, error } = await supabase.functions.invoke(HOSPITAL_FUNCTION_NAME, {
-    body: {
-      initData,
-      action,
-      ...payload,
-    },
+  const { data, error } = await supabase.functions.invoke(functionName, {
+    body: { initData, action, ...payload },
   });
 
   if (error) throw await normalizeError(error);
   if (!data?.ok) throw new Error(data?.error || data?.reason || 'HOSPITAL_REQUEST_FAILED');
   return data.result;
+}
+
+export async function invokeHospitalAction(action, payload = {}) {
+  return invokeAuthenticatedFunction(HOSPITAL_FUNCTION_NAME, action, payload);
+}
+
+async function invokePlayerInteractionFallback(action, payload = {}) {
+  return invokeAuthenticatedFunction('player-interaction', action, payload);
 }
 
 export async function registerHospitalIdentity({ hospitalId, cityId, cityName, hospitalNumber } = {}) {
@@ -146,15 +150,19 @@ export async function issueMedicineFromInteraction({ hospitalId, target, medicin
 }
 
 export async function treatPlayerForPriceFromInteraction({ hospitalId, target, medicineType, price = 0 } = {}) {
-  // Professional treatment belongs to the hospital backend. Keeping it on the
-  // already authenticated hospital route avoids making the doctor action
-  // depend on the optional player-interaction Edge Function used by trades.
-  return invokeHospitalAction('treat_player_for_price', {
-    hospitalId,
-    target,
-    medicineType,
-    price,
-  });
+  const payload = { hospitalId, target, medicineType, price };
+
+  try {
+    return await invokeHospitalAction('treat_player_for_price', payload);
+  } catch (error) {
+    const message = String(error?.message || error || '');
+    const hospitalRouteIsOld = /UNKNOWN_ACTION|not found|404/i.test(message);
+    if (!hospitalRouteIsOld) throw error;
+
+    // Rolling-deploy fallback: treatment is also supported by the interaction
+    // function, so doctors are not blocked while hospital-warehouse is updated.
+    return invokePlayerInteractionFallback('treat_player_for_price', payload);
+  }
 }
 
 export async function loadMyMedicalInventory() {
@@ -181,12 +189,23 @@ export async function processPlayerSurvivalTick({ active = false } = {}) {
   return invokeHospitalAction('survival_tick', { active: active === true });
 }
 
+async function invokeStaminaAction(action, payload = {}) {
+  try {
+    return await invokeHospitalAction(action, payload);
+  } catch (error) {
+    const message = String(error?.message || error || '');
+    const hospitalRouteIsOld = /UNKNOWN_ACTION|not found|404/i.test(message);
+    if (!hospitalRouteIsOld) throw error;
+    return invokePlayerInteractionFallback(action, payload);
+  }
+}
+
 export async function applyPlayerStaminaExhaustion() {
-  return invokeHospitalAction('stamina_exhausted');
+  return invokeStaminaAction('stamina_exhausted');
 }
 
 export async function applyPlayerStaminaRecovery(intervals = 1) {
-  return invokeHospitalAction('stamina_recovery', { intervals });
+  return invokeStaminaAction('stamina_recovery', { intervals });
 }
 
 export async function applyPlayerSprintUsage() {
