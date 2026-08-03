@@ -208,6 +208,10 @@ export async function applyPlayerStaminaRecovery(intervals = 1) {
   return invokeStaminaAction('stamina_recovery', { intervals });
 }
 
+export async function applyPlayerStaminaUsage(intervals = 1) {
+  return invokeStaminaAction('stamina_usage', { intervals });
+}
+
 export async function applyPlayerSprintUsage() {
   return invokeHospitalAction('sprint_usage');
 }
