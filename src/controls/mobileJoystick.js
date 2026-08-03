@@ -454,10 +454,18 @@ export function enableMobileJoystick(
     const wantsSprint = isMoving && joystickPower >= SPRINT_POWER && !sprintLocked && !sprintBlockedByVitals;
 
     if (wantsSprint) {
+      const previousStamina = stamina;
       stamina = Math.max(
         STAMINA.emptyAt,
         stamina - STAMINA.drainPerFrame * frameScale
       );
+
+      const spentAmount = Math.max(0, previousStamina - stamina);
+      if (spentAmount > 0) {
+        window.dispatchEvent(new CustomEvent('mn:player-stamina-spent', {
+          detail: { source: 'mobile', amount: spentAmount },
+        }));
+      }
 
       if (stamina <= STAMINA.emptyAt) {
         const wasLocked = sprintLocked;
