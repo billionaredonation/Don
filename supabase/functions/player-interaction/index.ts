@@ -85,6 +85,65 @@ function normalizeOffer(value: unknown) {
   return result;
 }
 
+
+async function applyStaminaMetabolicCost(
+  supabase: ReturnType<typeof createClient>,
+  actorTgId: string,
+  intervals: number,
+) {
+  const safeIntervals = Math.max(1, Math.min(10, Math.floor(Number(intervals) || 1)));
+  const playerResult = await supabase
+    .from('players')
+    .select('health, food, water')
+    .eq('tg_id', actorTgId)
+    .maybeSingle();
+
+  if (playerResult.error) {
+    return { ok: false, error: playerResult.error.message, code: playerResult.error.code };
+  }
+  if (!playerResult.data) {
+    return { ok: false, error: 'PLAYER_NOT_FOUND', code: 'PGRST116' };
+  }
+
+  const health = Math.max(0, Math.min(100, Number(playerResult.data.health ?? 100)));
+  const food = Math.max(0, Math.min(100, Number(playerResult.data.food ?? 100)));
+  const water = Math.max(0, Math.min(100, Number(playerResult.data.water ?? 100)));
+  const nextFood = Math.max(0, food - safeIntervals);
+  const nextWater = Math.max(0, water - safeIntervals * 2);
+
+  const updateResult = await supabase
+    .from('players')
+    .update({
+      food: nextFood,
+      water: nextWater,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('tg_id', actorTgId)
+    .select('health, food, water')
+    .maybeSingle();
+
+  if (updateResult.error) {
+    return { ok: false, error: updateResult.error.message, code: updateResult.error.code };
+  }
+  if (!updateResult.data) {
+    return { ok: false, error: 'STAMINA_METABOLIC_UPDATE_FAILED', code: 'PGRST116' };
+  }
+
+  return {
+    ok: true,
+    result: {
+      health: Math.max(0, Math.min(100, Number(updateResult.data.health ?? health))),
+      food: Math.max(0, Math.min(100, Number(updateResult.data.food ?? nextFood))),
+      water: Math.max(0, Math.min(100, Number(updateResult.data.water ?? nextWater))),
+      foodCost: safeIntervals,
+      waterCost: safeIntervals * 2,
+      recoveryIntervals: safeIntervals,
+      sprintBlocked: nextFood < 10 || nextWater < 15,
+      transport: 'player_interaction_service_role_update',
+    },
+  };
+}
+
 function bytesToHex(bytes: ArrayBuffer) {
   return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -144,6 +203,28 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
+    if (action === 'stamina_exhausted' || action === 'stamina_recovery') {
+      const intervals = action === 'stamina_exhausted'
+        ? 1
+        : positiveInteger(body.intervals, 10);
+
+      if (!intervals) {
+        return jsonResponse({ ok: false, error: 'INVALID_STAMINA_RECOVERY_REQUEST' });
+      }
+
+      const staminaResult = await applyStaminaMetabolicCost(supabase, actorTgId, intervals);
+      if (!staminaResult.ok) {
+        return jsonResponse({
+          ok: false,
+          error: staminaResult.error,
+          code: staminaResult.code,
+          action,
+        });
+      }
+
+      return jsonResponse({ ok: true, result: staminaResult.result });
+    }
 
     let functionName = '';
     let fallbackFunctionName = '';
