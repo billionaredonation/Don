@@ -209,7 +209,28 @@ export async function applyPlayerStaminaRecovery(intervals = 1) {
 }
 
 export async function applyPlayerStaminaUsage(intervals = 1) {
-  return invokeStaminaAction('stamina_usage', { intervals });
+  /*
+    Compatibility route: `stamina_exhausted` already exists in the old deployed
+    hospital-warehouse function and performs a service-role update of food and
+    water. Do not depend on the newer `stamina_usage` action here.
+  */
+  const safeIntervals = Math.max(1, Math.min(10, Math.floor(Number(intervals) || 1)));
+  let result = null;
+
+  for (let index = 0; index < safeIntervals; index += 1) {
+    try {
+      result = await invokeHospitalAction('stamina_exhausted');
+    } catch (error) {
+      const message = String(error?.message || error || '');
+      if (!/UNKNOWN_ACTION|not found|404/i.test(message)) throw error;
+
+      // Very old backend fallback. It is only used when stamina_exhausted is
+      // absent, while avoiding any new server action requirement.
+      result = await invokeHospitalAction('sprint_usage');
+    }
+  }
+
+  return result;
 }
 
 export async function applyPlayerSprintUsage() {
