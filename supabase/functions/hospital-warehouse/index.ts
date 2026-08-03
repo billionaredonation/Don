@@ -35,34 +35,39 @@ async function applyStaminaMetabolicCost(
   intervals: number,
 ) {
   const safeIntervals = Math.max(1, Math.min(10, Math.floor(Number(intervals) || 1)));
-  const playerResult = await supabase
-    .from('players')
+  const positionPlayerId = `tg_${actorTgId}`;
+
+  // Health, food and water used by the map HUD live in player_positions.
+  // Updating this row also triggers the existing player_positions realtime
+  // subscription, so the HUD receives the new values immediately.
+  const positionResult = await supabase
+    .from('player_positions')
     .select('health, food, water')
-    .eq('tg_id', actorTgId)
+    .eq('player_id', positionPlayerId)
     .maybeSingle();
 
-  if (playerResult.error) {
-    return { ok: false, error: playerResult.error.message, code: playerResult.error.code };
+  if (positionResult.error) {
+    return { ok: false, error: positionResult.error.message, code: positionResult.error.code };
   }
 
-  if (!playerResult.data) {
-    return { ok: false, error: 'PLAYER_NOT_FOUND', code: 'PGRST116' };
+  if (!positionResult.data) {
+    return { ok: false, error: 'PLAYER_POSITION_NOT_FOUND', code: 'PGRST116' };
   }
 
-  const health = Math.max(0, Math.min(100, Number(playerResult.data.health ?? 100)));
-  const food = Math.max(0, Math.min(100, Number(playerResult.data.food ?? 100)));
-  const water = Math.max(0, Math.min(100, Number(playerResult.data.water ?? 100)));
+  const health = Math.max(0, Math.min(100, Number(positionResult.data.health ?? 100)));
+  const food = Math.max(0, Math.min(100, Number(positionResult.data.food ?? 100)));
+  const water = Math.max(0, Math.min(100, Number(positionResult.data.water ?? 100)));
   const nextFood = Math.max(0, food - safeIntervals);
   const nextWater = Math.max(0, water - safeIntervals * 2);
 
   const updateResult = await supabase
-    .from('players')
+    .from('player_positions')
     .update({
       food: nextFood,
       water: nextWater,
       updated_at: new Date().toISOString(),
     })
-    .eq('tg_id', actorTgId)
+    .eq('player_id', positionPlayerId)
     .select('health, food, water')
     .maybeSingle();
 
@@ -71,20 +76,25 @@ async function applyStaminaMetabolicCost(
   }
 
   if (!updateResult.data) {
-    return { ok: false, error: 'STAMINA_METABOLIC_UPDATE_FAILED', code: 'PGRST116' };
+    return { ok: false, error: 'STAMINA_POSITION_UPDATE_FAILED', code: 'PGRST116' };
   }
+
+  const updatedHealth = Math.max(0, Math.min(100, Number(updateResult.data.health ?? health)));
+  const updatedFood = Math.max(0, Math.min(100, Number(updateResult.data.food ?? nextFood)));
+  const updatedWater = Math.max(0, Math.min(100, Number(updateResult.data.water ?? nextWater)));
 
   return {
     ok: true,
     result: {
-      health: Math.max(0, Math.min(100, Number(updateResult.data.health ?? health))),
-      food: Math.max(0, Math.min(100, Number(updateResult.data.food ?? nextFood))),
-      water: Math.max(0, Math.min(100, Number(updateResult.data.water ?? nextWater))),
+      health: updatedHealth,
+      food: updatedFood,
+      water: updatedWater,
       foodCost: safeIntervals,
       waterCost: safeIntervals * 2,
       recoveryIntervals: safeIntervals,
-      sprintBlocked: nextFood < 10 || nextWater < 15,
-      transport: 'service_role_update',
+      sprintBlocked: updatedFood < 10 || updatedWater < 15,
+      playerId: positionPlayerId,
+      transport: 'player_positions_service_role_update',
     },
   };
 }
