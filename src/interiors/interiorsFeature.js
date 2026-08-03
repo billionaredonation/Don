@@ -4154,7 +4154,16 @@ export function enableInteriorsFeature() {
     const frameScale = dt * 60;
 
     if (wantsSprint && !sprintLocked) {
+      const previousStamina = stamina;
       stamina = Math.max(staminaConfig.emptyAt, stamina - staminaConfig.drainPerFrame * frameScale);
+
+      const spentAmount = Math.max(0, previousStamina - stamina);
+      if (spentAmount > 0) {
+        window.dispatchEvent(new CustomEvent('mn:player-stamina-spent', {
+          detail: { source: 'interior', amount: spentAmount },
+        }));
+      }
+
       if (stamina <= staminaConfig.emptyAt) {
         const wasLocked = sprintLocked;
         sprintLocked = true;
