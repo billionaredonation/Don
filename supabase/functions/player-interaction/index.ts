@@ -90,8 +90,12 @@ async function applyStaminaMetabolicCost(
   supabase: ReturnType<typeof createClient>,
   actorTgId: string,
   intervals: number,
+  foodPerInterval = 1,
+  waterPerInterval = 2,
 ) {
   const safeIntervals = Math.max(1, Math.min(10, Math.floor(Number(intervals) || 1)));
+  const safeFoodPerInterval = Math.max(0, Math.min(10, Math.floor(Number(foodPerInterval) || 0)));
+  const safeWaterPerInterval = Math.max(0, Math.min(10, Math.floor(Number(waterPerInterval) || 0)));
   const playerResult = await supabase
     .from('players')
     .select('health, food, water')
@@ -108,8 +112,10 @@ async function applyStaminaMetabolicCost(
   const health = Math.max(0, Math.min(100, Number(playerResult.data.health ?? 100)));
   const food = Math.max(0, Math.min(100, Number(playerResult.data.food ?? 100)));
   const water = Math.max(0, Math.min(100, Number(playerResult.data.water ?? 100)));
-  const nextFood = Math.max(0, food - safeIntervals);
-  const nextWater = Math.max(0, water - safeIntervals * 2);
+  const foodCost = safeIntervals * safeFoodPerInterval;
+  const waterCost = safeIntervals * safeWaterPerInterval;
+  const nextFood = Math.max(0, food - foodCost);
+  const nextWater = Math.max(0, water - waterCost);
 
   const updateResult = await supabase
     .from('players')
@@ -135,8 +141,8 @@ async function applyStaminaMetabolicCost(
       health: Math.max(0, Math.min(100, Number(updateResult.data.health ?? health))),
       food: Math.max(0, Math.min(100, Number(updateResult.data.food ?? nextFood))),
       water: Math.max(0, Math.min(100, Number(updateResult.data.water ?? nextWater))),
-      foodCost: safeIntervals,
-      waterCost: safeIntervals * 2,
+      foodCost,
+      waterCost,
       recoveryIntervals: safeIntervals,
       sprintBlocked: nextFood < 10 || nextWater < 15,
       transport: 'player_interaction_service_role_update',
@@ -204,16 +210,27 @@ serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    if (action === 'stamina_exhausted' || action === 'stamina_recovery') {
+    if (
+      action === 'stamina_usage' ||
+      action === 'stamina_exhausted' ||
+      action === 'stamina_recovery'
+    ) {
       const intervals = action === 'stamina_exhausted'
         ? 1
         : positiveInteger(body.intervals, 10);
 
       if (!intervals) {
-        return jsonResponse({ ok: false, error: 'INVALID_STAMINA_RECOVERY_REQUEST' });
+        return jsonResponse({ ok: false, error: 'INVALID_STAMINA_METABOLIC_REQUEST' });
       }
 
-      const staminaResult = await applyStaminaMetabolicCost(supabase, actorTgId, intervals);
+      const waterPerInterval = action === 'stamina_usage' ? 1 : 2;
+      const staminaResult = await applyStaminaMetabolicCost(
+        supabase,
+        actorTgId,
+        intervals,
+        1,
+        waterPerInterval,
+      );
       if (!staminaResult.ok) {
         return jsonResponse({
           ok: false,
