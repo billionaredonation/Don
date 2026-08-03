@@ -185,6 +185,10 @@ export async function applyPlayerStaminaExhaustion() {
   return invokeHospitalAction('stamina_exhausted');
 }
 
+export async function applyPlayerStaminaRecovery(intervals = 1) {
+  return invokeHospitalAction('stamina_recovery', { intervals });
+}
+
 export async function applyPlayerSprintUsage() {
   return invokeHospitalAction('sprint_usage');
 }
