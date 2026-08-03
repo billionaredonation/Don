@@ -4169,7 +4169,12 @@ export function enableInteriorsFeature() {
         staminaConfig.max,
         stamina + getStaminaRecoveryPerFrame(state.player?.water) * frameScale
       );
-      if (sprintLocked && stamina >= staminaConfig.recoveredAt) sprintLocked = false;
+      if (sprintLocked && stamina >= staminaConfig.recoveredAt) {
+        sprintLocked = false;
+        window.dispatchEvent(new CustomEvent('mn:player-stamina-recovered', {
+          detail: { source: 'interior' },
+        }));
+      }
     }
 
     const sprint = wantsSprint && !sprintLocked;
