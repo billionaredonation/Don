@@ -1,8 +1,7 @@
 import { state } from '../state.js';
 import {
-  applyPlayerStaminaExhaustion,
   applyPlayerStaminaRecovery,
-  applyPlayerSprintUsage,
+  applyPlayerStaminaUsage,
   processPlayerSurvivalTick,
 } from '../hospital/hospitalWarehouseFeature.js';
 import { getStaminaRecoverySeconds } from './playerStaminaConfig.js';
@@ -10,7 +9,9 @@ import { getStaminaRecoverySeconds } from './playerStaminaConfig.js';
 const SURVIVAL_POLL_MS = 30_000;
 const ACTIVITY_SAMPLE_MS = 1_000;
 const ACTIVE_MEMORY_MS = 120_000;
-const SPRINT_COST_INTERVAL_SECONDS = 2;
+const STAMINA_USAGE_POINTS_PER_INTERVAL = 25;
+const STAMINA_USAGE_PARTIAL_FLUSH_DELAY_MS = 1_500;
+const STAMINA_USAGE_MAX_CATCHUP_INTERVALS = 10;
 const STAMINA_RECOVERY_COST_INTERVAL_MS = 30_000;
 const STAMINA_RECOVERY_DEADLINE_GRACE_MS = 30_000;
 const STAMINA_RECOVERY_MAX_CATCHUP_INTERVALS = 10;
@@ -51,14 +52,14 @@ function hasTelegramSession() {
 export function enablePlayerSurvivalFeature() {
   let destroyed = false;
   let tickInFlight = false;
-  let sprintUsageInFlight = false;
-  let staminaExhaustionInFlight = false;
+  let staminaUsageInFlight = false;
+  let staminaUsagePendingPoints = 0;
+  let staminaUsageLastSpentAt = 0;
   let staminaRecoveryInFlight = false;
   let staminaRecoveryFinishing = false;
   let staminaRecoveryActive = false;
   let staminaRecoveryLastChargeAt = 0;
   let staminaRecoveryDeadlineAt = 0;
-  let sprintUsageSeconds = 0;
   let pollTimer = 0;
   let activityTimer = 0;
   let lastActiveAt = 0;
@@ -147,35 +148,33 @@ export function enablePlayerSurvivalFeature() {
     }
   }
 
-  async function processSprintUsage() {
-    if (destroyed || sprintUsageInFlight || !hasTelegramSession()) return;
-    sprintUsageInFlight = true;
-    try {
-      const result = await applyPlayerSprintUsage();
-      if (!destroyed) applyServerResult(result || {}, 'sprint_usage');
-    } catch (error) {
-      sprintUsageSeconds = Math.max(sprintUsageSeconds, SPRINT_COST_INTERVAL_SECONDS);
-      if (!String(error?.message || '').includes('TELEGRAM_SESSION')) {
-        console.warn('[playerSurvival] sprint usage sync failed:', error);
-      }
-    } finally {
-      sprintUsageInFlight = false;
-    }
-  }
+  async function processStaminaUsage({ includePartial = false } = {}) {
+    if (destroyed || staminaUsageInFlight || !hasTelegramSession()) return;
 
-  async function processStaminaExhaustion() {
-    if (destroyed || staminaExhaustionInFlight || !hasTelegramSession()) return;
-    staminaExhaustionInFlight = true;
+    const pendingPoints = Math.max(0, Number(staminaUsagePendingPoints) || 0);
+    let intervals = Math.floor(pendingPoints / STAMINA_USAGE_POINTS_PER_INTERVAL);
+
+    if (!intervals && includePartial && pendingPoints > 0) intervals = 1;
+    intervals = Math.min(STAMINA_USAGE_MAX_CATCHUP_INTERVALS, Math.max(0, intervals));
+    if (!intervals) return;
+
+    const consumedPoints = includePartial && pendingPoints < STAMINA_USAGE_POINTS_PER_INTERVAL
+      ? pendingPoints
+      : intervals * STAMINA_USAGE_POINTS_PER_INTERVAL;
+
+    staminaUsagePendingPoints = Math.max(0, staminaUsagePendingPoints - consumedPoints);
+    staminaUsageInFlight = true;
 
     try {
-      const result = await applyPlayerStaminaExhaustion();
-      if (!destroyed) applyServerResult(result || {}, 'stamina_exhausted');
+      const result = await applyPlayerStaminaUsage(intervals);
+      if (!destroyed) applyServerResult(result || {}, 'stamina_usage');
     } catch (error) {
+      staminaUsagePendingPoints += consumedPoints;
       if (!String(error?.message || '').includes('TELEGRAM_SESSION')) {
-        console.warn('[playerSurvival] stamina exhaustion sync failed:', error);
+        console.warn('[playerSurvival] stamina usage sync failed:', error);
       }
     } finally {
-      staminaExhaustionInFlight = false;
+      staminaUsageInFlight = false;
     }
   }
 
@@ -226,7 +225,10 @@ export function enablePlayerSurvivalFeature() {
       now + recoveryMs + STAMINA_RECOVERY_DEADLINE_GRACE_MS
     );
 
-    void processStaminaExhaustion();
+    // The movement controllers report the real amount of stamina spent.
+    // Flush any final fraction when the bar reaches zero so one full bar always
+    // consumes food and water even when it ends between 25-point checkpoints.
+    void processStaminaUsage({ includePartial: true });
   }
 
   async function finishStaminaRecovery() {
@@ -240,6 +242,21 @@ export function enablePlayerSurvivalFeature() {
       staminaRecoveryLastChargeAt = 0;
       staminaRecoveryDeadlineAt = 0;
       staminaRecoveryFinishing = false;
+    }
+  }
+
+  function handleStaminaSpent(event) {
+    const amount = finiteNumber(event?.detail?.amount);
+    if (amount === null || amount <= 0) return;
+
+    staminaUsagePendingPoints = Math.min(
+      STAMINA_USAGE_POINTS_PER_INTERVAL * STAMINA_USAGE_MAX_CATCHUP_INTERVALS * 4,
+      staminaUsagePendingPoints + amount
+    );
+    staminaUsageLastSpentAt = Date.now();
+
+    if (staminaUsagePendingPoints >= STAMINA_USAGE_POINTS_PER_INTERVAL) {
+      void processStaminaUsage();
     }
   }
 
@@ -260,20 +277,20 @@ export function enablePlayerSurvivalFeature() {
     }
 
     if (isMovingNow()) lastActiveAt = Date.now();
-    if (!isSprintingNow()) return;
 
-    sprintUsageSeconds = Math.min(
-      SPRINT_COST_INTERVAL_SECONDS,
-      sprintUsageSeconds + ACTIVITY_SAMPLE_MS / 1000
-    );
-    if (sprintUsageSeconds < SPRINT_COST_INTERVAL_SECONDS) return;
-    if (sprintUsageInFlight || !hasTelegramSession()) return;
-    sprintUsageSeconds -= SPRINT_COST_INTERVAL_SECONDS;
-    void processSprintUsage();
+    const shouldFlushPartialUsage =
+      staminaUsagePendingPoints > 0 &&
+      !isSprintingNow() &&
+      Date.now() - staminaUsageLastSpentAt >= STAMINA_USAGE_PARTIAL_FLUSH_DELAY_MS;
+
+    if (shouldFlushPartialUsage) {
+      void processStaminaUsage({ includePartial: true });
+    }
   }
 
   syncSprintFromVitals(currentVitals());
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
+  window.addEventListener('mn:player-stamina-spent', handleStaminaSpent);
   window.addEventListener('mn:player-stamina-exhausted', handleStaminaExhausted);
   window.addEventListener('mn:player-stamina-recovered', handleStaminaRecovered);
   activityTimer = window.setInterval(sampleActivity, ACTIVITY_SAMPLE_MS);
@@ -285,6 +302,7 @@ export function enablePlayerSurvivalFeature() {
     window.clearInterval(activityTimer);
     window.clearInterval(pollTimer);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
+    window.removeEventListener('mn:player-stamina-spent', handleStaminaSpent);
     window.removeEventListener('mn:player-stamina-exhausted', handleStaminaExhausted);
     window.removeEventListener('mn:player-stamina-recovered', handleStaminaRecovered);
     window.__MN_SPRINT_BLOCKED_BY_VITALS__ = false;
