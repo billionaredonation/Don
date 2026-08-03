@@ -1,4 +1,4 @@
-// Hospital treatment + stamina usage/recovery fix 2026-08-03: deploy marker.
+// Hospital batch refresh 2026-07-20: warehouse edge function deploy marker.
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
@@ -33,12 +33,8 @@ async function applyStaminaMetabolicCost(
   supabase: ReturnType<typeof createClient>,
   actorTgId: string,
   intervals: number,
-  foodPerInterval = 1,
-  waterPerInterval = 2,
 ) {
   const safeIntervals = Math.max(1, Math.min(10, Math.floor(Number(intervals) || 1)));
-  const safeFoodPerInterval = Math.max(0, Math.min(10, Math.floor(Number(foodPerInterval) || 0)));
-  const safeWaterPerInterval = Math.max(0, Math.min(10, Math.floor(Number(waterPerInterval) || 0)));
   const playerResult = await supabase
     .from('players')
     .select('health, food, water')
@@ -56,10 +52,8 @@ async function applyStaminaMetabolicCost(
   const health = Math.max(0, Math.min(100, Number(playerResult.data.health ?? 100)));
   const food = Math.max(0, Math.min(100, Number(playerResult.data.food ?? 100)));
   const water = Math.max(0, Math.min(100, Number(playerResult.data.water ?? 100)));
-  const foodCost = safeIntervals * safeFoodPerInterval;
-  const waterCost = safeIntervals * safeWaterPerInterval;
-  const nextFood = Math.max(0, food - foodCost);
-  const nextWater = Math.max(0, water - waterCost);
+  const nextFood = Math.max(0, food - safeIntervals);
+  const nextWater = Math.max(0, water - safeIntervals * 2);
 
   const updateResult = await supabase
     .from('players')
@@ -86,8 +80,8 @@ async function applyStaminaMetabolicCost(
       health: Math.max(0, Math.min(100, Number(updateResult.data.health ?? health))),
       food: Math.max(0, Math.min(100, Number(updateResult.data.food ?? nextFood))),
       water: Math.max(0, Math.min(100, Number(updateResult.data.water ?? nextWater))),
-      foodCost,
-      waterCost,
+      foodCost: safeIntervals,
+      waterCost: safeIntervals * 2,
       recoveryIntervals: safeIntervals,
       sprintBlocked: nextFood < 10 || nextWater < 15,
       transport: 'service_role_update',
@@ -284,19 +278,10 @@ serve(async (req) => {
         : normalizeQuantity(body.intervals, 10);
 
       if (!intervals) {
-        return jsonResponse({ ok: false, error: 'INVALID_STAMINA_METABOLIC_REQUEST' });
+        return jsonResponse({ ok: false, error: 'INVALID_STAMINA_RECOVERY_REQUEST' });
       }
 
-      // Running spends both resources while the bar is being drained.
-      // Recovery is more water-intensive, so it keeps the old 1 food / 2 water cost.
-      const waterPerInterval = action === 'stamina_usage' ? 1 : 2;
-      const staminaResult = await applyStaminaMetabolicCost(
-        supabase,
-        actorTgId,
-        intervals,
-        1,
-        waterPerInterval,
-      );
+      const staminaResult = await applyStaminaMetabolicCost(supabase, actorTgId, intervals);
       if (!staminaResult.ok) {
         console.warn('[hospital-warehouse] stamina metabolic update failed:', staminaResult.error);
         return jsonResponse({
@@ -575,7 +560,6 @@ serve(async (req) => {
         action === 'survival_tick' ||
         action === 'stamina_usage' ||
         action === 'stamina_exhausted' ||
-        action === 'stamina_recovery' ||
         action === 'sprint_usage'
       ) &&
       result && typeof result === 'object' && !Array.isArray(result) &&
