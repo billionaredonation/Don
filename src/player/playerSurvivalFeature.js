@@ -7,10 +7,12 @@ import {
 import { getStaminaRecoverySeconds } from './playerStaminaConfig.js';
 
 const SURVIVAL_POLL_MS = 30_000;
-const ACTIVITY_SAMPLE_MS = 1_000;
+const ACTIVITY_SAMPLE_MS = 250;
 const ACTIVE_MEMORY_MS = 120_000;
 const STAMINA_USAGE_POINTS_PER_INTERVAL = 25;
 const STAMINA_USAGE_PARTIAL_FLUSH_DELAY_MS = 1_500;
+const STAMINA_USAGE_MIN_PARTIAL_POINTS = 0.5;
+const STAMINA_USAGE_POINT_EPSILON = 0.05;
 const STAMINA_USAGE_MAX_CATCHUP_INTERVALS = 10;
 const STAMINA_RECOVERY_COST_INTERVAL_MS = 30_000;
 const STAMINA_RECOVERY_DEADLINE_GRACE_MS = 30_000;
@@ -93,7 +95,6 @@ export function enablePlayerSurvivalFeature() {
         detail: { allowed: !blocked, reason: blocked ? 'critical_vitals' : 'vitals_recovered' },
       }));
     }
-
   }
 
   function syncSprintFromVitals(vitals) {
@@ -152,15 +153,29 @@ export function enablePlayerSurvivalFeature() {
     if (destroyed || staminaUsageInFlight || !hasTelegramSession()) return;
 
     const pendingPoints = Math.max(0, Number(staminaUsagePendingPoints) || 0);
-    let intervals = Math.floor(pendingPoints / STAMINA_USAGE_POINTS_PER_INTERVAL);
+    let intervals = Math.floor(
+      (pendingPoints + STAMINA_USAGE_POINT_EPSILON) / STAMINA_USAGE_POINTS_PER_INTERVAL
+    );
+    let consumesPartial = false;
 
-    if (!intervals && includePartial && pendingPoints > 0) intervals = 1;
-    intervals = Math.min(STAMINA_USAGE_MAX_CATCHUP_INTERVALS, Math.max(0, intervals));
+    if (
+      !intervals &&
+      includePartial &&
+      pendingPoints >= STAMINA_USAGE_MIN_PARTIAL_POINTS
+    ) {
+      intervals = 1;
+      consumesPartial = true;
+    }
+
+    intervals = Math.min(
+      STAMINA_USAGE_MAX_CATCHUP_INTERVALS,
+      Math.max(0, intervals)
+    );
     if (!intervals) return;
 
-    const consumedPoints = includePartial && pendingPoints < STAMINA_USAGE_POINTS_PER_INTERVAL
+    const consumedPoints = consumesPartial
       ? pendingPoints
-      : intervals * STAMINA_USAGE_POINTS_PER_INTERVAL;
+      : Math.min(pendingPoints, intervals * STAMINA_USAGE_POINTS_PER_INTERVAL);
 
     staminaUsagePendingPoints = Math.max(0, staminaUsagePendingPoints - consumedPoints);
     staminaUsageInFlight = true;
@@ -176,12 +191,10 @@ export function enablePlayerSurvivalFeature() {
     } finally {
       staminaUsageInFlight = false;
 
-      // Stamina events keep arriving while the request is in flight. Process
-      // the accumulated full intervals immediately instead of waiting for the
-      // player to stop or for another movement event.
       if (
         !destroyed &&
-        staminaUsagePendingPoints >= STAMINA_USAGE_POINTS_PER_INTERVAL
+        staminaUsagePendingPoints + STAMINA_USAGE_POINT_EPSILON >=
+          STAMINA_USAGE_POINTS_PER_INTERVAL
       ) {
         queueMicrotask(() => void processStaminaUsage());
       }
@@ -221,6 +234,24 @@ export function enablePlayerSurvivalFeature() {
     }
   }
 
+  function handleStaminaSpent(event) {
+    const amount = finiteNumber(event?.detail?.amount);
+    if (amount === null || amount <= 0) return;
+
+    staminaUsagePendingPoints = Math.min(
+      STAMINA_USAGE_POINTS_PER_INTERVAL * STAMINA_USAGE_MAX_CATCHUP_INTERVALS * 4,
+      staminaUsagePendingPoints + amount
+    );
+    staminaUsageLastSpentAt = Date.now();
+
+    if (
+      staminaUsagePendingPoints + STAMINA_USAGE_POINT_EPSILON >=
+      STAMINA_USAGE_POINTS_PER_INTERVAL
+    ) {
+      void processStaminaUsage();
+    }
+  }
+
   function handleStaminaExhausted() {
     const now = Date.now();
 
@@ -235,9 +266,6 @@ export function enablePlayerSurvivalFeature() {
       now + recoveryMs + STAMINA_RECOVERY_DEADLINE_GRACE_MS
     );
 
-    // The movement controllers report the real amount of stamina spent.
-    // Flush any final fraction when the bar reaches zero so one full bar always
-    // consumes food and water even when it ends between 25-point checkpoints.
     void processStaminaUsage({ includePartial: true });
   }
 
@@ -252,21 +280,6 @@ export function enablePlayerSurvivalFeature() {
       staminaRecoveryLastChargeAt = 0;
       staminaRecoveryDeadlineAt = 0;
       staminaRecoveryFinishing = false;
-    }
-  }
-
-  function handleStaminaSpent(event) {
-    const amount = finiteNumber(event?.detail?.amount);
-    if (amount === null || amount <= 0) return;
-
-    staminaUsagePendingPoints = Math.min(
-      STAMINA_USAGE_POINTS_PER_INTERVAL * STAMINA_USAGE_MAX_CATCHUP_INTERVALS * 4,
-      staminaUsagePendingPoints + amount
-    );
-    staminaUsageLastSpentAt = Date.now();
-
-    if (staminaUsagePendingPoints >= STAMINA_USAGE_POINTS_PER_INTERVAL) {
-      void processStaminaUsage();
     }
   }
 
@@ -289,7 +302,7 @@ export function enablePlayerSurvivalFeature() {
     if (isMovingNow()) lastActiveAt = Date.now();
 
     const shouldFlushPartialUsage =
-      staminaUsagePendingPoints > 0 &&
+      staminaUsagePendingPoints >= STAMINA_USAGE_MIN_PARTIAL_POINTS &&
       !isSprintingNow() &&
       Date.now() - staminaUsageLastSpentAt >= STAMINA_USAGE_PARTIAL_FLUSH_DELAY_MS;
 
