@@ -29,6 +29,66 @@ function normalizeMoney(value: unknown, max = 1_000_000_000) {
   return Number.isSafeInteger(amount) && amount >= 0 && amount <= max ? amount : null;
 }
 
+async function applyStaminaMetabolicCost(
+  supabase: ReturnType<typeof createClient>,
+  actorTgId: string,
+  intervals: number,
+) {
+  const safeIntervals = Math.max(1, Math.min(10, Math.floor(Number(intervals) || 1)));
+  const playerResult = await supabase
+    .from('players')
+    .select('health, food, water')
+    .eq('tg_id', actorTgId)
+    .maybeSingle();
+
+  if (playerResult.error) {
+    return { ok: false, error: playerResult.error.message, code: playerResult.error.code };
+  }
+
+  if (!playerResult.data) {
+    return { ok: false, error: 'PLAYER_NOT_FOUND', code: 'PGRST116' };
+  }
+
+  const health = Math.max(0, Math.min(100, Number(playerResult.data.health ?? 100)));
+  const food = Math.max(0, Math.min(100, Number(playerResult.data.food ?? 100)));
+  const water = Math.max(0, Math.min(100, Number(playerResult.data.water ?? 100)));
+  const nextFood = Math.max(0, food - safeIntervals);
+  const nextWater = Math.max(0, water - safeIntervals * 2);
+
+  const updateResult = await supabase
+    .from('players')
+    .update({
+      food: nextFood,
+      water: nextWater,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('tg_id', actorTgId)
+    .select('health, food, water')
+    .maybeSingle();
+
+  if (updateResult.error) {
+    return { ok: false, error: updateResult.error.message, code: updateResult.error.code };
+  }
+
+  if (!updateResult.data) {
+    return { ok: false, error: 'STAMINA_METABOLIC_UPDATE_FAILED', code: 'PGRST116' };
+  }
+
+  return {
+    ok: true,
+    result: {
+      health: Math.max(0, Math.min(100, Number(updateResult.data.health ?? health))),
+      food: Math.max(0, Math.min(100, Number(updateResult.data.food ?? nextFood))),
+      water: Math.max(0, Math.min(100, Number(updateResult.data.water ?? nextWater))),
+      foodCost: safeIntervals,
+      waterCost: safeIntervals * 2,
+      recoveryIntervals: safeIntervals,
+      sprintBlocked: nextFood < 10 || nextWater < 15,
+      transport: 'service_role_update',
+    },
+  };
+}
+
 function mergeProfessionalTreatmentStats(panelValue: unknown, statsValue: unknown) {
   if (!panelValue || typeof panelValue !== 'object' || Array.isArray(panelValue)) return panelValue;
 
@@ -208,6 +268,29 @@ serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    if (action === 'stamina_exhausted' || action === 'stamina_recovery') {
+      const intervals = action === 'stamina_exhausted'
+        ? 1
+        : normalizeQuantity(body.intervals, 10);
+
+      if (!intervals) {
+        return jsonResponse({ ok: false, error: 'INVALID_STAMINA_RECOVERY_REQUEST' });
+      }
+
+      const staminaResult = await applyStaminaMetabolicCost(supabase, actorTgId, intervals);
+      if (!staminaResult.ok) {
+        console.warn('[hospital-warehouse] stamina metabolic update failed:', staminaResult.error);
+        return jsonResponse({
+          ok: false,
+          error: staminaResult.error,
+          code: staminaResult.code,
+          action,
+        });
+      }
+
+      return jsonResponse({ ok: true, result: staminaResult.result });
+    }
+
     let functionName = '';
     let fallbackFunctionName = '';
     let args: Record<string, unknown> = {};
@@ -383,20 +466,6 @@ serve(async (req) => {
         if (!itemType || !quantity) return jsonResponse({ ok: false, error: 'INVALID_CAFETERIA_BUY_REQUEST' });
         functionName = itemType === 'water_bottle' ? 'player_buy_consumable_item' : 'cafeteria_buy_item';
         args = { p_actor_tg_id: actorTgId, p_item_type: itemType, p_quantity: quantity };
-        break;
-      }
-      case 'stamina_exhausted':
-        // Charge the first recovery interval immediately. The legacy
-        // player_apply_stamina_exhaustion RPC did not consistently mutate
-        // food/water across older database revisions.
-        functionName = 'player_apply_stamina_recovery';
-        args = { p_actor_tg_id: actorTgId, p_intervals: 1 };
-        break;
-      case 'stamina_recovery': {
-        const intervals = normalizeQuantity(body.intervals, 10);
-        if (!intervals) return jsonResponse({ ok: false, error: 'INVALID_STAMINA_RECOVERY_REQUEST' });
-        functionName = 'player_apply_stamina_recovery';
-        args = { p_actor_tg_id: actorTgId, p_intervals: intervals };
         break;
       }
       case 'sprint_usage':
