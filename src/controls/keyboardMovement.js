@@ -100,10 +100,18 @@ export function enableKeyboardPlayerMovement(
     const wantsSprint = isMoving && isSprintPressed() && !sprintLocked && !sprintBlockedByVitals;
 
     if (wantsSprint) {
+      const previousStamina = stamina;
       stamina = Math.max(
         STAMINA.emptyAt,
         stamina - STAMINA.drainPerFrame * frameScale
       );
+
+      const spentAmount = Math.max(0, previousStamina - stamina);
+      if (spentAmount > 0) {
+        window.dispatchEvent(new CustomEvent('mn:player-stamina-spent', {
+          detail: { source: 'keyboard', amount: spentAmount },
+        }));
+      }
 
       if (stamina <= STAMINA.emptyAt) {
         const wasLocked = sprintLocked;
