@@ -1507,6 +1507,13 @@ body.mn-interior-object-editor-open .mn-interior-stamina {
 .mn-interior-door-action[data-kind="cafeteria"] > span {
   background: linear-gradient(135deg, #21bc74, #167a55);
 }
+.mn-interior-door-action[data-kind="reception"] {
+  border-color: rgba(104, 218, 255, .5);
+  background: rgba(5, 27, 39, .93);
+}
+.mn-interior-door-action[data-kind="reception"] > span {
+  background: linear-gradient(135deg, #32abd4, #1c6f91);
+}
 
 .mn-interior-door-action[data-kind="patient_medicine"],
 .mn-interior-door-action[data-kind="bed"] {
