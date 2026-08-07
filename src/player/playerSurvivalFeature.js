@@ -3,8 +3,9 @@ import { applyPlayerPositionVitalCost } from './playerPosition.js';
 
 const SURVIVAL_POLL_MS = 30_000;
 const ACTIVITY_SAMPLE_MS = 250;
-const ACTIVE_MEMORY_MS = 120_000;
-const ACTIVE_METABOLIC_INTERVAL_MS = 5 * 60_000;
+const ACTIVITY_SAMPLE_MAX_MS = 1_000;
+const WALKING_METABOLIC_INTERVAL_MS = 60_000;
+const WALKING_MAX_CATCHUP_INTERVALS = 10;
 const AFK_METABOLIC_INTERVAL_MS = 10 * 60_000;
 const SURVIVAL_MAX_CATCHUP_INTERVALS = 288;
 const STARVATION_GRACE_MS = 60_000;
@@ -47,19 +48,33 @@ export function enablePlayerSurvivalFeature() {
   let tickInFlight = false;
   let staminaUsageInFlight = false;
   let staminaUsagePendingPoints = 0;
+  let walkingUsageInFlight = false;
+  let walkingUsagePendingMs = 0;
   let pollTimer = 0;
   let activityTimer = 0;
-  let lastActiveAt = Date.now();
-  let lastMetabolicChargeAt = Date.now();
+  let lastActivitySampleAt = Date.now();
+  let lastAfkChargeAt = Date.now();
   let starvationStartedAt = 0;
   let starvationLastDamageAt = 0;
   let sprintBlocked = false;
 
   function isMovingNow() {
+    if (document.hidden) return false;
+
     return (
       window.__MN_DESKTOP_PLAYER_MOVING__ === true ||
       window.__MN_MOBILE_PLAYER_MOVING__ === true ||
       window.__MN_INTERIOR_PLAYER_MOVING__ === true
+    );
+  }
+
+  function isSprintingNow() {
+    if (document.hidden) return false;
+
+    return (
+      window.__MN_DESKTOP_PLAYER_SPRINTING__ === true ||
+      window.__MN_MOBILE_PLAYER_SPRINTING__ === true ||
+      window.__MN_INTERIOR_PLAYER_SPRINTING__ === true
     );
   }
 
@@ -117,22 +132,20 @@ export function enablePlayerSurvivalFeature() {
 
     try {
       const now = Date.now();
-      const active = now - lastActiveAt <= ACTIVE_MEMORY_MS;
-      const metabolicInterval = active
-        ? ACTIVE_METABOLIC_INTERVAL_MS
-        : AFK_METABOLIC_INTERVAL_MS;
       const metabolicIntervals = Math.min(
         SURVIVAL_MAX_CATCHUP_INTERVALS,
-        Math.max(0, Math.floor((now - lastMetabolicChargeAt) / metabolicInterval))
+        Math.max(0, Math.floor((now - lastAfkChargeAt) / AFK_METABOLIC_INTERVAL_MS))
       );
 
       if (metabolicIntervals > 0) {
+        const afkChargeThrough = lastAfkChargeAt
+          + metabolicIntervals * AFK_METABOLIC_INTERVAL_MS;
         const result = await applyPlayerPositionVitalCost({
           foodCost: metabolicIntervals,
-          waterCost: active ? metabolicIntervals * 2 : metabolicIntervals,
+          waterCost: metabolicIntervals,
         });
-        lastMetabolicChargeAt += metabolicIntervals * metabolicInterval;
-        if (!destroyed) applyServerResult(result || {}, active ? 'active_metabolism' : 'afk_metabolism');
+        lastAfkChargeAt = Math.max(lastAfkChargeAt, afkChargeThrough);
+        if (!destroyed) applyServerResult(result || {}, 'afk_metabolism');
       }
 
       const vitals = currentVitals();
@@ -221,6 +234,40 @@ export function enablePlayerSurvivalFeature() {
     }
   }
 
+  async function processWalkingUsage() {
+    if (destroyed || walkingUsageInFlight) return;
+
+    const pendingMs = Math.max(0, Number(walkingUsagePendingMs) || 0);
+    const intervals = Math.min(
+      WALKING_MAX_CATCHUP_INTERVALS,
+      Math.max(0, Math.floor(pendingMs / WALKING_METABOLIC_INTERVAL_MS))
+    );
+    if (!intervals) return;
+
+    const consumedMs = intervals * WALKING_METABOLIC_INTERVAL_MS;
+    walkingUsagePendingMs = Math.max(0, walkingUsagePendingMs - consumedMs);
+    walkingUsageInFlight = true;
+
+    try {
+      const result = await applyPlayerPositionVitalCost({
+        foodCost: intervals,
+        waterCost: intervals,
+      });
+      if (!destroyed) applyServerResult(result || {}, 'walking_metabolism');
+    } catch (error) {
+      walkingUsagePendingMs += consumedMs;
+      if (!String(error?.message || '').includes('TELEGRAM_SESSION')) {
+        console.warn('[playerSurvival] walking usage sync failed:', error);
+      }
+    } finally {
+      walkingUsageInFlight = false;
+
+      if (!destroyed && walkingUsagePendingMs >= WALKING_METABOLIC_INTERVAL_MS) {
+        queueMicrotask(() => void processWalkingUsage());
+      }
+    }
+  }
+
   function handleStaminaSpent(event) {
     const amount = finiteNumber(event?.detail?.amount);
     if (amount === null || amount <= 0) return;
@@ -248,7 +295,30 @@ export function enablePlayerSurvivalFeature() {
   }
 
   function sampleActivity() {
-    if (isMovingNow()) lastActiveAt = Date.now();
+    const now = Date.now();
+    const elapsedMs = Math.min(
+      ACTIVITY_SAMPLE_MAX_MS,
+      Math.max(0, now - lastActivitySampleAt)
+    );
+    lastActivitySampleAt = now;
+
+    if (!isMovingNow()) return;
+
+    // Любое реальное движение откладывает следующий AFK-расход.
+    lastAfkChargeAt = now;
+
+    // Во время спринта расход уже считается по потраченной стамине. Обычная
+    // ходьба, включая ходьбу при заблокированном спринте, получает малый расход.
+    if (isSprintingNow()) return;
+
+    walkingUsagePendingMs = Math.min(
+      WALKING_METABOLIC_INTERVAL_MS * WALKING_MAX_CATCHUP_INTERVALS * 4,
+      walkingUsagePendingMs + elapsedMs
+    );
+
+    if (walkingUsagePendingMs >= WALKING_METABOLIC_INTERVAL_MS) {
+      void processWalkingUsage();
+    }
   }
 
   syncSprintFromVitals(currentVitals());
