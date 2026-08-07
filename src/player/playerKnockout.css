@@ -1,0 +1,129 @@
+.mn-player-knockout {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483300;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #fff;
+  background: rgba(1, 3, 6, .42);
+  opacity: 1;
+  pointer-events: auto;
+  transition: background 900ms ease, opacity 500ms ease;
+}
+
+.mn-player-knockout-vignette {
+  position: absolute;
+  inset: -8%;
+  background:
+    radial-gradient(circle at 50% 47%, rgba(2, 5, 9, .08) 0 21%, rgba(1, 3, 6, .56) 66%, rgba(0, 0, 0, .93) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, .18), rgba(0, 0, 0, .52));
+  backdrop-filter: grayscale(.76) saturate(.48) blur(1.4px);
+  animation: mn-knockout-breathe 3.2s ease-in-out infinite;
+}
+
+.mn-player-knockout-card {
+  position: relative;
+  z-index: 1;
+  width: min(520px, calc(100vw - 44px));
+  padding: 26px 28px 24px;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 24px;
+  text-align: center;
+  background: linear-gradient(145deg, rgba(8, 13, 20, .82), rgba(3, 6, 11, .67));
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 255, 255, .06);
+  backdrop-filter: blur(14px);
+  animation: mn-knockout-card-in 900ms .7s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.mn-player-knockout-card small {
+  display: block;
+  margin-bottom: 10px;
+  color: #ff6b72;
+  font: 900 10px/1 system-ui, sans-serif;
+  letter-spacing: .18em;
+}
+
+.mn-player-knockout-card h2 {
+  margin: 0 0 8px;
+  font: 900 clamp(23px, 4vw, 36px)/1.08 system-ui, sans-serif;
+  letter-spacing: -.035em;
+}
+
+.mn-player-knockout-card p {
+  margin: 0 auto;
+  max-width: 390px;
+  color: rgba(255, 255, 255, .67);
+  font: 650 14px/1.45 system-ui, sans-serif;
+}
+
+.mn-player-knockout-card time {
+  display: block;
+  margin: 20px 0 13px;
+  color: #fff;
+  font: 950 clamp(48px, 9vw, 76px)/.9 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: -.075em;
+  text-shadow: 0 0 34px rgba(255, 72, 82, .22);
+}
+
+.mn-player-knockout-card > span {
+  display: inline-flex;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, .52);
+  background: rgba(255, 255, 255, .04);
+  font: 750 10px/1 system-ui, sans-serif;
+}
+
+.mn-player-knockout[data-phase="transporting"] {
+  background: #000;
+}
+
+.mn-player-knockout[data-phase="transporting"] .mn-player-knockout-vignette {
+  opacity: 0;
+}
+
+.mn-player-knockout[data-phase="transporting"] .mn-player-knockout-card {
+  opacity: 0;
+  transform: scale(.96);
+  transition: opacity 420ms ease, transform 420ms ease;
+}
+
+.mn-player-knockout[data-phase="recovering"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes mn-knockout-breathe {
+  0%, 100% { transform: scale(1); opacity: .92; }
+  50% { transform: scale(1.025); opacity: 1; }
+}
+
+@keyframes mn-knockout-card-in {
+  from { opacity: 0; transform: translateY(12px) scale(.975); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 760px), (max-height: 520px) {
+  .mn-player-knockout-card {
+    width: min(470px, calc(100vw - 84px));
+    padding: 15px 20px 14px;
+    border-radius: 18px;
+  }
+
+  .mn-player-knockout-card small { margin-bottom: 7px; font-size: 8px; }
+  .mn-player-knockout-card h2 { margin-bottom: 5px; font-size: 23px; }
+  .mn-player-knockout-card p { font-size: 11px; }
+  .mn-player-knockout-card time { margin: 12px 0 9px; font-size: 45px; }
+  .mn-player-knockout-card > span { padding: 5px 8px; font-size: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mn-player-knockout,
+  .mn-player-knockout-vignette,
+  .mn-player-knockout-card {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+}
