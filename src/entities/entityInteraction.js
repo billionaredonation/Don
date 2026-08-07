@@ -733,7 +733,7 @@ export function createEntityInteractionPanel(root) {
   }
 
   function open(object) {
-    if (!object) return;
+    if (!object || window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return;
 
     selectedObject = object;
     openedAt = Date.now();
@@ -795,6 +795,7 @@ export function createEntityInteractionPanel(root) {
   }
 
   function handleKeyDown(event) {
+    if (window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return false;
     if (document.body.classList.contains('mn-house-trade-open')) return false;
     if (!selectedObject || panel.hidden) return false;
     if (isTypingTarget(event.target)) return false;
@@ -1517,6 +1518,7 @@ export function enableEntityInteraction({
   }
 
   function openObjectFromDirectInput(object) {
+    if (window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return false;
     if (!object?.id) return false;
 
     const objectId = String(object.id);
@@ -1603,7 +1605,10 @@ export function enableEntityInteraction({
     // Внутри дома/больницы клавиша E/У принадлежит двери и выходу из
     // интерьера. Город не должен повторно обработать это же событие и открыть
     // карточку ближайшего дома поверх интерьера.
-    if (window.__MN_INTERIOR_ACTIVE__ === true) return;
+    if (
+      window.__MN_INTERIOR_ACTIVE__ === true ||
+      window.__MN_PLAYER_CONTROLS_LOCKED__ === true
+    ) return;
     if (document.body.classList.contains('mn-house-trade-open')) return;
     if (!isInteractKey(event)) return;
     if (event.repeat) return;
