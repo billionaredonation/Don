@@ -229,6 +229,7 @@ export function setupTelegramGameShell() {
         target?.closest?.('.mn-hospital-warehouse-panel') ||
         target?.closest?.('.mn-hospital-warehouse-body') ||
         target?.closest?.('.mn-hospital-cafeteria-panel') ||
+        target?.closest?.('.mn-hospital-reception-panel') ||
         target?.closest?.('.mn-hospital-management-panel') ||
         target?.closest?.('.mn-player-interaction-panel') ||
         target?.closest?.('.map-modal-panel') ||
