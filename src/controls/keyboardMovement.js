@@ -478,6 +478,8 @@ export function enableKeyboardPlayerMovement(
     setDesktopRuntimeMoving(isMoving);
 
     if (isMoving) {
+      const previousX = x;
+      const previousY = y;
       x += velocityX * frameScale;
       y += velocityY * frameScale;
       x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
@@ -493,6 +495,12 @@ export function enableKeyboardPlayerMovement(
       if (Math.abs(renderY - y) <= RENDER_EPSILON) renderY = y;
 
       angle = getAngleFromMovement(velocityX || inputX || moveX, velocityY || inputY || moveY, angle);
+
+      if (!isSprinting && Math.hypot(x - previousX, y - previousY) > 0.000001) {
+        window.dispatchEvent(new CustomEvent('mn:player-walking', {
+          detail: { source: 'keyboard', durationMs: delta },
+        }));
+      }
 
       paintPlayer(false);
       broadcastMove(false);
