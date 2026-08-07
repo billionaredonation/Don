@@ -39,6 +39,7 @@ import { enableHospitalManagementFeature } from '../../src/hospital/hospitalMana
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
 import { enablePlayerStatusEffects } from '../../src/player/playerStatusEffects.js';
 import { enablePlayerSurvivalFeature } from '../../src/player/playerSurvivalFeature.js';
+import { enablePlayerKnockoutFeature } from '../../src/player/playerKnockoutFeature.js';
 import {
   fetchPlayerOwnedHouses,
   PLAYER_HOUSE_SLOT_LIMIT,
@@ -348,6 +349,7 @@ function setupHouseSpawnPicker({
   const playerTgId = getCurrentHousePlayerTgId();
 
   if (!root || !cityId || !playerTgId) return () => {};
+  if (window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return () => {};
 
   let disposed = false;
   let overlay = null;
@@ -1139,6 +1141,12 @@ register('home', async (root) => {
     save();
   }
 
+  const initialKnockState = String(playerPosition?.knockState || 'conscious');
+  window.__MN_PLAYER_CONTROLS_LOCKED__ =
+    initialKnockState === 'countdown' ||
+    initialKnockState === 'hospitalized' ||
+    Number(playerPosition?.health ?? 100) <= 10;
+
   const cityPlayers = cityPlayersResult.status === 'fulfilled' && Array.isArray(cityPlayersResult.value)
     ? cityPlayersResult.value
     : [playerPosition];
@@ -1480,6 +1488,7 @@ register('home', async (root) => {
   let cleanupBalanceDatabaseSync = null;
   let cleanupHouseSpawnPicker = null;
   let cleanupInteriorExitReturn = null;
+  let cleanupPlayerKnockout = null;
 
   const balanceCard = root.querySelector('[data-player-balance-card]');
   const balanceEl = root.querySelector('[data-player-balance]');
@@ -2114,6 +2123,11 @@ register('home', async (root) => {
     movementChannel: network.movementChannel,
   });
 
+  cleanupPlayerKnockout = enablePlayerKnockoutFeature({
+    playerPosition,
+    cityId,
+  });
+
   const handleSessionBlocked = () => {
     cleanupMobileSelfMarker?.();
     cleanupMobileSelfMarker = null;
@@ -2279,6 +2293,7 @@ register('home', async (root) => {
     cleanupPlayerInteraction?.();
     cleanupPlayerStatusEffects?.();
     cleanupPlayerSurvival?.();
+    cleanupPlayerKnockout?.();
     cleanupHousesFeature?.();
     cleanupSingleHouseModalMode?.();
     cleanupMovement?.();
