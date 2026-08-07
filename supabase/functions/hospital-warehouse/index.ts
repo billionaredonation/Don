@@ -33,13 +33,38 @@ async function applyStaminaMetabolicCost(
   supabase: ReturnType<typeof createClient>,
   actorTgId: string,
   intervals: number,
+  foodPerInterval = 1,
+  waterPerInterval = 1,
 ) {
   const safeIntervals = Math.max(1, Math.min(10, Math.floor(Number(intervals) || 1)));
+  const safeFoodPerInterval = Math.max(0, Math.min(10, Math.floor(Number(foodPerInterval) || 0)));
+  const safeWaterPerInterval = Math.max(0, Math.min(10, Math.floor(Number(waterPerInterval) || 0)));
   const positionPlayerId = `tg_${actorTgId}`;
 
+  const rpcResult = await supabase.rpc('player_apply_position_stamina_cost', {
+    p_actor_tg_id: actorTgId,
+    p_intervals: safeIntervals,
+    p_food_per_interval: safeFoodPerInterval,
+    p_water_per_interval: safeWaterPerInterval,
+  });
+
+  if (!rpcResult.error && rpcResult.data) {
+    return { ok: true, result: rpcResult.data };
+  }
+
+  const missingRpc = rpcResult.error && (
+    rpcResult.error.code === 'PGRST202' ||
+    rpcResult.error.code === '42883' ||
+    /function .* does not exist|could not find the function/i.test(rpcResult.error.message || '')
+  );
+
+  if (rpcResult.error && !missingRpc) {
+    return { ok: false, error: rpcResult.error.message, code: rpcResult.error.code };
+  }
+
   // Health, food and water used by the map HUD live in player_positions.
-  // Updating this row also triggers the existing player_positions realtime
-  // subscription, so the HUD receives the new values immediately.
+  // Keep a direct-update fallback during a rolling deploy; the migration RPC
+  // is atomic and becomes the primary path as soon as the schema cache sees it.
   const positionResult = await supabase
     .from('player_positions')
     .select('health, food, water')
@@ -57,8 +82,10 @@ async function applyStaminaMetabolicCost(
   const health = Math.max(0, Math.min(100, Number(positionResult.data.health ?? 100)));
   const food = Math.max(0, Math.min(100, Number(positionResult.data.food ?? 100)));
   const water = Math.max(0, Math.min(100, Number(positionResult.data.water ?? 100)));
-  const nextFood = Math.max(0, food - safeIntervals);
-  const nextWater = Math.max(0, water - safeIntervals * 2);
+  const foodCost = safeIntervals * safeFoodPerInterval;
+  const waterCost = safeIntervals * safeWaterPerInterval;
+  const nextFood = Math.max(0, food - foodCost);
+  const nextWater = Math.max(0, water - waterCost);
 
   const updateResult = await supabase
     .from('player_positions')
@@ -89,8 +116,8 @@ async function applyStaminaMetabolicCost(
       health: updatedHealth,
       food: updatedFood,
       water: updatedWater,
-      foodCost: safeIntervals,
-      waterCost: safeIntervals * 2,
+      foodCost,
+      waterCost,
       recoveryIntervals: safeIntervals,
       sprintBlocked: updatedFood < 10 || updatedWater < 15,
       playerId: positionPlayerId,
@@ -291,7 +318,14 @@ serve(async (req) => {
         return jsonResponse({ ok: false, error: 'INVALID_STAMINA_RECOVERY_REQUEST' });
       }
 
-      const staminaResult = await applyStaminaMetabolicCost(supabase, actorTgId, intervals);
+      const waterPerInterval = action === 'stamina_usage' ? 1 : 2;
+      const staminaResult = await applyStaminaMetabolicCost(
+        supabase,
+        actorTgId,
+        intervals,
+        1,
+        waterPerInterval,
+      );
       if (!staminaResult.ok) {
         console.warn('[hospital-warehouse] stamina metabolic update failed:', staminaResult.error);
         return jsonResponse({
@@ -303,6 +337,45 @@ serve(async (req) => {
       }
 
       return jsonResponse({ ok: true, result: staminaResult.result });
+    }
+
+    if (action === 'survival_tick') {
+      const survivalResult = await supabase.rpc('player_process_position_survival_tick', {
+        p_actor_tg_id: actorTgId,
+        p_is_active: isActive,
+      });
+
+      if (survivalResult.error) {
+        console.warn('[hospital-warehouse] player_process_position_survival_tick failed:', survivalResult.error.message);
+        return jsonResponse({
+          ok: false,
+          error: survivalResult.error.message,
+          code: survivalResult.error.code,
+          action,
+        });
+      }
+
+      let result = survivalResult.data;
+
+      if (
+        result && typeof result === 'object' && !Array.isArray(result) &&
+        (result as Record<string, unknown>).notificationRequired === true
+      ) {
+        const telegramWarningSent = await sendSurvivalWarning(botToken, actorTgId, result);
+
+        if (telegramWarningSent) {
+          const notificationAck = await supabase.rpc('player_mark_position_survival_warning_sent', {
+            p_actor_tg_id: actorTgId,
+          });
+          if (notificationAck.error) {
+            console.warn('[hospital-warehouse] survival notification ack failed:', notificationAck.error.message);
+          }
+        }
+
+        result = { ...(result as Record<string, unknown>), telegramWarningSent };
+      }
+
+      return jsonResponse({ ok: true, result });
     }
 
     let functionName = '';
@@ -486,10 +559,6 @@ serve(async (req) => {
         functionName = 'player_apply_sprint_usage';
         args = { p_actor_tg_id: actorTgId };
         break;
-      case 'survival_tick':
-        functionName = 'player_process_survival_tick';
-        args = { p_actor_tg_id: actorTgId, p_is_active: isActive };
-        break;
       case 'process_treatment':
         functionName = 'hospital_process_my_treatment';
         args = { p_patient_tg_id: actorTgId };
@@ -567,7 +636,6 @@ serve(async (req) => {
 
     if (
       (
-        action === 'survival_tick' ||
         action === 'stamina_usage' ||
         action === 'stamina_exhausted' ||
         action === 'sprint_usage'
