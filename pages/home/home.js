@@ -345,6 +345,7 @@ function setupHouseSpawnPicker({
   nickname,
   mapControls,
   movementChannel,
+  onGameplayEntered,
 } = {}) {
   const playerTgId = getCurrentHousePlayerTgId();
 
@@ -354,6 +355,12 @@ function setupHouseSpawnPicker({
   let disposed = false;
   let overlay = null;
   let ownedHouses = [];
+  let pendingHouseEntry = false;
+
+  function completeGameplayEntry(source) {
+    if (disposed) return;
+    onGameplayEntered?.(source);
+  }
 
   function setPickerGate(open) {
     const isOpen = Boolean(open);
@@ -382,6 +389,7 @@ function setupHouseSpawnPicker({
   function enterHouseFromPicker(house) {
     if (!house) return;
 
+    pendingHouseEntry = true;
     close();
 
     window.dispatchEvent(new CustomEvent('mn:house-spawn-enter-request', {
@@ -394,6 +402,12 @@ function setupHouseSpawnPicker({
         source: 'house_spawn_picker',
       },
     }));
+  }
+
+  function handleInteriorEntered() {
+    if (!pendingHouseEntry) return;
+    pendingHouseEntry = false;
+    completeGameplayEntry('house_spawn');
   }
 
   function handleClick(event) {
@@ -410,6 +424,7 @@ function setupHouseSpawnPicker({
       event.preventDefault();
       event.stopPropagation();
       close();
+      completeGameplayEntry('city_spawn');
     }
   }
 
@@ -422,6 +437,7 @@ function setupHouseSpawnPicker({
       event.preventDefault();
       event.stopPropagation();
       close();
+      completeGameplayEntry('city_spawn');
       return;
     }
 
@@ -438,7 +454,10 @@ function setupHouseSpawnPicker({
 
       ownedHouses = Array.isArray(houses) ? houses.slice(0, PLAYER_HOUSE_SLOT_LIMIT) : [];
 
-      if (!ownedHouses.length) return;
+      if (!ownedHouses.length) {
+        completeGameplayEntry('city_spawn_no_houses');
+        return;
+      }
 
       root.insertAdjacentHTML('beforeend', renderHouseSpawnPickerHtml({
         houses: ownedHouses,
@@ -446,18 +465,26 @@ function setupHouseSpawnPicker({
       }));
 
       overlay = root.querySelector('[data-house-spawn-picker]');
+      if (!overlay) {
+        completeGameplayEntry('city_spawn_picker_unavailable');
+        return;
+      }
       overlay?.addEventListener('click', handleClick);
       window.addEventListener('keydown', handleKeyDown, true);
       setPickerGate(true);
     })
     .catch((error) => {
       console.warn('[home] house spawn picker failed:', error);
+      completeGameplayEntry('city_spawn_picker_failed');
     });
+
+  window.addEventListener('mn:interior-entered', handleInteriorEntered);
 
   return () => {
     disposed = true;
     overlay?.removeEventListener('click', handleClick);
     window.removeEventListener('keydown', handleKeyDown, true);
+    window.removeEventListener('mn:interior-entered', handleInteriorEntered);
     close();
   };
 }
@@ -1059,6 +1086,11 @@ register('home', async (root) => {
 
   resetHouseModalsOnHomeEnter();
 
+  window.__MN_GAMEPLAY_ENTERED__ = false;
+  window.__MN_PLAYER_CONTROLS_LOCKED__ = false;
+  document.body?.classList.remove('mn-player-controls-locked');
+  document.documentElement?.classList.remove('mn-player-controls-locked');
+
   delete root.dataset.destroyed;
 
   root.className = 'page home';
@@ -1140,12 +1172,6 @@ register('home', async (root) => {
 
     save();
   }
-
-  const initialKnockState = String(playerPosition?.knockState || 'conscious');
-  window.__MN_PLAYER_CONTROLS_LOCKED__ =
-    initialKnockState === 'countdown' ||
-    initialKnockState === 'hospitalized' ||
-    Number(playerPosition?.health ?? 100) <= 10;
 
   const cityPlayers = cityPlayersResult.status === 'fulfilled' && Array.isArray(cityPlayersResult.value)
     ? cityPlayersResult.value
@@ -1489,6 +1515,16 @@ register('home', async (root) => {
   let cleanupHouseSpawnPicker = null;
   let cleanupInteriorExitReturn = null;
   let cleanupPlayerKnockout = null;
+  let gameplayEntered = false;
+
+  function markGameplayEntered(source = 'city_spawn') {
+    if (gameplayEntered || root.dataset.destroyed === 'true') return;
+    gameplayEntered = true;
+    window.__MN_GAMEPLAY_ENTERED__ = true;
+    window.dispatchEvent(new CustomEvent('mn:gameplay-entered', {
+      detail: { cityId, source },
+    }));
+  }
 
   const balanceCard = root.querySelector('[data-player-balance-card]');
   const balanceEl = root.querySelector('[data-player-balance]');
@@ -2112,6 +2148,7 @@ register('home', async (root) => {
     nickname,
     mapControls,
     movementChannel: network.movementChannel,
+    onGameplayEntered: markGameplayEntered,
   });
 
   cleanupInteriorExitReturn = setupInteriorExitReturn({
@@ -2272,6 +2309,7 @@ register('home', async (root) => {
 
   root._cleanupHome = () => {
     root.dataset.destroyed = 'true';
+    window.__MN_GAMEPLAY_ENTERED__ = false;
 
     window.removeEventListener('mn:session-blocked', handleSessionBlocked);
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
