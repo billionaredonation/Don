@@ -345,6 +345,15 @@ function normalizePosition(row, extra = {}) {
     if (Number.isFinite(value)) position[key] = clampPercent(value, 100);
   });
 
+  position.knockState = String(row?.knock_state || 'conscious');
+  position.knockStartedAt = row?.knock_started_at || null;
+  position.hospitalizedAt = row?.hospitalized_at || null;
+  position.hospitalId = row?.hospital_id || null;
+  position.hospitalBedId = row?.hospital_bed_id || null;
+  position.bedsideTreatmentType = row?.bedside_treatment_type || null;
+  position.bedsideTreatmentStartedAt = row?.bedside_treatment_started_at || null;
+  position.bedsideTreatmentLastTickAt = row?.bedside_treatment_last_tick_at || null;
+
   return position;
 }
 
