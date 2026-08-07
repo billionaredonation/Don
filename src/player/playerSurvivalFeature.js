@@ -2,9 +2,8 @@ import { state } from '../state.js';
 import { applyPlayerPositionVitalCost } from './playerPosition.js';
 
 const SURVIVAL_POLL_MS = 30_000;
-const ACTIVITY_SAMPLE_MS = 250;
-const ACTIVITY_SAMPLE_MAX_MS = 1_000;
 const WALKING_METABOLIC_INTERVAL_MS = 60_000;
+const WALKING_EVENT_MAX_MS = 1_000;
 const WALKING_MAX_CATCHUP_INTERVALS = 10;
 const AFK_METABOLIC_INTERVAL_MS = 10 * 60_000;
 const SURVIVAL_MAX_CATCHUP_INTERVALS = 288;
@@ -51,32 +50,10 @@ export function enablePlayerSurvivalFeature() {
   let walkingUsageInFlight = false;
   let walkingUsagePendingMs = 0;
   let pollTimer = 0;
-  let activityTimer = 0;
-  let lastActivitySampleAt = Date.now();
   let lastAfkChargeAt = Date.now();
   let starvationStartedAt = 0;
   let starvationLastDamageAt = 0;
   let sprintBlocked = false;
-
-  function isMovingNow() {
-    if (document.hidden) return false;
-
-    return (
-      window.__MN_DESKTOP_PLAYER_MOVING__ === true ||
-      window.__MN_MOBILE_PLAYER_MOVING__ === true ||
-      window.__MN_INTERIOR_PLAYER_MOVING__ === true
-    );
-  }
-
-  function isSprintingNow() {
-    if (document.hidden) return false;
-
-    return (
-      window.__MN_DESKTOP_PLAYER_SPRINTING__ === true ||
-      window.__MN_MOBILE_PLAYER_SPRINTING__ === true ||
-      window.__MN_INTERIOR_PLAYER_SPRINTING__ === true
-    );
-  }
 
   function publishSprintAvailability(nextBlocked) {
     const blocked = nextBlocked === true;
@@ -272,6 +249,7 @@ export function enablePlayerSurvivalFeature() {
     const amount = finiteNumber(event?.detail?.amount);
     if (amount === null || amount <= 0) return;
 
+    lastAfkChargeAt = Date.now();
     staminaUsagePendingPoints = Math.min(
       STAMINA_USAGE_POINTS_PER_INTERVAL * STAMINA_USAGE_MAX_CATCHUP_INTERVALS * 4,
       staminaUsagePendingPoints + amount
@@ -288,32 +266,14 @@ export function enablePlayerSurvivalFeature() {
     void processStaminaUsage();
   }
 
-  function handleVitalsChanged(event) {
-    const detail = event?.detail || {};
-    const snapshot = detail.vitals || detail.player || detail;
-    syncSprintFromVitals(resultVitals(snapshot));
-  }
+  function handlePlayerWalking(event) {
+    const durationMs = finiteNumber(event?.detail?.durationMs);
+    if (durationMs === null || durationMs <= 0) return;
 
-  function sampleActivity() {
-    const now = Date.now();
-    const elapsedMs = Math.min(
-      ACTIVITY_SAMPLE_MAX_MS,
-      Math.max(0, now - lastActivitySampleAt)
-    );
-    lastActivitySampleAt = now;
-
-    if (!isMovingNow()) return;
-
-    // Любое реальное движение откладывает следующий AFK-расход.
-    lastAfkChargeAt = now;
-
-    // Во время спринта расход уже считается по потраченной стамине. Обычная
-    // ходьба, включая ходьбу при заблокированном спринте, получает малый расход.
-    if (isSprintingNow()) return;
-
+    lastAfkChargeAt = Date.now();
     walkingUsagePendingMs = Math.min(
       WALKING_METABOLIC_INTERVAL_MS * WALKING_MAX_CATCHUP_INTERVALS * 4,
-      walkingUsagePendingMs + elapsedMs
+      walkingUsagePendingMs + Math.min(WALKING_EVENT_MAX_MS, durationMs)
     );
 
     if (walkingUsagePendingMs >= WALKING_METABOLIC_INTERVAL_MS) {
@@ -321,21 +281,27 @@ export function enablePlayerSurvivalFeature() {
     }
   }
 
+  function handleVitalsChanged(event) {
+    const detail = event?.detail || {};
+    const snapshot = detail.vitals || detail.player || detail;
+    syncSprintFromVitals(resultVitals(snapshot));
+  }
+
   syncSprintFromVitals(currentVitals());
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   window.addEventListener('mn:player-stamina-spent', handleStaminaSpent);
   window.addEventListener('mn:player-stamina-exhausted', handleStaminaExhausted);
-  activityTimer = window.setInterval(sampleActivity, ACTIVITY_SAMPLE_MS);
+  window.addEventListener('mn:player-walking', handlePlayerWalking);
   pollTimer = window.setInterval(processSurvival, SURVIVAL_POLL_MS);
   window.setTimeout(processSurvival, 1_200);
 
   return () => {
     destroyed = true;
-    window.clearInterval(activityTimer);
     window.clearInterval(pollTimer);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
     window.removeEventListener('mn:player-stamina-spent', handleStaminaSpent);
     window.removeEventListener('mn:player-stamina-exhausted', handleStaminaExhausted);
+    window.removeEventListener('mn:player-walking', handlePlayerWalking);
     window.__MN_SPRINT_BLOCKED_BY_VITALS__ = false;
   };
 }
