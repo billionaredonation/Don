@@ -4,6 +4,7 @@ import { state } from '../state.js';
 import './hospitalWarehouse.css';
 
 const HOSPITAL_FUNCTION_NAME = 'hospital-warehouse';
+const PLAYER_INTERACTION_FUNCTION_NAME = 'player-interaction';
 const MEDICINE_TYPES = ['medicine_light', 'medicine_strong', 'medicine_resuscitation'];
 const ITEM_FALLBACKS = Object.freeze({
   food: { label: 'Продукты', icon: '🍱' },
@@ -123,6 +124,32 @@ export async function invokeHospitalAction(action, payload = {}) {
   return data.result;
 }
 
+async function invokePlayerInteractionAction(action, payload = {}) {
+  const initData = telegramInitData();
+
+  if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
+
+  const { data, error } = await supabase.functions.invoke(PLAYER_INTERACTION_FUNCTION_NAME, {
+    body: {
+      initData,
+      action,
+      ...payload,
+    },
+  });
+
+  if (error) throw await normalizeError(error, 'PLAYER_INTERACTION_REQUEST_FAILED');
+  if (!data?.ok) throw new Error(data?.error || data?.reason || 'PLAYER_INTERACTION_REQUEST_FAILED');
+  return data.result;
+}
+
+function isLegacyEdgeFunctionError(error) {
+  const raw = String(error?.message || error || '').toLowerCase();
+  return /(?:^|[^a-z0-9_])unknown_action(?:$|[^a-z0-9_])/.test(raw) ||
+    /(?:^|[^a-z0-9_])not_found(?:$|[^a-z0-9_])/.test(raw) ||
+    raw.includes('requested function was not found') ||
+    raw.includes('function not found');
+}
+
 export async function registerHospitalIdentity({ hospitalId, cityId, cityName, hospitalNumber } = {}) {
   return invokeHospitalAction('register_hospital', {
     hospitalId,
@@ -146,15 +173,22 @@ export async function issueMedicineFromInteraction({ hospitalId, target, medicin
 }
 
 export async function treatPlayerForPriceFromInteraction({ hospitalId, target, medicineType, price = 0 } = {}) {
-  // Professional treatment belongs to the hospital backend. Keeping it on the
-  // already authenticated hospital route avoids making the doctor action
-  // depend on the optional player-interaction Edge Function used by trades.
-  return invokeHospitalAction('treat_player_for_price', {
+  const payload = {
     hospitalId,
     target,
     medicineType,
     price,
-  });
+  };
+
+  // Player interaction is the primary compatibility route for professional
+  // actions. Fall back only when that Edge Function is an older deployment;
+  // all business errors must be returned as-is to avoid a duplicate treatment.
+  try {
+    return await invokePlayerInteractionAction('treat_player_for_price', payload);
+  } catch (error) {
+    if (!isLegacyEdgeFunctionError(error)) throw error;
+    return invokeHospitalAction('treat_player_for_price', payload);
+  }
 }
 
 export async function loadMyMedicalInventory() {
