@@ -136,16 +136,51 @@ function tradeItemKey(item = {}) {
   return [item.itemType, item.source || 'personal', item.hospitalId || ''].join('::');
 }
 
-function normalizeTradeInventory(inventory = {}) {
-  const source = inventory.items;
-  const rawItems = Array.isArray(source)
-    ? source
-    : Object.entries(source && typeof source === 'object' ? source : {})
-      .map(([itemType, value]) => (
+function rawTradeInventoryItems(inventory = {}) {
+  if (Array.isArray(inventory)) return inventory;
+  if (!inventory || typeof inventory !== 'object') return [];
+
+  const nestedSources = [
+    inventory.items,
+    inventory.inventory,
+    inventory.personalItems,
+    inventory.personal_items,
+    inventory.slots,
+  ];
+  const rawItems = [];
+
+  nestedSources.forEach((source) => {
+    if (Array.isArray(source)) {
+      rawItems.push(...source);
+      return;
+    }
+    if (!source || typeof source !== 'object') return;
+    Object.entries(source).forEach(([itemType, value]) => {
+      rawItems.push(
         value && typeof value === 'object'
-          ? { ...value, itemType: value.itemType || itemType }
+          ? { ...value, itemType: value.itemType || value.type || itemType }
           : { itemType, quantity: value }
-      ));
+      );
+    });
+  });
+
+  if (rawItems.length) return rawItems;
+
+  const metadataKeys = new Set([
+    'balance', 'money', 'health', 'food', 'water', 'playerId', 'player_id',
+    'tgId', 'tg_id', 'nickname', 'updatedAt', 'updated_at',
+  ]);
+  return Object.entries(inventory)
+    .filter(([key]) => !metadataKeys.has(key))
+    .map(([itemType, value]) => (
+      value && typeof value === 'object'
+        ? { ...value, itemType: value.itemType || value.type || itemType }
+        : { itemType, quantity: value }
+    ));
+}
+
+function normalizeTradeInventory(inventory = {}) {
+  const rawItems = rawTradeInventoryItems(inventory);
 
   return rawItems
     .map((item) => {
@@ -353,11 +388,39 @@ async function loadTradeInventory() {
 
   addPersonalItems(tradeInventory);
   addPersonalItems(playerInventory || {});
+  addPersonalItems(window.__MN_PLAYER_INVENTORY_ITEMS__ || []);
+  addPersonalItems(state.player?.inventory || []);
+  addPersonalItems(state.player?.items || []);
+  addPersonalItems(state.inventory || []);
+  addPersonalItems(state.playerInventory || []);
   return { ...tradeInventory, items: [...items.values()] };
 }
 
 function toast(message, type = 'info') {
   window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
+}
+
+function showTradeSuccessToast(message = 'Трейд успешно завершён.') {
+  document.querySelectorAll('[data-player-trade-success-toast]').forEach((element) => element.remove());
+
+  const notice = document.createElement('div');
+  notice.className = 'mn-player-trade-success-toast';
+  notice.dataset.playerTradeSuccessToast = 'true';
+  notice.setAttribute('role', 'status');
+  notice.setAttribute('aria-live', 'polite');
+  notice.innerHTML = '<i aria-hidden="true">✓</i><span></span>';
+  notice.querySelector('span').textContent = message;
+  document.body.appendChild(notice);
+
+  window.requestAnimationFrame(() => {
+    if (notice.isConnected) notice.dataset.state = 'open';
+  });
+
+  window.setTimeout(() => {
+    if (!notice.isConnected) return;
+    notice.dataset.state = 'closing';
+    window.setTimeout(() => notice.remove(), 220);
+  }, 2800);
 }
 
 async function broadcastTo(targetTgId, event, payload) {
@@ -966,15 +1029,18 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
             offerId: incomingOffer.offerId,
             offer: counterOffer,
           });
-          state.player = { ...(state.player || {}), balance: Number(result.actorBalance) };
-          window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
-            detail: { balance: Number(result.actorBalance), source: 'player_trade' },
-          }));
-          window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
+          const actorBalance = Number(result.actorBalance);
+          if (Number.isFinite(actorBalance)) {
+            state.player = { ...(state.player || {}), balance: actorBalance };
+            window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+              detail: { balance: actorBalance, source: 'player_trade' },
+            }));
+          }
+          window.dispatchEvent(new CustomEvent('mn:player-inventory-changed'));
           await broadcastTo(result.initiatorTgId, 'trade_resolved', result);
-          setMessage('Трейд успешно завершён.', 'success');
           incomingOffer = null;
-          clearTradeUi();
+          close();
+          showTradeSuccessToast();
         } catch (error) {
           setMessage(errorText(error), 'error');
           resetCountdown();
@@ -1129,13 +1195,17 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   const channel = tgId ? supabase.channel(`mn-player-interactions:${tgId}`) : null;
   channel?.on('broadcast', { event: 'trade_created' }, () => void checkIncoming());
   channel?.on('broadcast', { event: 'trade_resolved' }, ({ payload }) => {
-    if (payload?.status === 'accepted' && Number.isFinite(Number(payload.initiatorBalance))) {
-      state.player = { ...(state.player || {}), balance: Number(payload.initiatorBalance) };
-      window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
-        detail: { balance: Number(payload.initiatorBalance), source: 'player_trade' },
-      }));
-      window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
-      toast('Трейд завершён.', 'success');
+    if (payload?.status === 'accepted') {
+      const initiatorBalance = Number(payload.initiatorBalance);
+      if (Number.isFinite(initiatorBalance)) {
+        state.player = { ...(state.player || {}), balance: initiatorBalance };
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+          detail: { balance: initiatorBalance, source: 'player_trade' },
+        }));
+      }
+      window.dispatchEvent(new CustomEvent('mn:player-inventory-changed'));
+      if (panel.dataset.trade === 'true') close();
+      showTradeSuccessToast();
     } else toast('Предложение трейда закрыто.');
   });
   channel?.on('broadcast', { event: 'money_received' }, ({ payload }) => {
@@ -1218,9 +1288,9 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     panel.removeEventListener('focusout', handlePanelFocusOut);
     document.removeEventListener('click', handleMarkerPointer, true);
     if (channel) supabase.removeChannel(channel);
+    document.querySelectorAll('[data-player-trade-success-toast]').forEach((element) => element.remove());
     overlay.remove();
     hint.remove();
     document.body.classList.remove('mn-player-interaction-open');
   };
 }
-
