@@ -1779,6 +1779,10 @@ export function enableInteriorsFeature() {
   let objectEditorResizeId = null;
   let objectEditorResizeStart = null;
   let objectEditorResizeOrigin = null;
+  let objectEditorDirty = false;
+  let objectEditorRevision = 0;
+  let objectEditorSavePendingCount = 0;
+  const queuedRemoteMappedObjectTemplates = new Set();
   let collisionProfilesChannel = null;
   let mappedObjectsChannel = null;
   let doorStatesChannel = null;
@@ -3057,32 +3061,57 @@ export function enableInteriorsFeature() {
       });
   }
 
+  function scheduleRemoteMappedObjectsReload(templateId, delay = 140) {
+    window.clearTimeout(mappedObjectsReloadTimer);
+    mappedObjectsReloadTimer = window.setTimeout(async () => {
+      if (
+        objectEditorOpen &&
+        templateId === objectEditorTemplateId
+      ) {
+        queuedRemoteMappedObjectTemplates.add(templateId);
+        return;
+      }
+
+      const loaded = await loadRemoteMappedInteriorObjects({ force: true });
+      if (!loaded || destroyed) return;
+
+      if (active && templateId === activeTemplateId) {
+        renderInteriorObjects();
+      }
+    }, delay);
+  }
+
+  function flushQueuedRemoteMappedObjects() {
+    if (
+      objectEditorOpen ||
+      objectEditorDirty ||
+      objectEditorSavePendingCount > 0 ||
+      !queuedRemoteMappedObjectTemplates.size
+    ) return;
+
+    const templateIds = [...queuedRemoteMappedObjectTemplates];
+    queuedRemoteMappedObjectTemplates.clear();
+    const templateId = templateIds.includes(activeTemplateId)
+      ? activeTemplateId
+      : templateIds[0];
+    scheduleRemoteMappedObjectsReload(templateId, 180);
+  }
+
   function handleRemoteMappedObjectsChange(payload) {
     const row = payload?.new || payload?.old;
     const templateId = String(row?.template_id || '').trim();
     if (!TEMPLATES[templateId]) return;
 
-    window.clearTimeout(mappedObjectsReloadTimer);
-    mappedObjectsReloadTimer = window.setTimeout(async () => {
-      const loaded = await loadRemoteMappedInteriorObjects({ force: true });
-      if (!loaded || destroyed) return;
+    if (
+      (objectEditorOpen && templateId === objectEditorTemplateId) ||
+      objectEditorDirty ||
+      objectEditorSavePendingCount > 0
+    ) {
+      queuedRemoteMappedObjectTemplates.add(templateId);
+      return;
+    }
 
-      if (active && templateId === activeTemplateId) {
-        if (objectEditorOpen && !objectEditorPointer) {
-          objectEditorProfile = editorProfileForCurrentTemplate();
-          if (
-            objectEditorSelectedId &&
-            !objectEditorProfile.objects.some((object) => object.id === objectEditorSelectedId)
-          ) {
-            objectEditorSelectedId = null;
-          }
-        }
-        renderInteriorObjects();
-        if (objectEditorOpen && !objectEditorPointer) {
-          setObjectStatus('Сервер обновил раскладку объектов');
-        }
-      }
-    }, 140);
+    scheduleRemoteMappedObjectsReload(templateId);
   }
 
   function handleRemoteInteriorDoorStateChange(payload) {
@@ -4143,6 +4172,8 @@ export function enableInteriorsFeature() {
   function applyObjectEditorProfile({ persist = false } = {}) {
     if (!objectEditorProfile) return false;
 
+    objectEditorDirty = true;
+    objectEditorRevision += 1;
     objectEditorProfile = normalizeCollisionProfile(
       objectEditorProfile,
       INTERIOR_COLLISION_PROFILES[objectEditorTemplateId]
@@ -4165,29 +4196,26 @@ export function enableInteriorsFeature() {
 
     window.clearTimeout(colliderSaveTimer);
     const saveId = ++colliderSaveSequence;
+    const savedRevision = objectEditorRevision;
     const profile = normalizeCollisionProfile(
       objectEditorProfile,
       INTERIOR_COLLISION_PROFILES[objectEditorTemplateId]
     );
+    objectEditorSavePendingCount += 1;
     setRuntimeEditorProfile(profile, objectEditorTemplateId);
     setMappedObjectsForTemplate(objectEditorTemplateId, profile.objects);
     setObjectStatus(`Сохраняю для всех · ${objectCountsText(profile)}`);
 
     try {
       await saveRemoteMappedInteriorObjects(objectEditorTemplateId, profile.objects);
-      if (saveId === colliderSaveSequence) {
+      if (saveId === colliderSaveSequence && savedRevision === objectEditorRevision) {
+        objectEditorDirty = false;
         setObjectStatus(`Сохранено для всех · ${objectCountsText(profile)}`);
       }
       return true;
     } catch (error) {
       console.warn('[interiors] mapped objects save failed:', error);
       if (saveId === colliderSaveSequence) {
-        const loaded = await loadRemoteMappedInteriorObjects({ force: true });
-        if (loaded) {
-          objectEditorProfile = editorProfileForCurrentTemplate();
-          objectEditorSelectedId = null;
-          renderInteriorObjects();
-        }
         const rawError = String(error?.message || error || 'неизвестная ошибка');
         const errorText = rawError.toLowerCase().includes('requested function was not found') ||
           rawError.includes('NOT_FOUND')
@@ -4198,6 +4226,9 @@ export function enableInteriorsFeature() {
         setObjectStatus(`Не сохранено · ${errorText}`);
       }
       return false;
+    } finally {
+      objectEditorSavePendingCount = Math.max(0, objectEditorSavePendingCount - 1);
+      flushQueuedRemoteMappedObjects();
     }
   }
 
@@ -4260,6 +4291,7 @@ export function enableInteriorsFeature() {
     document.body.classList.remove('mn-interior-object-editor-open');
     document.documentElement.classList.remove('mn-interior-object-editor-open');
     renderInteriorObjects();
+    flushQueuedRemoteMappedObjects();
   }
 
   function openHospitalAdminPanel() {
