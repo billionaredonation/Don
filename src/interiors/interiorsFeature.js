@@ -19,6 +19,7 @@ import {
   saveHospitalWarehousePickupLayout,
 } from '../hospital/hospitalWarehouseFeature.js';
 import { enableHospitalCafeteriaFeature } from '../hospital/hospitalCafeteriaFeature.js';
+import { enableHospitalReceptionFeature } from '../hospital/hospitalReceptionFeature.js';
 import {
   dischargeHospitalPatient,
   HOSPITAL_EXIT_HEALTH,
@@ -47,6 +48,7 @@ const INTERIOR_EXIT_INTERACTION_RADIUS = 6.5;
 const INTERIOR_CHAIR_INTERACTION_RADIUS = 6.5;
 const INTERIOR_WAREHOUSE_INTERACTION_RADIUS = 7;
 const INTERIOR_CAFETERIA_INTERACTION_RADIUS = 7;
+const INTERIOR_RECEPTION_INTERACTION_RADIUS = 7;
 const INTERIOR_PATIENT_MEDICINE_INTERACTION_RADIUS = 7;
 const INTERIOR_DOOR_RADIUS_HYSTERESIS = 1.4;
 const INTERIOR_PRESENCE_REFRESH_MS = 1500;
@@ -123,6 +125,10 @@ function normalizeHospitalWarehousePickupType(type) {
 
 function isCafeteriaPickupType(type) {
   return String(type || '').trim().toLowerCase() === 'cafeteria';
+}
+
+function isReceptionPickupType(type) {
+  return String(type || '').trim().toLowerCase() === 'reception';
 }
 
 function isPatientMedicinePickupType(type) {
@@ -702,6 +708,13 @@ function createMappedInteriorObjectProperties(type) {
       width: size.width,
       height: size.height,
       interactionRadius: INTERIOR_CAFETERIA_INTERACTION_RADIUS,
+    };
+  }
+  if (isReceptionPickupType(type)) {
+    return {
+      width: size.width,
+      height: size.height,
+      interactionRadius: INTERIOR_RECEPTION_INTERACTION_RADIUS,
     };
   }
   if (isPatientMedicinePickupType(type)) {
@@ -1724,6 +1737,7 @@ export function enableInteriorsFeature() {
   const patientMedicineMessage = overlay.querySelector('[data-hospital-patient-medicine-message]');
   const hospitalWarehouse = enableHospitalWarehouseFeature();
   const hospitalCafeteria = enableHospitalCafeteriaFeature();
+  const hospitalReception = enableHospitalReceptionFeature();
 
   let active = false;
   let destroyed = false;
@@ -1779,6 +1793,7 @@ export function enableInteriorsFeature() {
   let nearestChairId = null;
   let nearestWarehousePickupId = null;
   let nearestCafeteriaPickupId = null;
+  let nearestReceptionPickupId = null;
   let nearestPatientMedicinePickupId = null;
   let doorTogglePending = false;
   let seatActionPending = false;
@@ -3837,6 +3852,39 @@ export function enableInteriorsFeature() {
     return nearest;
   }
 
+  function nearestInteractiveReceptionPickup() {
+    if (
+      !active ||
+      activeInteriorKind !== 'hospital' ||
+      activeTemplateId !== 'hospital' ||
+      colliderEditorOpen ||
+      objectEditorOpen ||
+      window.__MN_HOSPITAL_RECEPTION_OPEN__ === true
+    ) return null;
+
+    let nearest = null;
+    normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
+      .filter((object) => isReceptionPickupType(object.type))
+      .forEach((pickup) => {
+        const dx = (Number(pickup.x) - Number(position.x)) * INTERIOR_DESIGN_ASPECT;
+        const dy = Number(pickup.y) - Number(position.y);
+        const distance = Math.hypot(dx, dy);
+        const configuredRadius = Number(pickup?.properties?.interactionRadius);
+        const radius = Number.isFinite(configuredRadius)
+          ? Math.max(3, Math.min(14, configuredRadius))
+          : INTERIOR_RECEPTION_INTERACTION_RADIUS;
+        const size = mappedInteriorObjectSize(pickup);
+        const sizeAllowance = Math.max(0, (size.width - 5.4) / 2);
+        const movementAllowance = pickup.id === nearestReceptionPickupId
+          ? INTERIOR_DOOR_RADIUS_HYSTERESIS
+          : 0;
+        if (distance > radius + sizeAllowance + movementAllowance || (nearest && distance >= nearest.distance)) return;
+        nearest = { pickup, distance };
+      });
+
+    return nearest;
+  }
+
   function nearestInteractivePatientMedicinePickup() {
     if (
       !active ||
@@ -3882,6 +3930,7 @@ export function enableInteriorsFeature() {
     const chairTarget = nearestInteractiveChair();
     const warehouseTarget = nearestInteractiveWarehousePickup();
     const cafeteriaTarget = nearestInteractiveCafeteriaPickup();
+    const receptionTarget = nearestInteractiveReceptionPickup();
     const patientMedicineTarget = nearestInteractivePatientMedicinePickup();
 
     const candidates = [
@@ -3890,6 +3939,7 @@ export function enableInteriorsFeature() {
       chairTarget ? { kind: 'chair', object: chairTarget.chair, distance: chairTarget.distance } : null,
       warehouseTarget ? { kind: 'warehouse', object: warehouseTarget.pickup, distance: warehouseTarget.distance } : null,
       cafeteriaTarget ? { kind: 'cafeteria', object: cafeteriaTarget.pickup, distance: cafeteriaTarget.distance } : null,
+      receptionTarget ? { kind: 'reception', object: receptionTarget.pickup, distance: receptionTarget.distance } : null,
       patientMedicineTarget ? { kind: 'patient_medicine', object: patientMedicineTarget.pickup, distance: patientMedicineTarget.distance } : null,
     ].filter(Boolean);
 
@@ -3906,6 +3956,9 @@ export function enableInteriorsFeature() {
       ? nearest.object.id
       : null;
     nearestCafeteriaPickupId = nearest?.kind === 'cafeteria'
+      ? nearest.object.id
+      : null;
+    nearestReceptionPickupId = nearest?.kind === 'reception'
       ? nearest.object.id
       : null;
     nearestPatientMedicinePickupId = nearest?.kind === 'patient_medicine'
@@ -3953,6 +4006,14 @@ export function enableInteriorsFeature() {
       doorAction.dataset.open = 'false';
       delete doorAction.dataset.occupied;
       doorActionLabel.textContent = 'Открыть меню столовки';
+      return nearest;
+    }
+
+    if (nearest.kind === 'reception') {
+      doorAction.disabled = false;
+      doorAction.dataset.open = 'false';
+      delete doorAction.dataset.occupied;
+      doorActionLabel.textContent = 'Купить простую таблетку';
       return nearest;
     }
 
@@ -4063,6 +4124,14 @@ export function enableInteriorsFeature() {
     if (nearest.kind === 'cafeteria') {
       void hospitalCafeteria.open({
         locationName: activeService?.name || activeService?.payload?.serviceLabel || 'Столовка больницы',
+      });
+      return true;
+    }
+
+    if (nearest.kind === 'reception') {
+      void hospitalReception.open({
+        locationName: activeService?.name || activeService?.payload?.serviceLabel || 'Рецепшен больницы',
+        health: currentVitals.health,
       });
       return true;
     }
@@ -4426,6 +4495,8 @@ export function enableInteriorsFeature() {
       activeBedObjectId ||
       window.__MN_INVENTORY_OPEN__ === true ||
       window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true ||
+      window.__MN_HOSPITAL_CAFETERIA_OPEN__ === true ||
+      window.__MN_HOSPITAL_RECEPTION_OPEN__ === true ||
       window.__MN_HOSPITAL_PATIENT_MEDICINE_OPEN__ === true ||
       window.__MN_PLAYER_CONTROLS_LOCKED__ === true
     ) return { x: 0, y: 0 };
@@ -4908,6 +4979,7 @@ export function enableInteriorsFeature() {
 
     hospitalWarehouse.close();
     hospitalCafeteria.close();
+    hospitalReception.close();
     closePatientMedicine();
     const exitedKind = activeInteriorKind;
     const exitedHouse = activeHouse;
@@ -4933,6 +5005,7 @@ export function enableInteriorsFeature() {
     nearestChairId = null;
     nearestWarehousePickupId = null;
     nearestCafeteriaPickupId = null;
+    nearestReceptionPickupId = null;
     nearestPatientMedicinePickupId = null;
     doorTogglePending = false;
     seatActionPending = false;
@@ -5018,6 +5091,12 @@ export function enableInteriorsFeature() {
     }
 
     if (window.__MN_HOSPITAL_CAFETERIA_OPEN__ === true) {
+      keys.clear();
+      joystickVector = { x: 0, y: 0 };
+      return;
+    }
+
+    if (window.__MN_HOSPITAL_RECEPTION_OPEN__ === true) {
       keys.clear();
       joystickVector = { x: 0, y: 0 };
       return;
@@ -5349,7 +5428,9 @@ export function enableInteriorsFeature() {
       interiorWorldResizeObserver?.disconnect();
       hospitalWarehouse.cleanup();
       hospitalCafeteria.cleanup();
+      hospitalReception.cleanup();
       window.__MN_HOSPITAL_PATIENT_MEDICINE_OPEN__ = false;
+      window.__MN_HOSPITAL_RECEPTION_OPEN__ = false;
       if (collisionProfilesChannel) {
         supabase.removeChannel(collisionProfilesChannel);
         collisionProfilesChannel = null;
