@@ -241,8 +241,7 @@ async function getPlayerAdminFlag(playerId, nickname) {
 
 function normalizePosition(row, extra = {}) {
   const adminFlag = extra.is_admin ?? row.is_admin;
-
-  return {
+  const position = {
     playerId: row.player_id,
     nickname: getSafeNickname(row.nickname),
     cityId: row.city_id,
@@ -255,6 +254,16 @@ function normalizePosition(row, extra = {}) {
     isAdmin: isTruthyAdmin(adminFlag),
     updatedAt: row.updated_at,
   };
+
+  // Survival values are canonical in player_positions. Keep them on the
+  // normalized local player as soon as the position row is loaded, otherwise
+  // the older values from players briefly overwrite the HUD on every entry.
+  ['health', 'food', 'water'].forEach((key) => {
+    const value = Number(row?.[key]);
+    if (Number.isFinite(value)) position[key] = clampPercent(value, 100);
+  });
+
+  return position;
 }
 
 export async function getOrCreatePlayerPosition(cityId, nickname) {
