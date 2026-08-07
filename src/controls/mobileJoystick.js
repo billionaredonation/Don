@@ -821,7 +821,10 @@ export function enableMobileJoystick(
 
   function loop(now = performance.now()) {
     if (destroyed) return;
-    if (window.__MN_INTERIOR_ACTIVE__ === true) {
+    if (
+      window.__MN_INTERIOR_ACTIVE__ === true ||
+      window.__MN_PLAYER_CONTROLS_LOCKED__ === true
+    ) {
       targetMoveX = 0; targetMoveY = 0; moveX = 0; moveY = 0;
       velocityX = 0; velocityY = 0;
       setMovingUi(false);
@@ -1002,6 +1005,15 @@ export function enableMobileJoystick(
     updateStaminaUi();
   }
 
+  function handlePlayerControlsLockChanged() {
+    if (window.__MN_PLAYER_CONTROLS_LOCKED__ === true) {
+      pauseForHouseSpawnPicker();
+      return;
+    }
+
+    ensureLoopRunning();
+  }
+
   function onExternalTeleport(event) {
     const detail = event?.detail || {};
 
@@ -1025,7 +1037,11 @@ export function enableMobileJoystick(
   }
 
   function onPointerDown(event) {
-    if (isHouseSpawnPickerActive() || window.__MN_INTERIOR_ACTIVE__ === true) {
+    if (
+      isHouseSpawnPickerActive() ||
+      window.__MN_INTERIOR_ACTIVE__ === true ||
+      window.__MN_PLAYER_CONTROLS_LOCKED__ === true
+    ) {
       event.preventDefault();
       event.stopPropagation();
       pauseForHouseSpawnPicker();
@@ -1054,7 +1070,7 @@ export function enableMobileJoystick(
     if (activePointerId === null) return;
     if (event.pointerId !== activePointerId) return;
 
-    if (isHouseSpawnPickerActive()) {
+    if (isHouseSpawnPickerActive() || window.__MN_PLAYER_CONTROLS_LOCKED__ === true) {
       event.preventDefault();
       event.stopPropagation();
       pauseForHouseSpawnPicker();
@@ -1080,7 +1096,11 @@ export function enableMobileJoystick(
   function openMobileInventory(event) {
     event.preventDefault();
     event.stopPropagation();
-    if (window.__MN_INTERIOR_ACTIVE__ === true || isHouseSpawnPickerActive()) return;
+    if (
+      window.__MN_INTERIOR_ACTIVE__ === true ||
+      window.__MN_PLAYER_CONTROLS_LOCKED__ === true ||
+      isHouseSpawnPickerActive()
+    ) return;
     stopInput();
     window.dispatchEvent(new CustomEvent('mn:inventory-toggle-request', {
       detail: { source: 'mobile-control' },
@@ -1098,6 +1118,7 @@ export function enableMobileJoystick(
   window.addEventListener('mn:player-teleported', onExternalTeleport);
   window.addEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
   window.addEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
+  window.addEventListener('mn:player-controls-lock-changed', handlePlayerControlsLockChanged);
 
   syncViewportSize();
   renderPlayer(true);
@@ -1130,6 +1151,7 @@ export function enableMobileJoystick(
     window.removeEventListener('mn:player-teleported', onExternalTeleport);
     window.removeEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
     window.removeEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
+    window.removeEventListener('mn:player-controls-lock-changed', handlePlayerControlsLockChanged);
 
     clearInterval(heartbeatTimer);
 
@@ -1164,5 +1186,4 @@ export function enableMobileJoystick(
     container.innerHTML = '';
   };
 }
-
 
