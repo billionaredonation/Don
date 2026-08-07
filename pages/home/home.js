@@ -1876,7 +1876,9 @@ register('home', async (root) => {
 
     if (!positionVitals) return playerSnapshot;
 
-    return mergeDefinedSnapshot(positionVitals, playerSnapshot);
+    // player_positions is the source of truth for survival. The later source
+    // wins in mergeDefinedSnapshot, so it must be merged after players.
+    return mergeDefinedSnapshot(playerSnapshot, positionVitals);
   }
 
   async function loadBalanceSnapshot() {
