@@ -223,6 +223,7 @@ function hasBlockingInterface() {
   if (
     window.__MN_HOUSE_SPAWN_PICKER_ACTIVE__ === true ||
     window.__MN_HOSPITAL_CAFETERIA_OPEN__ === true ||
+    window.__MN_HOSPITAL_RECEPTION_OPEN__ === true ||
     document.body.classList.contains('mn-house-trade-open') ||
     document.body.classList.contains('mn-houses-modal-open') ||
     document.body.classList.contains('mn-house-details-open') ||
