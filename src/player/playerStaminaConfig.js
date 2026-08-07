@@ -16,7 +16,9 @@ export const PLAYER_STAMINA_CONFIG = {
   recoverPerFrame: 100 / (240 * 60),
 
   emptyAt: 0,
-  recoveredAt: 100,
+  // После полного истощения спринт снова доступен, как только восстановилась
+  // хотя бы одна единица. Остальная стамина продолжает набираться постепенно.
+  recoveredAt: 1,
 };
 
 export function getStaminaConfig() {
