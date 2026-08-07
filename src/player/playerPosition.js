@@ -9,6 +9,7 @@ const STATE_KEY = 'mn-game-state';
 let cachedPlayerId = null;
 let cachedSessionId = null;
 let playerIdToRetire = null;
+let vitalsMutationQueue = Promise.resolve();
 
 const ADMIN_FLAG_CACHE_TTL_MS = 5 * 60 * 1000;
 const adminFlagCache = new Map();
@@ -188,6 +189,87 @@ export function getSessionId() {
 
   cachedSessionId = sessionId;
   return cachedSessionId;
+}
+
+function normalizeVital(value, fallback = 100, min = 0) {
+  const number = Number(value);
+  const safeValue = Number.isFinite(number) ? number : fallback;
+
+  return Math.min(100, Math.max(min, safeValue));
+}
+
+/**
+ * Serializes survival mutations against the same player_positions row.
+ * Movement already writes to this table from the client, so stamina and AFK
+ * no longer depend on Telegram initData, an Edge Function deploy or an RPC
+ * schema-cache refresh before the HUD can receive the real persisted values.
+ */
+export function applyPlayerPositionVitalCost({
+  foodCost = 0,
+  waterCost = 0,
+  healthDamage = 0,
+  minimumHealth = 10,
+} = {}) {
+  const safeFoodCost = Math.max(0, Math.floor(Number(foodCost) || 0));
+  const safeWaterCost = Math.max(0, Math.floor(Number(waterCost) || 0));
+  const safeHealthDamage = Math.max(0, Math.floor(Number(healthDamage) || 0));
+  const safeMinimumHealth = Math.min(100, Math.max(0, Number(minimumHealth) || 0));
+
+  const mutate = async () => {
+    const playerId = getLocalPlayerId();
+    const { data: current, error: selectError } = await supabase
+      .from('player_positions')
+      .select('health, food, water')
+      .eq('player_id', playerId)
+      .maybeSingle();
+
+    if (selectError) throw selectError;
+    if (!current) throw new Error('PLAYER_POSITION_NOT_FOUND');
+
+    const health = normalizeVital(current.health, state.player?.health ?? 100, safeMinimumHealth);
+    const food = normalizeVital(current.food, state.player?.food ?? 100);
+    const water = normalizeVital(current.water, state.player?.water ?? 100);
+    const nextHealth = Math.max(safeMinimumHealth, health - safeHealthDamage);
+    const nextFood = Math.max(0, food - safeFoodCost);
+    const nextWater = Math.max(0, water - safeWaterCost);
+
+    const { data: updated, error: updateError } = await supabase
+      .from('player_positions')
+      .update({
+        health: nextHealth,
+        food: nextFood,
+        water: nextWater,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('player_id', playerId)
+      .select('health, food, water')
+      .maybeSingle();
+
+    if (updateError) throw updateError;
+    if (!updated) throw new Error('PLAYER_POSITION_VITALS_UPDATE_FAILED');
+
+    const result = {
+      health: normalizeVital(updated.health, nextHealth, safeMinimumHealth),
+      food: normalizeVital(updated.food, nextFood),
+      water: normalizeVital(updated.water, nextWater),
+      foodCost: safeFoodCost,
+      waterCost: safeWaterCost,
+      healthDamage: safeHealthDamage,
+      playerId,
+      transport: 'player_positions_direct_update',
+    };
+
+    result.sprintBlocked = result.food < 10 || result.water < 15;
+    result.knockStateRequired = result.health <= safeMinimumHealth;
+    result.hospitalizationRequired = result.knockStateRequired;
+
+    return result;
+  };
+
+  const result = vitalsMutationQueue.then(mutate, mutate);
+  vitalsMutationQueue = result.catch(() => undefined);
+
+  return result;
 }
 
 async function getPlayerAdminFlag(playerId, nickname) {
