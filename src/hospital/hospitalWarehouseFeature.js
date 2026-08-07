@@ -71,6 +71,9 @@ function userErrorMessage(error) {
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег для покупки.',
     CAFETERIA_ITEM_NOT_FOUND: 'Этот продукт столовки пока недоступен.',
     CONSUMABLE_ITEM_NOT_FOUND: 'Этот расходник пока недоступен в магазине.',
+    RECEPTION_TREATMENT_UNAVAILABLE: 'Простые таблетки на рецепшене временно недоступны.',
+    RECEPTION_UNAVAILABLE_WHILE_UNCONSCIOUS: 'В бессознательном состоянии лечение на рецепшене недоступно.',
+    PLAYER_POSITION_NOT_FOUND: 'Состояние персонажа ещё не создано. Перезайдите в игру.',
     SURVIVAL_STATE_UNAVAILABLE: 'Не удалось обновить состояние персонажа. Попробуйте ещё раз.',
     INVENTORY_ITEM_NOT_USABLE: 'Этот предмет пока нельзя применить.',
     SERVICE_ITEM_NOT_ENOUGH: 'У вас нет этого служебного предмета.',
@@ -209,6 +212,14 @@ export async function loadCafeteriaMenu() {
 
 export async function buyCafeteriaItem({ itemType = 'food', quantity = 1 } = {}) {
   return invokeHospitalAction('cafeteria_buy', { itemType, quantity });
+}
+
+export async function loadHospitalReceptionOffer() {
+  return invokeHospitalAction('reception_offer');
+}
+
+export async function buyHospitalReceptionTreatment() {
+  return invokeHospitalAction('reception_treat');
 }
 
 export async function processPlayerSurvivalTick({ active = false } = {}) {
