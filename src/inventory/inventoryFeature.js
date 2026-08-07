@@ -48,6 +48,17 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
+function publishInventorySnapshot(items = []) {
+  const snapshot = (Array.isArray(items) ? items : [])
+    .filter((item) => item && Number(item.quantity || 0) > 0)
+    .map((item) => ({ ...item }));
+
+  window.__MN_PLAYER_INVENTORY_ITEMS__ = snapshot;
+  window.dispatchEvent(new CustomEvent('mn:player-inventory-snapshot', {
+    detail: { items: snapshot },
+  }));
+}
+
 function localTelegramId() {
   return String(
     window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
@@ -701,6 +712,7 @@ export function enableInventoryFeature() {
     try {
       const result = await loadMyMedicalInventory();
       medicalItems = Array.isArray(result?.items) ? result.items : [];
+      publishInventorySnapshot(medicalItems);
       renderMedicalInventory();
     } catch (error) {
       if (!String(error?.message || '').includes('TELEGRAM_SESSION')) {
@@ -1034,6 +1046,7 @@ export function enableInventoryFeature() {
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
+  window.addEventListener('mn:player-inventory-changed', refreshMedicalInventory);
   window.addEventListener('mn:inventory-toggle-request', handleMobileToggleRequest);
 
   const bodyClassObserver = new MutationObserver(() => {
@@ -1070,12 +1083,14 @@ export function enableInventoryFeature() {
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
     window.removeEventListener('mn:player-health-changed', handleHealthChanged);
     window.removeEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
+    window.removeEventListener('mn:player-inventory-changed', refreshMedicalInventory);
     window.removeEventListener('mn:inventory-toggle-request', handleMobileToggleRequest);
     window.clearTimeout(initialNoticeTimer);
     window.clearTimeout(vitalNoticeTimer);
     window.clearTimeout(vitalNoticeHideTimer);
     window.clearInterval(vitalStateRefreshTimer);
     open = false;
+    publishInventorySnapshot([]);
     publishState(false);
     vitalNotice?.remove();
     overlay.remove();
