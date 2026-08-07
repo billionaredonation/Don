@@ -105,6 +105,7 @@ export function enableHospitalManagementFeature() {
   let busy = false;
   let hintTimer = 0;
   let destroyed = false;
+  let gameplayReady = window.__MN_GAMEPLAY_ENTERED__ === true;
 
   function setMessage(text, type = 'info') {
     if (!message) return;
@@ -137,7 +138,7 @@ export function enableHospitalManagementFeature() {
   }
 
   function updateHint({ flash = false } = {}) {
-    const visible = canShowHint() && overlay.hidden;
+    const visible = gameplayReady && canShowHint() && overlay.hidden;
     hint.hidden = !visible;
     if (visible && flash) {
       hint.dataset.flash = 'true';
@@ -282,7 +283,7 @@ export function enableHospitalManagementFeature() {
   }
 
   async function open() {
-    if (busy || hasBlockingInterface()) return false;
+    if (!gameplayReady || busy || hasBlockingInterface()) return false;
     overlay.hidden = false;
     overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add(PANEL_CLASS);
@@ -425,7 +426,7 @@ export function enableHospitalManagementFeature() {
       }
       return;
     }
-    if (event.code !== 'F2' || event.repeat || isTypingTarget(event.target)) return;
+    if (!gameplayReady || event.code !== 'F2' || event.repeat || isTypingTarget(event.target)) return;
     event.preventDefault();
     event.stopPropagation();
     void open();
@@ -448,6 +449,12 @@ export function enableHospitalManagementFeature() {
 
   function handleOpenEvent() {
     void open();
+  }
+
+  function handleGameplayEntered() {
+    if (destroyed || gameplayReady) return;
+    gameplayReady = true;
+    updateHint({ flash: true });
   }
 
   function handleProfessionalStatsChanged(event) {
@@ -497,6 +504,7 @@ export function enableHospitalManagementFeature() {
   window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('mn:hospital-management-open', handleOpenEvent);
   window.addEventListener('mn:hospital-professional-stats-changed', handleProfessionalStatsChanged);
+  window.addEventListener('mn:gameplay-entered', handleGameplayEntered);
 
   window.setTimeout(() => {
     if (!destroyed) void loadData({ silent: true });
@@ -520,6 +528,7 @@ export function enableHospitalManagementFeature() {
     window.removeEventListener('keydown', handleKeyDown, true);
     window.removeEventListener('mn:hospital-management-open', handleOpenEvent);
     window.removeEventListener('mn:hospital-professional-stats-changed', handleProfessionalStatsChanged);
+    window.removeEventListener('mn:gameplay-entered', handleGameplayEntered);
     document.body.classList.remove(PANEL_CLASS);
     document.documentElement.classList.remove(PANEL_CLASS);
     overlay.remove();
