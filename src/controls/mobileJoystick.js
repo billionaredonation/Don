@@ -874,6 +874,8 @@ export function enableMobileJoystick(
     setMovingUi(isMoving);
 
     if (isMoving) {
+      const previousX = x;
+      const previousY = y;
       x += velocityX * frameScale;
       y += velocityY * frameScale;
       x = clamp(x, BOUNDS.minX, BOUNDS.maxX);
@@ -895,6 +897,12 @@ export function enableMobileJoystick(
       }
 
       angle = getAngleFromMovement(velocityX || moveX, velocityY || moveY, angle);
+
+      if (!isSprinting && Math.hypot(x - previousX, y - previousY) > 0.000001) {
+        window.dispatchEvent(new CustomEvent('mn:player-walking', {
+          detail: { source: 'mobile', durationMs: delta },
+        }));
+      }
 
       renderPlayer(false);
       updateCamera(false);
