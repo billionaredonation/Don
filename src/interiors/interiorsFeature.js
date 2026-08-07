@@ -4487,10 +4487,20 @@ export function enableInteriorsFeature() {
     const speed = sprint ? 23 : 15;
     window.__MN_INTERIOR_PLAYER_MOVING__ = moving;
     window.__MN_INTERIOR_PLAYER_SPRINTING__ = sprint;
+    const previousPosition = position;
     position = resolveInteriorMovement(activeTemplateId, position, {
       x: vector.x * speed * dt,
       y: vector.y * speed * dt,
     });
+    if (
+      moving &&
+      !sprint &&
+      Math.hypot(position.x - previousPosition.x, position.y - previousPosition.y) > 0.001
+    ) {
+      window.dispatchEvent(new CustomEvent('mn:player-walking', {
+        detail: { source: 'interior', durationMs: dt * 1000 },
+      }));
+    }
     staminaBox.dataset.visible = moving ? 'true' : 'false';
     renderStamina();
     renderPosition();
@@ -5356,5 +5366,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
-
