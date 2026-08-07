@@ -435,7 +435,8 @@ export function enableKeyboardPlayerMovement(
     if (destroyed) return;
     if (
       window.__MN_INTERIOR_ACTIVE__ === true ||
-      window.__MN_INVENTORY_OPEN__ === true
+      window.__MN_INVENTORY_OPEN__ === true ||
+      window.__MN_PLAYER_CONTROLS_LOCKED__ === true
     ) {
       keys.clear();
       inputX = 0; inputY = 0; velocityX = 0; velocityY = 0;
@@ -527,6 +528,22 @@ export function enableKeyboardPlayerMovement(
     ensureLoopRunning();
   }
 
+  function handlePlayerControlsLockChanged() {
+    if (window.__MN_PLAYER_CONTROLS_LOCKED__ === true) {
+      keys.clear();
+      inputX = 0;
+      inputY = 0;
+      velocityX = 0;
+      velocityY = 0;
+      setDesktopRuntimeMoving(false);
+      setDesktopRuntimeSprinting(false);
+      forceSyncPosition();
+      return;
+    }
+
+    ensureLoopRunning();
+  }
+
   function onExternalTeleport(event) {
     const detail = event?.detail || {};
 
@@ -567,6 +584,7 @@ export function enableKeyboardPlayerMovement(
     if (
       window.__MN_INTERIOR_ACTIVE__ === true ||
       window.__MN_INVENTORY_OPEN__ === true ||
+      window.__MN_PLAYER_CONTROLS_LOCKED__ === true ||
       isHouseSpawnPickerActive()
     ) {
       pauseForHouseSpawnPicker();
@@ -596,7 +614,8 @@ export function enableKeyboardPlayerMovement(
   function onKeyUp(event) {
     if (
       window.__MN_INTERIOR_ACTIVE__ === true ||
-      window.__MN_INVENTORY_OPEN__ === true
+      window.__MN_INVENTORY_OPEN__ === true ||
+      window.__MN_PLAYER_CONTROLS_LOCKED__ === true
     ) {
       keys.clear();
       return;
@@ -623,6 +642,7 @@ export function enableKeyboardPlayerMovement(
   window.addEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
   window.addEventListener('mn:inventory-opened', pauseForHouseSpawnPicker);
   window.addEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
+  window.addEventListener('mn:player-controls-lock-changed', handlePlayerControlsLockChanged);
 
   forceSyncPosition();
   savePositionToDb(true);
@@ -639,6 +659,7 @@ export function enableKeyboardPlayerMovement(
     window.removeEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
     window.removeEventListener('mn:inventory-opened', pauseForHouseSpawnPicker);
     window.removeEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
+    window.removeEventListener('mn:player-controls-lock-changed', handlePlayerControlsLockChanged);
 
     if (animationId) {
       cancelAnimationFrame(animationId);
