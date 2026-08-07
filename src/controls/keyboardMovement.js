@@ -132,7 +132,6 @@ export function enableKeyboardPlayerMovement(
       if (stamina >= STAMINA.recoveredAt) {
         const wasLocked = sprintLocked;
         sprintLocked = false;
-        stamina = STAMINA.max;
         if (wasLocked) {
           window.dispatchEvent(new CustomEvent('mn:player-stamina-recovered', {
             detail: { source: 'keyboard' },
