@@ -19,6 +19,12 @@ import {
   saveHospitalWarehousePickupLayout,
 } from '../hospital/hospitalWarehouseFeature.js';
 import { enableHospitalCafeteriaFeature } from '../hospital/hospitalCafeteriaFeature.js';
+import {
+  dischargeHospitalPatient,
+  HOSPITAL_EXIT_HEALTH,
+  processHospitalBedsideTreatment,
+  startHospitalBedsideTreatment,
+} from '../player/playerKnockoutFeature.js';
 import standardInteriorUrl from '../../standart_interior.png?url';
 import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
@@ -41,6 +47,7 @@ const INTERIOR_EXIT_INTERACTION_RADIUS = 6.5;
 const INTERIOR_CHAIR_INTERACTION_RADIUS = 6.5;
 const INTERIOR_WAREHOUSE_INTERACTION_RADIUS = 7;
 const INTERIOR_CAFETERIA_INTERACTION_RADIUS = 7;
+const INTERIOR_PATIENT_MEDICINE_INTERACTION_RADIUS = 7;
 const INTERIOR_DOOR_RADIUS_HYSTERESIS = 1.4;
 const INTERIOR_PRESENCE_REFRESH_MS = 1500;
 const INTERIOR_SEAT_HEARTBEAT_MS = 8000;
@@ -87,6 +94,10 @@ const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
     label: 'Столовка', defaultWidth: 5.4, defaultHeight: 5.4,
     minWidth: 2.4, maxWidth: 12, minHeight: 2.4, maxHeight: 12,
   }),
+  patient_medicine: Object.freeze({
+    label: 'Тумбочка с лекарствами', defaultWidth: 4.6, defaultHeight: 4.6,
+    minWidth: 2.2, maxWidth: 10, minHeight: 2.2, maxHeight: 10,
+  }),
 });
 const INTERIOR_GUIDE_TYPES = Object.freeze({
   label: Object.freeze({ label: 'Подпись', defaultText: 'Новая зона' }),
@@ -112,6 +123,10 @@ function normalizeHospitalWarehousePickupType(type) {
 
 function isCafeteriaPickupType(type) {
   return String(type || '').trim().toLowerCase() === 'cafeteria';
+}
+
+function isPatientMedicinePickupType(type) {
+  return String(type || '').trim().toLowerCase() === 'patient_medicine';
 }
 const INTERIOR_VITAL_FEEDBACK_DURATION_MS = 520;
 const INTERIOR_ENTER_TRANSITION_MS = 280;
@@ -621,6 +636,43 @@ function mappedInteriorChairSeatPosition(chair) {
   };
 }
 
+function mappedInteriorBedPatientPosition(bed) {
+  const base = {
+    x: clampPercent(bed?.x, 50),
+    y: clampPercent(bed?.y, 50),
+  };
+  if (bed?.type !== 'bed') return base;
+
+  const size = mappedInteriorObjectSize(bed);
+  const offsetX = Number(bed?.properties?.patientOffsetX);
+  const offsetY = Number(bed?.properties?.patientOffsetY);
+
+  return {
+    x: roundPercent(clampPercent(
+      base.x + (Number.isFinite(offsetX) ? Math.max(-.4, Math.min(.4, offsetX)) * size.width : 0),
+      base.x
+    )),
+    y: roundPercent(clampPercent(
+      base.y + (Number.isFinite(offsetY) ? Math.max(-.4, Math.min(.4, offsetY)) * size.height : 0),
+      base.y
+    )),
+  };
+}
+
+function mappedInteriorBedStandPosition(bed) {
+  const patient = mappedInteriorBedPatientPosition(bed);
+  const size = mappedInteriorObjectSize(bed);
+  const angle = Number(bed?.rotation || 0) * Math.PI / 180;
+  const sideDistance = Math.max(3.2, Math.min(7, size.height * .72 + 1.5));
+  const offsetX = -(sideDistance / INTERIOR_DESIGN_ASPECT) * Math.sin(angle);
+  const offsetY = sideDistance * Math.cos(angle);
+
+  return {
+    x: roundPercent(clampPercent(patient.x + offsetX, patient.x)),
+    y: roundPercent(clampPercent(patient.y + offsetY, patient.y)),
+  };
+}
+
 function createMappedInteriorObjectProperties(type) {
   const size = mappedInteriorObjectSize({ type, properties: {} });
   if (type === 'door') {
@@ -652,6 +704,13 @@ function createMappedInteriorObjectProperties(type) {
       interactionRadius: INTERIOR_CAFETERIA_INTERACTION_RADIUS,
     };
   }
+  if (isPatientMedicinePickupType(type)) {
+    return {
+      width: size.width,
+      height: size.height,
+      interactionRadius: INTERIOR_PATIENT_MEDICINE_INTERACTION_RADIUS,
+    };
+  }
   return { width: size.width, height: size.height };
 }
 
@@ -660,6 +719,25 @@ function normalizeMappedInteriorObjects(objects) {
     .slice(0, INTERIOR_MAPPED_OBJECT_LIMIT)
     .map(normalizeMappedInteriorObject)
     .filter(Boolean);
+}
+
+function patientMedicinePickupsForHospital(objects) {
+  const normalized = normalizeMappedInteriorObjects(objects);
+  const explicit = normalized.filter((object) => isPatientMedicinePickupType(object.type));
+  if (explicit.length) return explicit;
+
+  const cabinets = normalized.filter((object) => object.type === 'cabinet');
+  if (cabinets.length) return cabinets;
+
+  const firstBed = normalized.find((object) => object.type === 'bed');
+  return [{
+    id: 'hospital-fallback-patient-medicine',
+    type: 'patient_medicine',
+    x: roundPercent(clampPercent(Number(firstBed?.x ?? TEMPLATES.hospital.spawn.x) + 5.5, 55.5)),
+    y: roundPercent(clampPercent(firstBed?.y ?? TEMPLATES.hospital.spawn.y, TEMPLATES.hospital.spawn.y)),
+    rotation: 0,
+    properties: createMappedInteriorObjectProperties('patient_medicine'),
+  }];
 }
 
 function collapseHospitalWarehousePickups(objects) {
@@ -1466,6 +1544,7 @@ function markup() {
             <button type="button" data-interior-object-type="exit">Выход</button>
             <button type="button" data-interior-object-type="warehouse">Склад</button>
             <button type="button" data-interior-object-type="cafeteria">Столовка</button>
+            <button type="button" data-interior-object-type="patient_medicine">Лекарства пациенту</button>
           </div>
           <div class="mn-interior-object-actions">
             <button type="button" class="mn-interior-object-primary" data-interior-object-save>Сохранить всем</button>
@@ -1546,6 +1625,25 @@ function markup() {
         role="status"
         aria-live="polite"
       ></div>
+      <div class="mn-hospital-patient-medicine" hidden data-hospital-patient-medicine>
+        <button type="button" class="mn-hospital-patient-medicine-backdrop" data-hospital-patient-medicine-close aria-label="Закрыть"></button>
+        <section class="mn-hospital-patient-medicine-panel" role="dialog" aria-modal="true" aria-labelledby="mn-hospital-patient-medicine-title">
+          <header>
+            <span><small>ПАЛАТА</small><b id="mn-hospital-patient-medicine-title">Тумбочка с лекарствами</b></span>
+            <button type="button" data-hospital-patient-medicine-close aria-label="Закрыть">×</button>
+          </header>
+          <p>Для пациентов доступны только лёгкие и средние препараты. Лечение длится 60 секунд.</p>
+          <div class="mn-hospital-patient-medicine-list">
+            <button type="button" data-hospital-patient-treatment="medicine_light">
+              <span>💊</span><b>Простые таблетки</b><small>+0,5 HP каждые 10 сек. · −2 еды · −4 воды</small>
+            </button>
+            <button type="button" data-hospital-patient-treatment="medicine_strong">
+              <span>💉</span><b>Среднеседативные</b><small>+2 HP каждые 5 сек. · −5 еды · −7 воды</small>
+            </button>
+          </div>
+          <div class="mn-hospital-patient-medicine-message" hidden data-hospital-patient-medicine-message></div>
+        </section>
+      </div>
       <div class="mn-interior-health-edge" data-interior-health-edge aria-hidden="true"></div>
       <div class="mn-interior-error" hidden data-interior-error>
         <strong>Интерьер пока не загружен</strong>
@@ -1620,6 +1718,10 @@ export function enableInteriorsFeature() {
   const staminaFill = overlay.querySelector('[data-interior-stamina-fill]');
   const staminaRing = overlay.querySelector('[data-interior-stamina-ring]');
   const actionToast = overlay.querySelector('[data-interior-action-toast]');
+  const patientMedicineOverlay = overlay.querySelector('[data-hospital-patient-medicine]');
+  const patientMedicineCloseTargets = [...overlay.querySelectorAll('[data-hospital-patient-medicine-close]')];
+  const patientMedicineButtons = [...overlay.querySelectorAll('[data-hospital-patient-treatment]')];
+  const patientMedicineMessage = overlay.querySelector('[data-hospital-patient-medicine-message]');
   const hospitalWarehouse = enableHospitalWarehouseFeature();
   const hospitalCafeteria = enableHospitalCafeteriaFeature();
 
@@ -1677,9 +1779,13 @@ export function enableInteriorsFeature() {
   let nearestChairId = null;
   let nearestWarehousePickupId = null;
   let nearestCafeteriaPickupId = null;
+  let nearestPatientMedicinePickupId = null;
   let doorTogglePending = false;
   let seatActionPending = false;
   let activeSeatObjectId = null;
+  let activeBedObjectId = null;
+  let fallbackAdmissionBed = null;
+  let patientMedicinePending = false;
   let seatStatesByObjectId = new Map();
   const remoteInteriorPlayers = new Map();
   let joystickVector = { x: 0, y: 0 };
@@ -2037,6 +2143,8 @@ export function enableInteriorsFeature() {
     marker.style.top = `${position.y}%`;
     marker.classList.toggle('is-seated', Boolean(activeSeatObjectId));
     marker.dataset.seated = activeSeatObjectId ? 'true' : 'false';
+    marker.classList.toggle('is-bedridden', Boolean(activeBedObjectId));
+    marker.dataset.bedridden = activeBedObjectId ? 'true' : 'false';
   }
 
   function showInteriorActionToast(message, durationMs = 500) {
@@ -2052,6 +2160,107 @@ export function enableInteriorsFeature() {
       actionToast.dataset.visible = 'false';
       interiorActionToastTimer = 0;
     }, Math.max(250, Number(durationMs) || 500));
+  }
+
+  function patientMedicineErrorMessage(error) {
+    const raw = String(error?.message || error || 'TREATMENT_APPLY_FAILED');
+    if (raw.includes('PATIENT_ALREADY_TREATED')) return 'Препарат уже действует. Дождитесь окончания лечения.';
+    if (raw.includes('PATIENT_FOOD_TOO_LOW')) return 'Недостаточно еды для приёма препарата. Сначала поешьте в столовой.';
+    if (raw.includes('PATIENT_WATER_TOO_LOW')) return 'Недостаточно воды для приёма препарата. Сначала попейте.';
+    if (raw.includes('PATIENT_HEALTH_FULL')) return 'Здоровье уже полностью восстановлено.';
+    if (raw.includes('HOSPITALIZATION_REQUIRED')) return 'Эта тумбочка предназначена для госпитализированных пациентов.';
+    if (raw.includes('BEDSIDE_MEDICINE_NOT_AVAILABLE')) return 'В тумбочке доступны только простые и среднеседативные таблетки.';
+    return raw;
+  }
+
+  function setPatientMedicineMessage(message = '', type = 'info') {
+    if (!patientMedicineMessage) return;
+    patientMedicineMessage.textContent = String(message || '');
+    patientMedicineMessage.dataset.type = type;
+    patientMedicineMessage.hidden = !patientMedicineMessage.textContent;
+  }
+
+  function closePatientMedicine() {
+    if (!patientMedicineOverlay || patientMedicineOverlay.hidden) return;
+    patientMedicineOverlay.hidden = true;
+    window.__MN_HOSPITAL_PATIENT_MEDICINE_OPEN__ = false;
+    setPatientMedicineMessage('');
+  }
+
+  function openPatientMedicine() {
+    if (!patientMedicineOverlay) return false;
+    if (String(state.player?.knockState || '') !== 'hospitalized') {
+      showInteriorActionToast('Тумбочка доступна только пациентам больницы', 1800);
+      return false;
+    }
+
+    keys.clear();
+    joystickVector = { x: 0, y: 0 };
+    patientMedicineOverlay.hidden = false;
+    window.__MN_HOSPITAL_PATIENT_MEDICINE_OPEN__ = true;
+    setPatientMedicineMessage('Выберите препарат для восстановления HP.');
+    return true;
+  }
+
+  async function usePatientMedicine(medicineType) {
+    if (patientMedicinePending) return;
+    patientMedicinePending = true;
+    patientMedicineButtons.forEach((button) => { button.disabled = true; });
+    setPatientMedicineMessage('Применяем препарат…');
+
+    try {
+      const result = await startHospitalBedsideTreatment(medicineType);
+      await processHospitalBedsideTreatment().catch(() => result);
+      const label = medicineType === 'medicine_strong'
+        ? 'Среднеседативный препарат'
+        : 'Простые таблетки';
+      setPatientMedicineMessage(`${label} принят. Восстановление HP началось.`, 'success');
+    } catch (error) {
+      setPatientMedicineMessage(patientMedicineErrorMessage(error), 'error');
+    } finally {
+      patientMedicinePending = false;
+      patientMedicineButtons.forEach((button) => { button.disabled = false; });
+    }
+  }
+
+  function activeHospitalBed() {
+    if (!activeBedObjectId) return null;
+    return normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects)
+      .find((object) => object.type === 'bed' && object.id === activeBedObjectId) ||
+      (fallbackAdmissionBed?.id === activeBedObjectId ? fallbackAdmissionBed : null);
+  }
+
+  function hospitalAdmissionBed(preferredBedId = null) {
+    const beds = normalizeMappedInteriorObjects(collisionProfileFor('hospital')?.objects)
+      .filter((object) => object.type === 'bed');
+    const preferred = preferredBedId
+      ? beds.find((bed) => bed.id === String(preferredBedId))
+      : null;
+    if (preferred) return preferred;
+    if (beds.length) return beds[0];
+
+    fallbackAdmissionBed = {
+      id: 'hospital-fallback-bed',
+      type: 'bed',
+      x: TEMPLATES.hospital.spawn.x,
+      y: TEMPLATES.hospital.spawn.y,
+      rotation: 0,
+      properties: { width: 8, height: 5 },
+    };
+    return fallbackAdmissionBed;
+  }
+
+  function standUpFromHospitalBed() {
+    const bed = activeHospitalBed();
+    activeBedObjectId = null;
+    if (bed) {
+      position = snapInteriorPosition(activeTemplateId, mappedInteriorBedStandPosition(bed));
+    }
+    renderPosition();
+    sendLocalInteriorPosition(true);
+    showInteriorActionToast('Вы встали с больничной койки', 1200);
+    refreshDoorInteraction();
+    return true;
   }
 
   function localInteriorIdentity() {
@@ -2403,8 +2612,12 @@ export function enableInteriorsFeature() {
     const identity = localInteriorIdentity();
 
     activeSeatObjectId = null;
+    activeBedObjectId = null;
+    fallbackAdmissionBed = null;
     marker.classList.remove('is-seated');
     marker.dataset.seated = 'false';
+    marker.classList.remove('is-bedridden');
+    marker.dataset.bedridden = 'false';
 
     if (releaseSeatState && instanceId && objectId) {
       void releaseInteriorSeat({
@@ -3389,13 +3602,18 @@ export function enableInteriorsFeature() {
     const exits = objects.filter((object) => object.type === 'exit').length;
     const warehouses = objects.filter((object) => isHospitalWarehousePickupType(object.type)).length;
     const cafeterias = objects.filter((object) => isCafeteriaPickupType(object.type)).length;
-    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits} · склад ${warehouses} · столовка ${cafeterias}`;
+    const patientMedicines = objects.filter((object) => isPatientMedicinePickupType(object.type)).length;
+    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits} · склад ${warehouses} · столовка ${cafeterias} · лекарства ${patientMedicines}`;
   }
 
   function setObjectEditorType(type) {
     if (!INTERIOR_MAPPED_OBJECT_TYPES[type]) return;
     if (
-      (isHospitalWarehousePickupType(type) || isCafeteriaPickupType(type)) &&
+      (
+        isHospitalWarehousePickupType(type) ||
+        isCafeteriaPickupType(type) ||
+        isPatientMedicinePickupType(type)
+      ) &&
       objectEditorTemplateId !== 'hospital'
     ) {
       setObjectStatus('Пикапы больницы доступны только для шаблона больницы');
@@ -3414,7 +3632,15 @@ export function enableInteriorsFeature() {
       : collisionProfileFor(activeTemplateId);
     const fragment = document.createDocumentFragment();
 
-    normalizeMappedInteriorObjects(profile?.objects).forEach((object) => {
+    const normalizedObjects = normalizeMappedInteriorObjects(profile?.objects);
+    const renderedObjects = !objectEditorOpen && activeTemplateId === 'hospital' &&
+      !patientMedicinePickupsForHospital(normalizedObjects).some((pickup) =>
+        normalizedObjects.some((object) => object.id === pickup.id)
+      )
+      ? [...normalizedObjects, ...patientMedicinePickupsForHospital(normalizedObjects)]
+      : normalizedObjects;
+
+    renderedObjects.forEach((object) => {
       const element = document.createElement('button');
       const meta = INTERIOR_MAPPED_OBJECT_TYPES[object.type];
       const size = mappedInteriorObjectSize(object);
@@ -3611,12 +3837,52 @@ export function enableInteriorsFeature() {
     return nearest;
   }
 
+  function nearestInteractivePatientMedicinePickup() {
+    if (
+      !active ||
+      activeInteriorKind !== 'hospital' ||
+      activeTemplateId !== 'hospital' ||
+      colliderEditorOpen ||
+      objectEditorOpen ||
+      window.__MN_HOSPITAL_PATIENT_MEDICINE_OPEN__ === true
+    ) return null;
+
+    const objects = normalizeMappedInteriorObjects(collisionProfileFor(activeTemplateId)?.objects);
+    const pickups = patientMedicinePickupsForHospital(objects);
+    let nearest = null;
+
+    pickups.forEach((pickup) => {
+      const dx = (Number(pickup.x) - Number(position.x)) * INTERIOR_DESIGN_ASPECT;
+      const dy = Number(pickup.y) - Number(position.y);
+      const distance = Math.hypot(dx, dy);
+      const configuredRadius = Number(pickup?.properties?.interactionRadius);
+      const radius = Number.isFinite(configuredRadius)
+        ? Math.max(3, Math.min(14, configuredRadius))
+        : INTERIOR_PATIENT_MEDICINE_INTERACTION_RADIUS;
+      const size = mappedInteriorObjectSize(pickup);
+      const sizeAllowance = Math.max(0, (size.width - 4.6) / 2);
+      const movementAllowance = pickup.id === nearestPatientMedicinePickupId
+        ? INTERIOR_DOOR_RADIUS_HYSTERESIS
+        : 0;
+      if (distance > radius + sizeAllowance + movementAllowance || (nearest && distance >= nearest.distance)) return;
+      nearest = { pickup, distance };
+    });
+
+    return nearest;
+  }
+
   function nearestInteriorInteraction() {
+    const bedriddenObject = activeHospitalBed();
+    if (bedriddenObject) {
+      return { kind: 'bed', object: bedriddenObject, distance: 0 };
+    }
+
     const doorTarget = nearestInteractiveDoor();
     const exitTarget = nearestInteractiveExit();
     const chairTarget = nearestInteractiveChair();
     const warehouseTarget = nearestInteractiveWarehousePickup();
     const cafeteriaTarget = nearestInteractiveCafeteriaPickup();
+    const patientMedicineTarget = nearestInteractivePatientMedicinePickup();
 
     const candidates = [
       doorTarget ? { kind: 'door', object: doorTarget.door, distance: doorTarget.distance } : null,
@@ -3624,6 +3890,7 @@ export function enableInteriorsFeature() {
       chairTarget ? { kind: 'chair', object: chairTarget.chair, distance: chairTarget.distance } : null,
       warehouseTarget ? { kind: 'warehouse', object: warehouseTarget.pickup, distance: warehouseTarget.distance } : null,
       cafeteriaTarget ? { kind: 'cafeteria', object: cafeteriaTarget.pickup, distance: cafeteriaTarget.distance } : null,
+      patientMedicineTarget ? { kind: 'patient_medicine', object: patientMedicineTarget.pickup, distance: patientMedicineTarget.distance } : null,
     ].filter(Boolean);
 
     if (!candidates.length) return null;
@@ -3641,6 +3908,9 @@ export function enableInteriorsFeature() {
     nearestCafeteriaPickupId = nearest?.kind === 'cafeteria'
       ? nearest.object.id
       : null;
+    nearestPatientMedicinePickupId = nearest?.kind === 'patient_medicine'
+      ? nearest.object.id
+      : null;
 
     if (!nearest) {
       doorAction.hidden = true;
@@ -3653,6 +3923,22 @@ export function enableInteriorsFeature() {
 
     doorAction.hidden = false;
     doorAction.dataset.kind = nearest.kind;
+
+    if (nearest.kind === 'bed') {
+      doorAction.disabled = false;
+      doorAction.dataset.open = 'false';
+      delete doorAction.dataset.occupied;
+      doorActionLabel.textContent = 'Встать с больничной койки';
+      return nearest;
+    }
+
+    if (nearest.kind === 'patient_medicine') {
+      doorAction.disabled = false;
+      doorAction.dataset.open = 'false';
+      delete doorAction.dataset.occupied;
+      doorActionLabel.textContent = 'Открыть тумбочку с лекарствами';
+      return nearest;
+    }
 
     if (nearest.kind === 'warehouse') {
       doorAction.disabled = false;
@@ -3744,8 +4030,16 @@ export function enableInteriorsFeature() {
     if (!nearest) return false;
 
     if (nearest.kind === 'exit') {
-      exit();
+      void exit();
       return true;
+    }
+
+    if (nearest.kind === 'bed') {
+      return standUpFromHospitalBed();
+    }
+
+    if (nearest.kind === 'patient_medicine') {
+      return openPatientMedicine();
     }
 
     if (nearest.kind === 'chair') {
@@ -4129,8 +4423,11 @@ export function enableInteriorsFeature() {
       colliderEditorOpen ||
       objectEditorOpen ||
       activeSeatObjectId ||
+      activeBedObjectId ||
       window.__MN_INVENTORY_OPEN__ === true ||
-      window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true
+      window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true ||
+      window.__MN_HOSPITAL_PATIENT_MEDICINE_OPEN__ === true ||
+      window.__MN_PLAYER_CONTROLS_LOCKED__ === true
     ) return { x: 0, y: 0 };
 
     let x = joystickVector.x;
@@ -4396,6 +4693,8 @@ export function enableInteriorsFeature() {
       activeService = null;
       activeServiceId = null;
       activeInteriorKind = 'house';
+      activeBedObjectId = null;
+      fallbackAdmissionBed = null;
       activeInteriorDoorInstanceId = createInteriorDoorInstanceId('house', id);
       title.textContent = `Дом · ${data.houseClassLabel || template.label}`;
       meta.textContent = `${template.rooms} комн. · кухня ${template.kitchen} · санузел ${template.bathroom}`;
@@ -4447,9 +4746,13 @@ export function enableInteriorsFeature() {
     }
   }
 
-  async function enterHospital(hospital) {
+  async function enterHospital(hospital, options = {}) {
     const id = mapObjectId(hospital);
     if (!id) throw new Error('HOSPITAL_ID_INVALID');
+    const admission = options?.admission && typeof options.admission === 'object'
+      ? options.admission
+      : options;
+    const forcedAdmission = admission?.forced === true;
 
     overlay.hidden = false;
     errorBox.hidden = true;
@@ -4462,6 +4765,7 @@ export function enableInteriorsFeature() {
     try {
       const template = TEMPLATES.hospital;
       await loadTemplateImage(template);
+      if (forcedAdmission) await loadRemoteMappedInteriorObjects({ force: false });
 
       map.style.backgroundImage = 'none';
       overlay.dataset.template = template.id;
@@ -4483,7 +4787,17 @@ export function enableInteriorsFeature() {
         animateChange: false,
         animateDamage: false,
       });
-      position = snapInteriorPosition(template.id, template.spawn);
+      const admissionBed = forcedAdmission
+        ? hospitalAdmissionBed(admission?.preferredBedId)
+        : null;
+      activeBedObjectId = admissionBed?.id || null;
+      fallbackAdmissionBed = admissionBed?.id === 'hospital-fallback-bed'
+        ? admissionBed
+        : null;
+      position = snapInteriorPosition(
+        template.id,
+        admissionBed ? mappedInteriorBedPatientPosition(admissionBed) : template.spawn
+      );
       stamina = staminaConfig.max;
       sprintLocked = false;
       renderStamina();
@@ -4531,6 +4845,16 @@ export function enableInteriorsFeature() {
           exitSpawn: houseExteriorSpawn(hospital),
         },
       }));
+      if (forcedAdmission) {
+        window.dispatchEvent(new CustomEvent('mn:player-hospital-admitted', {
+          detail: {
+            hospitalId: id,
+            bedId: admissionBed?.id || null,
+            hospital,
+            source: admission?.source || 'knockout',
+          },
+        }));
+      }
     } catch (error) {
       const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
       console.warn('[interiors] hospital enter failed:', error);
@@ -4539,11 +4863,42 @@ export function enableInteriorsFeature() {
     }
   }
 
-  function exit() {
+  async function exit(options = {}) {
+    const force = options?.force === true;
     if (interiorExitPending && !destroyed) return;
+
+    if (!force && activeInteriorKind === 'hospital') {
+      const health = Number(currentVitals.health ?? state.player?.health ?? 0);
+      if (!Number.isFinite(health) || health < HOSPITAL_EXIT_HEALTH) {
+        showInteriorActionToast(
+          `Выход закрыт: восстановите здоровье минимум до ${HOSPITAL_EXIT_HEALTH} HP`,
+          2400
+        );
+        return false;
+      }
+
+      if (String(state.player?.knockState || '') === 'hospitalized') {
+        interiorExitPending = true;
+        try {
+          await dischargeHospitalPatient();
+        } catch (error) {
+          interiorExitPending = false;
+          const message = String(error?.message || error || 'HOSPITAL_DISCHARGE_FAILED');
+          showInteriorActionToast(
+            message.includes('HOSPITAL_EXIT_HEALTH_TOO_LOW')
+              ? `Для выписки требуется минимум ${HOSPITAL_EXIT_HEALTH} HP`
+              : 'Не удалось оформить выписку. Попробуйте ещё раз.',
+            2200
+          );
+          return false;
+        }
+        interiorExitPending = false;
+      }
+    }
 
     hospitalWarehouse.close();
     hospitalCafeteria.close();
+    closePatientMedicine();
     const exitedKind = activeInteriorKind;
     const exitedHouse = activeHouse;
     const exitedService = activeService;
@@ -4568,8 +4923,11 @@ export function enableInteriorsFeature() {
     nearestChairId = null;
     nearestWarehousePickupId = null;
     nearestCafeteriaPickupId = null;
+    nearestPatientMedicinePickupId = null;
     doorTogglePending = false;
     seatActionPending = false;
+    activeBedObjectId = null;
+    fallbackAdmissionBed = null;
     doorAction.hidden = true;
     cancelAnimationFrame(raf);
     keys.clear();
@@ -4622,10 +4980,26 @@ export function enableInteriorsFeature() {
     interiorExitPending = true;
     overlay.dataset.transition = 'leaving';
     interiorTransitionTimer = window.setTimeout(finalizeExit, INTERIOR_EXIT_TRANSITION_MS);
+    return true;
   }
 
   function keyDown(event) {
     if (!active) return;
+
+    if (window.__MN_PLAYER_CONTROLS_LOCKED__ === true) {
+      keys.clear();
+      joystickVector = { x: 0, y: 0 };
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    if (window.__MN_HOSPITAL_PATIENT_MEDICINE_OPEN__ === true) {
+      keys.clear();
+      joystickVector = { x: 0, y: 0 };
+      if (event.key === 'Escape') closePatientMedicine();
+      return;
+    }
 
     if (window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true) {
       keys.clear();
@@ -4799,14 +5173,14 @@ export function enableInteriorsFeature() {
     if (!hospital) return;
 
     try {
-      await enterHospital(hospital);
+      await enterHospital(hospital, { admission: detail.admission || null });
     } catch (error) {
       console.warn('[interiors] hospital enter failed:', error);
     }
   }
 
   joystick.addEventListener('pointerdown', (event) => {
-    if (!active) return;
+    if (!active || window.__MN_PLAYER_CONTROLS_LOCKED__ === true || activeBedObjectId) return;
     joystickPointer = event.pointerId;
     joystick.dataset.active = 'true';
     staminaBox.dataset.visible = 'true';
@@ -4824,6 +5198,14 @@ export function enableInteriorsFeature() {
   };
   joystick.addEventListener('pointerup', stopJoystick);
   joystick.addEventListener('pointercancel', stopJoystick);
+  patientMedicineButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      void usePatientMedicine(button.dataset.hospitalPatientTreatment);
+    });
+  });
+  patientMedicineCloseTargets.forEach((button) => {
+    button.addEventListener('click', closePatientMedicine);
+  });
   colliderToggle.addEventListener('click', toggleColliderEditor);
   objectToggle.addEventListener('click', toggleObjectEditor);
   doorAction.addEventListener('click', activateNearestInteriorInteraction);
@@ -4892,7 +5274,7 @@ export function enableInteriorsFeature() {
   colliderLayer.addEventListener('pointermove', handleColliderPointerMove);
   colliderLayer.addEventListener('pointerup', handleColliderPointerEnd);
   colliderLayer.addEventListener('pointercancel', handleColliderPointerEnd);
-  errorClose.addEventListener('click', exit);
+  errorClose.addEventListener('click', () => { void exit(); });
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
@@ -4938,7 +5320,7 @@ export function enableInteriorsFeature() {
       window.cancelAnimationFrame(objectPanelLayoutRaf);
       vitalFeedbackTimers.forEach((timer) => window.clearTimeout(timer));
       vitalFeedbackTimers.clear();
-      exit();
+      void exit({ force: true });
       window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
       window.removeEventListener('mn:player-health-changed', handleHealthChanged);
       window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
@@ -4957,6 +5339,7 @@ export function enableInteriorsFeature() {
       interiorWorldResizeObserver?.disconnect();
       hospitalWarehouse.cleanup();
       hospitalCafeteria.cleanup();
+      window.__MN_HOSPITAL_PATIENT_MEDICINE_OPEN__ = false;
       if (collisionProfilesChannel) {
         supabase.removeChannel(collisionProfilesChannel);
         collisionProfilesChannel = null;
@@ -4973,5 +5356,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
-
