@@ -1,14 +1,15 @@
 import { state } from '../state.js';
-import {
-  applyPlayerStaminaRecovery,
-  applyPlayerStaminaUsage,
-  processPlayerSurvivalTick,
-} from '../hospital/hospitalWarehouseFeature.js';
+import { applyPlayerPositionVitalCost } from './playerPosition.js';
 import { getStaminaRecoverySeconds } from './playerStaminaConfig.js';
 
 const SURVIVAL_POLL_MS = 30_000;
 const ACTIVITY_SAMPLE_MS = 250;
 const ACTIVE_MEMORY_MS = 120_000;
+const ACTIVE_METABOLIC_INTERVAL_MS = 5 * 60_000;
+const AFK_METABOLIC_INTERVAL_MS = 10 * 60_000;
+const SURVIVAL_MAX_CATCHUP_INTERVALS = 288;
+const STARVATION_GRACE_MS = 60_000;
+const STARVATION_DAMAGE_INTERVAL_MS = 30_000;
 const STAMINA_USAGE_POINTS_PER_INTERVAL = 25;
 const STAMINA_USAGE_PARTIAL_FLUSH_DELAY_MS = 1_500;
 const STAMINA_USAGE_MIN_PARTIAL_POINTS = 0.5;
@@ -47,10 +48,6 @@ function currentVitals() {
   };
 }
 
-function hasTelegramSession() {
-  return Boolean(String(window.Telegram?.WebApp?.initData || '').trim());
-}
-
 export function enablePlayerSurvivalFeature() {
   let destroyed = false;
   let tickInFlight = false;
@@ -64,7 +61,10 @@ export function enablePlayerSurvivalFeature() {
   let staminaRecoveryDeadlineAt = 0;
   let pollTimer = 0;
   let activityTimer = 0;
-  let lastActiveAt = 0;
+  let lastActiveAt = Date.now();
+  let lastMetabolicChargeAt = Date.now();
+  let starvationStartedAt = 0;
+  let starvationLastDamageAt = 0;
   let sprintBlocked = false;
 
   function isMovingNow() {
@@ -133,24 +133,73 @@ export function enablePlayerSurvivalFeature() {
   }
 
   async function processSurvival() {
-    if (destroyed || tickInFlight || !hasTelegramSession()) return;
+    if (destroyed || tickInFlight) return;
     tickInFlight = true;
 
     try {
-      const active = Date.now() - lastActiveAt <= ACTIVE_MEMORY_MS;
-      const result = await processPlayerSurvivalTick({ active });
-      if (!destroyed) applyServerResult(result || {}, 'survival_tick');
-    } catch (error) {
-      if (!String(error?.message || '').includes('TELEGRAM_SESSION')) {
-        console.warn('[playerSurvival] survival tick failed:', error);
+      const now = Date.now();
+      const active = now - lastActiveAt <= ACTIVE_MEMORY_MS;
+      const metabolicInterval = active
+        ? ACTIVE_METABOLIC_INTERVAL_MS
+        : AFK_METABOLIC_INTERVAL_MS;
+      const metabolicIntervals = Math.min(
+        SURVIVAL_MAX_CATCHUP_INTERVALS,
+        Math.max(0, Math.floor((now - lastMetabolicChargeAt) / metabolicInterval))
+      );
+
+      if (metabolicIntervals > 0) {
+        const result = await applyPlayerPositionVitalCost({
+          foodCost: metabolicIntervals,
+          waterCost: metabolicIntervals * 2,
+        });
+        lastMetabolicChargeAt += metabolicIntervals * metabolicInterval;
+        if (!destroyed) applyServerResult(result || {}, active ? 'active_metabolism' : 'afk_metabolism');
       }
+
+      const vitals = currentVitals();
+      const starving = vitals.food <= 0 || vitals.water <= 0;
+
+      if (!starving) {
+        starvationStartedAt = 0;
+        starvationLastDamageAt = 0;
+        return;
+      }
+
+      if (!starvationStartedAt) {
+        starvationStartedAt = now;
+        starvationLastDamageAt = now;
+        return;
+      }
+
+      const damageReadyAt = starvationStartedAt + STARVATION_GRACE_MS;
+      if (now < damageReadyAt || vitals.health <= 10) return;
+
+      const damageAnchor = Math.max(
+        starvationLastDamageAt,
+        damageReadyAt - STARVATION_DAMAGE_INTERVAL_MS
+      );
+      const damageIntervals = Math.max(
+        0,
+        Math.floor((now - damageAnchor) / STARVATION_DAMAGE_INTERVAL_MS)
+      );
+
+      if (!damageIntervals) return;
+
+      const result = await applyPlayerPositionVitalCost({
+        healthDamage: damageIntervals,
+        minimumHealth: 10,
+      });
+      starvationLastDamageAt = damageAnchor + damageIntervals * STARVATION_DAMAGE_INTERVAL_MS;
+      if (!destroyed) applyServerResult(result || {}, 'starvation_damage');
+    } catch (error) {
+      console.warn('[playerSurvival] direct survival tick failed:', error);
     } finally {
       tickInFlight = false;
     }
   }
 
   async function processStaminaUsage({ includePartial = false } = {}) {
-    if (destroyed || staminaUsageInFlight || !hasTelegramSession()) return;
+    if (destroyed || staminaUsageInFlight) return;
 
     const pendingPoints = Math.max(0, Number(staminaUsagePendingPoints) || 0);
     let intervals = Math.floor(
@@ -181,7 +230,10 @@ export function enablePlayerSurvivalFeature() {
     staminaUsageInFlight = true;
 
     try {
-      const result = await applyPlayerStaminaUsage(intervals);
+      const result = await applyPlayerPositionVitalCost({
+        foodCost: intervals,
+        waterCost: intervals,
+      });
       if (!destroyed) applyServerResult(result || {}, 'stamina_usage');
     } catch (error) {
       staminaUsagePendingPoints += consumedPoints;
@@ -205,8 +257,7 @@ export function enablePlayerSurvivalFeature() {
     if (
       destroyed ||
       !staminaRecoveryActive ||
-      staminaRecoveryInFlight ||
-      !hasTelegramSession()
+      staminaRecoveryInFlight
     ) return;
 
     const now = Date.now();
@@ -222,7 +273,10 @@ export function enablePlayerSurvivalFeature() {
     staminaRecoveryInFlight = true;
 
     try {
-      const result = await applyPlayerStaminaRecovery(intervals);
+      const result = await applyPlayerPositionVitalCost({
+        foodCost: intervals,
+        waterCost: intervals * 2,
+      });
       staminaRecoveryLastChargeAt += intervals * STAMINA_RECOVERY_COST_INTERVAL_MS;
       if (!destroyed) applyServerResult(result || {}, 'stamina_recovery');
     } catch (error) {
