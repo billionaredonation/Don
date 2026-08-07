@@ -152,7 +152,12 @@ export function enableHospitalCafeteriaFeature() {
   }
 
   async function open(options = {}) {
-    if (openState || window.__MN_INVENTORY_OPEN__ === true || window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true) return false;
+    if (
+      openState ||
+      window.__MN_INVENTORY_OPEN__ === true ||
+      window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true ||
+      window.__MN_HOSPITAL_RECEPTION_OPEN__ === true
+    ) return false;
     openState = true;
     window.__MN_HOSPITAL_CAFETERIA_OPEN__ = true;
     overlay.hidden = false;
