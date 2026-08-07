@@ -184,6 +184,7 @@ function knockoutMarkup() {
 export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
   let destroyed = false;
   let medical = normalizeMedicalState(playerPosition || state.player || {});
+  let gameplayReady = window.__MN_GAMEPLAY_ENTERED__ === true;
   let countdownTimer = 0;
   let refreshTimer = 0;
   let treatmentTimer = 0;
@@ -277,7 +278,7 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
   }
 
   async function admitToHospital() {
-    if (destroyed || admissionInFlight) return;
+    if (destroyed || !gameplayReady || admissionInFlight) return;
     admissionInFlight = true;
     publishControlLock(true, 'hospital_transport');
     ensureOverlay('transporting');
@@ -322,7 +323,7 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
   }
 
   function updateCountdown() {
-    if (destroyed || medical.knockState !== 'countdown') return;
+    if (destroyed || !gameplayReady || medical.knockState !== 'countdown') return;
     const remaining = remainingKnockMs();
     ensureOverlay('warning');
     publishControlLock(true, 'knockout_countdown');
@@ -336,6 +337,7 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
   }
 
   function startCountdown() {
+    if (destroyed || !gameplayReady) return;
     window.clearInterval(countdownTimer);
     ensureOverlay('warning');
     publishControlLock(true, 'knockout_countdown');
@@ -348,6 +350,7 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
   async function beginKnockout() {
     if (
       destroyed ||
+      !gameplayReady ||
       beginInFlight ||
       medical.knockState !== 'conscious' ||
       finiteNumber(medical.health, 100) > KNOCKOUT_HEALTH
@@ -381,14 +384,18 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
     const snapshot = event?.detail?.vitals || event?.detail?.player || event?.detail || {};
     const health = finiteNumber(snapshot.health, null);
     if (health !== null) medical.health = health;
-    if (medical.knockState === 'conscious' && medical.health <= KNOCKOUT_HEALTH) {
+    if (
+      gameplayReady &&
+      medical.knockState === 'conscious' &&
+      medical.health <= KNOCKOUT_HEALTH
+    ) {
       void beginKnockout();
     }
   }
 
   function handleHospitalizationRequired() {
     medical.health = Math.min(KNOCKOUT_HEALTH, finiteNumber(medical.health, KNOCKOUT_HEALTH));
-    void beginKnockout();
+    if (gameplayReady) void beginKnockout();
   }
 
   function handleHospitalAdmitted(event) {
@@ -411,7 +418,31 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
       countdownTimer = 0;
       publishControlLock(false, 'conscious');
       removeOverlay();
+    } else if (gameplayReady) {
+      activateMedicalState('medical_state_changed');
     }
+  }
+
+  function activateMedicalState(reason = 'gameplay_entered') {
+    if (destroyed || !gameplayReady) return;
+
+    if (medical.knockState === 'countdown') {
+      startCountdown();
+    } else if (medical.knockState === 'hospitalized') {
+      publishControlLock(true, 'hospital_reconnect');
+      ensureOverlay('transporting');
+      void admitToHospital();
+    } else if (medical.health <= KNOCKOUT_HEALTH) {
+      void beginKnockout();
+    } else {
+      publishControlLock(false, reason);
+    }
+  }
+
+  function handleGameplayEntered() {
+    if (destroyed || gameplayReady) return;
+    gameplayReady = true;
+    activateMedicalState('gameplay_entered');
   }
 
   async function refreshMedicalState() {
@@ -421,12 +452,7 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
       medical = normalizeMedicalState(nextState);
       Object.assign(playerPosition || {}, medical);
 
-      if (medical.knockState === 'countdown') startCountdown();
-      else if (medical.knockState === 'hospitalized' && window.__MN_INTERIOR_ACTIVE__ !== true) {
-        void admitToHospital();
-      } else if (medical.knockState === 'conscious') {
-        publishControlLock(false, 'conscious');
-      }
+      if (gameplayReady) activateMedicalState('medical_state_refresh');
     } catch (error) {
       console.warn('[playerKnockout] state refresh failed:', error);
     }
@@ -447,17 +473,10 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
   window.addEventListener('mn:player-hospitalization-required', handleHospitalizationRequired);
   window.addEventListener('mn:player-hospital-admitted', handleHospitalAdmitted);
   window.addEventListener('mn:player-medical-state-changed', handleMedicalStateChanged);
+  window.addEventListener('mn:gameplay-entered', handleGameplayEntered);
 
-  if (medical.knockState === 'countdown') startCountdown();
-  else if (medical.knockState === 'hospitalized') {
-    publishControlLock(true, 'hospital_reconnect');
-    ensureOverlay('transporting');
-    void admitToHospital();
-  } else if (medical.health <= KNOCKOUT_HEALTH) {
-    void beginKnockout();
-  } else {
-    publishControlLock(false, 'conscious');
-  }
+  if (gameplayReady) activateMedicalState('initial_gameplay_state');
+  else publishControlLock(false, 'awaiting_gameplay');
 
   refreshTimer = window.setInterval(refreshMedicalState, STATE_REFRESH_MS);
   treatmentTimer = window.setInterval(processTreatment, TREATMENT_REFRESH_MS);
@@ -473,6 +492,7 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
     window.removeEventListener('mn:player-hospitalization-required', handleHospitalizationRequired);
     window.removeEventListener('mn:player-hospital-admitted', handleHospitalAdmitted);
     window.removeEventListener('mn:player-medical-state-changed', handleMedicalStateChanged);
+    window.removeEventListener('mn:gameplay-entered', handleGameplayEntered);
     overlay?.remove();
     overlay = null;
     publishControlLock(false, 'cleanup');
