@@ -555,6 +555,14 @@ serve(async (req) => {
         args = { p_actor_tg_id: actorTgId, p_item_type: itemType, p_quantity: quantity };
         break;
       }
+      case 'reception_offer':
+        functionName = 'hospital_get_reception_offer';
+        args = {};
+        break;
+      case 'reception_treat':
+        functionName = 'hospital_buy_reception_treatment';
+        args = { p_actor_tg_id: actorTgId };
+        break;
       case 'sprint_usage':
         functionName = 'player_apply_sprint_usage';
         args = { p_actor_tg_id: actorTgId };
