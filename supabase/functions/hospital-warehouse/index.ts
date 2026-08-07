@@ -2,6 +2,8 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
+const EDGE_RELEASE = '2026-08-08-reception-direct-hp-v2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -640,6 +642,13 @@ serve(async (req) => {
       } else {
         result = mergeItemPayload(result, consumables.data);
       }
+    }
+
+    if (
+      (action === 'reception_offer' || action === 'reception_treat') &&
+      result && typeof result === 'object' && !Array.isArray(result)
+    ) {
+      result = { ...(result as Record<string, unknown>), edgeRelease: EDGE_RELEASE };
     }
 
     if (
