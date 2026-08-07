@@ -51,6 +51,7 @@ function isTypingTarget(target) {
 function hasBlockingInterface() {
   return (
     window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true ||
+    window.__MN_HOSPITAL_RECEPTION_OPEN__ === true ||
     window.__MN_INVENTORY_OPEN__ === true ||
     document.body.classList.contains('mn-player-interaction-open') ||
     document.body.classList.contains('mn-hospital-warehouse-open') ||
