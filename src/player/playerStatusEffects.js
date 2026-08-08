@@ -22,13 +22,15 @@ function isElementVisible(element) {
   if (!element || !element.isConnected) return false;
   const styles = window.getComputedStyle(element);
   const rect = element.getBoundingClientRect();
+  const isPointMarker = element.matches?.(
+    '.mn-interior-player, .mn-interior-remote-player'
+  ) === true;
 
   return (
     styles.display !== 'none' &&
     styles.visibility !== 'hidden' &&
     Number(styles.opacity || 1) > 0 &&
-    rect.width > 1 &&
-    rect.height > 1 &&
+    (isPointMarker || (rect.width > 1 && rect.height > 1)) &&
     rect.bottom >= 0 &&
     rect.right >= 0 &&
     rect.top <= window.innerHeight &&
