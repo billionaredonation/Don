@@ -2,6 +2,7 @@
 import './inventory.css';
 import { state } from '../state.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
+import { applyPlayerPositionVitalRestore } from '../player/playerPosition.js';
 import {
   getHospitalUserErrorMessage,
   loadMyMedicalInventory,
@@ -22,7 +23,7 @@ const THIRST_WARNING_THRESHOLD = 40;
 const CRITICAL_VITAL_THRESHOLD = 20;
 const ITEM_META = Object.freeze({
   food: { label: 'Обед', icon: '🍔' },
-  water_bottle: { label: 'Бутылка воды', icon: '💧' },
+  water_bottle: { label: 'Бутылка воды', icon: '🧴' },
   medicine_light: { label: 'Слабоседативные таблетки', icon: '💊' },
   medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
@@ -46,6 +47,19 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function getItemIconMarkup(itemType, fallbackIcon = '□') {
+  if (String(itemType || '') !== 'water_bottle') return escapeHtml(fallbackIcon || '□');
+
+  return `
+    <svg class="mn-inventory-water-bottle-icon" viewBox="0 0 24 32" aria-hidden="true">
+      <rect x="8" y="1" width="8" height="4" rx="1.2" fill="#d9f3ff"></rect>
+      <path d="M8 5h8v4c2.6 1.5 4 3.8 4 7v10.5c0 2.5-1.8 4.5-4.2 4.5H8.2C5.8 31 4 29 4 26.5V16c0-3.2 1.4-5.5 4-7V5Z" fill="#b8e8ff" stroke="#effbff" stroke-width="1.2"></path>
+      <path d="M5 18h14v8.5c0 1.9-1.2 3.3-3.2 3.3H8.2C6.2 29.8 5 28.4 5 26.5V18Z" fill="#329cff"></path>
+      <rect x="6.5" y="12" width="11" height="6.5" rx="2" fill="#f7fcff" opacity=".92"></rect>
+      <path d="M9 15.4c1.6-2.1 4.4-2.1 6 0-1.6 1.9-4.4 1.9-6 0Z" fill="#32a8ff"></path>
+    </svg>`;
 }
 
 function publishInventorySnapshot(items = []) {
@@ -87,6 +101,12 @@ function clampVital(value, key) {
   const number = Number(value);
 
   return Math.min(max, Math.max(min, Number.isFinite(number) ? number : fallback));
+}
+
+function optionalFiniteNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function readVital(source, key, fallback) {
@@ -320,7 +340,7 @@ function renderMedicalItems(items = []) {
         data-inventory-item-source="${escapeHtml(source)}"
         data-inventory-item-hospital-id="${safeHospitalId}"
       >
-        <span>${meta.icon}</span>
+        <span>${getItemIconMarkup(itemType, meta.icon)}</span>
         <b>${quantity}</b>
       </button>`;
   }).join('');
@@ -696,7 +716,7 @@ export function enableInventoryFeature() {
     selectedInventoryItem = item;
     itemMenu.hidden = false;
     itemMenu.setAttribute('aria-hidden', 'false');
-    if (itemMenuIcon) itemMenuIcon.textContent = item.icon || meta.icon || '□';
+    if (itemMenuIcon) itemMenuIcon.innerHTML = getItemIconMarkup(itemType, meta.icon || item.icon || '□');
     if (itemMenuTitle) itemMenuTitle.textContent = getItemLabel(item);
     if (itemMenuQuantity) itemMenuQuantity.textContent = `${Number(item.quantity || 0).toLocaleString('ru-RU')} шт.`;
     setItemMenuNotice('');
@@ -736,34 +756,44 @@ export function enableInventoryFeature() {
       }));
     }
     try {
-      const result = await useInventoryItem({
+      let result = await useInventoryItem({
         itemType,
         source: item.source || item.inventorySource || 'personal',
         hospitalId: item.hospitalId || null,
       });
-      if (Number.isFinite(Number(result?.balance))) {
-        state.player = { ...(state.player || {}), balance: Number(result.balance) };
+
+      if (itemType === 'water_bottle' && result?.canonicalVitalsUpdated !== true) {
+        const restoredVitals = await applyPlayerPositionVitalRestore({ waterRestore: 20 });
+        result = { ...(result || {}), ...restoredVitals };
+      }
+
+      const resultBalance = optionalFiniteNumber(result?.balance);
+      if (resultBalance !== null) {
+        state.player = { ...(state.player || {}), balance: resultBalance };
         window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
-          detail: { balance: Number(result.balance), source: 'inventory_item_use', result },
+          detail: { balance: resultBalance, source: 'inventory_item_use', result },
         }));
       }
-      if (
-        Number.isFinite(Number(result?.health)) ||
-        Number.isFinite(Number(result?.food)) ||
-        Number.isFinite(Number(result?.water))
-      ) {
-        const nextHealth = Number.isFinite(Number(result?.health)) ? Number(result.health) : currentVitals.health;
-        const nextFood = Number.isFinite(Number(result?.food)) ? Number(result.food) : currentVitals.food;
-        const nextWater = Number.isFinite(Number(result?.water)) ? Number(result.water) : currentVitals.water;
+
+      const resultHealth = optionalFiniteNumber(result?.health);
+      const resultFood = optionalFiniteNumber(result?.food);
+      const resultWater = optionalFiniteNumber(result?.water);
+      if (resultHealth !== null || resultFood !== null || resultWater !== null) {
+        const nextHealth = resultHealth ?? currentVitals.health;
+        const nextFood = resultFood ?? currentVitals.food;
+        const nextWater = resultWater ?? currentVitals.water;
+        const changedVitals = {
+          ...(resultHealth !== null ? { health: nextHealth } : {}),
+          ...(resultFood !== null ? { food: nextFood } : {}),
+          ...(resultWater !== null ? { water: nextWater } : {}),
+        };
         state.player = {
           ...(state.player || {}),
-          ...(Number.isFinite(Number(result?.health)) ? { health: nextHealth } : {}),
-          ...(Number.isFinite(Number(result?.food)) ? { food: nextFood } : {}),
-          ...(Number.isFinite(Number(result?.water)) ? { water: nextWater } : {}),
+          ...changedVitals,
         };
         renderVitals({ ...currentVitals, health: nextHealth, food: nextFood, water: nextWater });
         window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
-          detail: { vitals: { health: result?.health, food: result?.food, water: result?.water }, source: 'inventory_item_use', result },
+          detail: { vitals: changedVitals, source: 'inventory_item_use', result },
         }));
       }
       if (itemType.startsWith('medicine_')) {
