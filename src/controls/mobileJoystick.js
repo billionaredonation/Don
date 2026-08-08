@@ -226,6 +226,16 @@ export function enableMobileJoystick(
   if (!base || !stick) return null;
 
   const STAMINA = getStaminaConfig();
+  const configuredMobileRecoveredAt = Number(STAMINA.mobileRecoveredAt);
+  const MOBILE_STAMINA_RECOVERED_AT = Math.min(
+    STAMINA.max,
+    Math.max(
+      STAMINA.recoveredAt,
+      Number.isFinite(configuredMobileRecoveredAt)
+        ? configuredMobileRecoveredAt
+        : STAMINA.max * 0.5
+    )
+  );
   const configuredBounds = getMovementBounds();
 
   /*
@@ -483,7 +493,7 @@ export function enableMobileJoystick(
         stamina + getStaminaRecoveryPerFrame(gameState.player?.water) * frameScale
       );
 
-      if (stamina >= STAMINA.recoveredAt) {
+      if (stamina >= MOBILE_STAMINA_RECOVERED_AT) {
         const wasLocked = sprintLocked;
         sprintLocked = false;
         if (wasLocked) {
