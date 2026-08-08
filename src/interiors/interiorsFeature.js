@@ -2,6 +2,7 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import { getStaminaConfig, getStaminaRecoveryPerFrame } from '../player/playerStaminaConfig.js';
+import { readPlayerStaminaState, writePlayerStaminaState } from '../player/playerStaminaState.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import { getLocalPlayerId, getSessionId } from '../player/playerPosition.js';
 import {
@@ -1832,8 +1833,9 @@ export function enableInteriorsFeature() {
         )
       )
     : staminaConfig.recoveredAt;
-  let stamina = staminaConfig.max;
-  let sprintLocked = false;
+  const initialStaminaState = readPlayerStaminaState();
+  let stamina = initialStaminaState.value;
+  let sprintLocked = initialStaminaState.locked;
   let warmupTimer = 0;
   let loadingRevealTimer = 0;
   let interiorHudRefreshTimer = 0;
@@ -4574,6 +4576,9 @@ export function enableInteriorsFeature() {
     const sprintBlockedByVitals = window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true;
     const wantsSprint = moving && !sprintBlockedByVitals && (keys.has('shift') || Math.hypot(joystickVector.x, joystickVector.y) >= 0.62);
     const frameScale = dt * 60;
+    const sharedStamina = readPlayerStaminaState();
+    stamina = sharedStamina.value;
+    sprintLocked = sharedStamina.locked;
 
     if (wantsSprint && !sprintLocked) {
       const previousStamina = stamina;
@@ -4608,6 +4613,7 @@ export function enableInteriorsFeature() {
       }
     }
 
+    writePlayerStaminaState(stamina, sprintLocked, 'interior');
     const sprint = wantsSprint && !sprintLocked;
     const speed = sprint ? 23 : 15;
     window.__MN_INTERIOR_PLAYER_MOVING__ = moving;
@@ -4838,8 +4844,7 @@ export function enableInteriorsFeature() {
         animateDamage: false,
       });
       position = snapInteriorPosition(template.id, template.spawn);
-      stamina = staminaConfig.max;
-      sprintLocked = false;
+      ({ value: stamina, locked: sprintLocked } = readPlayerStaminaState());
       renderStamina();
       renderPosition();
       renderInteriorObjects();
@@ -4933,8 +4938,7 @@ export function enableInteriorsFeature() {
         template.id,
         admissionBed ? mappedInteriorBedPatientPosition(admissionBed) : template.spawn
       );
-      stamina = staminaConfig.max;
-      sprintLocked = false;
+      ({ value: stamina, locked: sprintLocked } = readPlayerStaminaState());
       renderStamina();
       renderPosition();
       renderInteriorObjects();
@@ -4989,6 +4993,12 @@ export function enableInteriorsFeature() {
             source: admission?.source || 'knockout',
           },
         }));
+        if (admission?.source === 'low_health_reconnect') {
+          showInteriorActionToast(
+            `HP ниже ${HOSPITAL_EXIT_HEALTH}: после перезахода вы возвращены в больницу. Выход откроется с ${HOSPITAL_EXIT_HEALTH} HP.`,
+            4600
+          );
+        }
       }
     } catch (error) {
       const code = [error?.message, error?.details, error?.hint].filter(Boolean).join(' ');
@@ -5006,8 +5016,8 @@ export function enableInteriorsFeature() {
       const health = Number(currentVitals.health ?? state.player?.health ?? 0);
       if (!Number.isFinite(health) || health < HOSPITAL_EXIT_HEALTH) {
         showInteriorActionToast(
-          `Выход закрыт: восстановите здоровье минимум до ${HOSPITAL_EXIT_HEALTH} HP`,
-          2400
+          `Выход закрыт до ${HOSPITAL_EXIT_HEALTH} HP. При перезаходе вы снова попадёте в больницу.`,
+          3600
         );
         return false;
       }
