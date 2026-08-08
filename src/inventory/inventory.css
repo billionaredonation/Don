@@ -661,6 +661,14 @@ body.mn-inventory-open .mn-vital-notice {
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.36));
 }
 
+.mn-inventory-water-bottle-icon {
+  display: block;
+  width: clamp(16px, 1.7vw, 23px);
+  height: clamp(22px, 2.35vw, 31px);
+  overflow: visible;
+  filter: drop-shadow(0 3px 7px rgba(36, 157, 255, 0.38));
+}
+
 .mn-inventory-item b {
   position: absolute;
   right: 3px;
@@ -794,6 +802,11 @@ body.mn-inventory-open .mn-vital-notice {
   border-radius: 10px;
   background: rgba(231, 183, 75, 0.08);
   font-size: 20px;
+}
+
+.mn-inventory-item-menu-card header .mn-inventory-water-bottle-icon {
+  width: 18px;
+  height: 26px;
 }
 
 .mn-inventory-item-menu-card header strong {
@@ -1227,5 +1240,4 @@ html.mn-inventory-open {
     max-height: calc(100vw - 26px) !important;
   }
 }
-
 
