@@ -12,6 +12,7 @@ const TREATMENT_REFRESH_MS = 2_000;
 const ADMISSION_RETRY_MS = 2_500;
 
 function finiteNumber(value, fallback = null) {
+  if (value === undefined || value === null || value === '') return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
 }
@@ -24,12 +25,20 @@ function normalizeKnockState(value) {
 }
 
 function normalizeMedicalState(source = {}) {
+  const health = finiteNumber(source.health, finiteNumber(state.player?.health, 100));
+  const rawKnockState = normalizeKnockState(source.knockState ?? source.knock_state);
+  const knockState = rawKnockState === 'countdown' && health > KNOCKOUT_HEALTH
+    ? 'conscious'
+    : rawKnockState;
+
   return {
-    health: finiteNumber(source.health, finiteNumber(state.player?.health, 100)),
+    health,
     food: finiteNumber(source.food, finiteNumber(state.player?.food, 100)),
     water: finiteNumber(source.water, finiteNumber(state.player?.water, 100)),
-    knockState: normalizeKnockState(source.knockState ?? source.knock_state),
-    knockStartedAt: source.knockStartedAt ?? source.knock_started_at ?? null,
+    knockState,
+    knockStartedAt: knockState === 'conscious'
+      ? null
+      : source.knockStartedAt ?? source.knock_started_at ?? null,
     hospitalizedAt: source.hospitalizedAt ?? source.hospitalized_at ?? null,
     hospitalId: source.hospitalId ?? source.hospital_id ?? null,
     hospitalBedId: source.hospitalBedId ?? source.hospital_bed_id ?? null,
@@ -386,6 +395,17 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
     const snapshot = event?.detail?.vitals || event?.detail?.player || event?.detail || {};
     const health = finiteNumber(snapshot.health, null);
     if (health !== null) medical.health = health;
+
+    if (health !== null && health > KNOCKOUT_HEALTH && medical.knockState === 'countdown') {
+      medical.knockState = 'conscious';
+      medical.knockStartedAt = null;
+      window.clearInterval(countdownTimer);
+      countdownTimer = 0;
+      publishControlLock(false, 'critical_health_corrected');
+      removeOverlay();
+      return;
+    }
+
     if (
       gameplayReady &&
       medicalStateVerified &&
