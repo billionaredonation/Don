@@ -1,4 +1,5 @@
 import { getStaminaConfig, getStaminaRecoveryPerFrame } from '../player/playerStaminaConfig.js';
+import { readPlayerStaminaState, writePlayerStaminaState } from '../player/playerStaminaState.js';
 import { MOVEMENT_CONFIG } from '../config/movement.js';
 import { state } from '../state.js';
 
@@ -59,8 +60,9 @@ export function enableKeyboardPlayerMovement(
   const keys = new Set();
   const STAMINA = getStaminaConfig();
 
-  let stamina = STAMINA.max;
-  let sprintLocked = false;
+  const initialStaminaState = readPlayerStaminaState();
+  let stamina = initialStaminaState.value;
+  let sprintLocked = initialStaminaState.locked;
 
   const staminaHud = document.createElement('div');
   staminaHud.className = 'pc-stamina';
@@ -96,6 +98,10 @@ export function enableKeyboardPlayerMovement(
   }
 
   function updateSprintState(isMoving, frameScale = 1) {
+    const sharedStamina = readPlayerStaminaState();
+    stamina = sharedStamina.value;
+    sprintLocked = sharedStamina.locked;
+
     const sprintBlockedByVitals = window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true;
     const wantsSprint = isMoving && isSprintPressed() && !sprintLocked && !sprintBlockedByVitals;
 
@@ -140,6 +146,7 @@ export function enableKeyboardPlayerMovement(
       }
     }
 
+    writePlayerStaminaState(stamina, sprintLocked, 'keyboard');
     updateStaminaUi();
 
     return wantsSprint;
