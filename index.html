@@ -2,6 +2,9 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no"
@@ -139,7 +142,9 @@
           '</div>';
 
         document.getElementById('mnReloadBtn')?.addEventListener('click', function () {
-          window.location.reload();
+          var freshUrl = new URL(window.location.href);
+          freshUrl.searchParams.set('mn_build', String(Date.now()));
+          window.location.replace(freshUrl.toString());
         });
       }
 
@@ -206,6 +211,6 @@
     </div>
   </div>
 
-  <script type="module" src="./src/main.js?v=191"></script>
+  <script type="module" src="./src/main.js?v=192"></script>
 </body>
 </html>
