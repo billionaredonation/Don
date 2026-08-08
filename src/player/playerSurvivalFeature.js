@@ -13,6 +13,8 @@ const STARVATION_DAMAGE_PER_INTERVAL = 5;
 const STAMINA_USAGE_POINTS_PER_INTERVAL = 5;
 const STAMINA_USAGE_POINT_EPSILON = 0.05;
 const STAMINA_USAGE_MAX_CATCHUP_INTERVALS = 10;
+const MOBILE_STAMINA_EXHAUSTION_FOOD_COST = 5;
+const MOBILE_STAMINA_EXHAUSTION_WATER_COST = 5;
 const CRITICAL_FOOD = 10;
 const CRITICAL_WATER = 15;
 
@@ -43,11 +45,25 @@ function currentVitals() {
   };
 }
 
+function isMobileStaminaEvent(event) {
+  const source = String(event?.detail?.source || '').toLowerCase();
+
+  if (source === 'mobile') return true;
+  if (source !== 'interior') return false;
+
+  return Boolean(
+    window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ||
+    document.body?.classList.contains('mn-mobile-game-enabled') ||
+    document.documentElement?.classList.contains('mn-mobile-device-detected')
+  );
+}
+
 export function enablePlayerSurvivalFeature() {
   let destroyed = false;
   let tickInFlight = false;
   let staminaUsageInFlight = false;
   let staminaUsagePendingPoints = 0;
+  let mobileStaminaExhaustionInFlight = false;
   let walkingUsageInFlight = false;
   let walkingUsagePendingMs = 0;
   let pollTimer = 0;
@@ -223,6 +239,25 @@ export function enablePlayerSurvivalFeature() {
     }
   }
 
+  async function processMobileStaminaExhaustion() {
+    if (destroyed || mobileStaminaExhaustionInFlight) return;
+    mobileStaminaExhaustionInFlight = true;
+
+    try {
+      const result = await applyPlayerPositionVitalCost({
+        foodCost: MOBILE_STAMINA_EXHAUSTION_FOOD_COST,
+        waterCost: MOBILE_STAMINA_EXHAUSTION_WATER_COST,
+      });
+      if (!destroyed) applyServerResult(result || {}, 'mobile_stamina_exhaustion');
+    } catch (error) {
+      if (!String(error?.message || '').includes('TELEGRAM_SESSION')) {
+        console.warn('[playerSurvival] mobile stamina exhaustion sync failed:', error);
+      }
+    } finally {
+      mobileStaminaExhaustionInFlight = false;
+    }
+  }
+
   async function processWalkingUsage() {
     if (destroyed || walkingUsageInFlight) return;
 
@@ -262,6 +297,11 @@ export function enablePlayerSurvivalFeature() {
     if (amount === null || amount <= 0) return;
 
     lastAfkChargeAt = Date.now();
+
+    // На телефоне промежуточный расход стамины ничего не списывает.
+    // Еда и вода снимаются одним щадящим платежом только при полном истощении.
+    if (isMobileStaminaEvent(event)) return;
+
     staminaUsagePendingPoints = Math.min(
       STAMINA_USAGE_POINTS_PER_INTERVAL * STAMINA_USAGE_MAX_CATCHUP_INTERVALS * 4,
       staminaUsagePendingPoints + amount
@@ -274,7 +314,13 @@ export function enablePlayerSurvivalFeature() {
     }
   }
 
-  function handleStaminaExhausted() {
+  function handleStaminaExhausted(event) {
+    if (isMobileStaminaEvent(event)) {
+      lastAfkChargeAt = Date.now();
+      void processMobileStaminaExhaustion();
+      return;
+    }
+
     void processStaminaUsage();
   }
 
