@@ -1573,7 +1573,7 @@ function markup() {
           <small data-interior-object-status></small>
         </section>
         <button type="button" class="mn-interior-door-action" hidden data-interior-door-action>
-          <span>E / У</span>
+          <span data-interior-door-action-key>E / У</span>
           <b data-interior-door-action-label>Открыть дверь</b>
         </button>
         <div class="mn-interior-hud">
@@ -1696,6 +1696,7 @@ export function enableInteriorsFeature() {
   const hospitalAdminActions = overlay.querySelector('[data-hospital-admin-actions]');
   const hospitalAdminOpen = overlay.querySelector('[data-hospital-admin-open]');
   const doorAction = overlay.querySelector('[data-interior-door-action]');
+  const doorActionKey = overlay.querySelector('[data-interior-door-action-key]');
   const doorActionLabel = overlay.querySelector('[data-interior-door-action-label]');
   const colliderLayer = overlay.querySelector('[data-interior-collider-layer]');
   const colliderToggle = overlay.querySelector('[data-interior-collider-toggle]');
@@ -1738,6 +1739,10 @@ export function enableInteriorsFeature() {
   const hospitalWarehouse = enableHospitalWarehouseFeature();
   const hospitalCafeteria = enableHospitalCafeteriaFeature();
   const hospitalReception = enableHospitalReceptionFeature();
+
+  if (doorActionKey && window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches) {
+    doorActionKey.textContent = 'I';
+  }
 
   let active = false;
   let destroyed = false;
@@ -5475,6 +5480,8 @@ export function enableInteriorsFeature() {
         supabase.removeChannel(doorStatesChannel);
         doorStatesChannel = null;
       }
+      doorAction.remove();
+      actionToast?.remove();
       overlay.remove();
     },
   };
