@@ -1815,6 +1815,23 @@ export function enableInteriorsFeature() {
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
   const staminaConfig = getStaminaConfig();
+  const mobileStaminaRecoveredAt = Number(staminaConfig.mobileRecoveredAt);
+  const mobileInteriorStamina = Boolean(
+    window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ||
+    document.body?.classList.contains('mn-mobile-game-enabled') ||
+    document.documentElement?.classList.contains('mn-mobile-device-detected')
+  );
+  const staminaRecoveredAt = mobileInteriorStamina
+    ? Math.min(
+        staminaConfig.max,
+        Math.max(
+          staminaConfig.recoveredAt,
+          Number.isFinite(mobileStaminaRecoveredAt)
+            ? mobileStaminaRecoveredAt
+            : staminaConfig.max * 0.5
+        )
+      )
+    : staminaConfig.recoveredAt;
   let stamina = staminaConfig.max;
   let sprintLocked = false;
   let warmupTimer = 0;
@@ -4583,7 +4600,7 @@ export function enableInteriorsFeature() {
         staminaConfig.max,
         stamina + getStaminaRecoveryPerFrame(state.player?.water) * frameScale
       );
-      if (sprintLocked && stamina >= staminaConfig.recoveredAt) {
+      if (sprintLocked && stamina >= staminaRecoveredAt) {
         sprintLocked = false;
         window.dispatchEvent(new CustomEvent('mn:player-stamina-recovered', {
           detail: { source: 'interior' },
