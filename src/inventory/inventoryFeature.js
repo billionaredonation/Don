@@ -544,8 +544,12 @@ export function enableInventoryFeature() {
   let activeWarningCodes = new Set();
   let vitalNoticeTimer = 0;
   let vitalNoticeHideTimer = 0;
-  let initialNoticeTimer = 0;
   let vitalStateRefreshTimer = 0;
+  let gameplayReady = window.__MN_GAMEPLAY_ENTERED__ === true;
+
+  function canShowVitalNotice() {
+    return gameplayReady && !hasBlockingInterface();
+  }
 
   function dismissVitalNotice() {
     window.clearTimeout(vitalNoticeTimer);
@@ -557,7 +561,12 @@ export function enableInventoryFeature() {
   }
 
   function showVitalNotice(alert) {
-    if (!alert || alert.severity === 'ok' || !vitalNotice) return;
+    if (
+      !alert ||
+      alert.severity === 'ok' ||
+      !vitalNotice ||
+      !canShowVitalNotice()
+    ) return;
 
     window.clearTimeout(vitalNoticeTimer);
     window.clearTimeout(vitalNoticeHideTimer);
@@ -914,6 +923,21 @@ export function enableInventoryFeature() {
     updateVitalsFromSnapshot(getVitalsSnapshotFromEvent(event));
   }
 
+  function handleGameplayEntered() {
+    gameplayReady = true;
+    dismissVitalNotice();
+
+    // Значения из localStorage/первичного position snapshot могут быть
+    // промежуточными. На входе в сам геймплей просто принимаем уже
+    // синхронизированное состояние без стартового toast. Дальнейшие реальные
+    // переходы через пороги по-прежнему показывают предупреждения.
+    renderVitals(getStateVitals(currentVitals), { notify: false });
+  }
+
+  function handleHouseSpawnPickerOpened() {
+    dismissVitalNotice();
+  }
+
   function handleHealthChanged(event) {
     const detail = event?.detail || {};
     const explicitHealth = detail.health ?? detail.hp ?? detail.value;
@@ -1080,6 +1104,8 @@ export function enableInventoryFeature() {
   window.addEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
   window.addEventListener('mn:player-inventory-changed', refreshMedicalInventory);
   window.addEventListener('mn:inventory-toggle-request', handleMobileToggleRequest);
+  window.addEventListener('mn:gameplay-entered', handleGameplayEntered);
+  window.addEventListener('mn:house-spawn-picker-opened', handleHouseSpawnPickerOpened);
 
   const bodyClassObserver = new MutationObserver(() => {
     if (open && hasBlockingInterface()) {
@@ -1094,10 +1120,6 @@ export function enableInventoryFeature() {
 
   renderVitals(initialVitals, { notify: false });
   renderMedicalInventory();
-  activeWarningCodes.clear();
-  initialNoticeTimer = window.setTimeout(() => {
-    renderVitals(getStateVitals(currentVitals), { notify: true });
-  }, 700);
   vitalStateRefreshTimer = window.setInterval(() => {
     updateVitalsFromSnapshot(getStateVitals(currentVitals), { notify: true });
   }, 1500);
@@ -1117,7 +1139,8 @@ export function enableInventoryFeature() {
     window.removeEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
     window.removeEventListener('mn:player-inventory-changed', refreshMedicalInventory);
     window.removeEventListener('mn:inventory-toggle-request', handleMobileToggleRequest);
-    window.clearTimeout(initialNoticeTimer);
+    window.removeEventListener('mn:gameplay-entered', handleGameplayEntered);
+    window.removeEventListener('mn:house-spawn-picker-opened', handleHouseSpawnPickerOpened);
     window.clearTimeout(vitalNoticeTimer);
     window.clearTimeout(vitalNoticeHideTimer);
     window.clearInterval(vitalStateRefreshTimer);
@@ -1128,5 +1151,3 @@ export function enableInventoryFeature() {
     overlay.remove();
   };
 }
-
-
