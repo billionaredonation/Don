@@ -712,6 +712,7 @@ export function enableInventoryFeature() {
     const item = visibleInventoryItems()[index];
     if (!item || !itemMenu) return false;
 
+    const itemType = String(item.itemType || '');
     const meta = getItemMeta(item);
     selectedInventoryItem = item;
     itemMenu.hidden = false;
@@ -1127,4 +1128,3 @@ export function enableInventoryFeature() {
     overlay.remove();
   };
 }
-
