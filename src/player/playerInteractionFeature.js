@@ -12,6 +12,7 @@ const CITY_DISTANCE = 3.4;
 const INTERIOR_DISTANCE = 5.2;
 const TRADE_SLOT_COUNT = 9;
 const TRADE_CONFIRM_DELAY_MS = 4000;
+const PUBLIC_TRADEABLE_CONSUMABLES = new Set(['food', 'water_bottle']);
 const MEDICINES = Object.freeze([
   { type: 'medicine_light', label: 'Слабоседативные / простые таблетки', shortLabel: 'Простые таблетки' },
   { type: 'medicine_strong', label: 'Среднеседативные / сильные таблетки', shortLabel: 'Сильные таблетки' },
@@ -187,11 +188,17 @@ function normalizeTradeInventory(inventory = {}) {
       const itemType = String(item?.itemType || item?.type || '').trim();
       const quantity = Math.max(0, Math.floor(Number(item?.quantity || 0)));
       const meta = tradeItemMeta(itemType, item || {});
+      const publicConsumable = PUBLIC_TRADEABLE_CONSUMABLES.has(itemType);
       return {
         itemType,
         quantity,
-        source: String(item?.source || item?.inventorySource || 'personal').trim() || 'personal',
-        hospitalId: String(item?.hospitalId || '').trim() || null,
+        // Food and bottled water bought in a hospital cafeteria belong to the
+        // player, not to hospital staff stock. Normalize older server payloads
+        // that still mark them as service items so they remain tradeable.
+        source: publicConsumable
+          ? 'personal'
+          : String(item?.source || item?.inventorySource || 'personal').trim() || 'personal',
+        hospitalId: publicConsumable ? null : String(item?.hospitalId || '').trim() || null,
         label: meta.label,
         icon: meta.icon,
       };
@@ -363,6 +370,13 @@ function editableTradeMarkup(inventory = {}, title = 'Вы отдаёте') {
     <header><strong>Ваш инвентарь</strong><small>Предметы добавляются по одной единице</small></header>
     <div class="mn-player-trade-inventory-list" data-trade-inventory-list></div>
   </section>`;
+}
+
+function tradeSubmitMarkup() {
+  return `<footer class="mn-player-trade-submit-row">
+    <small class="mn-player-trade-help">Нажимайте на предмет, чтобы добавить количество. Нажатие по ячейке возвращает одну единицу.</small>
+    <button type="button" class="is-primary" data-trade-submit>Предложить трейд</button>
+  </footer>`;
 }
 
 async function loadTradeInventory() {
@@ -884,8 +898,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
           <div class="mn-player-trade-columns">
             ${editableTradeMarkup(inventory)}
           </div>
-          <button type="button" class="is-primary" data-trade-submit>Предложить трейд</button>
-          <small>Количество предметов задаётся нажатием: повторное нажатие добавляет ещё один, нажатие по ячейке убирает один.</small>
+          ${tradeSubmitMarkup()}
         </div>`;
       const form = content.querySelector('[data-trade-form]');
       const composer = createTradeComposer(form, inventory);
