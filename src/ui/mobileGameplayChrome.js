@@ -3,7 +3,6 @@ const MOBILE_MEDIA_QUERY = '(hover: none) and (pointer: coarse)';
 const ACTION_SELECTORS = Object.freeze([
   '.entity-interaction-hint',
   '.mn-player-interaction-hint',
-  '.house-selection-panel.house-info-prompt',
   '.mn-interior-door-action',
 ]);
 
