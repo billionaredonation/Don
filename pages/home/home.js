@@ -40,6 +40,7 @@ import { enablePlayerInteractionFeature } from '../../src/player/playerInteracti
 import { enablePlayerStatusEffects } from '../../src/player/playerStatusEffects.js';
 import { enablePlayerSurvivalFeature } from '../../src/player/playerSurvivalFeature.js';
 import { enablePlayerKnockoutFeature } from '../../src/player/playerKnockoutFeature.js';
+import { enableMobileGameplayChrome } from '../../src/ui/mobileGameplayChrome.js';
 import {
   fetchPlayerOwnedHouses,
   PLAYER_HOUSE_SLOT_LIMIT,
@@ -50,6 +51,7 @@ import '../../src/admin/adminPanel.css';
 import '../../src/houses/houses.css';
 import '../../src/styles/modal-responsive-final.css';
 import '../../src/player/playerInteractionRadial.css';
+import '../../src/styles/mobileGameplayChrome.css';
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 
@@ -1453,6 +1455,7 @@ register('home', async (root) => {
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
+  const cleanupMobileGameplayChrome = enableMobileGameplayChrome();
   const entityInteractionPanel = createEntityInteractionPanel(root);
   const cleanupInventoryFeature = enableInventoryFeature();
   const cleanupHospitalManagement = enableHospitalManagementFeature();
@@ -2344,6 +2347,7 @@ register('home', async (root) => {
     cleanupGameRealtime?.();
     cleanupMobileSelfMarker?.();
     entityInteractionPanel.cleanup();
+    cleanupMobileGameplayChrome?.();
     cleanupSessionGuard?.();
     mapControls?.cleanup?.();
     cleanupFogOfWar?.();
