@@ -2,7 +2,10 @@
 import './inventory.css';
 import { state } from '../state.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
-import { applyPlayerPositionVitalRestore } from '../player/playerPosition.js';
+import {
+  applyPlayerPositionVitalCost,
+  applyPlayerPositionVitalRestore,
+} from '../player/playerPosition.js';
 import {
   getHospitalUserErrorMessage,
   loadMyMedicalInventory,
@@ -29,9 +32,9 @@ const ITEM_META = Object.freeze({
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
 });
 const MEDICINE_METABOLIC_COST = Object.freeze({
-  medicine_light: { food: '1–2', water: '3–4' },
-  medicine_strong: { food: '3–5', water: '5–7' },
-  medicine_resuscitation: { food: '10–12', water: '8–18' },
+  medicine_light: { foodMin: 1, foodMax: 2, waterMin: 3, waterMax: 4 },
+  medicine_strong: { foodMin: 3, foodMax: 5, waterMin: 5, waterMax: 7 },
+  medicine_resuscitation: { foodMin: 10, foodMax: 12, waterMin: 8, waterMax: 18 },
 });
 
 const VITAL_ALIASES = Object.freeze({
@@ -107,6 +110,59 @@ function optionalFiniteNumber(value) {
   if (value === undefined || value === null || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function randomInteger(min, max) {
+  const safeMin = Math.ceil(Math.min(min, max));
+  const safeMax = Math.floor(Math.max(min, max));
+  return safeMin + Math.floor(Math.random() * (safeMax - safeMin + 1));
+}
+
+function medicineCostValue(returnedValue, observedValue, min, max) {
+  const returned = Math.floor(Number(returnedValue));
+  if (Number.isFinite(returned) && returned >= min) return Math.min(max, returned);
+
+  const observed = Math.floor(Number(observedValue));
+  if (Number.isFinite(observed) && observed >= min) return Math.min(max, observed);
+
+  return randomInteger(min, max);
+}
+
+async function ensureMedicineMetabolicCost(itemType, result, beforeVitals) {
+  const range = MEDICINE_METABOLIC_COST[itemType];
+  if (!range) return result;
+
+  const resultFood = optionalFiniteNumber(result?.food);
+  const resultWater = optionalFiniteNumber(result?.water);
+  const observedFoodCost = resultFood === null ? 0 : Math.max(0, beforeVitals.food - resultFood);
+  const observedWaterCost = resultWater === null ? 0 : Math.max(0, beforeVitals.water - resultWater);
+  const foodCost = medicineCostValue(
+    result?.foodCost,
+    observedFoodCost,
+    range.foodMin,
+    range.foodMax
+  );
+  const waterCost = medicineCostValue(
+    result?.waterCost,
+    observedWaterCost,
+    range.waterMin,
+    range.waterMax
+  );
+  const canonicalVitals = await applyPlayerPositionVitalCost({
+    foodCost,
+    waterCost,
+    foodBefore: beforeVitals.food,
+    waterBefore: beforeVitals.water,
+  });
+
+  return {
+    ...(result || {}),
+    ...canonicalVitals,
+    foodCost,
+    waterCost,
+    canonicalVitalsUpdated: true,
+    medicineMetabolismTransport: 'player_positions_frontend_ensure',
+  };
 }
 
 function readVital(source, key, fallback) {
@@ -673,7 +729,7 @@ export function enableInventoryFeature() {
       const maxHealth = Number(item.maxHealth || 100);
       const cost = MEDICINE_METABOLIC_COST[itemType];
       const metabolicRule = cost
-        ? `\nРасход при приёме: ${cost.food} еды и ${cost.water} воды.`
+        ? `\nРасход при приёме: ${cost.foodMin}–${cost.foodMax} еды и ${cost.waterMin}–${cost.waterMax} воды.`
         : '';
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nЛечение: +${heal} HP каждые ${tick} сек., максимум ${duration} сек.\nУсловия: HP от ${minHealth} до ${maxHealth - 1}, еда от ${minFood}, вода от ${minWater}.${metabolicRule}`;
     }
@@ -766,6 +822,7 @@ export function enableInventoryFeature() {
       }));
     }
     try {
+      const vitalsBeforeUse = { ...currentVitals };
       let result = await useInventoryItem({
         itemType,
         source: item.source || item.inventorySource || 'personal',
@@ -775,6 +832,10 @@ export function enableInventoryFeature() {
       if (itemType === 'water_bottle' && result?.canonicalVitalsUpdated !== true) {
         const restoredVitals = await applyPlayerPositionVitalRestore({ waterRestore: 20 });
         result = { ...(result || {}), ...restoredVitals };
+      }
+
+      if (itemType.startsWith('medicine_')) {
+        result = await ensureMedicineMetabolicCost(itemType, result, vitalsBeforeUse);
       }
 
       const resultBalance = optionalFiniteNumber(result?.balance);
@@ -1151,4 +1212,3 @@ export function enableInventoryFeature() {
     overlay.remove();
   };
 }
-
