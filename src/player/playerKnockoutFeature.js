@@ -205,6 +205,9 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
   let admissionInFlight = false;
   let hospitalEntryConfirmed = false;
   let beginInFlight = false;
+  let reconnectCheckPending = true;
+  let reconnectHospitalizationRequired = false;
+  let pendingAdmissionSource = 'knockout';
   let clockOffsetMs = 0;
   let overlay = null;
   let timerElement = null;
@@ -326,12 +329,21 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
     }
     admissionRetryTimer = window.setTimeout(() => {
       admissionRetryTimer = 0;
-      void admitToHospital();
+      void admitToHospital({
+        reconnect: reconnectHospitalizationRequired,
+        source: pendingAdmissionSource,
+      });
     }, ADMISSION_RETRY_MS);
   }
 
-  async function admitToHospital() {
+  async function admitToHospital(options = {}) {
     if (destroyed || !gameplayReady || admissionInFlight) return;
+    const reconnect = options?.reconnect === true || reconnectHospitalizationRequired;
+    const admissionSource = String(
+      options?.source || pendingAdmissionSource || (reconnect ? 'low_health_reconnect' : 'knockout')
+    );
+    reconnectHospitalizationRequired = reconnect;
+    pendingAdmissionSource = admissionSource;
     if (
       medical.knockState === 'hospitalized' &&
       hospitalEntryConfirmed &&
@@ -355,13 +367,19 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
       if (!hospital || !hospitalId) throw new Error('CITY_HOSPITAL_NOT_FOUND');
 
       if (medical.knockState !== 'hospitalized') {
-        const result = await invokeMedicalRpc('player_admit_to_hospital', {
+        const result = await invokeMedicalRpc(
+          reconnect ? 'player_reconnect_to_hospital' : 'player_admit_to_hospital',
+          {
           p_player_id: getLocalPlayerId(),
           p_hospital_id: hospitalId,
           p_bed_id: medical.hospitalBedId || null,
-        });
+          }
+        );
         const stabilizedResult = await stabilizeHospitalAdmission(result);
-        applyMedical(stabilizedResult, 'hospital_admission');
+        applyMedical(
+          stabilizedResult,
+          reconnect ? 'low_health_reconnect_admission' : 'hospital_admission'
+        );
       }
 
       window.dispatchEvent(new CustomEvent('mn:hospital-enter-request', {
@@ -371,7 +389,7 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
           action: 'admit',
           admission: {
             forced: true,
-            source: 'knockout',
+            source: admissionSource,
             preferredBedId: medical.hospitalBedId || null,
           },
         },
@@ -480,6 +498,8 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
   function handleHospitalAdmitted(event) {
     if (medical.knockState !== 'hospitalized') return;
     hospitalEntryConfirmed = true;
+    reconnectHospitalizationRequired = false;
+    pendingAdmissionSource = 'knockout';
     window.clearTimeout(admissionRetryTimer);
     admissionRetryTimer = 0;
     const bedId = event?.detail?.bedId || null;
@@ -499,6 +519,20 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
     medicalStateVerified = true;
     medical = normalizeMedicalState(nextState);
     Object.assign(playerPosition || {}, medical);
+    if (gameplayReady && reconnectCheckPending) return;
+
+    if (
+      gameplayReady &&
+      reconnectHospitalizationRequired &&
+      medical.health < HOSPITAL_EXIT_HEALTH &&
+      medical.knockState !== 'hospitalized'
+    ) {
+      publishControlLock(true, 'low_health_reconnect');
+      ensureOverlay('transporting');
+      void admitToHospital({ reconnect: true, source: 'low_health_reconnect' });
+      return;
+    }
+
     if (medical.knockState === 'conscious') {
       hospitalEntryConfirmed = false;
       window.clearInterval(countdownTimer);
@@ -537,6 +571,7 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
     if (destroyed || gameplayReady) return;
     gameplayReady = true;
     medicalStateVerified = false;
+    reconnectCheckPending = true;
     publishControlLock(false, 'checking_medical_state');
     removeOverlay();
     void refreshMedicalState();
@@ -548,6 +583,25 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
       const nextState = await loadPlayerKnockoutState();
       medical = normalizeMedicalState(nextState);
       Object.assign(playerPosition || {}, medical);
+
+      if (gameplayReady && reconnectCheckPending) {
+        reconnectCheckPending = false;
+        const lowHealthReconnect = medical.health < HOSPITAL_EXIT_HEALTH;
+
+        if (lowHealthReconnect || medical.knockState !== 'conscious') {
+          reconnectHospitalizationRequired = lowHealthReconnect && medical.knockState !== 'hospitalized';
+          pendingAdmissionSource = lowHealthReconnect
+            ? 'low_health_reconnect'
+            : 'hospital_reconnect';
+          publishControlLock(true, pendingAdmissionSource);
+          ensureOverlay('transporting');
+          void admitToHospital({
+            reconnect: reconnectHospitalizationRequired,
+            source: pendingAdmissionSource,
+          });
+          return;
+        }
+      }
 
       if (gameplayReady) activateMedicalState('medical_state_refresh');
     } catch (error) {
