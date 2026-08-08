@@ -60,6 +60,7 @@ export function enableMobileGameplayChrome() {
 
   let destroyed = false;
   let syncFrame = 0;
+  let interiorEntered = false;
 
   function rememberOrigin(element) {
     if (origins.has(element)) return;
@@ -104,7 +105,10 @@ export function enableMobileGameplayChrome() {
 
     actionDock.hidden = !mobile;
     noticeLane.hidden = !mobile;
-    inventoryButton.hidden = !mobile;
+    const inventoryAvailable = mobile && interiorEntered;
+    inventoryButton.hidden = !inventoryAvailable;
+    inventoryButton.disabled = !inventoryAvailable;
+    inventoryButton.setAttribute('aria-hidden', inventoryAvailable ? 'false' : 'true');
 
     if (!mobile) {
       restoreAll();
@@ -118,6 +122,16 @@ export function enableMobileGameplayChrome() {
   function scheduleSync() {
     if (destroyed || syncFrame) return;
     syncFrame = window.requestAnimationFrame(sync);
+  }
+
+  function handleInteriorEntered() {
+    interiorEntered = true;
+    scheduleSync();
+  }
+
+  function handleInteriorExited() {
+    interiorEntered = false;
+    scheduleSync();
   }
 
   function openInteriorInventory(event) {
@@ -145,6 +159,8 @@ export function enableMobileGameplayChrome() {
 
   mediaQuery.addEventListener?.('change', scheduleSync);
   inventoryButton.addEventListener('click', openInteriorInventory);
+  window.addEventListener('mn:interior-entered', handleInteriorEntered);
+  window.addEventListener('mn:interior-exited', handleInteriorExited);
   scheduleSync();
 
   return () => {
@@ -152,6 +168,8 @@ export function enableMobileGameplayChrome() {
     observer.disconnect();
     mediaQuery.removeEventListener?.('change', scheduleSync);
     inventoryButton.removeEventListener('click', openInteriorInventory);
+    window.removeEventListener('mn:interior-entered', handleInteriorEntered);
+    window.removeEventListener('mn:interior-exited', handleInteriorExited);
 
     if (syncFrame) {
       window.cancelAnimationFrame(syncFrame);
