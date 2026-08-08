@@ -54,3 +54,4 @@ export function getStaminaRecoverySeconds(waterValue = 100) {
 export function getStaminaRecoveryPerFrame(waterValue = 100) {
   return PLAYER_STAMINA_CONFIG.max / (getStaminaRecoverySeconds(waterValue) * 60);
 }
+
