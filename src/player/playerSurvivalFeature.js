@@ -363,3 +363,5 @@ export function enablePlayerSurvivalFeature() {
     window.__MN_SPRINT_BLOCKED_BY_VITALS__ = false;
   };
 }
+
+
