@@ -1,4 +1,5 @@
 import { getStaminaConfig, getStaminaRecoveryPerFrame } from '../player/playerStaminaConfig.js';
+import { readPlayerStaminaState, writePlayerStaminaState } from '../player/playerStaminaState.js';
 import { MOVEMENT_CONFIG } from '../config/movement.js';
 import { state as gameState } from '../state.js';
 
@@ -325,8 +326,9 @@ export function enableMobileJoystick(
     toFiniteNumber(marker.dataset.angle) ??
     0;
 
-  let stamina = STAMINA.max;
-  let sprintLocked = false;
+  const initialStaminaState = readPlayerStaminaState();
+  let stamina = initialStaminaState.value;
+  let sprintLocked = initialStaminaState.locked;
 
   let activePointerId = null;
   let centerX = 0;
@@ -459,6 +461,10 @@ export function enableMobileJoystick(
   }
 
   function updateSprintState(isMoving, frameScale) {
+    const sharedStamina = readPlayerStaminaState();
+    stamina = sharedStamina.value;
+    sprintLocked = sharedStamina.locked;
+
     const joystickPower = getJoystickPower(moveX, moveY);
     const sprintBlockedByVitals = window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true;
     const wantsSprint = isMoving && joystickPower >= SPRINT_POWER && !sprintLocked && !sprintBlockedByVitals;
@@ -504,6 +510,7 @@ export function enableMobileJoystick(
       }
     }
 
+    writePlayerStaminaState(stamina, sprintLocked, 'mobile');
     updateStaminaUi();
 
     return wantsSprint;
