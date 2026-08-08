@@ -360,7 +360,7 @@ function getPointerPoint(event) {
 function showInteractionNotice(root, message) {
   if (!root || !message) return;
 
-  let notice = root.querySelector('.entity-interaction-notice');
+  let notice = document.querySelector('.entity-interaction-notice');
 
   if (!notice) {
     notice = document.createElement('div');
@@ -1869,6 +1869,7 @@ export function enableEntityInteraction({
     overviewLayer.remove();
 
     hint.remove();
+    document.querySelector('.entity-interaction-notice')?.remove();
     layer.remove();
   };
 }
