@@ -1,14 +1,15 @@
 import { state } from '../state.js';
 import { applyPlayerPositionVitalCost } from './playerPosition.js';
 
-const SURVIVAL_POLL_MS = 30_000;
-const WALKING_METABOLIC_INTERVAL_MS = 60_000;
+const SURVIVAL_POLL_MS = 10_000;
+const WALKING_METABOLIC_INTERVAL_MS = 30_000;
 const WALKING_EVENT_MAX_MS = 1_000;
 const WALKING_MAX_CATCHUP_INTERVALS = 10;
-const AFK_METABOLIC_INTERVAL_MS = 10 * 60_000;
+const AFK_METABOLIC_INTERVAL_MS = 5 * 60_000;
 const SURVIVAL_MAX_CATCHUP_INTERVALS = 288;
-const STARVATION_GRACE_MS = 60_000;
+const STARVATION_GRACE_MS = 0;
 const STARVATION_DAMAGE_INTERVAL_MS = 30_000;
+const STARVATION_DAMAGE_PER_INTERVAL = 5;
 const STAMINA_USAGE_POINTS_PER_INTERVAL = 5;
 const STAMINA_USAGE_POINT_EPSILON = 0.05;
 const STAMINA_USAGE_MAX_CATCHUP_INTERVALS = 10;
@@ -114,18 +115,29 @@ export function enablePlayerSurvivalFeature() {
         Math.max(0, Math.floor((now - lastAfkChargeAt) / AFK_METABOLIC_INTERVAL_MS))
       );
 
+      let canonicalResult = null;
+
       if (metabolicIntervals > 0) {
         const afkChargeThrough = lastAfkChargeAt
           + metabolicIntervals * AFK_METABOLIC_INTERVAL_MS;
-        const result = await applyPlayerPositionVitalCost({
+        canonicalResult = await applyPlayerPositionVitalCost({
           foodCost: metabolicIntervals,
           waterCost: metabolicIntervals,
         });
         lastAfkChargeAt = Math.max(lastAfkChargeAt, afkChargeThrough);
-        if (!destroyed) applyServerResult(result || {}, 'afk_metabolism');
+        if (!destroyed) applyServerResult(canonicalResult || {}, 'afk_metabolism');
+      } else {
+        // Не доверяем только state.player: параллельная синхронизация могла
+        // принести устаревшие показатели и бесконечно сбрасывать голодный
+        // таймер. Нулевой cost читает фактические vitals из player_positions.
+        canonicalResult = await applyPlayerPositionVitalCost();
+        if (!destroyed) applyServerResult(canonicalResult || {}, 'survival_vitals_sync');
       }
 
-      const vitals = currentVitals();
+      const vitals = {
+        ...currentVitals(),
+        ...resultVitals(canonicalResult || {}),
+      };
       const starving = vitals.food <= 0 || vitals.water <= 0;
 
       if (!starving) {
@@ -155,7 +167,7 @@ export function enablePlayerSurvivalFeature() {
       if (!damageIntervals) return;
 
       const result = await applyPlayerPositionVitalCost({
-        healthDamage: damageIntervals,
+        healthDamage: damageIntervals * STARVATION_DAMAGE_PER_INTERVAL,
         minimumHealth: 10,
       });
       starvationLastDamageAt = damageAnchor + damageIntervals * STARVATION_DAMAGE_INTERVAL_MS;
