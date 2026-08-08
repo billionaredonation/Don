@@ -39,7 +39,11 @@ import { enableHospitalManagementFeature } from '../../src/hospital/hospitalMana
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
 import { enablePlayerStatusEffects } from '../../src/player/playerStatusEffects.js';
 import { enablePlayerSurvivalFeature } from '../../src/player/playerSurvivalFeature.js';
-import { enablePlayerKnockoutFeature } from '../../src/player/playerKnockoutFeature.js';
+import {
+  enablePlayerKnockoutFeature,
+  HOSPITAL_EXIT_HEALTH,
+  loadPlayerKnockoutState,
+} from '../../src/player/playerKnockoutFeature.js';
 import { enableMobileGameplayChrome } from '../../src/ui/mobileGameplayChrome.js';
 import {
   fetchPlayerOwnedHouses,
@@ -450,8 +454,32 @@ function setupHouseSpawnPicker({
     }
   }
 
-  fetchPlayerOwnedHouses({ playerId: playerTgId, cityId })
-    .then((houses) => {
+  async function openSpawnDestination() {
+    try {
+      const medical = await loadPlayerKnockoutState();
+      const health = Number(medical?.health);
+      const knockState = String(medical?.knockState || medical?.knock_state || 'conscious');
+
+      if (
+        (Number.isFinite(health) && health < HOSPITAL_EXIT_HEALTH) ||
+        knockState === 'countdown' ||
+        knockState === 'hospitalized'
+      ) {
+        completeGameplayEntry('hospital_reconnect');
+        return;
+      }
+    } catch (error) {
+      console.warn('[home] medical check before spawn picker failed:', error);
+
+      const localHealth = Number(playerPosition?.health ?? state.player?.health);
+      if (Number.isFinite(localHealth) && localHealth < HOSPITAL_EXIT_HEALTH) {
+        completeGameplayEntry('hospital_reconnect_local');
+        return;
+      }
+    }
+
+    const houses = await fetchPlayerOwnedHouses({ playerId: playerTgId, cityId });
+
       if (disposed || root.dataset.destroyed === 'true') return;
 
       ownedHouses = Array.isArray(houses) ? houses.slice(0, PLAYER_HOUSE_SLOT_LIMIT) : [];
@@ -474,8 +502,9 @@ function setupHouseSpawnPicker({
       overlay?.addEventListener('click', handleClick);
       window.addEventListener('keydown', handleKeyDown, true);
       setPickerGate(true);
-    })
-    .catch((error) => {
+  }
+
+  openSpawnDestination().catch((error) => {
       console.warn('[home] house spawn picker failed:', error);
       completeGameplayEntry('city_spawn_picker_failed');
     });
@@ -2375,4 +2404,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
