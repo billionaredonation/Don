@@ -27,6 +27,8 @@ function isElementVisible(element) {
     styles.display !== 'none' &&
     styles.visibility !== 'hidden' &&
     Number(styles.opacity || 1) > 0 &&
+    rect.width > 1 &&
+    rect.height > 1 &&
     rect.bottom >= 0 &&
     rect.right >= 0 &&
     rect.top <= window.innerHeight &&
@@ -40,11 +42,17 @@ function findLocalPlayerMarker() {
     if (isElementVisible(interiorMarker)) return interiorMarker;
   }
 
-  const hardMobileMarker = document.querySelector('[data-mobile-self-marker-hard="true"]');
-  if (isElementVisible(hardMobileMarker)) return hardMobileMarker;
+  const mobileGameplayActive = Boolean(
+    document.body?.classList.contains('mn-mobile-game-enabled') ||
+    document.querySelector('.home[data-mobile-controls="enabled"]')
+  );
+  if (mobileGameplayActive) {
+    const hardMobileMarker = document.querySelector('[data-mobile-self-marker-hard="true"]');
+    if (isElementVisible(hardMobileMarker)) return hardMobileMarker;
 
-  const mobileMarker = document.querySelector('.mobile-self-player-indicator');
-  if (isElementVisible(mobileMarker)) return mobileMarker;
+    const mobileMarker = document.querySelector('.mobile-self-player-indicator');
+    if (isElementVisible(mobileMarker)) return mobileMarker;
+  }
 
   const mapMarker = document.querySelector('.gta-player-marker-self');
   return isElementVisible(mapMarker) ? mapMarker : null;
