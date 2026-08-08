@@ -231,6 +231,16 @@ function getVitalAlerts(vitals) {
     });
   }
 
+  if (health < 30) {
+    alerts.push({
+      code: 'hospital-reconnect',
+      severity: 'danger',
+      icon: '🏥',
+      title: 'Требуется лечение в больнице',
+      text: 'При перезаходе вы будете автоматически отправлены в больницу. Свободный выход доступен с 30 HP.',
+    });
+  }
+
   if (health < getHealthThreshold()) {
     alerts.push({
       code: 'low-health',
