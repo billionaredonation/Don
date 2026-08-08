@@ -6,6 +6,9 @@ import './playerKnockout.css';
 
 export const KNOCKOUT_HEALTH = 10;
 export const HOSPITAL_EXIT_HEALTH = 30;
+const HOSPITAL_ADMISSION_MIN_HEALTH = 20;
+const HOSPITAL_ADMISSION_MIN_FOOD = 5;
+const HOSPITAL_ADMISSION_MIN_WATER = 5;
 const KNOCKOUT_COUNTDOWN_MS = 60_000;
 const STATE_REFRESH_MS = 5_000;
 const TREATMENT_REFRESH_MS = 2_000;
@@ -257,6 +260,41 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
     return medical;
   }
 
+  async function stabilizeHospitalAdmission(result) {
+    const admission = normalizeMedicalState(result);
+    const health = Math.max(HOSPITAL_ADMISSION_MIN_HEALTH, admission.health);
+    const food = Math.max(HOSPITAL_ADMISSION_MIN_FOOD, admission.food);
+    const water = Math.max(HOSPITAL_ADMISSION_MIN_WATER, admission.water);
+
+    if (
+      health === admission.health &&
+      food === admission.food &&
+      water === admission.water
+    ) {
+      return result;
+    }
+
+    // Совместимость со старой версией RPC: если база ещё вернула 10/0/0,
+    // сразу закрепляем безопасные значения в canonical player_positions.
+    const { data, error } = await supabase
+      .from('player_positions')
+      .update({
+        health,
+        food,
+        water,
+        knock_state: 'hospitalized',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('player_id', getLocalPlayerId())
+      .select('health, food, water, knock_state, hospitalized_at, hospital_id, hospital_bed_id')
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error('HOSPITAL_ADMISSION_STABILIZATION_FAILED');
+
+    return { ...(result || {}), ...data, health, food, water, knockState: 'hospitalized' };
+  }
+
   function knockDeadline() {
     const startedAt = Date.parse(medical.knockStartedAt || '');
     return Number.isFinite(startedAt) ? startedAt + KNOCKOUT_COUNTDOWN_MS : Date.now();
@@ -306,7 +344,8 @@ export function enablePlayerKnockoutFeature({ playerPosition, cityId } = {}) {
           p_hospital_id: hospitalId,
           p_bed_id: medical.hospitalBedId || null,
         });
-        applyMedical(result, 'hospital_admission');
+        const stabilizedResult = await stabilizeHospitalAdmission(result);
+        applyMedical(stabilizedResult, 'hospital_admission');
       }
 
       window.dispatchEvent(new CustomEvent('mn:hospital-enter-request', {
