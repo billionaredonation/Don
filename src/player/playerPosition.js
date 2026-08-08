@@ -209,11 +209,19 @@ export function applyPlayerPositionVitalCost({
   waterCost = 0,
   healthDamage = 0,
   minimumHealth = 10,
+  foodBefore = null,
+  waterBefore = null,
 } = {}) {
   const safeFoodCost = Math.max(0, Math.floor(Number(foodCost) || 0));
   const safeWaterCost = Math.max(0, Math.floor(Number(waterCost) || 0));
   const safeHealthDamage = Math.max(0, Math.floor(Number(healthDamage) || 0));
   const safeMinimumHealth = Math.min(100, Math.max(0, Number(minimumHealth) || 0));
+  const safeFoodBefore = foodBefore !== null && foodBefore !== undefined && foodBefore !== '' && Number.isFinite(Number(foodBefore))
+    ? normalizeVital(foodBefore, 100)
+    : null;
+  const safeWaterBefore = waterBefore !== null && waterBefore !== undefined && waterBefore !== '' && Number.isFinite(Number(waterBefore))
+    ? normalizeVital(waterBefore, 100)
+    : null;
 
   const mutate = async () => {
     const playerId = getLocalPlayerId();
@@ -230,8 +238,16 @@ export function applyPlayerPositionVitalCost({
     const food = normalizeVital(current.food, state.player?.food ?? 100);
     const water = normalizeVital(current.water, state.player?.water ?? 100);
     const nextHealth = Math.max(safeMinimumHealth, health - safeHealthDamage);
-    const nextFood = Math.max(0, food - safeFoodCost);
-    const nextWater = Math.max(0, water - safeWaterCost);
+    // With a supplied pre-action snapshot this becomes an idempotent ensure:
+    // an Edge Function may already have spent part or all of the cost, and we
+    // only bring player_positions down to the required target without charging
+    // the same medicine twice.
+    const nextFood = safeFoodBefore === null
+      ? Math.max(0, food - safeFoodCost)
+      : Math.min(food, Math.max(0, safeFoodBefore - safeFoodCost));
+    const nextWater = safeWaterBefore === null
+      ? Math.max(0, water - safeWaterCost)
+      : Math.min(water, Math.max(0, safeWaterBefore - safeWaterCost));
 
     const { data: updated, error: updateError } = await supabase
       .from('player_positions')
