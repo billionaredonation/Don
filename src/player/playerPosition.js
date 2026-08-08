@@ -272,6 +272,84 @@ export function applyPlayerPositionVitalCost({
   return result;
 }
 
+/**
+ * Restores canonical vitals in player_positions. Consumable inventory RPCs
+ * from older deployments still update the legacy players row, while every
+ * gameplay HUD and survival system reads player_positions.
+ */
+export function applyPlayerPositionVitalRestore({
+  foodRestore = 0,
+  waterRestore = 0,
+  healthRestore = 0,
+} = {}) {
+  const safeFoodRestore = Math.max(0, Math.floor(Number(foodRestore) || 0));
+  const safeWaterRestore = Math.max(0, Math.floor(Number(waterRestore) || 0));
+  const safeHealthRestore = Math.max(0, Math.floor(Number(healthRestore) || 0));
+
+  const mutate = async () => {
+    const playerId = getLocalPlayerId();
+    const { data: current, error: selectError } = await supabase
+      .from('player_positions')
+      .select('health, food, water, knock_state')
+      .eq('player_id', playerId)
+      .maybeSingle();
+
+    if (selectError) throw selectError;
+    if (!current) throw new Error('PLAYER_POSITION_NOT_FOUND');
+
+    const health = normalizeVital(current.health, state.player?.health ?? 100);
+    const food = normalizeVital(current.food, state.player?.food ?? 100);
+    const water = normalizeVital(current.water, state.player?.water ?? 100);
+    const nextHealth = Math.min(100, health + safeHealthRestore);
+    const nextFood = Math.min(100, food + safeFoodRestore);
+    const nextWater = Math.min(100, water + safeWaterRestore);
+    const invalidCountdown = String(current.knock_state || 'conscious') === 'countdown' && nextHealth > 10;
+    const updates = {
+      health: nextHealth,
+      food: nextFood,
+      water: nextWater,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (invalidCountdown) {
+      Object.assign(updates, {
+        knock_state: 'conscious',
+        knock_started_at: null,
+        hospitalized_at: null,
+        hospital_id: null,
+        hospital_bed_id: null,
+      });
+    }
+
+    const { data: updated, error: updateError } = await supabase
+      .from('player_positions')
+      .update(updates)
+      .eq('player_id', playerId)
+      .select('health, food, water, knock_state')
+      .maybeSingle();
+
+    if (updateError) throw updateError;
+    if (!updated) throw new Error('PLAYER_POSITION_VITALS_UPDATE_FAILED');
+
+    return {
+      health: normalizeVital(updated.health, nextHealth),
+      food: normalizeVital(updated.food, nextFood),
+      water: normalizeVital(updated.water, nextWater),
+      knockState: String(updated.knock_state || (invalidCountdown ? 'conscious' : current.knock_state || 'conscious')),
+      foodRestore: safeFoodRestore,
+      waterRestore: safeWaterRestore,
+      healthRestore: safeHealthRestore,
+      playerId,
+      transport: 'player_positions_direct_restore',
+    };
+  };
+
+  const result = vitalsMutationQueue.then(mutate, mutate);
+  vitalsMutationQueue = result.catch(() => undefined);
+
+  return result;
+}
+
 async function getPlayerAdminFlag(playerId, nickname) {
   const safeNickname = getSafeNickname(nickname).replaceAll(',', '');
   const telegramId = getTelegramUserId();
@@ -761,5 +839,3 @@ export async function setPlayerOffline() {
 
   if (error) throw error;
 }
-
-
