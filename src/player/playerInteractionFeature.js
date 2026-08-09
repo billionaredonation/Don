@@ -4,7 +4,6 @@ import {
   invalidateProfessionalPlayerActions,
   loadAvailableProfessionalPlayerActions,
 } from './professionalActions.js';
-import { loadMyMedicalInventory } from '../hospital/hospitalWarehouseFeature.js';
 import './playerInteraction.css';
 
 const FUNCTION_NAME = 'player-interaction';
@@ -12,7 +11,6 @@ const CITY_DISTANCE = 3.4;
 const INTERIOR_DISTANCE = 5.2;
 const TRADE_SLOT_COUNT = 9;
 const TRADE_CONFIRM_DELAY_MS = 4000;
-const PUBLIC_TRADEABLE_CONSUMABLES = new Set(['food', 'water_bottle']);
 const MEDICINES = Object.freeze([
   { type: 'medicine_light', label: 'Простые таблетки', shortLabel: 'Простые таблетки' },
   { type: 'medicine_strong', label: 'Среднеседативные таблетки', shortLabel: 'Средние таблетки' },
@@ -188,17 +186,14 @@ function normalizeTradeInventory(inventory = {}) {
       const itemType = String(item?.itemType || item?.type || '').trim();
       const quantity = Math.max(0, Math.floor(Number(item?.quantity || 0)));
       const meta = tradeItemMeta(itemType, item || {});
-      const publicConsumable = PUBLIC_TRADEABLE_CONSUMABLES.has(itemType);
       return {
         itemType,
         quantity,
-        // Food and bottled water bought in a hospital cafeteria belong to the
-        // player, not to hospital staff stock. Normalize older server payloads
-        // that still mark them as service items so they remain tradeable.
-        source: publicConsumable
-          ? 'personal'
-          : String(item?.source || item?.inventorySource || 'personal').trim() || 'personal',
-        hospitalId: publicConsumable ? null : String(item?.hospitalId || '').trim() || null,
+        // The Edge Function returns only server-verified, player-owned items.
+        // Keep its source metadata intact so current and future item types do
+        // not need a client-side whitelist to participate in trade.
+        source: String(item?.source || item?.inventorySource || 'personal').trim() || 'personal',
+        hospitalId: String(item?.hospitalId || '').trim() || null,
         label: meta.label,
         icon: meta.icon,
       };
@@ -380,34 +375,15 @@ function tradeSubmitMarkup() {
 }
 
 async function loadTradeInventory() {
+  // One authoritative snapshot only. Previously this UI mixed the Edge trade
+  // inventory with medical inventory, window globals and local state, then
+  // picked the largest quantity. That could display items the trade RPC could
+  // not actually debit and caused false TRADE_ITEM_NOT_ENOUGH errors.
   const tradeInventory = await invokePlayerAction('trade_inventory');
-  let playerInventory = null;
-  try {
-    playerInventory = await loadMyMedicalInventory();
-  } catch {
-    // The trade endpoint remains the source of truth and is enough for the
-    // existing items if the general inventory endpoint is temporarily down.
-  }
-
-  const items = new Map();
-  const addPersonalItems = (source) => {
-    normalizeTradeInventory(source).forEach((item) => {
-      const inventorySource = String(item.source || 'personal').toLowerCase();
-      if (['employee', 'staff', 'service'].includes(inventorySource)) return;
-      const key = tradeItemKey(item);
-      const current = items.get(key);
-      if (!current || item.quantity > current.quantity) items.set(key, item);
-    });
+  return {
+    ...(tradeInventory && typeof tradeInventory === 'object' ? tradeInventory : {}),
+    items: normalizeTradeInventory(tradeInventory),
   };
-
-  addPersonalItems(tradeInventory);
-  addPersonalItems(playerInventory || {});
-  addPersonalItems(window.__MN_PLAYER_INVENTORY_ITEMS__ || []);
-  addPersonalItems(state.player?.inventory || []);
-  addPersonalItems(state.player?.items || []);
-  addPersonalItems(state.inventory || []);
-  addPersonalItems(state.playerInventory || []);
-  return { ...tradeInventory, items: [...items.values()] };
 }
 
 function toast(message, type = 'info') {
