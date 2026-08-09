@@ -1,5 +1,6 @@
 import './playerStatusEffects.css';
 import { state } from '../state.js';
+import { supabase } from '../supabaseClient.js';
 
 const TICK_MS = 90;
 const HEAL_EMIT_MS = 135;
@@ -8,6 +9,24 @@ const CONSUMPTION_EMIT_MS = 115;
 const DAMAGE_ACTIVITY_MS = 950;
 const TREATMENT_WATCHDOG_MS = 90000;
 const TREATMENT_BROADCAST_HEARTBEAT_MS = 15000;
+const TREATMENT_RETRY_MS = 10000;
+
+function telegramInitData() {
+  return String(window.Telegram?.WebApp?.initData || '').trim();
+}
+
+async function processMedicineTreatment() {
+  const initData = telegramInitData();
+  if (!initData) return null;
+
+  const { data, error } = await supabase.functions.invoke('hospital-warehouse', {
+    body: { initData, action: 'process_treatment' },
+  });
+
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error || data?.reason || 'TREATMENT_PROCESS_FAILED');
+  return data.result || {};
+}
 
 function finiteNumber(value) {
   const number = Number(value);
@@ -133,6 +152,9 @@ export function enablePlayerStatusEffects() {
   let destroyed = false;
   let treatmentActive = false;
   let treatmentWatchdog = 0;
+  let treatmentPollTimer = 0;
+  let treatmentPollInFlight = false;
+  let treatmentChannel = null;
   let lastTreatmentBroadcastAt = 0;
   let damageUntil = 0;
   let activeConsumption = '';
@@ -188,6 +210,60 @@ export function enablePlayerStatusEffects() {
 
     nextHealAt = 0;
     treatmentWatchdog = window.setTimeout(() => setTreatmentActive(false), safeWatchdogMs);
+  }
+
+  function scheduleTreatmentPoll(delayMs = 250) {
+    window.clearTimeout(treatmentPollTimer);
+    treatmentPollTimer = window.setTimeout(
+      pollTreatment,
+      Math.max(100, Number(delayMs) || 250)
+    );
+  }
+
+  async function pollTreatment() {
+    if (destroyed || treatmentPollInFlight) return;
+    treatmentPollInFlight = true;
+
+    try {
+      const result = await processMedicineTreatment();
+      if (!result || destroyed) return;
+
+      const vitals = {};
+      ['health', 'food', 'water'].forEach((key) => {
+        const value = finiteNumber(result[key]);
+        if (value !== null) vitals[key] = value;
+      });
+
+      if (Object.keys(vitals).length) {
+        state.player = { ...(state.player || {}), ...vitals };
+        window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
+          detail: {
+            vitals,
+            source: 'global_hospital_treatment',
+            animateDamage: false,
+            result,
+          },
+        }));
+      }
+
+      window.dispatchEvent(new CustomEvent('mn:player-treatment-state-changed', {
+        detail: {
+          active: result.active === true,
+          nextPollMs: Number(result.nextPollMs || 0),
+          source: 'global_hospital_treatment',
+          result,
+        },
+      }));
+
+      if (result.active === true) {
+        scheduleTreatmentPoll(Math.max(1000, Number(result.nextPollMs || 2000)));
+      }
+    } catch (error) {
+      console.warn('[playerStatusEffects] treatment processing failed:', error);
+      scheduleTreatmentPoll(TREATMENT_RETRY_MS);
+    } finally {
+      treatmentPollInFlight = false;
+    }
   }
 
   function setConsumption(active, kind) {
@@ -259,6 +335,7 @@ export function enablePlayerStatusEffects() {
 
   function handleTreatmentStarted() {
     setTreatmentActive(true);
+    scheduleTreatmentPoll(250);
   }
 
   function handleTreatmentState(event) {
@@ -364,11 +441,22 @@ export function enablePlayerStatusEffects() {
   window.addEventListener('mn:player-health-changed', handleVitalsChanged);
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
+  const tgId = localPlayerId();
+  if (tgId) {
+    treatmentChannel = supabase.channel(`mn-hospital-treatment:${tgId}`);
+    treatmentChannel.on('broadcast', { event: 'treatment_started' }, () => {
+      handleTreatmentStarted();
+    });
+    treatmentChannel.subscribe();
+  }
+  scheduleTreatmentPoll(1200);
+
   return () => {
     if (treatmentActive) setTreatmentActive(false);
     destroyed = true;
     window.clearInterval(timer);
     window.clearTimeout(treatmentWatchdog);
+    window.clearTimeout(treatmentPollTimer);
     window.removeEventListener('mn:hospital-treatment-started-local', handleTreatmentStarted);
     window.removeEventListener('mn:player-treatment-state-changed', handleTreatmentState);
     window.removeEventListener('mn:remote-player-treatment-state-changed', handleRemoteTreatmentState);
@@ -376,6 +464,7 @@ export function enablePlayerStatusEffects() {
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
     window.removeEventListener('mn:player-health-changed', handleVitalsChanged);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
+    if (treatmentChannel) supabase.removeChannel(treatmentChannel);
     layer.remove();
   };
 }
