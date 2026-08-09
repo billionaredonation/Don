@@ -171,3 +171,5 @@ export const doctorTreatmentAction = Object.freeze({
   resolveAccess: resolveDoctorAccess,
   render: renderDoctorTreatment,
 });
+
+
