@@ -80,10 +80,10 @@ function findRemotePlayerMarker(playerId) {
   const safePlayerId = String(playerId || '').trim();
   if (!safePlayerId) return null;
   const escaped = escapeCss(safePlayerId);
-  const marker = document.querySelector(
-    `.mn-interior-remote-player[data-player-id="${escaped}"], ` +
-    `.gta-player-marker-other[data-player-id="${escaped}"]`
-  );
+  const selector = window.__MN_INTERIOR_ACTIVE__ === true
+    ? `.mn-interior-remote-player[data-player-id="${escaped}"]`
+    : `.gta-player-marker-other[data-player-id="${escaped}"]`;
+  const marker = document.querySelector(selector);
   return isElementVisible(marker) ? marker : null;
 }
 
