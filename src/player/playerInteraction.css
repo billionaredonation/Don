@@ -203,3 +203,96 @@ body.mn-player-interaction-open .mobile-controls-layer, body.mn-player-interacti
   transform: translate(-50%, -7px) scale(.98);
 }
 
+
+/* Doctor -> patient treatment confirmation. Mirrors the compact Y/N house offer
+   pattern, but remains independent from the radial player interaction panel. */
+.mn-treatment-offer[hidden] { display: none !important; }
+.mn-treatment-offer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482500;
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.mn-treatment-offer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 14, .66);
+  backdrop-filter: blur(7px);
+}
+.mn-treatment-offer-card {
+  position: relative;
+  width: min(430px, calc(100vw - 28px));
+  padding: 20px;
+  border: 1px solid rgba(143, 209, 255, .24);
+  border-radius: 18px;
+  background: linear-gradient(155deg, rgba(20, 31, 43, .985), rgba(10, 16, 25, .985));
+  color: #f4f8fc;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .58), 0 0 34px rgba(65, 170, 255, .08);
+}
+.mn-treatment-offer-kicker {
+  display: block;
+  margin-bottom: 5px;
+  color: #8acbff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.mn-treatment-offer-card h3 { margin: 0 0 15px; font-size: 20px; line-height: 1.2; }
+.mn-treatment-offer-info { display: grid; gap: 7px; }
+.mn-treatment-offer-info p {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .045);
+}
+.mn-treatment-offer-info span { color: rgba(235, 244, 252, .62); font-size: 12px; }
+.mn-treatment-offer-info b { text-align: right; font-size: 13px; }
+.mn-treatment-offer-wait { margin: 13px 0 0; color: #a9c7dd; font-size: 11px; text-align: center; }
+.mn-treatment-offer-result {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .055);
+  color: #dceaf5;
+  font-size: 11px;
+  text-align: center;
+}
+.mn-treatment-offer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+.mn-treatment-offer-actions button {
+  min-height: 46px;
+  border: 1px solid rgba(255, 255, 255, .11);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .055);
+  color: #edf5fb;
+  font: 800 12px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.mn-treatment-offer-actions button.is-accept {
+  border-color: rgba(83, 227, 151, .35);
+  background: linear-gradient(135deg, rgba(28, 129, 80, .9), rgba(18, 94, 61, .9));
+}
+.mn-treatment-offer-actions button:disabled { opacity: .48; cursor: default; }
+.mn-treatment-offer-actions .pc-label {
+  display: inline-grid;
+  place-items: center;
+  min-width: 21px;
+  height: 21px;
+  margin-right: 7px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .12);
+  font-size: 10px;
+}
+@media (max-width: 700px), (hover: none) and (pointer: coarse) {
+  .mn-treatment-offer-card { width: min(390px, calc(100vw - 22px)); padding: 16px; border-radius: 16px; }
+  .mn-treatment-offer-card h3 { font-size: 17px; }
+  .mn-treatment-offer-actions button { min-height: 44px; }
+}
