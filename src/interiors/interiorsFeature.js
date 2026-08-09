@@ -1,8 +1,8 @@
 // Hospital batch refresh 2026-07-20: interior warehouse pickup deploy marker.
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
-import { getStaminaConfig, getStaminaRecoveryPerFrame } from '../player/playerStaminaConfig.js';
-import { readPlayerStaminaState, writePlayerStaminaState } from '../player/playerStaminaState.js';
+import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import { applyPlayerStaminaFrame, readPlayerStaminaState } from '../player/playerStaminaState.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import { getLocalPlayerId, getSessionId } from '../player/playerPosition.js';
 import {
@@ -1816,23 +1816,6 @@ export function enableInteriorsFeature() {
   let joystickVector = { x: 0, y: 0 };
   let joystickPointer = null;
   const staminaConfig = getStaminaConfig();
-  const mobileStaminaRecoveredAt = Number(staminaConfig.mobileRecoveredAt);
-  const mobileInteriorStamina = Boolean(
-    window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches ||
-    document.body?.classList.contains('mn-mobile-game-enabled') ||
-    document.documentElement?.classList.contains('mn-mobile-device-detected')
-  );
-  const staminaRecoveredAt = mobileInteriorStamina
-    ? Math.min(
-        staminaConfig.max,
-        Math.max(
-          staminaConfig.recoveredAt,
-          Number.isFinite(mobileStaminaRecoveredAt)
-            ? mobileStaminaRecoveredAt
-            : staminaConfig.max * 0.5
-        )
-      )
-    : staminaConfig.recoveredAt;
   const initialStaminaState = readPlayerStaminaState();
   let stamina = initialStaminaState.value;
   let sprintLocked = initialStaminaState.locked;
@@ -2872,13 +2855,15 @@ export function enableInteriorsFeature() {
 
   function renderStamina() {
     const percent = Math.max(0, Math.min(100, (stamina / staminaConfig.max) * 100));
-    staminaFill.style.width = `${percent}%`;
-    staminaRing.style.setProperty('--mn-interior-stamina', `${percent * 3.6}deg`);
-    staminaFill.dataset.state = sprintLocked || window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true
+    const visualState = sprintLocked || window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true
       ? 'locked'
       : percent < 30
         ? 'low'
         : 'normal';
+    staminaFill.style.width = `${percent}%`;
+    staminaRing.style.setProperty('--mn-interior-stamina', `${percent * 3.6}deg`);
+    staminaFill.dataset.state = visualState;
+    staminaRing.dataset.state = visualState;
   }
 
   function handleSprintAvailabilityChanged() {
@@ -4576,45 +4561,30 @@ export function enableInteriorsFeature() {
     const sprintBlockedByVitals = window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true;
     const wantsSprint = moving && !sprintBlockedByVitals && (keys.has('shift') || Math.hypot(joystickVector.x, joystickVector.y) >= 0.62);
     const frameScale = dt * 60;
-    const sharedStamina = readPlayerStaminaState();
-    stamina = sharedStamina.value;
-    sprintLocked = sharedStamina.locked;
-
-    if (wantsSprint && !sprintLocked) {
-      const previousStamina = stamina;
-      stamina = Math.max(staminaConfig.emptyAt, stamina - staminaConfig.drainPerFrame * frameScale);
-
-      const spentAmount = Math.max(0, previousStamina - stamina);
-      if (spentAmount > 0) {
-        window.dispatchEvent(new CustomEvent('mn:player-stamina-spent', {
-          detail: { source: 'interior', amount: spentAmount },
-        }));
-      }
-
-      if (stamina <= staminaConfig.emptyAt) {
-        const wasLocked = sprintLocked;
-        sprintLocked = true;
-        if (!wasLocked) {
-          window.dispatchEvent(new CustomEvent('mn:player-stamina-exhausted', {
-            detail: { source: 'interior' },
-          }));
-        }
-      }
-    } else {
-      stamina = Math.min(
-        staminaConfig.max,
-        stamina + getStaminaRecoveryPerFrame(state.player?.water) * frameScale
-      );
-      if (sprintLocked && stamina >= staminaRecoveredAt) {
-        sprintLocked = false;
-        window.dispatchEvent(new CustomEvent('mn:player-stamina-recovered', {
-          detail: { source: 'interior' },
-        }));
-      }
+    const nextStamina = applyPlayerStaminaFrame({
+      wantsSprint,
+      frameScale,
+      water: state.player?.water,
+      source: 'interior',
+    });
+    stamina = nextStamina.value;
+    sprintLocked = nextStamina.locked;
+    if (nextStamina.spent > 0) {
+      window.dispatchEvent(new CustomEvent('mn:player-stamina-spent', {
+        detail: { source: 'interior', amount: nextStamina.spent },
+      }));
     }
-
-    writePlayerStaminaState(stamina, sprintLocked, 'interior');
-    const sprint = wantsSprint && !sprintLocked;
+    if (nextStamina.exhausted) {
+      window.dispatchEvent(new CustomEvent('mn:player-stamina-exhausted', {
+        detail: { source: 'interior' },
+      }));
+    }
+    if (nextStamina.recovered) {
+      window.dispatchEvent(new CustomEvent('mn:player-stamina-recovered', {
+        detail: { source: 'interior' },
+      }));
+    }
+    const sprint = nextStamina.sprinting;
     const speed = sprint ? 23 : 15;
     window.__MN_INTERIOR_PLAYER_MOVING__ = moving;
     window.__MN_INTERIOR_PLAYER_SPRINTING__ = sprint;
@@ -5513,5 +5483,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
-
