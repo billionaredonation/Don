@@ -32,6 +32,7 @@ import premiumInteriorUrl from '../../premium_interior.png?url';
 import luxeInteriorUrl from '../../luxe_interior.png?url';
 import hospitalInteriorUrl from '../../ambulance_interior.png?url';
 import './interiors.css';
+import './interiorVisualTheme.css';
 
 const INTERIOR_COLLISION_TABLE = 'interior_collision_profiles';
 const INTERIOR_MAPPED_OBJECT_TABLE = 'interior_mapped_objects';
