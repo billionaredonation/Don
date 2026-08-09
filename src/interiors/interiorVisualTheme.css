@@ -48,12 +48,17 @@
 }
 
 /* Furniture is drawn as the object itself, never as a framed UI tile.
-   data-interior-object-type keeps this rule valid for objects added later. */
+   These defaults also apply to future bed/chair/table objects. */
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object[data-interior-object-type="bed"],
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object[data-interior-object-type="chair"],
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object[data-interior-object-type="table"] {
   outline: none !important;
-  border-color: transparent;
+  border: 0 !important;
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object[data-interior-object-type="bed"],
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object[data-interior-object-type="chair"] {
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -61,35 +66,25 @@
    -------------------------------------------------------------------------- */
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed {
   overflow: visible;
-  border: 0;
-  border-radius: 4px;
-  background:
-    linear-gradient(90deg,
-      transparent 0 4%,
-      rgba(108, 132, 143, .94) 4% 7%,
-      transparent 7% 93%,
-      rgba(108, 132, 143, .94) 93% 96%,
-      transparent 96%),
-    linear-gradient(180deg,
-      rgba(219, 236, 242, .22) 0 5%,
-      var(--mn-hospital-metal-dark) 5% 95%,
-      rgba(0, 0, 0, .42) 95% 100%);
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, .46),
-    inset 0 0 0 1px rgba(128, 198, 222, .08);
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed::before {
   content: "";
   position: absolute;
   inset: 9% 9% 9% 17%;
-  border: 1px solid rgba(236, 248, 251, .62);
+  border: 0;
   border-radius: 3px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.18), transparent 32%),
+    linear-gradient(180deg, rgba(255,255,255,.16), transparent 32%),
     linear-gradient(90deg, var(--mn-hospital-textile), #83b5c9);
   box-shadow:
-    inset 0 -1px 0 rgba(24, 60, 74, .45),
-    inset 0 0 8px rgba(255,255,255,.09);
+    -2px 0 0 rgba(74, 96, 106, .88),
+    2px 0 0 rgba(74, 96, 106, .88),
+    0 2px 3px rgba(0,0,0,.28),
+    inset 0 -1px 0 rgba(24, 60, 74, .32);
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed::after {
   content: "";
@@ -98,12 +93,10 @@
   top: 17%;
   width: 10%;
   height: 66%;
-  border: 1px solid rgba(225, 241, 246, .72);
+  border: 0;
   border-radius: 2px;
   background: var(--mn-hospital-pillow);
-  box-shadow:
-    0 0 0 1px rgba(34, 63, 74, .45),
-    calc(88% + 1px) 0 0 -1px rgba(255,255,255,.22);
+  box-shadow: 0 1px 2px rgba(0,0,0,.18);
 }
 
 /* --------------------------------------------------------------------------
@@ -111,14 +104,10 @@
    -------------------------------------------------------------------------- */
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair {
   overflow: visible;
-  border: 0;
-  border-radius: 4px;
-  background:
-    linear-gradient(90deg, transparent 8%, rgba(96,116,126,.94) 8% 15%, transparent 15% 85%, rgba(96,116,126,.94) 85% 92%, transparent 92%),
-    linear-gradient(180deg, #25343b, #121c21);
-  box-shadow:
-    0 2px 4px rgba(0,0,0,.43),
-    inset 0 0 0 1px rgba(255,255,255,.035);
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair::before {
   content: "";
@@ -127,7 +116,7 @@
   right: 17%;
   top: 30%;
   bottom: 12%;
-  border: 1px solid rgba(231, 213, 195, .36);
+  border: 0;
   border-radius: 3px;
   background:
     linear-gradient(180deg, rgba(255,255,255,.08), transparent 25%),
@@ -141,13 +130,13 @@
   right: 17%;
   top: 8%;
   height: 18%;
-  border: 1px solid rgba(233, 216, 197, .38);
+  border: 0;
   border-radius: 3px 3px 2px 2px;
   background: linear-gradient(180deg, #b48d6b, #725037);
   box-shadow: 0 2px 2px rgba(0,0,0,.24);
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair[data-occupied="true"] {
-  border-color: transparent;
+  border: 0 !important;
   filter: saturate(.72) brightness(.78);
 }
 
@@ -175,10 +164,7 @@
       transparent 12px 22px
     ),
     linear-gradient(145deg, var(--mn-hospital-table-top), var(--mn-hospital-table-top-deep));
-  box-shadow:
-    0 3px 5px rgba(0,0,0,.44),
-    inset 0 1px 0 rgba(255,255,255,.055),
-    inset 0 -1px 0 rgba(0,0,0,.24);
+  box-shadow: 0 2px 4px rgba(0,0,0,.30);
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table::before {
   content: "";
@@ -189,7 +175,7 @@
   background:
     linear-gradient(90deg, transparent 49.6%, rgba(226,216,202,.045) 49.6% 50.4%, transparent 50.4%),
     linear-gradient(180deg, rgba(255,255,255,.025), transparent 30%, rgba(0,0,0,.03));
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025);
+  box-shadow: none;
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table::after {
   content: "";
@@ -201,7 +187,7 @@
   border: 0;
   border-radius: 50%;
   background: rgba(182, 193, 196, .38);
-  box-shadow: inset 0 0 0 1px rgba(20,28,31,.3);
+  box-shadow: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -492,43 +478,57 @@
   pointer-events: none;
 }
 
-/* Exit: floor/threshold marker rather than a floating round button. */
+/* Exit: integrated floor guidance, not a button.
+   The hitbox stays unchanged; only the visual presentation changes. */
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-exit {
   overflow: visible;
-  border: 1px solid rgba(127, 221, 177, .72);
-  border-radius: 4px;
+  border: 0 !important;
+  border-radius: 0;
   color: transparent;
-  background:
-    linear-gradient(90deg, transparent 0 12%, rgba(92,188,141,.26) 12% 14%, transparent 14% 86%, rgba(92,188,141,.26) 86% 88%, transparent 88%),
-    linear-gradient(180deg, rgba(80, 181, 135, .14), rgba(15, 63, 43, .32));
-  box-shadow:
-    0 0 0 1px rgba(4,13,9,.62),
-    0 0 8px rgba(71,197,138,.18),
-    inset 0 0 0 1px rgba(146,237,197,.08);
+  background: transparent !important;
+  box-shadow: none !important;
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-exit::before {
-  content: "→";
+  content: "";
   position: absolute;
-  left: 50%;
-  top: 48%;
-  color: rgba(203, 244, 224, .9);
-  transform: translate(-50%, -50%);
-  font: 900 clamp(8px, .95vw, 17px)/1 system-ui;
-  text-shadow: none;
+  left: 15%;
+  right: 15%;
+  top: 18%;
+  bottom: 18%;
+  border: 0;
+  background:
+    linear-gradient(90deg,
+      transparent 0 8%,
+      rgba(114, 231, 175, .24) 8% 13%,
+      transparent 13% 87%,
+      rgba(114, 231, 175, .24) 87% 92%,
+      transparent 92%),
+    linear-gradient(180deg,
+      rgba(155, 247, 203, .92) 0 13%,
+      rgba(66, 196, 133, .74) 13% 22%,
+      rgba(28, 104, 72, .22) 22% 78%,
+      rgba(66, 196, 133, .74) 78% 87%,
+      rgba(155, 247, 203, .92) 87% 100%);
+  clip-path: polygon(0 34%, 58% 34%, 58% 8%, 100% 50%, 58% 92%, 58% 66%, 0 66%);
+  opacity: .88;
+  box-shadow: 0 0 7px rgba(71, 197, 138, .26);
+  pointer-events: none;
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-exit::after {
   content: "ВЫХОД";
   position: absolute;
   left: 50%;
   top: calc(100% + 4px);
-  padding: 2px 5px;
-  border: 1px solid rgba(71,197,138,.18);
-  border-radius: 4px;
-  color: rgba(218, 246, 232, .82);
-  background: rgba(5, 17, 12, .72);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: rgba(194, 239, 216, .82);
+  background: transparent;
+  box-shadow: none;
   transform: translateX(-50%);
   font: 850 5.5px/1 system-ui;
-  letter-spacing: .08em;
+  letter-spacing: .13em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.75);
   white-space: nowrap;
   pointer-events: none;
 }
@@ -585,10 +585,16 @@
   }
 
   .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed,
-  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair {
+    border: 0 !important;
+    outline: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
   .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table {
-    border: 0;
-    outline: none;
-    box-shadow: 0 2px 3px rgba(0,0,0,.4);
+    border: 0 !important;
+    outline: none !important;
+    box-shadow: 0 2px 3px rgba(0,0,0,.26);
   }
 }
