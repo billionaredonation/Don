@@ -87,7 +87,8 @@ function userErrorMessage(error) {
     BUYER_BALANCE_NOT_ENOUGH: 'У покупателя недостаточно денег.',
     PATIENT_BALANCE_NOT_ENOUGH: 'У пациента недостаточно денег для лечения.',
     INVALID_TREATMENT_PRICE: 'Укажите корректную цену лечения.',
-    SELF_TREATMENT_USE_INVENTORY: 'Для лечения себя примените таблетку через собственный инвентарь.',
+    MEDICINE_SELF_USE_DISABLED: 'Самолечение таблетками отключено. Препараты применяются только врачом к другому игроку через подсистему лечения.',
+    SELF_TREATMENT_USE_INVENTORY: 'Самолечение таблетками отключено. Лечить можно только другого игрока через подсистему врача.',
     TREATMENT_ISSUE_FAILED: 'Не удалось оформить лечение. Деньги и таблетка не списаны.',
     TREATMENT_APPLY_FAILED: 'Таблетка не применилась. Деньги и таблетка не списаны.',
     EMPLOYEE_MANAGEMENT_DENIED: 'У вас нет доступа к управлению сотрудниками этой больницы.',
@@ -158,6 +159,12 @@ function isLegacyEdgeFunctionError(error) {
     raw.includes('function not found');
 }
 
+function isLegacyMedicineHpRestrictionError(error) {
+  const raw = String(error?.message || error || '').toUpperCase();
+  return raw.includes('MEDICINE_HEALTH_RANGE_MISMATCH') ||
+    raw.includes('PATIENT_HEALTH_FULL');
+}
+
 export async function registerHospitalIdentity({ hospitalId, cityId, cityName, hospitalNumber } = {}) {
   return invokeHospitalAction('register_hospital', {
     hospitalId,
@@ -181,19 +188,27 @@ export async function issueMedicineFromInteraction({ hospitalId, target, medicin
 }
 
 export async function treatPlayerForPriceFromInteraction({ hospitalId, target, medicineType, price = 0 } = {}) {
+  const safePrice = Math.max(0, Math.floor(Number(price) || 0));
   const payload = {
     hospitalId,
     target,
     medicineType,
-    price,
+    price: safePrice,
   };
 
-  // Player interaction is the primary compatibility route for professional
-  // actions. Fall back only when that Edge Function is an older deployment;
-  // all business errors must be returned as-is to avoid a duplicate treatment.
+  // Prefer the atomic professional route so charging and treatment statistics
+  // stay intact. Some older database deployments still reject a medicine by HP
+  // band; for a free treatment that failed transaction has already rolled back,
+  // so it is safe to retry through the dedicated doctor -> patient RPC.
   try {
     return await invokePlayerInteractionAction('treat_player_for_price', payload);
   } catch (error) {
+    if (safePrice === 0 && (
+      isLegacyEdgeFunctionError(error) ||
+      isLegacyMedicineHpRestrictionError(error)
+    )) {
+      return invokeHospitalAction('treat', { hospitalId, target, medicineType });
+    }
     if (!isLegacyEdgeFunctionError(error)) throw error;
     return invokeHospitalAction('treat_player_for_price', payload);
   }
