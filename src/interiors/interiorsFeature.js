@@ -190,10 +190,24 @@ function isTruthy(value) {
 }
 
 function isInteriorColliderAdmin() {
+  // The remote player profile may finish loading after the interior itself.
+  // Read both the live state and the persisted snapshots so the editor button
+  // does not disappear just because `is_admin` was not available on the first
+  // render frame. This controls only editor UI; server-side writes remain
+  // protected by the existing RPC checks.
+  const savedState = readJsonLocalStorage('mn-game-state', null);
+  const savedAuth = readJsonLocalStorage('mn_auth_player', null);
+
   return isTruthy(state.is_admin) ||
     isTruthy(state.isAdmin) ||
     isTruthy(state.player?.is_admin) ||
-    isTruthy(state.player?.isAdmin);
+    isTruthy(state.player?.isAdmin) ||
+    isTruthy(savedState?.is_admin) ||
+    isTruthy(savedState?.isAdmin) ||
+    isTruthy(savedState?.player?.is_admin) ||
+    isTruthy(savedState?.player?.isAdmin) ||
+    isTruthy(savedAuth?.is_admin) ||
+    isTruthy(savedAuth?.isAdmin);
 }
 
 function readJsonLocalStorage(key, fallback = null) {
@@ -4973,6 +4987,25 @@ export function enableInteriorsFeature() {
 
   ensureTemplatePreloadLinks();
 
+  let editorAccessRefreshTimers = [];
+
+  function refreshInteriorEditorAccess() {
+    const allowed = isInteriorColliderAdmin();
+    colliderToggle.hidden = !allowed;
+    objectToggle.hidden = !allowed;
+    return allowed;
+  }
+
+  function scheduleInteriorEditorAccessRefresh() {
+    editorAccessRefreshTimers.forEach((timer) => window.clearTimeout(timer));
+    editorAccessRefreshTimers = [0, 120, 300, 700, 1400, 2600].map((delay) =>
+      window.setTimeout(() => {
+        if (destroyed || !active) return;
+        refreshInteriorEditorAccess();
+      }, delay)
+    );
+  }
+
   function playInteriorEnterTransition() {
     window.clearTimeout(interiorTransitionTimer);
     interiorExitPending = false;
@@ -5026,8 +5059,7 @@ export function enableInteriorsFeature() {
       overlay.dataset.houseId = id;
       delete overlay.dataset.serviceId;
       activeTemplateId = template.id;
-      colliderToggle.hidden = !isInteriorColliderAdmin();
-      objectToggle.hidden = !isInteriorColliderAdmin();
+      refreshInteriorEditorAccess();
       activeHouse = house;
       activeHouseId = id;
       activeService = null;
@@ -5064,6 +5096,8 @@ export function enableInteriorsFeature() {
       controls.hidden = false;
       ui.hidden = false;
       active = true;
+      refreshInteriorEditorAccess();
+      scheduleInteriorEditorAccessRefresh();
       playInteriorEnterTransition();
       connectInteriorSession();
       refreshDoorInteraction();
@@ -5112,8 +5146,7 @@ export function enableInteriorsFeature() {
       overlay.dataset.serviceId = id;
       delete overlay.dataset.houseId;
       activeTemplateId = template.id;
-      colliderToggle.hidden = !isInteriorColliderAdmin();
-      objectToggle.hidden = !isInteriorColliderAdmin();
+      refreshInteriorEditorAccess();
       activeHouse = null;
       activeHouseId = null;
       activeService = hospital;
@@ -5169,6 +5202,8 @@ export function enableInteriorsFeature() {
       controls.hidden = false;
       ui.hidden = false;
       active = true;
+      refreshInteriorEditorAccess();
+      scheduleInteriorEditorAccessRefresh();
       playInteriorEnterTransition();
       connectInteriorSession();
       refreshDoorInteraction();
@@ -5676,6 +5711,8 @@ export function enableInteriorsFeature() {
     exit,
     cleanup() {
       destroyed = true;
+    editorAccessRefreshTimers.forEach((timer) => window.clearTimeout(timer));
+    editorAccessRefreshTimers = [];
       window.clearTimeout(warmupTimer);
       window.clearTimeout(loadingRevealTimer);
       window.clearTimeout(interiorTransitionTimer);
