@@ -25,6 +25,11 @@ function health(value) {
   return Math.max(0, Math.min(100, Number(value || 0)));
 }
 
+function vital(value, fallback = 100) {
+  const number = Number(value);
+  return Math.max(0, Math.min(100, Number.isFinite(number) ? number : fallback));
+}
+
 function toast(message, type = 'info') {
   window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 }
@@ -90,23 +95,25 @@ export function enableHospitalReceptionFeature() {
       return;
     }
 
-    const healAmount = health(offer.healAmount);
-    const nextHealth = Math.min(100, currentHealth + healAmount);
-    const fullHealth = currentHealth >= 100;
+    const healPerTick = Number(offer.healPerTick ?? offer.healAmount ?? 2.5);
+    const tickSeconds = Math.max(1, Number(offer.tickSeconds || 10));
+    const durationSeconds = Math.max(tickSeconds, Number(offer.durationSeconds || 60));
+    const foodCost = Math.max(0, Number(offer.foodCost ?? 4));
+    const waterCost = Math.max(0, Number(offer.waterCost ?? 4));
 
     body.innerHTML = `
       <article class="mn-hospital-reception-offer">
         <span class="mn-hospital-reception-pill" aria-hidden="true">💊</span>
         <span class="mn-hospital-reception-copy">
           <b>${escapeHtml(offer.label || 'Простые таблетки')}</b>
-          <small>Сразу восстанавливает до +${healAmount.toLocaleString('ru-RU')} HP. В инвентарь не добавляется.</small>
+          <small>+${healPerTick.toLocaleString('ru-RU')} HP каждые ${tickSeconds} сек. · ${durationSeconds} сек. · расход ${foodCost} еды и ${waterCost} воды. В инвентарь не добавляется.</small>
         </span>
         <span class="mn-hospital-reception-result">
           <small>Ваше здоровье</small>
-          <b>${currentHealth.toLocaleString('ru-RU')} → ${nextHealth.toLocaleString('ru-RU')} HP</b>
+          <b>${currentHealth.toLocaleString('ru-RU')} HP · можно принять сейчас</b>
         </span>
-        <button type="button" data-hospital-reception-buy ${fullHealth ? 'disabled' : ''}>
-          ${fullHealth ? 'Здоровье полное' : `Купить и принять · ${money(offer.price)}`}
+        <button type="button" data-hospital-reception-buy>
+          Купить и принять · ${money(offer.price)}
         </button>
       </article>`;
   }
@@ -133,15 +140,17 @@ export function enableHospitalReceptionFeature() {
     setMessage('');
     try {
       const result = await buyHospitalReceptionTreatment();
-      const previousHealth = health(result?.previousHealth ?? currentHealth);
-      const nextHealth = health(result?.health ?? previousHealth);
-      const restoredHealth = Math.max(0, Number(result?.healthRestored ?? nextHealth - previousHealth));
+      const nextHealth = health(result?.health ?? currentHealth);
+      const nextFood = vital(result?.food, state.player?.food ?? 100);
+      const nextWater = vital(result?.water, state.player?.water ?? 100);
       const nextBalance = Number(result?.balance);
 
       currentHealth = nextHealth;
       state.player = {
         ...(state.player || {}),
         health: nextHealth,
+        food: nextFood,
+        water: nextWater,
         ...(Number.isFinite(nextBalance) ? { balance: nextBalance } : {}),
       };
 
@@ -150,26 +159,18 @@ export function enableHospitalReceptionFeature() {
           detail: { balance: nextBalance, source: 'hospital_reception_treatment', result },
         }));
       }
-      window.dispatchEvent(new CustomEvent('mn:player-health-changed', {
-        detail: {
-          health: nextHealth,
-          delta: restoredHealth,
-          animateDamage: false,
-          source: 'hospital_reception_treatment',
-          result,
-        },
-      }));
       window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
         detail: {
-          vitals: { health: nextHealth },
+          vitals: { health: nextHealth, food: nextFood, water: nextWater },
           animateDamage: false,
           source: 'hospital_reception_treatment',
           result,
         },
       }));
+      window.dispatchEvent(new CustomEvent('mn:hospital-treatment-started-local'));
 
       render();
-      const successText = `Простая таблетка принята: +${restoredHealth.toLocaleString('ru-RU')} HP.`;
+      const successText = `Простая таблетка принята. Списано ${Number(result?.foodCost ?? offer.foodCost ?? 4)} еды и ${Number(result?.waterCost ?? offer.waterCost ?? 4)} воды; лечение началось.`;
       setMessage(successText, 'success');
       toast(successText, 'success');
     } catch (error) {
