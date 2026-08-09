@@ -91,6 +91,7 @@ function userErrorMessage(error) {
     SELF_TREATMENT_USE_INVENTORY: 'Самолечение таблетками отключено. Лечить можно только другого игрока через подсистему врача.',
     TREATMENT_ISSUE_FAILED: 'Не удалось оформить лечение. Деньги и таблетка не списаны.',
     TREATMENT_APPLY_FAILED: 'Таблетка не применилась. Деньги и таблетка не списаны.',
+    TREATMENT_CONFIRMATION_REQUIRED: 'Пациент должен подтвердить лечение через Y/N.',
     EMPLOYEE_MANAGEMENT_DENIED: 'У вас нет доступа к управлению сотрудниками этой больницы.',
     HOSPITAL_BUDGET_NOT_ENOUGH: 'В бюджете больницы недостаточно денег для закупки.',
     HOSPITAL_PAYROLL_TREASURY_NOT_ENOUGH: 'В казне больницы недостаточно денег для этой зарплаты.',
@@ -189,29 +190,12 @@ export async function issueMedicineFromInteraction({ hospitalId, target, medicin
 
 export async function treatPlayerForPriceFromInteraction({ hospitalId, target, medicineType, price = 0 } = {}) {
   const safePrice = Math.max(0, Math.floor(Number(price) || 0));
-  const payload = {
+  return invokePlayerInteractionAction('create_treatment_offer', {
     hospitalId,
     target,
     medicineType,
     price: safePrice,
-  };
-
-  // Prefer the atomic professional route so charging and treatment statistics
-  // stay intact. Some older database deployments still reject a medicine by HP
-  // band; for a free treatment that failed transaction has already rolled back,
-  // so it is safe to retry through the dedicated doctor -> patient RPC.
-  try {
-    return await invokePlayerInteractionAction('treat_player_for_price', payload);
-  } catch (error) {
-    if (safePrice === 0 && (
-      isLegacyEdgeFunctionError(error) ||
-      isLegacyMedicineHpRestrictionError(error)
-    )) {
-      return invokeHospitalAction('treat', { hospitalId, target, medicineType });
-    }
-    if (!isLegacyEdgeFunctionError(error)) throw error;
-    return invokeHospitalAction('treat_player_for_price', payload);
-  }
+  });
 }
 
 export async function loadMyMedicalInventory() {
@@ -920,4 +904,3 @@ export function enableHospitalWarehouseFeature() {
     },
   };
 }
-
