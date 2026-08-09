@@ -1,0 +1,558 @@
+/*
+ * MN-GAME interior visual theme
+ * ------------------------------------------------------------
+ * This file intentionally contains only visual overrides for mapped
+ * interior objects. Gameplay geometry, hitboxes and interaction radii
+ * stay in interiorsFeature.js / interiors.css.
+ *
+ * Design goals:
+ * - one top-down visual language for the hospital interior;
+ * - furniture should read as furniture, not UI buttons;
+ * - service points should read as physical props with subtle markers;
+ * - no images, SVG filters, backdrop blur or infinite animations;
+ * - cheap gradients + shadows only, suitable for mobile WebViews.
+ */
+
+.mn-interior[data-interior-kind="hospital"] {
+  --mn-hospital-ink: #071016;
+  --mn-hospital-frame: #d8e7ec;
+  --mn-hospital-frame-soft: #91a9b4;
+  --mn-hospital-metal: #526671;
+  --mn-hospital-metal-dark: #1a272e;
+  --mn-hospital-panel: #243740;
+  --mn-hospital-panel-deep: #111d23;
+  --mn-hospital-blue: #63b9da;
+  --mn-hospital-blue-soft: #a8d8e8;
+  --mn-hospital-cyan: #74d6ee;
+  --mn-hospital-wood: #876246;
+  --mn-hospital-wood-light: #ad8765;
+  --mn-hospital-textile: #bddce8;
+  --mn-hospital-pillow: #eef8fb;
+  --mn-hospital-green: #47c58a;
+  --mn-hospital-amber: #d4a45d;
+  --mn-hospital-red: #d65b66;
+  --mn-hospital-shadow: rgba(0, 0, 0, .62);
+}
+
+/* Shared physical-object finish. Geometry is still supplied inline by JS. */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object {
+  contain: layout style;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   Hospital bed
+   -------------------------------------------------------------------------- */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed {
+  overflow: visible;
+  border: 1px solid rgba(216, 231, 236, .88);
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg,
+      transparent 0 4%,
+      rgba(108, 132, 143, .94) 4% 7%,
+      transparent 7% 93%,
+      rgba(108, 132, 143, .94) 93% 96%,
+      transparent 96%),
+    linear-gradient(180deg,
+      rgba(219, 236, 242, .22) 0 5%,
+      var(--mn-hospital-metal-dark) 5% 95%,
+      rgba(0, 0, 0, .42) 95% 100%);
+  box-shadow:
+    0 2px 5px var(--mn-hospital-shadow),
+    0 0 0 1px rgba(4, 10, 13, .78),
+    inset 0 0 0 1px rgba(128, 198, 222, .16);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed::before {
+  content: "";
+  position: absolute;
+  inset: 9% 9% 9% 17%;
+  border: 1px solid rgba(236, 248, 251, .62);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.18), transparent 32%),
+    linear-gradient(90deg, var(--mn-hospital-textile), #83b5c9);
+  box-shadow:
+    inset 0 -1px 0 rgba(24, 60, 74, .45),
+    inset 0 0 8px rgba(255,255,255,.09);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed::after {
+  content: "";
+  position: absolute;
+  left: 5.5%;
+  top: 17%;
+  width: 10%;
+  height: 66%;
+  border: 1px solid rgba(225, 241, 246, .72);
+  border-radius: 2px;
+  background: var(--mn-hospital-pillow);
+  box-shadow:
+    0 0 0 1px rgba(34, 63, 74, .45),
+    calc(88% + 1px) 0 0 -1px rgba(255,255,255,.22);
+}
+
+/* --------------------------------------------------------------------------
+   Chair / visitor chair
+   -------------------------------------------------------------------------- */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair {
+  overflow: visible;
+  border: 1px solid rgba(205, 222, 229, .8);
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg, transparent 8%, rgba(96,116,126,.94) 8% 15%, transparent 15% 85%, rgba(96,116,126,.94) 85% 92%, transparent 92%),
+    linear-gradient(180deg, #25343b, #121c21);
+  box-shadow:
+    0 2px 5px rgba(0,0,0,.58),
+    0 0 0 1px rgba(5,12,16,.76),
+    inset 0 0 0 1px rgba(255,255,255,.07);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair::before {
+  content: "";
+  position: absolute;
+  left: 17%;
+  right: 17%;
+  top: 30%;
+  bottom: 12%;
+  border: 1px solid rgba(231, 213, 195, .36);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.08), transparent 25%),
+    linear-gradient(145deg, var(--mn-hospital-wood-light), var(--mn-hospital-wood));
+  box-shadow: inset 0 -2px 4px rgba(31,17,8,.24);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair::after {
+  content: "";
+  position: absolute;
+  left: 17%;
+  right: 17%;
+  top: 8%;
+  height: 18%;
+  border: 1px solid rgba(233, 216, 197, .38);
+  border-radius: 3px 3px 2px 2px;
+  background: linear-gradient(180deg, #b48d6b, #725037);
+  box-shadow: 0 2px 2px rgba(0,0,0,.24);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair[data-occupied="true"] {
+  border-color: rgba(125, 174, 194, .66);
+  filter: saturate(.72) brightness(.78);
+}
+
+/* --------------------------------------------------------------------------
+   Tables: same metal + warm laminate language as chairs
+   -------------------------------------------------------------------------- */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table {
+  overflow: visible;
+  border: 1px solid rgba(213, 228, 233, .84);
+  border-radius: 4px;
+  background:
+    linear-gradient(90deg, rgba(25,35,41,.9) 0 3%, transparent 3% 97%, rgba(25,35,41,.9) 97%),
+    linear-gradient(180deg, rgba(255,255,255,.1), transparent 18%),
+    linear-gradient(145deg, #926d50, #60432f);
+  box-shadow:
+    0 3px 6px rgba(0,0,0,.58),
+    0 0 0 1px rgba(5,11,14,.68),
+    inset 0 0 0 2px rgba(234,218,199,.1);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table::before {
+  content: "";
+  position: absolute;
+  inset: 9%;
+  border: 1px solid rgba(236, 220, 201, .2);
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, transparent 49.4%, rgba(239,224,205,.12) 49.4% 50.6%, transparent 50.6%),
+    linear-gradient(180deg, rgba(255,255,255,.045), rgba(24,12,5,.08));
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table::after {
+  content: "";
+  position: absolute;
+  width: 7%;
+  height: 16%;
+  left: 46.5%;
+  top: 42%;
+  border-radius: 50%;
+  background: rgba(225, 235, 239, .55);
+  box-shadow: 0 0 0 1px rgba(19,31,37,.55);
+}
+
+/* --------------------------------------------------------------------------
+   Storage cabinets / medicine furniture
+   -------------------------------------------------------------------------- */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-cabinet {
+  overflow: visible;
+  border: 1px solid rgba(207, 225, 231, .86);
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, transparent 48.8%, rgba(219,237,242,.22) 48.8% 51.2%, transparent 51.2%),
+    repeating-linear-gradient(180deg, rgba(235,248,251,.12) 0 1px, transparent 1px 26%),
+    linear-gradient(145deg, #667c86, #2b3c44 72%);
+  box-shadow:
+    0 3px 6px rgba(0,0,0,.58),
+    0 0 0 1px rgba(4,10,13,.7),
+    inset 0 0 0 2px rgba(255,255,255,.05);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-cabinet::before {
+  content: "+";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 28%;
+  aspect-ratio: 1;
+  border-radius: 2px;
+  color: rgba(225, 247, 251, .88);
+  background: rgba(31, 75, 89, .72);
+  box-shadow: 0 0 0 1px rgba(140, 210, 230, .25);
+  transform: translate(-50%, -50%);
+  font: 900 clamp(6px, .62vw, 12px)/1 system-ui;
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-cabinet::after {
+  content: "МЕД.";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 3px);
+  padding: 2px 4px;
+  border: 1px solid rgba(129, 178, 195, .25);
+  border-radius: 4px;
+  color: rgba(213, 236, 243, .78);
+  background: rgba(7, 17, 22, .72);
+  transform: translateX(-50%);
+  font: 800 5px/1 system-ui;
+  letter-spacing: .07em;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Kitchen counter / cafeteria furniture
+   -------------------------------------------------------------------------- */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-kitchen_counter {
+  overflow: visible;
+  border: 1px solid rgba(209, 227, 233, .86);
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 17% 50%, #0d1519 0 7%, #8da2ab 7.5% 11%, transparent 11.5%),
+    radial-gradient(circle at 34% 50%, #0d1519 0 7%, #8da2ab 7.5% 11%, transparent 11.5%),
+    linear-gradient(90deg, transparent 52%, rgba(226,240,244,.18) 52% 53%, transparent 53%),
+    linear-gradient(180deg, #71848c, #34464e);
+  box-shadow:
+    0 3px 6px rgba(0,0,0,.58),
+    0 0 0 1px rgba(4,10,13,.68),
+    inset 0 1px 0 rgba(255,255,255,.12);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-kitchen_counter::before {
+  content: "";
+  position: absolute;
+  right: 7%;
+  top: 17%;
+  width: 29%;
+  height: 66%;
+  border: 1px solid rgba(224, 239, 244, .42);
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, transparent 46%, rgba(174,203,214,.26) 46% 54%, transparent 54%),
+    rgba(19, 43, 53, .72);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.22);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-kitchen_counter::after {
+  content: "";
+  position: absolute;
+  left: 54%;
+  top: 16%;
+  bottom: 16%;
+  width: 1px;
+  background: rgba(225, 242, 247, .28);
+}
+
+/* --------------------------------------------------------------------------
+   Reception desk
+   -------------------------------------------------------------------------- */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-reception {
+  overflow: visible;
+  border: 1px solid rgba(174, 218, 232, .84);
+  border-radius: 5px;
+  background:
+    linear-gradient(180deg, rgba(134, 200, 222, .12), transparent 23%),
+    linear-gradient(145deg, #345363, #172932 76%);
+  box-shadow:
+    0 4px 8px rgba(0,0,0,.6),
+    0 0 0 1px rgba(4,11,15,.7),
+    inset 0 0 0 2px rgba(119, 202, 232, .08);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-reception::before {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 9%;
+  height: 30%;
+  border: 1px solid rgba(190, 232, 245, .32);
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, rgba(102,173,199,.5), rgba(43,91,107,.56));
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-reception::after {
+  content: "";
+  position: absolute;
+  left: 43%;
+  bottom: 9%;
+  width: 14%;
+  height: 39%;
+  border: 1px solid rgba(190, 222, 232, .3);
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  background: #0b171d;
+}
+
+/* --------------------------------------------------------------------------
+   Service props. They are intentionally furniture-shaped instead of circles.
+   The small accent strip is the interaction hint, not the whole object.
+   -------------------------------------------------------------------------- */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse,
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_refill,
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_take {
+  overflow: visible;
+  border: 1px solid rgba(193, 217, 226, .84);
+  border-radius: 4px;
+  color: transparent;
+  background:
+    linear-gradient(90deg,
+      transparent 0 11%, rgba(118, 145, 156, .48) 11% 13%, transparent 13% 87%, rgba(118, 145, 156, .48) 87% 89%, transparent 89%),
+    repeating-linear-gradient(180deg,
+      rgba(218, 236, 242, .09) 0 1px,
+      transparent 1px 31%),
+    linear-gradient(145deg, #41555f, #1d2b32 72%);
+  box-shadow:
+    0 3px 7px rgba(0,0,0,.62),
+    0 0 0 1px rgba(4,10,13,.72),
+    inset 0 0 0 2px rgba(255,255,255,.045);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse::before,
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_refill::before,
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_take::before {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 9%;
+  top: auto;
+  height: 12%;
+  border: 0;
+  border-radius: 999px;
+  background: var(--mn-hospital-cyan);
+  box-shadow: 0 0 7px rgba(116,214,238,.48);
+  transform: none;
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_refill::before {
+  background: var(--mn-hospital-amber);
+  box-shadow: 0 0 7px rgba(212,164,93,.44);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse::after,
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_refill::after,
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_take::after {
+  content: "СКЛАД";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  padding: 2px 5px;
+  border: 1px solid rgba(116, 214, 238, .2);
+  border-radius: 4px;
+  color: rgba(222, 246, 251, .82);
+  background: rgba(5, 15, 20, .76);
+  transform: translateX(-50%);
+  font: 850 5.5px/1 system-ui;
+  letter-spacing: .08em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_refill::after {
+  content: "ПОПОЛНИТЬ";
+  border-color: rgba(212,164,93,.22);
+  color: rgba(250,233,202,.84);
+}
+
+/* Cafeteria point becomes a compact serving counter/tray station. */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-cafeteria {
+  overflow: visible;
+  border: 1px solid rgba(215, 228, 224, .84);
+  border-radius: 4px;
+  color: transparent;
+  background:
+    radial-gradient(circle at 31% 43%, transparent 0 14%, rgba(218,229,226,.62) 15% 18%, transparent 19%),
+    radial-gradient(circle at 66% 43%, transparent 0 11%, rgba(218,229,226,.5) 12% 15%, transparent 16%),
+    linear-gradient(180deg, rgba(255,255,255,.08), transparent 25%),
+    linear-gradient(145deg, #556861, #23342f 72%);
+  box-shadow:
+    0 3px 7px rgba(0,0,0,.6),
+    0 0 0 1px rgba(4,11,8,.7),
+    inset 0 0 0 2px rgba(255,255,255,.04);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-cafeteria::before {
+  content: "";
+  position: absolute;
+  left: 11%;
+  right: 11%;
+  top: auto;
+  bottom: 9%;
+  height: 12%;
+  border-radius: 999px;
+  background: var(--mn-hospital-green);
+  box-shadow: 0 0 7px rgba(71,197,138,.42);
+  transform: none;
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-cafeteria::after {
+  content: "СТОЛОВАЯ";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  padding: 2px 5px;
+  border: 1px solid rgba(71,197,138,.19);
+  border-radius: 4px;
+  color: rgba(221, 245, 232, .82);
+  background: rgba(5, 17, 12, .76);
+  transform: translateX(-50%);
+  font: 850 5.5px/1 system-ui;
+  letter-spacing: .07em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Patient medicine is a real bedside cabinet, not a glowing pickup circle. */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-patient_medicine {
+  overflow: visible;
+  border: 1px solid rgba(204, 224, 231, .84);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, transparent 31%, rgba(218,237,243,.15) 31% 33%, transparent 33% 65%, rgba(218,237,243,.15) 65% 67%, transparent 67%),
+    linear-gradient(145deg, #536a75, #25363e 72%);
+  box-shadow:
+    0 3px 6px rgba(0,0,0,.58),
+    0 0 0 1px rgba(4,10,13,.7),
+    inset 0 0 0 1px rgba(255,255,255,.05);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-patient_medicine::before {
+  content: "+";
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  display: grid;
+  place-items: center;
+  width: 35%;
+  height: 35%;
+  border: 1px solid rgba(162,220,237,.26);
+  border-radius: 2px;
+  color: #dff5fb;
+  background: rgba(37, 92, 108, .66);
+  transform: translate(-50%, -50%);
+  font: 900 clamp(7px, .75vw, 14px)/1 system-ui;
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-patient_medicine::after {
+  content: "ЛЕКАРСТВА";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  padding: 2px 5px;
+  border: 1px solid rgba(116, 214, 238, .18);
+  border-radius: 4px;
+  color: rgba(221, 244, 250, .8);
+  background: rgba(5, 15, 20, .76);
+  transform: translateX(-50%);
+  font: 850 5.5px/1 system-ui;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Exit: floor/threshold marker rather than a floating round button. */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-exit {
+  overflow: visible;
+  border: 1px solid rgba(127, 221, 177, .72);
+  border-radius: 4px;
+  color: transparent;
+  background:
+    linear-gradient(90deg, transparent 0 12%, rgba(92,188,141,.26) 12% 14%, transparent 14% 86%, rgba(92,188,141,.26) 86% 88%, transparent 88%),
+    linear-gradient(180deg, rgba(80, 181, 135, .14), rgba(15, 63, 43, .32));
+  box-shadow:
+    0 0 0 1px rgba(4,13,9,.62),
+    0 0 8px rgba(71,197,138,.18),
+    inset 0 0 0 1px rgba(146,237,197,.08);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-exit::before {
+  content: "→";
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  color: rgba(203, 244, 224, .9);
+  transform: translate(-50%, -50%);
+  font: 900 clamp(8px, .95vw, 17px)/1 system-ui;
+  text-shadow: none;
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-exit::after {
+  content: "ВЫХОД";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  padding: 2px 5px;
+  border: 1px solid rgba(71,197,138,.18);
+  border-radius: 4px;
+  color: rgba(218, 246, 232, .82);
+  background: rgba(5, 17, 12, .72);
+  transform: translateX(-50%);
+  font: 850 5.5px/1 system-ui;
+  letter-spacing: .08em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Doors keep the existing gameplay state colors, but lose the neon toy look. */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-door::before {
+  border-color: rgba(225, 151, 158, .82);
+  background: linear-gradient(180deg, #a94550, #68262e);
+  box-shadow:
+    0 2px 5px rgba(0,0,0,.58),
+    0 0 5px rgba(214,91,102,.28),
+    inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-door::after {
+  border-top-color: rgba(214,91,102,.28);
+  opacity: .48;
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-door[data-open="true"]::before {
+  border-color: rgba(144, 225, 185, .82);
+  background: linear-gradient(180deg, #398c67, #235943);
+  box-shadow:
+    0 2px 5px rgba(0,0,0,.58),
+    0 0 5px rgba(71,197,138,.26),
+    inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-door[data-open="true"]::after {
+  border-top-color: rgba(71,197,138,.25);
+}
+
+/* Editor feedback remains clear without contaminating the in-game look. */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-object-layer[data-editor="enabled"]
+  .mn-interior-mapped-object[data-selected="true"] {
+  outline: 1px solid rgba(255, 213, 94, .96);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.9),
+    0 0 10px rgba(255, 213, 94, .42);
+}
+
+/* Lower-cost shadow pass for constrained / mobile WebViews. */
+@media (max-width: 920px), (max-height: 520px) {
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-cabinet,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-kitchen_counter,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-reception,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_refill,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_take,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-cafeteria,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-patient_medicine {
+    box-shadow: 0 2px 4px rgba(0,0,0,.52), 0 0 0 1px rgba(4,10,13,.62);
+  }
+}
