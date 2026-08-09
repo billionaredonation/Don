@@ -2696,6 +2696,11 @@ export function enableInteriorsFeature() {
       getLocalState: localInteriorSnapshot,
       onRemotePlayer: upsertRemoteInteriorPlayer,
       onRemoteLeave: removeRemoteInteriorPlayer,
+      onRemoteTreatment(treatment) {
+        window.dispatchEvent(new CustomEvent('mn:remote-player-treatment-state-changed', {
+          detail: treatment,
+        }));
+      },
       onStatus(status, error) {
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.warn('[interiors] room realtime subscription failed:', error || status);
@@ -5302,6 +5307,16 @@ export function enableInteriorsFeature() {
     }
   }
 
+  function broadcastInteriorTreatment(event) {
+    if (!active || !interiorRoom) return;
+    const detail = event?.detail || {};
+    interiorRoom.sendTreatment?.({
+      ...localInteriorSnapshot(),
+      active: detail.active === true,
+      activeUntil: Number(detail.activeUntil || Date.now()),
+    });
+  }
+
   joystick.addEventListener('pointerdown', (event) => {
     if (!active || window.__MN_PLAYER_CONTROLS_LOCKED__ === true || activeBedObjectId) return;
     joystickPointer = event.pointerId;
@@ -5403,6 +5418,7 @@ export function enableInteriorsFeature() {
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   window.addEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
   window.addEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
+  window.addEventListener('mn:local-player-treatment-state-changed', broadcastInteriorTreatment);
   window.addEventListener('mn:inventory-opened', pauseForInventory);
   window.addEventListener('keydown', keyDown, true);
   window.addEventListener('keyup', keyUp, true);
@@ -5449,6 +5465,7 @@ export function enableInteriorsFeature() {
       window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
       window.removeEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
       window.removeEventListener('mn:hospital-enter-request', handleHospitalEnterRequest);
+      window.removeEventListener('mn:local-player-treatment-state-changed', broadcastInteriorTreatment);
       window.removeEventListener('mn:inventory-opened', pauseForInventory);
       window.removeEventListener('keydown', keyDown, true);
       window.removeEventListener('keyup', keyUp, true);
@@ -5483,5 +5500,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
-
