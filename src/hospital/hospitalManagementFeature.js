@@ -18,8 +18,8 @@ const RANK_LABELS = Object.freeze({
 const ITEM_LABELS = Object.freeze({
   food: 'Продукты',
   medicine_light: 'Простые таблетки',
-  medicine_strong: 'Сильные таблетки',
-  medicine_resuscitation: 'Реанимационные таблетки',
+  medicine_strong: 'Среднеседативные таблетки',
+  medicine_resuscitation: 'Сильные седативные таблетки',
 });
 
 function rankLevel(rank) {
@@ -32,6 +32,13 @@ function money(value) {
 
 function number(value) {
   return Math.max(0, Math.floor(Number(value || 0))).toLocaleString('ru-RU');
+}
+
+function playtime(value) {
+  const seconds = Math.max(0, Math.floor(Number(value || 0)));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${hours} ч ${minutes} мин`;
 }
 
 function escapeHtml(value) {
@@ -104,6 +111,7 @@ export function enableHospitalManagementFeature() {
   let selectedHospitalId = '';
   let busy = false;
   let hintTimer = 0;
+  let presenceTimer = 0;
   let destroyed = false;
   let gameplayReady = window.__MN_GAMEPLAY_ENTERED__ === true;
 
@@ -119,7 +127,7 @@ export function enableHospitalManagementFeature() {
     panel.dataset.busy = busy ? 'true' : 'false';
     panel.querySelectorAll('button, input, select').forEach((element) => {
       if (element.matches('[data-hospital-management-close], [data-hospital-select]')) return;
-      element.disabled = busy;
+      element.disabled = busy || element.dataset.managementLocked === 'true';
     });
   }
 
@@ -170,7 +178,8 @@ export function enableHospitalManagementFeature() {
         <span><small>Должность</small><b>${escapeHtml(RANK_LABELS[hospital.rank] || hospital.rank || '—')}</b></span>
         <span><small>Онлайн</small><b>${number(hospital.onlineCount)} / ${number(hospital.employeeCount)}</b></span>
         ${hospital.canManage
-          ? `<span><small>Бюджет закупок</small><b>${money(hospital.budget)}</b></span>`
+          ? `<span><small>Бюджет закупок</small><b>${money(hospital.budget)}</b></span>
+             <span><small>Казна зарплат</small><b>${money(hospital.payrollTreasury)}</b></span>`
           : `<span><small>Доступ</small><b>${rank >= 2 ? 'Средний состав' : 'Лёгкие препараты'}</b></span>`}
         <span><small>Ваша стата</small><b>${number(own.playersTreated)} леч. · ${number(own.medicinesSold)} прод.</b></span>
       </div>`;
@@ -243,6 +252,39 @@ export function enableHospitalManagementFeature() {
       </div>`;
   }
 
+  function renderPayroll(hospital) {
+    if (hospital.canManage !== true) return '';
+    const employees = Array.isArray(hospital.employees) ? hospital.employees : [];
+    return `
+      <div class="mn-hospital-management-section mn-hospital-management-payroll">
+        <h3>Суточные зарплаты</h3>
+        <small class="mn-hospital-management-note">Деньги выдаются только из казны. Сотрудник должен отыграть во фракции минимум 2 часа за текущие сутки; выплата каждому выполняется старшим составом вручную один раз в день.</small>
+        <div class="mn-hospital-management-treasury">
+          <span><small>Доступно в казне</small><b>${money(hospital.payrollTreasury)}</b></span>
+          <input type="number" min="1" max="1000000000" step="1" value="1000" data-management-treasury-amount>
+          <button type="button" data-management-treasury-top-up>Пополнить со своего счёта</button>
+        </div>
+        <div class="mn-hospital-management-payroll-list">
+          ${employees.length ? employees.map((employee) => {
+            const target = String(employee.employeeTgId || employee.nickname || '');
+            const eligible = employee.eligibleToday === true;
+            const paidToday = employee.paidToday === true;
+            return `
+              <article data-management-payroll-employee="${escapeHtml(target)}">
+                <span class="mn-hospital-management-payroll-person">
+                  <b>${escapeHtml(employee.nickname || 'Игрок')}</b>
+                  <small>${employee.online ? 'Сейчас в сети' : 'Сейчас не в сети'} · сегодня ${playtime(employee.secondsPlayedToday)} / 2 ч</small>
+                  <i data-eligible="${eligible ? 'true' : 'false'}">${paidToday ? `За сегодня выплачено ${money(employee.lastPaidAmount)}` : eligible ? 'Доступен для выплаты' : 'Ещё не отыграно 2 часа'}</i>
+                </span>
+                <label><small>Зарплата за сутки</small><input type="number" min="0" max="1000000000" step="1" value="${Math.max(0, Math.floor(Number(employee.dailySalary || 0)))}" data-management-daily-salary></label>
+                <button type="button" data-management-salary-save>Сохранить</button>
+                <button type="button" data-management-salary-pay data-management-locked="${!eligible || paidToday || Number(employee.dailySalary || 0) <= 0 ? 'true' : 'false'}" ${!eligible || paidToday || Number(employee.dailySalary || 0) <= 0 ? 'disabled' : ''}>Выплатить</button>
+              </article>`;
+          }).join('') : '<div class="mn-hospital-management-empty">Сотрудников для выплаты пока нет.</div>'}
+        </div>
+      </div>`;
+  }
+
   function renderLimitedInfo(hospital) {
     if (hospital.canManage === true) return '';
     const text = rankLevel(hospital.rank) >= 2
@@ -279,6 +321,7 @@ export function enableHospitalManagementFeature() {
       ${renderSummary(hospital)}
       ${hospital.canManage ? renderStock(hospital) : ''}
       ${renderStaff(hospital)}
+      ${renderPayroll(hospital)}
       ${renderLimitedInfo(hospital)}`;
   }
 
@@ -349,6 +392,67 @@ export function enableHospitalManagementFeature() {
     }
   }
 
+  async function topUpTreasury() {
+    const hospital = selectedHospital();
+    const amount = Math.max(0, Math.floor(Number(body.querySelector('[data-management-treasury-amount]')?.value || 0)));
+    if (!hospital || !amount || busy) return;
+    setBusy(true);
+    try {
+      const result = await invokeHospitalAction('management_top_up_treasury', {
+        hospitalId: hospital.hospitalId,
+        amount,
+      });
+      setMessage(`Казна пополнена на ${money(result.amount)}.`, 'success');
+      if (Number.isFinite(Number(result.balance))) {
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+          detail: { balance: Number(result.balance), source: 'hospital_payroll_top_up', result },
+        }));
+      }
+      await loadData();
+      render();
+    } catch (error) {
+      setMessage(getHospitalUserErrorMessage(error), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runSalaryAction(button, action) {
+    const hospital = selectedHospital();
+    const row = button.closest('[data-management-payroll-employee]');
+    const target = String(row?.dataset.managementPayrollEmployee || '').trim();
+    if (!hospital || !row || !target || busy) return;
+    const payload = { hospitalId: hospital.hospitalId, target };
+    if (action === 'management_set_salary') {
+      payload.amount = Math.max(0, Math.floor(Number(row.querySelector('[data-management-daily-salary]')?.value || 0)));
+    }
+    setBusy(true);
+    try {
+      const result = await invokeHospitalAction(action, payload);
+      setMessage(
+        action === 'management_set_salary'
+          ? `Суточная зарплата установлена: ${money(result.dailySalary)}.`
+          : `Сотруднику выплачено ${money(result.amount)} из казны больницы.`,
+        'success'
+      );
+      await loadData();
+      render();
+    } catch (error) {
+      setMessage(getHospitalUserErrorMessage(error), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recordFactionPresence() {
+    if (destroyed || !gameplayReady) return;
+    try {
+      await invokeHospitalAction('faction_presence');
+    } catch (error) {
+      console.warn('[hospitalManagement] faction presence heartbeat failed:', error);
+    }
+  }
+
   function promptStaffTarget() {
     const input = body.querySelector('[data-management-staff-target]');
     if (!input || input.disabled) return '';
@@ -381,6 +485,20 @@ export function enableHospitalManagementFeature() {
     const purchaseButton = event.target.closest('[data-management-purchase]');
     if (purchaseButton) {
       void purchase(purchaseButton);
+      return;
+    }
+    if (event.target.closest('[data-management-treasury-top-up]')) {
+      void topUpTreasury();
+      return;
+    }
+    const salarySave = event.target.closest('[data-management-salary-save]');
+    if (salarySave) {
+      void runSalaryAction(salarySave, 'management_set_salary');
+      return;
+    }
+    const salaryPay = event.target.closest('[data-management-salary-pay]');
+    if (salaryPay) {
+      void runSalaryAction(salaryPay, 'management_pay_salary');
       return;
     }
     if (event.target.closest('[data-management-staff-save]')) {
@@ -455,6 +573,7 @@ export function enableHospitalManagementFeature() {
     if (destroyed || gameplayReady) return;
     gameplayReady = true;
     updateHint({ flash: true });
+    void recordFactionPresence();
   }
 
   function handleProfessionalStatsChanged(event) {
@@ -507,12 +626,17 @@ export function enableHospitalManagementFeature() {
   window.addEventListener('mn:gameplay-entered', handleGameplayEntered);
 
   window.setTimeout(() => {
-    if (!destroyed) void loadData({ silent: true });
+    if (!destroyed) {
+      void recordFactionPresence();
+      void loadData({ silent: true });
+    }
   }, 1200);
+  presenceTimer = window.setInterval(recordFactionPresence, 60_000);
 
   return () => {
     destroyed = true;
     window.clearTimeout(hintTimer);
+    window.clearInterval(presenceTimer);
     closeButtons.forEach((button) => button.removeEventListener('click', close));
     hint.removeEventListener('click', handleHintClick);
     body.removeEventListener('click', handleBodyClick);
