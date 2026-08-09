@@ -804,9 +804,28 @@ function patientMedicinePickupsForHospital(objects) {
 function collapseHospitalWarehousePickups(objects) {
   const normalized = normalizeMappedInteriorObjects(objects);
   const firstWarehouse = normalized.find((object) => isHospitalWarehousePickupType(object.type));
+  if (!firstWarehouse) {
+    return normalized.filter((object) => !isHospitalWarehousePickupType(object.type));
+  }
+
+  // The warehouse is one visual editor object but two server pickup rows.
+  // Preserve/recover the visual id so save verification compares the same
+  // logical object instead of the generated `-refill` / `-take` row ids.
+  const storedVisualId = String(firstWarehouse?.properties?.mnWarehouseVisualId || '').trim();
+  const serverRowId = String(firstWarehouse.id || '').trim();
+  const visualId = storedVisualId || serverRowId.replace(/-(?:refill|take)$/i, '') || 'hospital-warehouse';
+
   return [
     ...normalized.filter((object) => !isHospitalWarehousePickupType(object.type)),
-    ...(firstWarehouse ? [{ ...firstWarehouse, type: 'warehouse' }] : []),
+    {
+      ...firstWarehouse,
+      id: visualId.slice(0, 96),
+      type: 'warehouse',
+      properties: {
+        ...(firstWarehouse.properties || {}),
+        mnWarehouseVisualId: visualId.slice(0, 96),
+      },
+    },
   ];
 }
 
