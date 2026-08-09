@@ -2,7 +2,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
-const EDGE_RELEASE = '2026-08-08-reception-direct-hp-v2';
+const EDGE_RELEASE = '2026-08-09-doctor-only-medicine-v1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -511,31 +511,17 @@ serve(async (req) => {
         args = { p_actor_tg_id: actorTgId };
         break;
       case 'use_medicine':
-        if (!medicineType) return jsonResponse({ ok: false, error: 'INVALID_MEDICINE_REQUEST' });
-        functionName = 'player_apply_medicine_with_metabolic_cost';
-        args = { p_actor_tg_id: actorTgId, p_medicine_type: medicineType };
-        break;
+        // Medicine is intentionally doctor-only. Keep this server-side guard so
+        // stale clients cannot start self-treatment through the old endpoint.
+        return jsonResponse({ ok: false, error: 'MEDICINE_SELF_USE_DISABLED' });
       case 'use_inventory_item':
         if (!itemType) return jsonResponse({ ok: false, error: 'INVALID_ITEM_REQUEST' });
+        if (itemType.startsWith('medicine_')) {
+          return jsonResponse({ ok: false, error: 'MEDICINE_SELF_USE_DISABLED' });
+        }
         if (itemType === 'water_bottle') {
           functionName = 'player_use_consumable_item';
           args = { p_actor_tg_id: actorTgId, p_item_type: itemType };
-        } else if (itemType.startsWith('medicine_') && hospitalId) {
-          functionName = 'hospital_use_own_inventory_medicine';
-          args = {
-            p_hospital_id: hospitalId,
-            p_actor_tg_id: actorTgId,
-            p_item_type: itemType,
-            p_source: source || 'service',
-          };
-        } else if (itemType.startsWith('medicine_')) {
-          functionName = 'player_use_inventory_item_with_metabolic_cost';
-          args = {
-            p_actor_tg_id: actorTgId,
-            p_item_type: itemType,
-            p_source: source || 'personal',
-            p_hospital_id: hospitalId || null,
-          };
         } else {
           functionName = 'player_use_inventory_item';
           args = {
