@@ -810,6 +810,36 @@ function collapseHospitalWarehousePickups(objects) {
   ];
 }
 
+// The hospital RPC stores the warehouse as two service pickups. The editor
+// intentionally exposes them as one physical object, so expand that visual
+// object back to the server-compatible pair only at the persistence boundary.
+function serializeHospitalWarehousePickupsForServer(objects) {
+  const normalized = collapseHospitalWarehousePickups(objects)
+    .filter((object) => isHospitalWarehousePickupType(object.type));
+  const warehouse = normalized[0];
+  if (!warehouse) return [];
+
+  const baseId = String(warehouse.id || 'hospital-warehouse').trim() || 'hospital-warehouse';
+  const properties = warehouse.properties && typeof warehouse.properties === 'object'
+    ? { ...warehouse.properties }
+    : {};
+
+  return [
+    {
+      ...warehouse,
+      id: `${baseId}-refill`.slice(0, 96),
+      type: 'warehouse_refill',
+      properties: { ...properties, mnWarehouseVisualId: baseId },
+    },
+    {
+      ...warehouse,
+      id: `${baseId}-take`.slice(0, 96),
+      type: 'warehouse_take',
+      properties: { ...properties, mnWarehouseVisualId: baseId },
+    },
+  ];
+}
+
 function createMappedInteriorObjectId(type) {
   if (globalThis.crypto?.randomUUID) return `${type}-${globalThis.crypto.randomUUID()}`;
   return `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -1012,9 +1042,11 @@ async function saveRemoteMappedInteriorObjects(templateId, objects) {
   if (data?.ok === false) throw new Error(data?.reason || 'INTERIOR_OBJECT_SAVE_FAILED');
 
   const savedWarehousePickups = templateId === 'hospital'
-    ? normalizeMappedInteriorObjects(
-      await saveHospitalWarehousePickupLayout(warehousePickups)
-    )
+    ? collapseHospitalWarehousePickups(
+      await saveHospitalWarehousePickupLayout(
+        serializeHospitalWarehousePickupsForServer(warehousePickups)
+      )
+    ).filter((object) => isHospitalWarehousePickupType(object.type))
     : [];
 
   // The database is authoritative. Re-read the exact template after the RPC
