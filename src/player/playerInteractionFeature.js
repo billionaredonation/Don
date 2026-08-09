@@ -14,9 +14,9 @@ const TRADE_SLOT_COUNT = 9;
 const TRADE_CONFIRM_DELAY_MS = 4000;
 const PUBLIC_TRADEABLE_CONSUMABLES = new Set(['food', 'water_bottle']);
 const MEDICINES = Object.freeze([
-  { type: 'medicine_light', label: 'Слабоседативные / простые таблетки', shortLabel: 'Простые таблетки' },
-  { type: 'medicine_strong', label: 'Среднеседативные / сильные таблетки', shortLabel: 'Сильные таблетки' },
-  { type: 'medicine_resuscitation', label: 'Сильные седативные / реанимационные таблетки', shortLabel: 'Реанимационные таблетки' },
+  { type: 'medicine_light', label: 'Простые таблетки', shortLabel: 'Простые таблетки' },
+  { type: 'medicine_strong', label: 'Среднеседативные таблетки', shortLabel: 'Средние таблетки' },
+  { type: 'medicine_resuscitation', label: 'Сильные седативные таблетки', shortLabel: 'Сильные таблетки' },
 ]);
 
 function telegramInitData() {
