@@ -220,16 +220,6 @@ function getVitalAlerts(vitals) {
   const water = Math.round(vitals.water);
   const alerts = [];
 
-  if (health < getHealthThreshold() && food < MEDICINE_MIN_FOOD) {
-    alerts.push({
-      code: 'medicine-food-locked',
-      severity: 'danger',
-      icon: '💊',
-      title: 'Таблетки пока принимать нельзя',
-      text: `Сначала поешьте. Для лечения требуется минимум ${MEDICINE_MIN_FOOD} единиц еды.`,
-    });
-  }
-
   if (health < 30) {
     alerts.push({
       code: 'hospital-reconnect',
@@ -246,9 +236,7 @@ function getVitalAlerts(vitals) {
       severity: health < CRITICAL_VITAL_THRESHOLD ? 'danger' : 'warning',
       icon: '🫀',
       title: `У вас мало HP — ${health}%`,
-      text: food < MEDICINE_MIN_FOOD
-        ? 'Организм ослаблен: сначала восстановите питание, затем приступайте к лечению.'
-        : 'Восстановите здоровье едой, отдыхом или доступными лекарствами.',
+      text: 'Восстановите здоровье едой, отдыхом или доступными лекарствами.',
     });
   }
 
@@ -258,7 +246,7 @@ function getVitalAlerts(vitals) {
       severity: food < CRITICAL_VITAL_THRESHOLD ? 'danger' : 'warning',
       icon: '🍽',
       title: `Вы голодны — ${food}%`,
-      text: `Поешьте. Без ${MEDICINE_MIN_FOOD} единиц еды безопасное лечение таблетками недоступно.`,
+      text: 'Поешьте как можно скорее, чтобы не допустить истощения.',
     });
   }
 
