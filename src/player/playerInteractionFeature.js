@@ -179,8 +179,11 @@ function rawTradeInventoryItems(inventory = {}) {
 
   if (rawItems.length) return rawItems;
 
+  // `food` is a real inventory item type returned by player_trade_inventory.
+  // Do not treat it as a vitals metadata field here: doing so made food vanish
+  // from the trade UI while water_bottle remained visible.
   const metadataKeys = new Set([
-    'balance', 'money', 'health', 'food', 'water', 'playerId', 'player_id',
+    'balance', 'money', 'health', 'water', 'playerId', 'player_id',
     'tgId', 'tg_id', 'nickname', 'updatedAt', 'updated_at',
   ]);
   return Object.entries(inventory)
