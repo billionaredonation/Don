@@ -31,6 +31,37 @@
 
   <script>
     (function () {
+      window.__MN_BUILD_ID__ = '__MN_BUILD_ID__';
+      window.__MN_BUILD_REDIRECTING__ = false;
+      window.__MN_VERSION_READY__ = (function () {
+        var manifestUrl = new URL('./mn-build.json', window.location.href);
+        manifestUrl.searchParams.set('mn_check', String(Date.now()));
+
+        return fetch(manifestUrl.toString(), {
+          cache: 'no-store',
+          credentials: 'same-origin',
+        })
+          .then(function (response) {
+            if (!response.ok) throw new Error('BUILD_MANIFEST_UNAVAILABLE');
+            return response.json();
+          })
+          .then(function (manifest) {
+            var latestBuildId = String(manifest && manifest.buildId || '').trim();
+            var currentBuildId = String(window.__MN_BUILD_ID__ || '').trim();
+            if (!latestBuildId || latestBuildId === currentBuildId) return true;
+
+            var freshUrl = new URL(window.location.href);
+            if (freshUrl.searchParams.get('mn_build') === latestBuildId) return true;
+            freshUrl.searchParams.set('mn_build', latestBuildId);
+            window.__MN_BUILD_REDIRECTING__ = true;
+            window.location.replace(freshUrl.toString());
+            return new Promise(function () {});
+          })
+          .catch(function () {
+            return true;
+          });
+      })();
+
       window.__MN_BOOT_READY__ = false;
       window.__MN_BOOT_STAGE__ = 'index';
 
@@ -143,7 +174,8 @@
 
         document.getElementById('mnReloadBtn')?.addEventListener('click', function () {
           var freshUrl = new URL(window.location.href);
-          freshUrl.searchParams.set('mn_build', String(Date.now()));
+          freshUrl.searchParams.set('mn_build', String(window.__MN_BUILD_ID__ || Date.now()));
+          freshUrl.searchParams.set('mn_retry', String(Date.now()));
           window.location.replace(freshUrl.toString());
         });
       }
