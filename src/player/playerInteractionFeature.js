@@ -17,6 +17,14 @@ const MEDICINES = Object.freeze([
   { type: 'medicine_resuscitation', label: 'Сильные седативные таблетки', shortLabel: 'Сильные таблетки' },
 ]);
 
+function medicineLabel(itemType) {
+  return MEDICINES.find((item) => item.type === String(itemType || ''))?.label || 'Таблетка';
+}
+
+function treatmentMoney(value) {
+  return `${Math.max(0, Math.floor(Number(value || 0))).toLocaleString('ru-RU')} ₴`;
+}
+
 function telegramInitData() {
   return String(window.Telegram?.WebApp?.initData || '').trim();
 }
@@ -66,6 +74,12 @@ function errorText(error) {
     TRADE_NOT_PENDING: 'Предложение уже закрыто.',
     TRADE_EXPIRED: 'Время предложения истекло.',
     PLAYER_NOT_FOUND: 'Игрок не найден.',
+    TREATMENT_OFFER_NOT_FOUND: 'Предложение лечения уже закрыто.',
+    TREATMENT_OFFER_EXPIRED: 'Время предложения лечения истекло.',
+    TREATMENT_CONFIRMATION_REQUIRED: 'Пациент должен подтвердить лечение.',
+    PATIENT_BALANCE_NOT_ENOUGH: 'Недостаточно денег для лечения.',
+    PERSONAL_MEDICINE_NOT_ENOUGH: 'У врача больше нет выбранного препарата.',
+    PATIENT_ALREADY_TREATED: 'На вас уже действует препарат.',
     NOT_FOUND: 'Edge Function player-interaction не задеплоена.',
   };
   if (raw.toLowerCase().includes('requested function was not found')) return messages.NOT_FOUND;
@@ -307,6 +321,24 @@ function markup() {
           </div>
         </div>
       </section>
+    </div>
+    <div class="mn-treatment-offer house-trade-offer" data-treatment-offer hidden aria-hidden="true">
+      <div class="mn-treatment-offer-backdrop house-trade-offer-backdrop"></div>
+      <section class="mn-treatment-offer-card house-trade-offer-card" role="dialog" aria-modal="true" aria-labelledby="mn-treatment-offer-title">
+        <span class="mn-treatment-offer-kicker house-trade-offer-kicker">Предложение лечения</span>
+        <h3 id="mn-treatment-offer-title">Врач предлагает лечение</h3>
+        <div class="mn-treatment-offer-info house-trade-offer-info">
+          <p><span>Врач</span><b data-treatment-doctor>Врач</b></p>
+          <p><span>Препарат</span><b data-treatment-medicine>Таблетка</b></p>
+          <p><span>Стоимость</span><b data-treatment-price>0 ₴</b></p>
+        </div>
+        <p class="mn-treatment-offer-wait house-trade-wait" data-treatment-wait>Y — согласиться · N — отказаться</p>
+        <div class="mn-treatment-offer-result house-trade-result" data-treatment-result hidden></div>
+        <div class="mn-treatment-offer-actions house-trade-offer-actions">
+          <button type="button" data-treatment-reject><span class="pc-label">N</span><span>Отказаться</span></button>
+          <button type="button" class="is-accept" data-treatment-accept><span class="pc-label">Y</span><span>Согласиться</span></button>
+        </div>
+      </section>
     </div>`;
 }
 
@@ -429,7 +461,7 @@ async function broadcastTo(targetTgId, event, payload) {
 }
 
 export function enablePlayerInteractionFeature({ playerPosition } = {}) {
-  document.querySelectorAll('[data-player-interaction], [data-player-interaction-hint]').forEach((element) => element.remove());
+  document.querySelectorAll('[data-player-interaction], [data-player-interaction-hint], [data-treatment-offer]').forEach((element) => element.remove());
   document.body.insertAdjacentHTML('beforeend', markup());
 
   const overlay = document.querySelector('[data-player-interaction]');
@@ -445,6 +477,14 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   const hintKey = hint?.querySelector('[data-player-interaction-hint-key]');
   const hintText = hint?.querySelector('[data-player-interaction-hint-text]');
   const closeButtons = Array.from(overlay?.querySelectorAll('[data-player-interaction-close]') || []);
+  const treatmentOverlay = document.querySelector('[data-treatment-offer]');
+  const treatmentDoctor = treatmentOverlay?.querySelector('[data-treatment-doctor]');
+  const treatmentMedicine = treatmentOverlay?.querySelector('[data-treatment-medicine]');
+  const treatmentPrice = treatmentOverlay?.querySelector('[data-treatment-price]');
+  const treatmentWait = treatmentOverlay?.querySelector('[data-treatment-wait]');
+  const treatmentResult = treatmentOverlay?.querySelector('[data-treatment-result]');
+  const treatmentAccept = treatmentOverlay?.querySelector('[data-treatment-accept]');
+  const treatmentReject = treatmentOverlay?.querySelector('[data-treatment-reject]');
   if (!overlay || !panel || !hint || !actions || !content) return () => {};
 
   if (window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches) {
@@ -456,6 +496,9 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   let target = null;
   let busy = false;
   let incomingOffer = null;
+  let incomingTreatmentOffer = null;
+  let treatmentOfferTimer = 0;
+  let treatmentBusy = false;
   let destroyed = false;
   let professionalRefreshToken = 0;
   let professionalActions = new Map();
@@ -1052,6 +1095,120 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     }
   }
 
+  function closeTreatmentOffer() {
+    window.clearInterval(treatmentOfferTimer);
+    treatmentOfferTimer = 0;
+    incomingTreatmentOffer = null;
+    treatmentBusy = false;
+    if (treatmentOverlay) {
+      treatmentOverlay.hidden = true;
+      treatmentOverlay.setAttribute('aria-hidden', 'true');
+    }
+    document.body.classList.remove('mn-treatment-offer-open');
+  }
+
+  function renderTreatmentOfferTimer() {
+    if (!incomingTreatmentOffer || !treatmentWait) return;
+    const expiresAt = new Date(incomingTreatmentOffer.expiresAt || incomingTreatmentOffer.expires_at || 0).getTime();
+    const left = Number.isFinite(expiresAt) && expiresAt > 0
+      ? Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000))
+      : 0;
+    treatmentWait.textContent = left > 0
+      ? `Y — согласиться · N — отказаться · ${left} сек.`
+      : 'Предложение лечения истекло.';
+    if (left <= 0 && expiresAt > 0) closeTreatmentOffer();
+  }
+
+  function showTreatmentOffer(offer) {
+    if (!offer?.offerId || destroyed || !treatmentOverlay) return;
+    incomingTreatmentOffer = offer;
+    treatmentBusy = false;
+    if (treatmentDoctor) treatmentDoctor.textContent = offer.doctorNickname || 'Врач';
+    if (treatmentMedicine) treatmentMedicine.textContent = offer.medicineLabel || medicineLabel(offer.medicineType);
+    if (treatmentPrice) treatmentPrice.textContent = treatmentMoney(offer.price);
+    if (treatmentResult) { treatmentResult.hidden = true; treatmentResult.textContent = ''; }
+    if (treatmentAccept) treatmentAccept.disabled = false;
+    if (treatmentReject) treatmentReject.disabled = false;
+    treatmentOverlay.hidden = false;
+    treatmentOverlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('mn-treatment-offer-open');
+    window.clearInterval(treatmentOfferTimer);
+    renderTreatmentOfferTimer();
+    treatmentOfferTimer = window.setInterval(renderTreatmentOfferTimer, 250);
+    updateHint();
+  }
+
+  async function checkIncomingTreatmentOffer() {
+    if (destroyed || treatmentBusy || incomingTreatmentOffer) return;
+    try {
+      const result = await invokePlayerAction('pending_treatment_offer');
+      if (result?.offer) showTreatmentOffer(result.offer);
+    } catch (error) {
+      const raw = String(error?.message || '');
+      if (!raw.includes('TELEGRAM_SESSION') && !raw.includes('function was not found')) {
+        console.warn('[playerInteraction] pending treatment offer check failed:', error);
+      }
+    }
+  }
+
+  async function rejectTreatmentOffer() {
+    if (!incomingTreatmentOffer || treatmentBusy) return;
+    treatmentBusy = true;
+    if (treatmentAccept) treatmentAccept.disabled = true;
+    if (treatmentReject) treatmentReject.disabled = true;
+    if (treatmentResult) { treatmentResult.hidden = false; treatmentResult.textContent = 'Отказываемся от лечения…'; }
+    try {
+      const result = await invokePlayerAction('reject_treatment_offer', { offerId: incomingTreatmentOffer.offerId });
+      await broadcastTo(result?.doctorTgId, 'treatment_offer_resolved', { ...result, status: 'rejected' });
+      closeTreatmentOffer();
+    } catch (error) {
+      treatmentBusy = false;
+      if (treatmentAccept) treatmentAccept.disabled = false;
+      if (treatmentReject) treatmentReject.disabled = false;
+      if (treatmentResult) treatmentResult.textContent = errorText(error);
+    }
+  }
+
+  async function acceptTreatmentOffer() {
+    if (!incomingTreatmentOffer || treatmentBusy) return;
+    treatmentBusy = true;
+    if (treatmentAccept) treatmentAccept.disabled = true;
+    if (treatmentReject) treatmentReject.disabled = true;
+    if (treatmentResult) { treatmentResult.hidden = false; treatmentResult.textContent = 'Подтверждаем лечение…'; }
+    try {
+      const result = await invokePlayerAction('accept_treatment_offer', { offerId: incomingTreatmentOffer.offerId });
+      const vitals = {};
+      ['health', 'food', 'water'].forEach((key) => {
+        const value = Number(result?.[key]);
+        if (Number.isFinite(value)) vitals[key] = value;
+      });
+      if (Object.keys(vitals).length) {
+        state.player = { ...(state.player || {}), ...vitals };
+        window.dispatchEvent(new CustomEvent('mn:player-vitals-changed', {
+          detail: { vitals, source: 'doctor_treatment', animateDamage: false },
+        }));
+      }
+      const patientBalance = Number(result?.patientBalance);
+      if (Number.isFinite(patientBalance)) {
+        state.player = { ...(state.player || {}), balance: patientBalance };
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+          detail: { balance: patientBalance, source: 'doctor_treatment' },
+        }));
+      }
+      window.dispatchEvent(new CustomEvent('mn:hospital-treatment-started-local'));
+      await broadcastTo(result?.doctorTgId, 'treatment_offer_resolved', { ...result, status: 'accepted' });
+      const label = result?.medicineLabel || medicineLabel(result?.medicineType);
+      const price = Number(result?.price || 0);
+      closeTreatmentOffer();
+      toast(`${result?.doctorNickname || 'Врач'} применил ${label}${price ? ` за ${price.toLocaleString('ru-RU')} ₴` : ' бесплатно'}. Восстановление HP началось.`, 'success');
+    } catch (error) {
+      treatmentBusy = false;
+      if (treatmentAccept) treatmentAccept.disabled = false;
+      if (treatmentReject) treatmentReject.disabled = false;
+      if (treatmentResult) { treatmentResult.hidden = false; treatmentResult.textContent = errorText(error); }
+    }
+  }
+
   function openNearest() {
     const nearest = nearestMarker(playerPosition);
     if (!nearest) {
@@ -1074,6 +1231,17 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
 
   function handleKeyDown(event) {
     const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement;
+    if (treatmentOverlay && !treatmentOverlay.hidden && !event.repeat) {
+      const key = String(event.key || '').toLowerCase();
+      if (event.code === 'KeyY' || key === 'y' || key === 'н') {
+        event.preventDefault(); event.stopImmediatePropagation(); void acceptTreatmentOffer(); return;
+      }
+      if (event.code === 'KeyN' || key === 'n' || key === 'т' || event.code === 'Escape') {
+        event.preventDefault(); event.stopImmediatePropagation(); void rejectTreatmentOffer(); return;
+      }
+      if (!typing) { event.preventDefault(); event.stopImmediatePropagation(); }
+      return;
+    }
     if (!overlay.hidden) {
       if (!numberPad?.hidden) {
         if (event.code === 'Escape' && !event.repeat) closeNumberPad({ restore: true });
@@ -1096,7 +1264,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   }
 
   function updateHint() {
-    const blocked = !overlay.hidden || document.body.classList.contains('mn-inventory-open') || window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true;
+    const blocked = !overlay.hidden || (treatmentOverlay && !treatmentOverlay.hidden) || document.body.classList.contains('mn-inventory-open') || window.__MN_HOSPITAL_WAREHOUSE_OPEN__ === true;
     hint.hidden = blocked || !nearestMarker(playerPosition);
   }
 
@@ -1165,6 +1333,8 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     }, 80);
   }
 
+  treatmentAccept?.addEventListener('click', acceptTreatmentOffer);
+  treatmentReject?.addEventListener('click', rejectTreatmentOffer);
   closeButtons.forEach((button) => button.addEventListener('click', close));
   hint.addEventListener('click', openNearest);
   content.addEventListener('pointerdown', handleNumberFieldPointer, true);
@@ -1204,6 +1374,31 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     const price = Number(payload?.price || 0);
     toast(`${payload?.doctorNickname || 'Врач'} выдал препарат: ${payload?.medicineLabel || 'таблетка'}${price ? ` за ${price.toLocaleString('ru-RU')} ₴` : ''}. Самолечение из инвентаря отключено; препарат можно передать или использовать врачом через подсистему лечения.`, 'success');
     window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
+  });
+  channel?.on('broadcast', { event: 'treatment_offer_created' }, ({ payload }) => {
+    if (payload?.offerId) showTreatmentOffer(payload);
+    else void checkIncomingTreatmentOffer();
+  });
+  channel?.on('broadcast', { event: 'treatment_offer_resolved' }, ({ payload }) => {
+    if (payload?.status === 'accepted') {
+      const doctorBalance = Number(payload?.doctorBalance ?? payload?.employeeBalance ?? payload?.actorBalance);
+      if (Number.isFinite(doctorBalance)) {
+        state.player = { ...(state.player || {}), balance: doctorBalance };
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+          detail: { balance: doctorBalance, source: 'doctor_treatment' },
+        }));
+      }
+      window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
+      window.dispatchEvent(new CustomEvent('mn:hospital-professional-stats-changed', {
+        detail: { hospitalId: payload?.hospitalId, activity: 'treatment', stats: payload?.professionalStats || null },
+      }));
+      invalidateProfessionalPlayerActions();
+      void refreshProfessionalActions({ force: true });
+      if (!overlay.hidden && actions.querySelector('[data-player-action="doctor_treatment"][data-active="true"]')) close();
+      toast(`${payload?.patientNickname || 'Пациент'} согласился на лечение. ${payload?.medicineLabel || medicineLabel(payload?.medicineType)} применена.`, 'success');
+    } else {
+      toast(`${payload?.patientNickname || 'Пациент'} отказался от лечения.`);
+    }
   });
   channel?.on('broadcast', { event: 'treatment_applied' }, ({ payload }) => {
     const vitals = {};
@@ -1249,8 +1444,8 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   channel?.subscribe();
 
   const hintTimer = window.setInterval(updateHint, 260);
-  const pollTimer = window.setInterval(checkIncoming, 4200);
-  window.setTimeout(checkIncoming, 1200);
+  const pollTimer = window.setInterval(() => { void checkIncoming(); void checkIncomingTreatmentOffer(); }, 3000);
+  window.setTimeout(() => { void checkIncoming(); void checkIncomingTreatmentOffer(); }, 900);
   void refreshProfessionalActions();
   scheduleRadialLayout();
   updateHint();
@@ -1258,6 +1453,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   return () => {
     destroyed = true;
     clearTradeUi();
+    closeTreatmentOffer();
     window.cancelAnimationFrame(layoutFrame);
     window.clearInterval(hintTimer);
     window.clearInterval(pollTimer);
@@ -1267,6 +1463,8 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     window.visualViewport?.removeEventListener?.('resize', scheduleRadialLayout);
     window.visualViewport?.removeEventListener?.('scroll', scheduleRadialLayout);
     window.removeEventListener('mn:professional-actions-changed', handleProfessionalActionsChanged);
+    treatmentAccept?.removeEventListener('click', acceptTreatmentOffer);
+    treatmentReject?.removeEventListener('click', rejectTreatmentOffer);
     closeButtons.forEach((button) => button.removeEventListener('click', close));
     hint.removeEventListener('click', openNearest);
     content.removeEventListener('pointerdown', handleNumberFieldPointer, true);
@@ -1279,6 +1477,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
     if (channel) supabase.removeChannel(channel);
     document.querySelectorAll('[data-player-trade-success-toast]').forEach((element) => element.remove());
     overlay.remove();
+    treatmentOverlay?.remove();
     hint.remove();
     document.body.classList.remove('mn-player-interaction-open');
   };
