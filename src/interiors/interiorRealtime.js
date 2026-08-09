@@ -37,6 +37,7 @@ function normalizeRemotePlayer(player = {}) {
 
   return {
     playerId,
+    tgId: safeText(player.tgId || player.tg_id, 32) || null,
     sessionId,
     nickname: safeText(player.nickname || player.name || 'Игрок', 32) || 'Игрок',
     instanceId: safeText(player.instanceId || player.instance_id, 180),
@@ -198,6 +199,7 @@ export function createInteriorRealtimeRoom({
   getLocalState,
   onRemotePlayer,
   onRemoteLeave,
+  onRemoteTreatment,
   onStatus,
 } = {}) {
   const safeInstanceId = safeText(instanceId);
@@ -382,6 +384,15 @@ export function createInteriorRealtimeRoom({
     .on('broadcast', { event: 'player_move' }, (message) => {
       receivePlayer(message?.payload);
     })
+    .on('broadcast', { event: 'player_treatment' }, (message) => {
+      const treatment = normalizeRemotePlayer(message?.payload);
+      if (!isRemotePlayer(treatment)) return;
+      onRemoteTreatment?.({
+        ...treatment,
+        active: message?.payload?.active === true,
+        activeUntil: Number(message?.payload?.activeUntil || Date.now()),
+      });
+    })
     .on('broadcast', { event: 'player_leave' }, (message) => {
       const player = normalizeRemotePlayer(message?.payload);
       if (!isRemotePlayer(player)) return;
@@ -471,6 +482,24 @@ export function createInteriorRealtimeRoom({
       });
     },
 
+    sendTreatment(extra = {}) {
+      if (!subscribed || destroyed) return;
+      const player = localSnapshot(extra);
+      if (!player) return;
+      const result = channel.send({
+        type: 'broadcast',
+        event: 'player_treatment',
+        payload: {
+          ...player,
+          active: extra.active === true,
+          activeUntil: Number(extra.activeUntil || Date.now()),
+        },
+      });
+      result?.catch?.((error) => {
+        console.warn('[interiors] room treatment broadcast failed:', error);
+      });
+    },
+
     hasRemotePlayer(remotePlayerId) {
       return presencePlayersById.has(safeText(remotePlayerId, 120));
     },
@@ -504,5 +533,4 @@ export function createInteriorRealtimeRoom({
     },
   };
 }
-
 
