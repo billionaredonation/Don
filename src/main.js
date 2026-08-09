@@ -146,6 +146,9 @@ function renderRemoteCheckError() {
 
 async function boot() {
   try {
+    await (window.__MN_VERSION_READY__ || Promise.resolve(true));
+    if (window.__MN_BUILD_REDIRECTING__ === true) return;
+
     if (!isTelegramWebApp()) {
       renderTelegramOnlyScreen();
       return;
