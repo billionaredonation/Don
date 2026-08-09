@@ -1097,11 +1097,58 @@ async function saveRemoteMappedInteriorObjects(templateId, objects) {
     ...normalizeMappedInteriorObjects(storedRows).filter((object) => !isHospitalWarehousePickupType(object.type)),
     ...savedWarehousePickups,
   ];
-  const savedIds = new Set(savedObjects.map((object) => object.id));
-  const saveConfirmed = savedObjects.length === expectedObjects.length &&
-    expectedObjects.every((object) => savedIds.has(object.id));
 
-  if (!saveConfirmed) throw new Error('INTERIOR_OBJECT_SAVE_NOT_CONFIRMED');
+  // `admin_replace_interior_mapped_objects` may recreate table rows and therefore
+  // return different database ids even though the interior was persisted exactly.
+  // Confirm the actual scene state instead of comparing transient row ids.
+  const persistedObjectMatches = (expected, saved) => {
+    const left = normalizeMappedInteriorObject(expected);
+    const right = normalizeMappedInteriorObject(saved);
+    if (!left || !right || left.type !== right.type) return false;
+
+    const leftSize = mappedInteriorObjectSize(left);
+    const rightSize = mappedInteriorObjectSize(right);
+    const near = (a, b, tolerance = 0.03) => Math.abs(Number(a) - Number(b)) <= tolerance;
+
+    if (!near(left.x, right.x) || !near(left.y, right.y)) return false;
+    if (Number(left.rotation || 0) !== Number(right.rotation || 0)) return false;
+    if (!near(leftSize.width, rightSize.width) || !near(leftSize.height, rightSize.height)) return false;
+
+    if (left.type === 'custom_block') {
+      if (normalizeInteriorObjectColor(left.properties?.color) !== normalizeInteriorObjectColor(right.properties?.color)) return false;
+      if (!near(
+        normalizeInteriorObjectOpacity(left.properties?.opacity, 1),
+        normalizeInteriorObjectOpacity(right.properties?.opacity, 1),
+        0.011
+      )) return false;
+      if (
+        normalizeInteriorObjectCollision(left.properties?.collision, false) !==
+        normalizeInteriorObjectCollision(right.properties?.collision, false)
+      ) return false;
+    }
+
+    return true;
+  };
+
+  const unmatchedSavedObjects = [...savedObjects];
+  const saveConfirmed = savedObjects.length === expectedObjects.length &&
+    expectedObjects.every((expectedObject) => {
+      const matchIndex = unmatchedSavedObjects.findIndex((savedObject) =>
+        persistedObjectMatches(expectedObject, savedObject)
+      );
+      if (matchIndex < 0) return false;
+      unmatchedSavedObjects.splice(matchIndex, 1);
+      return true;
+    });
+
+  if (!saveConfirmed) {
+    console.warn('[interiors] persisted mapped object verification mismatch', {
+      templateId,
+      expected: expectedObjects,
+      saved: savedObjects,
+    });
+    throw new Error('INTERIOR_OBJECT_SAVE_NOT_CONFIRMED');
+  }
 
   setMappedObjectsForTemplate(templateId, savedObjects);
   return { ...(data || {}), ok: true, objects: savedObjects };
