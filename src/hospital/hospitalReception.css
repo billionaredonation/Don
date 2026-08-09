@@ -218,3 +218,39 @@
     min-height: 40px;
   }
 }
+
+/* Telegram keeps a portrait viewport while the game itself is forced into
+   landscape. Rotate this modal exactly like inventory/warehouse/management. */
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape .mn-hospital-reception,
+  body.mn-force-rotate-landscape .mn-hospital-reception {
+    inset: auto !important;
+    left: 50% !important;
+    top: 50% !important;
+    width: 100dvh !important;
+    height: 100vw !important;
+    min-width: 100dvh !important;
+    min-height: 100vw !important;
+    padding: 10px !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-hospital-reception-panel,
+  body.mn-force-rotate-landscape .mn-hospital-reception-panel {
+    width: min(640px, calc(100dvh - 20px)) !important;
+    max-height: calc(100vw - 20px) !important;
+    transform: none !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-hospital-reception-offer,
+  body.mn-force-rotate-landscape .mn-hospital-reception-offer {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-hospital-reception-result,
+  body.mn-force-rotate-landscape .mn-hospital-reception-result {
+    grid-column: auto !important;
+    text-align: right !important;
+  }
+}
