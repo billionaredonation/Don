@@ -1226,7 +1226,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
   });
   channel?.on('broadcast', { event: 'medicine_received' }, ({ payload }) => {
     const price = Number(payload?.price || 0);
-    toast(`${payload?.doctorNickname || 'Врач'} выдал препарат: ${payload?.medicineLabel || 'таблетка'}${price ? ` за ${price.toLocaleString('ru-RU')} ₴` : ''}. Откройте инвентарь, чтобы применить.`, 'success');
+    toast(`${payload?.doctorNickname || 'Врач'} выдал препарат: ${payload?.medicineLabel || 'таблетка'}${price ? ` за ${price.toLocaleString('ru-RU')} ₴` : ''}. Самолечение из инвентаря отключено; препарат можно передать или использовать врачом через подсистему лечения.`, 'success');
     window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
   });
   channel?.on('broadcast', { event: 'treatment_applied' }, ({ payload }) => {
