@@ -20,21 +20,20 @@ export const INVENTORY_SLOT_COUNT = INVENTORY_ROWS * INVENTORY_COLUMNS;
 const INVENTORY_HOTKEY_CODE = 'KeyI';
 const INVENTORY_OPEN_CLASS = 'mn-inventory-open';
 const VITALS_CONFIG = getPlayerVitalsConfig();
-const MEDICINE_MIN_FOOD = 40;
 const HUNGER_WARNING_THRESHOLD = 40;
 const THIRST_WARNING_THRESHOLD = 40;
 const CRITICAL_VITAL_THRESHOLD = 20;
 const ITEM_META = Object.freeze({
   food: { label: 'Обед', icon: '🍔' },
   water_bottle: { label: 'Бутылка воды', icon: '🧴' },
-  medicine_light: { label: 'Слабоседативные таблетки', icon: '💊' },
+  medicine_light: { label: 'Простые таблетки', icon: '💊' },
   medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
 });
 const MEDICINE_METABOLIC_COST = Object.freeze({
-  medicine_light: { foodMin: 1, foodMax: 2, waterMin: 3, waterMax: 4 },
-  medicine_strong: { foodMin: 3, foodMax: 5, waterMin: 5, waterMax: 7 },
-  medicine_resuscitation: { foodMin: 10, foodMax: 12, waterMin: 8, waterMax: 18 },
+  medicine_light: { foodMin: 4, foodMax: 4, waterMin: 4, waterMax: 4 },
+  medicine_strong: { foodMin: 10, foodMax: 10, waterMin: 10, waterMax: 10 },
+  medicine_resuscitation: { foodMin: 25, foodMax: 25, waterMin: 25, waterMax: 25 },
 });
 
 const VITAL_ALIASES = Object.freeze({
@@ -733,15 +732,11 @@ export function enableInventoryFeature() {
       const heal = Number(item.healPerTick || 0);
       const tick = Number(item.tickSeconds || 0);
       const duration = Number(item.durationSeconds || 60);
-      const minFood = Number(item.minFood || MEDICINE_MIN_FOOD);
-      const minWater = Number(item.minWater || MEDICINE_MIN_FOOD);
-      const minHealth = Number(item.minHealth || 0);
-      const maxHealth = Number(item.maxHealth || 100);
       const cost = MEDICINE_METABOLIC_COST[itemType];
       const metabolicRule = cost
-        ? `\nРасход при приёме: ${cost.foodMin}–${cost.foodMax} еды и ${cost.waterMin}–${cost.waterMax} воды.`
+        ? `\nРасход при приёме: ${cost.foodMin} еды и ${cost.waterMin} воды.`
         : '';
-      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nЛечение: +${heal} HP каждые ${tick} сек., максимум ${duration} сек.\nУсловия: HP от ${minHealth} до ${maxHealth - 1}, еда от ${minFood}, вода от ${minWater}.${metabolicRule}`;
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nЛечение: +${heal} HP каждые ${tick} сек., максимум ${duration} сек.\nМожно применять при любом количестве HP.${metabolicRule}`;
     }
 
     return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nДля этого типа предмета информация и действие будут дополняться позже.`;
