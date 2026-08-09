@@ -70,6 +70,10 @@ const INTERIOR_MAPPED_OBJECT_TYPES = Object.freeze({
     label: 'Стол', defaultWidth: 8, defaultHeight: 6,
     minWidth: 1.5, maxWidth: 24, minHeight: 1, maxHeight: 18,
   }),
+  custom_block: Object.freeze({
+    label: 'Универсальный блок', defaultWidth: 8, defaultHeight: 4,
+    minWidth: 0.3, maxWidth: 100, minHeight: 0.3, maxHeight: 100,
+  }),
   cabinet: Object.freeze({
     label: 'Шкаф', defaultWidth: 5.5, defaultHeight: 5,
     minWidth: 1.5, maxWidth: 18, minHeight: 1.5, maxHeight: 18,
@@ -558,9 +562,35 @@ function createInteriorGuideId(type) {
   return `guide-${type}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function normalizeInteriorObjectColor(value, fallback = '#596a73') {
+  const raw = String(value || '').trim();
+  if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+  if (/^#[0-9a-f]{3}$/i.test(raw)) {
+    return `#${raw.slice(1).split('').map((char) => `${char}${char}`).join('')}`.toLowerCase();
+  }
+  return fallback;
+}
+
+function normalizeInteriorObjectOpacity(value, fallback = 1) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(0.08, Math.min(1, Math.round(number * 100) / 100));
+}
+
+function normalizeInteriorObjectCollision(value, fallback = false) {
+  if (value === true || value === 'true' || value === 1 || value === '1') return true;
+  if (value === false || value === 'false' || value === 0 || value === '0') return false;
+  return fallback;
+}
+
 function normalizeMappedInteriorObject(object, index = 0) {
   const rawType = String(object?.type || object?.object_type || object?.kind || '').trim().toLowerCase();
-  const normalizedType = normalizeHospitalWarehousePickupType(rawType);
+  const rawVisualType = String(object?.properties?.mnVisualType || object?.properties?.visualType || '')
+    .trim()
+    .toLowerCase();
+  const normalizedType = rawVisualType === 'custom_block'
+    ? 'custom_block'
+    : normalizeHospitalWarehousePickupType(rawType);
   const type = INTERIOR_MAPPED_OBJECT_TYPES[normalizedType] ? normalizedType : null;
   if (!type) return null;
 
@@ -583,6 +613,12 @@ function normalizeMappedInteriorObject(object, index = 0) {
   properties.width = size.width;
   properties.height = size.height;
   if (type === 'door') properties.depth = size.height;
+  if (type === 'custom_block') {
+    properties.mnVisualType = 'custom_block';
+    properties.color = normalizeInteriorObjectColor(properties.color);
+    properties.opacity = normalizeInteriorObjectOpacity(properties.opacity, 1);
+    properties.collision = normalizeInteriorObjectCollision(properties.collision, false);
+  }
 
   return {
     id,
@@ -683,6 +719,16 @@ function mappedInteriorBedStandPosition(bed) {
 
 function createMappedInteriorObjectProperties(type) {
   const size = mappedInteriorObjectSize({ type, properties: {} });
+  if (type === 'custom_block') {
+    return {
+      width: size.width,
+      height: size.height,
+      mnVisualType: 'custom_block',
+      color: '#596a73',
+      opacity: 1,
+      collision: false,
+    };
+  }
   if (type === 'door') {
     return {
       width: size.width,
@@ -939,10 +985,24 @@ async function saveRemoteMappedInteriorObjects(templateId, objects) {
     : [];
   const regularObjects = normalizedObjects.filter((object) => !isHospitalWarehousePickupType(object.type));
   const expectedObjects = [...regularObjects, ...warehousePickups];
+  // Compatibility bridge: older SQL deployments may whitelist known object_type
+  // values. Store custom blocks as a regular table row with a visual marker in
+  // properties; the client normalizer restores them as custom_block for every
+  // player. This avoids requiring a database migration for the new editor prop.
+  const rpcRegularObjects = regularObjects.map((object) => object.type === 'custom_block'
+    ? {
+        ...object,
+        type: 'table',
+        properties: {
+          ...object.properties,
+          mnVisualType: 'custom_block',
+        },
+      }
+    : object);
   const identity = getInteriorColliderAdminIdentity();
   const { data, error } = await supabase.rpc('admin_replace_interior_mapped_objects', {
     p_template_id: templateId,
-    p_objects: regularObjects,
+    p_objects: rpcRegularObjects,
     p_admin_player_id: identity.adminPlayerId,
     p_admin_tg_id: identity.adminTgId,
     p_admin_nickname: identity.adminNickname,
@@ -1273,6 +1333,24 @@ function mappedDoorCollisionRect(object) {
   };
 }
 
+function mappedCustomBlockCollisionRect(object) {
+  if (object?.type !== 'custom_block' || !normalizeInteriorObjectCollision(object?.properties?.collision, false)) {
+    return null;
+  }
+
+  const size = mappedInteriorObjectSize(object);
+  const quarterTurn = Math.abs(Math.round(Number(object.rotation || 0) / 90)) % 2 === 1;
+  const halfX = (quarterTurn ? size.height : size.width) / 2;
+  const halfY = (quarterTurn ? size.width : size.height) / 2;
+
+  return {
+    x1: Number(object.x) - halfX,
+    y1: Number(object.y) - halfY,
+    x2: Number(object.x) + halfX,
+    y2: Number(object.y) + halfY,
+  };
+}
+
 function isInteriorPointWalkable(templateId, point) {
   const profile = collisionProfileFor(templateId);
   const radius = Number(profile.radius ?? INTERIOR_COLLISION_FALLBACK_RADIUS);
@@ -1285,13 +1363,20 @@ function isInteriorPointWalkable(templateId, point) {
   if (!insideBounds) return false;
   if (profile.blocked.some((box) => hitsCollisionRect(safePoint, box, radius))) return false;
 
-  const hitsClosedDoor = normalizeMappedInteriorObjects(profile.objects).some((object) => {
+  const mappedObjects = normalizeMappedInteriorObjects(profile.objects);
+  const hitsClosedDoor = mappedObjects.some((object) => {
     if (object.type !== 'door' || isInteriorDoorOpen(object.id)) return false;
     const doorRect = mappedDoorCollisionRect(object);
     return doorRect ? hitsCollisionRect(safePoint, doorRect, radius) : false;
   });
+  if (hitsClosedDoor) return false;
 
-  return !hitsClosedDoor;
+  const hitsSolidCustomBlock = mappedObjects.some((object) => {
+    const blockRect = mappedCustomBlockCollisionRect(object);
+    return blockRect ? hitsCollisionRect(safePoint, blockRect, radius) : false;
+  });
+
+  return !hitsSolidCustomBlock;
 }
 
 function snapInteriorPosition(templateId, point) {
@@ -1552,6 +1637,7 @@ function markup() {
             <button type="button" data-interior-object-type="bed">Кровать</button>
             <button type="button" data-interior-object-type="chair">Стул</button>
             <button type="button" data-interior-object-type="table">Стол</button>
+            <button type="button" data-interior-object-type="custom_block">Универсальный блок</button>
             <button type="button" data-interior-object-type="cabinet">Шкаф</button>
             <button type="button" data-interior-object-type="kitchen_counter">Кухонная стойка</button>
             <button type="button" data-interior-object-type="reception">Рецепшен</button>
@@ -1560,6 +1646,28 @@ function markup() {
             <button type="button" data-interior-object-type="warehouse">Склад</button>
             <button type="button" data-interior-object-type="cafeteria">Столовка</button>
             <button type="button" data-interior-object-type="patient_medicine">Лекарства пациенту</button>
+          </div>
+          <div class="mn-interior-custom-block-settings" hidden data-interior-custom-block-settings>
+            <label class="mn-interior-custom-block-color">
+              <span>Цвет</span>
+              <input type="color" value="#596a73" data-interior-custom-block-color />
+            </label>
+            <label>
+              <span>Ширина</span>
+              <input type="number" min="0.3" max="100" step="0.1" inputmode="decimal" data-interior-custom-block-width />
+            </label>
+            <label>
+              <span>Высота</span>
+              <input type="number" min="0.3" max="100" step="0.1" inputmode="decimal" data-interior-custom-block-height />
+            </label>
+            <label class="mn-interior-custom-block-opacity">
+              <span>Прозрачность <b data-interior-custom-block-opacity-value>100%</b></span>
+              <input type="range" min="0.08" max="1" step="0.02" value="1" data-interior-custom-block-opacity />
+            </label>
+            <label class="mn-interior-custom-block-collision">
+              <input type="checkbox" data-interior-custom-block-collision />
+              <span>Коллизия для игроков</span>
+            </label>
           </div>
           <div class="mn-interior-object-actions">
             <button type="button" class="mn-interior-object-primary" data-interior-object-save>Сохранить всем</button>
@@ -1695,6 +1803,13 @@ export function enableInteriorsFeature() {
   const objectDelete = overlay.querySelector('[data-interior-object-delete]');
   const objectClear = overlay.querySelector('[data-interior-object-clear]');
   const objectStatus = overlay.querySelector('[data-interior-object-status]');
+  const customBlockSettings = overlay.querySelector('[data-interior-custom-block-settings]');
+  const customBlockColor = overlay.querySelector('[data-interior-custom-block-color]');
+  const customBlockWidth = overlay.querySelector('[data-interior-custom-block-width]');
+  const customBlockHeight = overlay.querySelector('[data-interior-custom-block-height]');
+  const customBlockOpacity = overlay.querySelector('[data-interior-custom-block-opacity]');
+  const customBlockOpacityValue = overlay.querySelector('[data-interior-custom-block-opacity-value]');
+  const customBlockCollision = overlay.querySelector('[data-interior-custom-block-collision]');
   const hospitalAdminActions = overlay.querySelector('[data-hospital-admin-actions]');
   const hospitalAdminOpen = overlay.querySelector('[data-hospital-admin-open]');
   const doorAction = overlay.querySelector('[data-interior-door-action]');
@@ -3654,6 +3769,7 @@ export function enableInteriorsFeature() {
     const beds = objects.filter((object) => object.type === 'bed').length;
     const chairs = objects.filter((object) => object.type === 'chair').length;
     const tables = objects.filter((object) => object.type === 'table').length;
+    const customBlocks = objects.filter((object) => object.type === 'custom_block').length;
     const cabinets = objects.filter((object) => object.type === 'cabinet').length;
     const kitchenCounters = objects.filter((object) => object.type === 'kitchen_counter').length;
     const receptions = objects.filter((object) => object.type === 'reception').length;
@@ -3662,7 +3778,7 @@ export function enableInteriorsFeature() {
     const warehouses = objects.filter((object) => isHospitalWarehousePickupType(object.type)).length;
     const cafeterias = objects.filter((object) => isCafeteriaPickupType(object.type)).length;
     const patientMedicines = objects.filter((object) => isPatientMedicinePickupType(object.type)).length;
-    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits} · склад ${warehouses} · столовка ${cafeterias} · лекарства ${patientMedicines}`;
+    return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · блоки ${customBlocks} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits} · склад ${warehouses} · столовка ${cafeterias} · лекарства ${patientMedicines}`;
   }
 
   function setObjectEditorType(type) {
@@ -3683,6 +3799,56 @@ export function enableInteriorsFeature() {
       button.dataset.active = button.dataset.interiorObjectType === objectEditorType ? 'true' : 'false';
     });
     setObjectStatus(`${INTERIOR_MAPPED_OBJECT_TYPES[type].label}: нажми на план для установки`);
+  }
+
+  function selectedCustomBlock() {
+    const object = objectEditorProfile?.objects?.find((item) => item.id === objectEditorSelectedId);
+    return object?.type === 'custom_block' ? object : null;
+  }
+
+  function syncCustomBlockEditor() {
+    if (!customBlockSettings) return;
+    const block = selectedCustomBlock();
+    customBlockSettings.hidden = !block;
+    if (!block) return;
+
+    const size = mappedInteriorObjectSize(block);
+    const color = normalizeInteriorObjectColor(block.properties?.color);
+    const opacity = normalizeInteriorObjectOpacity(block.properties?.opacity, 1);
+    const collision = normalizeInteriorObjectCollision(block.properties?.collision, false);
+
+    customBlockColor.value = color;
+    customBlockWidth.value = String(size.width);
+    customBlockHeight.value = String(size.height);
+    customBlockOpacity.value = String(opacity);
+    customBlockOpacityValue.textContent = `${Math.round(opacity * 100)}%`;
+    customBlockCollision.checked = collision;
+  }
+
+  function updateSelectedCustomBlockFromControls() {
+    const block = selectedCustomBlock();
+    if (!block) return;
+
+    const nextSize = mappedInteriorObjectSize({
+      ...block,
+      properties: {
+        ...block.properties,
+        width: Number(customBlockWidth.value),
+        height: Number(customBlockHeight.value),
+      },
+    });
+    block.properties = {
+      ...block.properties,
+      width: nextSize.width,
+      height: nextSize.height,
+      color: normalizeInteriorObjectColor(customBlockColor.value),
+      opacity: normalizeInteriorObjectOpacity(customBlockOpacity.value, 1),
+      collision: Boolean(customBlockCollision.checked),
+    };
+    renderInteriorObjects();
+    setObjectStatus(
+      `Блок ${nextSize.width} × ${nextSize.height} · ${block.properties.color} · коллизия ${block.properties.collision ? 'вкл' : 'выкл'}`
+    );
   }
 
   function renderInteriorObjects() {
@@ -3716,6 +3882,11 @@ export function enableInteriorsFeature() {
         element.dataset.open = isOpen ? 'true' : 'false';
         element.setAttribute('aria-pressed', isOpen ? 'true' : 'false');
       }
+      if (object.type === 'custom_block') {
+        element.style.setProperty('--mn-custom-block-color', normalizeInteriorObjectColor(object.properties?.color));
+        element.style.setProperty('--mn-custom-block-opacity', String(normalizeInteriorObjectOpacity(object.properties?.opacity, 1)));
+        element.dataset.collision = normalizeInteriorObjectCollision(object.properties?.collision, false) ? 'true' : 'false';
+      }
       if (object.type === 'chair') {
         const occupant = seatOccupantForObject(object.id);
         const occupied = Boolean(occupant);
@@ -3746,8 +3917,9 @@ export function enableInteriorsFeature() {
     objectLayer.replaceChildren(fragment);
     objectRotate.disabled = !objectEditorSelectedId;
     objectDelete.disabled = !objectEditorSelectedId;
+    syncCustomBlockEditor();
 
-    if (objectEditorOpen) setObjectStatus(objectCountsText(profile));
+    if (objectEditorOpen && !objectEditorSelectedId) setObjectStatus(objectCountsText(profile));
     renderInteriorGuides();
     refreshDoorInteraction();
   }
@@ -5356,6 +5528,11 @@ export function enableInteriorsFeature() {
   objectTypeButtons.forEach((button) => {
     button.addEventListener('click', () => setObjectEditorType(button.dataset.interiorObjectType));
   });
+  customBlockColor?.addEventListener('input', updateSelectedCustomBlockFromControls);
+  customBlockWidth?.addEventListener('change', updateSelectedCustomBlockFromControls);
+  customBlockHeight?.addEventListener('change', updateSelectedCustomBlockFromControls);
+  customBlockOpacity?.addEventListener('input', updateSelectedCustomBlockFromControls);
+  customBlockCollision?.addEventListener('change', updateSelectedCustomBlockFromControls);
   objectSave.addEventListener('click', () => applyObjectEditorProfile({ persist: true }));
   objectRotate.addEventListener('click', rotateSelectedObject);
   objectDelete.addEventListener('click', deleteSelectedObject);
@@ -5501,5 +5678,3 @@ export function enableInteriorsFeature() {
     },
   };
 }
-
-
