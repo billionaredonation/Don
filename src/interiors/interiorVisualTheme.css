@@ -478,61 +478,6 @@
   pointer-events: none;
 }
 
-/* Exit: integrated floor guidance, not a button.
-   The hitbox stays unchanged; only the visual presentation changes. */
-.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-exit {
-  overflow: visible;
-  border: 0 !important;
-  border-radius: 0;
-  color: transparent;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-exit::before {
-  content: "";
-  position: absolute;
-  left: 15%;
-  right: 15%;
-  top: 18%;
-  bottom: 18%;
-  border: 0;
-  background:
-    linear-gradient(90deg,
-      transparent 0 8%,
-      rgba(114, 231, 175, .24) 8% 13%,
-      transparent 13% 87%,
-      rgba(114, 231, 175, .24) 87% 92%,
-      transparent 92%),
-    linear-gradient(180deg,
-      rgba(155, 247, 203, .92) 0 13%,
-      rgba(66, 196, 133, .74) 13% 22%,
-      rgba(28, 104, 72, .22) 22% 78%,
-      rgba(66, 196, 133, .74) 78% 87%,
-      rgba(155, 247, 203, .92) 87% 100%);
-  clip-path: polygon(0 34%, 58% 34%, 58% 8%, 100% 50%, 58% 92%, 58% 66%, 0 66%);
-  opacity: .88;
-  box-shadow: 0 0 7px rgba(71, 197, 138, .26);
-  pointer-events: none;
-}
-.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-exit::after {
-  content: "ВЫХОД";
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 4px);
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  color: rgba(194, 239, 216, .82);
-  background: transparent;
-  box-shadow: none;
-  transform: translateX(-50%);
-  font: 850 5.5px/1 system-ui;
-  letter-spacing: .13em;
-  text-shadow: 0 1px 2px rgba(0,0,0,.75);
-  white-space: nowrap;
-  pointer-events: none;
-}
-
 /* Doors keep the existing gameplay state colors, but lose the neon toy look. */
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-door::before {
   border-color: rgba(225, 151, 158, .82);
@@ -596,5 +541,171 @@
     border: 0 !important;
     outline: none !important;
     box-shadow: 0 2px 3px rgba(0,0,0,.26);
+  }
+}
+
+
+/* ========================================================================== 
+   GLOBAL INTERIOR PROPS
+   These rules are intentionally not scoped to hospital. They are used by all
+   house / business / faction interiors that render mapped interior objects.
+   ========================================================================== */
+
+/* Universal construction block.
+   Color, opacity and collision are object properties saved with the shared
+   interior layout. Collision is handled in JS; this is only the visual prop. */
+.mn-interior .mn-interior-mapped-object-custom_block {
+  overflow: visible;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 1.5px;
+  color: transparent;
+  background: var(--mn-custom-block-color, #596a73) !important;
+  opacity: var(--mn-custom-block-opacity, 1);
+  box-shadow: 0 2px 4px rgba(0,0,0,.3);
+  -webkit-tap-highlight-color: transparent;
+}
+.mn-interior .mn-interior-mapped-object-custom_block::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.075), transparent 28%, rgba(0,0,0,.055));
+  pointer-events: none;
+}
+.mn-interior .mn-interior-mapped-object-custom_block::after {
+  content: none;
+}
+.mn-interior .mn-interior-object-layer[data-editor="enabled"]
+  .mn-interior-mapped-object-custom_block[data-collision="true"]::after {
+  content: "COL";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  padding: 1px 2px;
+  border: 0;
+  border-radius: 2px;
+  color: rgba(255,255,255,.88);
+  background: rgba(0,0,0,.48);
+  font: 900 4.5px/1 system-ui;
+  letter-spacing: .05em;
+  pointer-events: none;
+}
+
+/* Global exit presentation for every mapped interior, current and future.
+   The interaction hitbox remains the mapped object; visually it is a floor
+   threshold / directional marker instead of a UI button. */
+.mn-interior .mn-interior-mapped-object-exit {
+  overflow: visible;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 0 !important;
+  color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.mn-interior .mn-interior-mapped-object-exit::before {
+  content: "";
+  position: absolute;
+  left: 13%;
+  right: 13%;
+  top: 16%;
+  bottom: 16%;
+  border: 0;
+  background:
+    linear-gradient(90deg,
+      transparent 0 8%,
+      rgba(114,231,175,.22) 8% 12%,
+      transparent 12% 88%,
+      rgba(114,231,175,.22) 88% 92%,
+      transparent 92%),
+    linear-gradient(180deg,
+      rgba(170,255,214,.94) 0 11%,
+      rgba(67,201,137,.78) 11% 21%,
+      rgba(21,90,61,.18) 21% 79%,
+      rgba(67,201,137,.78) 79% 89%,
+      rgba(170,255,214,.94) 89% 100%);
+  clip-path: polygon(0 34%, 58% 34%, 58% 7%, 100% 50%, 58% 93%, 58% 66%, 0 66%);
+  opacity: .9;
+  box-shadow: 0 0 6px rgba(67,201,137,.22);
+  pointer-events: none;
+}
+.mn-interior .mn-interior-mapped-object-exit::after {
+  content: "ВЫХОД";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: rgba(199,242,221,.84);
+  background: transparent;
+  box-shadow: none;
+  transform: translateX(-50%);
+  font: 850 5.5px/1 system-ui;
+  letter-spacing: .13em;
+  text-shadow: 0 1px 2px rgba(0,0,0,.78);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Universal block editor controls live in the same centralized visual file. */
+.mn-interior-custom-block-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 11px;
+  background: rgba(255,255,255,.035);
+}
+.mn-interior-custom-block-settings[hidden] { display: none !important; }
+.mn-interior-custom-block-settings label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: rgba(255,255,255,.68);
+  font: 800 9px/1.15 system-ui;
+}
+.mn-interior-custom-block-settings input[type="number"],
+.mn-interior-custom-block-settings input[type="color"] {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  color: #fff;
+  background: rgba(255,255,255,.065);
+}
+.mn-interior-custom-block-settings input[type="number"] { padding: 0 8px; }
+.mn-interior-custom-block-settings input[type="color"] { padding: 3px; cursor: pointer; }
+.mn-interior-custom-block-opacity,
+.mn-interior-custom-block-collision { grid-column: 1 / -1; }
+.mn-interior-custom-block-opacity > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mn-interior-custom-block-opacity input[type="range"] { width: 100%; }
+.mn-interior-custom-block-collision {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 8px !important;
+  min-height: 30px;
+}
+.mn-interior-custom-block-collision input { margin: 0; }
+
+@media (max-width: 740px), (max-height: 620px) {
+  .mn-interior-custom-block-settings input[type="number"],
+  .mn-interior-custom-block-settings input[type="color"] {
+    height: 38px;
   }
 }
