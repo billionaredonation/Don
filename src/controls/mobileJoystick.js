@@ -1,5 +1,5 @@
-import { getStaminaConfig, getStaminaRecoveryPerFrame } from '../player/playerStaminaConfig.js';
-import { readPlayerStaminaState, writePlayerStaminaState } from '../player/playerStaminaState.js';
+import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import { applyPlayerStaminaFrame, readPlayerStaminaState } from '../player/playerStaminaState.js';
 import { MOVEMENT_CONFIG } from '../config/movement.js';
 import { state as gameState } from '../state.js';
 
@@ -227,16 +227,6 @@ export function enableMobileJoystick(
   if (!base || !stick) return null;
 
   const STAMINA = getStaminaConfig();
-  const configuredMobileRecoveredAt = Number(STAMINA.mobileRecoveredAt);
-  const MOBILE_STAMINA_RECOVERED_AT = Math.min(
-    STAMINA.max,
-    Math.max(
-      STAMINA.recoveredAt,
-      Number.isFinite(configuredMobileRecoveredAt)
-        ? configuredMobileRecoveredAt
-        : STAMINA.max * 0.5
-    )
-  );
   const configuredBounds = getMovementBounds();
 
   /*
@@ -461,59 +451,33 @@ export function enableMobileJoystick(
   }
 
   function updateSprintState(isMoving, frameScale) {
-    const sharedStamina = readPlayerStaminaState();
-    stamina = sharedStamina.value;
-    sprintLocked = sharedStamina.locked;
-
     const joystickPower = getJoystickPower(moveX, moveY);
     const sprintBlockedByVitals = window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true;
-    const wantsSprint = isMoving && joystickPower >= SPRINT_POWER && !sprintLocked && !sprintBlockedByVitals;
-
-    if (wantsSprint) {
-      const previousStamina = stamina;
-      stamina = Math.max(
-        STAMINA.emptyAt,
-        stamina - STAMINA.drainPerFrame * frameScale
-      );
-
-      const spentAmount = Math.max(0, previousStamina - stamina);
-      if (spentAmount > 0) {
-        window.dispatchEvent(new CustomEvent('mn:player-stamina-spent', {
-          detail: { source: 'mobile', amount: spentAmount },
-        }));
-      }
-
-      if (stamina <= STAMINA.emptyAt) {
-        const wasLocked = sprintLocked;
-        sprintLocked = true;
-        stamina = STAMINA.emptyAt;
-        if (!wasLocked) {
-          window.dispatchEvent(new CustomEvent('mn:player-stamina-exhausted', {
-            detail: { source: 'mobile' },
-          }));
-        }
-      }
-    } else {
-      stamina = Math.min(
-        STAMINA.max,
-        stamina + getStaminaRecoveryPerFrame(gameState.player?.water) * frameScale
-      );
-
-      if (stamina >= MOBILE_STAMINA_RECOVERED_AT) {
-        const wasLocked = sprintLocked;
-        sprintLocked = false;
-        if (wasLocked) {
-          window.dispatchEvent(new CustomEvent('mn:player-stamina-recovered', {
-            detail: { source: 'mobile' },
-          }));
-        }
-      }
+    const next = applyPlayerStaminaFrame({
+      wantsSprint: isMoving && joystickPower >= SPRINT_POWER && !sprintBlockedByVitals,
+      frameScale,
+      water: gameState.player?.water,
+      source: 'mobile',
+    });
+    stamina = next.value;
+    sprintLocked = next.locked;
+    if (next.spent > 0) {
+      window.dispatchEvent(new CustomEvent('mn:player-stamina-spent', {
+        detail: { source: 'mobile', amount: next.spent },
+      }));
     }
-
-    writePlayerStaminaState(stamina, sprintLocked, 'mobile');
+    if (next.exhausted) {
+      window.dispatchEvent(new CustomEvent('mn:player-stamina-exhausted', {
+        detail: { source: 'mobile' },
+      }));
+    }
+    if (next.recovered) {
+      window.dispatchEvent(new CustomEvent('mn:player-stamina-recovered', {
+        detail: { source: 'mobile' },
+      }));
+    }
     updateStaminaUi();
-
-    return wantsSprint;
+    return next.sprinting;
   }
 
   function handleSprintAvailabilityChanged() {
