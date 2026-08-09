@@ -49,7 +49,7 @@ async function renderDoctorTreatment({
       <label><span>Препарат</span><select data-heal-medicine></select></label>
       <label><span>Цена лечения <small>можно 0</small></span><input type="number" min="0" max="1000000000" step="1" inputmode="numeric" value="0" data-heal-price></label>
       <button type="button" class="is-primary" data-heal-submit>Вылечить</button>
-      <small>Таблетка сразу применяется к HP пациента и не попадает в его инвентарь. Если не хватает еды, воды или денег, ничего не списывается.</small>
+      <small>Таблетка применяется к другому игроку через подсистему врача и не попадает в его инвентарь. Любой доступный препарат можно применять при любом уровне HP пациента. Если не хватает еды, воды или денег, ничего не списывается.</small>
     </div>`;
 
   const hospitalSelect = content.querySelector('[data-heal-hospital]');
