@@ -2,14 +2,10 @@
 import './inventory.css';
 import { state } from '../state.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
-import {
-  applyPlayerPositionVitalCost,
-  applyPlayerPositionVitalRestore,
-} from '../player/playerPosition.js';
+import { applyPlayerPositionVitalRestore } from '../player/playerPosition.js';
 import {
   getHospitalUserErrorMessage,
   loadMyMedicalInventory,
-  notifyHospitalTreatmentStarted,
   useInventoryItem,
 } from '../hospital/hospitalWarehouseFeature.js';
 
@@ -30,12 +26,6 @@ const ITEM_META = Object.freeze({
   medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
 });
-const MEDICINE_METABOLIC_COST = Object.freeze({
-  medicine_light: { foodMin: 4, foodMax: 4, waterMin: 4, waterMax: 4 },
-  medicine_strong: { foodMin: 10, foodMax: 10, waterMin: 10, waterMax: 10 },
-  medicine_resuscitation: { foodMin: 25, foodMax: 25, waterMin: 25, waterMax: 25 },
-});
-
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
   food: ['food', 'hunger', 'satiety'],
@@ -75,15 +65,6 @@ function publishInventorySnapshot(items = []) {
   }));
 }
 
-function localTelegramId() {
-  return String(
-    window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
-      state.telegramId ||
-      state.player?.tg_id ||
-      ''
-  ).trim();
-}
-
 function getConsumptionEffectType(itemType) {
   const normalized = String(itemType || '').trim().toLowerCase();
   if (normalized === 'water' || normalized === 'drink' || normalized.includes('water') || normalized.includes('drink')) {
@@ -109,59 +90,6 @@ function optionalFiniteNumber(value) {
   if (value === undefined || value === null || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
-}
-
-function randomInteger(min, max) {
-  const safeMin = Math.ceil(Math.min(min, max));
-  const safeMax = Math.floor(Math.max(min, max));
-  return safeMin + Math.floor(Math.random() * (safeMax - safeMin + 1));
-}
-
-function medicineCostValue(returnedValue, observedValue, min, max) {
-  const returned = Math.floor(Number(returnedValue));
-  if (Number.isFinite(returned) && returned >= min) return Math.min(max, returned);
-
-  const observed = Math.floor(Number(observedValue));
-  if (Number.isFinite(observed) && observed >= min) return Math.min(max, observed);
-
-  return randomInteger(min, max);
-}
-
-async function ensureMedicineMetabolicCost(itemType, result, beforeVitals) {
-  const range = MEDICINE_METABOLIC_COST[itemType];
-  if (!range) return result;
-
-  const resultFood = optionalFiniteNumber(result?.food);
-  const resultWater = optionalFiniteNumber(result?.water);
-  const observedFoodCost = resultFood === null ? 0 : Math.max(0, beforeVitals.food - resultFood);
-  const observedWaterCost = resultWater === null ? 0 : Math.max(0, beforeVitals.water - resultWater);
-  const foodCost = medicineCostValue(
-    result?.foodCost,
-    observedFoodCost,
-    range.foodMin,
-    range.foodMax
-  );
-  const waterCost = medicineCostValue(
-    result?.waterCost,
-    observedWaterCost,
-    range.waterMin,
-    range.waterMax
-  );
-  const canonicalVitals = await applyPlayerPositionVitalCost({
-    foodCost,
-    waterCost,
-    foodBefore: beforeVitals.food,
-    waterBefore: beforeVitals.water,
-  });
-
-  return {
-    ...(result || {}),
-    ...canonicalVitals,
-    foodCost,
-    waterCost,
-    canonicalVitalsUpdated: true,
-    medicineMetabolismTransport: 'player_positions_frontend_ensure',
-  };
 }
 
 function readVital(source, key, fallback) {
@@ -720,11 +648,7 @@ export function enableInventoryFeature() {
       const heal = Number(item.healPerTick || 0);
       const tick = Number(item.tickSeconds || 0);
       const duration = Number(item.durationSeconds || 60);
-      const cost = MEDICINE_METABOLIC_COST[itemType];
-      const metabolicRule = cost
-        ? `\nРасход при приёме: ${cost.foodMin} еды и ${cost.waterMin} воды.`
-        : '';
-      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nЛечение: +${heal} HP каждые ${tick} сек., максимум ${duration} сек.\nМожно применять при любом количестве HP.${metabolicRule}`;
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nЛечение: +${heal} HP каждые ${tick} сек., максимум ${duration} сек.\nСамолечение из инвентаря отключено. Препарат используется врачом на другом игроке через подсистему лечения и может применяться при любом HP пациента.`;
     }
 
     return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nДля этого типа предмета информация и действие будут дополняться позже.`;
@@ -778,6 +702,12 @@ export function enableInventoryFeature() {
     if (itemMenuIcon) itemMenuIcon.innerHTML = getItemIconMarkup(itemType, meta.icon || item.icon || '□');
     if (itemMenuTitle) itemMenuTitle.textContent = getItemLabel(item);
     if (itemMenuQuantity) itemMenuQuantity.textContent = `${Number(item.quantity || 0).toLocaleString('ru-RU')} шт.`;
+    if (itemMenuApply) {
+      const medicineOnly = itemType.startsWith('medicine_');
+      itemMenuApply.hidden = medicineOnly;
+      itemMenuApply.disabled = medicineOnly;
+      itemMenuApply.style.display = medicineOnly ? 'none' : '';
+    }
     setItemMenuNotice('');
     positionItemMenu(anchor, event);
     return true;
@@ -806,6 +736,14 @@ export function enableInventoryFeature() {
     const itemType = String(item?.itemType || '');
     const consumptionEffect = getConsumptionEffectType(itemType);
     if (!itemType || inventoryBusy) return;
+    if (itemType.startsWith('medicine_')) {
+      const message = 'Самолечение таблетками отключено. Используйте препарат на другом игроке через подсистему врача.';
+      setItemMenuNotice(message, 'error');
+      window.dispatchEvent(new CustomEvent('mn:toast', {
+        detail: { type: 'error', message },
+      }));
+      return;
+    }
     inventoryBusy = true;
     setItemMenuNotice('Применяю предмет...', 'info');
     renderMedicalInventory();
@@ -815,7 +753,6 @@ export function enableInventoryFeature() {
       }));
     }
     try {
-      const vitalsBeforeUse = { ...currentVitals };
       let result = await useInventoryItem({
         itemType,
         source: item.source || item.inventorySource || 'personal',
@@ -827,9 +764,6 @@ export function enableInventoryFeature() {
         result = { ...(result || {}), ...restoredVitals };
       }
 
-      if (itemType.startsWith('medicine_')) {
-        result = await ensureMedicineMetabolicCost(itemType, result, vitalsBeforeUse);
-      }
 
       const resultBalance = optionalFiniteNumber(result?.balance);
       if (resultBalance !== null) {
@@ -860,36 +794,18 @@ export function enableInventoryFeature() {
           detail: { vitals: changedVitals, source: 'inventory_item_use', result },
         }));
       }
-      if (itemType.startsWith('medicine_')) {
-        // Start the map effect immediately. The inventory deliberately stays
-        // open and covers it; if the player closes the inventory while the
-        // treatment is still active, the running effect becomes visible.
-        window.dispatchEvent(new CustomEvent('mn:hospital-treatment-started-local'));
-        await notifyHospitalTreatmentStarted(localTelegramId(), result?.hospitalId);
-        window.dispatchEvent(new CustomEvent('mn:hospital-professional-stats-changed', {
-          detail: {
-            hospitalId: result?.hospitalId || item.hospitalId || null,
-            activity: 'treatment',
-            stats: result?.professionalStats || null,
-          },
-        }));
-      }
       window.dispatchEvent(new CustomEvent('mn:toast', {
         detail: {
           type: 'success',
           message: itemType === 'food'
             ? `${result?.itemLabel || getItemLabel(item)} применён. Сытость восстановлена.`
-            : itemType === 'water_bottle'
-              ? `${result?.itemLabel || getItemLabel(item)} выпита. Вода восстановлена на 20.`
-              : `${result?.medicineLabel || getItemLabel(item)} применён. Восстановление HP началось.`,
+            : `${result?.itemLabel || getItemLabel(item)} выпита. Вода восстановлена на 20.`,
         },
       }));
       setItemMenuNotice(
         itemType === 'food'
           ? `${result?.itemLabel || getItemLabel(item)} применён. Сытость: ${Math.round(Number(result?.food ?? currentVitals.food))}/100, вода: ${Math.round(Number(result?.water ?? currentVitals.water))}/100.`
-          : itemType === 'water_bottle'
-            ? `${result?.itemLabel || getItemLabel(item)} выпита. Вода: ${Math.round(Number(result?.water ?? currentVitals.water))}/100.`
-            : `${result?.medicineLabel || getItemLabel(item)} применён. Потрачено ${Number(result?.foodCost || 0)} еды и ${Number(result?.waterCost || 0)} воды. Восстановление HP началось.`,
+          : `${result?.itemLabel || getItemLabel(item)} выпита. Вода: ${Math.round(Number(result?.water ?? currentVitals.water))}/100.`,
         'success'
       );
       await refreshMedicalInventory();
