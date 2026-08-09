@@ -9,7 +9,7 @@ const MEDICINE_TYPES = ['medicine_light', 'medicine_strong', 'medicine_resuscita
 const ITEM_FALLBACKS = Object.freeze({
   food: { label: 'Продукты', icon: '🍱' },
   water_bottle: { label: 'Бутылка воды', icon: '💧' },
-  medicine_light: { label: 'Слабоседативные таблетки', icon: '💊' },
+  medicine_light: { label: 'Простые таблетки', icon: '💊' },
   medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
 });
@@ -92,6 +92,11 @@ function userErrorMessage(error) {
     TREATMENT_APPLY_FAILED: 'Таблетка не применилась. Деньги и таблетка не списаны.',
     EMPLOYEE_MANAGEMENT_DENIED: 'У вас нет доступа к управлению сотрудниками этой больницы.',
     HOSPITAL_BUDGET_NOT_ENOUGH: 'В бюджете больницы недостаточно денег для закупки.',
+    HOSPITAL_PAYROLL_TREASURY_NOT_ENOUGH: 'В казне больницы недостаточно денег для этой зарплаты.',
+    INVALID_PAYROLL_AMOUNT: 'Укажите корректную сумму для казны или зарплаты.',
+    EMPLOYEE_SALARY_NOT_CONFIGURED: 'Сначала установите сотруднику суточную зарплату.',
+    EMPLOYEE_SALARY_ALREADY_PAID_TODAY: 'Этому сотруднику зарплата за сегодня уже выплачена.',
+    EMPLOYEE_DAILY_ACTIVITY_TOO_LOW: 'Сотрудник ещё не отыграл обязательные 2 часа во фракции за сегодня.',
     PURCHASE_PRICE_NOT_CONFIGURED: 'Цена закупки для этого предмета не настроена в БД.',
     STAFF_PANEL_DENIED: 'Меню больницы доступно только сотрудникам больницы и администрации.',
     ADMIN_REQUIRED_FOR_SENIOR_RANK: 'Назначать или снимать старший состав может только администрация.',
@@ -338,13 +343,7 @@ function formatMedicineRule(item) {
   const heal = Number(item.healPerTick || 0);
   const seconds = Number(item.tickSeconds || 0);
   const duration = Number(item.durationSeconds || 60);
-  const minHealth = Number(item.minHealth || 0);
-  const maxHealth = Number(item.maxHealth || 100);
-  const healthRule = minHealth <= 0
-    ? `при HP ниже ${maxHealth}`
-    : `при HP от ${minHealth} до ${maxHealth - 1}`;
-
-  return `+${heal} HP каждые ${seconds} сек. · ${healthRule} · действует ${duration} сек.`;
+  return `+${heal} HP каждые ${seconds} сек. · можно применить при любом HP · действует ${duration} сек.`;
 }
 
 function markup() {
@@ -387,7 +386,7 @@ function markup() {
               <div class="mn-hospital-patient-form">
                 <input type="text" maxlength="32" autocomplete="off" placeholder="Ник или Telegram ID пациента" data-hospital-patient-target />
                 <select data-hospital-patient-medicine>
-                  <option value="medicine_light">Слабоседативные таблетки</option>
+                  <option value="medicine_light">Простые таблетки</option>
                   <option value="medicine_strong">Среднеседативные таблетки</option>
                   <option value="medicine_resuscitation">Сильные седативные таблетки</option>
                 </select>
