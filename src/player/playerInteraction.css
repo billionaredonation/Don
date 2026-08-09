@@ -296,3 +296,100 @@ body.mn-player-interaction-open .mobile-controls-layer, body.mn-player-interacti
   .mn-treatment-offer-card h3 { font-size: 17px; }
   .mn-treatment-offer-actions button { min-height: 44px; }
 }
+
+/* In-game select used by the doctor panel. Native <select> pickers are not used
+   because iOS renders them outside the force-rotated landscape WebView. */
+.mn-action-select {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mn-action-select-trigger {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  color: #fff;
+  background: rgba(0,0,0,.26);
+  font: 800 12px/1.15 system-ui, -apple-system, sans-serif;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.mn-action-select-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-action-select-trigger > i {
+  flex: 0 0 auto;
+  color: rgba(212, 238, 252, .72);
+  font-style: normal;
+  font-size: 16px;
+  transition: transform 150ms ease;
+}
+
+.mn-action-select[data-open="true"] .mn-action-select-trigger {
+  border-color: rgba(70,190,241,.58);
+  background: rgba(20, 64, 86, .55);
+}
+
+.mn-action-select[data-open="true"] .mn-action-select-trigger > i {
+  transform: rotate(180deg);
+}
+
+.mn-action-select-trigger:disabled,
+.mn-action-select-trigger[data-empty="true"] {
+  opacity: .52;
+}
+
+.mn-action-select-menu[hidden] { display: none !important; }
+.mn-action-select-menu {
+  display: grid;
+  gap: 5px;
+  max-height: 154px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px;
+  border: 1px solid rgba(111, 194, 239, .22);
+  border-radius: 12px;
+  background: rgba(4, 13, 19, .96);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .36);
+}
+
+.mn-action-select-option {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #effaff;
+  background: rgba(255,255,255,.045);
+  font: 800 11px/1.25 system-ui, -apple-system, sans-serif;
+  text-align: left;
+}
+
+.mn-action-select-option[data-selected="true"] {
+  border-color: rgba(70,190,241,.48);
+  background: rgba(35, 137, 190, .26);
+  color: #fff;
+}
+
+.mn-action-select-option:active {
+  background: rgba(56, 166, 219, .32);
+}
+
+@media (max-width: 720px), (max-height: 560px) {
+  .mn-action-select-trigger { min-height: 36px; }
+  .mn-action-select-menu { max-height: 122px; }
+  .mn-action-select-option { min-height: 34px; padding: 7px 9px; }
+}
