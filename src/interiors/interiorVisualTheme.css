@@ -26,6 +26,9 @@
   --mn-hospital-cyan: #74d6ee;
   --mn-hospital-wood: #876246;
   --mn-hospital-wood-light: #ad8765;
+  --mn-hospital-table-top: #4b4540;
+  --mn-hospital-table-top-deep: #292725;
+  --mn-hospital-table-grain: rgba(224, 207, 185, .075);
   --mn-hospital-textile: #bddce8;
   --mn-hospital-pillow: #eef8fb;
   --mn-hospital-green: #47c58a;
@@ -37,8 +40,20 @@
 /* Shared physical-object finish. Geometry is still supplied inline by JS. */
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object {
   contain: layout style;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
   outline: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Furniture is drawn as the object itself, never as a framed UI tile.
+   data-interior-object-type keeps this rule valid for objects added later. */
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object[data-interior-object-type="bed"],
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object[data-interior-object-type="chair"],
+.mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object[data-interior-object-type="table"] {
+  outline: none !important;
+  border-color: transparent;
 }
 
 /* --------------------------------------------------------------------------
@@ -46,7 +61,7 @@
    -------------------------------------------------------------------------- */
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed {
   overflow: visible;
-  border: 1px solid rgba(216, 231, 236, .88);
+  border: 0;
   border-radius: 4px;
   background:
     linear-gradient(90deg,
@@ -60,9 +75,8 @@
       var(--mn-hospital-metal-dark) 5% 95%,
       rgba(0, 0, 0, .42) 95% 100%);
   box-shadow:
-    0 2px 5px var(--mn-hospital-shadow),
-    0 0 0 1px rgba(4, 10, 13, .78),
-    inset 0 0 0 1px rgba(128, 198, 222, .16);
+    0 2px 4px rgba(0, 0, 0, .46),
+    inset 0 0 0 1px rgba(128, 198, 222, .08);
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed::before {
   content: "";
@@ -97,15 +111,14 @@
    -------------------------------------------------------------------------- */
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair {
   overflow: visible;
-  border: 1px solid rgba(205, 222, 229, .8);
+  border: 0;
   border-radius: 4px;
   background:
     linear-gradient(90deg, transparent 8%, rgba(96,116,126,.94) 8% 15%, transparent 15% 85%, rgba(96,116,126,.94) 85% 92%, transparent 92%),
     linear-gradient(180deg, #25343b, #121c21);
   box-shadow:
-    0 2px 5px rgba(0,0,0,.58),
-    0 0 0 1px rgba(5,12,16,.76),
-    inset 0 0 0 1px rgba(255,255,255,.07);
+    0 2px 4px rgba(0,0,0,.43),
+    inset 0 0 0 1px rgba(255,255,255,.035);
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair::before {
   content: "";
@@ -134,46 +147,61 @@
   box-shadow: 0 2px 2px rgba(0,0,0,.24);
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair[data-occupied="true"] {
-  border-color: rgba(125, 174, 194, .66);
+  border-color: transparent;
   filter: saturate(.72) brightness(.78);
 }
 
 /* --------------------------------------------------------------------------
-   Tables: same metal + warm laminate language as chairs
+   Tables: dark hospital laminate / compact wood composite.
+   No outer UI frame: the tabletop itself is the visual object.
+   Every current and future object with type="table" inherits this finish.
    -------------------------------------------------------------------------- */
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table {
   overflow: visible;
-  border: 1px solid rgba(213, 228, 233, .84);
-  border-radius: 4px;
+  border: 0;
+  border-radius: 3px;
   background:
-    linear-gradient(90deg, rgba(25,35,41,.9) 0 3%, transparent 3% 97%, rgba(25,35,41,.9) 97%),
-    linear-gradient(180deg, rgba(255,255,255,.1), transparent 18%),
-    linear-gradient(145deg, #926d50, #60432f);
+    /* sparse matte grain, intentionally subtle at game scale */
+    repeating-linear-gradient(
+      8deg,
+      transparent 0 7px,
+      var(--mn-hospital-table-grain) 7px 8px,
+      transparent 8px 15px
+    ),
+    repeating-linear-gradient(
+      96deg,
+      rgba(0,0,0,.025) 0 11px,
+      rgba(255,255,255,.018) 11px 12px,
+      transparent 12px 22px
+    ),
+    linear-gradient(145deg, var(--mn-hospital-table-top), var(--mn-hospital-table-top-deep));
   box-shadow:
-    0 3px 6px rgba(0,0,0,.58),
-    0 0 0 1px rgba(5,11,14,.68),
-    inset 0 0 0 2px rgba(234,218,199,.1);
+    0 3px 5px rgba(0,0,0,.44),
+    inset 0 1px 0 rgba(255,255,255,.055),
+    inset 0 -1px 0 rgba(0,0,0,.24);
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table::before {
   content: "";
   position: absolute;
-  inset: 9%;
-  border: 1px solid rgba(236, 220, 201, .2);
-  border-radius: 3px;
+  inset: 5%;
+  border: 0;
+  border-radius: 2px;
   background:
-    linear-gradient(90deg, transparent 49.4%, rgba(239,224,205,.12) 49.4% 50.6%, transparent 50.6%),
-    linear-gradient(180deg, rgba(255,255,255,.045), rgba(24,12,5,.08));
+    linear-gradient(90deg, transparent 49.6%, rgba(226,216,202,.045) 49.6% 50.4%, transparent 50.4%),
+    linear-gradient(180deg, rgba(255,255,255,.025), transparent 30%, rgba(0,0,0,.03));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025);
 }
 .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table::after {
   content: "";
   position: absolute;
-  width: 7%;
-  height: 16%;
-  left: 46.5%;
-  top: 42%;
+  width: 5%;
+  height: 12%;
+  left: 47.5%;
+  top: 44%;
+  border: 0;
   border-radius: 50%;
-  background: rgba(225, 235, 239, .55);
-  box-shadow: 0 0 0 1px rgba(19,31,37,.55);
+  background: rgba(182, 193, 196, .38);
+  box-shadow: inset 0 0 0 1px rgba(20,28,31,.3);
 }
 
 /* --------------------------------------------------------------------------
@@ -553,6 +581,14 @@
   .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-warehouse_take,
   .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-cafeteria,
   .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-patient_medicine {
-    box-shadow: 0 2px 4px rgba(0,0,0,.52), 0 0 0 1px rgba(4,10,13,.62);
+    box-shadow: 0 2px 4px rgba(0,0,0,.46);
+  }
+
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-bed,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-chair,
+  .mn-interior[data-interior-kind="hospital"] .mn-interior-mapped-object-table {
+    border: 0;
+    outline: none;
+    box-shadow: 0 2px 3px rgba(0,0,0,.4);
   }
 }
