@@ -1,6 +1,9 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
+const EDGE_RELEASE = '2026-08-09-generic-personal-trade-v3';
+const PUBLIC_TRADEABLE_CONSUMABLES = new Set(['food', 'water_bottle']);
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -28,7 +31,7 @@ function nonNegativeInteger(value: unknown, max = 1_000_000_000) {
   return Number.isSafeInteger(number) && number >= 0 && number <= max ? number : null;
 }
 
-function normalizeOffer(value: unknown) {
+function normalizeOffer(value: unknown, includeItems = false) {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const amount = (input: unknown) => {
     const number = Math.floor(Number(input || 0));
@@ -48,9 +51,12 @@ function normalizeOffer(value: unknown) {
     const itemType = validItemType(rawItem.itemType || rawItem.type);
     const quantity = amount(rawItem.quantity);
     if (!itemType || !quantity) return;
+    const publicConsumable = PUBLIC_TRADEABLE_CONSUMABLES.has(itemType);
     const itemSource = text(rawItem.source || 'personal', 24).toLowerCase();
-    const inventorySource = /^[a-z0-9_-]{1,24}$/.test(itemSource) ? itemSource : 'personal';
-    const hospitalId = text(rawItem.hospitalId, 80) || null;
+    const inventorySource = publicConsumable
+      ? 'personal'
+      : /^[a-z0-9_-]{1,24}$/.test(itemSource) ? itemSource : 'personal';
+    const hospitalId = publicConsumable ? null : text(rawItem.hospitalId, 80) || null;
     const key = `${itemType}::${inventorySource}::${hospitalId || ''}`;
     const current = normalizedItems.get(key);
     if (current) current.quantity = Math.min(1_000_000_000, current.quantity + quantity);
@@ -82,6 +88,7 @@ function normalizeOffer(value: unknown) {
   items.forEach((item) => {
     result[item.itemType] = Math.min(1_000_000_000, amount(result[item.itemType]) + item.quantity);
   });
+  if (includeItems && items.length) result.items = items;
   return result;
 }
 
@@ -246,6 +253,7 @@ serve(async (req) => {
     let functionName = '';
     let fallbackFunctionName = '';
     let args: Record<string, unknown> = {};
+    let richTradeOffer: Record<string, unknown> | null = null;
     switch (action) {
       case 'transfer_money': {
         const amount = positiveInteger(body.amount);
@@ -262,6 +270,7 @@ serve(async (req) => {
         if (!target) return jsonResponse({ ok: false, error: 'TRADE_TARGET_REQUIRED' });
         functionName = 'player_create_trade_offer';
         args = { p_actor_tg_id: actorTgId, p_target: target, p_offer: normalizeOffer(body.offer) };
+        richTradeOffer = normalizeOffer(body.offer, true);
         break;
       case 'pending_trade':
         functionName = 'player_get_pending_trade';
@@ -271,6 +280,7 @@ serve(async (req) => {
         if (!offerId) return jsonResponse({ ok: false, error: 'TRADE_ID_REQUIRED' });
         functionName = 'player_accept_trade';
         args = { p_actor_tg_id: actorTgId, p_offer_id: offerId, p_offer: normalizeOffer(body.offer) };
+        richTradeOffer = normalizeOffer(body.offer, true);
         break;
       case 'reject_trade':
         if (!offerId) return jsonResponse({ ok: false, error: 'TRADE_ID_REQUIRED' });
@@ -298,6 +308,25 @@ serve(async (req) => {
     }
 
     let { data, error } = await supabase.rpc(functionName, args);
+
+    // Current generic trade SQL accepts the item array with source metadata,
+    // while an older deployment reads flat quantities. Try the rich shape only
+    // when the flat compatibility request was treated as an empty offer.
+    if (
+      error &&
+      richTradeOffer &&
+      Array.isArray(richTradeOffer.items) &&
+      /TRADE_OFFER_EMPTY/i.test(error.message || '')
+    ) {
+      const richResult = await supabase.rpc(functionName, {
+        ...args,
+        p_offer: richTradeOffer,
+      });
+      if (!richResult.error) {
+        data = richResult.data;
+        error = null;
+      }
+    }
     const missingRpc = error && (
       error.code === 'PGRST202' ||
       error.code === '42883' ||
@@ -320,7 +349,10 @@ serve(async (req) => {
         rpc: functionName,
       });
     }
-    return jsonResponse({ ok: true, result: data, action, rpc: functionName });
+    const result = data && typeof data === 'object' && !Array.isArray(data)
+      ? { ...(data as Record<string, unknown>), edgeRelease: EDGE_RELEASE }
+      : data;
+    return jsonResponse({ ok: true, result, action, rpc: functionName, edgeRelease: EDGE_RELEASE });
   } catch (error) {
     return jsonResponse({ ok: false, error: error instanceof Error ? error.message : 'INVALID_REQUEST' }, 500);
   }
