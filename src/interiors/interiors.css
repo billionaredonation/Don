@@ -1727,6 +1727,14 @@ body.mn-interior-object-editor-open .mn-interior-stamina {
   mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
   transition: opacity 80ms linear;
 }
+
+.mn-interior-stamina-ring[data-state="low"] {
+  background: conic-gradient(from 200deg, #ff915f var(--mn-interior-stamina, 0deg), rgba(255,255,255,.08) 0);
+}
+
+.mn-interior-stamina-ring[data-state="locked"] {
+  background: conic-gradient(from 200deg, #ff5f65 var(--mn-interior-stamina, 0deg), rgba(255,255,255,.08) 0);
+}
 .mn-interior-joystick[data-active="true"] .mn-interior-joystick-base,
 .mn-interior-joystick[data-active="true"] .mn-interior-joystick-stick,
 .mn-interior-joystick[data-active="true"] .mn-interior-stamina-ring {
