@@ -1,5 +1,5 @@
-import { getStaminaConfig, getStaminaRecoveryPerFrame } from '../player/playerStaminaConfig.js';
-import { readPlayerStaminaState, writePlayerStaminaState } from '../player/playerStaminaState.js';
+import { getStaminaConfig } from '../player/playerStaminaConfig.js';
+import { applyPlayerStaminaFrame, readPlayerStaminaState } from '../player/playerStaminaState.js';
 import { MOVEMENT_CONFIG } from '../config/movement.js';
 import { state } from '../state.js';
 
@@ -98,58 +98,32 @@ export function enableKeyboardPlayerMovement(
   }
 
   function updateSprintState(isMoving, frameScale = 1) {
-    const sharedStamina = readPlayerStaminaState();
-    stamina = sharedStamina.value;
-    sprintLocked = sharedStamina.locked;
-
     const sprintBlockedByVitals = window.__MN_SPRINT_BLOCKED_BY_VITALS__ === true;
-    const wantsSprint = isMoving && isSprintPressed() && !sprintLocked && !sprintBlockedByVitals;
-
-    if (wantsSprint) {
-      const previousStamina = stamina;
-      stamina = Math.max(
-        STAMINA.emptyAt,
-        stamina - STAMINA.drainPerFrame * frameScale
-      );
-
-      const spentAmount = Math.max(0, previousStamina - stamina);
-      if (spentAmount > 0) {
-        window.dispatchEvent(new CustomEvent('mn:player-stamina-spent', {
-          detail: { source: 'keyboard', amount: spentAmount },
-        }));
-      }
-
-      if (stamina <= STAMINA.emptyAt) {
-        const wasLocked = sprintLocked;
-        sprintLocked = true;
-        stamina = STAMINA.emptyAt;
-        if (!wasLocked) {
-          window.dispatchEvent(new CustomEvent('mn:player-stamina-exhausted', {
-            detail: { source: 'keyboard' },
-          }));
-        }
-      }
-    } else {
-      stamina = Math.min(
-        STAMINA.max,
-        stamina + getStaminaRecoveryPerFrame(state.player?.water) * frameScale
-      );
-
-      if (stamina >= STAMINA.recoveredAt) {
-        const wasLocked = sprintLocked;
-        sprintLocked = false;
-        if (wasLocked) {
-          window.dispatchEvent(new CustomEvent('mn:player-stamina-recovered', {
-            detail: { source: 'keyboard' },
-          }));
-        }
-      }
+    const next = applyPlayerStaminaFrame({
+      wantsSprint: isMoving && isSprintPressed() && !sprintBlockedByVitals,
+      frameScale,
+      water: state.player?.water,
+      source: 'keyboard',
+    });
+    stamina = next.value;
+    sprintLocked = next.locked;
+    if (next.spent > 0) {
+      window.dispatchEvent(new CustomEvent('mn:player-stamina-spent', {
+        detail: { source: 'keyboard', amount: next.spent },
+      }));
     }
-
-    writePlayerStaminaState(stamina, sprintLocked, 'keyboard');
+    if (next.exhausted) {
+      window.dispatchEvent(new CustomEvent('mn:player-stamina-exhausted', {
+        detail: { source: 'keyboard' },
+      }));
+    }
+    if (next.recovered) {
+      window.dispatchEvent(new CustomEvent('mn:player-stamina-recovered', {
+        detail: { source: 'keyboard' },
+      }));
+    }
     updateStaminaUi();
-
-    return wantsSprint;
+    return next.sprinting;
   }
 
   const BOUNDS = getMovementBounds();
@@ -689,4 +663,3 @@ export function enableKeyboardPlayerMovement(
     staminaHud.remove();
   };
 }
-
