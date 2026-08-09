@@ -2,7 +2,6 @@ import { state } from '../state.js';
 import {
   getHospitalUserErrorMessage,
   loadMyHospitalEmployments,
-  notifyHospitalTreatmentStarted,
   treatPlayerForPriceFromInteraction,
 } from './hospitalWarehouseFeature.js';
 
@@ -91,7 +90,6 @@ async function renderDoctorTreatment({
     const employment = employments[Number(hospitalSelect.value || 0)] || employments[0];
     const medicineType = medicineSelect.value;
     const price = Math.max(0, Math.floor(Number(priceInput.value || 0)));
-    let medicineConsumed = false;
     let successMessage = '';
 
     setBusy(true);
@@ -104,56 +102,16 @@ async function renderDoctorTreatment({
         price,
       });
 
-      await Promise.allSettled([
-        notifyHospitalTreatmentStarted(result?.patientTgId, employment.hospitalId),
-        broadcastTo(result?.patientTgId, 'treatment_applied', {
-          medicineLabel: result?.medicineLabel,
-          doctorNickname: state.nickname || 'Врач',
-          price: result?.price ?? price,
-          patientBalance: result?.patientBalance,
-          health: result?.health,
-          food: result?.food,
-          water: result?.water,
-        }),
-      ]);
+      await broadcastTo(result?.patientTgId, 'treatment_offer_created', {
+        ...result,
+        doctorNickname: result?.doctorNickname || state.nickname || 'Врач',
+      });
 
-      const nextDoctorBalance = Number(
-        result?.doctorBalance ??
-        result?.employeeBalance ??
-        result?.actorBalance
-      );
-
-      if (Number.isFinite(nextDoctorBalance)) {
-        state.player = { ...(state.player || {}), balance: nextDoctorBalance };
-        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
-          detail: {
-            balance: nextDoctorBalance,
-            source: 'doctor_treatment',
-            result,
-          },
-        }));
-      }
-
-      const usedItem = (employment.items || []).find((item) => item.itemType === medicineType);
-      if (usedItem) {
-        usedItem.personalQuantity = Math.max(0, Number(usedItem.personalQuantity || 0) - 1);
-      }
-      medicineConsumed = true;
-      window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
-      window.dispatchEvent(new CustomEvent('mn:hospital-professional-stats-changed', {
-        detail: {
-          hospitalId: employment.hospitalId,
-          activity: 'treatment',
-          stats: result?.professionalStats || null,
-        },
-      }));
-
-      successMessage = `${result?.medicineLabel || 'Таблетка'} применена к ${result?.patientNickname || target.nickname}. Восстановление HP началось.`;
+      successMessage = `Предложение лечения отправлено игроку ${result?.patientNickname || target.nickname}. Таблетка и деньги будут списаны только после его подтверждения Y.`;
     } catch (error) {
       setMessage(getHospitalUserErrorMessage(error), 'error');
     } finally {
       setBusy(false);
-      if (medicineConsumed) renderMedicines();
       if (successMessage) setMessage(successMessage, 'success');
     }
   });
@@ -171,5 +129,3 @@ export const doctorTreatmentAction = Object.freeze({
   resolveAccess: resolveDoctorAccess,
   render: renderDoctorTreatment,
 });
-
-
