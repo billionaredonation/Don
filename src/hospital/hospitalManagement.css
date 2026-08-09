@@ -164,7 +164,7 @@
 
 .mn-hospital-management-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
   gap: 9px;
 }
 
@@ -256,6 +256,53 @@
   font-size: 11px;
   font-style: normal;
   font-weight: 850;
+}
+
+.mn-hospital-management-treasury,
+.mn-hospital-management-payroll-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 180px) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.mn-hospital-management-treasury span,
+.mn-hospital-management-payroll-person,
+.mn-hospital-management-payroll-list label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mn-hospital-management-treasury small,
+.mn-hospital-management-payroll-list small {
+  color: rgba(224, 241, 249, 0.62);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.mn-hospital-management-payroll-list {
+  display: grid;
+  gap: 8px;
+}
+
+.mn-hospital-management-payroll-list article {
+  grid-template-columns: minmax(180px, 1fr) minmax(120px, 160px) auto auto;
+}
+
+.mn-hospital-management-payroll-person i {
+  color: #ffd98b;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.mn-hospital-management-payroll-person i[data-eligible="true"] {
+  color: #80f0b9;
 }
 
 .mn-hospital-management-message {
@@ -392,7 +439,9 @@ body.mn-hospital-management-open .mn-interior-joystick {
   .mn-hospital-management-top,
   .mn-hospital-management-stock article,
   .mn-hospital-management-employees article,
-  .mn-hospital-management-staff-form {
+  .mn-hospital-management-staff-form,
+  .mn-hospital-management-treasury,
+  .mn-hospital-management-payroll-list article {
     grid-template-columns: 1fr;
   }
 
@@ -472,5 +521,15 @@ body.mn-hospital-management-open .mn-interior-joystick {
   body.mn-force-rotate-landscape .mn-hospital-management-panel {
     width: min(940px, calc(100dvh - 20px)) !important;
     max-height: calc(100vw - 20px) !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-hospital-management-treasury,
+  body.mn-force-rotate-landscape .mn-hospital-management-treasury {
+    grid-template-columns: minmax(0, 1fr) minmax(110px, 160px) auto !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-hospital-management-payroll-list article,
+  body.mn-force-rotate-landscape .mn-hospital-management-payroll-list article {
+    grid-template-columns: minmax(180px, 1fr) minmax(110px, 150px) auto auto !important;
   }
 }
