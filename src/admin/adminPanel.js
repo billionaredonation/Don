@@ -240,6 +240,21 @@ export function enableAdminPanel({
       <input class="admin-input admin-object-name" placeholder="Название дома / бизнеса" />
     </label>
 
+    <div class="admin-job-size-wrap" hidden>
+      <div class="admin-editor-title">Размер рабочей зоны</div>
+      <div class="admin-size-grid">
+        <label class="admin-label">
+          Ширина, % карты
+          <input class="admin-input admin-job-width" type="number" min="0.8" max="30" step="0.1" value="8" inputmode="decimal" />
+        </label>
+        <label class="admin-label">
+          Высота, % карты
+          <input class="admin-input admin-job-height" type="number" min="0.8" max="30" step="0.1" value="5.5" inputmode="decimal" />
+        </label>
+      </div>
+      <small class="admin-help">Размер влияет не только на картинку: для поля это реальная площадь, в которой игроки могут создавать посадки.</small>
+    </div>
+
     <div class="admin-row">
       <button class="admin-btn admin-place-here" type="button">Поставить тут</button>
       <button class="admin-btn admin-move-selected-here" type="button">Перенести сюда</button>
@@ -292,6 +307,9 @@ export function enableAdminPanel({
   const houseClassWrap = panel.querySelector('.admin-house-class-wrap');
   const houseClassSelect = panel.querySelector('.admin-house-class');
   const nameInput = panel.querySelector('.admin-object-name');
+  const jobSizeWrap = panel.querySelector('.admin-job-size-wrap');
+  const jobWidthInput = panel.querySelector('.admin-job-width');
+  const jobHeightInput = panel.querySelector('.admin-job-height');
 
   const xEl = panel.querySelector('.admin-x');
   const yEl = panel.querySelector('.admin-y');
@@ -340,11 +358,27 @@ export function enableAdminPanel({
     updateVariantVisibility();
   }
 
+  function normalizeJobDimension(value, fallback) {
+    const number = Number(value);
+    return Math.round(Math.min(30, Math.max(0.8, Number.isFinite(number) ? number : fallback)) * 10) / 10;
+  }
+
+  function syncJobSizeInputs(object = null) {
+    const config = getMapObjectType(selectedType);
+    const payload = object?.payload || {};
+    const fallbackWidth = Number(config.defaultWidth || (selectedType === 'farm_field' ? 8 : 2.6));
+    const fallbackHeight = Number(config.defaultHeight || (selectedType === 'farm_field' ? 5.5 : 2.2));
+    if (jobWidthInput) jobWidthInput.value = String(normalizeJobDimension(payload.renderWidth, fallbackWidth));
+    if (jobHeightInput) jobHeightInput.value = String(normalizeJobDimension(payload.renderHeight, fallbackHeight));
+  }
+
   function updateVariantVisibility() {
     const config = getMapObjectType(selectedType);
     const isHouse = config.type === 'house';
+    const isJob = config.category === 'job';
 
     houseClassWrap.hidden = !isHouse;
+    if (jobSizeWrap) jobSizeWrap.hidden = !isJob;
 
     if (!isHouse) {
       selectedVariant = '';
@@ -352,6 +386,8 @@ export function enableAdminPanel({
       selectedVariant = 'standard';
       houseClassSelect.value = selectedVariant;
     }
+
+    if (isJob && !getSelectedObject()) syncJobSizeInputs(null);
   }
 
   function updateCoords(x, y) {
@@ -413,6 +449,8 @@ export function enableAdminPanel({
     if (!object) {
       selectedNameEl.textContent = 'нет';
       nameInput.value = '';
+      updateVariantVisibility();
+      syncJobSizeInputs(null);
       return;
     }
 
@@ -430,6 +468,7 @@ export function enableAdminPanel({
     }
 
     updateVariantVisibility();
+    if (getMapObjectType(selectedType).category === 'job') syncJobSizeInputs(object);
   }
 
   function renderObjectList() {
@@ -574,6 +613,14 @@ function setEnabled(next) {
   }
 
   async function addObjectAt(x, y) {
+    const selectedConfig = getMapObjectType(selectedType);
+    const draftPayload = selectedConfig.category === 'job'
+      ? {
+          renderWidth: normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6),
+          renderHeight: normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2),
+        }
+      : {};
+
     const draft = createMapObjectDraft({
       cityId,
       type: selectedType,
@@ -581,6 +628,7 @@ function setEnabled(next) {
       x,
       y,
       name: nameInput.value.trim(),
+      payload: draftPayload,
     });
 
     const createdObject = await addMapObject(cityId, draft);
@@ -598,13 +646,22 @@ function setEnabled(next) {
     const object = getSelectedObject();
     if (!object) return;
 
+    const selectedConfig = getMapObjectType(selectedType);
+    const jobPayload = selectedConfig.category === 'job'
+      ? {
+          ...(object.payload || {}),
+          renderWidth: normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6),
+          renderHeight: normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2),
+        }
+      : null;
+
     await saveAdminObject({
       cityId,
       object,
       selectedType,
       selectedVariant,
       name: nameInput.value.trim(),
-      patch,
+      patch: jobPayload ? { ...patch, payload: { ...(patch.payload || {}), ...jobPayload } } : patch,
     });
 
     await reloadObjects();
@@ -792,7 +849,6 @@ function setEnabled(next) {
   }
 
   function onAdminToggle() {
-    if (!isDesktopAdminDevice()) return;
     togglePanel();
   }
 
@@ -881,11 +937,27 @@ function setEnabled(next) {
   typeSelect.addEventListener('change', () => {
     selectedType = typeSelect.value;
     updateVariantVisibility();
+    if (getMapObjectType(selectedType).category === 'job') syncJobSizeInputs(null);
   });
 
   houseClassSelect.addEventListener('change', () => {
     selectedVariant = houseClassSelect.value;
   });
+
+  function previewSelectedJobSize() {
+    const object = getSelectedObject();
+    if (!object || getMapObjectType(object.type || selectedType).category !== 'job') return;
+    const config = getMapObjectType(object.type || selectedType);
+    object.payload = {
+      ...(object.payload || {}),
+      renderWidth: normalizeJobDimension(jobWidthInput?.value, config.defaultWidth || 2.6),
+      renderHeight: normalizeJobDimension(jobHeightInput?.value, config.defaultHeight || 2.2),
+    };
+    if (syncAdminObjectsLayerVisibility()) renderMapObjects(objectsLayer, objects);
+  }
+
+  jobWidthInput?.addEventListener('input', previewSelectedJobSize);
+  jobHeightInput?.addEventListener('input', previewSelectedJobSize);
 
   function onMapPointerDown(event) {
     if (!enabled) return;
