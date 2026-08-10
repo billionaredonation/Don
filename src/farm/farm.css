@@ -523,3 +523,242 @@ button.mn-farm-shop-row { width: 100%; }
   .mn-farm-cycle-guide span { gap: 2px; }
   .mn-farm-cycle-guide span b { width: 14px; height: 14px; font-size: 8px; }
 }
+
+/* v24 — farm world visual pass.
+   Farm fields are world geometry, not map pins. Plots are small soil cells, not icons. */
+
+/* Keep planted cells above the soil field and below temporary action FX. */
+.mn-farm-plots-layer {
+  z-index: 246;
+}
+
+/* A plot is a patch of worked soil. No circle, badge, outline or icon chrome. */
+.mn-farm-plot {
+  width: 38px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  border-radius: 0;
+}
+
+.mn-farm-plot::before {
+  inset: 5px 2px 3px;
+  border-radius: 38% 44% 36% 42% / 30% 34% 38% 32%;
+  background:
+    repeating-linear-gradient(96deg, rgba(216,172,112,.13) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse at 24% 30%, rgba(122,82,49,.32) 0 5%, transparent 6%),
+    radial-gradient(ellipse at 72% 66%, rgba(24,15,10,.24) 0 5%, transparent 6%),
+    linear-gradient(180deg, #5a3d27 0%, #3a261a 55%, #281a13 100%);
+  box-shadow: 0 4px 7px rgba(0,0,0,.26);
+}
+
+.mn-farm-plot.is-owned::before,
+.mn-farm-plot.is-foreign::before {
+  box-shadow: 0 4px 7px rgba(0,0,0,.26);
+}
+.mn-farm-plot.is-foreign { opacity: .82; }
+
+/* Freshly tilled soil: three shallow furrows, no marker border. */
+.mn-farm-plot.is-tilled::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 10px;
+  height: 1px;
+  border-radius: 999px;
+  background: rgba(226,183,124,.21);
+  box-shadow:
+    0 5px 0 rgba(226,183,124,.16),
+    0 10px 0 rgba(20,12,8,.34);
+}
+
+/* One visible seed in the soil. */
+.mn-farm-plot.is-seeded::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  width: 7px;
+  height: 10px;
+  border-radius: 72% 34% 70% 34%;
+  background: linear-gradient(145deg, #c5a56e, #83643d 72%);
+  box-shadow: 0 2px 2px rgba(0,0,0,.28);
+  transform: translate(-50%, -50%) rotate(31deg);
+}
+
+/* After raking, a tiny sprout makes the stage readable without text. */
+.mn-farm-plot.is-raked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 3px;
+  height: 11px;
+  border-radius: 999px;
+  background: #66875d;
+  transform: translate(-50%, -50%);
+  box-shadow: none;
+}
+.mn-farm-plot.is-raked {
+  --farm-leaf: #789b69;
+}
+.mn-farm-plot.is-raked > * { pointer-events: none; }
+
+/* Use two leaf silhouettes via the soil patch's gradient rather than a floating badge. */
+.mn-farm-plot.is-raked::before {
+  background:
+    radial-gradient(ellipse at 43% 38%, #759765 0 8%, transparent 9%),
+    radial-gradient(ellipse at 58% 42%, #66895b 0 8%, transparent 9%),
+    repeating-linear-gradient(96deg, rgba(216,172,112,.14) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #563923, #352219 58%, #261812);
+}
+
+/* Harvest-ready crops are plants growing FROM the soil, not round map icons. */
+.mn-farm-plot.is-ready.crop-apple::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 43%;
+  width: 17px;
+  height: 15px;
+  border-radius: 55% 48% 58% 45%;
+  background:
+    radial-gradient(circle at 28% 66%, #b95048 0 12%, transparent 13%),
+    radial-gradient(circle at 72% 56%, #a94740 0 11%, transparent 12%),
+    radial-gradient(ellipse at 50% 52%, #4d7a4e 0 50%, #345d3b 51% 100%);
+  box-shadow: none;
+  transform: translate(-50%, -50%);
+}
+
+.mn-farm-plot.is-ready.crop-wheat::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 21px;
+  height: 20px;
+  border-radius: 0;
+  background:
+    linear-gradient(78deg, transparent 0 44%, #d2ad61 45% 51%, transparent 52%) 1px 2px / 7px 18px no-repeat,
+    linear-gradient(92deg, transparent 0 44%, #c39a50 45% 51%, transparent 52%) 8px 0 / 7px 20px no-repeat,
+    linear-gradient(104deg, transparent 0 44%, #dab96c 45% 51%, transparent 52%) 14px 3px / 7px 17px no-repeat;
+  box-shadow: none;
+  transform: translate(-50%, -50%);
+}
+
+/* Real field surface: a work zone in the world, not a rounded brown icon. */
+.map-object-type-farm_field {
+  overflow: visible !important;
+}
+.map-object-type-farm_field .map-object-icon {
+  border-radius: 5% !important;
+  background:
+    repeating-linear-gradient(90deg, rgba(230,189,130,.10) 0 1.2%, transparent 1.2% 8.5%),
+    repeating-linear-gradient(0deg, rgba(15,9,6,.11) 0 2.5%, transparent 2.5% 22%),
+    radial-gradient(ellipse at 12% 16%, rgba(81,112,61,.34) 0 2.2%, transparent 2.5%),
+    radial-gradient(ellipse at 90% 75%, rgba(73,105,55,.28) 0 2.1%, transparent 2.4%),
+    linear-gradient(180deg, #62452d 0%, #503622 44%, #3b271b 100%) !important;
+  box-shadow:
+    inset 0 7px 12px rgba(255,216,157,.035),
+    inset 0 -8px 14px rgba(12,7,4,.18),
+    0 8px 18px rgba(0,0,0,.18) !important;
+}
+.map-object-type-farm_field .map-object-icon::before {
+  inset: 5% 3% !important;
+  opacity: .58 !important;
+  background:
+    radial-gradient(ellipse at 4% 25%, #5b754d 0 1.7%, transparent 1.9%),
+    radial-gradient(ellipse at 6% 72%, #667e52 0 1.5%, transparent 1.7%),
+    radial-gradient(ellipse at 94% 18%, #5b754d 0 1.7%, transparent 1.9%),
+    radial-gradient(ellipse at 96% 68%, #657d52 0 1.5%, transparent 1.7%) !important;
+}
+.map-object-type-farm_field .map-object-icon::after {
+  left: 5% !important;
+  right: 5% !important;
+  top: 22% !important;
+  height: 1px !important;
+  background: rgba(225,180,119,.16) !important;
+  box-shadow:
+    0 10px 0 rgba(225,180,119,.13),
+    0 20px 0 rgba(225,180,119,.15),
+    0 30px 0 rgba(225,180,119,.12),
+    0 40px 0 rgba(225,180,119,.14) !important;
+}
+.map-object-type-farm_field.map-object-nearby .map-object-icon {
+  box-shadow:
+    inset 0 7px 12px rgba(255,216,157,.035),
+    inset 0 -8px 14px rgba(12,7,4,.18),
+    inset 0 0 0 2px rgba(105,177,119,.20),
+    0 8px 18px rgba(0,0,0,.18) !important;
+}
+
+/* Supply point: readable workbench. No emoji/map-pin appearance. */
+.map-object-type-farm_station .map-object-icon {
+  border-radius: 7% !important;
+  background:
+    linear-gradient(90deg, transparent 0 76%, #91bdc2 76% 88%, transparent 88%) 0 20% / 100% 38% no-repeat,
+    linear-gradient(90deg, transparent 0 78%, #d8eceb 78% 86%, transparent 86%) 0 11% / 100% 17% no-repeat,
+    repeating-linear-gradient(90deg, rgba(224,182,122,.08) 0 8%, transparent 8% 21%),
+    linear-gradient(180deg, #74583b 0 58%, #4b3727 58% 100%) !important;
+  box-shadow: 0 7px 13px rgba(0,0,0,.28), inset 0 -3px 0 rgba(23,14,8,.22) !important;
+}
+.map-object-type-farm_station .map-object-icon::before {
+  left: 24% !important;
+  top: 4% !important;
+  width: 7% !important;
+  height: 90% !important;
+  background: linear-gradient(180deg, #b08c61 0 72%, #a7b0aa 72% 100%) !important;
+  transform: rotate(31deg) !important;
+}
+.map-object-type-farm_station .map-object-icon::after {
+  left: 47% !important;
+  top: 5% !important;
+  width: 7% !important;
+  height: 88% !important;
+  background: linear-gradient(180deg, #a8865f 0 72%, #a0aaa4 72% 100%) !important;
+  transform: rotate(-28deg) !important;
+}
+.map-object-type-farm_station.map-object-nearby .map-object-icon {
+  box-shadow:
+    0 7px 13px rgba(0,0,0,.28),
+    inset 0 -3px 0 rgba(23,14,8,.22),
+    inset 0 0 0 2px rgba(100,176,120,.22) !important;
+}
+
+/* Work FX scales with the world as well; it should sit on the soil, not act like a HUD marker. */
+.mn-farm-work-fx {
+  width: 46px;
+  height: 36px;
+  transform: translate(-50%, -50%);
+}
+.mn-farm-work-fx.is-tilling::before {
+  inset: 7px 3px 2px;
+  border-radius: 36% 42% 38% 44%;
+  background:
+    repeating-linear-gradient(96deg, rgba(213,171,112,.11) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #5d4029, #332118 68%, #261812);
+  box-shadow: 0 4px 7px rgba(0,0,0,.24);
+}
+.mn-farm-work-fx.is-tilling::after {
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  height: 25px;
+  background:
+    linear-gradient(76deg, transparent 0 46%, #668252 47% 52%, transparent 53%) 1px 0 / 9px 23px no-repeat,
+    linear-gradient(103deg, transparent 0 46%, #76915c 47% 52%, transparent 53%) 10px 3px / 9px 20px no-repeat,
+    linear-gradient(72deg, transparent 0 46%, #5d7b4b 47% 52%, transparent 53%) 20px 0 / 9px 24px no-repeat,
+    linear-gradient(108deg, transparent 0 46%, #78945e 47% 52%, transparent 53%) 30px 4px / 9px 19px no-repeat;
+}
+
+@media (max-width: 920px) and (pointer: coarse) {
+  .mn-farm-plot {
+    width: 34px;
+    height: 27px;
+  }
+  .mn-farm-work-fx {
+    width: 40px;
+    height: 32px;
+  }
+}
