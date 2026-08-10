@@ -1241,3 +1241,11 @@ html.mn-inventory-open {
   }
 }
 
+
+.mn-inventory-item-farm > span:first-child {
+  color: #b8cbbd;
+  text-shadow: none;
+}
+.mn-inventory-item-farm {
+  background: linear-gradient(145deg, rgba(68,88,73,.26), rgba(17,24,20,.86));
+}
