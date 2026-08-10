@@ -353,7 +353,12 @@ function applyObjectStyle(element, object, meta) {
   element.style.padding = '0';
   element.style.margin = '0';
   element.style.background = 'transparent';
-  element.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(${objectScale}) scale(var(--map-entity-scale, 1))`;
+  // Jobs such as farm fields/stations are physical world objects with dimensions in map percent.
+  // Do not counter-scale them like icon markers: their visual size must grow/shrink with the camera
+  // and stay equal to the real work area configured in the admin editor.
+  element.style.transform = customJobSize
+    ? `translate(-50%, -50%) rotate(${rotation}deg) scale(${objectScale})`
+    : `translate(-50%, -50%) rotate(${rotation}deg) scale(${objectScale}) scale(var(--map-entity-scale, 1))`;
   element.style.transformOrigin = 'center center';
   element.style.pointerEvents = 'auto';
   element.style.cursor = ['house', 'business', 'npc', 'service', 'job'].includes(meta.category) ? 'pointer' : 'default';
