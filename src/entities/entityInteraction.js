@@ -556,6 +556,11 @@ export function createEntityInteractionPanel(root) {
     return getObjectKind(object) === 'service' && type === 'hospital';
   }
 
+
+  function isJobObject(object) {
+    return getObjectKind(object) === 'job' || String(object?.payload?.kind || '') === 'job';
+  }
+
   function getOwnerId(object) {
     return (
       object?.owner_id ||
@@ -578,7 +583,7 @@ export function createEntityInteractionPanel(root) {
   }
 
   function shouldSkipPrompt(object) {
-    if (isHospitalObject(object)) return true;
+    if (isHospitalObject(object) || isJobObject(object)) return true;
     if (isMobileGameplayDevice()) return false;
     if (!isHouseObject(object)) return false;
 
@@ -833,6 +838,7 @@ export function createEntityInteractionPanel(root) {
 
     shouldSkipPrompt,
     isHospitalObject,
+    isJobObject,
 
     isOpen() {
       return Boolean(selectedObject) && panel.hidden === false;
@@ -1393,13 +1399,27 @@ export function enableEntityInteraction({
     const textEl = hint.querySelector('[data-interaction-hint-text]');
 
     const hospital = panel?.isHospitalObject?.(object);
+    const job = panel?.isJobObject?.(object);
+    const objectType = String(object?.type || object?.payload?.jobType || '');
 
     if (isMobileGameplayDevice()) {
-      if (keyEl) keyEl.textContent = hospital ? '🏥' : '🏠';
-      if (textEl) textEl.textContent = hospital ? 'Нажми на больницу' : 'Нажми на дом на карте';
+      if (keyEl) keyEl.textContent = hospital ? '🏥' : job ? 'E' : '🏠';
+      if (textEl) {
+        textEl.textContent = hospital
+          ? 'Нажми на больницу'
+          : job
+            ? (objectType === 'farm_station' ? 'Открыть ферму' : 'Работать на поле')
+            : 'Нажми на дом на карте';
+      }
     } else {
       if (keyEl) keyEl.textContent = 'E/У';
-      if (textEl) textEl.textContent = hospital ? 'Войти в больницу' : 'Взаимодействовать';
+      if (textEl) {
+        textEl.textContent = hospital
+          ? 'Войти в больницу'
+          : job
+            ? (objectType === 'farm_station' ? 'Снабжение фермы' : 'Работать на поле')
+            : 'Взаимодействовать';
+      }
     }
 
     hint.hidden = false;
@@ -1664,9 +1684,11 @@ export function enableEntityInteraction({
       const ownershipWasCleared = rowPayload.owned === false && !(
         rowPayload.ownerId || rowPayload.owner_id
       );
+      const isJobObject = rowPayload.kind === 'job' && String(rowPayload.jobType || '').startsWith('farm_');
       const nextObject = {
         ...(currentObject || {}),
         ...row,
+        ...(isJobObject ? { type: rowPayload.jobType, category: 'job' } : {}),
         payload: {
           ...(currentObject?.payload || {}),
           ...rowPayload,
