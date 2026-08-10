@@ -5,6 +5,7 @@ export const MAP_OBJECT_CATEGORIES = {
   SERVICE: 'service',
   NPC: 'npc',
   MARKER: 'marker',
+  JOB: 'job',
 };
 
 export const HOUSE_CLASSES = {
@@ -210,6 +211,27 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'marker_01',
   },
 
+
+  farm_station: {
+    type: 'farm_station',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Ферма · снабжение',
+    icon: '◆',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_farm_station_01',
+  },
+
+  farm_field: {
+    type: 'farm_field',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Ферма · поле',
+    icon: '▦',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_farm_field_01',
+  },
+
   spawn: {
     type: 'spawn',
     category: MAP_OBJECT_CATEGORIES.MARKER,
@@ -330,6 +352,21 @@ export function createMapObjectDraft({
       ...nextPayload,
       kind: 'decor',
       collision: nextPayload.collision || false,
+    };
+  }
+
+
+  if (config.category === MAP_OBJECT_CATEGORIES.JOB) {
+    objectName = name || config.label;
+    nextPayload = {
+      ...nextPayload,
+      kind: 'job',
+      jobType: config.type,
+      jobLabel: config.label,
+      publicAccess: true,
+      buyable: false,
+      transferable: false,
+      serverOwned: true,
     };
   }
 
