@@ -263,6 +263,19 @@ function getObjectScreenCenter(object, objectElement, viewport) {
   );
 }
 
+function getJobObjectSizePercent(object) {
+  const payload = object?.payload || {};
+  const type = String(object?.type || payload.jobType || payload.type || '');
+  if (type !== 'farm_field' && type !== 'farm_station') return null;
+  const fallbackWidth = type === 'farm_field' ? 8 : 2.6;
+  const fallbackHeight = type === 'farm_field' ? 5.5 : 2.2;
+  let width = clampNumber(payload.renderWidth || fallbackWidth, 0.8, 30);
+  let height = clampNumber(payload.renderHeight || fallbackHeight, 0.8, 30);
+  const rotation = Math.abs(Math.round(Number(object?.rotation || payload.rotation || 0))) % 180;
+  if (rotation === 90) [width, height] = [height, width];
+  return { width, height };
+}
+
 function getObjectDistancePx({
   object,
   objectElement,
@@ -283,6 +296,13 @@ function getObjectDistancePx({
       const objectY = Number(object.y || 50);
       const playerX = Number(playerPosition.x || 50);
       const playerY = Number(playerPosition.y || 50);
+
+      const jobSize = getJobObjectSizePercent(object);
+      if (jobSize) {
+        const dxPercent = Math.max(0, Math.abs(playerX - objectX) - jobSize.width / 2);
+        const dyPercent = Math.max(0, Math.abs(playerY - objectY) - jobSize.height / 2);
+        return Math.hypot((dxPercent / 100) * rect.width, (dyPercent / 100) * rect.height);
+      }
 
       const dx = ((objectX - playerX) / 100) * rect.width;
       const dy = ((objectY - playerY) / 100) * rect.height;
@@ -1279,20 +1299,46 @@ export function enableEntityInteraction({
       : getRenderRadiusPercent();
 
     const candidates = getObjectsAroundPosition(position, percentRadius);
+    const candidateIds = new Set(candidates.map((object) => String(object?.id || '')));
+
+    // Large farm fields are interaction areas, not point markers. A player can be
+    // inside the field while its center is outside the normal spatial search radius.
+    mapObjects.forEach((object) => {
+      const type = String(object?.type || object?.payload?.jobType || '');
+      if (type !== 'farm_field') return;
+      if (candidateIds.has(String(object?.id || ''))) return;
+      const size = getJobObjectSizePercent(object);
+      if (!size) return;
+      const dx = Math.max(0, Math.abs(position.x - Number(object.x || 50)) - size.width / 2);
+      const dy = Math.max(0, Math.abs(position.y - Number(object.y || 50)) - size.height / 2);
+      const edgeDistancePx = width > 0 && height > 0
+        ? Math.hypot((dx / 100) * width, (dy / 100) * height)
+        : Number.POSITIVE_INFINITY;
+      if (edgeDistancePx <= radius) candidates.push(object);
+    });
 
     candidates.forEach((object) => {
       if (!object) return;
+      const candidateType = String(object?.type || object?.payload?.jobType || '');
+      if (candidateType === 'farm_field' && window.__MN_FARM_NEAR_OWN_PLOT__ === true) return;
 
       let distance = Number.POSITIVE_INFINITY;
 
       if (width > 0 && height > 0) {
         const objectX = Number(object.x || 50);
         const objectY = Number(object.y || 50);
+        const jobSize = getJobObjectSizePercent(object);
 
-        distance = Math.hypot(
-          ((objectX - position.x) / 100) * width,
-          ((objectY - position.y) / 100) * height
-        );
+        if (jobSize) {
+          const dx = Math.max(0, Math.abs(position.x - objectX) - jobSize.width / 2);
+          const dy = Math.max(0, Math.abs(position.y - objectY) - jobSize.height / 2);
+          distance = Math.hypot((dx / 100) * width, (dy / 100) * height);
+        } else {
+          distance = Math.hypot(
+            ((objectX - position.x) / 100) * width,
+            ((objectY - position.y) / 100) * height
+          );
+        }
       } else {
         distance = getDistanceToObject(object);
       }
@@ -1403,12 +1449,12 @@ export function enableEntityInteraction({
     const objectType = String(object?.type || object?.payload?.jobType || '');
 
     if (isMobileGameplayDevice()) {
-      if (keyEl) keyEl.textContent = hospital ? '🏥' : job ? 'E' : '🏠';
+      if (keyEl) keyEl.textContent = hospital ? '🏥' : job ? 'Нажать' : '🏠';
       if (textEl) {
         textEl.textContent = hospital
           ? 'Нажми на больницу'
           : job
-            ? (objectType === 'farm_station' ? 'Открыть ферму' : 'Работать на поле')
+            ? (objectType === 'farm_station' ? 'Снабжение фермы' : 'Шаг 1/5 · вскопать тяпкой')
             : 'Нажми на дом на карте';
       }
     } else {
@@ -1417,7 +1463,7 @@ export function enableEntityInteraction({
         textEl.textContent = hospital
           ? 'Войти в больницу'
           : job
-            ? (objectType === 'farm_station' ? 'Снабжение фермы' : 'Работать на поле')
+            ? (objectType === 'farm_station' ? 'Снабжение фермы' : 'Шаг 1/5 · вскопать тяпкой')
             : 'Взаимодействовать';
       }
     }
