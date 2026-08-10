@@ -596,8 +596,8 @@
 }
 
 /* Global exit presentation for every mapped interior, current and future.
-   The interaction hitbox remains the mapped object; visually it is a floor
-   threshold / directional marker instead of a UI button. */
+   The mapped object is the interaction hitbox; the visible part is a centered
+   luminous floor threshold. No text, checkmark, arrow or UI-like pill. */
 .mn-interior .mn-interior-mapped-object-exit {
   overflow: visible;
   appearance: none;
@@ -608,32 +608,29 @@
   color: transparent !important;
   background: transparent !important;
   box-shadow: none !important;
+  text-indent: -9999px;
   -webkit-tap-highlight-color: transparent;
 }
 .mn-interior .mn-interior-mapped-object-exit::before {
   content: "";
   position: absolute;
-  left: 13%;
-  right: 13%;
-  top: 16%;
-  bottom: 16%;
+  left: 20%;
+  right: 20%;
+  top: 42%;
+  bottom: 42%;
   border: 0;
-  background:
-    linear-gradient(90deg,
-      transparent 0 8%,
-      rgba(114,231,175,.22) 8% 12%,
-      transparent 12% 88%,
-      rgba(114,231,175,.22) 88% 92%,
-      transparent 92%),
-    linear-gradient(180deg,
-      rgba(170,255,214,.94) 0 11%,
-      rgba(67,201,137,.78) 11% 21%,
-      rgba(21,90,61,.18) 21% 79%,
-      rgba(67,201,137,.78) 79% 89%,
-      rgba(170,255,214,.94) 89% 100%);
-  clip-path: polygon(0 34%, 58% 34%, 58% 7%, 100% 50%, 58% 93%, 58% 66%, 0 66%);
-  opacity: .9;
-  box-shadow: 0 0 6px rgba(67,201,137,.22);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(87, 222, 153, .30) 0%,
+    rgba(161, 255, 207, .98) 18%,
+    rgba(222, 255, 238, 1) 50%,
+    rgba(161, 255, 207, .98) 82%,
+    rgba(87, 222, 153, .30) 100%
+  );
+  box-shadow:
+    0 0 2px rgba(181, 255, 218, .92),
+    0 0 6px rgba(67, 201, 137, .46);
   pointer-events: none;
 }
 .mn-interior .mn-interior-mapped-object-exit::after {
@@ -641,15 +638,15 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 135%;
-  height: 135%;
+  width: 120%;
+  height: 92%;
   border: 0;
   border-radius: 50%;
   background: radial-gradient(
     ellipse at center,
-    rgba(83,225,154,.23) 0%,
-    rgba(54,185,119,.10) 42%,
-    rgba(27,105,70,.035) 62%,
+    rgba(91, 231, 160, .20) 0%,
+    rgba(57, 191, 125, .105) 38%,
+    rgba(31, 119, 79, .04) 60%,
     transparent 76%
   );
   box-shadow: none;
