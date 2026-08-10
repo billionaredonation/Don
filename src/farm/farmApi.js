@@ -55,7 +55,7 @@ export function getFarmUserErrorMessage(error) {
     FARM_PLOT_LIMIT_REACHED: 'У вас уже 5 активных посадок. Сначала соберите урожай.',
     FARM_FIELD_NOT_FOUND: 'Поле не найдено. Возможно, объект был удалён администратором.',
     FARM_FIELD_TOO_FAR: 'Подойдите ближе к рабочей зоне поля.',
-    FARM_PLOT_SPACE_BUSY: 'Здесь слишком тесно. Сделайте пару шагов в сторону.',
+    FARM_PLOT_SPACE_BUSY: 'На этом поле сейчас нет свободного места для новой посадки.',
     FARM_PLOT_NOT_FOUND: 'Посадка больше не существует.',
     FARM_PLOT_STAGE_INVALID: 'Сейчас для этой посадки нужно выполнить другое действие.',
     FARM_ITEM_NOT_ENOUGH: 'Нужного предмета недостаточно.',
