@@ -1,6 +1,7 @@
 // Hospital batch refresh 2026-07-20: inventory medical items deploy marker.
 import './inventory.css';
 import { state } from '../state.js';
+import { loadFarmInventory } from '../farm/farmApi.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import { applyPlayerPositionVitalRestore } from '../player/playerPosition.js';
 import {
@@ -25,6 +26,13 @@ const ITEM_META = Object.freeze({
   medicine_light: { label: 'Простые таблетки', icon: '💊' },
   medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
+  farm_hoe: { label: 'Тяпка', icon: '⌁' },
+  farm_rake: { label: 'Грабли', icon: '≋' },
+  farm_water_bottle: { label: 'Вода для полива', icon: '◒' },
+  farm_seed_apple: { label: 'Семена яблони', icon: '●' },
+  farm_seed_wheat: { label: 'Семена пшеницы', icon: '⋮' },
+  farm_apple: { label: 'Яблоко', icon: '●' },
+  farm_wheat: { label: 'Пшеница', icon: '≀' },
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
@@ -305,6 +313,7 @@ function renderMedicalItems(items = []) {
       isServiceStock ? 'mn-inventory-item-service' : '',
       itemType === 'food' ? 'mn-inventory-item-food' : '',
       itemType === 'water_bottle' ? 'mn-inventory-item-water' : '',
+      itemType.startsWith('farm_') ? 'mn-inventory-item-farm' : '',
     ].filter(Boolean).join(' ');
 
     return `
@@ -644,6 +653,24 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nВосстанавливает 20 единиц воды. Хорошая гидратация ускоряет восстановление стамины до 3 минут.`;
     }
 
+    if (itemType === 'farm_hoe' || itemType === 'farm_rake') {
+      return `${getItemLabel(item)} · постоянный инструмент.\n${sourceLabel}.\nПрочность в прототипе не расходуется.`;
+    }
+
+    if (itemType === 'farm_water_bottle') {
+      const uses = Number(item.waterUses || 0);
+      return `${getItemLabel(item)} · ${quantity} бут.\n${sourceLabel}.\nОсталось поливов: ${uses}. Одна новая бутылка даёт 2 полива.`;
+    }
+
+    if (itemType === 'farm_seed_apple' || itemType === 'farm_seed_wheat') {
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nПодойдите к своему вскопанному участку и нажмите «Посадить».`;
+    }
+
+    if (itemType === 'farm_apple' || itemType === 'farm_wheat') {
+      const price = itemType === 'farm_wheat' ? 35 : 10;
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nМожно продать фермеру по ${price} ₴ за штуку.`;
+    }
+
     if (itemType.startsWith('medicine_')) {
       const heal = Number(item.healPerTick || 0);
       const tick = Number(item.tickSeconds || 0);
@@ -704,9 +731,13 @@ export function enableInventoryFeature() {
     if (itemMenuQuantity) itemMenuQuantity.textContent = `${Number(item.quantity || 0).toLocaleString('ru-RU')} шт.`;
     if (itemMenuApply) {
       const medicineOnly = itemType.startsWith('medicine_');
-      itemMenuApply.hidden = medicineOnly;
-      itemMenuApply.disabled = medicineOnly;
-      itemMenuApply.style.display = medicineOnly ? 'none' : '';
+      const farmSeed = itemType === 'farm_seed_apple' || itemType === 'farm_seed_wheat';
+      const farmNonUsable = itemType.startsWith('farm_') && !farmSeed;
+      const hidden = medicineOnly || farmNonUsable;
+      itemMenuApply.hidden = hidden;
+      itemMenuApply.disabled = hidden;
+      itemMenuApply.style.display = hidden ? 'none' : '';
+      itemMenuApply.textContent = farmSeed ? 'Посадить' : 'Применить';
     }
     setItemMenuNotice('');
     positionItemMenu(anchor, event);
@@ -719,16 +750,28 @@ export function enableInventoryFeature() {
   }
 
   async function refreshMedicalInventory() {
-    try {
-      const result = await loadMyMedicalInventory();
-      medicalItems = Array.isArray(result?.items) ? result.items : [];
-      publishInventorySnapshot(medicalItems);
-      renderMedicalInventory();
-    } catch (error) {
-      if (!String(error?.message || '').includes('TELEGRAM_SESSION')) {
-        console.warn('[inventory] medical inventory load failed:', error);
-      }
+    const [medicalResult, farmResult] = await Promise.allSettled([
+      loadMyMedicalInventory(),
+      loadFarmInventory(),
+    ]);
+
+    const medical = medicalResult.status === 'fulfilled' && Array.isArray(medicalResult.value?.items)
+      ? medicalResult.value.items
+      : [];
+    const farm = farmResult.status === 'fulfilled' && Array.isArray(farmResult.value?.items)
+      ? farmResult.value.items
+      : (Array.isArray(window.__MN_FARM_INVENTORY_ITEMS__) ? window.__MN_FARM_INVENTORY_ITEMS__ : []);
+
+    if (medicalResult.status === 'rejected' && !String(medicalResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+      console.warn('[inventory] medical inventory load failed:', medicalResult.reason);
     }
+    if (farmResult.status === 'rejected' && !String(farmResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+      console.warn('[inventory] farm inventory load failed:', farmResult.reason);
+    }
+
+    medicalItems = [...medical, ...farm];
+    publishInventorySnapshot(medicalItems);
+    renderMedicalInventory();
   }
 
   async function applySelectedInventoryItem() {
@@ -742,6 +785,21 @@ export function enableInventoryFeature() {
       window.dispatchEvent(new CustomEvent('mn:toast', {
         detail: { type: 'error', message },
       }));
+      return;
+    }
+
+    if (itemType === 'farm_seed_apple' || itemType === 'farm_seed_wheat') {
+      setItemMenuNotice('Подойдите к своему вскопанному участку. Посадка займёт 3 секунды.', 'info');
+      window.dispatchEvent(new CustomEvent('mn:farm-inventory-action', {
+        detail: { itemType, item: { ...item } },
+      }));
+      closeItemMenu();
+      close();
+      return;
+    }
+
+    if (itemType.startsWith('farm_')) {
+      setItemMenuNotice('Этот фермерский предмет используется через рабочую систему.', 'info');
       return;
     }
     inventoryBusy = true;
@@ -887,6 +945,14 @@ export function enableInventoryFeature() {
     });
 
     if (changed) renderVitals(nextVitals, { notify });
+  }
+
+  function handleFarmInventoryChanged(event) {
+    const farmItems = Array.isArray(event?.detail?.items) ? event.detail.items : [];
+    const nonFarmItems = medicalItems.filter((item) => !item?.farmItem && !String(item?.itemType || '').startsWith('farm_'));
+    medicalItems = [...nonFarmItems, ...farmItems];
+    publishInventorySnapshot(medicalItems);
+    renderMedicalInventory();
   }
 
   function handleVitalsChanged(event) {
@@ -1070,6 +1136,7 @@ export function enableInventoryFeature() {
   window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('mn:player-balance-changed', handleVitalsChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
+  window.addEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
   window.addEventListener('mn:player-inventory-changed', refreshMedicalInventory);
@@ -1105,6 +1172,7 @@ export function enableInventoryFeature() {
     window.removeEventListener('keydown', handleKeyDown, true);
     window.removeEventListener('mn:player-balance-changed', handleVitalsChanged);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
+    window.removeEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
     window.removeEventListener('mn:player-health-changed', handleHealthChanged);
     window.removeEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
     window.removeEventListener('mn:player-inventory-changed', refreshMedicalInventory);
