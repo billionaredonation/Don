@@ -60,6 +60,7 @@ export function getFarmUserErrorMessage(error) {
     FARM_PLOT_STAGE_INVALID: 'Сейчас для этой посадки нужно выполнить другое действие.',
     FARM_ITEM_NOT_ENOUGH: 'Нужного предмета недостаточно.',
     FARM_CROP_INVALID: 'Неизвестная культура.',
+    FARM_FIELD_CROP_MISMATCH: 'Эти семена не подходят для этого поля. Используйте культуру, заданную администратором.',
     FARM_SHOP_ITEM_INVALID: 'Этот предмет нельзя получить на ферме.',
     FARM_SELL_ITEM_INVALID: 'Этот предмет фермер не покупает.',
   };
