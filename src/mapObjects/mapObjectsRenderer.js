@@ -306,6 +306,7 @@ function getObjectSignature(object) {
     payload.locked === true ? 'locked' : 'open',
     toFiniteNumber(payload.renderWidth, 0),
     toFiniteNumber(payload.renderHeight, 0),
+    String(payload.fieldCrop || payload.cropType || payload.farmCrop || ''),
     object?.selected === true ? 'selected' : 'idle',
     object?.icon || '',
   ].join('|');
@@ -335,7 +336,7 @@ function applyObjectStyle(element, object, meta) {
   const size = getObjectRenderSize(meta.category, meta.visualClass);
   const payload = getPayload(object);
   const jobWidth = clamp(toFiniteNumber(payload.renderWidth, meta.type === 'farm_field' ? 8 : 2.6), 0.8, 30);
-  const jobHeight = clamp(toFiniteNumber(payload.renderHeight, meta.type === 'farm_field' ? 5.5 : 2.2), 0.8, 30);
+  const jobHeight = clamp(toFiniteNumber(payload.renderHeight, meta.type === 'farm_field' ? 8 : 2.2), 0.8, 30);
   const customJobSize = meta.category === 'job' && (meta.type === 'farm_field' || meta.type === 'farm_station');
 
   element.style.position = 'absolute';
@@ -473,18 +474,34 @@ function updateObjectElement(element, object) {
   const visualClass = safeClassName(meta.visualClass, 'default');
   const stateClass = safeClassName(meta.state, 'default');
   const selectedClass = object?.selected === true ? ' map-object-selected' : '';
+  const payload = getPayload(object);
+  const farmCrop = meta.type === 'farm_field'
+    ? (String(payload.fieldCrop || payload.cropType || payload.farmCrop || 'wheat').toLowerCase() === 'apple' ? 'apple' : 'wheat')
+    : '';
+  const farmCropClass = farmCrop ? ` map-object-farm-crop-${farmCrop}` : '';
 
-  element.className = `map-object map-object-${categoryClass} map-object-type-${typeClass} map-object-visual-${visualClass} map-object-state-${stateClass}${selectedClass}`;
+  element.className = `map-object map-object-${categoryClass} map-object-type-${typeClass} map-object-visual-${visualClass} map-object-state-${stateClass}${farmCropClass}${selectedClass}`;
   element.dataset.mapObjectId = id;
   element.dataset.mapObjectType = meta.type;
   element.dataset.mapObjectCategory = meta.category;
   element.dataset.mapObjectState = meta.state;
   element.dataset.mapObjectOwnerId = String(meta.ownerId || '');
+  if (farmCrop) element.dataset.farmCrop = farmCrop;
+  else delete element.dataset.farmCrop;
   element.title = escapeHtml(meta.title);
   element.setAttribute('aria-label', meta.title);
 
   applyObjectStyle(element, object, meta);
   updateObjectIcon(element, meta);
+
+  element.querySelector(':scope > .map-object-admin-resize-handle')?.remove();
+  if (object?.selected === true && meta.type === 'farm_field') {
+    const handle = document.createElement('span');
+    handle.className = 'map-object-admin-resize-handle';
+    handle.dataset.adminJobResize = id;
+    handle.setAttribute('aria-hidden', 'true');
+    element.appendChild(handle);
+  }
 }
 
 function getCachedElement(layer, id) {
