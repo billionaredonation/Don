@@ -190,9 +190,12 @@ export function enableAdminPanel({
   let selectedType = 'house';
   let selectedObjectSection = 'property';
   let selectedVariant = 'standard';
+  let selectedFarmCrop = 'wheat';
   let objects = [];
   let selectedObjectId = null;
   let objectMover = null;
+  let jobResizePointerId = null;
+  let jobResizeObjectId = null;
 
   const objectsLayer = createMapObjectsLayer();
   objectsLayer.classList.add('map-objects-layer-admin');
@@ -249,11 +252,20 @@ export function enableAdminPanel({
         </label>
         <label class="admin-label">
           Высота, % карты
-          <input class="admin-input admin-job-height" type="number" min="0.8" max="30" step="0.1" value="5.5" inputmode="decimal" />
+          <input class="admin-input admin-job-height" type="number" min="0.8" max="30" step="0.1" value="8" inputmode="decimal" />
         </label>
       </div>
       <small class="admin-help">Размер влияет не только на картинку: для поля это реальная площадь, в которой игроки могут создавать посадки.</small>
     </div>
+
+    <label class="admin-label admin-farm-crop-wrap" hidden>
+      Культура поля
+      <select class="admin-select admin-farm-crop">
+        <option value="wheat">Пшеница</option>
+        <option value="apple">Яблоки</option>
+      </select>
+      <small class="admin-help">Поле принимает только семена выбранной культуры. Размер можно менять цифрами или жёлтым углом прямо на карте.</small>
+    </label>
 
     <div class="admin-row">
       <button class="admin-btn admin-place-here" type="button">Поставить тут</button>
@@ -310,6 +322,8 @@ export function enableAdminPanel({
   const jobSizeWrap = panel.querySelector('.admin-job-size-wrap');
   const jobWidthInput = panel.querySelector('.admin-job-width');
   const jobHeightInput = panel.querySelector('.admin-job-height');
+  const farmCropWrap = panel.querySelector('.admin-farm-crop-wrap');
+  const farmCropSelect = panel.querySelector('.admin-farm-crop');
 
   const xEl = panel.querySelector('.admin-x');
   const yEl = panel.querySelector('.admin-y');
@@ -363,11 +377,22 @@ export function enableAdminPanel({
     return Math.round(Math.min(30, Math.max(0.8, Number.isFinite(number) ? number : fallback)) * 10) / 10;
   }
 
+  function normalizeFarmCrop(value) {
+    return String(value || '').toLowerCase() === 'apple' ? 'apple' : 'wheat';
+  }
+
+  function syncFarmCropInput(object = null) {
+    selectedFarmCrop = normalizeFarmCrop(
+      object?.payload?.fieldCrop || object?.payload?.cropType || object?.payload?.farmCrop || selectedFarmCrop
+    );
+    if (farmCropSelect) farmCropSelect.value = selectedFarmCrop;
+  }
+
   function syncJobSizeInputs(object = null) {
     const config = getMapObjectType(selectedType);
     const payload = object?.payload || {};
     const fallbackWidth = Number(config.defaultWidth || (selectedType === 'farm_field' ? 8 : 2.6));
-    const fallbackHeight = Number(config.defaultHeight || (selectedType === 'farm_field' ? 5.5 : 2.2));
+    const fallbackHeight = Number(config.defaultHeight || (selectedType === 'farm_field' ? 8 : 2.2));
     if (jobWidthInput) jobWidthInput.value = String(normalizeJobDimension(payload.renderWidth, fallbackWidth));
     if (jobHeightInput) jobHeightInput.value = String(normalizeJobDimension(payload.renderHeight, fallbackHeight));
   }
@@ -376,9 +401,11 @@ export function enableAdminPanel({
     const config = getMapObjectType(selectedType);
     const isHouse = config.type === 'house';
     const isJob = config.category === 'job';
+    const isFarmField = config.type === 'farm_field';
 
     houseClassWrap.hidden = !isHouse;
     if (jobSizeWrap) jobSizeWrap.hidden = !isJob;
+    if (farmCropWrap) farmCropWrap.hidden = !isFarmField;
 
     if (!isHouse) {
       selectedVariant = '';
@@ -388,6 +415,7 @@ export function enableAdminPanel({
     }
 
     if (isJob && !getSelectedObject()) syncJobSizeInputs(null);
+    if (isFarmField && !getSelectedObject()) syncFarmCropInput(null);
   }
 
   function updateCoords(x, y) {
@@ -451,6 +479,7 @@ export function enableAdminPanel({
       nameInput.value = '';
       updateVariantVisibility();
       syncJobSizeInputs(null);
+      syncFarmCropInput(null);
       return;
     }
 
@@ -469,6 +498,7 @@ export function enableAdminPanel({
 
     updateVariantVisibility();
     if (getMapObjectType(selectedType).category === 'job') syncJobSizeInputs(object);
+    if (selectedType === 'farm_field') syncFarmCropInput(object);
   }
 
   function renderObjectList() {
@@ -484,7 +514,10 @@ export function enableAdminPanel({
         const id = String(object.id || '');
         const shortId = id.slice(-6) || String(index + 1);
         const selectedClass = String(selectedObjectId) === id ? ' is-selected' : '';
-        const label = object.name || object.type || 'Объект';
+        const baseLabel = object.name || object.type || 'Объект';
+        const label = object.type === 'farm_field'
+          ? `${baseLabel} · ${normalizeFarmCrop(object?.payload?.fieldCrop) === 'apple' ? 'яблоки' : 'пшеница'}`
+          : baseLabel;
 
         return `
           <button
@@ -618,6 +651,7 @@ function setEnabled(next) {
       ? {
           renderWidth: normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6),
           renderHeight: normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2),
+          ...(selectedType === 'farm_field' ? { fieldCrop: normalizeFarmCrop(farmCropSelect?.value || selectedFarmCrop) } : {}),
         }
       : {};
 
@@ -652,6 +686,7 @@ function setEnabled(next) {
           ...(object.payload || {}),
           renderWidth: normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6),
           renderHeight: normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2),
+          ...(selectedType === 'farm_field' ? { fieldCrop: normalizeFarmCrop(farmCropSelect?.value || selectedFarmCrop) } : {}),
         }
       : null;
 
@@ -938,6 +973,7 @@ function setEnabled(next) {
     selectedType = typeSelect.value;
     updateVariantVisibility();
     if (getMapObjectType(selectedType).category === 'job') syncJobSizeInputs(null);
+    if (selectedType === 'farm_field') syncFarmCropInput(null);
   });
 
   houseClassSelect.addEventListener('change', () => {
@@ -952,18 +988,41 @@ function setEnabled(next) {
       ...(object.payload || {}),
       renderWidth: normalizeJobDimension(jobWidthInput?.value, config.defaultWidth || 2.6),
       renderHeight: normalizeJobDimension(jobHeightInput?.value, config.defaultHeight || 2.2),
+      ...(object.type === 'farm_field' ? { fieldCrop: normalizeFarmCrop(farmCropSelect?.value || selectedFarmCrop) } : {}),
     };
     if (syncAdminObjectsLayerVisibility()) renderMapObjects(objectsLayer, objects);
   }
 
   jobWidthInput?.addEventListener('input', previewSelectedJobSize);
   jobHeightInput?.addEventListener('input', previewSelectedJobSize);
+  farmCropSelect?.addEventListener('change', () => {
+    selectedFarmCrop = normalizeFarmCrop(farmCropSelect.value);
+    const object = getSelectedObject();
+    if (object?.type === 'farm_field') {
+      object.payload = { ...(object.payload || {}), fieldCrop: selectedFarmCrop };
+      if (syncAdminObjectsLayerVisibility()) renderMapObjects(objectsLayer, objects);
+    }
+  });
 
   function onMapPointerDown(event) {
     if (!enabled) return;
     if (event.target.closest('.admin-panel')) return;
     if (objectMover?.isMoveMode()) return;
     if (teleportMode) return;
+
+    const resizeHandle = event.target.closest?.('[data-admin-job-resize]');
+    if (resizeHandle) {
+      const objectId = String(resizeHandle.dataset.adminJobResize || '');
+      const object = getObjectById(objectId);
+      if (!object || object.type !== 'farm_field') return;
+      event.preventDefault();
+      event.stopPropagation();
+      updateSelectedObject(objectId);
+      jobResizePointerId = event.pointerId;
+      jobResizeObjectId = objectId;
+      viewport.setPointerCapture?.(event.pointerId);
+      return;
+    }
 
     const clickedObjectId = getMapObjectIdFromEvent(event);
     if (!clickedObjectId) return;
@@ -974,7 +1033,35 @@ function setEnabled(next) {
     updateSelectedObject(clickedObjectId);
   }
 
+  function onMapPointerMove(event) {
+    if (!enabled || jobResizePointerId !== event.pointerId || !jobResizeObjectId) return;
+    const object = getObjectById(jobResizeObjectId);
+    if (!object) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const point = getPointFromEvent(event, viewport);
+    const width = normalizeJobDimension(Math.abs(point.x - Number(object.x || 50)) * 2, Number(object.payload?.renderWidth || 8));
+    const height = normalizeJobDimension(Math.abs(point.y - Number(object.y || 50)) * 2, Number(object.payload?.renderHeight || 8));
+    object.payload = { ...(object.payload || {}), renderWidth: width, renderHeight: height };
+    if (jobWidthInput) jobWidthInput.value = String(width);
+    if (jobHeightInput) jobHeightInput.value = String(height);
+    if (syncAdminObjectsLayerVisibility()) renderMapObjects(objectsLayer, objects);
+  }
+
+  function onMapPointerUp(event) {
+    if (jobResizePointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    viewport.releasePointerCapture?.(event.pointerId);
+    jobResizePointerId = null;
+    jobResizeObjectId = null;
+    showAdminNotice('Размер поля изменён. Нажмите «Сохранить», чтобы записать его для всех игроков.');
+  }
+
   viewport.addEventListener('pointerdown', onMapPointerDown, true);
+  viewport.addEventListener('pointermove', onMapPointerMove, true);
+  viewport.addEventListener('pointerup', onMapPointerUp, true);
+  viewport.addEventListener('pointercancel', onMapPointerUp, true);
   viewport.addEventListener('click', onMapClick, true);
   viewport.addEventListener('contextmenu', onMapContextMenu, true);
   viewport.addEventListener('mousemove', onMouseMove);
@@ -1029,6 +1116,9 @@ function setEnabled(next) {
 
   return () => {
     viewport.removeEventListener('pointerdown', onMapPointerDown, true);
+    viewport.removeEventListener('pointermove', onMapPointerMove, true);
+    viewport.removeEventListener('pointerup', onMapPointerUp, true);
+    viewport.removeEventListener('pointercancel', onMapPointerUp, true);
     viewport.removeEventListener('click', onMapClick, true);
     viewport.removeEventListener('contextmenu', onMapContextMenu, true);
     viewport.removeEventListener('mousemove', onMouseMove);
