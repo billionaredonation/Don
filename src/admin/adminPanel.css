@@ -1183,3 +1183,42 @@ body.admin-mode .admin-panel,
 @media (max-width: 760px) {
   .admin-size-grid { grid-template-columns: 1fr; }
 }
+
+/* v25 farm field editor: crop selector + direct resize handle like interior objects. */
+.admin-farm-crop-wrap[hidden] { display: none !important; }
+.admin-farm-crop-wrap .admin-help { margin-top: 5px; }
+
+.map-object-type-farm_field.map-object-selected {
+  outline: 2px solid rgba(255, 210, 74, .96) !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.75), 0 0 14px rgba(255,210,74,.34) !important;
+}
+
+.map-object-admin-resize-handle {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  z-index: 30;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 2px solid #16120a;
+  border-radius: 4px;
+  background:
+    linear-gradient(135deg, transparent 0 42%, rgba(77,54,7,.78) 43% 55%, transparent 56%),
+    #ffd24a;
+  box-shadow: 0 0 0 2px rgba(255,210,74,.35), 0 3px 8px rgba(0,0,0,.55);
+  cursor: nwse-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .map-object-admin-resize-handle {
+    right: -14px;
+    bottom: -14px;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+  }
+}
