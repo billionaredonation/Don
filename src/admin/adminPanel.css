@@ -1145,3 +1145,41 @@ body.admin-mode .admin-panel,
   .admin-object-sections { grid-template-columns: 1fr 1fr; }
   .admin-object-sections button { min-height: 38px; }
 }
+\n\n/* === Global map objects launcher ===\n   Keep the map-object editor visible as a real labeled control instead of the\n   old status-only avatar dot. This is intentionally shared by desktop/mobile. */\n.admin-status-dot.admin-objects-toggle {\n  width: auto !important;\n  min-width: 108px !important;\n  height: 42px !important;\n  padding: 0 14px !important;\n  display: inline-flex !important;\n  align-items: center !important;\n  justify-content: center !important;\n  gap: 8px !important;\n  border-radius: 13px !important;\n  font-size: 12px !important;\n  font-weight: 850 !important;\n  line-height: 1 !important;\n  white-space: nowrap !important;\n}\n\n.admin-status-dot.admin-objects-toggle::after {\n  display: none !important;\n}\n\n.admin-objects-toggle-icon {\n  display: inline-grid;\n  place-items: center;\n  width: 18px;\n  height: 18px;\n  font-size: 16px;\n  line-height: 1;\n}\n\n@media (max-width: 800px) {\n  .admin-status-dot.admin-objects-toggle {\n    min-width: 104px !important;\n    height: 40px !important;\n    right: 14px !important;\n    bottom: 18px !important;\n    padding: 0 12px !important;\n  }\n}\n
+/* Re-enable the labeled map editor control on touch devices. Legacy mobile
+   styles intentionally hid .admin-status-dot because it used to be PC-only. */
+@media (hover: none), (pointer: coarse), (max-width: 900px) {
+  body:not(.mn-interior-open):not(.mn-houses-modal-open) .home .admin-status-dot.admin-objects-toggle,
+  body.mn-landscape-game:not(.mn-interior-open):not(.mn-houses-modal-open) .home .admin-status-dot.admin-objects-toggle,
+  body.mn-mobile-game-enabled:not(.mn-interior-open):not(.mn-houses-modal-open) .home .admin-status-dot.admin-objects-toggle {
+    display: inline-flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* Job object sizing: shared by farm fields/stations and future job zones. */
+.admin-job-size-wrap {
+  margin: 8px 0 10px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+}
+.admin-job-size-wrap[hidden] { display: none !important; }
+.admin-size-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.admin-help {
+  display: block;
+  margin-top: 7px;
+  color: rgba(235,241,238,.52);
+  font-size: 10px;
+  line-height: 1.35;
+}
+@media (max-width: 760px) {
+  .admin-size-grid { grid-template-columns: 1fr; }
+}
