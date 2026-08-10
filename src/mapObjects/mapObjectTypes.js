@@ -216,20 +216,24 @@ export const MAP_OBJECT_TYPES = {
     type: 'farm_station',
     category: MAP_OBJECT_CATEGORIES.JOB,
     label: 'Ферма · снабжение',
-    icon: '◆',
+    icon: '⚒',
     defaultScale: 1,
     defaultRotation: 0,
     defaultAsset: 'job_farm_station_01',
+    defaultWidth: 2.6,
+    defaultHeight: 2.2,
   },
 
   farm_field: {
     type: 'farm_field',
     category: MAP_OBJECT_CATEGORIES.JOB,
     label: 'Ферма · поле',
-    icon: '▦',
+    icon: '▤',
     defaultScale: 1,
     defaultRotation: 0,
     defaultAsset: 'job_farm_field_01',
+    defaultWidth: 8,
+    defaultHeight: 5.5,
   },
 
   spawn: {
@@ -367,6 +371,8 @@ export function createMapObjectDraft({
       buyable: false,
       transferable: false,
       serverOwned: true,
+      renderWidth: Number(nextPayload.renderWidth || config.defaultWidth || 2.4),
+      renderHeight: Number(nextPayload.renderHeight || config.defaultHeight || 2.0),
     };
   }
 
