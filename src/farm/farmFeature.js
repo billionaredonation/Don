@@ -43,6 +43,18 @@ function localTgId() {
   return getFarmTelegramId();
 }
 
+function normalizeFarmCrop(value) {
+  return String(value || '').toLowerCase() === 'apple' ? 'apple' : 'wheat';
+}
+
+function farmCropLabel(value) {
+  return normalizeFarmCrop(value) === 'apple' ? 'яблоки' : 'пшеница';
+}
+
+function farmSeedTypeForCrop(value) {
+  return normalizeFarmCrop(value) === 'apple' ? 'farm_seed_apple' : 'farm_seed_wheat';
+}
+
 function emitToast(message, type = 'info') {
   window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 }
@@ -115,10 +127,10 @@ function farmModalMarkup() {
         </div>
         <div class="mn-farm-tab-page" data-farm-page="seeds" hidden>
           <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_seed_apple">
-            <i class="mn-farm-glyph is-apple-seed" aria-hidden="true"></i><span><b>Семена яблони</b><small>Для прототипа выдаются бесплатно</small></span><strong>0 ₴</strong>
+            <i class="mn-farm-glyph is-apple-seed" aria-hidden="true"></i><span><b>Семена яблони</b><small>Для яблочного поля · выдаются бесплатно</small></span><strong>0 ₴</strong>
           </button>
           <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_seed_wheat">
-            <i class="mn-farm-glyph is-wheat-seed" aria-hidden="true"></i><span><b>Семена пшеницы</b><small>Для прототипа выдаются бесплатно</small></span><strong>0 ₴</strong>
+            <i class="mn-farm-glyph is-wheat-seed" aria-hidden="true"></i><span><b>Семена пшеницы</b><small>Для пшеничного поля · выдаются бесплатно</small></span><strong>0 ₴</strong>
           </button>
         </div>
         <div class="mn-farm-tab-page" data-farm-page="sell" hidden>
@@ -296,7 +308,7 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
     );
   }
 
-  function getNearestOwnedPlot(stage = '') {
+  function getNearestOwnedPlot(stage = '', cropType = '') {
     const tgId = localTgId();
     const radius = isMobileGameplayDevice() ? FARM_PLOT_INTERACTION_RADIUS_MOBILE_PX : FARM_PLOT_INTERACTION_RADIUS_PX;
     let best = null;
@@ -305,6 +317,7 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
     plots.forEach((plot) => {
       if (plot.ownerTgId !== tgId) return;
       if (stage && plot.stage !== stage) return;
+      if (cropType && normalizeFarmCrop(plot.cropType) !== normalizeFarmCrop(cropType)) return;
       const distance = getPlotDistancePx(plot);
       if (distance <= radius && distance < bestDistance) {
         best = plot;
@@ -317,7 +330,7 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
 
   function getPlotAction(plot) {
     if (!plot) return null;
-    if (plot.stage === 'tilled') return { label: 'Шаг 2/5 · семена через инвентарь', action: 'plant_hint' };
+    if (plot.stage === 'tilled') return { label: `Шаг 2/5 · ${farmCropLabel(plot.cropType)} · семена через инвентарь`, action: 'plant_hint' };
     if (plot.stage === 'seeded') return { label: 'Шаг 3/5 · обработать граблями', action: 'rake' };
     if (plot.stage === 'raked') return { label: 'Шаг 4/5 · полить посадку', action: 'water' };
     if (plot.stage === 'ready') return { label: 'Шаг 5/5 · собрать урожай', action: 'harvest' };
@@ -377,6 +390,42 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
   function getPlotElement(plotOrId) {
     const id = typeof plotOrId === 'string' ? plotOrId : plotOrId?.id;
     return id ? plotLayer.querySelector(`[data-farm-plot-id="${CSS.escape(String(id))}"]`) : null;
+  }
+
+  function getFieldWorkPoint(object) {
+    const payload = object?.payload || {};
+    const centerX = clamp(object?.x, 0, 100);
+    const centerY = clamp(object?.y, 0, 100);
+    const width = clamp(payload.renderWidth || 8, 0.8, 30);
+    const height = clamp(payload.renderHeight || 8, 0.8, 30);
+    const margin = 0.34;
+    const step = 1.55;
+    const left = Math.max(0, centerX - width / 2);
+    const right = Math.min(100, centerX + width / 2);
+    const top = Math.max(0, centerY - height / 2);
+    const bottom = Math.min(100, centerY + height / 2);
+    const usableWidth = Math.max(0, (right - left) - margin * 2);
+    const usableHeight = Math.max(0, (bottom - top) - margin * 2);
+    const cols = Math.max(1, Math.floor(usableWidth / step) + 1);
+    const rows = Math.max(1, Math.floor(usableHeight / step) + 1);
+    const playerX = Number(playerPosition.x || centerX);
+    const playerY = Number(playerPosition.y || centerY);
+    const candidates = [];
+
+    for (let gx = 0; gx < cols; gx += 1) {
+      for (let gy = 0; gy < rows; gy += 1) {
+        const x = cols <= 1 ? (left + right) / 2 : (left + margin) + gx * (usableWidth / (cols - 1));
+        const y = rows <= 1 ? (top + bottom) / 2 : (top + margin) + gy * (usableHeight / (rows - 1));
+        const occupied = plots.some((plot) =>
+          String(plot.fieldObjectId) === String(object?.id || '') && Math.hypot(plot.x - x, plot.y - y) < 0.68
+        );
+        if (occupied) continue;
+        candidates.push({ x, y, distance: Math.hypot(x - playerX, y - playerY) });
+      }
+    }
+
+    candidates.sort((a, b) => a.distance - b.distance);
+    return candidates[0] || { x: centerX, y: centerY };
   }
 
   function createFieldWorkFx(kind, x, y) {
@@ -450,7 +499,13 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
     if (!action) return false;
 
     if (action.action === 'plant_hint') {
-      emitToast('Шаг 2/5: инвентарь → Семена яблони/пшеницы → «Посадить».', 'info');
+      const crop = normalizeFarmCrop(plot.cropType);
+      const seedType = farmSeedTypeForCrop(crop);
+      if (itemQuantity(seedType) <= 0) {
+        emitToast(`Для этого поля нужны семена: ${farmCropLabel(crop)}. Возьмите их на точке снабжения во вкладке «Семена».`, 'info');
+      } else {
+        emitToast(`Шаг 2/5: откройте инвентарь → ${farmCropLabel(crop)} → «Посадить».`, 'info');
+      }
       return true;
     }
 
@@ -493,8 +548,10 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
         return;
       }
 
-      const fx = createFieldWorkFx('tilling', Number(playerPosition.x || 50), Number(playerPosition.y || 50));
-      const result = await runTimedAction('Шаг 1/5 · пропалываем и вскапываем', () => tillFarmPlot({
+      const fieldCrop = normalizeFarmCrop(object?.payload?.fieldCrop || object?.payload?.cropType || object?.payload?.farmCrop);
+      const workPoint = getFieldWorkPoint(object);
+      const fx = createFieldWorkFx('tilling', workPoint.x, workPoint.y);
+      const result = await runTimedAction(`Шаг 1/5 · готовим поле: ${farmCropLabel(fieldCrop)}`, () => tillFarmPlot({
         cityId,
         fieldObjectId: String(object.id || ''),
         x: Number(playerPosition.x || 50),
@@ -504,7 +561,14 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
       window.setTimeout(() => fx.remove(), 320);
       if (result?.plot) {
         upsertPlot(result.plot);
-        emitToast('Шаг 1 готов. Теперь: инвентарь → семена → «Посадить».', 'success');
+        const crop = normalizeFarmCrop(result.plot.crop_type || result.plot.cropType || fieldCrop);
+        const seedType = farmSeedTypeForCrop(crop);
+        emitToast(
+          itemQuantity(seedType) > 0
+            ? `Шаг 1 готов. Поле: ${farmCropLabel(crop)}. Теперь откройте инвентарь и посадите семя.`
+            : `Шаг 1 готов. Поле: ${farmCropLabel(crop)}. Семян нет — возьмите их на снабжении, вкладка «Семена».`,
+          'success'
+        );
       }
     }
   }
@@ -515,9 +579,14 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
     const cropType = itemType === 'farm_seed_apple' ? 'apple' : itemType === 'farm_seed_wheat' ? 'wheat' : '';
     if (!cropType) return;
 
-    const plot = getNearestOwnedPlot('tilled');
+    const plot = getNearestOwnedPlot('tilled', cropType);
     if (!plot) {
-      emitToast('Подойдите к своему вскопанному участку.', 'error');
+      const otherPlot = getNearestOwnedPlot('tilled');
+      if (otherPlot) {
+        emitToast(`Эта грядка предназначена для культуры: ${farmCropLabel(otherPlot.cropType)}. Используйте соответствующие семена.`, 'error');
+      } else {
+        emitToast(`Сначала вспашите свободную ячейку на поле «${farmCropLabel(cropType)}».`, 'error');
+      }
       window.dispatchEvent(new CustomEvent('mn:farm-inventory-action-result', { detail: { ok: false, itemType } }));
       return;
     }
@@ -589,6 +658,11 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
       document.body.classList.contains('mn-house-trade-open')
     ) return;
     if (!nearestPlot) return;
+
+    // A freshly tilled plot is planted from inventory. Do not capture E/У here:
+    // the same key must remain available for a nearby supply station, otherwise
+    // the player can get stuck without seeds after tilling.
+    if (getPlotAction(nearestPlot)?.action === 'plant_hint') return;
 
     event.preventDefault();
     event.stopImmediatePropagation();
