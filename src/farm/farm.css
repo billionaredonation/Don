@@ -762,3 +762,83 @@ button.mn-farm-shop-row { width: 100%; }
     height: 32px;
   }
 }
+
+/* v25 — fixed crop fields. Sharp rectangular farm beds + snapped square cells. */
+.map-object-type-farm_field .map-object-icon {
+  border-radius: 2px !important;
+  border: 0 !important;
+  background:
+    repeating-linear-gradient(90deg, rgba(222,181,122,.12) 0 1px, transparent 1px 10%),
+    repeating-linear-gradient(0deg, rgba(20,12,7,.16) 0 1px, transparent 1px 20%),
+    linear-gradient(180deg, #5b4029 0%, #49301f 52%, #342218 100%) !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(204,166,112,.15),
+    inset 0 -8px 12px rgba(17,10,6,.13),
+    0 5px 12px rgba(0,0,0,.16) !important;
+}
+
+/* Crop is configured by admin. Keep the hint visual, not textual. */
+.map-object-type-farm_field.map-object-farm-crop-wheat .map-object-icon::before {
+  inset: 7% 5% !important;
+  opacity: .72 !important;
+  background:
+    linear-gradient(78deg, transparent 0 45%, rgba(202,164,91,.55) 46% 51%, transparent 52%) 8% 18% / 5% 22% no-repeat,
+    linear-gradient(96deg, transparent 0 45%, rgba(213,177,101,.50) 46% 51%, transparent 52%) 91% 72% / 5% 22% no-repeat !important;
+}
+.map-object-type-farm_field.map-object-farm-crop-apple .map-object-icon::before {
+  inset: 7% 5% !important;
+  opacity: .7 !important;
+  background:
+    radial-gradient(ellipse at 8% 18%, rgba(83,126,70,.58) 0 2.8%, transparent 3.2%),
+    radial-gradient(ellipse at 92% 72%, rgba(73,116,65,.55) 0 2.8%, transparent 3.2%) !important;
+}
+.map-object-type-farm_field .map-object-icon::after {
+  left: 4% !important;
+  right: 4% !important;
+  top: 6% !important;
+  bottom: 6% !important;
+  height: auto !important;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 18%,
+    rgba(222,177,118,.13) 18.5% 19%,
+    transparent 19.5% 38%
+  ) !important;
+  box-shadow: none !important;
+}
+
+/* Plots are fixed cells of the field grid, not free-positioned mounds. */
+.mn-farm-plot {
+  width: 22px !important;
+  height: 18px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+.mn-farm-plot::before {
+  inset: 1px !important;
+  border-radius: 2px !important;
+  background:
+    repeating-linear-gradient(90deg, rgba(220,176,116,.12) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #583b26, #382319 70%, #291a13) !important;
+  box-shadow: inset 0 0 0 1px rgba(207,160,103,.10), 0 2px 4px rgba(0,0,0,.18) !important;
+}
+.mn-farm-plot.is-tilled::after {
+  left: 5px !important;
+  right: 5px !important;
+  top: 7px !important;
+  height: 1px !important;
+  box-shadow: 0 5px 0 rgba(226,183,124,.16), 0 10px 0 rgba(20,12,8,.28) !important;
+}
+
+/* Nearby field stays readable without looking like a selected UI button. */
+.map-object-type-farm_field.map-object-nearby .map-object-icon {
+  box-shadow:
+    inset 0 0 0 1px rgba(126,184,137,.23),
+    inset 0 -8px 12px rgba(17,10,6,.13),
+    0 5px 12px rgba(0,0,0,.16) !important;
+}
+
+@media (max-width: 920px) and (pointer: coarse) {
+  .mn-farm-plot { width: 14px !important; height: 12px !important; }
+  .mn-farm-plot.is-tilled::after { left: 3px !important; right: 3px !important; top: 4px !important; box-shadow: 0 3px 0 rgba(226,183,124,.16), 0 6px 0 rgba(20,12,8,.28) !important; }
+}
