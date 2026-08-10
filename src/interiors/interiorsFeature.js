@@ -2568,24 +2568,103 @@ export function enableInteriorsFeature() {
       (fallbackAdmissionBed?.id === activeBedObjectId ? fallbackAdmissionBed : null);
   }
 
-  function hospitalAdmissionBed(preferredBedId = null) {
+  function hospitalBedDistanceSquared(bed, point = TEMPLATES.hospital.spawn) {
+    const dx = (Number(bed?.x) - Number(point?.x || 0)) * INTERIOR_DESIGN_ASPECT;
+    const dy = Number(bed?.y) - Number(point?.y || 0);
+    return dx * dx + dy * dy;
+  }
+
+  async function loadOccupiedHospitalBedIds(hospitalId) {
+    const safeHospitalId = String(hospitalId || '').trim();
+    if (!safeHospitalId) return new Set();
+
+    try {
+      const localPlayerId = String(getLocalPlayerId() || '').trim();
+      let query = supabase
+        .from('player_positions')
+        .select('player_id, hospital_bed_id')
+        .eq('hospital_id', safeHospitalId)
+        .eq('knock_state', 'hospitalized')
+        .not('hospital_bed_id', 'is', null);
+
+      // On reconnect the player's own previously assigned bed is still valid
+      // and must not be treated as occupied by somebody else.
+      if (localPlayerId) query = query.neq('player_id', localPlayerId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return new Set(
+        (Array.isArray(data) ? data : [])
+          .map((row) => String(row?.hospital_bed_id || '').trim())
+          .filter(Boolean)
+      );
+    } catch (error) {
+      // Bed occupancy is a safety improvement, not a reason to block hospital
+      // admission if a rolling deploy temporarily makes the query unavailable.
+      console.warn('[interiors] hospital bed occupancy check failed:', error);
+      return new Set();
+    }
+  }
+
+  async function hospitalAdmissionPlacement(hospitalId, preferredBedId = null) {
     const beds = normalizeMappedInteriorObjects(collisionProfileFor('hospital')?.objects)
       .filter((object) => object.type === 'bed');
+
+    if (!beds.length) {
+      fallbackAdmissionBed = {
+        id: 'hospital-fallback-bed',
+        type: 'bed',
+        x: TEMPLATES.hospital.spawn.x,
+        y: TEMPLATES.hospital.spawn.y,
+        rotation: 0,
+        properties: { width: 8, height: 5 },
+      };
+      return {
+        bed: fallbackAdmissionBed,
+        position: mappedInteriorBedPatientPosition(fallbackAdmissionBed),
+        allBedsOccupied: false,
+      };
+    }
+
+    const occupiedBedIds = await loadOccupiedHospitalBedIds(hospitalId);
     const preferred = preferredBedId
       ? beds.find((bed) => bed.id === String(preferredBedId))
       : null;
-    if (preferred) return preferred;
-    if (beds.length) return beds[0];
+    const anchor = preferred || TEMPLATES.hospital.spawn;
 
-    fallbackAdmissionBed = {
-      id: 'hospital-fallback-bed',
-      type: 'bed',
-      x: TEMPLATES.hospital.spawn.x,
-      y: TEMPLATES.hospital.spawn.y,
-      rotation: 0,
-      properties: { width: 8, height: 5 },
+    const freeBeds = beds
+      .filter((bed) => !occupiedBedIds.has(String(bed.id || '')))
+      .sort((left, right) => (
+        hospitalBedDistanceSquared(left, anchor) - hospitalBedDistanceSquared(right, anchor)
+      ));
+
+    if (freeBeds.length) {
+      // Keep the preferred bed when it belongs to this player and is not occupied
+      // by somebody else. Otherwise choose the nearest free bed.
+      const bed = preferred && !occupiedBedIds.has(String(preferred.id || ''))
+        ? preferred
+        : freeBeds[0];
+      return {
+        bed,
+        position: mappedInteriorBedPatientPosition(bed),
+        allBedsOccupied: false,
+      };
+    }
+
+    // Every real bed is occupied. Do not stack players on top of each other:
+    // place this player in the ward beside the nearest bed and leave bedId null.
+    const nearestBed = [...beds].sort((left, right) => (
+      hospitalBedDistanceSquared(left, TEMPLATES.hospital.spawn) -
+      hospitalBedDistanceSquared(right, TEMPLATES.hospital.spawn)
+    ))[0];
+    const bedside = mappedInteriorBedStandPosition(nearestBed);
+    return {
+      bed: null,
+      position: bedside,
+      fallbackWardBed: nearestBed,
+      allBedsOccupied: true,
     };
-    return fallbackAdmissionBed;
   }
 
   function standUpFromHospitalBed() {
@@ -5294,16 +5373,17 @@ export function enableInteriorsFeature() {
         animateChange: false,
         animateDamage: false,
       });
-      const admissionBed = forcedAdmission
-        ? hospitalAdmissionBed(admission?.preferredBedId)
+      const admissionPlacement = forcedAdmission
+        ? await hospitalAdmissionPlacement(id, admission?.preferredBedId)
         : null;
+      const admissionBed = admissionPlacement?.bed || null;
       activeBedObjectId = admissionBed?.id || null;
       fallbackAdmissionBed = admissionBed?.id === 'hospital-fallback-bed'
         ? admissionBed
         : null;
       position = snapInteriorPosition(
         template.id,
-        admissionBed ? mappedInteriorBedPatientPosition(admissionBed) : template.spawn
+        admissionPlacement?.position || template.spawn
       );
       ({ value: stamina, locked: sprintLocked } = readPlayerStaminaState());
       renderStamina();
@@ -5360,8 +5440,12 @@ export function enableInteriorsFeature() {
             bedId: admissionBed?.id || null,
             hospital,
             source: admission?.source || 'knockout',
+            allBedsOccupied: admissionPlacement?.allBedsOccupied === true,
           },
         }));
+        if (admissionPlacement?.allBedsOccupied === true) {
+          showInteriorActionToast('Все койки заняты — вас разместили рядом в палате.', 3200);
+        }
         if (admission?.source === 'low_health_reconnect') {
           showInteriorActionToast(
             `HP ниже ${HOSPITAL_EXIT_HEALTH}: после перезахода вы возвращены в больницу. Выход откроется с ${HOSPITAL_EXIT_HEALTH} HP.`,
