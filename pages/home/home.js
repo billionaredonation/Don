@@ -18,6 +18,7 @@ import {
 import { setupMobileControlPrompt } from '../../src/controls/mobileControlPrompt.js';
 
 import { enableMapControls, isLowPowerDevice } from '../../src/controls/mapControls.js';
+import { getStreetCameraStartScale } from '../../src/config/cameraTuning.js';
 import { enableKeyboardPlayerMovement } from '../../src/controls/keyboardMovement.js';
 import { enableMobileJoystick } from '../../src/controls/mobileJoystick.js';
 
@@ -1518,11 +1519,14 @@ register('home', async (root) => {
     focusY: playerPosition.y,
 
     /*
-      Камера ближе к игроку на обоих устройствах. Размер мира ниже всё равно
-      вычисляется от viewport и пропорций исходной карты, поэтому разные города
-      не растягиваются и доступные границы карты не обрезаются.
+      Camera tuning is centralized in src/config/cameraTuning.js.
+      We only change the visual zoom here; map limits, movement and player
+      coordinates continue to be handled by mapControls.
     */
-    startScale: isMobileGameplay ? 1.72 : 1.74,
+    startScale: getStreetCameraStartScale({
+      mobile: isMobileGameplay,
+      lowPower: isLowPowerDevice(),
+    }),
   });
 
   const network = setupPlayerNetwork({
