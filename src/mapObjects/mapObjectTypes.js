@@ -233,7 +233,7 @@ export const MAP_OBJECT_TYPES = {
     defaultRotation: 0,
     defaultAsset: 'job_farm_field_01',
     defaultWidth: 8,
-    defaultHeight: 5.5,
+    defaultHeight: 8,
   },
 
   spawn: {
