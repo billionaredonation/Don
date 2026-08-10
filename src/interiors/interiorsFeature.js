@@ -4,6 +4,7 @@ import { state } from '../state.js';
 import { getStaminaConfig } from '../player/playerStaminaConfig.js';
 import { applyPlayerStaminaFrame, readPlayerStaminaState } from '../player/playerStaminaState.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
+import { getInteriorCameraProfile } from '../config/cameraTuning.js';
 import { getLocalPlayerId, getSessionId } from '../player/playerPosition.js';
 import {
   claimInteriorSeat,
@@ -1981,6 +1982,23 @@ export function enableInteriorsFeature() {
   let interiorExitPending = false;
   let lastFrame = 0;
   let position = { x: 50, y: 82 };
+  const interiorCameraMobile = Boolean(
+    window.matchMedia?.('(hover: none) and (pointer: coarse)')?.matches || navigator.maxTouchPoints > 0
+  );
+  const interiorCameraLowPower = Boolean(
+    window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ||
+    (navigator.deviceMemory && navigator.deviceMemory <= 3) ||
+    (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
+  );
+  const interiorCameraProfile = getInteriorCameraProfile({
+    mobile: interiorCameraMobile,
+    lowPower: interiorCameraLowPower,
+  });
+  let interiorCameraX = 0;
+  let interiorCameraY = 0;
+  let interiorCameraScale = 1;
+  let interiorCameraReady = false;
+  let lastInteriorCameraTransform = '';
   let activeTemplateId = 'standard';
   let activeInteriorKind = 'house';
   let activeHouse = null;
@@ -2068,6 +2086,18 @@ export function enableInteriorsFeature() {
 
   function setPaused(value) {
     window.__MN_INTERIOR_ACTIVE__ = value;
+    if (!value) {
+      interiorCameraReady = false;
+      interiorCameraX = 0;
+      interiorCameraY = 0;
+      interiorCameraScale = 1;
+      lastInteriorCameraTransform = '';
+      if (world) {
+        world.style.transform = 'translate3d(-50%,-50%,0)';
+        world.style.willChange = 'auto';
+        world.dataset.cameraScale = '1';
+      }
+    }
     if (!value) {
       window.__MN_INTERIOR_PLAYER_MOVING__ = false;
       window.__MN_INTERIOR_PLAYER_SPRINTING__ = false;
@@ -2365,6 +2395,58 @@ export function enableInteriorsFeature() {
     event.preventDefault();
   }
 
+  function interiorCameraEditingOverview() {
+    return colliderEditorOpen || objectEditorOpen;
+  }
+
+  function applyInteriorCamera(force = false) {
+    if (!scene || !world) return;
+
+    const sceneWidth = Math.max(1, Number(scene.clientWidth || 0));
+    const sceneHeight = Math.max(1, Number(scene.clientHeight || 0));
+    const worldWidth = Math.max(1, Number(world.clientWidth || 0));
+    const worldHeight = Math.max(1, Number(world.clientHeight || 0));
+    if (sceneWidth <= 1 || sceneHeight <= 1 || worldWidth <= 1 || worldHeight <= 1) return;
+
+    // Editors need the full plan. Gameplay gets the close follow-camera.
+    const overview = interiorCameraEditingOverview();
+    const targetScale = overview ? 1 : interiorCameraProfile.scale;
+    const playerWorldX = (Math.max(0, Math.min(100, Number(position.x) || 50)) / 100 - 0.5) * worldWidth * targetScale;
+    const playerWorldY = (Math.max(0, Math.min(100, Number(position.y) || 50)) / 100 - 0.5) * worldHeight * targetScale;
+    const maxX = Math.max(0, (worldWidth * targetScale - sceneWidth) / 2);
+    const maxY = Math.max(0, (worldHeight * targetScale - sceneHeight) / 2);
+    const targetX = Math.max(-maxX, Math.min(maxX, -playerWorldX));
+    const targetY = Math.max(-maxY, Math.min(maxY, -playerWorldY));
+
+    if (force || !interiorCameraReady || overview) {
+      interiorCameraX = targetX;
+      interiorCameraY = targetY;
+      interiorCameraScale = targetScale;
+      interiorCameraReady = true;
+    } else {
+      const lerp = Math.max(0.08, Math.min(1, Number(interiorCameraProfile.followLerp) || 0.25));
+      interiorCameraX += (targetX - interiorCameraX) * lerp;
+      interiorCameraY += (targetY - interiorCameraY) * lerp;
+      interiorCameraScale += (targetScale - interiorCameraScale) * Math.min(1, lerp * 1.25);
+
+      if (Math.abs(targetX - interiorCameraX) < 0.02) interiorCameraX = targetX;
+      if (Math.abs(targetY - interiorCameraY) < 0.02) interiorCameraY = targetY;
+      if (Math.abs(targetScale - interiorCameraScale) < 0.001) interiorCameraScale = targetScale;
+    }
+
+    const safeX = Math.round(interiorCameraX * 100) / 100;
+    const safeY = Math.round(interiorCameraY * 100) / 100;
+    const safeScale = Math.round(interiorCameraScale * 1000) / 1000;
+    const transform = `translate3d(-50%,-50%,0) translate3d(${safeX}px,${safeY}px,0) scale(${safeScale})`;
+
+    if (transform !== lastInteriorCameraTransform) {
+      world.style.transform = transform;
+      world.style.willChange = overview ? 'auto' : 'transform';
+      world.dataset.cameraScale = String(safeScale);
+      lastInteriorCameraTransform = transform;
+    }
+  }
+
   function layoutInteriorWorld() {
     if (!scene || !world) return;
 
@@ -2382,6 +2464,7 @@ export function enableInteriorsFeature() {
 
     world.style.width = `${Math.round(width * 100) / 100}px`;
     world.style.height = `${Math.round(height * 100) / 100}px`;
+    applyInteriorCamera(true);
   }
 
   function scheduleInteriorWorldLayout() {
@@ -2395,6 +2478,7 @@ export function enableInteriorsFeature() {
   function renderPosition() {
     marker.style.left = `${position.x}%`;
     marker.style.top = `${position.y}%`;
+    applyInteriorCamera(false);
     marker.classList.toggle('is-seated', Boolean(activeSeatObjectId));
     marker.dataset.seated = activeSeatObjectId ? 'true' : 'false';
     marker.classList.toggle('is-bedridden', Boolean(activeBedObjectId));
@@ -3644,6 +3728,7 @@ export function enableInteriorsFeature() {
     if (objectEditorOpen) closeObjectEditor();
 
     colliderEditorOpen = true;
+    applyInteriorCamera(true);
     colliderEditorProfile = editorProfileForCurrentTemplate();
     colliderEditorSelected = null;
     colliderEditorPointer = null;
@@ -3676,6 +3761,7 @@ export function enableInteriorsFeature() {
     colliderPanelDrag = null;
     colliderPanel.dataset.dragging = 'false';
     colliderEditorOpen = false;
+    applyInteriorCamera(true);
     colliderEditorPointer = null;
     colliderEditorStart = null;
     colliderEditorDraft = null;
@@ -4544,6 +4630,7 @@ export function enableInteriorsFeature() {
     if (colliderEditorOpen) closeColliderEditor();
 
     objectEditorOpen = true;
+    applyInteriorCamera(true);
     objectEditorTemplateId = activeTemplateId;
     objectEditorProfile = editorProfileForCurrentTemplate();
     objectEditorSelectedId = null;
@@ -4578,6 +4665,7 @@ export function enableInteriorsFeature() {
     objectPanelDrag = null;
     objectPanel.dataset.dragging = 'false';
     objectEditorOpen = false;
+    applyInteriorCamera(true);
     objectEditorSelectedId = null;
     objectEditorPointer = null;
     objectEditorDraggingId = null;
