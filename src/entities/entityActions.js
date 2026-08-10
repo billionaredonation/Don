@@ -26,6 +26,7 @@ export function getEntityKindLabel(object) {
   if (kind === 'decor') return 'Декор';
   if (kind === 'npc') return 'NPC';
   if (kind === 'marker') return 'Маркер';
+  if (kind === 'job') return 'Работа';
 
   return 'Сущность';
 }
@@ -54,6 +55,7 @@ export function getEntityPrimaryActionLabel(object) {
   if (kind === 'npc') return 'Говорить';
   if (kind === 'decor') return 'Осмотреть';
   if (kind === 'marker') return 'Выбрать';
+  if (kind === 'job') return 'Работать';
 
   return 'Выбрать';
 }
@@ -67,6 +69,13 @@ export function getEntityMetaText(object) {
     return object?.payload?.locked
       ? `${kindLabel} · вход закрыт`
       : `${kindLabel} · серверный объект · вход свободный`;
+  }
+
+
+  if (kind === 'job') {
+    if (type === 'farm_station') return 'Ферма · инструменты, семена и продажа урожая';
+    if (type === 'farm_field') return 'Ферма · рабочая зона для посадок';
+    return 'Рабочая точка';
   }
 
   const classLabel =
@@ -127,6 +136,14 @@ export function dispatchEntityAction(object) {
         object,
         action: 'enter',
       },
+    }));
+    return;
+  }
+
+
+  if (kind === 'job') {
+    window.dispatchEvent(new CustomEvent('mn:farm-object-action', {
+      detail: { object, action: type },
     }));
     return;
   }
