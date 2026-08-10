@@ -99,6 +99,9 @@ function farmModalMarkup() {
           <button type="button" data-farm-tab="seeds">Семена</button>
           <button type="button" data-farm-tab="sell">Продажа</button>
         </nav>
+        <div class="mn-farm-cycle-guide" aria-label="Порядок работы на ферме">
+          <span><b>1</b>Тяпка</span><i>→</i><span><b>2</b>Семена</span><i>→</i><span><b>3</b>Грабли</span><i>→</i><span><b>4</b>Вода</span><i>→</i><span><b>5</b>Сбор</span>
+        </div>
         <div class="mn-farm-tab-page" data-farm-page="tools">
           <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_hoe">
             <i class="mn-farm-glyph is-hoe" aria-hidden="true"></i><span><b>Тяпка</b><small>Без прочности · для подготовки земли</small></span><strong>2 ₴</strong>
@@ -314,10 +317,10 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
 
   function getPlotAction(plot) {
     if (!plot) return null;
-    if (plot.stage === 'tilled') return { label: 'Посадить семена через инвентарь', action: 'plant_hint' };
-    if (plot.stage === 'seeded') return { label: 'Обработать граблями', action: 'rake' };
-    if (plot.stage === 'raked') return { label: 'Полить посадку', action: 'water' };
-    if (plot.stage === 'ready') return { label: 'Собрать урожай', action: 'harvest' };
+    if (plot.stage === 'tilled') return { label: 'Шаг 2/5 · семена через инвентарь', action: 'plant_hint' };
+    if (plot.stage === 'seeded') return { label: 'Шаг 3/5 · обработать граблями', action: 'rake' };
+    if (plot.stage === 'raked') return { label: 'Шаг 4/5 · полить посадку', action: 'water' };
+    if (plot.stage === 'ready') return { label: 'Шаг 5/5 · собрать урожай', action: 'harvest' };
     return null;
   }
 
@@ -330,11 +333,13 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
       document.body.classList.contains('mn-house-trade-open')
     ) {
       nearestPlot = null;
+      window.__MN_FARM_NEAR_OWN_PLOT__ = false;
       if (actionHint) actionHint.hidden = true;
       return;
     }
 
     nearestPlot = getNearestOwnedPlot();
+    window.__MN_FARM_NEAR_OWN_PLOT__ = Boolean(nearestPlot);
     const action = getPlotAction(nearestPlot);
     if (!actionHint || !action) {
       if (actionHint) actionHint.hidden = true;
@@ -345,7 +350,7 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
     actionHint.dataset.action = action.action;
     if (actionLabel) actionLabel.textContent = action.label;
     const key = actionHint.querySelector('b');
-    if (key) key.textContent = isMobileGameplayDevice() ? 'Действие' : 'E / У';
+    if (key) key.textContent = isMobileGameplayDevice() ? 'Нажать' : 'E / У';
   }
 
   function openModal() {
@@ -367,6 +372,32 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
   function setTab(tab) {
     tabButtons.forEach((button) => { button.dataset.active = button.dataset.farmTab === tab ? 'true' : 'false'; });
     tabPages.forEach((page) => { page.hidden = page.dataset.farmPage !== tab; });
+  }
+
+  function getPlotElement(plotOrId) {
+    const id = typeof plotOrId === 'string' ? plotOrId : plotOrId?.id;
+    return id ? plotLayer.querySelector(`[data-farm-plot-id="${CSS.escape(String(id))}"]`) : null;
+  }
+
+  function createFieldWorkFx(kind, x, y) {
+    const element = document.createElement('div');
+    element.className = `mn-farm-work-fx is-${kind}`;
+    element.style.left = `${clamp(x, 0, 100)}%`;
+    element.style.top = `${clamp(y, 0, 100)}%`;
+    element.setAttribute('aria-hidden', 'true');
+    plotLayer.appendChild(element);
+    requestAnimationFrame(() => element.classList.add('is-running'));
+    return element;
+  }
+
+  async function runPlotTimedAction(plot, label, visualClass, callback) {
+    const element = getPlotElement(plot);
+    if (element && visualClass) element.classList.add(visualClass);
+    try {
+      return await runTimedAction(label, callback);
+    } finally {
+      element?.classList.remove(visualClass);
+    }
   }
 
   async function runTimedAction(label, callback) {
@@ -419,24 +450,26 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
     if (!action) return false;
 
     if (action.action === 'plant_hint') {
-      emitToast('Откройте инвентарь → выберите семена → «Посадить».', 'info');
+      emitToast('Шаг 2/5: инвентарь → Семена яблони/пшеницы → «Посадить».', 'info');
       return true;
     }
 
     if (action.action === 'rake') {
-      const result = await runTimedAction('Обрабатываем землю граблями', () => rakeFarmPlot(plot.id));
-      if (result) emitToast('Земля обработана. Теперь посадку нужно полить.', 'success');
+      if (itemQuantity('farm_rake') <= 0) { emitToast('Сначала возьмите грабли в снабжении фермы.', 'error'); return true; }
+      const result = await runPlotTimedAction(plot, 'Шаг 3/5 · работаем граблями', 'is-raking-now', () => rakeFarmPlot(plot.id));
+      if (result) emitToast('Шаг 3 готов. Теперь полейте посадку водой.', 'success');
       return true;
     }
 
     if (action.action === 'water') {
-      const result = await runTimedAction('Поливаем посадку', () => waterFarmPlot(plot.id));
-      if (result) emitToast('Посадка готова к сбору.', 'success');
+      if (Number(inventoryState?.items?.find?.((item) => item.itemType === 'farm_water_bottle')?.waterUses || 0) <= 0) { emitToast('Нужна вода. Купите бутылку в снабжении фермы.', 'error'); return true; }
+      const result = await runPlotTimedAction(plot, 'Шаг 4/5 · поливаем посадку', 'is-watering-now', () => waterFarmPlot(plot.id));
+      if (result) emitToast('Шаг 4 готов. Теперь соберите урожай.', 'success');
       return true;
     }
 
     if (action.action === 'harvest') {
-      const result = await runTimedAction('Собираем урожай', () => harvestFarmPlot(plot.id));
+      const result = await runPlotTimedAction(plot, 'Шаг 5/5 · собираем урожай', 'is-harvesting-now', () => harvestFarmPlot(plot.id));
       if (result) {
         removePlot(plot.id);
         emitToast(result.harvestedItemType === 'farm_wheat' ? 'Получено: пшеница ×1.' : 'Получено: яблоко ×1.', 'success');
@@ -455,15 +488,23 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
     }
 
     if (type === 'farm_field') {
-      const result = await runTimedAction('Вскапываем участок тяпкой', () => tillFarmPlot({
+      if (itemQuantity('farm_hoe') <= 0) {
+        emitToast('Шаг 1/5: сначала возьмите тяпку в снабжении фермы.', 'error');
+        return;
+      }
+
+      const fx = createFieldWorkFx('tilling', Number(playerPosition.x || 50), Number(playerPosition.y || 50));
+      const result = await runTimedAction('Шаг 1/5 · пропалываем и вскапываем', () => tillFarmPlot({
         cityId,
         fieldObjectId: String(object.id || ''),
         x: Number(playerPosition.x || 50),
         y: Number(playerPosition.y || 50),
       }));
+      fx.classList.add('is-finished');
+      window.setTimeout(() => fx.remove(), 320);
       if (result?.plot) {
         upsertPlot(result.plot);
-        emitToast('Участок подготовлен. Возьмите семена и посадите их через инвентарь.', 'success');
+        emitToast('Шаг 1 готов. Теперь: инвентарь → семена → «Посадить».', 'success');
       }
     }
   }
@@ -481,14 +522,16 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
       return;
     }
 
-    const result = await runTimedAction(
-      cropType === 'wheat' ? 'Сажаем пшеницу' : 'Сажаем яблоню',
+    const result = await runPlotTimedAction(
+      plot,
+      cropType === 'wheat' ? 'Шаг 2/5 · сажаем пшеницу' : 'Шаг 2/5 · сажаем яблоню',
+      'is-planting-now',
       () => plantFarmSeed({ plotId: plot.id, cropType }),
     );
 
     if (result?.plot) {
       upsertPlot(result.plot);
-      emitToast('Семена посажены. Теперь обработайте участок граблями.', 'success');
+      emitToast('Шаг 2 готов. Теперь подойдите к посадке и обработайте её граблями.', 'success');
     }
 
     window.dispatchEvent(new CustomEvent('mn:farm-inventory-action-result', {
@@ -615,5 +658,6 @@ export function enableFarmFeature({ root, viewport, cityId, playerPosition } = {
     actionHint?.remove();
     progress?.remove();
     plotLayer.remove();
+    window.__MN_FARM_NEAR_OWN_PLOT__ = false;
   };
 }
