@@ -123,6 +123,24 @@ export async function saveAdminObject({
     };
   }
 
+  if (config.category === 'job') {
+    nextPatch.icon = config.icon;
+    nextPatch.asset = config.defaultAsset;
+    nextPatch.scale = object.scale || config.defaultScale;
+    nextPatch.payload = {
+      ...(object.payload || {}),
+      kind: 'job',
+      type: selectedType,
+      category: 'job',
+      jobType: selectedType,
+      jobLabel: config.label,
+      publicAccess: true,
+      buyable: false,
+      transferable: false,
+      serverOwned: true,
+    };
+  }
+
   if (config.category === 'marker') {
     nextPatch.payload = {
       ...(object.payload || {}),
