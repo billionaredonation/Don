@@ -268,7 +268,7 @@ function getJobObjectSizePercent(object) {
   const type = String(object?.type || payload.jobType || payload.type || '');
   if (type !== 'farm_field' && type !== 'farm_station') return null;
   const fallbackWidth = type === 'farm_field' ? 8 : 2.6;
-  const fallbackHeight = type === 'farm_field' ? 5.5 : 2.2;
+  const fallbackHeight = type === 'farm_field' ? 8 : 2.2;
   let width = clampNumber(payload.renderWidth || fallbackWidth, 0.8, 30);
   let height = clampNumber(payload.renderHeight || fallbackHeight, 0.8, 30);
   const rotation = Math.abs(Math.round(Number(object?.rotation || payload.rotation || 0))) % 180;
