@@ -708,3 +708,69 @@
     height: 38px;
   }
 }
+
+/* ========================================================================== 
+   GLOBAL CHAIR STYLE
+   Hospital chair visual language is the canonical chair style for every
+   mapped interior: houses, hospital, faction/business interiors and future
+   templates. Geometry/seat offsets still come from the object data.
+   ========================================================================== */
+.mn-interior .mn-interior-mapped-object[data-interior-object-type="chair"],
+.mn-interior .mn-interior-mapped-object-chair {
+  overflow: visible;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mn-interior .mn-interior-mapped-object-chair::before {
+  content: "";
+  position: absolute;
+  left: 17%;
+  right: 17%;
+  top: 30%;
+  bottom: 12%;
+  border: 0;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.08), transparent 25%),
+    linear-gradient(145deg, #ad8765, #876246);
+  box-shadow: inset 0 -2px 4px rgba(31,17,8,.24);
+  pointer-events: none;
+}
+
+.mn-interior .mn-interior-mapped-object-chair::after {
+  content: "";
+  position: absolute;
+  left: 17%;
+  right: 17%;
+  top: 8%;
+  height: 18%;
+  border: 0;
+  border-radius: 3px 3px 2px 2px;
+  background: linear-gradient(180deg, #b48d6b, #725037);
+  box-shadow: 0 2px 2px rgba(0,0,0,.24);
+  pointer-events: none;
+}
+
+.mn-interior .mn-interior-mapped-object-chair[data-occupied="true"] {
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: saturate(.72) brightness(.78);
+}
+
+@media (max-width: 920px), (max-height: 520px) {
+  .mn-interior .mn-interior-mapped-object-chair {
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}
