@@ -637,21 +637,23 @@
   pointer-events: none;
 }
 .mn-interior .mn-interior-mapped-object-exit::after {
-  content: "ВЫХОД";
+  content: "";
   position: absolute;
   left: 50%;
-  top: calc(100% + 4px);
-  padding: 0;
+  top: 50%;
+  width: 135%;
+  height: 135%;
   border: 0;
-  border-radius: 0;
-  color: rgba(199,242,221,.84);
-  background: transparent;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(83,225,154,.23) 0%,
+    rgba(54,185,119,.10) 42%,
+    rgba(27,105,70,.035) 62%,
+    transparent 76%
+  );
   box-shadow: none;
-  transform: translateX(-50%);
-  font: 850 5.5px/1 system-ui;
-  letter-spacing: .13em;
-  text-shadow: 0 1px 2px rgba(0,0,0,.78);
-  white-space: nowrap;
+  transform: translate(-50%, -50%);
   pointer-events: none;
 }
 
