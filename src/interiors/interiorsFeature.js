@@ -3670,17 +3670,10 @@ export function enableInteriorsFeature() {
       appendInteriorGuideElement(fragment, guide);
     });
 
-    normalizeMappedInteriorObjects(profile?.objects).forEach((object) => {
-      if (object.type === 'exit') {
-        appendInteriorGuideElement(fragment, {
-          type: 'allow',
-          x: object.x,
-          y: object.y,
-          rotation: object.rotation,
-          text: 'Выход',
-        }, 'is-automatic-exit');
-      }
-    });
+    // Exit markers are rendered by the mapped object itself. Do not add an
+    // automatic guide here: guides create a second icon/label layer that can
+    // drift away from the exit after camera scaling and makes the marker look
+    // like a UI button.
 
     guideLayer.dataset.editor = colliderEditorOpen ? 'true' : 'false';
     guideLayer.replaceChildren(fragment);
