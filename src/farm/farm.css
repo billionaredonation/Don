@@ -842,3 +842,86 @@ button.mn-farm-shop-row { width: 100%; }
   .mn-farm-plot { width: 14px !important; height: 12px !important; }
   .mn-farm-plot.is-tilled::after { left: 3px !important; right: 3px !important; top: 4px !important; box-shadow: 0 3px 0 rgba(226,183,124,.16), 0 6px 0 rgba(20,12,8,.28) !important; }
 }
+
+/* v26 — field footprint must equal the real editable map-object footprint.
+   Previous visuals kept the icon at 68x40px even when the farm_field button
+   was several percent of the world, which made the actual field boundary invisible. */
+.map-object.map-object-type-farm_field {
+  overflow: visible !important;
+}
+
+.map-object.map-object-type-farm_field > .map-object-icon {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  box-sizing: border-box !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgba(226, 187, 128, .11) 0,
+      rgba(226, 187, 128, .11) 1px,
+      transparent 1px,
+      transparent 12.5%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(25, 15, 9, .18) 0,
+      rgba(25, 15, 9, .18) 1px,
+      transparent 1px,
+      transparent 25%
+    ),
+    linear-gradient(180deg, #5a3e28 0%, #49301f 52%, #352218 100%) !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(111, 76, 46, .92),
+    inset 0 0 0 3px rgba(218, 174, 111, .15),
+    inset 0 -10px 16px rgba(18, 10, 6, .14),
+    0 4px 9px rgba(0, 0, 0, .16) !important;
+}
+
+/* Crop-specific edge is subtle, but the full rectangle remains readable. */
+.map-object.map-object-type-farm_field.map-object-farm-crop-wheat > .map-object-icon {
+  box-shadow:
+    inset 0 0 0 2px rgba(118, 82, 46, .94),
+    inset 0 0 0 3px rgba(208, 170, 93, .20),
+    inset 0 -10px 16px rgba(18, 10, 6, .14),
+    0 4px 9px rgba(0, 0, 0, .16) !important;
+}
+
+.map-object.map-object-type-farm_field.map-object-farm-crop-apple > .map-object-icon {
+  box-shadow:
+    inset 0 0 0 2px rgba(80, 91, 55, .92),
+    inset 0 0 0 3px rgba(112, 155, 87, .18),
+    inset 0 -10px 16px rgba(18, 10, 6, .14),
+    0 4px 9px rgba(0, 0, 0, .16) !important;
+}
+
+/* Being near a field should not collapse its boundary back into an icon-like glow. */
+.map-object.map-object-type-farm_field.map-object-nearby > .map-object-icon {
+  box-shadow:
+    inset 0 0 0 2px rgba(88, 126, 77, .96),
+    inset 0 0 0 4px rgba(112, 170, 119, .13),
+    inset 0 -10px 16px rgba(18, 10, 6, .14),
+    0 4px 9px rgba(0, 0, 0, .16) !important;
+}
+
+/* Admin selection shows the exact editable rectangle, not the old 68x40 icon. */
+.map-object.map-object-type-farm_field.map-object-selected > .map-object-icon {
+  outline: 1px dashed rgba(232, 194, 124, .72) !important;
+  outline-offset: 3px !important;
+}
+
+@media (max-width: 920px) and (pointer: coarse) {
+  .map-object.map-object-type-farm_field > .map-object-icon {
+    box-shadow:
+      inset 0 0 0 1px rgba(104, 72, 44, .96),
+      inset 0 0 0 2px rgba(218, 174, 111, .15),
+      inset 0 -6px 10px rgba(18, 10, 6, .12),
+      0 3px 7px rgba(0, 0, 0, .14) !important;
+  }
+}
