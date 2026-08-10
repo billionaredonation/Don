@@ -1120,3 +1120,28 @@ body.admin-mode .admin-panel,
     margin: 6px 0 !important;
   }
 }
+
+.admin-object-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.admin-object-sections button {
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 10px;
+  background: rgba(255,255,255,.045);
+  color: rgba(255,255,255,.68);
+  font: 750 11px/1.1 system-ui, sans-serif;
+}
+.admin-object-sections button[data-active="true"] {
+  background: rgba(58,132,92,.24);
+  border-color: rgba(93,179,123,.34);
+  color: #f1f8f3;
+}
+@media (max-width: 430px) {
+  .admin-object-sections { grid-template-columns: 1fr 1fr; }
+  .admin-object-sections button { min-height: 38px; }
+}
