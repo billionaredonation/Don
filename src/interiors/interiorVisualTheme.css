@@ -774,3 +774,29 @@
     box-shadow: none !important;
   }
 }
+
+/* Object editor sections: keep the growing toolset readable instead of one wall of buttons. */
+.mn-interior-object-groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 8px 0;
+}
+.mn-interior-object-groups button {
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 10px;
+  background: rgba(255,255,255,.045);
+  color: rgba(255,255,255,.62);
+  font: 750 10px/1.1 system-ui, sans-serif;
+}
+.mn-interior-object-groups button[data-active="true"] {
+  background: rgba(51,116,87,.28);
+  border-color: rgba(89,169,120,.34);
+  color: #eef7f1;
+}
+@media (max-width: 720px) {
+  .mn-interior-object-groups { grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+  .mn-interior-object-groups button { min-height: 30px; padding: 5px 4px; font-size: 8px; }
+}
