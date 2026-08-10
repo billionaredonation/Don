@@ -129,6 +129,7 @@ export async function saveAdminObject({
     nextPatch.scale = object.scale || config.defaultScale;
     nextPatch.payload = {
       ...(object.payload || {}),
+      ...(patch.payload || {}),
       kind: 'job',
       type: selectedType,
       category: 'job',
