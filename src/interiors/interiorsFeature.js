@@ -1746,19 +1746,24 @@ function markup() {
             повернуть или удалить. Потяни жёлтый угол выбранного объекта, чтобы изменить его размер.
             Раскладка общая для всех игроков.
           </div>
+          <div class="mn-interior-object-groups" aria-label="Раздел объектов интерьера">
+            <button type="button" data-interior-object-group="furniture" data-active="true">Мебель</button>
+            <button type="button" data-interior-object-group="navigation">Двери / выходы</button>
+            <button type="button" data-interior-object-group="hospital" data-interior-hospital-group>Больница</button>
+          </div>
           <div class="mn-interior-object-types">
-            <button type="button" data-interior-object-type="bed">Кровать</button>
-            <button type="button" data-interior-object-type="chair">Стул</button>
-            <button type="button" data-interior-object-type="table">Стол</button>
-            <button type="button" data-interior-object-type="custom_block">Универсальный блок</button>
-            <button type="button" data-interior-object-type="cabinet">Шкаф</button>
-            <button type="button" data-interior-object-type="kitchen_counter">Кухонная стойка</button>
-            <button type="button" data-interior-object-type="reception">Рецепшен</button>
-            <button type="button" data-interior-object-type="door">Дверь</button>
-            <button type="button" data-interior-object-type="exit">Выход</button>
-            <button type="button" data-interior-object-type="warehouse">Склад</button>
-            <button type="button" data-interior-object-type="cafeteria">Столовка</button>
-            <button type="button" data-interior-object-type="patient_medicine">Лекарства пациенту</button>
+            <button type="button" data-interior-object-group-item="furniture" data-interior-object-type="bed">Кровать</button>
+            <button type="button" data-interior-object-group-item="furniture" data-interior-object-type="chair">Стул</button>
+            <button type="button" data-interior-object-group-item="furniture" data-interior-object-type="table">Стол</button>
+            <button type="button" data-interior-object-group-item="furniture" data-interior-object-type="custom_block">Универсальный блок</button>
+            <button type="button" data-interior-object-group-item="furniture" data-interior-object-type="cabinet">Шкаф</button>
+            <button type="button" data-interior-object-group-item="furniture" data-interior-object-type="kitchen_counter">Кухонная стойка</button>
+            <button type="button" data-interior-object-group-item="furniture" data-interior-object-type="reception">Рецепшен</button>
+            <button type="button" data-interior-object-group-item="navigation" data-interior-object-type="door" hidden>Дверь</button>
+            <button type="button" data-interior-object-group-item="navigation" data-interior-object-type="exit" hidden>Выход</button>
+            <button type="button" data-interior-object-group-item="hospital" data-interior-object-type="warehouse" hidden>Склад</button>
+            <button type="button" data-interior-object-group-item="hospital" data-interior-object-type="cafeteria" hidden>Столовка</button>
+            <button type="button" data-interior-object-group-item="hospital" data-interior-object-type="patient_medicine" hidden>Лекарства пациенту</button>
           </div>
           <div class="mn-interior-custom-block-settings" hidden data-interior-custom-block-settings>
             <label class="mn-interior-custom-block-color">
@@ -1911,6 +1916,8 @@ export function enableInteriorsFeature() {
   const objectPanelDragHandle = overlay.querySelector('[data-interior-object-drag]');
   const objectClose = overlay.querySelector('[data-interior-object-close]');
   const objectTypeButtons = [...overlay.querySelectorAll('[data-interior-object-type]')];
+  const objectGroupButtons = [...overlay.querySelectorAll('[data-interior-object-group]')];
+  const hospitalObjectGroupButton = overlay.querySelector('[data-interior-hospital-group]');
   const objectSave = overlay.querySelector('[data-interior-object-save]');
   const objectRotate = overlay.querySelector('[data-interior-object-rotate]');
   const objectDelete = overlay.querySelector('[data-interior-object-delete]');
@@ -2023,6 +2030,7 @@ export function enableInteriorsFeature() {
   let objectEditorOpen = false;
   let objectEditorTemplateId = 'hospital';
   let objectEditorType = 'bed';
+  let objectEditorGroup = 'furniture';
   let objectEditorProfile = null;
   let objectEditorSelectedId = null;
   let objectEditorPointer = null;
@@ -4051,6 +4059,30 @@ export function enableInteriorsFeature() {
     return `Кровати ${beds} · стулья ${chairs} · столы ${tables} · блоки ${customBlocks} · шкафы ${cabinets} · кух. стойки ${kitchenCounters} · рецепшены ${receptions} · двери ${doors} · выходы ${exits} · склад ${warehouses} · столовка ${cafeterias} · лекарства ${patientMedicines}`;
   }
 
+  function setObjectEditorGroup(group = 'furniture') {
+    const requested = String(group || 'furniture');
+    objectEditorGroup = requested === 'hospital' && objectEditorTemplateId !== 'hospital'
+      ? 'furniture'
+      : requested;
+
+    objectGroupButtons.forEach((button) => {
+      const isHospitalGroup = button.dataset.interiorObjectGroup === 'hospital';
+      if (isHospitalGroup) button.hidden = objectEditorTemplateId !== 'hospital';
+      button.dataset.active = button.dataset.interiorObjectGroup === objectEditorGroup ? 'true' : 'false';
+    });
+
+    objectTypeButtons.forEach((button) => {
+      const groupName = button.dataset.interiorObjectGroupItem || 'furniture';
+      button.hidden = groupName !== objectEditorGroup || (groupName === 'hospital' && objectEditorTemplateId !== 'hospital');
+    });
+
+    const activeButton = objectTypeButtons.find((button) => !button.hidden && button.dataset.interiorObjectType === objectEditorType);
+    if (!activeButton) {
+      const firstVisible = objectTypeButtons.find((button) => !button.hidden);
+      if (firstVisible) setObjectEditorType(firstVisible.dataset.interiorObjectType);
+    }
+  }
+
   function setObjectEditorType(type) {
     if (!INTERIOR_MAPPED_OBJECT_TYPES[type]) return;
     if (
@@ -4718,6 +4750,8 @@ export function enableInteriorsFeature() {
     stick.style.transform = 'translate3d(0,0,0)';
     objectPanel.hidden = false;
     hospitalAdminActions.hidden = activeInteriorKind !== 'hospital';
+    if (hospitalObjectGroupButton) hospitalObjectGroupButton.hidden = activeInteriorKind !== 'hospital';
+    setObjectEditorGroup(objectEditorGroup);
     scheduleObjectPanelLayout();
     overlay.dataset.objectEditor = 'enabled';
     document.body.classList.add('mn-interior-object-editor-open');
@@ -5823,6 +5857,9 @@ export function enableInteriorsFeature() {
   objectPanelDragHandle.addEventListener('pointermove', handleObjectPanelPointerMove);
   objectPanelDragHandle.addEventListener('pointerup', handleObjectPanelPointerEnd);
   objectPanelDragHandle.addEventListener('pointercancel', handleObjectPanelPointerEnd);
+  objectGroupButtons.forEach((button) => {
+    button.addEventListener('click', () => setObjectEditorGroup(button.dataset.interiorObjectGroup));
+  });
   objectTypeButtons.forEach((button) => {
     button.addEventListener('click', () => setObjectEditorType(button.dataset.interiorObjectType));
   });
