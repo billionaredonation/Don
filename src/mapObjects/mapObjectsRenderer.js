@@ -304,6 +304,8 @@ function getObjectSignature(object) {
     getHousePrice(object),
     getHouseOwnerName(object),
     payload.locked === true ? 'locked' : 'open',
+    toFiniteNumber(payload.renderWidth, 0),
+    toFiniteNumber(payload.renderHeight, 0),
     object?.selected === true ? 'selected' : 'idle',
     object?.icon || '',
   ].join('|');
@@ -331,14 +333,22 @@ function applyObjectStyle(element, object, meta) {
   const rotation = toFiniteNumber(object?.rotation, 0);
   const objectScale = Math.max(0.4, toFiniteNumber(object?.scale, 1));
   const size = getObjectRenderSize(meta.category, meta.visualClass);
+  const payload = getPayload(object);
+  const jobWidth = clamp(toFiniteNumber(payload.renderWidth, meta.type === 'farm_field' ? 8 : 2.6), 0.8, 30);
+  const jobHeight = clamp(toFiniteNumber(payload.renderHeight, meta.type === 'farm_field' ? 5.5 : 2.2), 0.8, 30);
+  const customJobSize = meta.category === 'job' && (meta.type === 'farm_field' || meta.type === 'farm_station');
 
   element.style.position = 'absolute';
   element.style.left = `${x}%`;
   element.style.top = `${y}%`;
-  element.style.width = `${size}px`;
-  element.style.height = `${size}px`;
-  element.style.minWidth = `${size}px`;
-  element.style.minHeight = `${size}px`;
+  element.style.width = customJobSize ? `${jobWidth}%` : `${size}px`;
+  element.style.height = customJobSize ? `${jobHeight}%` : `${size}px`;
+  element.style.minWidth = customJobSize ? '0' : `${size}px`;
+  element.style.minHeight = customJobSize ? '0' : `${size}px`;
+  if (customJobSize) {
+    element.style.setProperty('--mn-job-width', String(jobWidth));
+    element.style.setProperty('--mn-job-height', String(jobHeight));
+  }
   element.style.border = '0';
   element.style.padding = '0';
   element.style.margin = '0';
