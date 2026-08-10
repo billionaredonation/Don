@@ -143,8 +143,23 @@ function notifyMapObjectsChanged(cityId) {
   }));
 }
 
-function createObjectOptionsHtml() {
+const ADMIN_OBJECT_SECTIONS = Object.freeze({
+  property: { label: 'Недвижимость', categories: ['house', 'business'] },
+  services: { label: 'Сервисы', categories: ['service'] },
+  jobs: { label: 'Работы', categories: ['job'] },
+  decor: { label: 'Декор', categories: ['decor'] },
+  misc: { label: 'NPC / метки', categories: ['npc', 'marker'] },
+});
+
+function getAdminObjectSectionForCategory(category) {
+  return Object.entries(ADMIN_OBJECT_SECTIONS)
+    .find(([, section]) => section.categories.includes(String(category || '')))?.[0] || 'misc';
+}
+
+function createObjectOptionsHtml(sectionKey = 'property') {
+  const section = ADMIN_OBJECT_SECTIONS[sectionKey] || ADMIN_OBJECT_SECTIONS.property;
   return getMapObjectTypesList()
+    .filter((type) => section.categories.includes(type.category))
     .map((type) => `<option value="${type.type}">${type.icon} ${type.label}</option>`)
     .join('');
 }
@@ -173,6 +188,7 @@ export function enableAdminPanel({
   let placeMode = false;
 
   let selectedType = 'house';
+  let selectedObjectSection = 'property';
   let selectedVariant = 'standard';
   let objects = [];
   let selectedObjectId = null;
@@ -201,10 +217,14 @@ export function enableAdminPanel({
 
     <div class="admin-separator"></div>
 
+    <div class="admin-object-sections" aria-label="Раздел объектов">
+      ${Object.entries(ADMIN_OBJECT_SECTIONS).map(([key, section]) => `<button type="button" data-admin-object-section="${key}"${key === 'property' ? ' data-active="true"' : ''}>${section.label}</button>`).join('')}
+    </div>
+
     <label class="admin-label">
       Тип объекта
       <select class="admin-select admin-object-type">
-        ${createObjectOptionsHtml()}
+        ${createObjectOptionsHtml('property')}
       </select>
     </label>
 
@@ -268,6 +288,7 @@ export function enableAdminPanel({
   const btnCopy = panel.querySelector('.admin-copy-coords');
 
   const typeSelect = panel.querySelector('.admin-object-type');
+  const objectSectionButtons = [...panel.querySelectorAll('[data-admin-object-section]')];
   const houseClassWrap = panel.querySelector('.admin-house-class-wrap');
   const houseClassSelect = panel.querySelector('.admin-house-class');
   const nameInput = panel.querySelector('.admin-object-name');
@@ -303,6 +324,20 @@ export function enableAdminPanel({
 
   function getSelectedObject() {
     return getObjectById(selectedObjectId);
+  }
+
+  function setObjectSection(sectionKey, { preserveType = false } = {}) {
+    selectedObjectSection = ADMIN_OBJECT_SECTIONS[sectionKey] ? sectionKey : 'property';
+    objectSectionButtons.forEach((button) => {
+      button.dataset.active = button.dataset.adminObjectSection === selectedObjectSection ? 'true' : 'false';
+    });
+
+    const currentType = preserveType ? selectedType : '';
+    typeSelect.innerHTML = createObjectOptionsHtml(selectedObjectSection);
+    const allowedTypes = [...typeSelect.options].map((option) => option.value);
+    selectedType = allowedTypes.includes(currentType) ? currentType : (allowedTypes[0] || 'marker');
+    typeSelect.value = selectedType;
+    updateVariantVisibility();
   }
 
   function updateVariantVisibility() {
@@ -384,8 +419,10 @@ export function enableAdminPanel({
     selectedNameEl.textContent = `${object.icon || '◆'} ${object.name || object.type} #${String(object.id || '').slice(-6)}`;
 
     nameInput.value = object.name || '';
-    typeSelect.value = object.type || 'marker';
-    selectedType = typeSelect.value;
+    selectedType = object.type || 'marker';
+    selectedObjectSection = getAdminObjectSectionForCategory(object.category || object.payload?.category || getMapObjectType(selectedType).category);
+    setObjectSection(selectedObjectSection, { preserveType: true });
+    typeSelect.value = selectedType;
 
     if (object.type === 'house') {
       selectedVariant = object.variant || object.payload?.houseClass || 'standard';
@@ -835,6 +872,10 @@ function setEnabled(next) {
     event.stopPropagation();
 
     updateSelectedObject(button.dataset.adminObjectId);
+  });
+
+  objectSectionButtons.forEach((button) => {
+    button.addEventListener('click', () => setObjectSection(button.dataset.adminObjectSection));
   });
 
   typeSelect.addEventListener('change', () => {
