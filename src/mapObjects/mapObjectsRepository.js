@@ -333,11 +333,14 @@ function toDbRow(object = {}) {
   delete payload[PENDING_SYNC_FLAG];
   delete payload[PENDING_SYNC_REASON];
 
+  const storedType = normalized.category === 'job' ? 'marker' : normalized.type;
+  const storedCategory = normalized.category === 'job' ? 'marker' : normalized.category;
+
   return {
     id: normalized.id,
     city_id: normalized.cityId,
-    type: normalized.type,
-    category: normalized.category,
+    type: storedType,
+    category: storedCategory,
     name: normalized.name,
     icon: normalized.icon,
     asset: normalized.asset,
@@ -461,11 +464,14 @@ function normalizeObject(object = {}) {
 }
 
 function fromDbRow(row = {}) {
+  const payload = normalizePayload(row.payload);
+  const isJobObject = payload.kind === 'job' && String(payload.jobType || '').startsWith('farm_');
+
   return normalizeObject({
     id: row.id,
     cityId: row.city_id,
-    type: row.type,
-    category: row.category,
+    type: isJobObject ? payload.jobType : row.type,
+    category: isJobObject ? 'job' : row.category,
     name: row.name,
     icon: row.icon,
     asset: row.asset,
