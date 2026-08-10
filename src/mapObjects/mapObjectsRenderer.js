@@ -346,8 +346,8 @@ function applyObjectStyle(element, object, meta) {
   element.style.transform = `translate(-50%, -50%) rotate(${rotation}deg) scale(${objectScale}) scale(var(--map-entity-scale, 1))`;
   element.style.transformOrigin = 'center center';
   element.style.pointerEvents = 'auto';
-  element.style.cursor = ['house', 'business', 'npc', 'service'].includes(meta.category) ? 'pointer' : 'default';
-  element.style.zIndex = meta.category === 'service' ? '245' : meta.category === 'house' ? '240' : '230';
+  element.style.cursor = ['house', 'business', 'npc', 'service', 'job'].includes(meta.category) ? 'pointer' : 'default';
+  element.style.zIndex = meta.category === 'service' ? '245' : meta.category === 'job' ? '242' : meta.category === 'house' ? '240' : '230';
   element.style.contain = 'layout style paint';
   element.style.willChange = 'transform';
 
