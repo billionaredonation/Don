@@ -21,6 +21,36 @@ const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
 const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 170 : 150;
+const FARM_PLANT_OBJECT_TYPES = new Set(['farm_wheat_plant', 'farm_apple_plant']);
+
+function isFarmPlantType(type) {
+  return FARM_PLANT_OBJECT_TYPES.has(String(type || ''));
+}
+
+function formatFarmPlantCountdown(readyAt) {
+  const readyMs = new Date(readyAt || 0).getTime();
+  const seconds = Number.isFinite(readyMs) ? Math.max(0, Math.ceil((readyMs - Date.now()) / 1000)) : 0;
+  if (seconds < 60) return `${seconds} сек.`;
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function getFarmPlantHint(object) {
+  const type = String(object?.type || object?.payload?.jobType || '');
+  const plantObjectId = String(object?.id || '');
+  const plantName = type === 'farm_apple_plant' ? 'яблоню' : 'пшеницу';
+  const plantIcon = type === 'farm_apple_plant' ? '🍎' : '🌾';
+  const saved = window.__MN_FARM_PLANT_STATES__?.[plantObjectId] || null;
+
+  if (saved?.stage === 'cooldown') {
+    const readyMs = new Date(saved.readyAt || saved.ready_at || 0).getTime();
+    if (Number.isFinite(readyMs) && readyMs > Date.now()) {
+      return `${plantIcon} Растение созревает · ${formatFarmPlantCountdown(saved.readyAt || saved.ready_at)}`;
+    }
+  }
+  if (saved?.stage === 'weeded') return `💧 Полить ${plantName}`;
+  if (saved?.stage === 'watered') return `✂️ Собрать ${plantName}`;
+  return `${plantIcon} Прополоть граблями`;
+}
 
 /*
   ПК оставляем широким: там железо выдерживает много DOM-объектов.
@@ -1320,7 +1350,7 @@ export function enableEntityInteraction({
     candidates.forEach((object) => {
       if (!object) return;
       const candidateType = String(object?.type || object?.payload?.jobType || '');
-      if (candidateType === 'farm_field' && window.__MN_FARM_NEAR_OWN_PLOT__ === true) return;
+      if (candidateType === 'farm_field') return;
 
       let distance = Number.POSITIVE_INFINITY;
 
@@ -1437,7 +1467,18 @@ export function enableEntityInteraction({
     hintCandidateSeenCount += 1;
     if (hintCandidateSeenCount < 2) return;
 
-    if (lastHintObjectId === objectId) return;
+    const objectType = String(object?.type || object?.payload?.jobType || '');
+    const farmPlant = isFarmPlantType(objectType);
+
+    if (lastHintObjectId === objectId) {
+      if (farmPlant && window.__MN_PLAYER_CONTROLS_LOCKED__ !== true) {
+        const textEl = hint.querySelector('[data-interaction-hint-text]');
+        if (textEl) textEl.textContent = getFarmPlantHint(object);
+        hint.hidden = false;
+        hint.classList.add('is-visible');
+      }
+      return;
+    }
 
     lastHintObjectId = objectId;
 
@@ -1446,7 +1487,11 @@ export function enableEntityInteraction({
 
     const hospital = panel?.isHospitalObject?.(object);
     const job = panel?.isJobObject?.(object);
-    const objectType = String(object?.type || object?.payload?.jobType || '');
+    const jobHint = objectType === 'farm_station'
+      ? 'Фермерская лавка'
+      : farmPlant
+        ? getFarmPlantHint(object)
+        : 'Рабочая точка';
 
     if (isMobileGameplayDevice()) {
       if (keyEl) keyEl.textContent = hospital ? '🏥' : job ? 'Нажать' : '🏠';
@@ -1454,7 +1499,7 @@ export function enableEntityInteraction({
         textEl.textContent = hospital
           ? 'Нажми на больницу'
           : job
-            ? (objectType === 'farm_station' ? 'Снабжение фермы' : 'Шаг 1/5 · вскопать тяпкой')
+            ? jobHint
             : 'Нажми на дом на карте';
       }
     } else {
@@ -1463,7 +1508,7 @@ export function enableEntityInteraction({
         textEl.textContent = hospital
           ? 'Войти в больницу'
           : job
-            ? (objectType === 'farm_station' ? 'Снабжение фермы' : 'Шаг 1/5 · вскопать тяпкой')
+            ? jobHint
             : 'Взаимодействовать';
       }
     }
@@ -1473,9 +1518,11 @@ export function enableEntityInteraction({
 
     clearTimeout(hintHideTimer);
 
-    hintHideTimer = setTimeout(() => {
-      hideInteractionHint();
-    }, INTERACTION_HINT_VISIBLE_MS);
+    if (!farmPlant) {
+      hintHideTimer = setTimeout(() => {
+        hideInteractionHint();
+      }, INTERACTION_HINT_VISIBLE_MS);
+    }
   }
 
   function scheduleInteractionHintUpdate(delay = null) {
