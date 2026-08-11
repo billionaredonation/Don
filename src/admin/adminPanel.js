@@ -190,7 +190,6 @@ export function enableAdminPanel({
   let selectedType = 'house';
   let selectedObjectSection = 'property';
   let selectedVariant = 'standard';
-  let selectedFarmCrop = 'wheat';
   let objects = [];
   let selectedObjectId = null;
   let objectMover = null;
@@ -255,17 +254,8 @@ export function enableAdminPanel({
           <input class="admin-input admin-job-height" type="number" min="0.8" max="30" step="0.1" value="8" inputmode="decimal" />
         </label>
       </div>
-      <small class="admin-help">Размер влияет не только на картинку: для поля это реальная площадь, в которой игроки могут создавать посадки.</small>
+      <small class="admin-help">Размер рабочей зоны используется для лавки и будущих крупных рабочих объектов.</small>
     </div>
-
-    <label class="admin-label admin-farm-crop-wrap" hidden>
-      Культура поля
-      <select class="admin-select admin-farm-crop">
-        <option value="wheat">Пшеница</option>
-        <option value="apple">Яблоки</option>
-      </select>
-      <small class="admin-help">Поле принимает только семена выбранной культуры. Размер можно менять цифрами или жёлтым углом прямо на карте.</small>
-    </label>
 
     <div class="admin-row">
       <button class="admin-btn admin-place-here" type="button">Поставить тут</button>
@@ -322,8 +312,6 @@ export function enableAdminPanel({
   const jobSizeWrap = panel.querySelector('.admin-job-size-wrap');
   const jobWidthInput = panel.querySelector('.admin-job-width');
   const jobHeightInput = panel.querySelector('.admin-job-height');
-  const farmCropWrap = panel.querySelector('.admin-farm-crop-wrap');
-  const farmCropSelect = panel.querySelector('.admin-farm-crop');
 
   const xEl = panel.querySelector('.admin-x');
   const yEl = panel.querySelector('.admin-y');
@@ -377,22 +365,16 @@ export function enableAdminPanel({
     return Math.round(Math.min(30, Math.max(0.8, Number.isFinite(number) ? number : fallback)) * 10) / 10;
   }
 
-  function normalizeFarmCrop(value) {
-    return String(value || '').toLowerCase() === 'apple' ? 'apple' : 'wheat';
-  }
-
-  function syncFarmCropInput(object = null) {
-    selectedFarmCrop = normalizeFarmCrop(
-      object?.payload?.fieldCrop || object?.payload?.cropType || object?.payload?.farmCrop || selectedFarmCrop
-    );
-    if (farmCropSelect) farmCropSelect.value = selectedFarmCrop;
+  function hasEditableJobFootprint(type = selectedType) {
+    const config = getMapObjectType(type);
+    return config.category === 'job' && Number.isFinite(Number(config.defaultWidth)) && Number.isFinite(Number(config.defaultHeight));
   }
 
   function syncJobSizeInputs(object = null) {
     const config = getMapObjectType(selectedType);
     const payload = object?.payload || {};
-    const fallbackWidth = Number(config.defaultWidth || (selectedType === 'farm_field' ? 8 : 2.6));
-    const fallbackHeight = Number(config.defaultHeight || (selectedType === 'farm_field' ? 8 : 2.2));
+    const fallbackWidth = Number(config.defaultWidth || 2.6);
+    const fallbackHeight = Number(config.defaultHeight || 2.2);
     if (jobWidthInput) jobWidthInput.value = String(normalizeJobDimension(payload.renderWidth, fallbackWidth));
     if (jobHeightInput) jobHeightInput.value = String(normalizeJobDimension(payload.renderHeight, fallbackHeight));
   }
@@ -401,11 +383,10 @@ export function enableAdminPanel({
     const config = getMapObjectType(selectedType);
     const isHouse = config.type === 'house';
     const isJob = config.category === 'job';
-    const isFarmField = config.type === 'farm_field';
+    const isSizedJob = hasEditableJobFootprint(config.type);
 
     houseClassWrap.hidden = !isHouse;
-    if (jobSizeWrap) jobSizeWrap.hidden = !isJob;
-    if (farmCropWrap) farmCropWrap.hidden = !isFarmField;
+    if (jobSizeWrap) jobSizeWrap.hidden = !isSizedJob;
 
     if (!isHouse) {
       selectedVariant = '';
@@ -414,8 +395,7 @@ export function enableAdminPanel({
       houseClassSelect.value = selectedVariant;
     }
 
-    if (isJob && !getSelectedObject()) syncJobSizeInputs(null);
-    if (isFarmField && !getSelectedObject()) syncFarmCropInput(null);
+    if (isJob && isSizedJob && !getSelectedObject()) syncJobSizeInputs(null);
   }
 
   function updateCoords(x, y) {
@@ -479,7 +459,6 @@ export function enableAdminPanel({
       nameInput.value = '';
       updateVariantVisibility();
       syncJobSizeInputs(null);
-      syncFarmCropInput(null);
       return;
     }
 
@@ -497,8 +476,7 @@ export function enableAdminPanel({
     }
 
     updateVariantVisibility();
-    if (getMapObjectType(selectedType).category === 'job') syncJobSizeInputs(object);
-    if (selectedType === 'farm_field') syncFarmCropInput(object);
+    if (hasEditableJobFootprint(selectedType)) syncJobSizeInputs(object);
   }
 
   function renderObjectList() {
@@ -515,9 +493,7 @@ export function enableAdminPanel({
         const shortId = id.slice(-6) || String(index + 1);
         const selectedClass = String(selectedObjectId) === id ? ' is-selected' : '';
         const baseLabel = object.name || object.type || 'Объект';
-        const label = object.type === 'farm_field'
-          ? `${baseLabel} · ${normalizeFarmCrop(object?.payload?.fieldCrop) === 'apple' ? 'яблоки' : 'пшеница'}`
-          : baseLabel;
+        const label = baseLabel;
 
         return `
           <button
@@ -647,11 +623,10 @@ function setEnabled(next) {
 
   async function addObjectAt(x, y) {
     const selectedConfig = getMapObjectType(selectedType);
-    const draftPayload = selectedConfig.category === 'job'
+    const draftPayload = hasEditableJobFootprint(selectedType)
       ? {
           renderWidth: normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6),
           renderHeight: normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2),
-          ...(selectedType === 'farm_field' ? { fieldCrop: normalizeFarmCrop(farmCropSelect?.value || selectedFarmCrop) } : {}),
         }
       : {};
 
@@ -681,12 +656,11 @@ function setEnabled(next) {
     if (!object) return;
 
     const selectedConfig = getMapObjectType(selectedType);
-    const jobPayload = selectedConfig.category === 'job'
+    const jobPayload = hasEditableJobFootprint(selectedType)
       ? {
           ...(object.payload || {}),
           renderWidth: normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6),
           renderHeight: normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2),
-          ...(selectedType === 'farm_field' ? { fieldCrop: normalizeFarmCrop(farmCropSelect?.value || selectedFarmCrop) } : {}),
         }
       : null;
 
@@ -972,8 +946,7 @@ function setEnabled(next) {
   typeSelect.addEventListener('change', () => {
     selectedType = typeSelect.value;
     updateVariantVisibility();
-    if (getMapObjectType(selectedType).category === 'job') syncJobSizeInputs(null);
-    if (selectedType === 'farm_field') syncFarmCropInput(null);
+    if (hasEditableJobFootprint(selectedType)) syncJobSizeInputs(null);
   });
 
   houseClassSelect.addEventListener('change', () => {
@@ -982,28 +955,18 @@ function setEnabled(next) {
 
   function previewSelectedJobSize() {
     const object = getSelectedObject();
-    if (!object || getMapObjectType(object.type || selectedType).category !== 'job') return;
+    if (!object || !hasEditableJobFootprint(object.type || selectedType)) return;
     const config = getMapObjectType(object.type || selectedType);
     object.payload = {
       ...(object.payload || {}),
       renderWidth: normalizeJobDimension(jobWidthInput?.value, config.defaultWidth || 2.6),
       renderHeight: normalizeJobDimension(jobHeightInput?.value, config.defaultHeight || 2.2),
-      ...(object.type === 'farm_field' ? { fieldCrop: normalizeFarmCrop(farmCropSelect?.value || selectedFarmCrop) } : {}),
     };
     if (syncAdminObjectsLayerVisibility()) renderMapObjects(objectsLayer, objects);
   }
 
   jobWidthInput?.addEventListener('input', previewSelectedJobSize);
   jobHeightInput?.addEventListener('input', previewSelectedJobSize);
-  farmCropSelect?.addEventListener('change', () => {
-    selectedFarmCrop = normalizeFarmCrop(farmCropSelect.value);
-    const object = getSelectedObject();
-    if (object?.type === 'farm_field') {
-      object.payload = { ...(object.payload || {}), fieldCrop: selectedFarmCrop };
-      if (syncAdminObjectsLayerVisibility()) renderMapObjects(objectsLayer, objects);
-    }
-  });
-
   function onMapPointerDown(event) {
     if (!enabled) return;
     if (event.target.closest('.admin-panel')) return;
@@ -1014,7 +977,7 @@ function setEnabled(next) {
     if (resizeHandle) {
       const objectId = String(resizeHandle.dataset.adminJobResize || '');
       const object = getObjectById(objectId);
-      if (!object || object.type !== 'farm_field') return;
+      if (!object || !hasEditableJobFootprint(object.type)) return;
       event.preventDefault();
       event.stopPropagation();
       updateSelectedObject(objectId);
@@ -1055,7 +1018,7 @@ function setEnabled(next) {
     viewport.releasePointerCapture?.(event.pointerId);
     jobResizePointerId = null;
     jobResizeObjectId = null;
-    showAdminNotice('Размер поля изменён. Нажмите «Сохранить», чтобы записать его для всех игроков.');
+    showAdminNotice('Размер рабочей зоны изменён. Нажмите «Сохранить», чтобы записать его для всех игроков.');
   }
 
   viewport.addEventListener('pointerdown', onMapPointerDown, true);
@@ -1140,5 +1103,3 @@ function setEnabled(next) {
     document.querySelector('.mn-admin-toast')?.remove();
   };
 }
-
-
