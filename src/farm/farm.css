@@ -1,175 +1,91 @@
-/* Farm prototype: deliberately low-cost visuals. No image assets, blur or continuous animation. */
-.mn-farm-plots-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 238;
-  pointer-events: none;
-}
-
-.mn-farm-plot {
-  position: absolute;
-  width: 28px;
-  height: 22px;
-  padding: 0;
-  margin: 0;
-  border: 0;
-  background: transparent;
-  transform: translate(-50%, -50%) scale(var(--map-entity-scale, 1));
-  transform-origin: center;
-  pointer-events: auto;
-  appearance: none;
-}
-
-.mn-farm-plot::before {
-  content: '';
-  position: absolute;
-  inset: 4px 2px;
-  border-radius: 46% 48% 42% 50%;
-  background:
-    repeating-linear-gradient(92deg, rgba(255,255,255,.07) 0 1px, transparent 1px 5px),
-    linear-gradient(180deg, #4a3425, #2b1d16);
-  box-shadow: 0 3px 5px rgba(0,0,0,.32);
-}
-
-.mn-farm-plot.is-foreign { opacity: .72; }
-.mn-farm-plot.is-owned::before { box-shadow: 0 3px 5px rgba(0,0,0,.32), 0 0 0 1px rgba(111,190,139,.28); }
-
-.mn-farm-plot.is-seeded::after,
-.mn-farm-plot.is-raked::after,
-.mn-farm-plot.is-ready::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 46%;
-  width: 5px;
-  height: 7px;
-  transform: translate(-50%, -50%);
-  border-radius: 60% 10% 60% 10%;
-  background: #7e9a61;
-  box-shadow: -4px 2px 0 -1px #66814d, 4px 1px 0 -1px #769156;
-}
-
-.mn-farm-plot.is-raked::before {
-  background:
-    repeating-linear-gradient(92deg, rgba(213,173,118,.24) 0 1px, transparent 1px 4px),
-    linear-gradient(180deg, #503827, #2b1d16);
-}
-
-.mn-farm-plot.is-ready.crop-apple::after {
-  width: 13px;
-  height: 12px;
-  border-radius: 50% 46% 52% 44%;
-  background: #3f7248;
-  box-shadow: -5px 2px 0 -2px #315c39, 5px 1px 0 -2px #4a7f51, -3px -2px 0 -2px #a74942, 4px 3px 0 -2px #b14c43;
-}
-
-.mn-farm-plot.is-ready.crop-wheat::after {
-  width: 14px;
-  height: 15px;
-  border-radius: 0;
-  background:
-    linear-gradient(90deg, transparent 1px, #c7a35e 1px 2px, transparent 2px 5px, #d3b46d 5px 6px, transparent 6px 9px, #b99554 9px 10px, transparent 10px);
-  box-shadow: none;
-}
-
-/* World map farm objects. The map renderer still owns coordinates and hitboxes. */
-.map-object-type-farm_station {
+.map-object-type-farm_station,
+.map-object-type-farm_wheat_plant,
+.map-object-type-farm_apple_plant {
   cursor: pointer !important;
 }
+
 .map-object-type-farm_station .map-object-icon {
-  position: relative;
+  position: absolute;
+  left: 50%;
+  top: 50%;
   display: block;
-  width: 28px;
-  height: 19px;
+  width: 34px;
+  height: 22px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #745d42, #3a3025);
+  box-shadow: 0 5px 9px rgba(0, 0, 0, .36);
   font-size: 0;
-  border-radius: 4px;
-  background: linear-gradient(180deg, #5a4a38, #302920);
-  box-shadow: 0 4px 7px rgba(0,0,0,.32);
+  transform: translate(-50%, -50%);
 }
+
 .map-object-type-farm_station .map-object-icon::before {
   content: '';
   position: absolute;
-  left: 4px;
-  right: 4px;
-  top: 5px;
-  height: 2px;
-  background: #8b7659;
-  box-shadow: 0 5px 0 #746147;
+  left: 5px;
+  right: 5px;
+  top: 6px;
+  height: 3px;
+  border-radius: 2px;
+  background: #aa8a61;
+  box-shadow: 0 7px 0 #8b704f;
 }
+
 .map-object-type-farm_station .map-object-icon::after {
   content: '';
   position: absolute;
-  right: 5px;
-  top: -4px;
+  right: 6px;
+  top: -5px;
   width: 3px;
-  height: 15px;
+  height: 18px;
   border-radius: 2px;
-  background: #738b78;
+  background: #718c75;
   transform: rotate(18deg);
 }
 
-.map-object-type-farm_field {
-  cursor: pointer !important;
-}
-.map-object-type-farm_field .map-object-icon {
-  display: block;
-  width: 68px;
-  height: 40px;
-  font-size: 0;
-  border-radius: 11px;
-  background:
-    repeating-linear-gradient(90deg, rgba(207,176,125,.16) 0 2px, transparent 2px 11px),
-    linear-gradient(180deg, rgba(74,56,39,.82), rgba(43,32,24,.88));
-  box-shadow: inset 0 0 0 1px rgba(189,160,113,.18), 0 5px 10px rgba(0,0,0,.2);
-}
-.map-object-type-farm_field.map-object-nearby .map-object-icon {
-  box-shadow: inset 0 0 0 1px rgba(133,195,145,.36), 0 0 0 2px rgba(80,151,96,.10), 0 5px 10px rgba(0,0,0,.2);
+.map-object-type-farm_wheat_plant .map-object-icon,
+.map-object-type-farm_apple_plant .map-object-icon {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 24px;
+  line-height: 1;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .5));
+  transform: translateZ(0);
 }
 
-.mn-farm-action-hint {
-  position: fixed;
-  left: 50%;
-  bottom: max(18px, env(safe-area-inset-bottom));
-  z-index: 2147482200;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 42px;
-  padding: 7px 12px 7px 8px;
-  border: 1px solid rgba(123,164,143,.28);
-  border-radius: 14px;
-  background: rgba(10,16,15,.92);
-  color: #eef5f1;
-  font: 700 12px/1.15 system-ui, sans-serif;
+.map-object-type-farm_wheat_plant.map-object-nearby .map-object-icon,
+.map-object-type-farm_apple_plant.map-object-nearby .map-object-icon {
+  filter: drop-shadow(0 0 5px rgba(172, 227, 140, .8)) drop-shadow(0 3px 3px rgba(0, 0, 0, .5));
 }
-.mn-farm-action-hint[hidden] { display: none !important; }
-.mn-farm-action-hint b {
-  padding: 7px 9px;
-  border-radius: 9px;
-  background: rgba(70,135,91,.34);
-  color: #dff5e5;
+
+.map-object-type-farm_wheat_plant.is-farm-plant-cooldown .map-object-icon,
+.map-object-type-farm_apple_plant.is-farm-plant-cooldown .map-object-icon {
+  opacity: .42;
+  filter: grayscale(.65) drop-shadow(0 3px 3px rgba(0, 0, 0, .45));
 }
 
 .mn-farm-progress {
   position: fixed;
   left: 50%;
-  bottom: 72px;
+  bottom: max(72px, calc(env(safe-area-inset-bottom) + 60px));
   z-index: 2147482300;
   width: min(340px, calc(100vw - 32px));
-  transform: translateX(-50%);
-  padding: 10px 12px;
+  padding: 11px 13px;
+  border: 1px solid rgba(117, 174, 135, .28);
   border-radius: 14px;
-  background: rgba(8,13,12,.94);
-  border: 1px solid rgba(122,156,139,.24);
+  background: rgba(8, 13, 12, .95);
   color: #edf5f0;
-  font: 700 12px/1.25 system-ui, sans-serif;
+  font: 750 12px/1.25 system-ui, -apple-system, sans-serif;
+  transform: translateX(-50%);
+  box-shadow: 0 15px 42px rgba(0, 0, 0, .38);
 }
+
 .mn-farm-progress[hidden] { display: none !important; }
 .mn-farm-progress > span { display: block; margin-bottom: 7px; }
-.mn-farm-progress > i { display: block; height: 4px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.12); }
-.mn-farm-progress > i > b { display: block; width: 0; height: 100%; background: #67a879; }
-.mn-farm-progress > small { display: block; margin-top: 5px; color: rgba(238,245,240,.54); }
+.mn-farm-progress > i { display: block; height: 5px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .12); }
+.mn-farm-progress > i > b { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5fa875, #a8dc91); }
+.mn-farm-progress > small { display: block; margin-top: 5px; color: rgba(238, 245, 240, .52); }
 
 .mn-farm-modal {
   position: fixed;
@@ -179,749 +95,194 @@
   place-items: center;
   padding: 16px;
 }
+
 .mn-farm-modal[hidden] { display: none !important; }
-.mn-farm-modal-backdrop { position: absolute; inset: 0; border: 0; background: rgba(0,0,0,.58); }
+.mn-farm-modal * { box-sizing: border-box; }
+
+.mn-farm-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, .62);
+}
+
 .mn-farm-panel {
   position: relative;
   width: min(520px, calc(100vw - 32px));
   max-height: min(620px, calc(100vh - 32px));
   overflow: auto;
-  border: 1px solid rgba(132,161,146,.24);
+  border: 1px solid rgba(132, 174, 147, .24);
   border-radius: 20px;
   background: #0b1110;
   color: #edf3ef;
-  box-shadow: 0 20px 60px rgba(0,0,0,.48);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .52);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
+
 .mn-farm-panel > header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16px 17px 12px;
-  border-bottom: 1px solid rgba(255,255,255,.08);
+  border-bottom: 1px solid rgba(255, 255, 255, .08);
 }
+
 .mn-farm-panel > header span { display: grid; gap: 2px; }
-.mn-farm-panel > header small { color: rgba(237,243,239,.5); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.mn-farm-panel > header small { color: rgba(237, 243, 239, .5); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
 .mn-farm-panel > header strong { font-size: 17px; }
-.mn-farm-panel > header button { width: 34px; height: 34px; border: 0; border-radius: 11px; background: rgba(255,255,255,.08); color: #fff; font-size: 21px; }
-.mn-farm-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 10px 12px; }
+
+.mn-farm-panel > header button {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+  font-size: 21px;
+}
+
+.mn-farm-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  padding: 10px 12px;
+}
+
 .mn-farm-tabs button {
   min-height: 38px;
-  border: 1px solid rgba(255,255,255,.08);
+  border: 1px solid rgba(255, 255, 255, .08);
   border-radius: 10px;
   background: #131b19;
-  color: rgba(237,243,239,.68);
+  color: rgba(237, 243, 239, .68);
   font-weight: 750;
 }
-.mn-farm-tabs button[data-active="true"] { background: #203329; color: #f0f7f2; border-color: rgba(105,170,124,.32); }
-.mn-farm-tab-page { display: grid; gap: 7px; padding: 2px 12px 12px; }
-.mn-farm-tab-page[hidden] { display: none !important; }
-.mn-farm-shop-row, .mn-farm-sale-row {
-  display: grid;
-  grid-template-columns: 38px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 62px;
-  padding: 9px 11px;
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 13px;
-  background: #111816;
-  color: #eef4f0;
-  text-align: left;
-}
-button.mn-farm-shop-row { width: 100%; }
-.mn-farm-shop-row:disabled { opacity: .48; }
-.mn-farm-shop-row[data-owned="true"] > strong::after { content: ' · есть'; color: #78ae87; font-size: 10px; }
-.mn-farm-shop-row span, .mn-farm-sale-row span { display: grid; gap: 3px; }
-.mn-farm-shop-row small, .mn-farm-sale-row small { color: rgba(238,244,240,.48); font-weight: 550; }
-.mn-farm-sale-row em { color: #dce9df; font-style: normal; }
-.mn-farm-sale-row > div { display: flex; gap: 5px; }
-.mn-farm-sale-row button { border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 7px 8px; background: #1a2521; color: #eef4f0; font-weight: 700; }
-.mn-farm-sale-row button:disabled { opacity: .35; }
-.mn-farm-glyph { position: relative; display: block; width: 30px; height: 30px; }
-.mn-farm-glyph.is-hoe::before, .mn-farm-glyph.is-rake::before { content: ''; position: absolute; width: 3px; height: 25px; left: 14px; top: 2px; background: #9b805d; border-radius: 3px; transform: rotate(25deg); }
-.mn-farm-glyph.is-hoe::after { content: ''; position: absolute; width: 13px; height: 4px; left: 3px; top: 20px; background: #87908b; border-radius: 3px; transform: rotate(25deg); }
-.mn-farm-glyph.is-rake::after { content: ''; position: absolute; width: 16px; height: 4px; left: 2px; top: 19px; border-top: 3px solid #87908b; border-bottom: 1px solid #87908b; transform: rotate(25deg); }
-.mn-farm-glyph.is-water { border-radius: 8px 8px 10px 10px; background: linear-gradient(180deg,#b9d2d4,#5c8d96); transform: scale(.72); }
-.mn-farm-glyph.is-apple-seed::before, .mn-farm-glyph.is-wheat-seed::before { content: ''; position: absolute; inset: 9px; border-radius: 60% 35% 60% 35%; background: #a58a5c; transform: rotate(35deg); }
-.mn-farm-glyph.is-apple::before { content: ''; position: absolute; inset: 6px; border-radius: 50% 47% 52% 48%; background: #a64d45; }
-.mn-farm-glyph.is-wheat::before { content: ''; position: absolute; left: 13px; top: 3px; width: 3px; height: 25px; background: #c9a55e; box-shadow: -5px 4px 0 -1px #b9944f, 5px 7px 0 -1px #d0b36b; }
-.mn-farm-panel > footer { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 12px 16px 15px; border-top: 1px solid rgba(255,255,255,.07); color: rgba(238,244,240,.6); font-size: 11px; }
-.mn-farm-panel > footer b { color: #e7f2ea; }
-.mn-farm-panel > footer small { grid-column: 1 / -1; min-height: 15px; }
-.mn-farm-panel > footer small[data-type="error"] { color: #d48787; }
-.mn-farm-panel > footer small[data-type="success"] { color: #79ae88; }
 
-@media (max-width: 920px) and (pointer: coarse) {
-  .mn-farm-action-hint {
-    left: 50%;
-    bottom: 10px;
-    min-height: 38px;
-    max-width: 44vw;
-    transform: translateX(-50%);
-    padding: 6px 10px;
-    font-size: 10px;
-  }
-  .mn-farm-action-hint b { padding: 6px 7px; }
-  .mn-farm-progress { bottom: 58px; width: min(330px, 70vw); }
-  .mn-farm-modal { padding: 8px; }
-  .mn-farm-panel {
-    width: min(560px, 84vw);
-    max-height: 82vh;
-    border-radius: 16px;
-  }
-  html.mn-force-rotate-landscape .mn-farm-modal,
-  body.mn-force-rotate-landscape .mn-farm-modal {
-    transform: rotate(90deg);
-    width: 100vh;
-    height: 100vw;
-    left: calc((100vw - 100vh) / 2);
-    top: calc((100vh - 100vw) / 2);
-    inset: auto;
-  }
-  html.mn-force-rotate-landscape .mn-farm-panel,
-  body.mn-force-rotate-landscape .mn-farm-panel {
-    width: min(620px, 82vh);
-    max-height: 82vw;
-  }
-  .mn-farm-panel > header { padding: 10px 12px 8px; }
-  .mn-farm-panel > header strong { font-size: 14px; }
-  .mn-farm-tabs { padding: 7px 9px; }
-  .mn-farm-tabs button { min-height: 32px; font-size: 10px; }
-  .mn-farm-tab-page { padding: 1px 9px 9px; gap: 5px; }
-  .mn-farm-shop-row, .mn-farm-sale-row { min-height: 48px; padding: 6px 8px; font-size: 10px; }
-  .mn-farm-shop-row small, .mn-farm-sale-row small { font-size: 8px; }
-  .mn-farm-glyph { width: 26px; height: 26px; transform: scale(.85); transform-origin: center; }
+.mn-farm-tabs button[data-active='true'] {
+  border-color: rgba(105, 170, 124, .32);
+  background: #203329;
+  color: #f0f7f2;
 }
 
-/* v23: readable world objects + scalable work zones. */
-.map-object-type-farm_station,
-.map-object-type-farm_field {
-  min-width: 0 !important;
-  min-height: 0 !important;
-  cursor: pointer !important;
-}
-.map-object-type-farm_station .map-object-icon,
-.map-object-type-farm_field .map-object-icon {
-  width: 100% !important;
-  height: 100% !important;
-  box-sizing: border-box;
-  pointer-events: none;
-}
-
-/* Supply point: a compact tool bench. The bottle + crossed tool silhouettes make it readable without a label. */
-.map-object-type-farm_station .map-object-icon {
-  position: relative;
-  border-radius: 18%;
-  background:
-    linear-gradient(90deg, transparent 0 67%, rgba(118,191,205,.92) 67% 78%, transparent 78%) 0 22% / 100% 42% no-repeat,
-    linear-gradient(90deg, transparent 0 69%, rgba(220,239,238,.9) 69% 76%, transparent 76%) 0 15% / 100% 24% no-repeat,
-    repeating-linear-gradient(90deg, rgba(227,190,133,.08) 0 6%, transparent 6% 18%),
-    linear-gradient(180deg, #5e4932 0 57%, #392c20 57% 100%);
-  box-shadow: 0 5px 12px rgba(0,0,0,.36), inset 0 -2px 0 rgba(0,0,0,.22);
-}
-.map-object-type-farm_station .map-object-icon::before,
-.map-object-type-farm_station .map-object-icon::after {
-  content: '';
-  position: absolute;
-  left: 31%;
-  top: 5%;
-  width: 7%;
-  height: 88%;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #a68b67 0 72%, #9aa6a0 72% 100%);
-  transform-origin: 50% 72%;
-  box-shadow: none;
-}
-.map-object-type-farm_station .map-object-icon::before { transform: rotate(31deg); }
-.map-object-type-farm_station .map-object-icon::after { left: 48%; transform: rotate(-27deg); }
-.map-object-type-farm_station.map-object-nearby .map-object-icon {
-  box-shadow: 0 5px 12px rgba(0,0,0,.36), 0 0 0 2px rgba(98,184,122,.32), 0 0 16px rgba(75,166,104,.18);
-}
-
-/* Field: actual soil rectangle. Size comes from the admin editor and is also used by server placement rules. */
-.map-object-type-farm_field .map-object-icon {
-  position: relative;
-  border-radius: 10%;
-  background:
-    repeating-linear-gradient(90deg, rgba(220,181,125,.16) 0 1.5%, transparent 1.5% 12%),
-    repeating-linear-gradient(0deg, rgba(17,12,8,.16) 0 2%, transparent 2% 24%),
-    linear-gradient(180deg, rgba(82,59,39,.96), rgba(45,31,22,.98));
-  box-shadow: 0 6px 14px rgba(0,0,0,.25), inset 0 0 0 1px rgba(204,171,119,.18);
-  overflow: hidden;
-}
-.map-object-type-farm_field .map-object-icon::before {
-  content: '';
-  position: absolute;
-  inset: 10% 7%;
-  background:
-    linear-gradient(75deg, transparent 0 46%, rgba(89,125,65,.85) 47% 50%, transparent 51%) 4% 20% / 12% 34% no-repeat,
-    linear-gradient(105deg, transparent 0 46%, rgba(103,139,75,.82) 47% 50%, transparent 51%) 18% 72% / 12% 34% no-repeat,
-    linear-gradient(70deg, transparent 0 46%, rgba(83,118,62,.8) 47% 50%, transparent 51%) 78% 24% / 12% 34% no-repeat,
-    linear-gradient(110deg, transparent 0 46%, rgba(104,139,76,.76) 47% 50%, transparent 51%) 92% 76% / 12% 34% no-repeat;
-  opacity: .7;
-}
-.map-object-type-farm_field .map-object-icon::after {
-  content: '';
-  position: absolute;
-  left: 9%;
-  right: 9%;
-  top: 50%;
-  height: 2px;
-  background: rgba(213,177,124,.17);
-  box-shadow: 0 -24px 0 rgba(213,177,124,.12), 0 24px 0 rgba(213,177,124,.12);
-}
-.map-object-type-farm_field.map-object-nearby .map-object-icon {
-  box-shadow: 0 6px 14px rgba(0,0,0,.25), inset 0 0 0 1px rgba(127,197,143,.34), 0 0 18px rgba(76,162,99,.15);
-}
-
-/* Five-step help strip. */
 .mn-farm-cycle-guide {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 0 12px 10px;
-  color: rgba(235,243,238,.65);
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
+  gap: 8px;
+  margin: 0 12px 10px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .025);
+  color: rgba(237, 243, 239, .68);
+  font-size: 11px;
 }
+
 .mn-farm-cycle-guide span { display: inline-flex; align-items: center; gap: 4px; }
-.mn-farm-cycle-guide span b {
+.mn-farm-cycle-guide b { display: grid; place-items: center; width: 22px; height: 22px; font-size: 15px; }
+.mn-farm-cycle-guide b img { width: 21px; height: 21px; object-fit: contain; }
+.mn-farm-cycle-guide i { color: rgba(235, 243, 238, .24); font-style: normal; }
+
+.mn-farm-tab-page { display: grid; gap: 7px; padding: 0 12px 12px; }
+.mn-farm-tab-page[hidden] { display: none !important; }
+
+.mn-farm-shop-row,
+.mn-farm-sale-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 59px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 12px;
+  background: #111816;
+  color: #edf3ef;
+  text-align: left;
+}
+
+button.mn-farm-shop-row { width: 100%; cursor: pointer; }
+.mn-farm-shop-row:disabled { cursor: default; opacity: .55; }
+.mn-farm-shop-row[data-owned='true'] > strong::after { content: ' · куплено'; color: #80c996; }
+.mn-farm-shop-row span,
+.mn-farm-sale-row span { display: grid; gap: 3px; min-width: 0; }
+.mn-farm-shop-row b,
+.mn-farm-sale-row b { font-size: 13px; }
+.mn-farm-shop-row small,
+.mn-farm-sale-row small { color: rgba(237, 243, 239, .5); font-size: 10px; }
+.mn-farm-sale-row em { color: #9ad1aa; font-style: normal; }
+
+.mn-farm-glyph {
   display: grid;
   place-items: center;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  background: rgba(87,151,105,.2);
-  color: #cfe7d5;
-  font-size: 9px;
-}
-.mn-farm-cycle-guide i { color: rgba(235,243,238,.24); font-style: normal; }
-
-/* Temporary work FX. They exist only during the 3-second action, so there is no idle animation cost. */
-.mn-farm-work-fx {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 34px;
-  height: 28px;
-  transform: translate(-50%, -50%) scale(var(--map-entity-scale, 1));
-  pointer-events: none;
-  z-index: 250;
-}
-.mn-farm-work-fx.is-tilling::before {
-  content: '';
-  position: absolute;
-  inset: 7px 5px 4px;
-  border-radius: 45%;
-  background: linear-gradient(180deg, #493324, #291c15);
-  box-shadow: 0 3px 5px rgba(0,0,0,.28);
-}
-.mn-farm-work-fx.is-tilling::after {
-  content: '';
-  position: absolute;
-  left: 5px;
-  right: 5px;
-  bottom: 7px;
-  height: 18px;
-  transform-origin: 50% 100%;
-  background:
-    linear-gradient(76deg, transparent 0 46%, #678655 47% 52%, transparent 53%) 2px 1px / 7px 17px no-repeat,
-    linear-gradient(103deg, transparent 0 46%, #789560 47% 52%, transparent 53%) 9px 3px / 7px 15px no-repeat,
-    linear-gradient(72deg, transparent 0 46%, #66824f 47% 52%, transparent 53%) 16px 0 / 7px 18px no-repeat,
-    linear-gradient(108deg, transparent 0 46%, #78945f 47% 52%, transparent 53%) 22px 4px / 7px 14px no-repeat;
-  opacity: 1;
-}
-.mn-farm-work-fx.is-tilling.is-running::after {
-  animation: mnFarmGrassCut 2.85s ease-in forwards;
-}
-@keyframes mnFarmGrassCut {
-  0%, 18% { opacity: 1; transform: scaleY(1); }
-  65% { opacity: .55; transform: scaleY(.48); }
-  100% { opacity: 0; transform: scaleY(.08); }
-}
-
-/* Planting: one seed visibly rises from the soil and settles into the plot. */
-.mn-farm-plot.is-planting-now::after {
-  content: '' !important;
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 6px !important;
-  height: 9px !important;
-  border-radius: 70% 35% 65% 35% !important;
-  background: #aa8958 !important;
-  box-shadow: 0 1px 2px rgba(0,0,0,.35) !important;
-  animation: mnFarmSeedPlant 2.8s cubic-bezier(.2,.75,.3,1) forwards;
-}
-@keyframes mnFarmSeedPlant {
-  0% { transform: translate(-50%, -180%) scale(.45) rotate(34deg); opacity: 0; }
-  20% { opacity: 1; }
-  60% { transform: translate(-50%, -55%) scale(1) rotate(34deg); }
-  100% { transform: translate(-50%, -25%) scale(.8) rotate(34deg); opacity: .9; }
-}
-.mn-farm-plot.is-seeded::after {
-  width: 6px;
-  height: 8px;
-  border-radius: 70% 35% 65% 35%;
-  background: #a88958;
-  box-shadow: 0 1px 2px rgba(0,0,0,.3);
-  transform: translate(-50%, -30%) rotate(34deg);
-}
-.mn-farm-plot.is-raking-now::before {
-  animation: mnFarmRakeRows 2.8s ease-in-out forwards;
-}
-@keyframes mnFarmRakeRows {
-  0% { background-position: 0 0; }
-  45% { filter: brightness(1.12); }
-  100% { background-position: 6px 0; filter: brightness(1); }
-}
-.mn-farm-plot.is-watering-now::after {
-  animation: mnFarmWaterPulse 2.8s ease-in-out forwards;
-}
-@keyframes mnFarmWaterPulse {
-  0%,100% { opacity: .8; }
-  45% { opacity: .38; transform: translate(-50%, -50%) scale(.8); }
-}
-.mn-farm-plot.is-harvesting-now { animation: mnFarmHarvest 2.8s ease-in-out forwards; }
-@keyframes mnFarmHarvest {
-  0%,65% { opacity: 1; }
-  100% { opacity: .35; transform: translate(-50%, -50%) scale(.72); }
-}
-
-/* Make shop symbols easier to read at a glance. */
-.mn-farm-glyph.is-water::before {
-  content: '';
-  position: absolute;
-  left: 38%;
-  top: -16%;
-  width: 24%;
-  height: 20%;
-  border-radius: 2px;
-  background: #e4f0ef;
-}
-.mn-farm-glyph.is-apple-seed::after,
-.mn-farm-glyph.is-wheat-seed::after {
-  content: '';
-  position: absolute;
-  left: 15%;
-  right: 15%;
-  bottom: 3px;
-  height: 2px;
-  border-radius: 50%;
-  background: rgba(166,133,82,.35);
-}
-
-@media (max-width: 920px) and (pointer: coarse) {
-  .mn-farm-cycle-guide {
-    gap: 4px;
-    padding: 0 9px 7px;
-    font-size: 8px;
-  }
-  .mn-farm-cycle-guide span { gap: 2px; }
-  .mn-farm-cycle-guide span b { width: 14px; height: 14px; font-size: 8px; }
-}
-
-/* v24 — farm world visual pass.
-   Farm fields are world geometry, not map pins. Plots are small soil cells, not icons. */
-
-/* Keep planted cells above the soil field and below temporary action FX. */
-.mn-farm-plots-layer {
-  z-index: 246;
-}
-
-/* A plot is a patch of worked soil. No circle, badge, outline or icon chrome. */
-.mn-farm-plot {
-  width: 38px;
-  height: 30px;
-  transform: translate(-50%, -50%);
-  transform-origin: center;
-  border-radius: 0;
-}
-
-.mn-farm-plot::before {
-  inset: 5px 2px 3px;
-  border-radius: 38% 44% 36% 42% / 30% 34% 38% 32%;
-  background:
-    repeating-linear-gradient(96deg, rgba(216,172,112,.13) 0 1px, transparent 1px 6px),
-    radial-gradient(ellipse at 24% 30%, rgba(122,82,49,.32) 0 5%, transparent 6%),
-    radial-gradient(ellipse at 72% 66%, rgba(24,15,10,.24) 0 5%, transparent 6%),
-    linear-gradient(180deg, #5a3d27 0%, #3a261a 55%, #281a13 100%);
-  box-shadow: 0 4px 7px rgba(0,0,0,.26);
-}
-
-.mn-farm-plot.is-owned::before,
-.mn-farm-plot.is-foreign::before {
-  box-shadow: 0 4px 7px rgba(0,0,0,.26);
-}
-.mn-farm-plot.is-foreign { opacity: .82; }
-
-/* Freshly tilled soil: three shallow furrows, no marker border. */
-.mn-farm-plot.is-tilled::after {
-  content: '';
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  top: 10px;
-  height: 1px;
-  border-radius: 999px;
-  background: rgba(226,183,124,.21);
-  box-shadow:
-    0 5px 0 rgba(226,183,124,.16),
-    0 10px 0 rgba(20,12,8,.34);
-}
-
-/* One visible seed in the soil. */
-.mn-farm-plot.is-seeded::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 49%;
-  width: 7px;
-  height: 10px;
-  border-radius: 72% 34% 70% 34%;
-  background: linear-gradient(145deg, #c5a56e, #83643d 72%);
-  box-shadow: 0 2px 2px rgba(0,0,0,.28);
-  transform: translate(-50%, -50%) rotate(31deg);
-}
-
-/* After raking, a tiny sprout makes the stage readable without text. */
-.mn-farm-plot.is-raked::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 47%;
-  width: 3px;
-  height: 11px;
-  border-radius: 999px;
-  background: #66875d;
-  transform: translate(-50%, -50%);
-  box-shadow: none;
-}
-.mn-farm-plot.is-raked {
-  --farm-leaf: #789b69;
-}
-.mn-farm-plot.is-raked > * { pointer-events: none; }
-
-/* Use two leaf silhouettes via the soil patch's gradient rather than a floating badge. */
-.mn-farm-plot.is-raked::before {
-  background:
-    radial-gradient(ellipse at 43% 38%, #759765 0 8%, transparent 9%),
-    radial-gradient(ellipse at 58% 42%, #66895b 0 8%, transparent 9%),
-    repeating-linear-gradient(96deg, rgba(216,172,112,.14) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #563923, #352219 58%, #261812);
-}
-
-/* Harvest-ready crops are plants growing FROM the soil, not round map icons. */
-.mn-farm-plot.is-ready.crop-apple::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 43%;
-  width: 17px;
-  height: 15px;
-  border-radius: 55% 48% 58% 45%;
-  background:
-    radial-gradient(circle at 28% 66%, #b95048 0 12%, transparent 13%),
-    radial-gradient(circle at 72% 56%, #a94740 0 11%, transparent 12%),
-    radial-gradient(ellipse at 50% 52%, #4d7a4e 0 50%, #345d3b 51% 100%);
-  box-shadow: none;
-  transform: translate(-50%, -50%);
-}
-
-.mn-farm-plot.is-ready.crop-wheat::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 44%;
-  width: 21px;
-  height: 20px;
-  border-radius: 0;
-  background:
-    linear-gradient(78deg, transparent 0 44%, #d2ad61 45% 51%, transparent 52%) 1px 2px / 7px 18px no-repeat,
-    linear-gradient(92deg, transparent 0 44%, #c39a50 45% 51%, transparent 52%) 8px 0 / 7px 20px no-repeat,
-    linear-gradient(104deg, transparent 0 44%, #dab96c 45% 51%, transparent 52%) 14px 3px / 7px 17px no-repeat;
-  box-shadow: none;
-  transform: translate(-50%, -50%);
-}
-
-/* Real field surface: a work zone in the world, not a rounded brown icon. */
-.map-object-type-farm_field {
-  overflow: visible !important;
-}
-.map-object-type-farm_field .map-object-icon {
-  border-radius: 5% !important;
-  background:
-    repeating-linear-gradient(90deg, rgba(230,189,130,.10) 0 1.2%, transparent 1.2% 8.5%),
-    repeating-linear-gradient(0deg, rgba(15,9,6,.11) 0 2.5%, transparent 2.5% 22%),
-    radial-gradient(ellipse at 12% 16%, rgba(81,112,61,.34) 0 2.2%, transparent 2.5%),
-    radial-gradient(ellipse at 90% 75%, rgba(73,105,55,.28) 0 2.1%, transparent 2.4%),
-    linear-gradient(180deg, #62452d 0%, #503622 44%, #3b271b 100%) !important;
-  box-shadow:
-    inset 0 7px 12px rgba(255,216,157,.035),
-    inset 0 -8px 14px rgba(12,7,4,.18),
-    0 8px 18px rgba(0,0,0,.18) !important;
-}
-.map-object-type-farm_field .map-object-icon::before {
-  inset: 5% 3% !important;
-  opacity: .58 !important;
-  background:
-    radial-gradient(ellipse at 4% 25%, #5b754d 0 1.7%, transparent 1.9%),
-    radial-gradient(ellipse at 6% 72%, #667e52 0 1.5%, transparent 1.7%),
-    radial-gradient(ellipse at 94% 18%, #5b754d 0 1.7%, transparent 1.9%),
-    radial-gradient(ellipse at 96% 68%, #657d52 0 1.5%, transparent 1.7%) !important;
-}
-.map-object-type-farm_field .map-object-icon::after {
-  left: 5% !important;
-  right: 5% !important;
-  top: 22% !important;
-  height: 1px !important;
-  background: rgba(225,180,119,.16) !important;
-  box-shadow:
-    0 10px 0 rgba(225,180,119,.13),
-    0 20px 0 rgba(225,180,119,.15),
-    0 30px 0 rgba(225,180,119,.12),
-    0 40px 0 rgba(225,180,119,.14) !important;
-}
-.map-object-type-farm_field.map-object-nearby .map-object-icon {
-  box-shadow:
-    inset 0 7px 12px rgba(255,216,157,.035),
-    inset 0 -8px 14px rgba(12,7,4,.18),
-    inset 0 0 0 2px rgba(105,177,119,.20),
-    0 8px 18px rgba(0,0,0,.18) !important;
-}
-
-/* Supply point: readable workbench. No emoji/map-pin appearance. */
-.map-object-type-farm_station .map-object-icon {
-  border-radius: 7% !important;
-  background:
-    linear-gradient(90deg, transparent 0 76%, #91bdc2 76% 88%, transparent 88%) 0 20% / 100% 38% no-repeat,
-    linear-gradient(90deg, transparent 0 78%, #d8eceb 78% 86%, transparent 86%) 0 11% / 100% 17% no-repeat,
-    repeating-linear-gradient(90deg, rgba(224,182,122,.08) 0 8%, transparent 8% 21%),
-    linear-gradient(180deg, #74583b 0 58%, #4b3727 58% 100%) !important;
-  box-shadow: 0 7px 13px rgba(0,0,0,.28), inset 0 -3px 0 rgba(23,14,8,.22) !important;
-}
-.map-object-type-farm_station .map-object-icon::before {
-  left: 24% !important;
-  top: 4% !important;
-  width: 7% !important;
-  height: 90% !important;
-  background: linear-gradient(180deg, #b08c61 0 72%, #a7b0aa 72% 100%) !important;
-  transform: rotate(31deg) !important;
-}
-.map-object-type-farm_station .map-object-icon::after {
-  left: 47% !important;
-  top: 5% !important;
-  width: 7% !important;
-  height: 88% !important;
-  background: linear-gradient(180deg, #a8865f 0 72%, #a0aaa4 72% 100%) !important;
-  transform: rotate(-28deg) !important;
-}
-.map-object-type-farm_station.map-object-nearby .map-object-icon {
-  box-shadow:
-    0 7px 13px rgba(0,0,0,.28),
-    inset 0 -3px 0 rgba(23,14,8,.22),
-    inset 0 0 0 2px rgba(100,176,120,.22) !important;
-}
-
-/* Work FX scales with the world as well; it should sit on the soil, not act like a HUD marker. */
-.mn-farm-work-fx {
-  width: 46px;
+  width: 36px;
   height: 36px;
-  transform: translate(-50%, -50%);
-}
-.mn-farm-work-fx.is-tilling::before {
-  inset: 7px 3px 2px;
-  border-radius: 36% 42% 38% 44%;
-  background:
-    repeating-linear-gradient(96deg, rgba(213,171,112,.11) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #5d4029, #332118 68%, #261812);
-  box-shadow: 0 4px 7px rgba(0,0,0,.24);
-}
-.mn-farm-work-fx.is-tilling::after {
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  height: 25px;
-  background:
-    linear-gradient(76deg, transparent 0 46%, #668252 47% 52%, transparent 53%) 1px 0 / 9px 23px no-repeat,
-    linear-gradient(103deg, transparent 0 46%, #76915c 47% 52%, transparent 53%) 10px 3px / 9px 20px no-repeat,
-    linear-gradient(72deg, transparent 0 46%, #5d7b4b 47% 52%, transparent 53%) 20px 0 / 9px 24px no-repeat,
-    linear-gradient(108deg, transparent 0 46%, #78945e 47% 52%, transparent 53%) 30px 4px / 9px 19px no-repeat;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .05);
+  font-size: 22px;
+  font-style: normal;
 }
 
-@media (max-width: 920px) and (pointer: coarse) {
-  .mn-farm-plot {
-    width: 34px;
-    height: 27px;
+.mn-farm-glyph img { width: 29px; height: 29px; object-fit: contain; }
+
+.mn-farm-sale-row > div { display: flex; gap: 5px; }
+.mn-farm-sale-row > div button {
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px solid rgba(122, 181, 140, .22);
+  border-radius: 8px;
+  background: rgba(73, 126, 88, .22);
+  color: #eaf6ee;
+  font-weight: 700;
+}
+
+.mn-farm-panel > footer {
+  min-height: 38px;
+  padding: 8px 13px 12px;
+  color: rgba(237, 243, 239, .58);
+  font-size: 11px;
+}
+
+.mn-farm-panel > footer small[data-type='error'] { color: #ff939c; }
+.mn-farm-panel > footer small[data-type='success'] { color: #8dd4a1; }
+
+body.mn-farm-modal-open { overflow: hidden; }
+
+@media (max-width: 760px) {
+  .mn-farm-panel { width: min(480px, calc(100vw - 20px)); max-height: calc(100vh - 20px); border-radius: 16px; }
+  .mn-farm-panel > header { padding: 11px 12px 9px; }
+  .mn-farm-cycle-guide { gap: 4px; margin-inline: 8px; padding-inline: 6px; font-size: 9px; }
+  .mn-farm-tabs { padding: 7px 8px; }
+  .mn-farm-tab-page { padding: 0 8px 8px; }
+  .mn-farm-shop-row, .mn-farm-sale-row { min-height: 50px; padding: 6px 8px; }
+}
+
+@media (orientation: portrait) and (max-width: 920px) {
+  html.mn-force-rotate-landscape .mn-farm-modal,
+  body.mn-force-rotate-landscape .mn-farm-modal {
+    left: 50% !important;
+    top: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100dvh !important;
+    height: 100vw !important;
+    padding: 10px !important;
+    transform: translate3d(-50%, -50%, 0) rotate(90deg) !important;
+    transform-origin: center center !important;
   }
-  .mn-farm-work-fx {
-    width: 40px;
-    height: 32px;
+
+  html.mn-force-rotate-landscape .mn-farm-panel,
+  body.mn-force-rotate-landscape .mn-farm-panel {
+    width: min(500px, calc(100dvh - 20px)) !important;
+    max-height: calc(100vw - 20px) !important;
   }
-}
 
-/* v25 — fixed crop fields. Sharp rectangular farm beds + snapped square cells. */
-.map-object-type-farm_field .map-object-icon {
-  border-radius: 2px !important;
-  border: 0 !important;
-  background:
-    repeating-linear-gradient(90deg, rgba(222,181,122,.12) 0 1px, transparent 1px 10%),
-    repeating-linear-gradient(0deg, rgba(20,12,7,.16) 0 1px, transparent 1px 20%),
-    linear-gradient(180deg, #5b4029 0%, #49301f 52%, #342218 100%) !important;
-  box-shadow:
-    inset 0 0 0 1px rgba(204,166,112,.15),
-    inset 0 -8px 12px rgba(17,10,6,.13),
-    0 5px 12px rgba(0,0,0,.16) !important;
-}
-
-/* Crop is configured by admin. Keep the hint visual, not textual. */
-.map-object-type-farm_field.map-object-farm-crop-wheat .map-object-icon::before {
-  inset: 7% 5% !important;
-  opacity: .72 !important;
-  background:
-    linear-gradient(78deg, transparent 0 45%, rgba(202,164,91,.55) 46% 51%, transparent 52%) 8% 18% / 5% 22% no-repeat,
-    linear-gradient(96deg, transparent 0 45%, rgba(213,177,101,.50) 46% 51%, transparent 52%) 91% 72% / 5% 22% no-repeat !important;
-}
-.map-object-type-farm_field.map-object-farm-crop-apple .map-object-icon::before {
-  inset: 7% 5% !important;
-  opacity: .7 !important;
-  background:
-    radial-gradient(ellipse at 8% 18%, rgba(83,126,70,.58) 0 2.8%, transparent 3.2%),
-    radial-gradient(ellipse at 92% 72%, rgba(73,116,65,.55) 0 2.8%, transparent 3.2%) !important;
-}
-.map-object-type-farm_field .map-object-icon::after {
-  left: 4% !important;
-  right: 4% !important;
-  top: 6% !important;
-  bottom: 6% !important;
-  height: auto !important;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0 18%,
-    rgba(222,177,118,.13) 18.5% 19%,
-    transparent 19.5% 38%
-  ) !important;
-  box-shadow: none !important;
-}
-
-/* Plots are fixed cells of the field grid, not free-positioned mounds. */
-.mn-farm-plot {
-  width: 22px !important;
-  height: 18px !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-}
-.mn-farm-plot::before {
-  inset: 1px !important;
-  border-radius: 2px !important;
-  background:
-    repeating-linear-gradient(90deg, rgba(220,176,116,.12) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #583b26, #382319 70%, #291a13) !important;
-  box-shadow: inset 0 0 0 1px rgba(207,160,103,.10), 0 2px 4px rgba(0,0,0,.18) !important;
-}
-.mn-farm-plot.is-tilled::after {
-  left: 5px !important;
-  right: 5px !important;
-  top: 7px !important;
-  height: 1px !important;
-  box-shadow: 0 5px 0 rgba(226,183,124,.16), 0 10px 0 rgba(20,12,8,.28) !important;
-}
-
-/* Nearby field stays readable without looking like a selected UI button. */
-.map-object-type-farm_field.map-object-nearby .map-object-icon {
-  box-shadow:
-    inset 0 0 0 1px rgba(126,184,137,.23),
-    inset 0 -8px 12px rgba(17,10,6,.13),
-    0 5px 12px rgba(0,0,0,.16) !important;
-}
-
-@media (max-width: 920px) and (pointer: coarse) {
-  .mn-farm-plot { width: 14px !important; height: 12px !important; }
-  .mn-farm-plot.is-tilled::after { left: 3px !important; right: 3px !important; top: 4px !important; box-shadow: 0 3px 0 rgba(226,183,124,.16), 0 6px 0 rgba(20,12,8,.28) !important; }
-}
-
-/* v26 — field footprint must equal the real editable map-object footprint.
-   Previous visuals kept the icon at 68x40px even when the farm_field button
-   was several percent of the world, which made the actual field boundary invisible. */
-.map-object.map-object-type-farm_field {
-  overflow: visible !important;
-}
-
-.map-object.map-object-type-farm_field > .map-object-icon {
-  position: absolute !important;
-  inset: 0 !important;
-  display: block !important;
-  width: 100% !important;
-  height: 100% !important;
-  min-width: 100% !important;
-  min-height: 100% !important;
-  box-sizing: border-box !important;
-  border-radius: 0 !important;
-  overflow: hidden !important;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      rgba(226, 187, 128, .11) 0,
-      rgba(226, 187, 128, .11) 1px,
-      transparent 1px,
-      transparent 12.5%
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgba(25, 15, 9, .18) 0,
-      rgba(25, 15, 9, .18) 1px,
-      transparent 1px,
-      transparent 25%
-    ),
-    linear-gradient(180deg, #5a3e28 0%, #49301f 52%, #352218 100%) !important;
-  box-shadow:
-    inset 0 0 0 2px rgba(111, 76, 46, .92),
-    inset 0 0 0 3px rgba(218, 174, 111, .15),
-    inset 0 -10px 16px rgba(18, 10, 6, .14),
-    0 4px 9px rgba(0, 0, 0, .16) !important;
-}
-
-/* Crop-specific edge is subtle, but the full rectangle remains readable. */
-.map-object.map-object-type-farm_field.map-object-farm-crop-wheat > .map-object-icon {
-  box-shadow:
-    inset 0 0 0 2px rgba(118, 82, 46, .94),
-    inset 0 0 0 3px rgba(208, 170, 93, .20),
-    inset 0 -10px 16px rgba(18, 10, 6, .14),
-    0 4px 9px rgba(0, 0, 0, .16) !important;
-}
-
-.map-object.map-object-type-farm_field.map-object-farm-crop-apple > .map-object-icon {
-  box-shadow:
-    inset 0 0 0 2px rgba(80, 91, 55, .92),
-    inset 0 0 0 3px rgba(112, 155, 87, .18),
-    inset 0 -10px 16px rgba(18, 10, 6, .14),
-    0 4px 9px rgba(0, 0, 0, .16) !important;
-}
-
-/* Being near a field should not collapse its boundary back into an icon-like glow. */
-.map-object.map-object-type-farm_field.map-object-nearby > .map-object-icon {
-  box-shadow:
-    inset 0 0 0 2px rgba(88, 126, 77, .96),
-    inset 0 0 0 4px rgba(112, 170, 119, .13),
-    inset 0 -10px 16px rgba(18, 10, 6, .14),
-    0 4px 9px rgba(0, 0, 0, .16) !important;
-}
-
-/* Admin selection shows the exact editable rectangle, not the old 68x40 icon. */
-.map-object.map-object-type-farm_field.map-object-selected > .map-object-icon {
-  outline: 1px dashed rgba(232, 194, 124, .72) !important;
-  outline-offset: 3px !important;
-}
-
-@media (max-width: 920px) and (pointer: coarse) {
-  .map-object.map-object-type-farm_field > .map-object-icon {
-    box-shadow:
-      inset 0 0 0 1px rgba(104, 72, 44, .96),
-      inset 0 0 0 2px rgba(218, 174, 111, .15),
-      inset 0 -6px 10px rgba(18, 10, 6, .12),
-      0 3px 7px rgba(0, 0, 0, .14) !important;
+  html.mn-force-rotate-landscape .mn-farm-progress,
+  body.mn-force-rotate-landscape .mn-farm-progress {
+    left: 50% !important;
+    top: 76% !important;
+    bottom: auto !important;
+    width: min(330px, calc(100dvh - 30px)) !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform-origin: center center !important;
   }
 }
