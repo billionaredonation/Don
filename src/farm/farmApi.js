@@ -51,6 +51,7 @@ export function getFarmUserErrorMessage(error) {
     PLAYER_POSITION_NOT_FOUND: 'Позиция игрока не найдена. Перезайдите в город.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
     FARM_TOOL_ALREADY_OWNED: 'Этот инструмент у вас уже есть.',
+    FARM_WATER_BOTTLE_ALREADY_OWNED: 'У вас уже есть вода для полива. Сначала используйте оставшиеся заряды.',
     FARM_RAKE_REQUIRED: 'Сначала купите грабли на точке снабжения.',
     FARM_SCISSORS_REQUIRED: 'Сначала купите ножницы на точке снабжения.',
     FARM_WATER_REQUIRED: 'Нужна вода. Подойдёт вода с фермы или бутылка из столовой.',
