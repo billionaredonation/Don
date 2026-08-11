@@ -1,4 +1,3 @@
-import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 
 const FARM_FUNCTION_NAME = 'farm-work';
@@ -46,24 +45,32 @@ export function getFarmUserErrorMessage(error) {
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела. Перезапустите мини-приложение.',
     SERVER_NOT_CONFIGURED: 'Сервер фермы не настроен.',
     UNKNOWN_ACTION: 'Edge Function farm-work не обновлена.',
+    FARM_DATABASE_MIGRATION_REQUIRED: 'Сначала примените новую SQL-миграцию фермы, затем обновите Edge Function farm-work.',
     PLAYER_NOT_FOUND: 'Игрок не найден.',
+    PLAYER_POSITION_NOT_FOUND: 'Позиция игрока не найдена. Перезайдите в город.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
     FARM_TOOL_ALREADY_OWNED: 'Этот инструмент у вас уже есть.',
-    FARM_SEED_LIMIT_REACHED: 'Семян этого типа уже достаточно. Максимум 50 шт.',
-    FARM_HOE_REQUIRED: 'Сначала купите тяпку на точке снабжения.',
     FARM_RAKE_REQUIRED: 'Сначала купите грабли на точке снабжения.',
-    FARM_PLOT_LIMIT_REACHED: 'У вас уже 5 активных посадок. Сначала соберите урожай.',
-    FARM_FIELD_NOT_FOUND: 'Поле не найдено. Возможно, объект был удалён администратором.',
-    FARM_FIELD_TOO_FAR: 'Подойдите ближе к рабочей зоне поля.',
-    FARM_PLOT_SPACE_BUSY: 'На этом поле сейчас нет свободного места для новой посадки.',
-    FARM_PLOT_NOT_FOUND: 'Посадка больше не существует.',
-    FARM_PLOT_STAGE_INVALID: 'Сейчас для этой посадки нужно выполнить другое действие.',
+    FARM_SCISSORS_REQUIRED: 'Сначала купите ножницы на точке снабжения.',
+    FARM_WATER_REQUIRED: 'Нужна вода. Подойдёт вода с фермы или бутылка из столовой.',
+    FARM_PLANT_NOT_FOUND: 'Растение не найдено. Возможно, объект удалён администратором.',
+    FARM_PLANT_TOO_FAR: 'Подойдите ближе к растению.',
+    FARM_PLANT_STAGE_INVALID: 'Сейчас растению нужно другое действие.',
     FARM_ITEM_NOT_ENOUGH: 'Нужного предмета недостаточно.',
-    FARM_CROP_INVALID: 'Неизвестная культура.',
-    FARM_FIELD_CROP_MISMATCH: 'Эти семена не подходят для этого поля. Используйте культуру, заданную администратором.',
     FARM_SHOP_ITEM_INVALID: 'Этот предмет нельзя получить на ферме.',
     FARM_SELL_ITEM_INVALID: 'Этот предмет фермер не покупает.',
   };
+
+  const waitMatch = raw.match(/FARM_PLANT_NOT_READY:(\d+)/i);
+  if (waitMatch) {
+    const seconds = Math.max(1, Number(waitMatch[1]) || 1);
+    const minutesPart = Math.floor(seconds / 60);
+    const secondsPart = seconds % 60;
+    const time = minutesPart > 0
+      ? `${minutesPart}:${String(secondsPart).padStart(2, '0')}`
+      : `${seconds} сек.`;
+    return `Растение ещё не готово. Подождите ${time}, чтобы прополоть.`;
+  }
 
   const code = Object.keys(messages).find((key) => raw.includes(key));
   return code ? messages[code] : raw;
@@ -90,40 +97,22 @@ export async function buyFarmItem(itemType) {
   return invokeFarmAction('buy', { itemType });
 }
 
-export async function tillFarmPlot({ cityId, fieldObjectId, x, y }) {
-  return invokeFarmAction('till', { cityId, fieldObjectId, x, y });
+export async function loadFarmPlantStates(cityId) {
+  return invokeFarmAction('plants', { cityId });
 }
 
-export async function plantFarmSeed({ plotId, cropType }) {
-  return invokeFarmAction('plant', { plotId, cropType });
+export async function weedFarmPlant({ cityId, plantObjectId }) {
+  return invokeFarmAction('weed', { cityId, plantObjectId });
 }
 
-export async function rakeFarmPlot(plotId) {
-  return invokeFarmAction('rake', { plotId });
+export async function waterFarmPlant({ cityId, plantObjectId }) {
+  return invokeFarmAction('water', { cityId, plantObjectId });
 }
 
-export async function waterFarmPlot(plotId) {
-  return invokeFarmAction('water', { plotId });
-}
-
-export async function harvestFarmPlot(plotId) {
-  return invokeFarmAction('harvest', { plotId });
+export async function harvestFarmPlant({ cityId, plantObjectId }) {
+  return invokeFarmAction('harvest', { cityId, plantObjectId });
 }
 
 export async function sellFarmItem({ itemType, quantity = 1 }) {
   return invokeFarmAction('sell', { itemType, quantity });
-}
-
-export async function loadFarmPlots(cityId) {
-  const normalizedCityId = String(cityId || '').trim();
-  if (!normalizedCityId) return [];
-
-  const { data, error } = await supabase
-    .from('farm_plots')
-    .select('*')
-    .eq('city_id', normalizedCityId)
-    .order('created_at', { ascending: true });
-
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
 }
