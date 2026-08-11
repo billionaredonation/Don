@@ -16,6 +16,7 @@ export const INVENTORY_SLOT_COUNT = INVENTORY_ROWS * INVENTORY_COLUMNS;
 
 const INVENTORY_HOTKEY_CODE = 'KeyI';
 const INVENTORY_OPEN_CLASS = 'mn-inventory-open';
+const INVENTORY_LAYOUT_STORAGE_PREFIX = 'mn-game:inventory-layout:v1';
 const VITALS_CONFIG = getPlayerVitalsConfig();
 const HUNGER_WARNING_THRESHOLD = 40;
 const THIRST_WARNING_THRESHOLD = 40;
@@ -46,6 +47,14 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function getInventoryItemLayoutKey(item = {}) {
+  const itemType = String(item.itemType || item.item_type || '').trim();
+  const source = String(item.source || item.inventorySource || 'personal').trim().toLowerCase();
+  const hospitalId = String(item.hospitalId || item.hospital_id || '').trim();
+  const explicitId = String(item.inventoryItemId || item.inventory_item_id || item.itemId || '').trim();
+  return [source, hospitalId, itemType, explicitId].join(':');
 }
 
 function getItemIconMarkup(itemType, fallbackIcon = '□') {
@@ -276,10 +285,9 @@ function renderSlots() {
   }).join('');
 }
 
-function renderMedicalItems(items = []) {
-  const activeItems = items.filter((item) => Number(item.quantity || 0) > 0).slice(0, INVENTORY_SLOT_COUNT);
+function renderMedicalItems(slotItems = []) {
   return Array.from({ length: INVENTORY_SLOT_COUNT }, (_, index) => {
-    const item = activeItems[index];
+    const item = slotItems[index];
     const slotNumber = index + 1;
     const row = Math.floor(index / INVENTORY_COLUMNS) + 1;
     const column = (index % INVENTORY_COLUMNS) + 1;
@@ -309,6 +317,7 @@ function renderMedicalItems(items = []) {
     const safeSourceLabel = escapeHtml(sourceLabel);
     const safeItemType = escapeHtml(itemType);
     const safeHospitalId = escapeHtml(item.hospitalId || '');
+    const safeItemKey = escapeHtml(getInventoryItemLayoutKey(item));
     const classes = [
       'mn-inventory-slot',
       'mn-inventory-item',
@@ -323,11 +332,13 @@ function renderMedicalItems(items = []) {
         class="${classes}"
         type="button"
         role="gridcell"
+        draggable="true"
         aria-label="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}"
         data-inventory-slot="${index}"
         data-inventory-row="${row}"
         data-inventory-column="${column}"
         data-inventory-item-index="${index}"
+        data-inventory-item-key="${safeItemKey}"
         data-inventory-item-type="${safeItemType}"
         data-inventory-item-source="${escapeHtml(source)}"
         data-inventory-item-hospital-id="${safeHospitalId}"
@@ -503,6 +514,7 @@ export function enableInventoryFeature() {
   const panel = overlay?.querySelector('.mn-inventory-panel');
   const closeButton = overlay?.querySelector('.mn-inventory-close');
   const closeTargets = Array.from(overlay?.querySelectorAll('[data-inventory-close]') || []);
+  const inventoryGrid = overlay?.querySelector('[data-inventory-grid]');
   const character = overlay?.querySelector('[data-inventory-character]');
   const characterState = overlay?.querySelector('[data-character-state]');
   const alertsElement = overlay?.querySelector('[data-inventory-alerts]');
@@ -531,13 +543,81 @@ export function enableInventoryFeature() {
   let previousFocus = null;
   let currentVitals = { ...initialVitals };
   let medicalItems = [];
+  let inventorySlotItems = Array(INVENTORY_SLOT_COUNT).fill(null);
+  let inventorySlotLayout = {};
   let inventoryBusy = false;
   let selectedInventoryItem = null;
+  let draggedInventoryItemKey = '';
+  let pointerDrag = null;
+  let lastInventoryDropAt = 0;
   let activeWarningCodes = new Set();
   let vitalNoticeTimer = 0;
   let vitalNoticeHideTimer = 0;
   let vitalStateRefreshTimer = 0;
   let gameplayReady = window.__MN_GAMEPLAY_ENTERED__ === true;
+
+  function getInventoryLayoutStorageKey() {
+    const playerId = String(
+      window.Telegram?.WebApp?.initDataUnsafe?.user?.id ||
+      state.telegramId ||
+      state.player?.tg_id ||
+      state.player?.telegramId ||
+      'local'
+    ).trim();
+    return `${INVENTORY_LAYOUT_STORAGE_PREFIX}:${playerId || 'local'}`;
+  }
+
+  function loadInventorySlotLayout() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(getInventoryLayoutStorageKey()) || '{}');
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+      return Object.fromEntries(Object.entries(parsed).filter(([key, value]) => (
+        key && Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) < INVENTORY_SLOT_COUNT
+      )).map(([key, value]) => [key, Number(value)]));
+    } catch {
+      return {};
+    }
+  }
+
+  function saveInventorySlotLayout() {
+    try {
+      localStorage.setItem(getInventoryLayoutStorageKey(), JSON.stringify(inventorySlotLayout));
+    } catch {}
+  }
+
+  function arrangeInventoryItems(items = []) {
+    const activeItems = items
+      .filter((item) => item && Number(item.quantity || 0) > 0)
+      .slice(0, INVENTORY_SLOT_COUNT);
+    const slots = Array(INVENTORY_SLOT_COUNT).fill(null);
+    const placedItems = new Set();
+    let layoutChanged = false;
+
+    activeItems.forEach((item) => {
+      const itemKey = getInventoryItemLayoutKey(item);
+      const savedSlot = Number(inventorySlotLayout[itemKey]);
+      if (!itemKey || !Number.isInteger(savedSlot) || savedSlot < 0 || savedSlot >= INVENTORY_SLOT_COUNT || slots[savedSlot]) return;
+      slots[savedSlot] = item;
+      placedItems.add(item);
+    });
+
+    activeItems.forEach((item) => {
+      if (placedItems.has(item)) return;
+      const emptySlot = slots.findIndex((slotItem) => !slotItem);
+      if (emptySlot < 0) return;
+      slots[emptySlot] = item;
+      const itemKey = getInventoryItemLayoutKey(item);
+      if (itemKey && inventorySlotLayout[itemKey] !== emptySlot) {
+        inventorySlotLayout[itemKey] = emptySlot;
+        layoutChanged = true;
+      }
+    });
+
+    if (layoutChanged) saveInventorySlotLayout();
+    return slots;
+  }
+
+  inventorySlotLayout = loadInventorySlotLayout();
 
   function canShowVitalNotice() {
     return gameplayReady && !hasBlockingInterface();
@@ -612,17 +692,17 @@ export function enableInventoryFeature() {
   }
 
   function renderMedicalInventory() {
-    const grid = overlay.querySelector('[data-inventory-grid]');
     const capacity = overlay.querySelector('.mn-inventory-capacity b');
-    if (!grid) return;
+    if (!inventoryGrid) return;
     const occupied = medicalItems.filter((item) => Number(item.quantity || 0) > 0).length;
-    grid.innerHTML = renderMedicalItems(medicalItems);
+    inventorySlotItems = arrangeInventoryItems(medicalItems);
+    inventoryGrid.innerHTML = renderMedicalItems(inventorySlotItems);
     if (capacity) capacity.textContent = String(occupied);
-    grid.dataset.busy = inventoryBusy ? 'true' : 'false';
+    inventoryGrid.dataset.busy = inventoryBusy ? 'true' : 'false';
   }
 
   function visibleInventoryItems() {
-    return medicalItems.filter((item) => Number(item.quantity || 0) > 0).slice(0, INVENTORY_SLOT_COUNT);
+    return inventorySlotItems;
   }
 
   function getItemMeta(item = {}) {
@@ -739,6 +819,145 @@ export function enableInventoryFeature() {
     setItemMenuNotice('');
     positionItemMenu(anchor, event);
     return true;
+  }
+
+  function clearInventoryDragVisuals() {
+    if (!inventoryGrid) return;
+    inventoryGrid.removeAttribute('data-dragging');
+    inventoryGrid.querySelectorAll('.is-inventory-dragging, .is-inventory-drop-target').forEach((element) => {
+      element.classList.remove('is-inventory-dragging', 'is-inventory-drop-target');
+    });
+  }
+
+  function setInventoryDropTarget(slotElement) {
+    if (!inventoryGrid) return;
+    inventoryGrid.querySelectorAll('.is-inventory-drop-target').forEach((element) => {
+      if (element !== slotElement) element.classList.remove('is-inventory-drop-target');
+    });
+    slotElement?.classList.add('is-inventory-drop-target');
+  }
+
+  function moveInventoryItemToSlot(itemKey, targetSlot) {
+    const normalizedKey = String(itemKey || '');
+    const normalizedTarget = Number(targetSlot);
+    if (!normalizedKey || !Number.isInteger(normalizedTarget) || normalizedTarget < 0 || normalizedTarget >= INVENTORY_SLOT_COUNT) return false;
+
+    const sourceSlot = inventorySlotItems.findIndex((item) => getInventoryItemLayoutKey(item) === normalizedKey);
+    if (sourceSlot < 0 || sourceSlot === normalizedTarget) return false;
+
+    const targetItem = inventorySlotItems[normalizedTarget];
+    const targetItemKey = targetItem ? getInventoryItemLayoutKey(targetItem) : '';
+    inventorySlotLayout[normalizedKey] = normalizedTarget;
+    if (targetItemKey) inventorySlotLayout[targetItemKey] = sourceSlot;
+    saveInventorySlotLayout();
+    closeItemMenu();
+    renderMedicalInventory();
+    return true;
+  }
+
+  function handleGridDragStart(event) {
+    const itemElement = event.target?.closest?.('[data-inventory-item-key]');
+    if (!itemElement || inventoryBusy) {
+      event.preventDefault();
+      return;
+    }
+
+    draggedInventoryItemKey = String(itemElement.dataset.inventoryItemKey || '');
+    if (!draggedInventoryItemKey) {
+      event.preventDefault();
+      return;
+    }
+
+    closeItemMenu();
+    inventoryGrid.dataset.dragging = 'true';
+    itemElement.classList.add('is-inventory-dragging');
+    event.dataTransfer?.setData('text/plain', draggedInventoryItemKey);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleGridDragOver(event) {
+    if (!draggedInventoryItemKey) return;
+    const slotElement = event.target?.closest?.('[data-inventory-slot]');
+    if (!slotElement) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    setInventoryDropTarget(slotElement);
+  }
+
+  function handleGridDrop(event) {
+    const slotElement = event.target?.closest?.('[data-inventory-slot]');
+    const itemKey = draggedInventoryItemKey || event.dataTransfer?.getData('text/plain') || '';
+    if (!slotElement || !itemKey) return;
+    event.preventDefault();
+    lastInventoryDropAt = performance.now();
+    moveInventoryItemToSlot(itemKey, Number(slotElement.dataset.inventorySlot));
+    draggedInventoryItemKey = '';
+    clearInventoryDragVisuals();
+  }
+
+  function handleGridDragEnd() {
+    draggedInventoryItemKey = '';
+    clearInventoryDragVisuals();
+  }
+
+  function handleGridPointerDown(event) {
+    if (event.pointerType === 'mouse' || inventoryBusy) return;
+    const itemElement = event.target?.closest?.('[data-inventory-item-key]');
+    if (!itemElement) return;
+
+    pointerDrag = {
+      pointerId: event.pointerId,
+      itemKey: String(itemElement.dataset.inventoryItemKey || ''),
+      startX: Number(event.clientX),
+      startY: Number(event.clientY),
+      dragging: false,
+      itemElement,
+    };
+    itemElement.setPointerCapture?.(event.pointerId);
+  }
+
+  function handleGridPointerMove(event) {
+    if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
+    const distance = Math.hypot(event.clientX - pointerDrag.startX, event.clientY - pointerDrag.startY);
+    if (!pointerDrag.dragging && distance < 8) return;
+
+    if (!pointerDrag.dragging) {
+      pointerDrag.dragging = true;
+      closeItemMenu();
+      inventoryGrid.dataset.dragging = 'true';
+      pointerDrag.itemElement?.classList.add('is-inventory-dragging');
+    }
+
+    event.preventDefault();
+    const pointedElement = document.elementFromPoint(event.clientX, event.clientY);
+    setInventoryDropTarget(pointedElement?.closest?.('[data-inventory-slot]'));
+  }
+
+  function finishGridPointerDrag(event, cancelled = false) {
+    if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
+    const currentDrag = pointerDrag;
+    pointerDrag = null;
+    currentDrag.itemElement?.releasePointerCapture?.(event.pointerId);
+
+    if (currentDrag.dragging) {
+      event.preventDefault();
+      lastInventoryDropAt = performance.now();
+      if (!cancelled) {
+        const pointedElement = document.elementFromPoint(event.clientX, event.clientY);
+        const slotElement = pointedElement?.closest?.('[data-inventory-slot]');
+        if (slotElement) moveInventoryItemToSlot(currentDrag.itemKey, Number(slotElement.dataset.inventorySlot));
+      }
+    }
+
+    clearInventoryDragVisuals();
+  }
+
+  function handleGridPointerUp(event) {
+    finishGridPointerDrag(event, false);
+  }
+
+  function handleGridPointerCancel(event) {
+    finishGridPointerDrag(event, true);
   }
 
   function showSelectedItemInfo() {
@@ -1084,6 +1303,10 @@ export function enableInventoryFeature() {
   }
 
   function handleGridClick(event) {
+    if (performance.now() - lastInventoryDropAt < 420) {
+      event.preventDefault();
+      return;
+    }
     const item = event.target.closest('[data-inventory-item-index]');
     if (!item) return;
     event.preventDefault();
@@ -1117,8 +1340,16 @@ export function enableInventoryFeature() {
   }
 
   closeTargets.forEach((target) => target.addEventListener('click', handleCloseClick));
-  overlay.querySelector('[data-inventory-grid]')?.addEventListener('click', handleGridClick);
-  overlay.querySelector('[data-inventory-grid]')?.addEventListener('contextmenu', handleGridContextMenu);
+  inventoryGrid?.addEventListener('click', handleGridClick);
+  inventoryGrid?.addEventListener('contextmenu', handleGridContextMenu);
+  inventoryGrid?.addEventListener('dragstart', handleGridDragStart);
+  inventoryGrid?.addEventListener('dragover', handleGridDragOver);
+  inventoryGrid?.addEventListener('drop', handleGridDrop);
+  inventoryGrid?.addEventListener('dragend', handleGridDragEnd);
+  inventoryGrid?.addEventListener('pointerdown', handleGridPointerDown);
+  inventoryGrid?.addEventListener('pointermove', handleGridPointerMove);
+  inventoryGrid?.addEventListener('pointerup', handleGridPointerUp);
+  inventoryGrid?.addEventListener('pointercancel', handleGridPointerCancel);
   itemMenu?.addEventListener('click', handleItemMenuClick);
   window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('mn:player-balance-changed', handleVitalsChanged);
@@ -1153,8 +1384,16 @@ export function enableInventoryFeature() {
   return () => {
     bodyClassObserver.disconnect();
     closeTargets.forEach((target) => target.removeEventListener('click', handleCloseClick));
-    overlay.querySelector('[data-inventory-grid]')?.removeEventListener('click', handleGridClick);
-    overlay.querySelector('[data-inventory-grid]')?.removeEventListener('contextmenu', handleGridContextMenu);
+    inventoryGrid?.removeEventListener('click', handleGridClick);
+    inventoryGrid?.removeEventListener('contextmenu', handleGridContextMenu);
+    inventoryGrid?.removeEventListener('dragstart', handleGridDragStart);
+    inventoryGrid?.removeEventListener('dragover', handleGridDragOver);
+    inventoryGrid?.removeEventListener('drop', handleGridDrop);
+    inventoryGrid?.removeEventListener('dragend', handleGridDragEnd);
+    inventoryGrid?.removeEventListener('pointerdown', handleGridPointerDown);
+    inventoryGrid?.removeEventListener('pointermove', handleGridPointerMove);
+    inventoryGrid?.removeEventListener('pointerup', handleGridPointerUp);
+    inventoryGrid?.removeEventListener('pointercancel', handleGridPointerCancel);
     itemMenu?.removeEventListener('click', handleItemMenuClick);
     window.removeEventListener('keydown', handleKeyDown, true);
     window.removeEventListener('mn:player-balance-changed', handleVitalsChanged);
@@ -1176,6 +1415,3 @@ export function enableInventoryFeature() {
     overlay.remove();
   };
 }
-
-
-
