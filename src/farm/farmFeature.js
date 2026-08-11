@@ -37,6 +37,15 @@ function normalizePlantState(row = {}) {
   };
 }
 
+function plantStateUpdatedAt(stateRow) {
+  const timestamp = new Date(stateRow?.updatedAt || stateRow?.updated_at || 0).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function shouldReplacePlantState(current, next) {
+  return !current || plantStateUpdatedAt(next) >= plantStateUpdatedAt(current);
+}
+
 function secondsUntil(readyAt) {
   const target = new Date(readyAt || 0).getTime();
   if (!Number.isFinite(target)) return 0;
@@ -158,6 +167,8 @@ export function enableFarmFeature({ root, cityId } = {}) {
   function upsertPlantState(row) {
     const next = normalizePlantState(row);
     if (!next.plantObjectId || (next.cityId && next.cityId !== String(cityId))) return;
+    const current = plantStates.get(next.plantObjectId);
+    if (!shouldReplacePlantState(current, next)) return;
     plantStates.set(next.plantObjectId, next);
     publishPlantStates();
   }
@@ -205,8 +216,9 @@ export function enableFarmFeature({ root, cityId } = {}) {
     modal?.querySelectorAll('[data-farm-buy]').forEach((button) => {
       const itemType = button.dataset.farmBuy;
       const owned = FARM_ITEMS[itemType]?.permanent === true && itemQuantity(itemType) > 0;
-      button.disabled = busy || owned;
-      button.dataset.owned = owned ? 'true' : 'false';
+      const waterLoaded = itemType === 'farm_water_bottle' && itemQuantity(itemType) > 0;
+      button.disabled = busy || owned || waterLoaded;
+      button.dataset.owned = owned || waterLoaded ? 'true' : 'false';
     });
   }
 
@@ -223,7 +235,12 @@ export function enableFarmFeature({ root, cityId } = {}) {
       const result = await loadFarmPlantStates(cityId);
       if (destroyed) return;
       const rows = Array.isArray(result?.states) ? result.states : Array.isArray(result) ? result : [];
-      plantStates = new Map(rows.map(normalizePlantState).filter((row) => row.plantObjectId).map((row) => [row.plantObjectId, row]));
+      const mergedStates = new Map(plantStates);
+      rows.map(normalizePlantState).filter((row) => row.plantObjectId).forEach((row) => {
+        const current = mergedStates.get(row.plantObjectId);
+        if (shouldReplacePlantState(current, row)) mergedStates.set(row.plantObjectId, row);
+      });
+      plantStates = mergedStates;
       publishPlantStates();
     } catch (error) {
       console.warn('[farm] plant state refresh failed:', error);
@@ -290,6 +307,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
       const result = await callback();
       if (result?.state) upsertPlantState(result.state);
       if (result?.inventory) publishInventory(result.inventory);
+      void refreshPlantStates();
       return result;
     } catch (error) {
       emitToast(getFarmUserErrorMessage(error), 'error');
@@ -432,5 +450,3 @@ export function enableFarmFeature({ root, cityId } = {}) {
     delete window.__MN_FARM_PLANT_STATES__;
   };
 }
-
-
