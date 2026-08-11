@@ -224,16 +224,24 @@ export const MAP_OBJECT_TYPES = {
     defaultHeight: 2.2,
   },
 
-  farm_field: {
-    type: 'farm_field',
+  farm_wheat_plant: {
+    type: 'farm_wheat_plant',
     category: MAP_OBJECT_CATEGORIES.JOB,
-    label: 'Ферма · поле',
-    icon: '▤',
+    label: 'Ферма · пшеница',
+    icon: '🌾',
     defaultScale: 1,
     defaultRotation: 0,
-    defaultAsset: 'job_farm_field_01',
-    defaultWidth: 8,
-    defaultHeight: 8,
+    defaultAsset: 'job_farm_wheat_plant_01',
+  },
+
+  farm_apple_plant: {
+    type: 'farm_apple_plant',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Ферма · яблоня',
+    icon: '🍎',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_farm_apple_plant_01',
   },
 
   spawn: {
@@ -362,6 +370,7 @@ export function createMapObjectDraft({
 
   if (config.category === MAP_OBJECT_CATEGORIES.JOB) {
     objectName = name || config.label;
+    const hasEditableFootprint = Number.isFinite(Number(config.defaultWidth)) && Number.isFinite(Number(config.defaultHeight));
     nextPayload = {
       ...nextPayload,
       kind: 'job',
@@ -371,8 +380,10 @@ export function createMapObjectDraft({
       buyable: false,
       transferable: false,
       serverOwned: true,
-      renderWidth: Number(nextPayload.renderWidth || config.defaultWidth || 2.4),
-      renderHeight: Number(nextPayload.renderHeight || config.defaultHeight || 2.0),
+      ...(hasEditableFootprint ? {
+        renderWidth: Number(nextPayload.renderWidth || config.defaultWidth),
+        renderHeight: Number(nextPayload.renderHeight || config.defaultHeight),
+      } : {}),
     };
   }
 
