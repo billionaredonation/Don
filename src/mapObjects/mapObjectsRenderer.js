@@ -479,8 +479,13 @@ function updateObjectElement(element, object) {
     ? (String(payload.fieldCrop || payload.cropType || payload.farmCrop || 'wheat').toLowerCase() === 'apple' ? 'apple' : 'wheat')
     : '';
   const farmCropClass = farmCrop ? ` map-object-farm-crop-${farmCrop}` : '';
+  const farmPlantState = window.__MN_FARM_PLANT_STATES__?.[id] || null;
+  const farmPlantReadyMs = new Date(farmPlantState?.readyAt || farmPlantState?.ready_at || 0).getTime();
+  const farmPlantCooldownClass = farmPlantState?.stage === 'cooldown' && Number.isFinite(farmPlantReadyMs) && farmPlantReadyMs > Date.now()
+    ? ' is-farm-plant-cooldown'
+    : '';
 
-  element.className = `map-object map-object-${categoryClass} map-object-type-${typeClass} map-object-visual-${visualClass} map-object-state-${stateClass}${farmCropClass}${selectedClass}`;
+  element.className = `map-object map-object-${categoryClass} map-object-type-${typeClass} map-object-visual-${visualClass} map-object-state-${stateClass}${farmCropClass}${farmPlantCooldownClass}${selectedClass}`;
   element.dataset.mapObjectId = id;
   element.dataset.mapObjectType = meta.type;
   element.dataset.mapObjectCategory = meta.category;
@@ -488,6 +493,8 @@ function updateObjectElement(element, object) {
   element.dataset.mapObjectOwnerId = String(meta.ownerId || '');
   if (farmCrop) element.dataset.farmCrop = farmCrop;
   else delete element.dataset.farmCrop;
+  if (farmPlantState?.stage) element.dataset.farmPlantStage = farmPlantState.stage;
+  else delete element.dataset.farmPlantStage;
   element.title = escapeHtml(meta.title);
   element.setAttribute('aria-label', meta.title);
 
@@ -1046,4 +1053,3 @@ export function getMapObjectIdFromEvent(event) {
 
   return element?.dataset?.mapObjectId || null;
 }
-
