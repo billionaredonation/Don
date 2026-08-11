@@ -6,6 +6,7 @@ import {
   harvestFarmPlant,
   loadFarmInventory,
   loadFarmPlantStates,
+  loadFarmWaterAvailability,
   sellFarmItem,
   waterFarmPlant,
   weedFarmPlant,
@@ -137,9 +138,13 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let busy = false;
   let inventoryState = { items: [] };
   let plantStates = new Map();
+  let plantStatesReady = false;
+  let plantStatesLoadPromise = null;
   let stateRefreshTimer = 0;
   let inventoryRefreshTimer = 0;
   let realtimeChannel = null;
+
+  window.__MN_FARM_PLANT_STATES_READY__ = false;
 
   function setStatus(message = '', type = 'info') {
     if (!status) return;
@@ -230,21 +235,33 @@ export function enableFarmFeature({ root, cityId } = {}) {
     }
   }
 
-  async function refreshPlantStates() {
-    try {
-      const result = await loadFarmPlantStates(cityId);
-      if (destroyed) return;
-      const rows = Array.isArray(result?.states) ? result.states : Array.isArray(result) ? result : [];
-      const mergedStates = new Map(plantStates);
-      rows.map(normalizePlantState).filter((row) => row.plantObjectId).forEach((row) => {
-        const current = mergedStates.get(row.plantObjectId);
-        if (shouldReplacePlantState(current, row)) mergedStates.set(row.plantObjectId, row);
-      });
-      plantStates = mergedStates;
-      publishPlantStates();
-    } catch (error) {
-      console.warn('[farm] plant state refresh failed:', error);
-    }
+  function refreshPlantStates() {
+    if (plantStatesLoadPromise) return plantStatesLoadPromise;
+
+    plantStatesLoadPromise = (async () => {
+      try {
+        const result = await loadFarmPlantStates(cityId);
+        if (destroyed) return false;
+        const rows = Array.isArray(result?.states) ? result.states : Array.isArray(result) ? result : [];
+        const mergedStates = new Map(plantStates);
+        rows.map(normalizePlantState).filter((row) => row.plantObjectId).forEach((row) => {
+          const current = mergedStates.get(row.plantObjectId);
+          if (shouldReplacePlantState(current, row)) mergedStates.set(row.plantObjectId, row);
+        });
+        plantStates = mergedStates;
+        plantStatesReady = true;
+        window.__MN_FARM_PLANT_STATES_READY__ = true;
+        publishPlantStates();
+        return true;
+      } catch (error) {
+        console.warn('[farm] plant state refresh failed:', error);
+        return false;
+      } finally {
+        plantStatesLoadPromise = null;
+      }
+    })();
+
+    return plantStatesLoadPromise;
   }
 
   function openModal() {
@@ -328,6 +345,17 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
   async function workWithPlant(object) {
     if (!isFarmPlantObject(object) || busy) return;
+
+    if (!plantStatesReady) {
+      emitToast('Проверяем сохранённое состояние растения…', 'info');
+      const loaded = await refreshPlantStates();
+      if (!loaded) {
+        emitToast('Не удалось загрузить состояние растения. Попробуйте ещё раз.', 'error');
+        return;
+      }
+      if (busy) return;
+    }
+
     const next = getPlantAction(object);
     if (!next) return;
     if (next.action === 'wait') {
@@ -342,6 +370,17 @@ export function enableFarmFeature({ root, cityId } = {}) {
       return;
     }
     if (next.action === 'water') {
+      try {
+        const availability = await loadFarmWaterAvailability();
+        if (availability?.hasWater !== true) {
+          emitToast('Купите воду прежде чем начать обработку растения. Подойдёт вода из фермерской лавки или столовой.', 'error');
+          return;
+        }
+      } catch (error) {
+        emitToast(getFarmUserErrorMessage(error), 'error');
+        return;
+      }
+
       const result = await runTimedAction('💧 Поливаем растение', () => waterFarmPlant(request));
       if (result) {
         if (result.waterSource === 'cafeteria') {
@@ -448,5 +487,6 @@ export function enableFarmFeature({ root, cityId } = {}) {
     modal?.remove();
     progress?.remove();
     delete window.__MN_FARM_PLANT_STATES__;
+    window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
