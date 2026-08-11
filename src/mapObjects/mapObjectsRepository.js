@@ -208,11 +208,13 @@ function isObjectInsideRange(object, range) {
 }
 
 function filterObjectsByRange(objects, range) {
-  if (!range) return objects;
-
-  return Array.isArray(objects)
-    ? objects.filter((object) => isObjectInsideRange(object, range))
+  const withoutLegacyFarmFields = Array.isArray(objects)
+    ? objects.filter((object) => String(object?.type || object?.payload?.jobType || '') !== 'farm_field')
     : [];
+
+  if (!range) return withoutLegacyFarmFields;
+
+  return withoutLegacyFarmFields.filter((object) => isObjectInsideRange(object, range));
 }
 
 function mergeLocalObjects(cityId, nextObjects) {
@@ -611,7 +613,7 @@ async function fetchRemoteObjects(cityId, options = {}) {
   }
 
   const objects = Array.isArray(data)
-    ? data.map(fromDbRow)
+    ? data.map(fromDbRow).filter((object) => String(object?.type || object?.payload?.jobType || '') !== 'farm_field')
     : [];
 
   console.log(
