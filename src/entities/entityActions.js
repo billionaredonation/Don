@@ -73,8 +73,9 @@ export function getEntityMetaText(object) {
 
 
   if (kind === 'job') {
-    if (type === 'farm_station') return 'Ферма · инструменты, семена и продажа урожая';
-    if (type === 'farm_field') return 'Ферма · рабочая зона для посадок';
+    if (type === 'farm_station') return 'Ферма · инструменты и продажа урожая';
+    if (type === 'farm_wheat_plant') return 'Ферма · растение пшеницы';
+    if (type === 'farm_apple_plant') return 'Ферма · яблоня';
     return 'Рабочая точка';
   }
 
