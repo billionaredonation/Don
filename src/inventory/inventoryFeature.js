@@ -20,19 +20,18 @@ const VITALS_CONFIG = getPlayerVitalsConfig();
 const HUNGER_WARNING_THRESHOLD = 40;
 const THIRST_WARNING_THRESHOLD = 40;
 const CRITICAL_VITAL_THRESHOLD = 20;
+const FARM_RAKE_ASSET_URL = `${String(import.meta.env.BASE_URL || '/')}grabl.png`;
 const ITEM_META = Object.freeze({
   food: { label: 'Обед', icon: '🍔' },
   water_bottle: { label: 'Бутылка воды', icon: '🧴' },
   medicine_light: { label: 'Простые таблетки', icon: '💊' },
   medicine_strong: { label: 'Среднеседативные таблетки', icon: '💉' },
   medicine_resuscitation: { label: 'Сильные седативные таблетки', icon: '⚕' },
-  farm_hoe: { label: 'Тяпка', icon: '⌁' },
-  farm_rake: { label: 'Грабли', icon: '≋' },
-  farm_water_bottle: { label: 'Вода для полива', icon: '◒' },
-  farm_seed_apple: { label: 'Семена яблони', icon: '●' },
-  farm_seed_wheat: { label: 'Семена пшеницы', icon: '⋮' },
-  farm_apple: { label: 'Яблоко', icon: '●' },
-  farm_wheat: { label: 'Пшеница', icon: '≀' },
+  farm_rake: { label: 'Грабли', icon: 'Г' },
+  farm_scissors: { label: 'Ножницы', icon: '✂️' },
+  farm_water_bottle: { label: 'Вода для полива', icon: '💧' },
+  farm_apple: { label: 'Яблоко', icon: '🍎' },
+  farm_wheat: { label: 'Пшеница', icon: '🌾' },
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
@@ -50,6 +49,9 @@ function escapeHtml(value) {
 }
 
 function getItemIconMarkup(itemType, fallbackIcon = '□') {
+  if (String(itemType || '') === 'farm_rake') {
+    return `<img class="mn-inventory-farm-rake-icon" src="${FARM_RAKE_ASSET_URL}" alt="">`;
+  }
   if (String(itemType || '') !== 'water_bottle') return escapeHtml(fallbackIcon || '□');
 
   return `
@@ -653,17 +655,13 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nВосстанавливает 20 единиц воды. Хорошая гидратация ускоряет восстановление стамины до 3 минут.`;
     }
 
-    if (itemType === 'farm_hoe' || itemType === 'farm_rake') {
+    if (itemType === 'farm_rake' || itemType === 'farm_scissors') {
       return `${getItemLabel(item)} · постоянный инструмент.\n${sourceLabel}.\nПрочность в прототипе не расходуется.`;
     }
 
     if (itemType === 'farm_water_bottle') {
       const uses = Number(item.waterUses || 0);
       return `${getItemLabel(item)} · ${quantity} бут.\n${sourceLabel}.\nОсталось поливов: ${uses}. Одна новая бутылка даёт 2 полива.`;
-    }
-
-    if (itemType === 'farm_seed_apple' || itemType === 'farm_seed_wheat') {
-      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nПодойдите к своему вскопанному участку и нажмите «Посадить».`;
     }
 
     if (itemType === 'farm_apple' || itemType === 'farm_wheat') {
@@ -731,13 +729,12 @@ export function enableInventoryFeature() {
     if (itemMenuQuantity) itemMenuQuantity.textContent = `${Number(item.quantity || 0).toLocaleString('ru-RU')} шт.`;
     if (itemMenuApply) {
       const medicineOnly = itemType.startsWith('medicine_');
-      const farmSeed = itemType === 'farm_seed_apple' || itemType === 'farm_seed_wheat';
-      const farmNonUsable = itemType.startsWith('farm_') && !farmSeed;
+      const farmNonUsable = itemType.startsWith('farm_');
       const hidden = medicineOnly || farmNonUsable;
       itemMenuApply.hidden = hidden;
       itemMenuApply.disabled = hidden;
       itemMenuApply.style.display = hidden ? 'none' : '';
-      itemMenuApply.textContent = farmSeed ? 'Посадить' : 'Применить';
+      itemMenuApply.textContent = 'Применить';
     }
     setItemMenuNotice('');
     positionItemMenu(anchor, event);
@@ -788,18 +785,8 @@ export function enableInventoryFeature() {
       return;
     }
 
-    if (itemType === 'farm_seed_apple' || itemType === 'farm_seed_wheat') {
-      setItemMenuNotice('Подойдите к своему вскопанному участку. Посадка займёт 3 секунды.', 'info');
-      window.dispatchEvent(new CustomEvent('mn:farm-inventory-action', {
-        detail: { itemType, item: { ...item } },
-      }));
-      closeItemMenu();
-      close();
-      return;
-    }
-
     if (itemType.startsWith('farm_')) {
-      setItemMenuNotice('Этот фермерский предмет используется через рабочую систему.', 'info');
+      setItemMenuNotice('Этот предмет используется возле растения или в фермерской лавке.', 'info');
       return;
     }
     inventoryBusy = true;
@@ -1189,5 +1176,4 @@ export function enableInventoryFeature() {
     overlay.remove();
   };
 }
-
 
