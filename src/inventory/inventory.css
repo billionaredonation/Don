@@ -1246,6 +1246,13 @@ html.mn-inventory-open {
   color: #b8cbbd;
   text-shadow: none;
 }
+.mn-inventory-farm-rake-icon {
+  display: block;
+  width: 76%;
+  height: 76%;
+  margin: auto;
+  object-fit: contain;
+}
 .mn-inventory-item-farm {
   background: linear-gradient(145deg, rgba(68,88,73,.26), rgba(17,24,20,.86));
 }
