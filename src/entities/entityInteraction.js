@@ -46,6 +46,9 @@ function getFarmPlantHint(object) {
   const plantObjectId = String(object?.id || '');
   const plantName = type === 'farm_apple_plant' ? 'яблоню' : 'пшеницу';
   const plantIcon = type === 'farm_apple_plant' ? '🍎' : '🌾';
+  if (window.__MN_FARM_PLANT_STATES_READY__ === false) {
+    return `${plantIcon} Проверяем сохранённое состояние…`;
+  }
   const saved = window.__MN_FARM_PLANT_STATES__?.[plantObjectId] || null;
 
   if (saved?.stage === 'cooldown') {
