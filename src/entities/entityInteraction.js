@@ -17,6 +17,8 @@ import {
 const INTERACTION_RADIUS_PX = 108;
 const MOBILE_INTERACTION_RADIUS_PX = 150;
 const DIRECT_TAP_RADIUS_PX = 174;
+const FARM_STATION_INTERACTION_RADIUS_PX = 48;
+const MOBILE_FARM_STATION_INTERACTION_RADIUS_PX = 64;
 const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
@@ -25,6 +27,11 @@ const FARM_PLANT_OBJECT_TYPES = new Set(['farm_wheat_plant', 'farm_apple_plant']
 
 function isFarmPlantType(type) {
   return FARM_PLANT_OBJECT_TYPES.has(String(type || ''));
+}
+
+function isFarmStationObject(object) {
+  const type = String(object?.type || object?.payload?.jobType || '');
+  return type === 'farm_station';
 }
 
 function formatFarmPlantCountdown(readyAt) {
@@ -1302,10 +1309,20 @@ export function enableEntityInteraction({
       : INTERACTION_RADIUS_PX;
   }
 
-  function isObjectInInteractionRange(object, { directTap = false } = {}) {
-    const radius = directTap && isMobileGameplayDevice()
+  function getObjectInteractionRadius(object, { directTap = false } = {}) {
+    if (isFarmStationObject(object)) {
+      return isMobileGameplayDevice()
+        ? MOBILE_FARM_STATION_INTERACTION_RADIUS_PX
+        : FARM_STATION_INTERACTION_RADIUS_PX;
+    }
+
+    return directTap && isMobileGameplayDevice()
       ? DIRECT_TAP_RADIUS_PX
       : getInteractionRadius();
+  }
+
+  function isObjectInInteractionRange(object, { directTap = false } = {}) {
+    const radius = getObjectInteractionRadius(object, { directTap });
 
     return getDistanceToObject(object) <= radius;
   }
@@ -1313,6 +1330,8 @@ export function enableEntityInteraction({
   function getNearestInteractableObject() {
     let bestObject = null;
     let bestDistance = Number.POSITIVE_INFINITY;
+    let nearestFarmPlant = null;
+    let nearestFarmPlantDistance = Number.POSITIVE_INFINITY;
     const radius = getInteractionRadius();
     const position = getCurrentPlayerPercent(playerPosition);
     const rect = viewport?.getBoundingClientRect?.();
@@ -1373,11 +1392,22 @@ export function enableEntityInteraction({
         distance = getDistanceToObject(object);
       }
 
-      if (distance <= radius && distance < bestDistance) {
+      const candidateRadius = getObjectInteractionRadius(object);
+      if (distance > candidateRadius) return;
+
+      if (isFarmPlantType(candidateType) && distance < nearestFarmPlantDistance) {
+        nearestFarmPlant = object;
+        nearestFarmPlantDistance = distance;
+      }
+
+      if (distance < bestDistance) {
         bestObject = object;
         bestDistance = distance;
       }
     });
+
+    // Если растение и лавка стоят рядом, действие должно относиться к растению.
+    if (isFarmStationObject(bestObject) && nearestFarmPlant) return nearestFarmPlant;
 
     return bestObject;
   }
