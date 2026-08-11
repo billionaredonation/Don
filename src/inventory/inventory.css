@@ -645,7 +645,32 @@ body.mn-inventory-open .mn-vital-notice {
   margin: 0;
   padding: 0;
   color: #fff;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: element;
+}
+
+.mn-inventory-item:active { cursor: grabbing; }
+
+.mn-inventory-item.is-inventory-dragging {
+  z-index: 2;
+  opacity: .38;
+  transform: scale(.86);
+}
+
+.mn-inventory-slot.is-inventory-drop-target {
+  overflow: visible;
+  border-color: rgba(126, 231, 158, .9) !important;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(91, 211, 129, .28), transparent 62%),
+    linear-gradient(145deg, rgba(25, 72, 44, .94), rgba(8, 24, 16, .96)) !important;
+  box-shadow: 0 0 0 2px rgba(93, 209, 129, .25), 0 0 18px rgba(74, 206, 116, .24) !important;
+}
+
+.mn-inventory-grid[data-dragging="true"] .mn-inventory-slot {
+  transition: border-color .12s ease, background .12s ease, box-shadow .12s ease, transform .12s ease;
 }
 
 .mn-inventory-item:hover,
