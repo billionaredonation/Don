@@ -52,6 +52,7 @@ export function getFarmUserErrorMessage(error) {
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
     FARM_TOOL_ALREADY_OWNED: 'Этот инструмент у вас уже есть.',
     FARM_WATER_BOTTLE_ALREADY_OWNED: 'У вас уже есть вода для полива. Сначала используйте оставшиеся заряды.',
+    FARM_WATER_STATUS_UNAVAILABLE: 'Не удалось проверить запас воды. Попробуйте ещё раз.',
     FARM_RAKE_REQUIRED: 'Сначала купите грабли на точке снабжения.',
     FARM_SCISSORS_REQUIRED: 'Сначала купите ножницы на точке снабжения.',
     FARM_WATER_REQUIRED: 'Нужна вода. Подойдёт вода с фермы или бутылка из столовой.',
@@ -93,6 +94,10 @@ export async function invokeFarmAction(action, payload = {}) {
 
 export async function loadFarmInventory() {
   return invokeFarmAction('inventory');
+}
+
+export async function loadFarmWaterAvailability() {
+  return invokeFarmAction('water_status');
 }
 
 export async function buyFarmItem(itemType) {
