@@ -7,9 +7,12 @@ const ACTION_SELECTORS = Object.freeze([
 ]);
 
 const NOTICE_SELECTORS = Object.freeze([
+  '.mn-vital-notice',
+]);
+
+const BOTTOM_NOTICE_SELECTORS = Object.freeze([
   '.entity-interaction-notice',
   '.mn-farm-progress',
-  '.mn-vital-notice',
   '.admin-floating-notice',
   '.mn-player-trade-success-toast',
   '.mn-interior-action-toast',
@@ -50,12 +53,13 @@ function isMobileGameplay(mediaQuery) {
 
 export function enableMobileGameplayChrome() {
   document.querySelectorAll(
-    '.mn-mobile-action-dock, .mn-mobile-notice-lane, .mn-interior-inventory-toggle'
+    '.mn-mobile-action-dock, .mn-mobile-notice-lane, .mn-mobile-feedback-lane, .mn-interior-inventory-toggle'
   ).forEach((element) => element.remove());
 
   const mediaQuery = window.matchMedia(MOBILE_MEDIA_QUERY);
   const actionDock = createLayer('mn-mobile-action-dock');
   const noticeLane = createLayer('mn-mobile-notice-lane', 'assertive');
+  const feedbackLane = createLayer('mn-mobile-feedback-lane');
   const inventoryButton = createInteriorInventoryButton(actionDock);
   const origins = new Map();
 
@@ -106,6 +110,7 @@ export function enableMobileGameplayChrome() {
 
     actionDock.hidden = !mobile;
     noticeLane.hidden = !mobile;
+    feedbackLane.hidden = !mobile;
     const inventoryAvailable = mobile && interiorEntered;
     inventoryButton.hidden = !inventoryAvailable;
     inventoryButton.disabled = !inventoryAvailable;
@@ -118,6 +123,7 @@ export function enableMobileGameplayChrome() {
 
     moveMatches(ACTION_SELECTORS, actionDock);
     moveMatches(NOTICE_SELECTORS, noticeLane);
+    moveMatches(BOTTOM_NOTICE_SELECTORS, feedbackLane);
   }
 
   function scheduleSync() {
@@ -180,6 +186,7 @@ export function enableMobileGameplayChrome() {
     restoreAll();
     actionDock.remove();
     noticeLane.remove();
+    feedbackLane.remove();
     inventoryButton.remove();
   };
 }
