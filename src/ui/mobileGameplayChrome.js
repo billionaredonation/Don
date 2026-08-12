@@ -8,6 +8,7 @@ const ACTION_SELECTORS = Object.freeze([
 
 const NOTICE_SELECTORS = Object.freeze([
   '.entity-interaction-notice',
+  '.mn-farm-progress',
   '.mn-vital-notice',
   '.admin-floating-notice',
   '.mn-player-trade-success-toast',
