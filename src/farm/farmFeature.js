@@ -102,6 +102,16 @@ function farmModalMarkup() {
             <span><b>Пшеница</b><small><em data-farm-sale-count="farm_wheat">0</em> шт. · 35 ₴/шт.</small></span>
             <div><button type="button" data-farm-sell="farm_wheat" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_wheat" data-quantity="0">Всё</button></div>
           </div>
+          <div class="mn-farm-sale-row" data-farm-sale-row="farm_orange">
+            <i class="mn-farm-glyph" aria-hidden="true">🍊</i>
+            <span><b>Апельсин</b><small><em data-farm-sale-count="farm_orange">0</em> шт. · 15 ₴/шт.</small></span>
+            <div><button type="button" data-farm-sell="farm_orange" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_orange" data-quantity="0">Всё</button></div>
+          </div>
+          <div class="mn-farm-sale-row" data-farm-sale-row="farm_corn">
+            <i class="mn-farm-glyph" aria-hidden="true">🌽</i>
+            <span><b>Кукуруза</b><small><em data-farm-sale-count="farm_corn">0</em> шт. · 30 ₴/шт.</small></span>
+            <div><button type="button" data-farm-sell="farm_corn" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_corn" data-quantity="0">Всё</button></div>
+          </div>
         </div>
         <footer><small data-farm-status></small></footer>
       </section>
@@ -209,7 +219,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   }
 
   function renderInventory() {
-    ['farm_apple', 'farm_wheat'].forEach((itemType) => {
+    ['farm_apple', 'farm_wheat', 'farm_orange', 'farm_corn'].forEach((itemType) => {
       modal?.querySelectorAll(`[data-farm-sale-count="${itemType}"]`).forEach((element) => {
         element.textContent = String(itemQuantity(itemType));
       });
@@ -393,7 +403,8 @@ export function enableFarmFeature({ root, cityId } = {}) {
     if (next.action === 'harvest') {
       const result = await runTimedAction(`✂️ Собираем: ${next.plant.label}`, () => harvestFarmPlant(request));
       if (result) {
-        const item = result.harvestedItemType === 'farm_wheat' ? '🌾 Пшеница ×1' : '🍎 Яблоко ×1';
+        const harvested = FARM_ITEMS[result.harvestedItemType] || FARM_ITEMS[next.plant.harvestItemType];
+        const item = `${harvested?.icon || next.plant.icon} ${harvested?.label || next.plant.label} ×1`;
         emitToast(`${item}. Новый урожай через ${formatRemaining(result.respawnSeconds || next.plant.respawnSeconds)}.`, 'success');
       }
     }
