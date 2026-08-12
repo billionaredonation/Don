@@ -121,9 +121,20 @@ function farmModalMarkup() {
 function farmProgressMarkup() {
   return `
     <div class="mn-farm-progress" data-farm-progress hidden aria-live="polite">
-      <span data-farm-progress-label>Работа</span>
-      <i><b data-farm-progress-fill></b></i>
-      <small>${Math.ceil(FARM_ACTION_DURATION_MS / 1000)} сек.</small>
+      <div class="mn-farm-progress-head">
+        <span class="mn-farm-progress-icon" aria-hidden="true">
+          <img src="${FARM_RAKE_ASSET_URL}" alt="" data-farm-progress-rake hidden>
+          <b data-farm-progress-icon>🌱</b>
+        </span>
+        <span class="mn-farm-progress-copy">
+          <strong data-farm-progress-label>Обрабатываем растение</strong>
+          <small data-farm-progress-caption>Не отходите от растения</small>
+        </span>
+        <output class="mn-farm-progress-time" aria-label="Осталось времени">
+          <b data-farm-progress-countdown>${(FARM_ACTION_DURATION_MS / 1000).toFixed(1)}</b><small>сек</small>
+        </output>
+      </div>
+      <i class="mn-farm-progress-track"><b data-farm-progress-fill></b><span aria-hidden="true"></span></i>
     </div>`;
 }
 
@@ -140,6 +151,10 @@ export function enableFarmFeature({ root, cityId } = {}) {
   const status = modal?.querySelector('[data-farm-status]');
   const progress = root.querySelector('[data-farm-progress]');
   const progressLabel = progress?.querySelector('[data-farm-progress-label]');
+  const progressCaption = progress?.querySelector('[data-farm-progress-caption]');
+  const progressIcon = progress?.querySelector('[data-farm-progress-icon]');
+  const progressRake = progress?.querySelector('[data-farm-progress-rake]');
+  const progressCountdown = progress?.querySelector('[data-farm-progress-countdown]');
   const progressFill = progress?.querySelector('[data-farm-progress-fill]');
   const tabButtons = [...(modal?.querySelectorAll('[data-farm-tab]') || [])];
   const tabPages = [...(modal?.querySelectorAll('[data-farm-page]') || [])];
@@ -313,13 +328,33 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return { action: 'weed', plant, remaining: 0 };
   }
 
-  async function runTimedAction(label, callback) {
+  async function runTimedAction({ action = 'weed', label = 'Обрабатываем растение', caption = '', icon = '🌱' } = {}, callback) {
     if (busy || window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return null;
     busy = true;
     window.__MN_PLAYER_CONTROLS_LOCKED__ = true;
     renderInventory();
-    if (progress) progress.hidden = false;
+    if (progress) {
+      progress.dataset.action = action;
+      progress.hidden = false;
+    }
     if (progressLabel) progressLabel.textContent = label;
+    if (progressCaption) progressCaption.textContent = caption || 'Не отходите от растения';
+    if (progressRake) progressRake.hidden = action !== 'weed';
+    if (progressIcon) {
+      progressIcon.hidden = action === 'weed';
+      progressIcon.textContent = icon;
+    }
+    if (progressCountdown) progressCountdown.textContent = (FARM_ACTION_DURATION_MS / 1000).toFixed(1);
+
+    const startedAt = performance.now();
+    let countdownFrame = 0;
+    const updateCountdown = (now) => {
+      const remainingMs = Math.max(0, FARM_ACTION_DURATION_MS - (now - startedAt));
+      if (progressCountdown) progressCountdown.textContent = (remainingMs / 1000).toFixed(1);
+      if (remainingMs > 0) countdownFrame = requestAnimationFrame(updateCountdown);
+    };
+    countdownFrame = requestAnimationFrame(updateCountdown);
+
     if (progressFill) {
       progressFill.style.transition = 'none';
       progressFill.style.width = '0%';
@@ -330,6 +365,8 @@ export function enableFarmFeature({ root, cityId } = {}) {
     }
 
     await new Promise((resolve) => setTimeout(resolve, FARM_ACTION_DURATION_MS));
+    cancelAnimationFrame(countdownFrame);
+    if (progressCountdown) progressCountdown.textContent = '0.0';
     try {
       const result = await callback();
       if (result?.state) upsertPlantState(result.state);
@@ -342,6 +379,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
       void refreshInventory({ silent: true });
       return null;
     } finally {
+      cancelAnimationFrame(countdownFrame);
       if (progress) progress.hidden = true;
       if (progressFill) {
         progressFill.style.transition = 'none';
@@ -375,7 +413,11 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
     const request = { cityId, plantObjectId: String(object.id || '') };
     if (next.action === 'weed') {
-      const result = await runTimedAction(`${next.plant.icon} Пропалываем растение`, () => weedFarmPlant(request));
+      const result = await runTimedAction({
+        action: 'weed',
+        label: 'Пропалываем растение',
+        caption: 'Подготавливаем почву',
+      }, () => weedFarmPlant(request));
       if (result) emitToast('Растение прополото. Теперь полейте его водой 💧', 'success');
       return;
     }
@@ -391,7 +433,12 @@ export function enableFarmFeature({ root, cityId } = {}) {
         return;
       }
 
-      const result = await runTimedAction('💧 Поливаем растение', () => waterFarmPlant(request));
+      const result = await runTimedAction({
+        action: 'water',
+        label: 'Поливаем растение',
+        caption: 'Равномерный полив',
+        icon: '💧',
+      }, () => waterFarmPlant(request));
       if (result) {
         if (result.waterSource === 'cafeteria') {
           window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
@@ -401,7 +448,12 @@ export function enableFarmFeature({ root, cityId } = {}) {
       return;
     }
     if (next.action === 'harvest') {
-      const result = await runTimedAction(`✂️ Собираем: ${next.plant.label}`, () => harvestFarmPlant(request));
+      const result = await runTimedAction({
+        action: 'harvest',
+        label: `Собираем: ${next.plant.label}`,
+        caption: 'Урожай почти в инвентаре',
+        icon: '✂️',
+      }, () => harvestFarmPlant(request));
       if (result) {
         const harvested = FARM_ITEMS[result.harvestedItemType] || FARM_ITEMS[next.plant.harvestItemType];
         const item = `${harvested?.icon || next.plant.icon} ${harvested?.label || next.plant.label} ×1`;
