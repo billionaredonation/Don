@@ -5,41 +5,15 @@
 }
 
 .map-object-type-farm_station .map-object-icon {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  display: block;
-  width: 34px;
-  height: 22px;
-  border-radius: 5px;
-  background: linear-gradient(180deg, #745d42, #3a3025);
-  box-shadow: 0 5px 9px rgba(0, 0, 0, .36);
-  font-size: 0;
-  transform: translate(-50%, -50%);
-}
-
-.map-object-type-farm_station .map-object-icon::before {
-  content: '';
-  position: absolute;
-  left: 5px;
-  right: 5px;
-  top: 6px;
-  height: 3px;
-  border-radius: 2px;
-  background: #aa8a61;
-  box-shadow: 0 7px 0 #8b704f;
-}
-
-.map-object-type-farm_station .map-object-icon::after {
-  content: '';
-  position: absolute;
-  right: 6px;
-  top: -5px;
-  width: 3px;
-  height: 18px;
-  border-radius: 2px;
-  background: #718c75;
-  transform: rotate(18deg);
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: transparent;
+  font-size: 28px;
+  line-height: 1;
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .55));
+  transform: translateZ(0);
 }
 
 .map-object-type-farm_wheat_plant .map-object-icon,
