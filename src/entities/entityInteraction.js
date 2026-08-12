@@ -443,6 +443,8 @@ function createInteractionHint(root) {
 
   hint.className = 'entity-interaction-hint';
   hint.hidden = true;
+  hint.setAttribute('role', 'button');
+  hint.setAttribute('aria-label', 'Взаимодействовать');
   hint.innerHTML = `
     <b data-interaction-hint-key>E</b>
     <span data-interaction-hint-text>Взаимодействовать</span>
@@ -471,11 +473,20 @@ function moveLayerAboveMap(viewport, layer) {
 }
 
 function getOverviewObjectKind(object) {
+  const type = String(
+    object?.type ||
+    object?.payload?.type ||
+    object?.payload?.jobType ||
+    ''
+  ).toLowerCase();
+
+  if (type === 'tree') return 'tree';
+
   return String(
     object?.category ||
     object?.payload?.category ||
     object?.payload?.kind ||
-    object?.type ||
+    type ||
     'marker'
   ).toLowerCase();
 }
@@ -508,7 +519,11 @@ function createMapObjectsOverviewLayer(viewport) {
 function renderMapObjectsOverview(overviewLayer, viewport, objects) {
   if (!overviewLayer || !viewport) return;
 
-  const fragment = document.createDocumentFragment();
+  const elements = overviewLayer.__mnOverviewElements instanceof Map
+    ? overviewLayer.__mnOverviewElements
+    : new Map();
+  const nextIds = new Set();
+  overviewLayer.__mnOverviewElements = elements;
 
   (Array.isArray(objects) ? objects : []).forEach((object) => {
     const id = String(object?.id || '');
@@ -519,22 +534,36 @@ function renderMapObjectsOverview(overviewLayer, viewport, objects) {
     if (!Number.isFinite(xPercent) || !Number.isFinite(yPercent)) return;
 
     const kind = getOverviewObjectKind(object);
-    const icon = document.createElement('span');
+    let icon = elements.get(id);
+
+    if (!icon) {
+      icon = document.createElement('span');
+      icon.dataset.mapOverviewObjectId = id;
+      elements.set(id, icon);
+      overviewLayer.appendChild(icon);
+    }
 
     icon.className = `map-overview-icon map-overview-icon-${
       kind === 'hospital' ? 'service' : kind
     }`;
     icon.style.left = `${xPercent}%`;
     icon.style.top = `${yPercent}%`;
+    icon.textContent = kind === 'tree' ? '🌳' : '';
 
     if (kind === 'house') {
       icon.style.setProperty('--map-overview-color', getOverviewObjectColor(object));
+    } else {
+      icon.style.removeProperty('--map-overview-color');
     }
 
-    fragment.appendChild(icon);
+    nextIds.add(id);
   });
 
-  overviewLayer.replaceChildren(fragment);
+  elements.forEach((element, id) => {
+    if (nextIds.has(id)) return;
+    element.remove();
+    elements.delete(id);
+  });
 }
 
 export function createEntityInteractionPanel(root) {
@@ -1473,6 +1502,7 @@ export function enableEntityInteraction({
 
     hint.hidden = true;
     hint.classList.remove('is-visible');
+    delete hint.dataset.farmPlantAction;
 
     if (reset) {
       lastHintObjectId = null;
@@ -1502,6 +1532,8 @@ export function enableEntityInteraction({
 
     const objectType = String(object?.type || object?.payload?.jobType || '');
     const farmPlant = isFarmPlantType(objectType);
+    if (farmPlant && isMobileGameplayDevice()) hint.dataset.farmPlantAction = 'true';
+    else delete hint.dataset.farmPlantAction;
 
     if (lastHintObjectId === objectId) {
       if (farmPlant && window.__MN_PLAYER_CONTROLS_LOCKED__ !== true) {
@@ -1527,7 +1559,7 @@ export function enableEntityInteraction({
         : 'Рабочая точка';
 
     if (isMobileGameplayDevice()) {
-      if (keyEl) keyEl.textContent = hospital ? '🏥' : job ? 'Нажать' : '🏠';
+      if (keyEl) keyEl.textContent = hospital ? '🏥' : farmPlant ? '👆' : job ? 'Нажать' : '🏠';
       if (textEl) {
         textEl.textContent = hospital
           ? 'Нажми на больницу'
@@ -1705,6 +1737,18 @@ export function enableEntityInteraction({
     event.preventDefault();
     event.stopPropagation();
 
+    openObjectFromDirectInput(object);
+  }
+
+  function onInteractionHintClick(event) {
+    if (!isMobileGameplayDevice() || hint.hidden || window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return;
+
+    const object = getNearestInteractableObject();
+    const objectType = String(object?.type || object?.payload?.jobType || '');
+    if (!object || !isFarmPlantType(objectType)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
     openObjectFromDirectInput(object);
   }
 
@@ -1957,6 +2001,7 @@ export function enableEntityInteraction({
 
   layer.addEventListener('click', onObjectClick, true);
   layer.addEventListener('pointerdown', onObjectClick, true);
+  hint.addEventListener('click', onInteractionHintClick);
 
   /*
     Слушаем корень игровой сцены, а не только viewport. Во время движения слой
@@ -1999,6 +2044,7 @@ export function enableEntityInteraction({
 
     layer.removeEventListener('click', onObjectClick, true);
     layer.removeEventListener('pointerdown', onObjectClick, true);
+    hint.removeEventListener('click', onInteractionHintClick);
 
     root.removeEventListener('pointerdown', onViewportPointer, true);
     root.removeEventListener('touchstart', onViewportPointer, true);
