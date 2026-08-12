@@ -1,18 +1,21 @@
 .mn-mobile-action-dock,
 .mn-mobile-notice-lane,
+.mn-mobile-feedback-lane,
 .mn-interior-inventory-toggle {
   display: none;
 }
 
 .mn-mobile-action-dock[hidden],
 .mn-mobile-notice-lane[hidden],
+.mn-mobile-feedback-lane[hidden],
 .mn-interior-inventory-toggle[hidden] {
   display: none !important;
 }
 
 @media (hover: none) and (pointer: coarse) {
   .mn-mobile-action-dock,
-  .mn-mobile-notice-lane {
+  .mn-mobile-notice-lane,
+  .mn-mobile-feedback-lane {
     position: fixed !important;
     inset: 0 !important;
     z-index: 2147482350 !important;
@@ -27,10 +30,10 @@
 
   .mn-mobile-action-dock {
     display: flex !important;
-    align-items: flex-start !important;
+    align-items: flex-end !important;
     justify-content: center !important;
     gap: 8px !important;
-    padding: max(10px, calc(env(safe-area-inset-top) + 8px)) 12px 0 !important;
+    padding: 0 12px max(10px, calc(env(safe-area-inset-bottom) + 8px)) !important;
     overflow: visible !important;
   }
 
@@ -41,14 +44,27 @@
     align-items: center !important;
     justify-content: flex-start !important;
     gap: 6px !important;
-    padding: max(64px, calc(env(safe-area-inset-top) + 62px)) 12px 0 !important;
+    padding: max(10px, calc(env(safe-area-inset-top) + 8px)) 12px 0 !important;
+    overflow: visible !important;
+  }
+
+  .mn-mobile-feedback-lane {
+    z-index: 2147482450 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    padding: 0 12px max(66px, calc(env(safe-area-inset-bottom) + 64px)) !important;
     overflow: visible !important;
   }
 
   html.mn-force-rotate-landscape .mn-mobile-action-dock,
   html.mn-force-rotate-landscape .mn-mobile-notice-lane,
+  html.mn-force-rotate-landscape .mn-mobile-feedback-lane,
   body.mn-force-rotate-landscape .mn-mobile-action-dock,
-  body.mn-force-rotate-landscape .mn-mobile-notice-lane {
+  body.mn-force-rotate-landscape .mn-mobile-notice-lane,
+  body.mn-force-rotate-landscape .mn-mobile-feedback-lane {
     inset: auto !important;
     left: 50% !important;
     top: 50% !important;
@@ -260,12 +276,12 @@
     pointer-events: none !important;
   }
 
-  .mn-mobile-notice-lane > .entity-interaction-notice,
-  .mn-mobile-notice-lane > .mn-farm-progress,
   .mn-mobile-notice-lane > .mn-vital-notice,
-  .mn-mobile-notice-lane > .admin-floating-notice,
-  .mn-mobile-notice-lane > .mn-player-trade-success-toast,
-  .mn-mobile-notice-lane > .mn-interior-action-toast {
+  .mn-mobile-feedback-lane > .entity-interaction-notice,
+  .mn-mobile-feedback-lane > .mn-farm-progress,
+  .mn-mobile-feedback-lane > .admin-floating-notice,
+  .mn-mobile-feedback-lane > .mn-player-trade-success-toast,
+  .mn-mobile-feedback-lane > .mn-interior-action-toast {
     position: relative !important;
     inset: auto !important;
     left: auto !important;
@@ -283,8 +299,8 @@
     pointer-events: none !important;
   }
 
-  html.mn-force-rotate-landscape .mn-mobile-notice-lane > .mn-farm-progress,
-  body.mn-force-rotate-landscape .mn-mobile-notice-lane > .mn-farm-progress {
+  html.mn-force-rotate-landscape .mn-mobile-feedback-lane > .mn-farm-progress,
+  body.mn-force-rotate-landscape .mn-mobile-feedback-lane > .mn-farm-progress {
     left: auto !important;
     top: auto !important;
     bottom: auto !important;
@@ -292,6 +308,10 @@
   }
 
   .mn-mobile-notice-lane > [hidden] {
+    display: none !important;
+  }
+
+  .mn-mobile-feedback-lane > [hidden] {
     display: none !important;
   }
 
