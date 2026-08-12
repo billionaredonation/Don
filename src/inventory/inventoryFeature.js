@@ -86,6 +86,7 @@ function publishInventorySnapshot(items = []) {
 
 function getConsumptionEffectType(itemType) {
   const normalized = String(itemType || '').trim().toLowerCase();
+  if (normalized.startsWith('farm_')) return '';
   if (normalized === 'water' || normalized === 'drink' || normalized.includes('water') || normalized.includes('drink')) {
     return 'water';
   }
@@ -741,7 +742,7 @@ export function enableInventoryFeature() {
 
     if (itemType === 'farm_water_bottle') {
       const uses = Number(item.waterUses || 0);
-      return `${getItemLabel(item)} · ${quantity} бут.\n${sourceLabel}.\nОсталось поливов: ${uses}. Одна новая бутылка даёт 2 полива.`;
+      return `${getItemLabel(item)} · ${quantity} бут.\n${sourceLabel}.\nТехническая вода с пестицидами: пить нельзя, только для полива.\nОсталось поливов: ${uses}. Одна бутылка даёт 2 полива.`;
     }
 
     if (itemType === 'farm_apple' || itemType === 'farm_wheat') {
@@ -997,6 +998,15 @@ export function enableInventoryFeature() {
     if (!itemType || inventoryBusy) return;
     if (itemType.startsWith('medicine_')) {
       const message = 'Самолечение таблетками отключено. Используйте препарат на другом игроке через подсистему врача.';
+      setItemMenuNotice(message, 'error');
+      window.dispatchEvent(new CustomEvent('mn:toast', {
+        detail: { type: 'error', message },
+      }));
+      return;
+    }
+
+    if (itemType === 'farm_water_bottle') {
+      const message = 'Это техническая вода с пестицидами. Пить её нельзя — только поливать растения.';
       setItemMenuNotice(message, 'error');
       window.dispatchEvent(new CustomEvent('mn:toast', {
         detail: { type: 'error', message },
