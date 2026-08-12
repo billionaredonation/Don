@@ -47,6 +47,38 @@
   filter: grayscale(.65) drop-shadow(0 3px 3px rgba(0, 0, 0, .45));
 }
 
+.entity-interaction-hint > [data-interaction-hint-timer][hidden] {
+  display: none !important;
+}
+
+.entity-interaction-hint[data-farm-timer-active='true'] {
+  border-color: rgba(144, 204, 126, .42) !important;
+  background: linear-gradient(135deg, rgba(8, 22, 15, .96), rgba(13, 34, 22, .94)) !important;
+}
+
+.entity-interaction-hint > [data-interaction-hint-timer] {
+  display: inline-flex;
+  min-width: 66px;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border: 1px solid rgba(162, 219, 140, .28);
+  border-radius: 9px;
+  color: #dff7d6;
+  background: rgba(120, 181, 98, .14);
+  font: 900 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+.entity-interaction-hint[data-farm-timer-urgent='true'] > [data-interaction-hint-timer] {
+  border-color: rgba(255, 193, 92, .48);
+  color: #ffe1a8;
+  background: rgba(218, 139, 35, .18);
+  box-shadow: 0 0 14px rgba(238, 161, 52, .12);
+}
+
 .mn-farm-progress {
   position: fixed;
   left: 50%;
