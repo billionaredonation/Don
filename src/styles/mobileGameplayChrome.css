@@ -27,10 +27,10 @@
 
   .mn-mobile-action-dock {
     display: flex !important;
-    align-items: flex-end !important;
+    align-items: flex-start !important;
     justify-content: center !important;
     gap: 8px !important;
-    padding: 0 12px max(10px, calc(env(safe-area-inset-bottom) + 8px)) !important;
+    padding: max(10px, calc(env(safe-area-inset-top) + 8px)) 12px 0 !important;
     overflow: visible !important;
   }
 
@@ -41,7 +41,7 @@
     align-items: center !important;
     justify-content: flex-start !important;
     gap: 6px !important;
-    padding: max(10px, calc(env(safe-area-inset-top) + 8px)) 12px 0 !important;
+    padding: max(64px, calc(env(safe-area-inset-top) + 62px)) 12px 0 !important;
     overflow: visible !important;
   }
 
@@ -123,6 +123,11 @@
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
+  }
+
+  .mn-mobile-action-dock > .entity-interaction-hint[data-farm-plant-action='true']:active {
+    border-color: rgba(168, 220, 145, .72) !important;
+    background: rgba(21, 52, 32, .96) !important;
   }
 
   .mn-mobile-action-dock > .house-selection-panel.house-info-prompt {
@@ -256,6 +261,7 @@
   }
 
   .mn-mobile-notice-lane > .entity-interaction-notice,
+  .mn-mobile-notice-lane > .mn-farm-progress,
   .mn-mobile-notice-lane > .mn-vital-notice,
   .mn-mobile-notice-lane > .admin-floating-notice,
   .mn-mobile-notice-lane > .mn-player-trade-success-toast,
@@ -275,6 +281,14 @@
     rotate: 0deg !important;
     translate: 0 0 !important;
     pointer-events: none !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-mobile-notice-lane > .mn-farm-progress,
+  body.mn-force-rotate-landscape .mn-mobile-notice-lane > .mn-farm-progress {
+    left: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    transform: none !important;
   }
 
   .mn-mobile-notice-lane > [hidden] {
