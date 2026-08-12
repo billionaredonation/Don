@@ -132,6 +132,28 @@
   background: rgba(235, 242, 250, 0.94);
 }
 
+.map-overview-icon-tree {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: #77ca75;
+  font: 21px/1 system-ui, sans-serif;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.48);
+  animation: mn-map-tree-enter 240ms ease-out both;
+}
+
+@keyframes mn-map-tree-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(calc(var(--map-entity-scale, 1) * .82));
+  }
+  to {
+    opacity: .98;
+    transform: translate(-50%, -50%) scale(var(--map-entity-scale, 1));
+  }
+}
+
 /* The public overview layer owns the visible icon. Nearby DOM objects remain as
    accessible/clickable hitboxes only, so overview + DOM never form a double
    triangle/square marker. Admin objects keep their full editor visuals. */
@@ -140,7 +162,8 @@
 .map-objects-layer-public .map-object.map-object-house .map-house-clean,
 .map-objects-layer-public .map-object.map-object-house .map-object-icon,
 .map-objects-layer-public .map-object.map-object-service .map-service-icon,
-.map-objects-layer-public .map-object.map-object-service .map-object-icon {
+.map-objects-layer-public .map-object.map-object-service .map-object-icon,
+.map-objects-layer-public .map-object.map-object-type-tree .map-object-icon {
   opacity: 0 !important;
   visibility: hidden !important;
 }
