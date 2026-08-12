@@ -19,6 +19,8 @@ const MOBILE_INTERACTION_RADIUS_PX = 150;
 const DIRECT_TAP_RADIUS_PX = 174;
 const FARM_STATION_INTERACTION_RADIUS_PX = 48;
 const MOBILE_FARM_STATION_INTERACTION_RADIUS_PX = 64;
+const FARM_PLANT_INTERACTION_RADIUS_PX = 58;
+const MOBILE_FARM_PLANT_INTERACTION_RADIUS_PX = 76;
 const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
@@ -49,30 +51,35 @@ function isFarmStationObject(object) {
 function formatFarmPlantCountdown(readyAt) {
   const readyMs = new Date(readyAt || 0).getTime();
   const seconds = Number.isFinite(readyMs) ? Math.max(0, Math.ceil((readyMs - Date.now()) / 1000)) : 0;
-  if (seconds < 60) return `${seconds} сек.`;
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  const minutes = Math.floor(seconds / 60);
+  return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-function getFarmPlantHint(object) {
+function getFarmPlantHintState(object) {
   const type = String(object?.type || object?.payload?.jobType || '');
   const plantObjectId = String(object?.id || '');
   const meta = FARM_PLANT_HINT_META[type] || FARM_PLANT_HINT_META.farm_wheat_plant;
   const plantName = meta.name;
   const plantIcon = meta.icon;
   if (window.__MN_FARM_PLANT_STATES_READY__ === false) {
-    return `${plantIcon} Проверяем сохранённое состояние…`;
+    return { text: `${plantIcon} Проверяем состояние…`, timer: '', urgent: false };
   }
   const saved = window.__MN_FARM_PLANT_STATES__?.[plantObjectId] || null;
 
   if (saved?.stage === 'cooldown') {
     const readyMs = new Date(saved.readyAt || saved.ready_at || 0).getTime();
     if (Number.isFinite(readyMs) && readyMs > Date.now()) {
-      return `${plantIcon} Растение созревает · ${formatFarmPlantCountdown(saved.readyAt || saved.ready_at)}`;
+      const seconds = Math.max(1, Math.ceil((readyMs - Date.now()) / 1000));
+      return {
+        text: `${plantIcon} Урожай созревает`,
+        timer: `⏱ ${formatFarmPlantCountdown(saved.readyAt || saved.ready_at)}`,
+        urgent: seconds <= 10,
+      };
     }
   }
-  if (saved?.stage === 'weeded') return `💧 Полить ${plantName}`;
-  if (saved?.stage === 'watered') return `✂️ Собрать ${plantName}`;
-  return `${plantIcon} Прополоть граблями`;
+  if (saved?.stage === 'weeded') return { text: `💧 Полить ${plantName}`, timer: '', urgent: false };
+  if (saved?.stage === 'watered') return { text: `✂️ Собрать ${plantName}`, timer: '', urgent: false };
+  return { text: `${plantIcon} Прополоть граблями`, timer: '', urgent: false };
 }
 
 /*
@@ -461,6 +468,7 @@ function createInteractionHint(root) {
   hint.innerHTML = `
     <b data-interaction-hint-key>E</b>
     <span data-interaction-hint-text>Взаимодействовать</span>
+    <small data-interaction-hint-timer hidden></small>
   `;
 
   getGameplayRoot(root).appendChild(hint);
@@ -1361,6 +1369,13 @@ export function enableEntityInteraction({
         : FARM_STATION_INTERACTION_RADIUS_PX;
     }
 
+    const objectType = String(object?.type || object?.payload?.jobType || '');
+    if (isFarmPlantType(objectType)) {
+      return isMobileGameplayDevice()
+        ? MOBILE_FARM_PLANT_INTERACTION_RADIUS_PX
+        : FARM_PLANT_INTERACTION_RADIUS_PX;
+    }
+
     return directTap && isMobileGameplayDevice()
       ? DIRECT_TAP_RADIUS_PX
       : getInteractionRadius();
@@ -1516,12 +1531,38 @@ export function enableEntityInteraction({
     hint.hidden = true;
     hint.classList.remove('is-visible');
     delete hint.dataset.farmPlantAction;
+    delete hint.dataset.farmTimerActive;
+    delete hint.dataset.farmTimerUrgent;
+    const timerEl = hint.querySelector('[data-interaction-hint-timer]');
+    if (timerEl) {
+      timerEl.hidden = true;
+      timerEl.textContent = '';
+    }
 
     if (reset) {
       lastHintObjectId = null;
       hintCandidateObjectId = null;
       hintCandidateSeenCount = 0;
     }
+  }
+
+  function updateFarmPlantHintContent(object) {
+    const content = getFarmPlantHintState(object);
+    const textEl = hint.querySelector('[data-interaction-hint-text]');
+    const timerEl = hint.querySelector('[data-interaction-hint-timer]');
+
+    if (textEl) textEl.textContent = content.text;
+    if (timerEl) {
+      timerEl.textContent = content.timer;
+      timerEl.hidden = !content.timer;
+    }
+
+    if (content.timer) hint.dataset.farmTimerActive = 'true';
+    else delete hint.dataset.farmTimerActive;
+    if (content.urgent) hint.dataset.farmTimerUrgent = 'true';
+    else delete hint.dataset.farmTimerUrgent;
+
+    return content;
   }
 
   function showInteractionHintOnce(object) {
@@ -1550,8 +1591,7 @@ export function enableEntityInteraction({
 
     if (lastHintObjectId === objectId) {
       if (farmPlant && window.__MN_PLAYER_CONTROLS_LOCKED__ !== true) {
-        const textEl = hint.querySelector('[data-interaction-hint-text]');
-        if (textEl) textEl.textContent = getFarmPlantHint(object);
+        updateFarmPlantHintContent(object);
         hint.hidden = false;
         hint.classList.add('is-visible');
       }
@@ -1565,10 +1605,11 @@ export function enableEntityInteraction({
 
     const hospital = panel?.isHospitalObject?.(object);
     const job = panel?.isJobObject?.(object);
+    const farmHint = farmPlant ? getFarmPlantHintState(object) : null;
     const jobHint = objectType === 'farm_station'
       ? 'Фермерская лавка'
       : farmPlant
-        ? getFarmPlantHint(object)
+        ? farmHint.text
         : 'Рабочая точка';
 
     if (isMobileGameplayDevice()) {
@@ -1588,6 +1629,18 @@ export function enableEntityInteraction({
           : job
             ? jobHint
             : 'Взаимодействовать';
+      }
+    }
+
+    if (farmPlant) {
+      updateFarmPlantHintContent(object);
+    } else {
+      delete hint.dataset.farmTimerActive;
+      delete hint.dataset.farmTimerUrgent;
+      const timerEl = hint.querySelector('[data-interaction-hint-timer]');
+      if (timerEl) {
+        timerEl.hidden = true;
+        timerEl.textContent = '';
       }
     }
 
