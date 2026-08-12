@@ -33,6 +33,8 @@ const ITEM_META = Object.freeze({
   farm_water_bottle: { label: 'Вода для полива', icon: '💧' },
   farm_apple: { label: 'Яблоко', icon: '🍎' },
   farm_wheat: { label: 'Пшеница', icon: '🌾' },
+  farm_orange: { label: 'Апельсин', icon: '🍊' },
+  farm_corn: { label: 'Кукуруза', icon: '🌽' },
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
@@ -745,8 +747,13 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · ${quantity} бут.\n${sourceLabel}.\nТехническая вода с пестицидами: пить нельзя, только для полива.\nОсталось поливов: ${uses}. Одна бутылка даёт 2 полива.`;
     }
 
-    if (itemType === 'farm_apple' || itemType === 'farm_wheat') {
-      const price = itemType === 'farm_wheat' ? 35 : 10;
+    if (['farm_apple', 'farm_wheat', 'farm_orange', 'farm_corn'].includes(itemType)) {
+      const price = {
+        farm_apple: 10,
+        farm_wheat: 35,
+        farm_orange: 15,
+        farm_corn: 30,
+      }[itemType] || 0;
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nМожно продать фермеру по ${price} ₴ за штуку.`;
     }
 
