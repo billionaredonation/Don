@@ -267,7 +267,7 @@ function getObjectMeta(object) {
     state: 'default',
     ownerId: null,
     colors: DEFAULT_HOUSE_COLORS.default,
-    icon: object?.icon || '◆',
+    icon: type === 'farm_station' ? '👨‍🌾' : (object?.icon || '◆'),
   };
 }
 
@@ -1053,5 +1053,3 @@ export function getMapObjectIdFromEvent(event) {
 
   return element?.dataset?.mapObjectId || null;
 }
-
-
