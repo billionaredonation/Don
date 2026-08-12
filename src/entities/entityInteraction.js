@@ -23,7 +23,19 @@ const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
 const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 170 : 150;
-const FARM_PLANT_OBJECT_TYPES = new Set(['farm_wheat_plant', 'farm_apple_plant']);
+const FARM_PLANT_OBJECT_TYPES = new Set([
+  'farm_wheat_plant',
+  'farm_apple_plant',
+  'farm_orange_plant',
+  'farm_corn_plant',
+]);
+
+const FARM_PLANT_HINT_META = Object.freeze({
+  farm_wheat_plant: Object.freeze({ name: 'пшеницу', icon: '🌾' }),
+  farm_apple_plant: Object.freeze({ name: 'яблоню', icon: '🍎' }),
+  farm_orange_plant: Object.freeze({ name: 'апельсиновое дерево', icon: '🍊' }),
+  farm_corn_plant: Object.freeze({ name: 'кукурузу', icon: '🌽' }),
+});
 
 function isFarmPlantType(type) {
   return FARM_PLANT_OBJECT_TYPES.has(String(type || ''));
@@ -44,8 +56,9 @@ function formatFarmPlantCountdown(readyAt) {
 function getFarmPlantHint(object) {
   const type = String(object?.type || object?.payload?.jobType || '');
   const plantObjectId = String(object?.id || '');
-  const plantName = type === 'farm_apple_plant' ? 'яблоню' : 'пшеницу';
-  const plantIcon = type === 'farm_apple_plant' ? '🍎' : '🌾';
+  const meta = FARM_PLANT_HINT_META[type] || FARM_PLANT_HINT_META.farm_wheat_plant;
+  const plantName = meta.name;
+  const plantIcon = meta.icon;
   if (window.__MN_FARM_PLANT_STATES_READY__ === false) {
     return `${plantIcon} Проверяем сохранённое состояние…`;
   }
