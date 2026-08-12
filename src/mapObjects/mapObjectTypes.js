@@ -216,7 +216,7 @@ export const MAP_OBJECT_TYPES = {
     type: 'farm_station',
     category: MAP_OBJECT_CATEGORIES.JOB,
     label: 'Ферма · снабжение',
-    icon: '⚒',
+    icon: '👨‍🌾',
     defaultScale: 1,
     defaultRotation: 0,
     defaultAsset: 'job_farm_station_01',
@@ -438,4 +438,3 @@ export function createMapObjectDraft({
     updatedAt: new Date().toISOString(),
   };
 }
-
