@@ -50,10 +50,10 @@ function escapeHtml(value) {
 }
 
 function getInventoryItemLayoutKey(item = {}) {
-  const itemType = String(item.itemType || item.item_type || '').trim();
-  const source = String(item.source || item.inventorySource || 'personal').trim().toLowerCase();
-  const hospitalId = String(item.hospitalId || item.hospital_id || '').trim();
-  const explicitId = String(item.inventoryItemId || item.inventory_item_id || item.itemId || '').trim();
+  const itemType = String(item?.itemType || item?.item_type || '').trim();
+  const source = String(item?.source || item?.inventorySource || 'personal').trim().toLowerCase();
+  const hospitalId = String(item?.hospitalId || item?.hospital_id || '').trim();
+  const explicitId = String(item?.inventoryItemId || item?.inventory_item_id || item?.itemId || '').trim();
   return [source, hospitalId, itemType, explicitId].join(':');
 }
 
@@ -1425,5 +1425,3 @@ export function enableInventoryFeature() {
     overlay.remove();
   };
 }
-
-
