@@ -88,7 +88,7 @@ function farmModalMarkup() {
           </button>
           <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_water_bottle">
             <i class="mn-farm-glyph is-water" aria-hidden="true">💧</i>
-            <span><b>Вода для полива</b><small>2 полива · подходит и вода из столовой</small></span><strong>5 ₴</strong>
+            <span><b>Вода для полива</b><small>2 полива · с пестицидами, пить нельзя</small></span><strong>5 ₴</strong>
           </button>
         </div>
         <div class="mn-farm-tab-page" data-farm-page="sell" hidden>
@@ -490,4 +490,3 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
-
