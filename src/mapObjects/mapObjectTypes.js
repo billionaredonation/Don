@@ -244,6 +244,26 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'job_farm_apple_plant_01',
   },
 
+  farm_orange_plant: {
+    type: 'farm_orange_plant',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Ферма · апельсиновое дерево',
+    icon: '🍊',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_farm_orange_plant_01',
+  },
+
+  farm_corn_plant: {
+    type: 'farm_corn_plant',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Ферма · кукуруза',
+    icon: '🌽',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_farm_corn_plant_01',
+  },
+
   spawn: {
     type: 'spawn',
     category: MAP_OBJECT_CATEGORIES.MARKER,
