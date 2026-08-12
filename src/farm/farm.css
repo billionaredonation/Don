@@ -80,26 +80,181 @@
 }
 
 .mn-farm-progress {
+  --farm-action-rgb: 128, 205, 122;
+  --farm-action-soft: #b9efa6;
   position: fixed;
   left: 50%;
   bottom: max(72px, calc(env(safe-area-inset-bottom) + 60px));
   z-index: 2147482300;
-  width: min(340px, calc(100vw - 32px));
-  padding: 11px 13px;
-  border: 1px solid rgba(117, 174, 135, .28);
-  border-radius: 14px;
-  background: rgba(8, 13, 12, .95);
+  width: min(365px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(var(--farm-action-rgb), .34);
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at 12% 0, rgba(var(--farm-action-rgb), .16), transparent 42%),
+    linear-gradient(145deg, rgba(13, 21, 18, .98), rgba(6, 10, 9, .97));
   color: #edf5f0;
-  font: 750 12px/1.25 system-ui, -apple-system, sans-serif;
+  font: 750 12px/1.2 system-ui, -apple-system, sans-serif;
   transform: translateX(-50%);
-  box-shadow: 0 15px 42px rgba(0, 0, 0, .38);
+  box-shadow: 0 16px 46px rgba(0, 0, 0, .46), 0 0 24px rgba(var(--farm-action-rgb), .08);
+  animation: mn-farm-progress-in .18s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.mn-farm-progress[data-action='water'] {
+  --farm-action-rgb: 91, 187, 238;
+  --farm-action-soft: #9cdcff;
+}
+
+.mn-farm-progress[data-action='harvest'] {
+  --farm-action-rgb: 241, 184, 79;
+  --farm-action-soft: #ffdc8c;
 }
 
 .mn-farm-progress[hidden] { display: none !important; }
-.mn-farm-progress > span { display: block; margin-bottom: 7px; }
-.mn-farm-progress > i { display: block; height: 5px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .12); }
-.mn-farm-progress > i > b { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5fa875, #a8dc91); }
-.mn-farm-progress > small { display: block; margin-top: 5px; color: rgba(238, 245, 240, .52); }
+
+.mn-farm-progress-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.mn-farm-progress-icon {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(var(--farm-action-rgb), .28);
+  border-radius: 13px;
+  background: rgba(var(--farm-action-rgb), .12);
+  box-shadow: inset 0 0 14px rgba(var(--farm-action-rgb), .08);
+}
+
+.mn-farm-progress-icon > b {
+  font-size: 23px;
+  line-height: 1;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .34));
+  animation: mn-farm-action-pulse .9s ease-in-out infinite alternate;
+}
+
+.mn-farm-progress-icon > img {
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .4));
+  animation: mn-farm-rake-work .55s ease-in-out infinite alternate;
+}
+
+.mn-farm-progress-icon > [hidden] { display: none !important; }
+
+.mn-farm-progress-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mn-farm-progress-copy > strong {
+  overflow: hidden;
+  color: #f3f8f5;
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: .01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-farm-progress-copy > small {
+  overflow: hidden;
+  color: rgba(225, 237, 229, .57);
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-farm-progress-time {
+  display: grid;
+  flex: 0 0 62px;
+  min-height: 42px;
+  place-content: center;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 3px;
+  border: 1px solid rgba(var(--farm-action-rgb), .24);
+  border-radius: 12px;
+  background: rgba(var(--farm-action-rgb), .1);
+  color: var(--farm-action-soft);
+  font-style: normal;
+}
+
+.mn-farm-progress-time > b {
+  min-width: 31px;
+  font: 900 15px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: -.04em;
+  text-align: right;
+}
+
+.mn-farm-progress-time > small {
+  color: rgba(230, 240, 234, .52);
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mn-farm-progress-track {
+  position: relative;
+  display: block;
+  height: 7px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .09);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .35);
+}
+
+.mn-farm-progress-track > b {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(var(--farm-action-rgb), .72), var(--farm-action-soft));
+  box-shadow: 0 0 12px rgba(var(--farm-action-rgb), .5);
+}
+
+.mn-farm-progress-track > span {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, .18) 44%, transparent 66%);
+  transform: translateX(-100%);
+  animation: mn-farm-progress-shine 1.25s linear infinite;
+}
+
+@keyframes mn-farm-progress-in {
+  from { opacity: 0; transform: translate(-50%, 8px) scale(.97); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+@keyframes mn-farm-progress-shine {
+  to { transform: translateX(100%); }
+}
+
+@keyframes mn-farm-action-pulse {
+  to { transform: translateY(-1px) scale(1.07); }
+}
+
+@keyframes mn-farm-rake-work {
+  from { transform: rotate(-10deg) translateY(1px); }
+  to { transform: rotate(7deg) translateY(-1px); }
+}
 
 .mn-farm-modal {
   position: fixed;
