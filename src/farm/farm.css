@@ -1,6 +1,8 @@
 .map-object-type-farm_station,
 .map-object-type-farm_wheat_plant,
-.map-object-type-farm_apple_plant {
+.map-object-type-farm_apple_plant,
+.map-object-type-farm_orange_plant,
+.map-object-type-farm_corn_plant {
   cursor: pointer !important;
 }
 
@@ -17,7 +19,9 @@
 }
 
 .map-object-type-farm_wheat_plant .map-object-icon,
-.map-object-type-farm_apple_plant .map-object-icon {
+.map-object-type-farm_apple_plant .map-object-icon,
+.map-object-type-farm_orange_plant .map-object-icon,
+.map-object-type-farm_corn_plant .map-object-icon {
   display: grid;
   place-items: center;
   width: 100%;
@@ -29,12 +33,16 @@
 }
 
 .map-object-type-farm_wheat_plant.map-object-nearby .map-object-icon,
-.map-object-type-farm_apple_plant.map-object-nearby .map-object-icon {
+.map-object-type-farm_apple_plant.map-object-nearby .map-object-icon,
+.map-object-type-farm_orange_plant.map-object-nearby .map-object-icon,
+.map-object-type-farm_corn_plant.map-object-nearby .map-object-icon {
   filter: drop-shadow(0 0 5px rgba(172, 227, 140, .8)) drop-shadow(0 3px 3px rgba(0, 0, 0, .5));
 }
 
 .map-object-type-farm_wheat_plant.is-farm-plant-cooldown .map-object-icon,
-.map-object-type-farm_apple_plant.is-farm-plant-cooldown .map-object-icon {
+.map-object-type-farm_apple_plant.is-farm-plant-cooldown .map-object-icon,
+.map-object-type-farm_orange_plant.is-farm-plant-cooldown .map-object-icon,
+.map-object-type-farm_corn_plant.is-farm-plant-cooldown .map-object-icon {
   opacity: .42;
   filter: grayscale(.65) drop-shadow(0 3px 3px rgba(0, 0, 0, .45));
 }
