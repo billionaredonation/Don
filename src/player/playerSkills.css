@@ -50,6 +50,7 @@
 .mn-profile-page { padding: 22px; max-height: calc(min(760px, 100vh - 36px) - 82px); overflow: auto; scrollbar-width: thin; }
 .mn-profile-page[hidden] { display: none !important; }
 .mn-profile-page[data-profile-page="skills"] {
+  overflow-y: scroll !important;
   overscroll-behavior: contain;
   touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
@@ -92,10 +93,10 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-profile-skills-button > strong { color: #78eea0; white-space: nowrap; }
 
 .mn-profile-back { padding: 0 0 15px; border: 0; color: #8cecad; background: transparent; font-weight: 850; cursor: pointer; }
-.mn-skills-content { display: grid; grid-auto-rows: max-content; align-content: start; gap: 16px; }
+.mn-skills-content { display: grid; gap: 16px; }
 .mn-skills-loading { padding: 35px; color: #87968f; text-align: center; font-weight: 800; }
 .mn-skills-loading.is-error { color: #ff9a9a; }
-.mn-skill-section { display: grid; align-self: start; gap: 11px; padding: 15px; border: 1px solid rgba(255, 255, 255, .07); border-radius: 20px; background: rgba(255, 255, 255, .027); }
+.mn-skill-section { display: grid; gap: 11px; padding: 15px; border: 1px solid rgba(255, 255, 255, .07); border-radius: 20px; background: rgba(255, 255, 255, .027); }
 .mn-skill-section > header { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
 .mn-skill-section > header span { display: grid; gap: 2px; }
 .mn-skill-section > header small { color: #708078; font-size: 9px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
@@ -195,7 +196,6 @@ body.mn-player-profile-open .mn-hospital-management-hint {
   body.mn-force-rotate-landscape .mn-player-profile-panel {
     display: grid !important;
     width: min(700px, calc(100dvh - 20px)) !important;
-    height: min(560px, calc(100vw - 12px)) !important;
     max-height: calc(100vw - 12px) !important;
     grid-template-rows: auto minmax(0, 1fr) !important;
     overflow: hidden !important;
@@ -203,34 +203,11 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 
   html.mn-force-rotate-landscape .mn-profile-page,
   body.mn-force-rotate-landscape .mn-profile-page {
-    height: auto !important;
     min-height: 0 !important;
     max-height: calc(100vw - 62px) !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
     overscroll-behavior: contain;
-  }
-
-  html.mn-force-rotate-landscape .mn-profile-page[data-profile-page="skills"],
-  body.mn-force-rotate-landscape .mn-profile-page[data-profile-page="skills"] {
-    display: flex !important;
-    flex-direction: column !important;
-    touch-action: pan-y !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  html.mn-force-rotate-landscape .mn-skills-content,
-  body.mn-force-rotate-landscape .mn-skills-content {
-    display: flex !important;
-    flex: 0 0 auto !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    padding-bottom: max(28px, env(safe-area-inset-bottom)) !important;
-  }
-
-  html.mn-force-rotate-landscape .mn-skill-section,
-  body.mn-force-rotate-landscape .mn-skill-section {
-    flex: 0 0 auto !important;
   }
 
   html.mn-force-rotate-landscape .mn-skill-level-toast,
