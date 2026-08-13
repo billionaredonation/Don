@@ -318,7 +318,6 @@
 
   .mn-mobile-notice-lane > .mn-vital-notice,
   .mn-mobile-feedback-lane > .entity-interaction-notice,
-  .mn-mobile-feedback-lane > .mn-farm-progress,
   .mn-mobile-feedback-lane > .admin-floating-notice,
   .mn-mobile-feedback-lane > .mn-player-trade-success-toast,
   .mn-mobile-feedback-lane > .mn-interior-action-toast {
@@ -337,14 +336,6 @@
     rotate: 0deg !important;
     translate: 0 0 !important;
     pointer-events: none !important;
-  }
-
-  html.mn-force-rotate-landscape .mn-mobile-feedback-lane > .mn-farm-progress,
-  body.mn-force-rotate-landscape .mn-mobile-feedback-lane > .mn-farm-progress {
-    left: auto !important;
-    top: auto !important;
-    bottom: auto !important;
-    transform: none !important;
   }
 
   .mn-mobile-notice-lane > [hidden] {
