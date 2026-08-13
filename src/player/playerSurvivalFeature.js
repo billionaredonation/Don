@@ -1,5 +1,6 @@
 import { state } from '../state.js';
 import { applyPlayerPositionVitalCost } from './playerPosition.js';
+import { getRunningSkillModifiers } from './playerSkillState.js';
 
 const SURVIVAL_POLL_MS = 10_000;
 const WALKING_METABOLIC_INTERVAL_MS = 30_000;
@@ -71,6 +72,21 @@ export function enablePlayerSurvivalFeature() {
   let starvationStartedAt = 0;
   let starvationLastDamageAt = 0;
   let sprintBlocked = false;
+  let runningWaterChargeCarry = 0;
+
+  function getRunningWaterCost(baseCost) {
+    const safeBase = Math.max(0, Math.floor(Number(baseCost) || 0));
+    const multiplier = getRunningSkillModifiers().waterMultiplier;
+    if (multiplier >= 0.9999) {
+      runningWaterChargeCarry = 0;
+      return safeBase;
+    }
+
+    runningWaterChargeCarry += safeBase * multiplier;
+    const charged = Math.max(0, Math.floor(runningWaterChargeCarry + 0.0001));
+    runningWaterChargeCarry = Math.max(0, runningWaterChargeCarry - charged);
+    return charged;
+  }
 
   function publishSprintAvailability(nextBlocked) {
     const blocked = nextBlocked === true;
@@ -218,7 +234,7 @@ export function enablePlayerSurvivalFeature() {
     try {
       const result = await applyPlayerPositionVitalCost({
         foodCost: intervals,
-        waterCost: intervals * 2,
+        waterCost: getRunningWaterCost(intervals * 2),
       });
       if (!destroyed) applyServerResult(result || {}, 'stamina_usage');
     } catch (error) {
@@ -246,7 +262,7 @@ export function enablePlayerSurvivalFeature() {
     try {
       const result = await applyPlayerPositionVitalCost({
         foodCost: MOBILE_STAMINA_EXHAUSTION_FOOD_COST,
-        waterCost: MOBILE_STAMINA_EXHAUSTION_WATER_COST,
+        waterCost: getRunningWaterCost(MOBILE_STAMINA_EXHAUSTION_WATER_COST),
       });
       if (!destroyed) applyServerResult(result || {}, 'mobile_stamina_exhaustion');
     } catch (error) {
@@ -297,6 +313,9 @@ export function enablePlayerSurvivalFeature() {
     if (amount === null || amount <= 0) return;
 
     lastAfkChargeAt = Date.now();
+    window.dispatchEvent(new CustomEvent('mn:player-running-xp', {
+      detail: { amount, source: event?.detail?.source || 'movement' },
+    }));
 
     // На телефоне промежуточный расход стамины ничего не списывает.
     // Еда и вода снимаются одним щадящим платежом только при полном истощении.
@@ -363,5 +382,4 @@ export function enablePlayerSurvivalFeature() {
     window.__MN_SPRINT_BLOCKED_BY_VITALS__ = false;
   };
 }
-
 
