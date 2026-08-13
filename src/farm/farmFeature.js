@@ -301,13 +301,13 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return { action: 'weed', plant, remaining: 0 };
   }
 
-  async function runMiniGameAction(action, callback) {
+  async function runMiniGameAction(action, callback, gameOptions = {}) {
     if (busy || window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return null;
     busy = true;
     window.__MN_PLAYER_CONTROLS_LOCKED__ = true;
     renderInventory();
     try {
-      const gameResult = await playFarmMiniGame({ action });
+      const gameResult = await playFarmMiniGame({ action, ...gameOptions });
       if (destroyed || gameResult.cancelled) return null;
       const result = await callback(gameResult.score);
       if (!result || typeof result !== 'object') return result;
@@ -377,7 +377,11 @@ export function enableFarmFeature({ root, cityId } = {}) {
       return;
     }
     if (next.action === 'harvest') {
-      const result = await runMiniGameAction('harvest', (miniGameScore) => harvestFarmPlant({ ...request, miniGameScore }));
+      const result = await runMiniGameAction(
+        'harvest',
+        (miniGameScore) => harvestFarmPlant({ ...request, miniGameScore }),
+        { cropIcon: next.plant.icon },
+      );
       if (result) {
         const harvested = FARM_ITEMS[result.harvestedItemType] || FARM_ITEMS[next.plant.harvestItemType];
         const quantity = Math.max(1, Number(result.harvestQuantity) || 1);
