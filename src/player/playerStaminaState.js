@@ -1,4 +1,5 @@
 import { getStaminaConfig, getStaminaRecoveryPerFrame } from './playerStaminaConfig.js';
+import { getRunningSkillModifiers } from './playerSkillState.js';
 
 const SHARED_STAMINA_KEY = '__MN_PLAYER_SHARED_STAMINA__';
 
@@ -69,9 +70,13 @@ export function applyPlayerStaminaFrame({
   const sprintRequested = wantsSprint === true && !locked;
 
   if (sprintRequested) {
+    const runningModifiers = getRunningSkillModifiers();
     value = Math.max(
       config.emptyAt,
-      value - config.drainPerFrame * Math.max(0, Number(frameScale) || 0)
+      value
+        - config.drainPerFrame
+        * runningModifiers.staminaMultiplier
+        * Math.max(0, Number(frameScale) || 0)
     );
     if (value <= config.emptyAt) {
       value = config.emptyAt;
