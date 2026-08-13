@@ -62,6 +62,8 @@ export function getFarmUserErrorMessage(error) {
     FARM_ITEM_NOT_ENOUGH: 'Нужного предмета недостаточно.',
     FARM_SHOP_ITEM_INVALID: 'Этот предмет нельзя получить на ферме.',
     FARM_SELL_ITEM_INVALID: 'Этот предмет фермер не покупает.',
+    FARM_BUYER_NOT_FOUND: 'Скупщик не найден. Подойдите к значку 👨‍🌾 ещё раз.',
+    FARM_BUYER_TOO_FAR: 'Вы отошли слишком далеко от скупщика.',
   };
 
   const waitMatch = raw.match(/FARM_PLANT_NOT_READY:(\d+)/i);
@@ -73,6 +75,21 @@ export function getFarmUserErrorMessage(error) {
       ? `${minutesPart}:${String(secondsPart).padStart(2, '0')}`
       : `${seconds} сек.`;
     return `Растение ещё не готово. Подождите ${time}, чтобы прополоть.`;
+  }
+
+  const lockedMatch = raw.match(/FARM_CROP_LOCKED:([a-z_]+):(\d+):(\d+)/i);
+  if (lockedMatch) {
+    const labels = { apple: 'яблоко', orange: 'апельсин', wheat: 'пшеницу', corn: 'кукурузу' };
+    return `Культура «${labels[lockedMatch[1]] || lockedMatch[1]}» откроется на ${lockedMatch[2]} уровне навыка «Фермер». Сейчас у вас ${lockedMatch[3]} уровень.`;
+  }
+
+  const marketLimitMatch = raw.match(/FARM_BUYER_LIMIT_REACHED:(\d+)/i);
+  if (marketLimitMatch) {
+    const seconds = Math.max(0, Math.ceil(Number(marketLimitMatch[1]) - Date.now() / 1000));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.ceil((seconds % 3600) / 60);
+    const remaining = hours > 0 ? `${hours} ч. ${minutes} мин.` : `${Math.max(1, minutes)} мин.`;
+    return `Лимит этого скупщика исчерпан. Новый рынок через ${remaining} или найдите другого скупщика.`;
   }
 
   const code = Object.keys(messages).find((key) => raw.includes(key));
@@ -100,6 +117,14 @@ export async function loadFarmWaterAvailability() {
   return invokeFarmAction('water_status');
 }
 
+export async function loadPlayerSkills() {
+  return invokeFarmAction('skills');
+}
+
+export async function addRunningSkillXp(xp) {
+  return invokeFarmAction('running_xp', { xp });
+}
+
 export async function buyFarmItem(itemType) {
   return invokeFarmAction('buy', { itemType });
 }
@@ -120,6 +145,10 @@ export async function harvestFarmPlant({ cityId, plantObjectId, miniGameScore = 
   return invokeFarmAction('harvest', { cityId, plantObjectId, miniGameScore });
 }
 
-export async function sellFarmItem({ itemType, quantity = 1 }) {
-  return invokeFarmAction('sell', { itemType, quantity });
+export async function loadFarmMarket({ cityId, buyerObjectId }) {
+  return invokeFarmAction('market', { cityId, buyerObjectId });
+}
+
+export async function sellFarmItem({ cityId, buyerObjectId, itemType, quantity = 1 }) {
+  return invokeFarmAction('sell', { cityId, buyerObjectId, itemType, quantity });
 }
