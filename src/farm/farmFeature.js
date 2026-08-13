@@ -5,6 +5,7 @@ import {
   getFarmUserErrorMessage,
   harvestFarmPlant,
   loadFarmInventory,
+  loadFarmMarket,
   loadFarmPlantStates,
   loadFarmWaterAvailability,
   sellFarmItem,
@@ -13,6 +14,7 @@ import {
 } from './farmApi.js';
 import { FARM_ITEMS, getFarmPlantType } from './farmConfig.js';
 import { cancelFarmMiniGame, playFarmMiniGame } from './farmMiniGame.js';
+import { getCropSkillStatus, publishPlayerSkills } from '../player/playerSkillState.js';
 import './farm.css';
 
 const FARM_STATE_REFRESH_MS = 5000;
@@ -93,24 +95,28 @@ function farmModalMarkup() {
           </button>
         </div>
         <div class="mn-farm-tab-page" data-farm-page="sell" hidden>
+          <div class="mn-farm-market-head">
+            <span><b>Рынок этого скупщика</b><small>Цена и общий лимит обновляются каждые 3 часа</small></span>
+            <strong data-farm-market-reset>Загрузка…</strong>
+          </div>
           <div class="mn-farm-sale-row" data-farm-sale-row="farm_apple">
             <i class="mn-farm-glyph" aria-hidden="true">🍎</i>
-            <span><b>Яблоко</b><small><em data-farm-sale-count="farm_apple">0</em> шт. · 10 ₴/шт.</small></span>
+            <span><b>Яблоко <u data-farm-sale-level="farm_apple">ур. 1</u></b><small><em data-farm-sale-count="farm_apple">0</em> шт. · <mark data-farm-sale-price="farm_apple">—</mark> ₴/шт. · лимит <mark data-farm-sale-limit="farm_apple">—</mark></small></span>
             <div><button type="button" data-farm-sell="farm_apple" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_apple" data-quantity="0">Всё</button></div>
-          </div>
-          <div class="mn-farm-sale-row" data-farm-sale-row="farm_wheat">
-            <i class="mn-farm-glyph" aria-hidden="true">🌾</i>
-            <span><b>Пшеница</b><small><em data-farm-sale-count="farm_wheat">0</em> шт. · 35 ₴/шт.</small></span>
-            <div><button type="button" data-farm-sell="farm_wheat" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_wheat" data-quantity="0">Всё</button></div>
           </div>
           <div class="mn-farm-sale-row" data-farm-sale-row="farm_orange">
             <i class="mn-farm-glyph" aria-hidden="true">🍊</i>
-            <span><b>Апельсин</b><small><em data-farm-sale-count="farm_orange">0</em> шт. · 15 ₴/шт.</small></span>
+            <span><b>Апельсин <u data-farm-sale-level="farm_orange">ур. 1</u></b><small><em data-farm-sale-count="farm_orange">0</em> шт. · <mark data-farm-sale-price="farm_orange">—</mark> ₴/шт. · лимит <mark data-farm-sale-limit="farm_orange">—</mark></small></span>
             <div><button type="button" data-farm-sell="farm_orange" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_orange" data-quantity="0">Всё</button></div>
+          </div>
+          <div class="mn-farm-sale-row" data-farm-sale-row="farm_wheat">
+            <i class="mn-farm-glyph" aria-hidden="true">🌾</i>
+            <span><b>Пшеница <u data-farm-sale-level="farm_wheat">ур. 1</u></b><small><em data-farm-sale-count="farm_wheat">0</em> шт. · <mark data-farm-sale-price="farm_wheat">—</mark> ₴/шт. · лимит <mark data-farm-sale-limit="farm_wheat">—</mark></small></span>
+            <div><button type="button" data-farm-sell="farm_wheat" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_wheat" data-quantity="0">Всё</button></div>
           </div>
           <div class="mn-farm-sale-row" data-farm-sale-row="farm_corn">
             <i class="mn-farm-glyph" aria-hidden="true">🌽</i>
-            <span><b>Кукуруза</b><small><em data-farm-sale-count="farm_corn">0</em> шт. · 30 ₴/шт.</small></span>
+            <span><b>Кукуруза <u data-farm-sale-level="farm_corn">ур. 1</u></b><small><em data-farm-sale-count="farm_corn">0</em> шт. · <mark data-farm-sale-price="farm_corn">—</mark> ₴/шт. · лимит <mark data-farm-sale-limit="farm_corn">—</mark></small></span>
             <div><button type="button" data-farm-sell="farm_corn" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_corn" data-quantity="0">Всё</button></div>
           </div>
         </div>
@@ -135,11 +141,15 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let destroyed = false;
   let busy = false;
   let inventoryState = { items: [] };
+  let marketState = { items: [] };
+  let activeBuyerObjectId = '';
   let plantStates = new Map();
   let plantStatesReady = false;
   let plantStatesLoadPromise = null;
   let stateRefreshTimer = 0;
   let inventoryRefreshTimer = 0;
+  let marketCountdownTimer = 0;
+  let marketRefreshPromise = null;
   let realtimeChannel = null;
 
   window.__MN_FARM_PLANT_STATES_READY__ = false;
@@ -206,13 +216,62 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return Number(inventoryState?.items?.find?.((item) => item.itemType === itemType)?.quantity || 0);
   }
 
+  function marketItem(itemType) {
+    return marketState?.items?.find?.((item) => item.itemType === itemType) || null;
+  }
+
+  function renderMarketCountdown() {
+    const element = modal?.querySelector('[data-farm-market-reset]');
+    if (!element) return;
+    const target = new Date(marketState?.refreshAt || 0).getTime();
+    if (!Number.isFinite(target) || target <= 0) {
+      element.textContent = activeBuyerObjectId ? 'Обновляем…' : 'Нет скупщика';
+      return;
+    }
+    const seconds = Math.max(0, Math.ceil((target - Date.now()) / 1000));
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const rest = seconds % 60;
+    element.textContent = `${hours}:${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+    if (seconds <= 0 && modal?.hidden === false) void refreshMarket({ silent: true });
+  }
+
+  function publishMarket(result) {
+    marketState = result && typeof result === 'object' ? result : { items: [] };
+    ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn'].forEach((itemType) => {
+      const item = marketItem(itemType);
+      const row = modal?.querySelector(`[data-farm-sale-row="${itemType}"]`);
+      row?.classList.toggle('is-market-locked', item?.unlocked === false);
+      row?.classList.toggle('is-market-empty', Number(item?.remainingQuantity) <= 0);
+      row?.querySelectorAll(`[data-farm-sale-price="${itemType}"]`).forEach((element) => {
+        element.textContent = item?.unlocked === false ? '🔒' : String(item?.unitPrice ?? '—');
+      });
+      row?.querySelectorAll(`[data-farm-sale-limit="${itemType}"]`).forEach((element) => {
+        element.textContent = item?.unlocked === false
+          ? `с ${item.unlockLevel} ур. фермера`
+          : Number(item?.remainingQuantity ?? 0).toLocaleString('ru-RU');
+      });
+      row?.querySelectorAll(`[data-farm-sale-level="${itemType}"]`).forEach((element) => {
+        element.textContent = `ур. ${Number(item?.masteryLevel) || 1}`;
+      });
+    });
+    renderMarketCountdown();
+    renderInventory();
+    return marketState;
+  }
+
   function renderInventory() {
-    ['farm_apple', 'farm_wheat', 'farm_orange', 'farm_corn'].forEach((itemType) => {
+    ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn'].forEach((itemType) => {
       modal?.querySelectorAll(`[data-farm-sale-count="${itemType}"]`).forEach((element) => {
         element.textContent = String(itemQuantity(itemType));
       });
       modal?.querySelectorAll(`[data-farm-sale-row="${itemType}"] button`).forEach((button) => {
-        button.disabled = busy || itemQuantity(itemType) <= 0;
+        const market = marketItem(itemType);
+        button.disabled = busy
+          || itemQuantity(itemType) <= 0
+          || !activeBuyerObjectId
+          || market?.unlocked === false
+          || Number(market?.remainingQuantity ?? 0) <= 0;
       });
     });
 
@@ -231,6 +290,25 @@ export function enableFarmFeature({ root, cityId } = {}) {
     } catch (error) {
       if (!silent) setStatus(getFarmUserErrorMessage(error), 'error');
     }
+  }
+
+  async function refreshMarket({ silent = true } = {}) {
+    if (!activeBuyerObjectId) return null;
+    if (marketRefreshPromise) return marketRefreshPromise;
+    const requestedBuyerId = activeBuyerObjectId;
+    marketRefreshPromise = (async () => {
+      try {
+        const result = await loadFarmMarket({ cityId, buyerObjectId: requestedBuyerId });
+        if (requestedBuyerId === activeBuyerObjectId) return publishMarket(result);
+        return result;
+      } catch (error) {
+        if (!silent) setStatus(getFarmUserErrorMessage(error), 'error');
+        return null;
+      } finally {
+        marketRefreshPromise = null;
+      }
+    })();
+    return marketRefreshPromise;
   }
 
   function refreshPlantStates() {
@@ -262,12 +340,16 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return plantStatesLoadPromise;
   }
 
-  function openModal() {
+  function openModal(object) {
     if (!modal || busy) return;
+    activeBuyerObjectId = String(object?.id || '');
+    marketState = { items: [] };
+    publishMarket(marketState);
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-farm-modal-open');
     void refreshInventory({ silent: false });
+    void refreshMarket({ silent: false });
   }
 
   function closeModal() {
@@ -281,6 +363,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   function setTab(tab) {
     tabButtons.forEach((button) => { button.dataset.active = button.dataset.farmTab === tab ? 'true' : 'false'; });
     tabPages.forEach((page) => { page.hidden = page.dataset.farmPage !== tab; });
+    if (tab === 'sell') void refreshMarket({ silent: true });
   }
 
   function getPlantAction(object) {
@@ -344,6 +427,11 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
     const next = getPlantAction(object);
     if (!next) return;
+    const cropSkill = getCropSkillStatus(next.plant.cropType);
+    if (cropSkill.unlocked === false) {
+      emitToast(`Культура «${cropSkill.label}» откроется на ${cropSkill.unlockLevel} уровне навыка «Фермер».`, 'info');
+      return;
+    }
     if (next.action === 'wait') {
       emitToast(`Растение ещё не готово. Подождите ${formatRemaining(next.remaining)}, чтобы прополоть.`, 'info');
       return;
@@ -383,6 +471,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
         { cropIcon: next.plant.icon },
       );
       if (result) {
+        if (result.skills) publishPlayerSkills(result, { levelUps: result.levelUps });
         const harvested = FARM_ITEMS[result.harvestedItemType] || FARM_ITEMS[next.plant.harvestItemType];
         const quantity = Math.max(1, Number(result.harvestQuantity) || 1);
         const quality = Number(result.harvestQuality ?? result.miniGameScore) || 0;
@@ -419,9 +508,18 @@ export function enableFarmFeature({ root, cityId } = {}) {
     renderInventory();
     setStatus('Продаём урожай…');
     try {
-      const result = await sellFarmItem({ itemType, quantity });
+      const result = await sellFarmItem({
+        cityId,
+        buyerObjectId: activeBuyerObjectId,
+        itemType,
+        quantity,
+      });
       publishInventory(result);
-      setStatus(`Продано ${result.soldQuantity || 0} шт. · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴`, 'success');
+      if (result.market) publishMarket(result.market);
+      setStatus(
+        `Продано ${result.soldQuantity || 0} шт. по ${Number(result.unitPrice || 0)} ₴ · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴`,
+        'success',
+      );
     } catch (error) {
       setStatus(getFarmUserErrorMessage(error), 'error');
     } finally {
@@ -434,7 +532,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     const object = event?.detail?.object;
     const type = String(object?.type || object?.payload?.jobType || '');
     if (type === 'farm_station') {
-      openModal();
+      openModal(object);
     } else if (isFarmPlantObject(object)) {
       void workWithPlant(object);
     }
@@ -450,6 +548,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   panel?.addEventListener('click', handleSell);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('mn:farm-object-action', handleFarmObjectEvent);
+  window.addEventListener('mn:player-skills-changed', renderInventory);
 
   realtimeChannel = supabase
     .channel(`farm-plants:${cityId}:${Math.random().toString(16).slice(2)}`)
@@ -466,6 +565,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
   stateRefreshTimer = window.setInterval(refreshPlantStates, FARM_STATE_REFRESH_MS);
   inventoryRefreshTimer = window.setInterval(() => refreshInventory({ silent: true }), FARM_INVENTORY_REFRESH_MS);
+  marketCountdownTimer = window.setInterval(renderMarketCountdown, 1000);
   void refreshPlantStates();
   void refreshInventory({ silent: true });
 
@@ -473,9 +573,11 @@ export function enableFarmFeature({ root, cityId } = {}) {
     destroyed = true;
     window.clearInterval(stateRefreshTimer);
     window.clearInterval(inventoryRefreshTimer);
+    window.clearInterval(marketCountdownTimer);
     if (realtimeChannel) void supabase.removeChannel(realtimeChannel);
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('mn:farm-object-action', handleFarmObjectEvent);
+    window.removeEventListener('mn:player-skills-changed', renderInventory);
     document.body.classList.remove('mn-farm-modal-open');
     modal?.remove();
     cancelFarmMiniGame();
