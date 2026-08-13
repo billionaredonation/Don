@@ -12,7 +12,6 @@ const NOTICE_SELECTORS = Object.freeze([
 
 const BOTTOM_NOTICE_SELECTORS = Object.freeze([
   '.entity-interaction-notice',
-  '.mn-farm-progress',
   '.admin-floating-notice',
   '.mn-player-trade-success-toast',
   '.mn-interior-action-toast',
