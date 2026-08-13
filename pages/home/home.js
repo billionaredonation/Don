@@ -41,6 +41,7 @@ import { enableHospitalManagementFeature } from '../../src/hospital/hospitalMana
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
 import { enablePlayerStatusEffects } from '../../src/player/playerStatusEffects.js';
 import { enablePlayerSurvivalFeature } from '../../src/player/playerSurvivalFeature.js';
+import { enablePlayerSkillsFeature } from '../../src/player/playerSkillsFeature.js';
 import {
   enablePlayerKnockoutFeature,
   HOSPITAL_EXIT_HEALTH,
@@ -1492,6 +1493,7 @@ register('home', async (root) => {
   const cleanupHospitalManagement = enableHospitalManagementFeature();
   const cleanupPlayerInteraction = enablePlayerInteractionFeature({ playerPosition });
   const cleanupPlayerStatusEffects = enablePlayerStatusEffects();
+  const cleanupPlayerSkills = enablePlayerSkillsFeature({ root });
   const cleanupPlayerSurvival = enablePlayerSurvivalFeature();
 
   const cleanupHousesFeature = enableHousesFeature(root, {
@@ -2375,6 +2377,7 @@ register('home', async (root) => {
     cleanupHospitalManagement?.();
     cleanupPlayerInteraction?.();
     cleanupPlayerStatusEffects?.();
+    cleanupPlayerSkills?.();
     cleanupPlayerSurvival?.();
     cleanupPlayerKnockout?.();
     cleanupHousesFeature?.();
