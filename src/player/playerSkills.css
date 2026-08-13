@@ -52,7 +52,7 @@
 .mn-profile-page[data-profile-page="skills"] {
   overflow-y: scroll !important;
   overscroll-behavior: contain;
-  touch-action: pan-y;
+  touch-action: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -208,6 +208,13 @@ body.mn-player-profile-open .mn-hospital-management-hint {
     overflow-x: hidden !important;
     overflow-y: auto !important;
     overscroll-behavior: contain;
+  }
+
+  html.mn-force-rotate-landscape .mn-profile-page[data-profile-page="skills"],
+  body.mn-force-rotate-landscape .mn-profile-page[data-profile-page="skills"] {
+    box-sizing: border-box !important;
+    height: calc(100vw - 62px) !important;
+    overflow-y: scroll !important;
   }
 
   html.mn-force-rotate-landscape .mn-skill-level-toast,
