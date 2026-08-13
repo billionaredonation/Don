@@ -771,6 +771,30 @@
 .mn-farm-tab-page { display: grid; gap: 7px; padding: 0 12px 12px; }
 .mn-farm-tab-page[hidden] { display: none !important; }
 
+.mn-farm-market-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 11px;
+  border: 1px solid rgba(107, 205, 139, .16);
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(65, 160, 96, .11), rgba(255, 255, 255, .025));
+}
+
+.mn-farm-market-head > span { display: grid; gap: 2px; }
+.mn-farm-market-head b { font-size: 11px; }
+.mn-farm-market-head small { color: rgba(237, 243, 239, .45); font-size: 9px; }
+.mn-farm-market-head > strong {
+  padding: 7px 9px;
+  border-radius: 9px;
+  color: #9be7b1;
+  background: rgba(84, 193, 119, .1);
+  font: 900 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+}
+
 .mn-farm-shop-row,
 .mn-farm-sale-row {
   display: grid;
@@ -796,6 +820,19 @@ button.mn-farm-shop-row { width: 100%; cursor: pointer; }
 .mn-farm-shop-row small,
 .mn-farm-sale-row small { color: rgba(237, 243, 239, .5); font-size: 10px; }
 .mn-farm-sale-row em { color: #9ad1aa; font-style: normal; }
+.mn-farm-sale-row mark { padding: 0; color: #a7e9ba; background: transparent; font-weight: 850; }
+.mn-farm-sale-row b > u {
+  margin-left: 5px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  color: #83d69b;
+  background: rgba(94, 202, 127, .1);
+  font-size: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.mn-farm-sale-row.is-market-locked { opacity: .48; filter: grayscale(.5); }
+.mn-farm-sale-row.is-market-empty { border-color: rgba(243, 151, 103, .13); }
 
 .mn-farm-glyph {
   display: grid;
@@ -847,6 +884,7 @@ body.mn-farm-modal-open { overflow: hidden; }
   .mn-farm-cycle-guide { gap: 4px; margin-inline: 8px; padding-inline: 6px; font-size: 9px; }
   .mn-farm-tabs { padding: 7px 8px; }
   .mn-farm-tab-page { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 8px 8px; }
+  .mn-farm-market-head { min-height: 42px; padding: 6px 8px; }
   .mn-farm-shop-row, .mn-farm-sale-row { min-height: 50px; padding: 6px 8px; }
 }
 
@@ -939,6 +977,9 @@ body.mn-farm-modal-open { overflow: hidden; }
   .mn-farm-shop-row small,
   .mn-farm-sale-row small { font-size: 9px; line-height: 1.2; }
   .mn-farm-sale-row > div button { min-height: 30px; padding-inline: 8px; }
+  .mn-farm-market-head { min-height: 38px; padding: 5px 8px; }
+  .mn-farm-market-head small { font-size: 8px; }
+  .mn-farm-market-head > strong { padding: 6px 7px; font-size: 9px; }
 
   .mn-farm-panel > footer { min-height: 27px; padding: 5px 10px 7px; font-size: 9px; }
 }
