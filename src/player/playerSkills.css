@@ -215,6 +215,7 @@ body.mn-player-profile-open .mn-hospital-management-hint {
     box-sizing: border-box !important;
     height: calc(100vw - 62px) !important;
     overflow-y: scroll !important;
+    touch-action: none !important;
   }
 
   html.mn-force-rotate-landscape .mn-skill-level-toast,
