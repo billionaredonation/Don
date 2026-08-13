@@ -111,11 +111,57 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   const modal = document.querySelector('[data-player-profile-modal]');
   const profileButton = root.querySelector('.player-profile-card');
   const content = modal?.querySelector('[data-skills-content]');
+  const skillsPage = modal?.querySelector('[data-profile-page="skills"]');
   let destroyed = false;
   let loadPromise = null;
   let runningXpPending = 0;
   let runningXpInFlight = false;
   let flushTimer = 0;
+  let skillsTouch = null;
+
+  function usesForcedMobileRotation() {
+    return Boolean(
+      window.matchMedia?.('(orientation: portrait)')?.matches &&
+      (
+        document.documentElement.classList.contains('mn-force-rotate-landscape') ||
+        document.body.classList.contains('mn-force-rotate-landscape')
+      )
+    );
+  }
+
+  function handleSkillsTouchStart(event) {
+    if (!skillsPage || skillsPage.hidden || !usesForcedMobileRotation() || event.touches.length !== 1) {
+      skillsTouch = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    skillsTouch = {
+      identifier: touch.identifier,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      scrollTop: skillsPage.scrollTop,
+    };
+  }
+
+  function handleSkillsTouchMove(event) {
+    if (!skillsPage || !skillsTouch) return;
+    const touch = Array.from(event.touches).find((item) => item.identifier === skillsTouch.identifier);
+    if (!touch) return;
+
+    const deltaX = touch.clientX - skillsTouch.clientX;
+    const deltaY = touch.clientY - skillsTouch.clientY;
+    const scrollDelta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : -deltaY;
+    if (Math.abs(scrollDelta) < 3) return;
+
+    const maximum = Math.max(0, skillsPage.scrollHeight - skillsPage.clientHeight);
+    skillsPage.scrollTop = Math.max(0, Math.min(maximum, skillsTouch.scrollTop + scrollDelta));
+    event.preventDefault();
+  }
+
+  function handleSkillsTouchEnd() {
+    skillsTouch = null;
+  }
 
   function renderOverview() {
     const snapshot = getPlayerSkillsSnapshot();
@@ -174,7 +220,10 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     });
     const title = modal?.querySelector('[data-profile-title]');
     if (title) title.textContent = page === 'skills' ? 'Навыки' : 'Профиль';
-    if (page === 'skills') renderSkills();
+    if (page === 'skills') {
+      renderSkills();
+      if (skillsPage) skillsPage.scrollTop = 0;
+    }
   }
 
   async function refreshSkills({ silent = true } = {}) {
@@ -270,6 +319,10 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   modal?.querySelectorAll('[data-profile-close]').forEach((button) => button.addEventListener('click', closeProfile));
   modal?.querySelector('[data-profile-open-skills]')?.addEventListener('click', () => setPage('skills'));
   modal?.querySelector('[data-profile-back]')?.addEventListener('click', () => setPage('overview'));
+  skillsPage?.addEventListener('touchstart', handleSkillsTouchStart, { passive: true });
+  skillsPage?.addEventListener('touchmove', handleSkillsTouchMove, { passive: false });
+  skillsPage?.addEventListener('touchend', handleSkillsTouchEnd, { passive: true });
+  skillsPage?.addEventListener('touchcancel', handleSkillsTouchEnd, { passive: true });
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('mn:player-skills-changed', handleSkillsChanged);
   window.addEventListener('mn:player-skill-level-up', handleLevelUp);
@@ -283,6 +336,10 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     destroyed = true;
     window.clearTimeout(flushTimer);
     profileButton?.removeEventListener('click', openProfile);
+    skillsPage?.removeEventListener('touchstart', handleSkillsTouchStart);
+    skillsPage?.removeEventListener('touchmove', handleSkillsTouchMove);
+    skillsPage?.removeEventListener('touchend', handleSkillsTouchEnd);
+    skillsPage?.removeEventListener('touchcancel', handleSkillsTouchEnd);
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('mn:player-skills-changed', handleSkillsChanged);
     window.removeEventListener('mn:player-skill-level-up', handleLevelUp);
