@@ -11,7 +11,8 @@ import {
   waterFarmPlant,
   weedFarmPlant,
 } from './farmApi.js';
-import { FARM_ACTION_DURATION_MS, FARM_ITEMS, getFarmPlantType } from './farmConfig.js';
+import { FARM_ITEMS, getFarmPlantType } from './farmConfig.js';
+import { cancelFarmMiniGame, playFarmMiniGame } from './farmMiniGame.js';
 import './farm.css';
 
 const FARM_STATE_REFRESH_MS = 5000;
@@ -118,44 +119,16 @@ function farmModalMarkup() {
     </div>`;
 }
 
-function farmProgressMarkup() {
-  return `
-    <div class="mn-farm-progress" data-farm-progress hidden aria-live="polite">
-      <div class="mn-farm-progress-head">
-        <span class="mn-farm-progress-icon" aria-hidden="true">
-          <img src="${FARM_RAKE_ASSET_URL}" alt="" data-farm-progress-rake hidden>
-          <b data-farm-progress-icon>🌱</b>
-        </span>
-        <span class="mn-farm-progress-copy">
-          <strong data-farm-progress-label>Обрабатываем растение</strong>
-          <small data-farm-progress-caption>Не отходите от растения</small>
-        </span>
-        <output class="mn-farm-progress-time" aria-label="Осталось времени">
-          <b data-farm-progress-countdown>${(FARM_ACTION_DURATION_MS / 1000).toFixed(1)}</b><small>сек</small>
-        </output>
-      </div>
-      <i class="mn-farm-progress-track"><b data-farm-progress-fill></b><span aria-hidden="true"></span></i>
-    </div>`;
-}
-
 export function enableFarmFeature({ root, cityId } = {}) {
   if (!root || !cityId) return () => {};
 
   document.querySelector('[data-farm-modal]')?.remove();
-  document.querySelector('[data-farm-progress]')?.remove();
+  cancelFarmMiniGame();
   document.body.insertAdjacentHTML('beforeend', farmModalMarkup());
-  root.insertAdjacentHTML('beforeend', farmProgressMarkup());
 
   const modal = document.querySelector('[data-farm-modal]');
   const panel = modal?.querySelector('.mn-farm-panel');
   const status = modal?.querySelector('[data-farm-status]');
-  const progress = root.querySelector('[data-farm-progress]');
-  const progressLabel = progress?.querySelector('[data-farm-progress-label]');
-  const progressCaption = progress?.querySelector('[data-farm-progress-caption]');
-  const progressIcon = progress?.querySelector('[data-farm-progress-icon]');
-  const progressRake = progress?.querySelector('[data-farm-progress-rake]');
-  const progressCountdown = progress?.querySelector('[data-farm-progress-countdown]');
-  const progressFill = progress?.querySelector('[data-farm-progress-fill]');
   const tabButtons = [...(modal?.querySelectorAll('[data-farm-tab]') || [])];
   const tabPages = [...(modal?.querySelectorAll('[data-farm-page]') || [])];
 
@@ -328,49 +301,20 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return { action: 'weed', plant, remaining: 0 };
   }
 
-  async function runTimedAction({ action = 'weed', label = 'Обрабатываем растение', caption = '', icon = '🌱' } = {}, callback) {
+  async function runMiniGameAction(action, callback) {
     if (busy || window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return null;
     busy = true;
     window.__MN_PLAYER_CONTROLS_LOCKED__ = true;
     renderInventory();
-    if (progress) {
-      progress.dataset.action = action;
-      progress.hidden = false;
-    }
-    if (progressLabel) progressLabel.textContent = label;
-    if (progressCaption) progressCaption.textContent = caption || 'Не отходите от растения';
-    if (progressRake) progressRake.hidden = action !== 'weed';
-    if (progressIcon) {
-      progressIcon.hidden = action === 'weed';
-      progressIcon.textContent = icon;
-    }
-    if (progressCountdown) progressCountdown.textContent = (FARM_ACTION_DURATION_MS / 1000).toFixed(1);
-
-    const startedAt = performance.now();
-    let countdownFrame = 0;
-    const updateCountdown = (now) => {
-      const remainingMs = Math.max(0, FARM_ACTION_DURATION_MS - (now - startedAt));
-      if (progressCountdown) progressCountdown.textContent = (remainingMs / 1000).toFixed(1);
-      if (remainingMs > 0) countdownFrame = requestAnimationFrame(updateCountdown);
-    };
-    countdownFrame = requestAnimationFrame(updateCountdown);
-
-    if (progressFill) {
-      progressFill.style.transition = 'none';
-      progressFill.style.width = '0%';
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        progressFill.style.transition = `width ${FARM_ACTION_DURATION_MS}ms linear`;
-        progressFill.style.width = '100%';
-      }));
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, FARM_ACTION_DURATION_MS));
-    cancelAnimationFrame(countdownFrame);
-    if (progressCountdown) progressCountdown.textContent = '0.0';
     try {
-      const result = await callback();
+      const gameResult = await playFarmMiniGame({ action });
+      if (destroyed || gameResult.cancelled) return null;
+      const result = await callback(gameResult.score);
+      if (!result || typeof result !== 'object') return result;
       if (result?.state) upsertPlantState(result.state);
       if (result?.inventory) publishInventory(result.inventory);
+      result.miniGameScore = Number(result.miniGameScore ?? gameResult.score);
+      result.miniGameGrade = String(result.miniGameGrade || gameResult.grade);
       void refreshPlantStates();
       return result;
     } catch (error) {
@@ -379,12 +323,6 @@ export function enableFarmFeature({ root, cityId } = {}) {
       void refreshInventory({ silent: true });
       return null;
     } finally {
-      cancelAnimationFrame(countdownFrame);
-      if (progress) progress.hidden = true;
-      if (progressFill) {
-        progressFill.style.transition = 'none';
-        progressFill.style.width = '0%';
-      }
       window.__MN_PLAYER_CONTROLS_LOCKED__ = false;
       busy = false;
       renderInventory();
@@ -413,12 +351,8 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
     const request = { cityId, plantObjectId: String(object.id || '') };
     if (next.action === 'weed') {
-      const result = await runTimedAction({
-        action: 'weed',
-        label: 'Пропалываем растение',
-        caption: 'Подготавливаем почву',
-      }, () => weedFarmPlant(request));
-      if (result) emitToast('Растение прополото. Теперь полейте его водой 💧', 'success');
+      const result = await runMiniGameAction('weed', (miniGameScore) => weedFarmPlant({ ...request, miniGameScore }));
+      if (result) emitToast(`Растение прополото · точность ${result.miniGameScore}%. Теперь полейте его водой 💧`, 'success');
       return;
     }
     if (next.action === 'water') {
@@ -433,31 +367,23 @@ export function enableFarmFeature({ root, cityId } = {}) {
         return;
       }
 
-      const result = await runTimedAction({
-        action: 'water',
-        label: 'Поливаем растение',
-        caption: 'Равномерный полив',
-        icon: '💧',
-      }, () => waterFarmPlant(request));
+      const result = await runMiniGameAction('water', (miniGameScore) => waterFarmPlant({ ...request, miniGameScore }));
       if (result) {
         if (result.waterSource === 'cafeteria') {
           window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
         }
-        emitToast('Растение полито. Теперь соберите урожай ✂️', 'success');
+        emitToast(`Растение полито · точность ${result.miniGameScore}%. Теперь соберите урожай ✂️`, 'success');
       }
       return;
     }
     if (next.action === 'harvest') {
-      const result = await runTimedAction({
-        action: 'harvest',
-        label: `Собираем: ${next.plant.label}`,
-        caption: 'Урожай почти в инвентаре',
-        icon: '✂️',
-      }, () => harvestFarmPlant(request));
+      const result = await runMiniGameAction('harvest', (miniGameScore) => harvestFarmPlant({ ...request, miniGameScore }));
       if (result) {
         const harvested = FARM_ITEMS[result.harvestedItemType] || FARM_ITEMS[next.plant.harvestItemType];
-        const item = `${harvested?.icon || next.plant.icon} ${harvested?.label || next.plant.label} ×1`;
-        emitToast(`${item}. Новый урожай через ${formatRemaining(result.respawnSeconds || next.plant.respawnSeconds)}.`, 'success');
+        const quantity = Math.max(1, Number(result.harvestQuantity) || 1);
+        const quality = Number(result.harvestQuality ?? result.miniGameScore) || 0;
+        const item = `${harvested?.icon || next.plant.icon} ${harvested?.label || next.plant.label} ×${quantity}`;
+        emitToast(`${item} · качество ${quality}%. Новый урожай через ${formatRemaining(result.respawnSeconds || next.plant.respawnSeconds)}.`, 'success');
       }
     }
   }
@@ -548,7 +474,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.removeEventListener('mn:farm-object-action', handleFarmObjectEvent);
     document.body.classList.remove('mn-farm-modal-open');
     modal?.remove();
-    progress?.remove();
+    cancelFarmMiniGame();
     delete window.__MN_FARM_PLANT_STATES__;
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
