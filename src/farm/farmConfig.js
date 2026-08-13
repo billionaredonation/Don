@@ -1,5 +1,3 @@
-export const FARM_ACTION_DURATION_MS = 3000;
-
 export const FARM_PLANT_TYPES = Object.freeze({
   farm_wheat_plant: Object.freeze({
     objectType: 'farm_wheat_plant',
