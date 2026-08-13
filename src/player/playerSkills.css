@@ -129,13 +129,13 @@
 .mn-skill-level-toast small { color: #69e493; font-size: 9px; font-weight: 1000; letter-spacing: .14em; text-transform: uppercase; }
 .mn-skill-level-toast strong { font-size: 12px; line-height: 1.4; }
 
-@media (max-width: 700px), (max-height: 520px) {
+@media (max-width: 700px), (max-height: 520px), (hover: none) and (pointer: coarse) {
   .mn-player-profile-modal { padding: 8px; }
-  .mn-player-profile-panel { width: min(760px, calc(100vw - 16px)); max-height: calc(100vh - 16px); border-radius: 20px; }
-  .mn-profile-header { min-height: 58px; padding: 0 14px; }
-  .mn-profile-header > button { width: 36px; height: 36px; border-radius: 11px; font-size: 24px; }
-  .mn-profile-header strong { font-size: 17px; }
-  .mn-profile-page { padding: 13px; max-height: calc(100vh - 74px); }
+  .mn-player-profile-panel { width: min(700px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); border-radius: 17px; }
+  .mn-profile-header { min-height: 50px; padding: 0 12px; }
+  .mn-profile-header > button { width: 34px; height: 34px; border-radius: 10px; font-size: 22px; }
+  .mn-profile-header strong { font-size: 16px; }
+  .mn-profile-page { padding: 10px; max-height: calc(100dvh - 66px); }
   .mn-profile-identity { margin-bottom: 10px; }
   .mn-profile-identity > i { width: 50px; height: 50px; border-radius: 15px; }
   .mn-profile-identity strong { font-size: 17px; }
@@ -143,9 +143,24 @@
   .mn-profile-stats article > i { width: 36px; height: 36px; }
   .mn-profile-level-note { margin: 8px 2px 10px; }
   .mn-profile-skills-button { padding: 11px; }
-  .mn-skill-section { padding: 10px; }
-  .mn-skill-card { padding: 10px; }
-  .mn-crop-skill-card { padding: 8px; }
+  .mn-profile-back { padding-bottom: 8px; font-size: 11px; }
+  .mn-skills-content { gap: 8px; }
+  .mn-skill-section { gap: 7px; padding: 8px; border-radius: 15px; }
+  .mn-skill-section > header strong { font-size: 13px; }
+  .mn-skill-section > header > b { max-width: 180px; font-size: 8px; }
+  .mn-skill-card { gap: 9px; padding: 8px; border-radius: 13px; }
+  .mn-skill-icon { flex-basis: 39px; height: 39px; border-radius: 12px; font-size: 19px; }
+  .mn-skill-main header strong { font-size: 12px; }
+  .mn-skill-main header span,
+  .mn-skill-main footer { font-size: 8px; }
+  .mn-skill-level-dots { margin: 4px 0; }
+  .mn-skill-main footer { margin-top: 4px; }
+  .mn-crop-skill-grid { gap: 6px; }
+  .mn-crop-skill-card { gap: 7px; padding: 6px 8px; border-radius: 11px; }
+  .mn-crop-skill-card > i { font-size: 18px; }
+  .mn-crop-skill-card strong { font-size: 10px; }
+  .mn-crop-skill-card small { font-size: 8px; }
+  .mn-crop-skill-card > b { font-size: 9px; }
   .mn-skill-level-toast { top: 9px; width: min(620px, calc(100vw - 18px)); padding: 9px 12px; }
 }
 
@@ -169,8 +184,20 @@
 
   html.mn-force-rotate-landscape .mn-player-profile-panel,
   body.mn-force-rotate-landscape .mn-player-profile-panel {
-    width: min(760px, calc(100dvh - 16px)) !important;
-    max-height: calc(100vw - 16px) !important;
+    display: grid !important;
+    width: min(700px, calc(100dvh - 20px)) !important;
+    max-height: calc(100vw - 12px) !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    overflow: hidden !important;
+  }
+
+  html.mn-force-rotate-landscape .mn-profile-page,
+  body.mn-force-rotate-landscape .mn-profile-page {
+    min-height: 0 !important;
+    max-height: calc(100vw - 62px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
   }
 
   html.mn-force-rotate-landscape .mn-skill-level-toast,
