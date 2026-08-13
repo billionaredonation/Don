@@ -108,16 +108,16 @@ export async function loadFarmPlantStates(cityId) {
   return invokeFarmAction('plants', { cityId });
 }
 
-export async function weedFarmPlant({ cityId, plantObjectId }) {
-  return invokeFarmAction('weed', { cityId, plantObjectId });
+export async function weedFarmPlant({ cityId, plantObjectId, miniGameScore = 0 }) {
+  return invokeFarmAction('weed', { cityId, plantObjectId, miniGameScore });
 }
 
-export async function waterFarmPlant({ cityId, plantObjectId }) {
-  return invokeFarmAction('water', { cityId, plantObjectId });
+export async function waterFarmPlant({ cityId, plantObjectId, miniGameScore = 0 }) {
+  return invokeFarmAction('water', { cityId, plantObjectId, miniGameScore });
 }
 
-export async function harvestFarmPlant({ cityId, plantObjectId }) {
-  return invokeFarmAction('harvest', { cityId, plantObjectId });
+export async function harvestFarmPlant({ cityId, plantObjectId, miniGameScore = 0 }) {
+  return invokeFarmAction('harvest', { cityId, plantObjectId, miniGameScore });
 }
 
 export async function sellFarmItem({ itemType, quantity = 1 }) {
