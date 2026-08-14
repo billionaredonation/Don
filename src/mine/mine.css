@@ -99,7 +99,16 @@
 }
 .mn-mine-chain i { color: rgba(255, 255, 255, .22); font-style: normal; }
 
-.mn-mine-tab-page { min-height: 0; padding: 0 14px 14px; overflow: auto; scrollbar-width: thin; }
+.mn-mine-tab-page {
+  min-height: 0;
+  padding: 0 14px 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
 .mn-mine-tab-page[hidden] { display: none !important; }
 
 .mn-mine-shop-row,
@@ -255,7 +264,21 @@
     transform-origin: center center !important;
   }
   html.mn-force-rotate-landscape .mn-mine-panel,
-  body.mn-force-rotate-landscape .mn-mine-panel { width: min(760px, calc(100dvh - 16px)); max-height: calc(100vw - 12px); }
+  body.mn-force-rotate-landscape .mn-mine-panel {
+    display: grid !important;
+    width: min(760px, calc(100dvh - 16px));
+    max-height: calc(100vw - 12px);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
+    overflow: hidden !important;
+  }
+  html.mn-force-rotate-landscape .mn-mine-tab-page,
+  body.mn-force-rotate-landscape .mn-mine-tab-page {
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: scroll !important;
+    overscroll-behavior: contain;
+    touch-action: none !important;
+  }
   html.mn-force-rotate-landscape .mn-mine-minigame-panel,
   body.mn-force-rotate-landscape .mn-mine-minigame-panel { width: min(680px, calc(100dvh - 16px)); }
 }
