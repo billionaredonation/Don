@@ -267,7 +267,11 @@ function getObjectMeta(object) {
     state: 'default',
     ownerId: null,
     colors: DEFAULT_HOUSE_COLORS.default,
-    icon: type === 'farm_station' ? '👨‍🌾' : (object?.icon || '◆'),
+    icon: type === 'farm_station'
+      ? '👨‍🌾'
+      : type === 'mine_station'
+        ? '⛏️'
+        : (object?.icon || '◆'),
   };
 }
 
@@ -337,7 +341,7 @@ function applyObjectStyle(element, object, meta) {
   const payload = getPayload(object);
   const jobWidth = clamp(toFiniteNumber(payload.renderWidth, meta.type === 'farm_field' ? 8 : 2.6), 0.8, 30);
   const jobHeight = clamp(toFiniteNumber(payload.renderHeight, meta.type === 'farm_field' ? 8 : 2.2), 0.8, 30);
-  const customJobSize = meta.category === 'job' && (meta.type === 'farm_field' || meta.type === 'farm_station');
+  const customJobSize = meta.category === 'job' && ['farm_field', 'farm_station', 'mine_station'].includes(meta.type);
 
   element.style.position = 'absolute';
   element.style.left = `${x}%`;
