@@ -48,6 +48,7 @@ import {
   loadPlayerKnockoutState,
 } from '../../src/player/playerKnockoutFeature.js';
 import { enableMobileGameplayChrome } from '../../src/ui/mobileGameplayChrome.js';
+import { enableGameToastFeature } from '../../src/ui/gameToastFeature.js';
 import {
   fetchPlayerOwnedHouses,
   PLAYER_HOUSE_SLOT_LIMIT,
@@ -1487,6 +1488,7 @@ register('home', async (root) => {
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
+  const cleanupGameToasts = enableGameToastFeature();
   const cleanupMobileGameplayChrome = enableMobileGameplayChrome();
   const entityInteractionPanel = createEntityInteractionPanel(root);
   const cleanupInventoryFeature = enableInventoryFeature();
@@ -2394,6 +2396,7 @@ register('home', async (root) => {
     cleanupMobileSelfMarker?.();
     entityInteractionPanel.cleanup();
     cleanupMobileGameplayChrome?.();
+    cleanupGameToasts?.();
     cleanupSessionGuard?.();
     mapControls?.cleanup?.();
     cleanupFogOfWar?.();
