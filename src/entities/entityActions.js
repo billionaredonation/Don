@@ -78,6 +78,11 @@ export function getEntityMetaText(object) {
     if (type === 'farm_apple_plant') return 'Ферма · яблоня';
     if (type === 'farm_orange_plant') return 'Ферма · апельсиновое дерево';
     if (type === 'farm_corn_plant') return 'Ферма · кукуруза';
+    if (type === 'mine_station') return 'Шахта · кирка и продажа сырья';
+    if (type === 'mine_stone_node') return 'Шахта · месторождение камня';
+    if (type === 'mine_coal_node') return 'Шахта · месторождение угля';
+    if (type === 'mine_metal_node') return 'Шахта · месторождение металла';
+    if (type === 'mine_copper_node') return 'Шахта · месторождение меди';
     return 'Рабочая точка';
   }
 
@@ -145,7 +150,10 @@ export function dispatchEntityAction(object) {
 
 
   if (kind === 'job') {
-    window.dispatchEvent(new CustomEvent('mn:farm-object-action', {
+    const eventName = String(type || '').startsWith('mine_')
+      ? 'mn:mine-object-action'
+      : 'mn:farm-object-action';
+    window.dispatchEvent(new CustomEvent(eventName, {
       detail: { object, action: type },
     }));
     return;
