@@ -127,6 +127,74 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-crop-skill-card.is-locked { opacity: .48; filter: grayscale(.5); }
 .mn-crop-skill-card.is-locked > b { color: #98a19d; }
 
+.mn-skill-hub { gap: 12px; }
+.mn-skill-overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mn-skill-overview-card {
+  display: flex; align-items: center; gap: 9px; min-width: 0; padding: 10px;
+  border: 1px solid rgba(255, 255, 255, .06); border-radius: 14px; background: rgba(5, 14, 11, .65);
+}
+.mn-skill-overview-card > i { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 11px; background: rgba(74, 214, 122, .11); font-size: 17px; font-style: normal; }
+.mn-skill-overview-card > span { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.mn-skill-overview-card small { color: #718078; font-size: 7px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.mn-skill-overview-card strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.mn-skill-overview-card em { display: block; height: 3px; overflow: hidden; border-radius: 4px; background: #1d2923; }
+.mn-skill-overview-card em u { display: block; height: 100%; background: #64e692; }
+.mn-skill-overview-card > b { color: #79eca1; font-size: 9px; white-space: nowrap; }
+.mn-skill-overview-card[data-accent="mine"] > i { background: rgba(211, 133, 54, .14); }
+.mn-skill-overview-card[data-accent="mine"] em u { background: linear-gradient(90deg, #bd7535, #f0bd76); }
+.mn-skill-overview-card[data-accent="mine"] > b { color: #e8b673; }
+.mn-skill-overview-card[data-accent="running"] > i { background: rgba(74, 164, 224, .13); }
+
+.mn-skill-profession,
+.mn-mine-resource-branch { overflow: hidden; border: 1px solid rgba(255, 255, 255, .07); border-radius: 18px; background: rgba(255, 255, 255, .022); }
+.mn-skill-profession > summary,
+.mn-mine-resource-branch > summary {
+  display: flex; align-items: center; gap: 11px; min-height: 58px; padding: 10px 13px;
+  cursor: pointer; list-style: none; user-select: none;
+}
+.mn-skill-profession > summary::-webkit-details-marker,
+.mn-mine-resource-branch > summary::-webkit-details-marker { display: none; }
+.mn-skill-profession > summary::after,
+.mn-mine-resource-branch > summary::after { content: '›'; color: #607168; font: 700 22px/1 system-ui; transform: rotate(0); transition: transform .18s ease; }
+.mn-skill-profession[open] > summary::after,
+.mn-mine-resource-branch[open] > summary::after { transform: rotate(90deg); }
+.mn-skill-profession > summary > i,
+.mn-mine-resource-branch > summary > i { display: grid; place-items: center; width: 39px; height: 39px; flex: 0 0 39px; border-radius: 12px; background: rgba(75, 224, 125, .11); font-size: 19px; font-style: normal; }
+.mn-skill-profession.is-mine > summary > i,
+.mn-mine-resource-branch > summary > i { background: rgba(205, 128, 50, .13); }
+.mn-skill-profession > summary > span,
+.mn-mine-resource-branch > summary > span { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.mn-skill-profession > summary small,
+.mn-mine-resource-branch > summary small { color: #76877e; font-size: 8px; font-weight: 850; }
+.mn-skill-profession > summary strong { font-size: 13px; }
+.mn-mine-resource-branch > summary strong { font-size: 11px; }
+.mn-skill-profession > summary > b { color: #77e99e; font-size: 10px; }
+.mn-skill-profession.is-mine > summary > b,
+.mn-mine-resource-branch > summary > b { color: #dfad6b; font-size: 9px; }
+.mn-skill-profession-body { display: grid; gap: 9px; padding: 0 10px 10px; }
+.mn-skill-profession[open] > summary { border-bottom: 1px solid rgba(255, 255, 255, .05); }
+
+.mn-mine-tree-note { margin: 0; padding: 8px 10px; border-radius: 11px; color: #8f806f; background: rgba(187, 111, 37, .07); font-size: 9px; line-height: 1.45; }
+.mn-mine-resource-tree { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.mn-mine-resource-branch { border-radius: 14px; background: rgba(16, 13, 10, .64); }
+.mn-mine-resource-branch > summary { min-height: 50px; padding: 7px 9px; }
+.mn-mine-resource-branch > summary > i { width: 32px; height: 32px; flex-basis: 32px; border-radius: 10px; font-size: 16px; }
+.mn-mine-resource-branch > div { display: grid; gap: 7px; padding: 0 7px 7px; }
+.mn-mine-resource-branch > div > p { margin: 0; padding: 7px; color: #80756a; font-size: 8px; line-height: 1.4; }
+.mn-mine-resource-branch.is-locked { opacity: .56; filter: grayscale(.4); }
+.mn-mine-resource-branch[open] { grid-column: 1 / -1; }
+.mn-mine-subtype-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mn-mine-subtype-card { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid rgba(255, 255, 255, .055); border-radius: 11px; background: rgba(255, 255, 255, .022); }
+.mn-mine-subtype-card > i { font-size: 17px; font-style: normal; }
+.mn-mine-subtype-card > span { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.mn-mine-subtype-card strong { font-size: 9px; }
+.mn-mine-subtype-card small { overflow: hidden; color: #887b6e; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.mn-mine-subtype-card em { display: block; height: 3px; overflow: hidden; border-radius: 4px; background: #2b251f; }
+.mn-mine-subtype-card em u { display: block; height: 100%; background: linear-gradient(90deg, #b06a30, #ebb873); }
+.mn-mine-subtype-card mark { overflow: hidden; color: #a18b75; background: transparent; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+.mn-mine-subtype-card > b { color: #dfad6b; font-size: 8px; }
+.mn-mine-subtype-card.is-locked { opacity: .48; filter: grayscale(.45); }
+
 .mn-skill-level-toast {
   position: fixed; top: 20px; left: 50%; z-index: 100100; display: flex; align-items: center; gap: 12px;
   width: min(520px, calc(100vw - 24px)); padding: 13px 16px; border: 1px solid rgba(106, 239, 151, .34); border-radius: 18px;
@@ -171,11 +239,31 @@ body.mn-player-profile-open .mn-hospital-management-hint {
   .mn-crop-skill-card strong { font-size: 10px; }
   .mn-crop-skill-card small { font-size: 8px; }
   .mn-crop-skill-card > b { font-size: 9px; }
+  .mn-skill-overview-grid { gap: 5px; }
+  .mn-skill-overview-card { gap: 6px; padding: 6px; border-radius: 10px; }
+  .mn-skill-overview-card > i { width: 28px; height: 28px; flex-basis: 28px; border-radius: 8px; font-size: 14px; }
+  .mn-skill-overview-card strong { font-size: 8px; }
+  .mn-skill-profession > summary { min-height: 46px; padding: 6px 9px; }
+  .mn-skill-profession > summary > i { width: 32px; height: 32px; flex-basis: 32px; border-radius: 9px; font-size: 16px; }
+  .mn-skill-profession > summary strong { font-size: 11px; }
+  .mn-skill-profession-body { gap: 6px; padding: 0 6px 6px; }
+  .mn-mine-tree-note { padding: 6px 8px; font-size: 7px; }
+  .mn-mine-resource-tree { gap: 5px; }
+  .mn-mine-resource-branch > summary { min-height: 42px; padding: 5px 7px; }
+  .mn-mine-resource-branch > summary > i { width: 27px; height: 27px; flex-basis: 27px; font-size: 14px; }
+  .mn-mine-resource-branch > summary strong { font-size: 9px; }
+  .mn-mine-resource-branch > summary small { font-size: 7px; }
+  .mn-mine-resource-branch > div { gap: 5px; padding: 0 5px 5px; }
+  .mn-mine-subtype-card { gap: 5px; padding: 5px; border-radius: 8px; }
+  .mn-mine-subtype-card > i { font-size: 14px; }
+  .mn-mine-subtype-card strong { font-size: 8px; }
+  .mn-mine-subtype-card small, .mn-mine-subtype-card mark { font-size: 6px; }
   .mn-skill-level-toast { top: 9px; width: min(620px, calc(100vw - 18px)); padding: 9px 12px; }
 }
 
 @media (max-width: 440px) and (orientation: portrait) {
-  .mn-profile-stats, .mn-crop-skill-grid { grid-template-columns: 1fr; }
+  .mn-profile-stats, .mn-crop-skill-grid, .mn-skill-overview-grid, .mn-mine-resource-tree, .mn-mine-subtype-grid { grid-template-columns: 1fr; }
+  .mn-mine-resource-branch[open] { grid-column: auto; }
 }
 
 @media (orientation: portrait) and (max-width: 920px) {
