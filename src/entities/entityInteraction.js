@@ -17,6 +17,8 @@ import {
 const INTERACTION_RADIUS_PX = 108;
 const MOBILE_INTERACTION_RADIUS_PX = 150;
 const DIRECT_TAP_RADIUS_PX = 174;
+const JOB_STATION_INTERACTION_GAP_PX = 10;
+const MOBILE_JOB_STATION_INTERACTION_GAP_PX = 14;
 const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
@@ -78,6 +80,15 @@ function isWorkObject(object) {
     isFarmPlantType(type) ||
     isMineStationObject(object) ||
     isMineNodeType(type)
+  );
+}
+
+function isWorkStationObject(object) {
+  const type = String(object?.type || object?.payload?.jobType || '');
+  return isWorkObject(object) && (
+    isFarmStationObject(object) ||
+    isMineStationObject(object) ||
+    type.endsWith('_station')
   );
 }
 
@@ -1418,6 +1429,14 @@ export function enableEntityInteraction({
   }
 
   function getObjectInteractionRadius(object, { directTap = false } = {}) {
+    // Лавки требуют почти вплотную подойти к границе самого объекта. Значение
+    // здесь — только внешний экранный зазор, размеры лавки уже учтены отдельно.
+    if (isWorkStationObject(object)) {
+      return isMobileGameplayDevice()
+        ? MOBILE_JOB_STATION_INTERACTION_GAP_PX
+        : JOB_STATION_INTERACTION_GAP_PX;
+    }
+
     // Работы используют ту же зону реакции, что и дома. На телефоне действие
     // запускается отдельной подсказкой, поэтому маленький hitbox иконки больше
     // не участвует во взаимодействии.
