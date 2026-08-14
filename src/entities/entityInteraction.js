@@ -21,6 +21,10 @@ const FARM_STATION_INTERACTION_RADIUS_PX = 48;
 const MOBILE_FARM_STATION_INTERACTION_RADIUS_PX = 64;
 const FARM_PLANT_INTERACTION_RADIUS_PX = 58;
 const MOBILE_FARM_PLANT_INTERACTION_RADIUS_PX = 76;
+const MINE_STATION_INTERACTION_RADIUS_PX = 48;
+const MOBILE_MINE_STATION_INTERACTION_RADIUS_PX = 64;
+const MINE_NODE_INTERACTION_RADIUS_PX = 58;
+const MOBILE_MINE_NODE_INTERACTION_RADIUS_PX = 76;
 const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
@@ -39,6 +43,20 @@ const FARM_PLANT_HINT_META = Object.freeze({
   farm_corn_plant: Object.freeze({ name: 'кукурузу', icon: '🌽' }),
 });
 
+const MINE_NODE_OBJECT_TYPES = new Set([
+  'mine_stone_node',
+  'mine_coal_node',
+  'mine_metal_node',
+  'mine_copper_node',
+]);
+
+const MINE_NODE_HINT_META = Object.freeze({
+  mine_stone_node: Object.freeze({ name: 'камень', icon: '🪨' }),
+  mine_coal_node: Object.freeze({ name: 'уголь', icon: '⚫' }),
+  mine_metal_node: Object.freeze({ name: 'металл', icon: '⚙️' }),
+  mine_copper_node: Object.freeze({ name: 'медь', icon: '🟠' }),
+});
+
 function isFarmPlantType(type) {
   return FARM_PLANT_OBJECT_TYPES.has(String(type || ''));
 }
@@ -46,6 +64,15 @@ function isFarmPlantType(type) {
 function isFarmStationObject(object) {
   const type = String(object?.type || object?.payload?.jobType || '');
   return type === 'farm_station';
+}
+
+function isMineNodeType(type) {
+  return MINE_NODE_OBJECT_TYPES.has(String(type || ''));
+}
+
+function isMineStationObject(object) {
+  const type = String(object?.type || object?.payload?.jobType || '');
+  return type === 'mine_station';
 }
 
 function formatFarmPlantCountdown(readyAt) {
@@ -80,6 +107,28 @@ function getFarmPlantHintState(object) {
   if (saved?.stage === 'weeded') return { text: `💧 Полить ${plantName}`, timer: '', urgent: false };
   if (saved?.stage === 'watered') return { text: `✂️ Собрать ${plantName}`, timer: '', urgent: false };
   return { text: `${plantIcon} Прополоть граблями`, timer: '', urgent: false };
+}
+
+function getMineNodeHintState(object) {
+  const type = String(object?.type || object?.payload?.jobType || '');
+  const nodeObjectId = String(object?.id || '');
+  const meta = MINE_NODE_HINT_META[type] || MINE_NODE_HINT_META.mine_stone_node;
+  if (window.__MN_MINE_NODE_STATES_READY__ === false) {
+    return { text: `${meta.icon} Проверяем месторождение…`, timer: '', urgent: false };
+  }
+
+  const saved = window.__MN_MINE_NODE_STATES__?.[nodeObjectId] || null;
+  const readyAt = saved?.readyAt || saved?.ready_at;
+  const readyMs = new Date(readyAt || 0).getTime();
+  if (Number.isFinite(readyMs) && readyMs > Date.now()) {
+    const seconds = Math.max(1, Math.ceil((readyMs - Date.now()) / 1000));
+    return {
+      text: `${meta.icon} Месторождение восстанавливается`,
+      timer: `⏱ ${formatFarmPlantCountdown(readyAt)}`,
+      urgent: seconds <= 10,
+    };
+  }
+  return { text: `⛏️ Добывать ${meta.name}`, timer: '', urgent: false };
 }
 
 /*
@@ -326,7 +375,7 @@ function getObjectScreenCenter(object, objectElement, viewport) {
 function getJobObjectSizePercent(object) {
   const payload = object?.payload || {};
   const type = String(object?.type || payload.jobType || payload.type || '');
-  if (type !== 'farm_field' && type !== 'farm_station') return null;
+  if (!['farm_field', 'farm_station', 'mine_station'].includes(type)) return null;
   const fallbackWidth = type === 'farm_field' ? 8 : 2.6;
   const fallbackHeight = type === 'farm_field' ? 8 : 2.2;
   let width = clampNumber(payload.renderWidth || fallbackWidth, 0.8, 30);
@@ -1369,11 +1418,23 @@ export function enableEntityInteraction({
         : FARM_STATION_INTERACTION_RADIUS_PX;
     }
 
+    if (isMineStationObject(object)) {
+      return isMobileGameplayDevice()
+        ? MOBILE_MINE_STATION_INTERACTION_RADIUS_PX
+        : MINE_STATION_INTERACTION_RADIUS_PX;
+    }
+
     const objectType = String(object?.type || object?.payload?.jobType || '');
     if (isFarmPlantType(objectType)) {
       return isMobileGameplayDevice()
         ? MOBILE_FARM_PLANT_INTERACTION_RADIUS_PX
         : FARM_PLANT_INTERACTION_RADIUS_PX;
+    }
+
+    if (isMineNodeType(objectType)) {
+      return isMobileGameplayDevice()
+        ? MOBILE_MINE_NODE_INTERACTION_RADIUS_PX
+        : MINE_NODE_INTERACTION_RADIUS_PX;
     }
 
     return directTap && isMobileGameplayDevice()
@@ -1392,6 +1453,8 @@ export function enableEntityInteraction({
     let bestDistance = Number.POSITIVE_INFINITY;
     let nearestFarmPlant = null;
     let nearestFarmPlantDistance = Number.POSITIVE_INFINITY;
+    let nearestMineNode = null;
+    let nearestMineNodeDistance = Number.POSITIVE_INFINITY;
     const radius = getInteractionRadius();
     const position = getCurrentPlayerPercent(playerPosition);
     const rect = viewport?.getBoundingClientRect?.();
@@ -1460,6 +1523,11 @@ export function enableEntityInteraction({
         nearestFarmPlantDistance = distance;
       }
 
+      if (isMineNodeType(candidateType) && distance < nearestMineNodeDistance) {
+        nearestMineNode = object;
+        nearestMineNodeDistance = distance;
+      }
+
       if (distance < bestDistance) {
         bestObject = object;
         bestDistance = distance;
@@ -1468,6 +1536,7 @@ export function enableEntityInteraction({
 
     // Если растение и лавка стоят рядом, действие должно относиться к растению.
     if (isFarmStationObject(bestObject) && nearestFarmPlant) return nearestFarmPlant;
+    if (isMineStationObject(bestObject) && nearestMineNode) return nearestMineNode;
 
     return bestObject;
   }
@@ -1565,6 +1634,25 @@ export function enableEntityInteraction({
     return content;
   }
 
+  function updateMineNodeHintContent(object) {
+    const content = getMineNodeHintState(object);
+    const textEl = hint.querySelector('[data-interaction-hint-text]');
+    const timerEl = hint.querySelector('[data-interaction-hint-timer]');
+
+    if (textEl) textEl.textContent = content.text;
+    if (timerEl) {
+      timerEl.textContent = content.timer;
+      timerEl.hidden = !content.timer;
+    }
+
+    if (content.timer) hint.dataset.farmTimerActive = 'true';
+    else delete hint.dataset.farmTimerActive;
+    if (content.urgent) hint.dataset.farmTimerUrgent = 'true';
+    else delete hint.dataset.farmTimerUrgent;
+
+    return content;
+  }
+
   function showInteractionHintOnce(object) {
     if (!object?.id) return;
 
@@ -1586,12 +1674,14 @@ export function enableEntityInteraction({
 
     const objectType = String(object?.type || object?.payload?.jobType || '');
     const farmPlant = isFarmPlantType(objectType);
-    if (farmPlant && isMobileGameplayDevice()) hint.dataset.farmPlantAction = 'true';
+    const mineNode = isMineNodeType(objectType);
+    if ((farmPlant || mineNode) && isMobileGameplayDevice()) hint.dataset.farmPlantAction = 'true';
     else delete hint.dataset.farmPlantAction;
 
     if (lastHintObjectId === objectId) {
-      if (farmPlant && window.__MN_PLAYER_CONTROLS_LOCKED__ !== true) {
-        updateFarmPlantHintContent(object);
+      if ((farmPlant || mineNode) && window.__MN_PLAYER_CONTROLS_LOCKED__ !== true) {
+        if (farmPlant) updateFarmPlantHintContent(object);
+        else updateMineNodeHintContent(object);
         hint.hidden = false;
         hint.classList.add('is-visible');
       }
@@ -1606,14 +1696,19 @@ export function enableEntityInteraction({
     const hospital = panel?.isHospitalObject?.(object);
     const job = panel?.isJobObject?.(object);
     const farmHint = farmPlant ? getFarmPlantHintState(object) : null;
+    const mineHint = mineNode ? getMineNodeHintState(object) : null;
     const jobHint = objectType === 'farm_station'
       ? 'Фермерская лавка'
+      : objectType === 'mine_station'
+        ? 'Шахтёрское снабжение'
       : farmPlant
         ? farmHint.text
-        : 'Рабочая точка';
+        : mineNode
+          ? mineHint.text
+          : 'Рабочая точка';
 
     if (isMobileGameplayDevice()) {
-      if (keyEl) keyEl.textContent = hospital ? '🏥' : farmPlant ? '👆' : job ? 'Нажать' : '🏠';
+      if (keyEl) keyEl.textContent = hospital ? '🏥' : (farmPlant || mineNode) ? '👆' : job ? 'Нажать' : '🏠';
       if (textEl) {
         textEl.textContent = hospital
           ? 'Нажми на больницу'
@@ -1634,6 +1729,8 @@ export function enableEntityInteraction({
 
     if (farmPlant) {
       updateFarmPlantHintContent(object);
+    } else if (mineNode) {
+      updateMineNodeHintContent(object);
     } else {
       delete hint.dataset.farmTimerActive;
       delete hint.dataset.farmTimerUrgent;
@@ -1649,7 +1746,7 @@ export function enableEntityInteraction({
 
     clearTimeout(hintHideTimer);
 
-    if (!farmPlant) {
+    if (!farmPlant && !mineNode) {
       hintHideTimer = setTimeout(() => {
         hideInteractionHint();
       }, INTERACTION_HINT_VISIBLE_MS);
@@ -1920,7 +2017,7 @@ export function enableEntityInteraction({
       const ownershipWasCleared = rowPayload.owned === false && !(
         rowPayload.ownerId || rowPayload.owner_id
       );
-      const isJobObject = rowPayload.kind === 'job' && String(rowPayload.jobType || '').startsWith('farm_');
+      const isJobObject = rowPayload.kind === 'job' && Boolean(String(rowPayload.jobType || '').trim());
       const nextObject = {
         ...(currentObject || {}),
         ...row,
