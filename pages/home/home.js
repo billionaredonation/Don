@@ -37,6 +37,7 @@ import {
 import { enableHousesFeature } from '../../src/houses/housesFeature.js';
 import { enableInventoryFeature } from '../../src/inventory/inventoryFeature.js';
 import { enableFarmFeature } from '../../src/farm/farmFeature.js';
+import { enableMineFeature } from '../../src/mine/mineFeature.js';
 import { enableHospitalManagementFeature } from '../../src/hospital/hospitalManagementFeature.js';
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
 import { enablePlayerStatusEffects } from '../../src/player/playerStatusEffects.js';
@@ -1551,6 +1552,7 @@ register('home', async (root) => {
   let cleanupAdminPanel = null;
   let cleanupEntityInteraction = null;
   let cleanupFarmFeature = null;
+  let cleanupMineFeature = null;
   let cleanupGameRealtime = null;
   let cleanupMobileSelfMarker = null;
   let cleanupBalanceDatabaseSync = null;
@@ -2180,6 +2182,13 @@ register('home', async (root) => {
     playerPosition,
   });
 
+  cleanupMineFeature = enableMineFeature({
+    root,
+    viewport,
+    cityId,
+    playerPosition,
+  });
+
   cleanupEntityInteraction = enableEntityInteraction({
     root,
     viewport,
@@ -2390,6 +2399,7 @@ register('home', async (root) => {
     cleanupAdminPanel?.();
     cleanupEntityInteraction?.();
     cleanupFarmFeature?.();
+    cleanupMineFeature?.();
     cleanupInteriorExitReturn?.();
     cleanupHouseSpawnPicker?.();
     cleanupGameRealtime?.();
