@@ -128,10 +128,14 @@ export function enableMineFeature({ root, cityId } = {}) {
   let inventoryState = { items: [] };
   let marketState = { items: [] };
   let activeBuyerObjectId = '';
+  let marketLoading = false;
+  let marketLoadFailed = false;
+  let marketRequestVersion = 0;
   let nodeStates = new Map();
   let nodeStatesReady = false;
   let nodeLoadPromise = null;
   let marketLoadPromise = null;
+  let marketLoadKey = '';
   let stateTimer = 0;
   let inventoryTimer = 0;
   let marketTimer = 0;
@@ -212,9 +216,17 @@ export function enableMineFeature({ root, cityId } = {}) {
   function renderMarketCountdown() {
     const output = modal?.querySelector('[data-mine-market-reset]');
     if (!output) return;
+    if (marketLoading) {
+      output.textContent = 'Загрузка…';
+      return;
+    }
+    if (marketLoadFailed) {
+      output.textContent = 'Ошибка загрузки';
+      return;
+    }
     const target = new Date(marketState?.refreshAt || 0).getTime();
     if (!Number.isFinite(target) || target <= 0) {
-      output.textContent = activeBuyerObjectId ? 'Обновляем…' : 'Нет скупщика';
+      output.textContent = activeBuyerObjectId ? 'Нет данных' : 'Нет скупщика';
       return;
     }
     const seconds = Math.max(0, Math.ceil((target - Date.now()) / 1000));
@@ -300,36 +312,62 @@ export function enableMineFeature({ root, cityId } = {}) {
 
   async function refreshMarket({ silent = true } = {}) {
     if (!activeBuyerObjectId) return null;
-    if (marketLoadPromise) return marketLoadPromise;
     const buyerId = activeBuyerObjectId;
-    marketLoadPromise = (async () => {
+    const requestVersion = marketRequestVersion;
+    const requestKey = `${requestVersion}:${buyerId}`;
+    if (marketLoadPromise && marketLoadKey === requestKey) return marketLoadPromise;
+    marketLoading = true;
+    marketLoadFailed = false;
+    renderMarketCountdown();
+    const requestPromise = (async () => {
       try {
         const result = await loadMineMarket({ cityId, buyerObjectId: buyerId });
-        return buyerId === activeBuyerObjectId ? publishMarket(result) : result;
+        if (requestVersion !== marketRequestVersion || buyerId !== activeBuyerObjectId) return result;
+        marketLoading = false;
+        return publishMarket(result);
       } catch (error) {
-        if (!silent) setStatus(getMineUserErrorMessage(error), 'error');
+        if (requestVersion === marketRequestVersion && buyerId === activeBuyerObjectId) {
+          marketLoading = false;
+          marketLoadFailed = true;
+          renderMarketCountdown();
+          if (!silent || modal?.querySelector('[data-mine-page="sell"]')?.hidden === false) {
+            setStatus(getMineUserErrorMessage(error), 'error');
+          }
+        }
         return null;
-      } finally {
-        marketLoadPromise = null;
       }
     })();
-    return marketLoadPromise;
+    marketLoadPromise = requestPromise;
+    marketLoadKey = requestKey;
+    try {
+      return await requestPromise;
+    } finally {
+      if (marketLoadPromise === requestPromise) {
+        marketLoadPromise = null;
+        marketLoadKey = '';
+      }
+    }
   }
 
   function openModal(object) {
     if (!modal || busy) return;
+    marketRequestVersion += 1;
     activeBuyerObjectId = String(object?.id || '');
+    marketLoading = false;
+    marketLoadFailed = false;
     marketState = { items: [] };
+    setStatus('');
     publishMarket(marketState);
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-mine-modal-open');
     void refreshInventory({ silent: false });
-    void refreshMarket({ silent: false });
   }
 
   function closeModal() {
     if (!modal || busy) return;
+    marketRequestVersion += 1;
+    marketLoading = false;
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mn-mine-modal-open');
@@ -339,7 +377,7 @@ export function enableMineFeature({ root, cityId } = {}) {
   function setTab(tab) {
     tabButtons.forEach((button) => { button.dataset.active = button.dataset.mineTab === tab ? 'true' : 'false'; });
     tabPages.forEach((page) => { page.hidden = page.dataset.minePage !== tab; });
-    if (tab === 'sell') void refreshMarket({ silent: true });
+    if (tab === 'sell') void refreshMarket({ silent: false });
   }
 
   async function workWithNode(object) {
