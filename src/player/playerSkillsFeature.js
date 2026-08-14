@@ -1,5 +1,6 @@
 import { state } from '../state.js';
 import { addRunningSkillXp, loadPlayerSkills } from '../farm/farmApi.js';
+import { loadMineSkills } from '../mine/mineApi.js';
 import { getPlayerSkillsSnapshot, publishPlayerSkills } from './playerSkillState.js';
 import './playerSkills.css';
 
@@ -73,7 +74,7 @@ function profileMarkup() {
           </div>
           <p class="mn-profile-level-note">Общий уровень уже подключён к профилю. Полную систему прогресса добавим следующим этапом.</p>
           <button class="mn-profile-skills-button" type="button" data-profile-open-skills>
-            <span><i>✦</i><b>Навыки</b><small>Фермер, культуры и бег</small></span><strong>Открыть ›</strong>
+            <span><i>✦</i><b>Навыки</b><small>Профессии, ресурсы и физическая форма</small></span><strong>Открыть ›</strong>
           </button>
         </div>
 
@@ -181,10 +182,17 @@ export function enablePlayerSkillsFeature({ root } = {}) {
 
   function renderSkills() {
     if (!content) return;
+    const openedDetails = new Set(
+      [...content.querySelectorAll('details[open][data-skill-details]')]
+        .map((element) => element.dataset.skillDetails),
+    );
     const snapshot = getPlayerSkillsSnapshot();
     const farmer = snapshot.skills?.farmer || {};
     const running = snapshot.skills?.running || {};
+    const miner = snapshot.skills?.miner || {};
     const crops = Array.isArray(snapshot.crops) ? snapshot.crops : [];
+    const mineResources = Array.isArray(snapshot.mineResources) ? snapshot.mineResources : [];
+    const mineSubtypes = Array.isArray(snapshot.mineSubtypes) ? snapshot.mineSubtypes : [];
     const cropCards = crops.map((crop) => {
       if (crop.unlocked === false) {
         return `
@@ -202,16 +210,95 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         </article>`;
     }).join('');
 
+    const mineResourceBranches = mineResources.map((resource) => {
+      const subtypes = mineSubtypes.filter((subtype) => subtype.resourceType === resource.resourceType);
+      const locked = resource.unlocked === false;
+      const subtypeCards = subtypes.map((subtype) => {
+        if (locked || subtype.unlocked === false) {
+          return `
+            <article class="mn-mine-subtype-card is-locked">
+              <i>${escapeHtml(subtype.icon || resource.icon)}</i>
+              <span><strong>${escapeHtml(subtype.label)}</strong><small>${locked
+                ? `Сначала откройте ${String(resource.label || '').toLowerCase()}`
+                : `Откроется на ${subtype.unlockLevel} уровне ветки`}</small></span>
+              <b>🔒</b>
+            </article>`;
+        }
+        return `
+          <article class="mn-mine-subtype-card">
+            <i>${escapeHtml(subtype.icon || resource.icon)}</i>
+            <span>
+              <strong>${escapeHtml(subtype.label)}</strong>
+              <small>${escapeHtml(subtype.qualityLabel || 'Грязное сырьё')} · очистка ${Number(subtype.purityPercent) || 10}%</small>
+              <em><u style="width:${progressPercent(subtype).toFixed(2)}%"></u></em>
+              <mark>${escapeHtml(subtype.useLabel || 'Продажа и будущие крафты')}</mark>
+            </span>
+            <b>${Number(subtype.level) || 1}/5</b>
+          </article>`;
+      }).join('');
+
+      return `
+        <details class="mn-mine-resource-branch${locked ? ' is-locked' : ''}" data-skill-details="mine-${escapeHtml(resource.resourceType)}">
+          <summary>
+            <i>${escapeHtml(resource.icon || '⛏️')}</i>
+            <span><strong>${escapeHtml(resource.label)}</strong><small>${locked
+              ? `Откроется на ${resource.unlockLevel} уровне шахтёра`
+              : `Ветка ${Number(resource.level) || 1}/5 · подтипов ${subtypes.filter((item) => item.unlocked !== false).length}/${subtypes.length}`}</small></span>
+            <b>${locked ? '🔒' : `${Number(resource.level) || 1}/5`}</b>
+          </summary>
+          <div>
+            ${locked ? '<p>Сначала повышайте общий навык шахтёра на уже доступных месторождениях.</p>' : skillCard(resource, '<b>Открывает подтипы</b>')}
+            <div class="mn-mine-subtype-grid">${subtypeCards}</div>
+          </div>
+        </details>`;
+    }).join('');
+
+    function overviewCard(skill, eyebrow, accent) {
+      return `
+        <article class="mn-skill-overview-card" data-accent="${accent}">
+          <i>${escapeHtml(skill.icon || '✦')}</i>
+          <span><small>${eyebrow}</small><strong>${escapeHtml(skill.label)}</strong><em><u style="width:${progressPercent(skill).toFixed(2)}%"></u></em></span>
+          <b>${Number(skill.level) || 1}/5</b>
+        </article>`;
+    }
+
     content.innerHTML = `
-      <section class="mn-skill-section">
-        <header><span><small>Работа</small><strong>Фермерское дело</strong></span><b>Культуры открываются по уровню</b></header>
-        ${skillCard(farmer, '<b>Открытие культур</b>')}
-        <div class="mn-crop-skill-grid">${cropCards}</div>
+      <section class="mn-skill-section mn-skill-hub">
+        <header><span><small>Прогресс игрока</small><strong>Дерево навыков</strong></span><b>Открывайте только нужную ветку — без стены из карточек</b></header>
+        <div class="mn-skill-overview-grid">
+          ${overviewCard(farmer, 'Работа', 'farm')}
+          ${overviewCard(miner, 'Работа', 'mine')}
+          ${overviewCard(running, 'Форма', 'running')}
+        </div>
       </section>
-      <section class="mn-skill-section">
-        <header><span><small>Физическая форма</small><strong>Передвижение</strong></span><b>Прокачивается во время бега</b></header>
-        ${skillCard(running, `<b>−${Number(running.bonusPercent) || 0}% к расходу</b>`)}
-      </section>`;
+
+      <details class="mn-skill-profession" data-skill-details="farmer">
+        <summary><i>👨‍🌾</i><span><small>Профессия</small><strong>Фермерское дело</strong></span><b>${Number(farmer.level) || 1}/5</b></summary>
+        <div class="mn-skill-profession-body">
+          ${skillCard(farmer, '<b>Открытие культур</b>')}
+          <div class="mn-crop-skill-grid">${cropCards}</div>
+        </div>
+      </details>
+
+      <details class="mn-skill-profession is-mine" data-skill-details="miner">
+        <summary><i>⛏️</i><span><small>Профессия</small><strong>Шахтёрское дело</strong></span><b>${Number(miner.level) || 1}/5</b></summary>
+        <div class="mn-skill-profession-body">
+          ${skillCard(miner, '<b>Камень → уголь → металл → медь</b>')}
+          <p class="mn-mine-tree-note">Нажмите на ресурс, чтобы увидеть только его подтипы, очистку и назначение.</p>
+          <div class="mn-mine-resource-tree">${mineResourceBranches}</div>
+        </div>
+      </details>
+
+      <details class="mn-skill-profession" data-skill-details="running">
+        <summary><i>🏃</i><span><small>Физическая форма</small><strong>Передвижение</strong></span><b>${Number(running.level) || 1}/5</b></summary>
+        <div class="mn-skill-profession-body">
+          ${skillCard(running, `<b>−${Number(running.bonusPercent) || 0}% к расходу</b>`)}
+        </div>
+      </details>`;
+
+    content.querySelectorAll('details[data-skill-details]').forEach((element) => {
+      element.open = openedDetails.has(element.dataset.skillDetails);
+    });
   }
 
   function setPage(page) {
@@ -229,16 +316,27 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   async function refreshSkills({ silent = true } = {}) {
     if (loadPromise) return loadPromise;
     loadPromise = (async () => {
-      try {
-        const result = await loadPlayerSkills();
-        if (!destroyed) publishPlayerSkills(result);
-        return result;
-      } catch (error) {
-        if (!silent && content) content.innerHTML = '<div class="mn-skills-loading is-error">Не удалось загрузить навыки. Закройте профиль и попробуйте ещё раз.</div>';
-        return null;
-      } finally {
-        loadPromise = null;
+      const [farmResult, mineResult] = await Promise.allSettled([
+        loadPlayerSkills(),
+        loadMineSkills(),
+      ]);
+
+      if (!destroyed && farmResult.status === 'fulfilled') publishPlayerSkills(farmResult.value);
+      if (!destroyed && mineResult.status === 'fulfilled') publishPlayerSkills(mineResult.value);
+
+      if (farmResult.status === 'rejected' && !String(farmResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+        console.warn('[playerSkills] farm skills load failed:', farmResult.reason);
       }
+      if (mineResult.status === 'rejected' && !String(mineResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+        console.warn('[playerSkills] mine skills load failed:', mineResult.reason);
+      }
+
+      const loaded = farmResult.status === 'fulfilled' || mineResult.status === 'fulfilled';
+      if (!loaded && !silent && content) {
+        content.innerHTML = '<div class="mn-skills-loading is-error">Не удалось загрузить навыки. Закройте профиль и попробуйте ещё раз.</div>';
+      }
+      loadPromise = null;
+      return loaded ? getPlayerSkillsSnapshot() : null;
     })();
     return loadPromise;
   }
