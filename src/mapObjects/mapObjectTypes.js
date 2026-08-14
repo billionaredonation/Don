@@ -264,6 +264,58 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'job_farm_corn_plant_01',
   },
 
+  mine_station: {
+    type: 'mine_station',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Шахта · снабжение и скупщик',
+    icon: '⛏️',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_mine_station_01',
+    defaultWidth: 2.6,
+    defaultHeight: 2.2,
+  },
+
+  mine_stone_node: {
+    type: 'mine_stone_node',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Шахта · камень',
+    icon: '🪨',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_mine_stone_node_01',
+  },
+
+  mine_coal_node: {
+    type: 'mine_coal_node',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Шахта · уголь',
+    icon: '⚫',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_mine_coal_node_01',
+  },
+
+  mine_metal_node: {
+    type: 'mine_metal_node',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Шахта · металл',
+    icon: '⚙️',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_mine_metal_node_01',
+  },
+
+  mine_copper_node: {
+    type: 'mine_copper_node',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Шахта · медь',
+    icon: '🟠',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_mine_copper_node_01',
+  },
+
   spawn: {
     type: 'spawn',
     category: MAP_OBJECT_CATEGORIES.MARKER,
