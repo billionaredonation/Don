@@ -2,6 +2,8 @@
 import './inventory.css';
 import { state } from '../state.js';
 import { loadFarmInventory } from '../farm/farmApi.js';
+import { loadMineInventory } from '../mine/mineApi.js';
+import { getMineBaseGradePrice, parseMineGradeItemType } from '../mine/mineConfig.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import { applyPlayerPositionVitalRestore } from '../player/playerPosition.js';
 import {
@@ -35,6 +37,7 @@ const ITEM_META = Object.freeze({
   farm_wheat: { label: 'Пшеница', icon: '🌾' },
   farm_orange: { label: 'Апельсин', icon: '🍊' },
   farm_corn: { label: 'Кукуруза', icon: '🌽' },
+  mine_tool_pickaxe: { label: 'Шахтёрская кирка', icon: '⛏️' },
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
@@ -89,6 +92,7 @@ function publishInventorySnapshot(items = []) {
 function getConsumptionEffectType(itemType) {
   const normalized = String(itemType || '').trim().toLowerCase();
   if (normalized.startsWith('farm_')) return '';
+  if (normalized.startsWith('mine_')) return '';
   if (normalized === 'water' || normalized === 'drink' || normalized.includes('water') || normalized.includes('drink')) {
     return 'water';
   }
@@ -310,6 +314,7 @@ function renderMedicalItems(slotItems = []) {
     const itemType = String(item.itemType || '');
     const meta = ITEM_META[itemType] || { label: item.label || itemType, icon: '□' };
     const quantity = Number(item.quantity || 0);
+    const unitLabel = String(item.unitLabel || (itemType.startsWith('mine_') && itemType !== 'mine_tool_pickaxe' ? 'кг' : 'шт.'));
     const source = String(item.source || item.inventorySource || 'personal').toLowerCase();
     const isServiceStock = source === 'employee' || source === 'staff' || source === 'service';
     const label = item.label || meta.label;
@@ -328,6 +333,7 @@ function renderMedicalItems(slotItems = []) {
       itemType === 'food' ? 'mn-inventory-item-food' : '',
       itemType === 'water_bottle' ? 'mn-inventory-item-water' : '',
       itemType.startsWith('farm_') ? 'mn-inventory-item-farm' : '',
+      itemType.startsWith('mine_') ? 'mn-inventory-item-mine' : '',
     ].filter(Boolean).join(' ');
 
     return `
@@ -336,7 +342,7 @@ function renderMedicalItems(slotItems = []) {
         type="button"
         role="gridcell"
         draggable="true"
-        aria-label="${safeLabel}: ${quantity} шт. · ${safeSourceLabel}"
+        aria-label="${safeLabel}: ${quantity} ${escapeHtml(unitLabel)} · ${safeSourceLabel}"
         data-inventory-slot="${index}"
         data-inventory-row="${row}"
         data-inventory-column="${column}"
@@ -757,6 +763,20 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nМожно продать фермеру по ${price} ₴ за штуку.`;
     }
 
+    if (itemType === 'mine_tool_pickaxe') {
+      return `${getItemLabel(item)} · постоянный инструмент.\n${sourceLabel}.\nИспользуется для добычи камня, угля, металла и меди. Прочность пока не расходуется.`;
+    }
+
+    const mineGrade = parseMineGradeItemType(itemType);
+    if (mineGrade) {
+      const purity = Number(item.purityPercent ?? mineGrade.quality.purityPercent);
+      const basePrice = getMineBaseGradePrice(mineGrade.subtype.subtypeCode, mineGrade.qualityLevel);
+      const washText = mineGrade.quality.washingRequired
+        ? 'Перед будущими крафтами сырьё потребуется промыть.'
+        : 'Сырьё уже можно использовать без обязательной промывки.';
+      return `${getItemLabel(item)} · ${quantity} кг.\n${sourceLabel}.\nКачество: ${mineGrade.quality.label}, очистка ${purity}%.\nБазовая цена до коэффициента скупщика: ${basePrice} ₴/кг.\n${washText}`;
+    }
+
     if (itemType.startsWith('medicine_')) {
       const heal = Number(item.healPerTick || 0);
       const tick = Number(item.tickSeconds || 0);
@@ -814,11 +834,15 @@ export function enableInventoryFeature() {
     itemMenu.setAttribute('aria-hidden', 'false');
     if (itemMenuIcon) itemMenuIcon.innerHTML = getItemIconMarkup(itemType, meta.icon || item.icon || '□');
     if (itemMenuTitle) itemMenuTitle.textContent = getItemLabel(item);
-    if (itemMenuQuantity) itemMenuQuantity.textContent = `${Number(item.quantity || 0).toLocaleString('ru-RU')} шт.`;
+    if (itemMenuQuantity) {
+      const unitLabel = String(item.unitLabel || (itemType.startsWith('mine_') && itemType !== 'mine_tool_pickaxe' ? 'кг' : 'шт.'));
+      itemMenuQuantity.textContent = `${Number(item.quantity || 0).toLocaleString('ru-RU')} ${unitLabel}`;
+    }
     if (itemMenuApply) {
       const medicineOnly = itemType.startsWith('medicine_');
       const farmNonUsable = itemType.startsWith('farm_');
-      const hidden = medicineOnly || farmNonUsable;
+      const mineNonUsable = itemType.startsWith('mine_');
+      const hidden = medicineOnly || farmNonUsable || mineNonUsable;
       itemMenuApply.hidden = hidden;
       itemMenuApply.disabled = hidden;
       itemMenuApply.style.display = hidden ? 'none' : '';
@@ -974,9 +998,10 @@ export function enableInventoryFeature() {
   }
 
   async function refreshMedicalInventory() {
-    const [medicalResult, farmResult] = await Promise.allSettled([
+    const [medicalResult, farmResult, mineResult] = await Promise.allSettled([
       loadMyMedicalInventory(),
       loadFarmInventory(),
+      loadMineInventory(),
     ]);
 
     const medical = medicalResult.status === 'fulfilled' && Array.isArray(medicalResult.value?.items)
@@ -985,6 +1010,9 @@ export function enableInventoryFeature() {
     const farm = farmResult.status === 'fulfilled' && Array.isArray(farmResult.value?.items)
       ? farmResult.value.items
       : (Array.isArray(window.__MN_FARM_INVENTORY_ITEMS__) ? window.__MN_FARM_INVENTORY_ITEMS__ : []);
+    const mine = mineResult.status === 'fulfilled' && Array.isArray(mineResult.value?.items)
+      ? mineResult.value.items
+      : (Array.isArray(window.__MN_MINE_INVENTORY_ITEMS__) ? window.__MN_MINE_INVENTORY_ITEMS__ : []);
 
     if (medicalResult.status === 'rejected' && !String(medicalResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] medical inventory load failed:', medicalResult.reason);
@@ -992,8 +1020,11 @@ export function enableInventoryFeature() {
     if (farmResult.status === 'rejected' && !String(farmResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] farm inventory load failed:', farmResult.reason);
     }
+    if (mineResult.status === 'rejected' && !String(mineResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+      console.warn('[inventory] mine inventory load failed:', mineResult.reason);
+    }
 
-    medicalItems = [...medical, ...farm];
+    medicalItems = [...medical, ...farm, ...mine];
     publishInventorySnapshot(medicalItems);
     renderMedicalInventory();
   }
@@ -1023,6 +1054,10 @@ export function enableInventoryFeature() {
 
     if (itemType.startsWith('farm_')) {
       setItemMenuNotice('Этот предмет используется возле растения или в фермерской лавке.', 'info');
+      return;
+    }
+    if (itemType.startsWith('mine_')) {
+      setItemMenuNotice('Этот предмет используется на месторождении, у шахтёрского скупщика или в будущих производствах.', 'info');
       return;
     }
     inventoryBusy = true;
@@ -1174,6 +1209,14 @@ export function enableInventoryFeature() {
     const farmItems = Array.isArray(event?.detail?.items) ? event.detail.items : [];
     const nonFarmItems = medicalItems.filter((item) => !item?.farmItem && !String(item?.itemType || '').startsWith('farm_'));
     medicalItems = [...nonFarmItems, ...farmItems];
+    publishInventorySnapshot(medicalItems);
+    renderMedicalInventory();
+  }
+
+  function handleMineInventoryChanged(event) {
+    const mineItems = Array.isArray(event?.detail?.items) ? event.detail.items : [];
+    const nonMineItems = medicalItems.filter((item) => !String(item?.itemType || '').startsWith('mine_'));
+    medicalItems = [...nonMineItems, ...mineItems];
     publishInventorySnapshot(medicalItems);
     renderMedicalInventory();
   }
@@ -1372,6 +1415,7 @@ export function enableInventoryFeature() {
   window.addEventListener('mn:player-balance-changed', handleVitalsChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   window.addEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
+  window.addEventListener('mn:mine-inventory-changed', handleMineInventoryChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
   window.addEventListener('mn:player-inventory-changed', refreshMedicalInventory);
@@ -1416,6 +1460,7 @@ export function enableInventoryFeature() {
     window.removeEventListener('mn:player-balance-changed', handleVitalsChanged);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
     window.removeEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
+    window.removeEventListener('mn:mine-inventory-changed', handleMineInventoryChanged);
     window.removeEventListener('mn:player-health-changed', handleHealthChanged);
     window.removeEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
     window.removeEventListener('mn:player-inventory-changed', refreshMedicalInventory);
