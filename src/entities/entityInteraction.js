@@ -17,14 +17,6 @@ import {
 const INTERACTION_RADIUS_PX = 108;
 const MOBILE_INTERACTION_RADIUS_PX = 150;
 const DIRECT_TAP_RADIUS_PX = 174;
-const FARM_STATION_INTERACTION_RADIUS_PX = 48;
-const MOBILE_FARM_STATION_INTERACTION_RADIUS_PX = 64;
-const FARM_PLANT_INTERACTION_RADIUS_PX = 58;
-const MOBILE_FARM_PLANT_INTERACTION_RADIUS_PX = 76;
-const MINE_STATION_INTERACTION_RADIUS_PX = 48;
-const MOBILE_MINE_STATION_INTERACTION_RADIUS_PX = 64;
-const MINE_NODE_INTERACTION_RADIUS_PX = 58;
-const MOBILE_MINE_NODE_INTERACTION_RADIUS_PX = 76;
 const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
@@ -73,6 +65,20 @@ function isMineNodeType(type) {
 function isMineStationObject(object) {
   const type = String(object?.type || object?.payload?.jobType || '');
   return type === 'mine_station';
+}
+
+function isWorkObject(object) {
+  const payload = object?.payload || {};
+  const type = String(object?.type || payload.jobType || payload.type || '');
+  return (
+    String(object?.category || '') === 'job' ||
+    String(payload.kind || '') === 'job' ||
+    type === 'farm_field' ||
+    isFarmStationObject(object) ||
+    isFarmPlantType(type) ||
+    isMineStationObject(object) ||
+    isMineNodeType(type)
+  );
 }
 
 function formatFarmPlantCountdown(readyAt) {
@@ -1412,30 +1418,10 @@ export function enableEntityInteraction({
   }
 
   function getObjectInteractionRadius(object, { directTap = false } = {}) {
-    if (isFarmStationObject(object)) {
-      return isMobileGameplayDevice()
-        ? MOBILE_FARM_STATION_INTERACTION_RADIUS_PX
-        : FARM_STATION_INTERACTION_RADIUS_PX;
-    }
-
-    if (isMineStationObject(object)) {
-      return isMobileGameplayDevice()
-        ? MOBILE_MINE_STATION_INTERACTION_RADIUS_PX
-        : MINE_STATION_INTERACTION_RADIUS_PX;
-    }
-
-    const objectType = String(object?.type || object?.payload?.jobType || '');
-    if (isFarmPlantType(objectType)) {
-      return isMobileGameplayDevice()
-        ? MOBILE_FARM_PLANT_INTERACTION_RADIUS_PX
-        : FARM_PLANT_INTERACTION_RADIUS_PX;
-    }
-
-    if (isMineNodeType(objectType)) {
-      return isMobileGameplayDevice()
-        ? MOBILE_MINE_NODE_INTERACTION_RADIUS_PX
-        : MINE_NODE_INTERACTION_RADIUS_PX;
-    }
+    // Работы используют ту же зону реакции, что и дома. На телефоне действие
+    // запускается отдельной подсказкой, поэтому маленький hitbox иконки больше
+    // не участвует во взаимодействии.
+    if (isWorkObject(object)) return getInteractionRadius();
 
     return directTap && isMobileGameplayDevice()
       ? DIRECT_TAP_RADIUS_PX
@@ -1675,13 +1661,15 @@ export function enableEntityInteraction({
     const objectType = String(object?.type || object?.payload?.jobType || '');
     const farmPlant = isFarmPlantType(objectType);
     const mineNode = isMineNodeType(objectType);
-    if ((farmPlant || mineNode) && isMobileGameplayDevice()) hint.dataset.farmPlantAction = 'true';
+    const job = isWorkObject(object);
+    const persistentMobileJob = job && isMobileGameplayDevice();
+    if (persistentMobileJob) hint.dataset.farmPlantAction = 'true';
     else delete hint.dataset.farmPlantAction;
 
     if (lastHintObjectId === objectId) {
-      if ((farmPlant || mineNode) && window.__MN_PLAYER_CONTROLS_LOCKED__ !== true) {
+      if ((farmPlant || mineNode || persistentMobileJob) && window.__MN_PLAYER_CONTROLS_LOCKED__ !== true) {
         if (farmPlant) updateFarmPlantHintContent(object);
-        else updateMineNodeHintContent(object);
+        else if (mineNode) updateMineNodeHintContent(object);
         hint.hidden = false;
         hint.classList.add('is-visible');
       }
@@ -1694,7 +1682,6 @@ export function enableEntityInteraction({
     const textEl = hint.querySelector('[data-interaction-hint-text]');
 
     const hospital = panel?.isHospitalObject?.(object);
-    const job = panel?.isJobObject?.(object);
     const farmHint = farmPlant ? getFarmPlantHintState(object) : null;
     const mineHint = mineNode ? getMineNodeHintState(object) : null;
     const jobHint = objectType === 'farm_station'
@@ -1708,7 +1695,7 @@ export function enableEntityInteraction({
           : 'Рабочая точка';
 
     if (isMobileGameplayDevice()) {
-      if (keyEl) keyEl.textContent = hospital ? '🏥' : (farmPlant || mineNode) ? '👆' : job ? 'Нажать' : '🏠';
+      if (keyEl) keyEl.textContent = hospital ? '🏥' : job ? 'Нажать' : '🏠';
       if (textEl) {
         textEl.textContent = hospital
           ? 'Нажми на больницу'
@@ -1746,7 +1733,7 @@ export function enableEntityInteraction({
 
     clearTimeout(hintHideTimer);
 
-    if (!farmPlant && !mineNode) {
+    if (!farmPlant && !mineNode && !persistentMobileJob) {
       hintHideTimer = setTimeout(() => {
         hideInteractionHint();
       }, INTERACTION_HINT_VISIBLE_MS);
@@ -1897,6 +1884,10 @@ export function enableEntityInteraction({
     // Это убирает случайное постоянное появление нижнего prompt.
     if (!isMobilePointerEvent(event)) return;
 
+    // Работы на телефоне запускаются только большой подсказкой. Иконка остаётся
+    // чисто визуальной и больше не требует точного попадания пальцем.
+    if (isWorkObject(object)) return;
+
     event.preventDefault();
     event.stopPropagation();
 
@@ -1907,8 +1898,7 @@ export function enableEntityInteraction({
     if (!isMobileGameplayDevice() || hint.hidden || window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return;
 
     const object = getNearestInteractableObject();
-    const objectType = String(object?.type || object?.payload?.jobType || '');
-    if (!object || !isFarmPlantType(objectType)) return;
+    if (!object || !isWorkObject(object)) return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -1943,6 +1933,10 @@ export function enableEntityInteraction({
     // Только явный тап по иконке дома. Близость игрока сама по себе больше не
     // открывает I/N-блок от любого касания по карте или закрывающей кнопке N.
     if (!tappedObject) return;
+
+    // Ферма, шахта и будущие рабочие точки открываются через подсказку возле
+    // игрока. Прямой тап по карте оставляем домам и сервисным объектам.
+    if (isWorkObject(tappedObject)) return;
 
     // Не открываем модалки от случайного тапа по экрану/старту Telegram.
     // Мобильная логика срабатывает только возле самой иконки и в радиусе взаимодействия.
