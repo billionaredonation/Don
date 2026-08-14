@@ -467,7 +467,7 @@ function normalizeObject(object = {}) {
 
 function fromDbRow(row = {}) {
   const payload = normalizePayload(row.payload);
-  const isJobObject = payload.kind === 'job' && String(payload.jobType || '').startsWith('farm_');
+  const isJobObject = payload.kind === 'job' && Boolean(String(payload.jobType || '').trim());
 
   return normalizeObject({
     id: row.id,
@@ -1184,4 +1184,3 @@ export async function clearMapObjects(cityId, options = {}) {
 
   return [];
 }
-
