@@ -1281,3 +1281,12 @@ html.mn-inventory-open {
 .mn-inventory-item-farm {
   background: linear-gradient(145deg, rgba(68,88,73,.26), rgba(17,24,20,.86));
 }
+
+.mn-inventory-item-mine > span:first-child {
+  color: #e6b979;
+  text-shadow: 0 0 12px rgba(216, 137, 55, .18);
+}
+
+.mn-inventory-item-mine {
+  background: linear-gradient(145deg, rgba(113, 72, 36, .3), rgba(24, 18, 14, .9));
+}
