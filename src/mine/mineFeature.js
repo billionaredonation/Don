@@ -140,8 +140,57 @@ export function enableMineFeature({ root, cityId } = {}) {
   let inventoryTimer = 0;
   let marketTimer = 0;
   let realtimeChannel = null;
+  let scrollTouch = null;
+  let scrollClickBlockedUntil = 0;
 
   window.__MN_MINE_NODE_STATES_READY__ = false;
+
+  function usesForcedMobileRotation() {
+    return Boolean(
+      window.matchMedia?.('(orientation: portrait)')?.matches &&
+      (
+        document.documentElement.classList.contains('mn-force-rotate-landscape') ||
+        document.body.classList.contains('mn-force-rotate-landscape')
+      )
+    );
+  }
+
+  function handleScrollTouchStart(event) {
+    const page = event.target?.closest?.('[data-mine-page]');
+    if (!page || page.hidden || !usesForcedMobileRotation() || event.touches.length !== 1) {
+      scrollTouch = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    scrollTouch = {
+      page,
+      identifier: touch.identifier,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      scrollTop: page.scrollTop,
+    };
+  }
+
+  function handleScrollTouchMove(event) {
+    if (!scrollTouch) return;
+    const touch = Array.from(event.touches).find((item) => item.identifier === scrollTouch.identifier);
+    if (!touch) return;
+
+    const deltaX = touch.clientX - scrollTouch.clientX;
+    const deltaY = touch.clientY - scrollTouch.clientY;
+    const scrollDelta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : -deltaY;
+    if (Math.abs(scrollDelta) < 3) return;
+
+    const maximum = Math.max(0, scrollTouch.page.scrollHeight - scrollTouch.page.clientHeight);
+    scrollTouch.page.scrollTop = Math.max(0, Math.min(maximum, scrollTouch.scrollTop + scrollDelta));
+    scrollClickBlockedUntil = performance.now() + 350;
+    event.preventDefault();
+  }
+
+  function handleScrollTouchEnd() {
+    scrollTouch = null;
+  }
 
   function setStatus(message = '', type = 'info') {
     if (!status) return;
@@ -441,7 +490,7 @@ export function enableMineFeature({ root, cityId } = {}) {
 
   async function handleBuy(event) {
     const button = event.target?.closest?.('[data-mine-buy]');
-    if (!button || busy) return;
+    if (!button || busy || performance.now() < scrollClickBlockedUntil) return;
     busy = true;
     renderInventory();
     setStatus('Покупаем кирку…');
@@ -458,7 +507,7 @@ export function enableMineFeature({ root, cityId } = {}) {
 
   async function handleSell(event) {
     const button = event.target?.closest?.('[data-mine-sell]');
-    if (!button || busy) return;
+    if (!button || busy || performance.now() < scrollClickBlockedUntil) return;
     busy = true;
     renderInventory();
     setStatus('Взвешиваем и продаём сырьё…');
@@ -492,6 +541,12 @@ export function enableMineFeature({ root, cityId } = {}) {
   }
 
   tabButtons.forEach((button) => button.addEventListener('click', () => setTab(button.dataset.mineTab)));
+  tabPages.forEach((page) => {
+    page.addEventListener('touchstart', handleScrollTouchStart, { passive: true });
+    page.addEventListener('touchmove', handleScrollTouchMove, { passive: false });
+    page.addEventListener('touchend', handleScrollTouchEnd, { passive: true });
+    page.addEventListener('touchcancel', handleScrollTouchEnd, { passive: true });
+  });
   modal?.querySelectorAll('[data-mine-close]').forEach((button) => button.addEventListener('click', closeModal));
   panel?.addEventListener('click', handleBuy);
   panel?.addEventListener('click', handleSell);
@@ -522,6 +577,12 @@ export function enableMineFeature({ root, cityId } = {}) {
     if (realtimeChannel) void supabase.removeChannel(realtimeChannel);
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('mn:mine-object-action', handleMineObject);
+    tabPages.forEach((page) => {
+      page.removeEventListener('touchstart', handleScrollTouchStart);
+      page.removeEventListener('touchmove', handleScrollTouchMove);
+      page.removeEventListener('touchend', handleScrollTouchEnd);
+      page.removeEventListener('touchcancel', handleScrollTouchEnd);
+    });
     document.body.classList.remove('mn-mine-modal-open');
     modal?.remove();
     cancelMineMiniGame();
