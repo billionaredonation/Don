@@ -310,6 +310,7 @@
   body.mn-hospital-warehouse-open .mn-mobile-action-dock,
   body.mn-hospital-cafeteria-open .mn-mobile-action-dock,
   body.mn-hospital-reception-open .mn-mobile-action-dock,
+  body.mn-mine-modal-open .mn-mobile-action-dock,
   body.admin-mode .mn-mobile-action-dock {
     opacity: 0 !important;
     visibility: hidden !important;
