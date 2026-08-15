@@ -271,6 +271,8 @@ function getObjectMeta(object) {
       ? '👨‍🌾'
       : type === 'mine_station'
         ? '⛏️'
+        : type === 'lumber_station'
+          ? '🪚'
         : (object?.icon || '◆'),
   };
 }
@@ -341,7 +343,7 @@ function applyObjectStyle(element, object, meta) {
   const payload = getPayload(object);
   const jobWidth = clamp(toFiniteNumber(payload.renderWidth, meta.type === 'farm_field' ? 8 : 2.6), 0.8, 30);
   const jobHeight = clamp(toFiniteNumber(payload.renderHeight, meta.type === 'farm_field' ? 8 : 2.2), 0.8, 30);
-  const customJobSize = meta.category === 'job' && ['farm_field', 'farm_station', 'mine_station'].includes(meta.type);
+  const customJobSize = meta.category === 'job' && ['farm_field', 'farm_station', 'mine_station', 'lumber_station'].includes(meta.type);
 
   element.style.position = 'absolute';
   element.style.left = `${x}%`;
@@ -488,8 +490,13 @@ function updateObjectElement(element, object) {
   const farmPlantCooldownClass = farmPlantState?.stage === 'cooldown' && Number.isFinite(farmPlantReadyMs) && farmPlantReadyMs > Date.now()
     ? ' is-farm-plant-cooldown'
     : '';
+  const lumberTreeState = window.__MN_LUMBER_TREE_STATES__?.[id] || null;
+  const lumberTreeReadyMs = new Date(lumberTreeState?.readyAt || lumberTreeState?.ready_at || 0).getTime();
+  const lumberTreeCooldownClass = Number.isFinite(lumberTreeReadyMs) && lumberTreeReadyMs > Date.now()
+    ? ' is-lumber-tree-cooldown'
+    : '';
 
-  element.className = `map-object map-object-${categoryClass} map-object-type-${typeClass} map-object-visual-${visualClass} map-object-state-${stateClass}${farmCropClass}${farmPlantCooldownClass}${selectedClass}`;
+  element.className = `map-object map-object-${categoryClass} map-object-type-${typeClass} map-object-visual-${visualClass} map-object-state-${stateClass}${farmCropClass}${farmPlantCooldownClass}${lumberTreeCooldownClass}${selectedClass}`;
   element.dataset.mapObjectId = id;
   element.dataset.mapObjectType = meta.type;
   element.dataset.mapObjectCategory = meta.category;
