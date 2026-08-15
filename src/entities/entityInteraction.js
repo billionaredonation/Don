@@ -19,8 +19,6 @@ const MOBILE_INTERACTION_RADIUS_PX = 150;
 const DIRECT_TAP_RADIUS_PX = 174;
 const WORK_OBJECT_INTERACTION_RADIUS_PX = 26;
 const MOBILE_WORK_OBJECT_INTERACTION_RADIUS_PX = 30;
-const JOB_STATION_INTERACTION_GAP_PX = 10;
-const MOBILE_JOB_STATION_INTERACTION_GAP_PX = 14;
 const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
@@ -82,15 +80,6 @@ function isWorkObject(object) {
     isFarmPlantType(type) ||
     isMineStationObject(object) ||
     isMineNodeType(type)
-  );
-}
-
-function isWorkStationObject(object) {
-  const type = String(object?.type || object?.payload?.jobType || '');
-  return isWorkObject(object) && (
-    isFarmStationObject(object) ||
-    isMineStationObject(object) ||
-    type.endsWith('_station')
   );
 }
 
@@ -394,9 +383,12 @@ function getObjectScreenCenter(object, objectElement, viewport) {
 function getJobObjectSizePercent(object) {
   const payload = object?.payload || {};
   const type = String(object?.type || payload.jobType || payload.type || '');
-  if (!['farm_field', 'farm_station', 'mine_station'].includes(type)) return null;
-  const fallbackWidth = type === 'farm_field' ? 8 : 2.6;
-  const fallbackHeight = type === 'farm_field' ? 8 : 2.2;
+  // Только старое поле является настоящей зоной. Размер лавки/скупщика нужен
+  // для отрисовки в админке, но не должен раздувать радиус взаимодействия:
+  // иначе скрытый или старый объект с renderWidth=30% реагирует через полкарты.
+  if (type !== 'farm_field') return null;
+  const fallbackWidth = 8;
+  const fallbackHeight = 8;
   let width = clampNumber(payload.renderWidth || fallbackWidth, 0.8, 30);
   let height = clampNumber(payload.renderHeight || fallbackHeight, 0.8, 30);
   const rotation = Math.abs(Math.round(Number(object?.rotation || payload.rotation || 0))) % 180;
@@ -1094,6 +1086,16 @@ export function enableEntityInteraction({
   let lastDirectInteractionAt = 0;
   let lastDirectInteractionObjectId = '';
 
+  function publishMapObjectsSnapshot() {
+    const registry = window.__MN_ACTIVE_MAP_OBJECTS_BY_CITY__ &&
+      typeof window.__MN_ACTIVE_MAP_OBJECTS_BY_CITY__ === 'object'
+      ? window.__MN_ACTIVE_MAP_OBJECTS_BY_CITY__
+      : {};
+
+    registry[String(cityId)] = mapObjects.filter(Boolean).slice();
+    window.__MN_ACTIVE_MAP_OBJECTS_BY_CITY__ = registry;
+  }
+
   function renderOverview() {
     renderMapObjectsOverview(
       overviewLayer,
@@ -1134,6 +1136,11 @@ export function enableEntityInteraction({
         objectGrid.set(key, [object]);
       }
     });
+
+    // Админка должна видеть ровно те же объекты, что реально присутствуют на
+    // публичном слое карты. Это позволяет найти и удалить старый «призрачный»
+    // объект, даже если обычный запрос списка временно его не вернул.
+    publishMapObjectsSnapshot();
   }
 
   function getObjectsAroundPosition(position, radius) {
@@ -1431,17 +1438,9 @@ export function enableEntityInteraction({
   }
 
   function getObjectInteractionRadius(object, { directTap = false } = {}) {
-    // Лавки требуют почти вплотную подойти к границе самого объекта. Значение
-    // здесь — только внешний экранный зазор, размеры лавки уже учтены отдельно.
-    if (isWorkStationObject(object)) {
-      return isMobileGameplayDevice()
-        ? MOBILE_JOB_STATION_INTERACTION_GAP_PX
-        : JOB_STATION_INTERACTION_GAP_PX;
-    }
-
-    // Растения, месторождения и остальные рабочие точки срабатывают только
-    // почти вплотную. На телефоне оставляем лишь небольшой запас на движение
-    // между двумя проверками; размер кнопки подсказки на радиус не влияет.
+    // Растения, месторождения, лавки и остальные рабочие точки считаются от
+    // центра значка и срабатывают только почти вплотную. Размер прямоугольника
+    // объекта из админки больше не превращается в невидимую зону на полкарты.
     if (isWorkObject(object)) {
       return isMobileGameplayDevice()
         ? MOBILE_WORK_OBJECT_INTERACTION_RADIUS_PX
@@ -2012,6 +2011,7 @@ export function enableEntityInteraction({
     objectById = new Map();
     objectGrid = new Map();
     renderedObjects = [];
+    publishMapObjectsSnapshot();
     hideInteractionHint({ reset: true });
   }
 
@@ -2243,6 +2243,11 @@ export function enableEntityInteraction({
     clearNearestVisual();
 
     overviewLayer.remove();
+
+    const activeObjectsRegistry = window.__MN_ACTIVE_MAP_OBJECTS_BY_CITY__;
+    if (activeObjectsRegistry && typeof activeObjectsRegistry === 'object') {
+      delete activeObjectsRegistry[String(cityId)];
+    }
 
     hint.remove();
     document.querySelector('.entity-interaction-notice')?.remove();
