@@ -1,8 +1,8 @@
-.map-object-type-mine_station { --mn-mine-node-rgb: 226, 151, 70; }
-.map-object-type-mine_stone_node { --mn-mine-node-rgb: 205, 211, 222; }
-.map-object-type-mine_coal_node { --mn-mine-node-rgb: 174, 151, 216; }
-.map-object-type-mine_metal_node { --mn-mine-node-rgb: 151, 173, 202; }
-.map-object-type-mine_copper_node { --mn-mine-node-rgb: 241, 116, 67; }
+.map-object-type-mine_station { --mn-mine-node-rgb: 255, 174, 56; }
+.map-object-type-mine_stone_node { --mn-mine-node-rgb: 78, 201, 255; }
+.map-object-type-mine_coal_node { --mn-mine-node-rgb: 201, 106, 255; }
+.map-object-type-mine_metal_node { --mn-mine-node-rgb: 111, 149, 255; }
+.map-object-type-mine_copper_node { --mn-mine-node-rgb: 255, 91, 48; }
 
 body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin)
   .map-object:is(
@@ -35,6 +35,8 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   text-shadow: none;
 }
 
+.map-object-type-mine_station .map-object-icon { font-size: 26px; }
+
 .map-object-type-mine_station .map-object-icon::before,
 .map-object-type-mine_stone_node .map-object-icon::before,
 .map-object-type-mine_coal_node .map-object-icon::before,
@@ -43,20 +45,44 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   position: absolute;
   z-index: -1;
   left: 50%;
-  top: 62%;
-  width: 30px;
-  height: 18px;
+  top: 66%;
+  width: 48px;
+  height: 30px;
   border-radius: 50%;
   background: radial-gradient(
     ellipse,
-    rgba(var(--mn-mine-node-rgb), .95) 0%,
-    rgba(var(--mn-mine-node-rgb), .62) 34%,
-    rgba(var(--mn-mine-node-rgb), .24) 58%,
-    transparent 78%
+    rgba(255, 255, 255, .98) 0%,
+    rgba(var(--mn-mine-node-rgb), 1) 18%,
+    rgba(var(--mn-mine-node-rgb), .76) 42%,
+    rgba(var(--mn-mine-node-rgb), .38) 62%,
+    transparent 82%
   );
   content: '';
-  filter: blur(3px);
-  opacity: .96;
+  filter: blur(5px);
+  opacity: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.map-object-type-mine_station .map-object-icon::after,
+.map-object-type-mine_stone_node .map-object-icon::after,
+.map-object-type-mine_coal_node .map-object-icon::after,
+.map-object-type-mine_metal_node .map-object-icon::after,
+.map-object-type-mine_copper_node .map-object-icon::after {
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 80%;
+  width: 25px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(var(--mn-mine-node-rgb), 1);
+  box-shadow:
+    0 4px 14px rgba(var(--mn-mine-node-rgb), 1),
+    0 8px 26px rgba(var(--mn-mine-node-rgb), .9);
+  content: '';
+  filter: blur(2px);
+  opacity: 1;
   pointer-events: none;
   transform: translate(-50%, -50%);
 }
@@ -64,7 +90,7 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 .map-object-type-mine_stone_node .map-object-icon,
 .map-object-type-mine_coal_node .map-object-icon,
 .map-object-type-mine_metal_node .map-object-icon,
-.map-object-type-mine_copper_node .map-object-icon { font-size: 19px; }
+.map-object-type-mine_copper_node .map-object-icon { font-size: 22px; }
 
 .map-object-type-mine_station.map-object-nearby .map-object-icon,
 .map-object-type-mine_stone_node.map-object-nearby .map-object-icon,
@@ -79,10 +105,22 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 .map-object-type-mine_coal_node.map-object-nearby .map-object-icon::before,
 .map-object-type-mine_metal_node.map-object-nearby .map-object-icon::before,
 .map-object-type-mine_copper_node.map-object-nearby .map-object-icon::before {
-  width: 36px;
-  height: 22px;
-  filter: blur(4px);
+  width: 58px;
+  height: 36px;
+  filter: blur(6px);
   opacity: 1;
+}
+
+.map-object-type-mine_station.map-object-nearby .map-object-icon::after,
+.map-object-type-mine_stone_node.map-object-nearby .map-object-icon::after,
+.map-object-type-mine_coal_node.map-object-nearby .map-object-icon::after,
+.map-object-type-mine_metal_node.map-object-nearby .map-object-icon::after,
+.map-object-type-mine_copper_node.map-object-nearby .map-object-icon::after {
+  width: 32px;
+  height: 10px;
+  box-shadow:
+    0 4px 18px rgba(var(--mn-mine-node-rgb), 1),
+    0 9px 32px rgba(var(--mn-mine-node-rgb), 1);
 }
 
 .map-object.is-mine-node-cooldown .map-object-icon {
@@ -91,7 +129,11 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 }
 
 .map-object.is-mine-node-cooldown .map-object-icon::before {
-  opacity: .36;
+  opacity: .48;
+}
+
+.map-object.is-mine-node-cooldown .map-object-icon::after {
+  opacity: .42;
 }
 
 .mn-mine-modal,
