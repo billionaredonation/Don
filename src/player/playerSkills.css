@@ -128,7 +128,7 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-crop-skill-card.is-locked > b { color: #98a19d; }
 
 .mn-skill-hub { gap: 12px; }
-.mn-skill-overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mn-skill-overview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .mn-skill-overview-card {
   display: flex; align-items: center; gap: 9px; min-width: 0; padding: 10px;
   border: 1px solid rgba(255, 255, 255, .06); border-radius: 14px; background: rgba(5, 14, 11, .65);
@@ -144,6 +144,9 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-skill-overview-card[data-accent="mine"] em u { background: linear-gradient(90deg, #bd7535, #f0bd76); }
 .mn-skill-overview-card[data-accent="mine"] > b { color: #e8b673; }
 .mn-skill-overview-card[data-accent="running"] > i { background: rgba(74, 164, 224, .13); }
+.mn-skill-overview-card[data-accent="lumber"] > i { background: rgba(89, 170, 63, .14); }
+.mn-skill-overview-card[data-accent="lumber"] em u { background: linear-gradient(90deg, #4a9a3d, #a7df78); }
+.mn-skill-overview-card[data-accent="lumber"] > b { color: #aada82; }
 
 .mn-skill-profession,
 .mn-mine-resource-branch { overflow: hidden; border: 1px solid rgba(255, 255, 255, .07); border-radius: 18px; background: rgba(255, 255, 255, .022); }
@@ -162,6 +165,7 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-mine-resource-branch > summary > i { display: grid; place-items: center; width: 39px; height: 39px; flex: 0 0 39px; border-radius: 12px; background: rgba(75, 224, 125, .11); font-size: 19px; font-style: normal; }
 .mn-skill-profession.is-mine > summary > i,
 .mn-mine-resource-branch > summary > i { background: rgba(205, 128, 50, .13); }
+.mn-skill-profession.is-lumber > summary > i { background: rgba(91, 170, 64, .14); }
 .mn-skill-profession > summary > span,
 .mn-mine-resource-branch > summary > span { display: grid; gap: 2px; min-width: 0; flex: 1; }
 .mn-skill-profession > summary small,
@@ -171,6 +175,7 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-skill-profession > summary > b { color: #77e99e; font-size: 10px; }
 .mn-skill-profession.is-mine > summary > b,
 .mn-mine-resource-branch > summary > b { color: #dfad6b; font-size: 9px; }
+.mn-skill-profession.is-lumber > summary > b { color: #a7dd7d; }
 .mn-skill-profession-body { display: grid; gap: 9px; padding: 0 10px 10px; }
 .mn-skill-profession[open] > summary { border-bottom: 1px solid rgba(255, 255, 255, .05); }
 
@@ -195,6 +200,15 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-mine-subtype-card > b { color: #dfad6b; font-size: 8px; }
 .mn-mine-subtype-card.is-locked { opacity: .48; filter: grayscale(.45); }
 
+.mn-lumber-skill-roadmap { display: grid; gap: 7px; }
+.mn-lumber-skill-roadmap article { display: flex; align-items: center; gap: 9px; padding: 9px; border: 1px solid rgba(121, 190, 91, .14); border-radius: 12px; background: rgba(73, 139, 51, .055); }
+.mn-lumber-skill-roadmap article[data-unlocked="false"] { opacity: .44; filter: grayscale(.55); }
+.mn-lumber-skill-roadmap article > i { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; background: rgba(103, 181, 75, .12); font-size: 17px; font-style: normal; }
+.mn-lumber-skill-roadmap article > span { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.mn-lumber-skill-roadmap b { color: #ccecb9; font-size: 10px; }
+.mn-lumber-skill-roadmap small { color: #85917f; font-size: 8px; line-height: 1.35; }
+.mn-lumber-skill-roadmap article > strong { color: #9ddc79; font-size: 8px; }
+
 .mn-skill-level-toast {
   position: fixed; top: 20px; left: 50%; z-index: 100100; display: flex; align-items: center; gap: 12px;
   width: min(520px, calc(100vw - 24px)); padding: 13px 16px; border: 1px solid rgba(106, 239, 151, .34); border-radius: 18px;
@@ -218,6 +232,7 @@ body.mn-player-profile-open .mn-hospital-management-hint {
   .mn-profile-identity > i { width: 50px; height: 50px; border-radius: 15px; }
   .mn-profile-identity strong { font-size: 17px; }
   .mn-profile-stats article { min-height: 61px; padding: 10px; }
+  .mn-skill-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mn-profile-stats article > i { width: 36px; height: 36px; }
   .mn-profile-level-note { margin: 8px 2px 10px; }
   .mn-profile-skills-button { padding: 11px; }
