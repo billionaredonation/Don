@@ -83,6 +83,9 @@ export function getEntityMetaText(object) {
     if (type === 'mine_coal_node') return 'Шахта · месторождение угля';
     if (type === 'mine_metal_node') return 'Шахта · месторождение металла';
     if (type === 'mine_copper_node') return 'Шахта · месторождение меди';
+    if (type === 'lumber_station') return 'Лесоруб · топор, бензопила, распил и продажа';
+    if (type === 'lumber_deciduous_tree') return 'Лесоруб · лиственное дерево';
+    if (type === 'lumber_pine_tree') return 'Лесоруб · сосна';
     return 'Рабочая точка';
   }
 
@@ -150,9 +153,12 @@ export function dispatchEntityAction(object) {
 
 
   if (kind === 'job') {
-    const eventName = String(type || '').startsWith('mine_')
+    const cleanType = String(type || '');
+    const eventName = cleanType.startsWith('mine_')
       ? 'mn:mine-object-action'
-      : 'mn:farm-object-action';
+      : cleanType.startsWith('lumber_')
+        ? 'mn:lumber-object-action'
+        : 'mn:farm-object-action';
     window.dispatchEvent(new CustomEvent(eventName, {
       detail: { object, action: type },
     }));
