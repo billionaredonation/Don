@@ -158,6 +158,26 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   --farm-game-soft: #ffe09a;
 }
 
+.mn-farm-minigame[data-action='harvest'][data-crop-type='apple'] {
+  --farm-game-rgb: 226, 83, 78;
+  --farm-game-soft: #ffc1aa;
+}
+
+.mn-farm-minigame[data-action='harvest'][data-crop-type='orange'] {
+  --farm-game-rgb: 244, 143, 48;
+  --farm-game-soft: #ffd18c;
+}
+
+.mn-farm-minigame[data-action='harvest'][data-crop-type='wheat'] {
+  --farm-game-rgb: 225, 184, 69;
+  --farm-game-soft: #ffe69a;
+}
+
+.mn-farm-minigame[data-action='harvest'][data-crop-type='corn'] {
+  --farm-game-rgb: 184, 202, 67;
+  --farm-game-soft: #ecf69a;
+}
+
 .mn-farm-minigame * { box-sizing: border-box; }
 
 .mn-farm-minigame-backdrop {
@@ -602,6 +622,385 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   display: none;
 }
 
+.mn-farm-minigame-arena.is-crop-harvest {
+  position: relative;
+  min-height: 196px;
+  padding-top: 12px;
+  overflow: hidden;
+}
+
+.mn-farm-apple-orchard {
+  position: relative;
+  height: 146px;
+  overflow: hidden;
+  border: 1px solid rgba(var(--farm-game-rgb), .14);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(87, 143, 112, .16) 0 68%, rgba(90, 63, 35, .24) 68% 100%),
+    radial-gradient(circle at 18% 17%, rgba(119, 193, 105, .14), transparent 34%),
+    rgba(3, 10, 7, .4);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.mn-farm-apple-canopy {
+  position: absolute;
+  left: 50%;
+  top: -49px;
+  font-size: 124px;
+  line-height: 1;
+  opacity: .22;
+  transform: translateX(-50%) scaleX(2.4);
+  transform-origin: top center;
+  filter: saturate(.8) brightness(.68);
+  pointer-events: none;
+}
+
+.mn-farm-apple-fruits { position: absolute; inset: 0; pointer-events: none; }
+
+.mn-farm-apple-fruits > i {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  margin: -14px 0 0 -14px;
+  font-size: 23px;
+  font-style: normal;
+  line-height: 1;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, .46));
+  transform: rotate(var(--fruit-rotate, 0deg));
+}
+
+.mn-farm-apple-fruits > i[data-kind='decoy'] {
+  opacity: .82;
+  filter: grayscale(.25) drop-shadow(0 4px 4px rgba(0, 0, 0, .4));
+}
+
+.mn-farm-apple-fruits > i[data-caught='true'] { animation: mn-farm-fruit-caught .12s ease-out both; }
+.mn-farm-apple-fruits > i[data-caught='wrong'] { animation: mn-farm-game-wrong .15s ease-in-out both; }
+
+.mn-farm-apple-basket {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 4px;
+  display: grid;
+  width: 52px;
+  height: 34px;
+  place-items: center;
+  margin-left: -26px;
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 5px 5px rgba(0, 0, 0, .55));
+  transform-origin: bottom center;
+  transition: left 75ms linear;
+  pointer-events: none;
+}
+
+.mn-farm-apple-controls {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+
+.mn-farm-apple-controls button,
+.mn-farm-corn-controls button {
+  display: grid;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(var(--farm-game-rgb), .27);
+  border-radius: 9px;
+  background: rgba(var(--farm-game-rgb), .1);
+  color: var(--farm-game-soft);
+  font-size: 17px;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mn-farm-apple-controls button:active,
+.mn-farm-corn-controls button:active {
+  background: rgba(var(--farm-game-rgb), .24);
+  transform: scale(.94);
+}
+
+.mn-farm-apple-controls span {
+  overflow: hidden;
+  color: rgba(229, 238, 232, .48);
+  font-size: 8px;
+  font-weight: 750;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mn-farm-orange-tree {
+  display: grid;
+  width: min(360px, 100%);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 auto;
+  padding: 10px;
+  border: 1px solid rgba(var(--farm-game-rgb), .12);
+  border-radius: 46% 46% 17px 17px;
+  background:
+    radial-gradient(circle at 25% 28%, rgba(80, 151, 75, .2), transparent 30%),
+    radial-gradient(circle at 72% 39%, rgba(75, 139, 67, .2), transparent 35%),
+    rgba(9, 35, 16, .34);
+}
+
+.mn-farm-orange-tree button {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  aspect-ratio: 1.28;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(113, 177, 95, .12);
+  border-radius: 50%;
+  background: rgba(64, 119, 52, .08);
+  color: #fff;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, transform .16s ease;
+  touch-action: manipulation;
+}
+
+.mn-farm-orange-tree button kbd {
+  position: absolute;
+  left: 6px;
+  top: 5px;
+  color: rgba(240, 245, 239, .24);
+  font: 800 7px/1 system-ui, sans-serif;
+}
+
+.mn-farm-orange-tree button span {
+  font-size: 27px;
+  line-height: 1;
+  opacity: .56;
+  filter: grayscale(.45) brightness(.7);
+  transition: opacity .18s ease, filter .18s ease, transform .18s ease;
+}
+
+.mn-farm-orange-tree button[data-ripe='true'] {
+  border-color: rgba(255, 190, 79, .78);
+  background: rgba(238, 137, 36, .22);
+  box-shadow: 0 0 22px rgba(244, 145, 43, .34), inset 0 0 13px rgba(255, 205, 105, .14);
+  transform: translateY(-2px);
+}
+
+.mn-farm-orange-tree button[data-ripe='true'] span,
+.mn-farm-orange-tree button[data-picked='true'] span {
+  opacity: 1;
+  filter: none;
+  transform: scale(1.08);
+}
+
+.mn-farm-orange-tree button[data-ripe='hidden'] span { opacity: .46; filter: grayscale(.7) brightness(.6); }
+
+.mn-farm-orange-tree button[data-picked='true'] {
+  border-color: rgba(130, 226, 113, .65);
+  background: rgba(91, 188, 79, .2);
+  box-shadow: 0 0 17px rgba(99, 205, 84, .2);
+}
+
+.mn-farm-orange-tree button[data-wrong='true'] {
+  border-color: rgba(255, 111, 78, .7);
+  background: rgba(222, 73, 48, .2);
+  animation: mn-farm-game-wrong .18s ease-in-out;
+}
+
+.mn-farm-wheat-field {
+  display: grid;
+  gap: 6px;
+  width: min(390px, 100%);
+  margin: 0 auto;
+}
+
+.mn-farm-wheat-row {
+  display: grid;
+  min-width: 0;
+  height: 29px;
+  grid-template-columns: 22px 65px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 3px 7px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 230, 139, .08);
+  border-radius: 9px;
+  background: rgba(113, 87, 31, .08);
+  color: rgba(255, 232, 155, .5);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
+  touch-action: manipulation;
+}
+
+.mn-farm-wheat-row > kbd {
+  color: rgba(246, 237, 204, .3);
+  font: 850 8px/1 system-ui, sans-serif;
+}
+
+.mn-farm-wheat-row > span {
+  overflow: hidden;
+  font-size: 15px;
+  letter-spacing: -5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mn-farm-wheat-row > i {
+  position: relative;
+  height: 13px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .25);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .32);
+}
+
+.mn-farm-wheat-row > i > b {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  border-radius: 999px;
+  background: rgba(237, 197, 70, .35);
+  box-shadow: 0 0 10px rgba(238, 196, 62, .35);
+}
+
+.mn-farm-wheat-row > i > em {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  color: #fff0ad;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px rgba(251, 206, 68, .7));
+  transform: translate(-50%, -50%) rotate(-25deg);
+}
+
+.mn-farm-wheat-row[data-active='true'] {
+  border-color: rgba(var(--farm-game-rgb), .43);
+  background: rgba(var(--farm-game-rgb), .12);
+  color: #ffe99d;
+  box-shadow: 0 0 15px rgba(var(--farm-game-rgb), .11);
+  transform: translateX(2px);
+}
+
+.mn-farm-wheat-row[data-wrong='true'] {
+  border-color: rgba(255, 112, 79, .67);
+  background: rgba(219, 72, 47, .18);
+  animation: mn-farm-game-wrong .18s ease-in-out;
+}
+
+.mn-farm-wheat-row[data-cut='perfect'],
+.mn-farm-wheat-row[data-cut='good'] { border-color: rgba(126, 224, 111, .7); background: rgba(89, 186, 76, .18); }
+.mn-farm-wheat-row[data-cut='poor'] { border-color: rgba(255, 132, 80, .62); background: rgba(218, 92, 49, .15); }
+
+.mn-farm-corn-workbench {
+  position: relative;
+  display: grid;
+  height: 112px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(var(--farm-game-rgb), .12);
+  border-radius: 14px;
+  background:
+    linear-gradient(120deg, transparent 0 47%, rgba(255, 255, 255, .025) 48% 52%, transparent 53%),
+    rgba(35, 43, 10, .2);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mn-farm-corn-cob {
+  position: relative;
+  display: grid;
+  width: 76px;
+  height: 106px;
+  place-items: center;
+  transform: rotate(4deg);
+  filter: drop-shadow(0 8px 8px rgba(0, 0, 0, .4));
+}
+
+.mn-farm-corn-cob > i { font-size: 64px; font-style: normal; line-height: 1; }
+
+.mn-farm-corn-cob > b {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 56px;
+  height: 82px;
+  border-radius: 70% 18% 70% 20%;
+  background: linear-gradient(110deg, rgba(59, 119, 45, .96), rgba(124, 168, 61, .88));
+  transform: translateX(-50%) rotate(var(--leaf-rotate, -17deg));
+  transform-origin: bottom center;
+  transition: opacity .24s ease, transform .24s ease;
+}
+
+.mn-farm-corn-cob > b:nth-of-type(2) { --leaf-rotate: 18deg; width: 52px; background: linear-gradient(250deg, rgba(61, 118, 44, .96), rgba(141, 174, 62, .84)); }
+.mn-farm-corn-cob > b:nth-of-type(3) { --leaf-rotate: -8deg; width: 44px; opacity: .9; }
+.mn-farm-corn-cob > b:nth-of-type(4) { --leaf-rotate: 9deg; width: 38px; opacity: .88; }
+.mn-farm-corn-cob > b:nth-of-type(5) { --leaf-rotate: 0deg; width: 31px; opacity: .85; }
+
+.mn-farm-corn-cob[data-layer='1'] > b:nth-of-type(1),
+.mn-farm-corn-cob[data-layer='2'] > b:nth-of-type(-n + 2),
+.mn-farm-corn-cob[data-layer='3'] > b:nth-of-type(-n + 3),
+.mn-farm-corn-cob[data-layer='4'] > b:nth-of-type(-n + 4),
+.mn-farm-corn-cob[data-layer='5'] > b { opacity: 0; transform: translateX(-50%) translateY(35px) rotate(var(--leaf-rotate, 0deg)); }
+
+.mn-farm-corn-cue {
+  position: absolute;
+  right: calc(50% - 94px);
+  top: 50%;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(var(--farm-game-rgb), .24);
+  border-radius: 15px;
+  background: rgba(var(--farm-game-rgb), .1);
+  color: var(--farm-game-soft);
+  font-size: 28px;
+  box-shadow: 0 0 19px rgba(var(--farm-game-rgb), .12);
+  transform: translateY(-50%);
+}
+
+.mn-farm-minigame-arena.is-corn-husk[data-phase='memorize'] .mn-farm-corn-cue {
+  animation: mn-farm-corn-cue .68s ease-in-out both;
+}
+
+.mn-farm-minigame-arena.is-corn-husk[data-feedback='error'] .mn-farm-corn-workbench {
+  border-color: rgba(255, 112, 78, .62);
+  animation: mn-farm-game-wrong .18s ease-in-out;
+}
+
+.mn-farm-minigame-arena.is-corn-husk[data-feedback='success'] .mn-farm-corn-workbench {
+  border-color: rgba(130, 229, 110, .55);
+  box-shadow: inset 0 0 20px rgba(104, 207, 83, .1);
+}
+
+.mn-farm-corn-controls {
+  display: grid;
+  width: min(210px, 75%);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin: 7px auto 0;
+}
+
+.mn-farm-corn-controls button { height: 31px; font-size: 18px; }
+
+.mn-farm-minigame[data-platform='mobile'] .mn-farm-orange-tree button kbd,
+.mn-farm-minigame[data-platform='mobile'] .mn-farm-wheat-row > kbd { display: none; }
+
+.mn-farm-minigame[data-platform='mobile'] .mn-farm-wheat-row {
+  grid-template-columns: 58px minmax(0, 1fr);
+}
+
 .mn-farm-minigame-arena p {
   min-height: 13px;
   margin: 12px 0 0;
@@ -725,6 +1124,16 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 @keyframes mn-farm-crop-appear {
   from { opacity: 0; transform: scale(.82); }
   to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes mn-farm-fruit-caught {
+  to { opacity: 0; transform: translateY(12px) scale(.72); }
+}
+
+@keyframes mn-farm-corn-cue {
+  0% { opacity: 0; transform: translateY(-50%) scale(.72); }
+  35%, 76% { opacity: 1; transform: translateY(-50%) scale(1.08); }
+  100% { opacity: 1; transform: translateY(-50%) scale(1); }
 }
 
 .mn-farm-modal {
@@ -983,6 +1392,15 @@ body.mn-farm-modal-open { overflow: hidden; }
   .mn-farm-minigame-meta { margin-top: 8px; padding: 6px 9px; }
   .mn-farm-minigame-meta > span { font-size: 8px; }
   .mn-farm-minigame-arena { margin-top: 8px; padding: 12px 12px 8px; border-radius: 13px; }
+  .mn-farm-minigame-arena.is-crop-harvest { min-height: 176px; padding-top: 8px; }
+  .mn-farm-apple-orchard { height: 125px; }
+  .mn-farm-orange-tree { gap: 5px; padding: 7px; }
+  .mn-farm-orange-tree button span { font-size: 23px; }
+  .mn-farm-wheat-field { gap: 4px; }
+  .mn-farm-wheat-row { height: 25px; }
+  .mn-farm-corn-workbench { height: 91px; }
+  .mn-farm-corn-cob { height: 88px; transform: rotate(4deg) scale(.85); }
+  .mn-farm-corn-controls { margin-top: 5px; }
   .mn-farm-minigame-track { height: 38px; margin-inline: 12px; }
   .mn-farm-minigame-arena p { margin-top: 7px; font-size: 8px; }
   .mn-farm-minigame-footer { min-height: 31px; margin-top: 7px; }
