@@ -15,18 +15,37 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 .map-object-type-mine_coal_node .map-object-icon,
 .map-object-type-mine_metal_node .map-object-icon,
 .map-object-type-mine_copper_node .map-object-icon {
-  display: grid;
-  place-items: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: inline-flex;
+  width: max-content;
+  height: max-content;
+  min-width: max-content;
+  min-height: max-content;
+  align-items: center;
+  justify-content: center;
+  box-sizing: content-box;
+  padding: 5px;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  line-height: 1.2;
+  white-space: nowrap;
   filter:
-    drop-shadow(0 0 1px rgba(255, 255, 255, 1))
-    drop-shadow(0 0 4px rgba(255, 255, 255, .92))
-    drop-shadow(0 0 8px rgba(255, 255, 255, .58));
+    grayscale(0)
+    brightness(1)
+    invert(0)
+    drop-shadow(0 0 0 rgba(255, 255, 255, 0))
+    drop-shadow(0 2px 2px rgba(0, 0, 0, .55));
   overflow: visible;
   text-shadow: none;
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  transition: filter 300ms ease, opacity 300ms ease;
+  will-change: filter;
 }
 
 .map-object-type-mine_stone_node .map-object-icon,
@@ -40,9 +59,11 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 .map-object-type-mine_metal_node.map-object-nearby .map-object-icon,
 .map-object-type-mine_copper_node.map-object-nearby .map-object-icon {
   filter:
-    drop-shadow(0 0 1px rgba(255, 255, 255, 1))
-    drop-shadow(0 0 5px rgba(255, 255, 255, 1))
-    drop-shadow(0 0 10px rgba(255, 255, 255, .78));
+    grayscale(1)
+    brightness(0)
+    invert(1)
+    drop-shadow(0 0 3px rgba(255, 255, 255, .96))
+    drop-shadow(0 2px 2px rgba(0, 0, 0, .28));
 }
 
 .map-object.is-mine-node-cooldown .map-object-icon {
@@ -50,7 +71,9 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   filter:
     grayscale(.7)
     brightness(.72)
-    drop-shadow(0 0 3px rgba(255, 255, 255, .62));
+    invert(0)
+    drop-shadow(0 0 0 rgba(255, 255, 255, 0))
+    drop-shadow(0 2px 2px rgba(0, 0, 0, .45));
 }
 
 .mn-mine-modal,
