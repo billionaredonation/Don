@@ -438,8 +438,17 @@ export function enableFarmFeature({ root, cityId } = {}) {
     }
 
     const request = { cityId, plantObjectId: String(object.id || '') };
+    const gameOptions = {
+      cropType: next.plant.cropType,
+      cropIcon: next.plant.icon,
+      cropLabel: next.plant.label,
+    };
     if (next.action === 'weed') {
-      const result = await runMiniGameAction('weed', (miniGameScore) => weedFarmPlant({ ...request, miniGameScore }));
+      const result = await runMiniGameAction(
+        'weed',
+        (miniGameScore) => weedFarmPlant({ ...request, miniGameScore }),
+        gameOptions,
+      );
       if (result) emitToast(`Растение прополото · точность ${result.miniGameScore}%. Теперь полейте его водой 💧`, 'success');
       return;
     }
@@ -455,7 +464,11 @@ export function enableFarmFeature({ root, cityId } = {}) {
         return;
       }
 
-      const result = await runMiniGameAction('water', (miniGameScore) => waterFarmPlant({ ...request, miniGameScore }));
+      const result = await runMiniGameAction(
+        'water',
+        (miniGameScore) => waterFarmPlant({ ...request, miniGameScore }),
+        gameOptions,
+      );
       if (result) {
         if (result.waterSource === 'cafeteria') {
           window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
@@ -468,7 +481,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
       const result = await runMiniGameAction(
         'harvest',
         (miniGameScore) => harvestFarmPlant({ ...request, miniGameScore }),
-        { cropIcon: next.plant.icon },
+        gameOptions,
       );
       if (result) {
         if (result.skills) publishPlayerSkills(result, { levelUps: result.levelUps });
@@ -585,4 +598,3 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
-
