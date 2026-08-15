@@ -9,17 +9,18 @@ const CROP_META = Object.freeze({
   corn: Object.freeze({ label: 'Кукуруза', icon: '🌽', unlockLevel: 4 }),
 });
 
-function normalizeLevel(value) {
-  return Math.max(1, Math.min(5, Math.floor(Number(value) || 1)));
+function normalizeLevel(value, maxLevel = 5) {
+  return Math.max(1, Math.min(Math.max(1, Number(maxLevel) || 5), Math.floor(Number(value) || 1)));
 }
 
 function normalizeSkill(skill = {}, fallback = {}) {
-  const level = normalizeLevel(skill.level);
+  const maxLevel = Math.max(1, Number(skill.maxLevel ?? fallback.maxLevel) || 5);
+  const level = normalizeLevel(skill.level, maxLevel);
   return {
     ...fallback,
     ...skill,
     level,
-    maxLevel: 5,
+    maxLevel,
     xp: Math.max(0, Number(skill.xp) || 0),
     levelStartXp: Math.max(0, Number(skill.levelStartXp) || 0),
     nextLevelXp: skill.nextLevelXp == null ? null : Math.max(0, Number(skill.nextLevelXp) || 0),
@@ -37,6 +38,10 @@ function normalizeSnapshot(payload = {}) {
   });
   const miner = normalizeSkill(payload?.skills?.miner || previous?.skills?.miner, {
     key: 'miner', label: 'Шахтёр', icon: '⛏️', description: 'Открывает камень, уголь, металл и медь',
+  });
+  const lumberjack = normalizeSkill(payload?.skills?.lumberjack || previous?.skills?.lumberjack, {
+    key: 'lumberjack', label: 'Лесоруб', icon: '🪓', maxLevel: 3,
+    description: 'Брёвна, распил и поставки производствам',
   });
   const sourceCrops = Array.isArray(payload.crops) ? payload.crops : previous.crops || [];
   const crops = Object.entries(CROP_META).map(([cropType, meta]) => {
@@ -98,14 +103,16 @@ function normalizeSnapshot(payload = {}) {
   const hasMinePayload = Boolean(
     payload?.skills?.miner || Array.isArray(payload.mineResources) || Array.isArray(payload.mineSubtypes),
   );
+  const hasLumberPayload = Boolean(payload?.skills?.lumberjack);
 
   return {
     overallLevel: Math.max(1, Math.floor(Number(payload.overallLevel ?? previous.overallLevel) || 1)),
-    skills: { farmer, running, miner },
+    skills: { farmer, running, miner, lumberjack },
     crops,
     mineResources,
     mineSubtypes,
     mineLoaded: payload.mineLoaded === true || hasMinePayload || previous.mineLoaded === true,
+    lumberLoaded: payload.lumberLoaded === true || hasLumberPayload || previous.lumberLoaded === true,
     loaded: payload.loaded !== false,
     updatedAt: payload.updatedAt || new Date().toISOString(),
   };
@@ -168,6 +175,14 @@ export function getRunningSkillModifiers() {
     staminaMultiplier: 1 - reductionPercent / 100,
     waterMultiplier: 1 - reductionPercent / 100,
   };
+}
+
+export function getLumberjackSkillStatus() {
+  const snapshot = getPlayerSkillsSnapshot();
+  const skill = snapshot.skills?.lumberjack || {};
+  return snapshot.lumberLoaded === false
+    ? { ...skill, checking: true }
+    : skill;
 }
 
 export function getMineResourceSkillStatus(resourceType) {
