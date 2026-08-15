@@ -3,6 +3,7 @@ import './inventory.css';
 import { state } from '../state.js';
 import { loadFarmInventory } from '../farm/farmApi.js';
 import { loadMineInventory } from '../mine/mineApi.js';
+import { loadLumberInventory } from '../lumber/lumberApi.js';
 import { getMineBaseGradePrice, parseMineGradeItemType } from '../mine/mineConfig.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import { applyPlayerPositionVitalRestore } from '../player/playerPosition.js';
@@ -24,6 +25,8 @@ const HUNGER_WARNING_THRESHOLD = 40;
 const THIRST_WARNING_THRESHOLD = 40;
 const CRITICAL_VITAL_THRESHOLD = 20;
 const FARM_RAKE_ASSET_URL = `${String(import.meta.env.BASE_URL || '/')}grabl.png`;
+const LUMBER_CHAINSAW_ASSET_URL = `${String(import.meta.env.BASE_URL || '/')}benzopila.png`;
+const LUMBER_BEAM_ASSET_URL = `${String(import.meta.env.BASE_URL || '/')}brus.png`;
 const ITEM_META = Object.freeze({
   food: { label: 'Обед', icon: '🍔' },
   water_bottle: { label: 'Бутылка воды', icon: '🧴' },
@@ -38,6 +41,10 @@ const ITEM_META = Object.freeze({
   farm_orange: { label: 'Апельсин', icon: '🍊' },
   farm_corn: { label: 'Кукуруза', icon: '🌽' },
   mine_tool_pickaxe: { label: 'Шахтёрская кирка', icon: '⛏️' },
+  lumber_tool_axe: { label: 'Топор лесоруба', icon: '🪓' },
+  lumber_tool_chainsaw: { label: 'Бензопила', icon: '🪚' },
+  lumber_log: { label: 'Бревно', icon: '🪵' },
+  lumber_beam: { label: 'Брус', icon: '▰' },
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
@@ -65,6 +72,12 @@ function getInventoryItemLayoutKey(item = {}) {
 function getItemIconMarkup(itemType, fallbackIcon = '□') {
   if (String(itemType || '') === 'farm_rake') {
     return `<img class="mn-inventory-farm-rake-icon" src="${FARM_RAKE_ASSET_URL}" alt="">`;
+  }
+  if (String(itemType || '') === 'lumber_tool_chainsaw') {
+    return `<img class="mn-inventory-lumber-asset" src="${LUMBER_CHAINSAW_ASSET_URL}" alt="">`;
+  }
+  if (String(itemType || '') === 'lumber_beam') {
+    return `<img class="mn-inventory-lumber-asset" src="${LUMBER_BEAM_ASSET_URL}" alt="">`;
   }
   if (String(itemType || '') !== 'water_bottle') return escapeHtml(fallbackIcon || '□');
 
@@ -112,6 +125,7 @@ function getConsumptionEffectType(itemType) {
   const normalized = String(itemType || '').trim().toLowerCase();
   if (normalized.startsWith('farm_')) return '';
   if (normalized.startsWith('mine_')) return '';
+  if (normalized.startsWith('lumber_')) return '';
   if (normalized === 'water' || normalized === 'drink' || normalized.includes('water') || normalized.includes('drink')) {
     return 'water';
   }
@@ -275,6 +289,8 @@ function hasBlockingInterface() {
     document.body.classList.contains('mn-house-details-open') ||
     document.body.classList.contains('mn-house-spawn-open') ||
     document.body.classList.contains('mn-player-interaction-open') ||
+    document.body.classList.contains('mn-lumber-modal-open') ||
+    document.body.classList.contains('mn-lumber-minigame-open') ||
     document.body.classList.contains('admin-mode') ||
     document.body.classList.contains('mn-interior-collider-editor-open') ||
     document.body.classList.contains('mn-interior-object-editor-open')
@@ -333,7 +349,8 @@ function renderMedicalItems(slotItems = []) {
     const itemType = String(item.itemType || '');
     const meta = resolveItemMeta(item);
     const quantity = Number(item.quantity || 0);
-    const unitLabel = String(item.unitLabel || (itemType.startsWith('mine_') && itemType !== 'mine_tool_pickaxe' ? 'кг' : 'шт.'));
+    const lumberResource = itemType === 'lumber_log' || itemType === 'lumber_beam';
+    const unitLabel = String(item.unitLabel || ((itemType.startsWith('mine_') && itemType !== 'mine_tool_pickaxe') || lumberResource ? 'кг' : 'шт.'));
     const source = String(item.source || item.inventorySource || 'personal').toLowerCase();
     const isServiceStock = source === 'employee' || source === 'staff' || source === 'service';
     const label = meta.mineGrade ? meta.label : (item.label || meta.label);
@@ -353,6 +370,7 @@ function renderMedicalItems(slotItems = []) {
       itemType === 'water_bottle' ? 'mn-inventory-item-water' : '',
       itemType.startsWith('farm_') ? 'mn-inventory-item-farm' : '',
       itemType.startsWith('mine_') ? 'mn-inventory-item-mine' : '',
+      itemType.startsWith('lumber_') ? 'mn-inventory-item-lumber' : '',
     ].filter(Boolean).join(' ');
 
     return `
@@ -786,6 +804,24 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · постоянный инструмент.\n${sourceLabel}.\nИспользуется для добычи камня, угля, металла и меди. Прочность пока не расходуется.`;
     }
 
+    if (itemType === 'lumber_tool_axe') {
+      return `${getItemLabel(item)} · постоянный инструмент.\n${sourceLabel}.\nНужен для рубки 🌳 и 🌲. Прочность пока не расходуется.`;
+    }
+
+    if (itemType === 'lumber_tool_chainsaw') {
+      return `${getItemLabel(item)} · постоянный инструмент со 2 уровня.\n${sourceLabel}.\nРаспиливает одно бревно 20 кг на 4 бруса по 5 кг.`;
+    }
+
+    if (itemType === 'lumber_log' || itemType === 'lumber_beam') {
+      const unitWeight = Number(item.unitWeightKg || (itemType === 'lumber_log' ? 20 : 5));
+      const totalWeight = Number(item.totalWeightKg || unitWeight * quantity);
+      const price = itemType === 'lumber_log' ? 200 : 55;
+      const extra = itemType === 'lumber_log'
+        ? 'Со 2 уровня можно распилить бензопилой на 4 бруса.'
+        : 'С 3 уровня подходит для поставок производствам.';
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nВес: ${unitWeight} кг/шт., партия ${totalWeight} кг.\nПродажа: ${price} ₴/шт. ${extra}`;
+    }
+
     const mineGrade = parseMineGradeItemType(itemType);
     if (mineGrade) {
       const purity = Number(item.purityPercent ?? mineGrade.quality.purityPercent);
@@ -868,14 +904,16 @@ export function enableInventoryFeature() {
     if (itemMenuIcon) itemMenuIcon.innerHTML = getItemIconMarkup(itemType, meta.icon || item.icon || '□');
     if (itemMenuTitle) itemMenuTitle.textContent = getItemLabel(item);
     if (itemMenuQuantity) {
-      const unitLabel = String(item.unitLabel || (itemType.startsWith('mine_') && itemType !== 'mine_tool_pickaxe' ? 'кг' : 'шт.'));
+      const lumberResource = itemType === 'lumber_log' || itemType === 'lumber_beam';
+      const unitLabel = String(item.unitLabel || ((itemType.startsWith('mine_') && itemType !== 'mine_tool_pickaxe') || lumberResource ? 'кг' : 'шт.'));
       itemMenuQuantity.textContent = `${Number(item.quantity || 0).toLocaleString('ru-RU')} ${unitLabel}`;
     }
     if (itemMenuApply) {
       const medicineOnly = itemType.startsWith('medicine_');
       const farmNonUsable = itemType.startsWith('farm_');
       const mineNonUsable = itemType.startsWith('mine_');
-      const hidden = medicineOnly || farmNonUsable || mineNonUsable;
+      const lumberNonUsable = itemType.startsWith('lumber_');
+      const hidden = medicineOnly || farmNonUsable || mineNonUsable || lumberNonUsable;
       itemMenuApply.hidden = hidden;
       itemMenuApply.disabled = hidden;
       itemMenuApply.style.display = hidden ? 'none' : '';
@@ -1031,10 +1069,11 @@ export function enableInventoryFeature() {
   }
 
   async function refreshMedicalInventory() {
-    const [medicalResult, farmResult, mineResult] = await Promise.allSettled([
+    const [medicalResult, farmResult, mineResult, lumberResult] = await Promise.allSettled([
       loadMyMedicalInventory(),
       loadFarmInventory(),
       loadMineInventory(),
+      loadLumberInventory(),
     ]);
 
     const medical = medicalResult.status === 'fulfilled' && Array.isArray(medicalResult.value?.items)
@@ -1046,6 +1085,9 @@ export function enableInventoryFeature() {
     const mine = mineResult.status === 'fulfilled' && Array.isArray(mineResult.value?.items)
       ? mineResult.value.items
       : (Array.isArray(window.__MN_MINE_INVENTORY_ITEMS__) ? window.__MN_MINE_INVENTORY_ITEMS__ : []);
+    const lumber = lumberResult.status === 'fulfilled' && Array.isArray(lumberResult.value?.items)
+      ? lumberResult.value.items
+      : (Array.isArray(window.__MN_LUMBER_INVENTORY_ITEMS__) ? window.__MN_LUMBER_INVENTORY_ITEMS__ : []);
 
     if (medicalResult.status === 'rejected' && !String(medicalResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] medical inventory load failed:', medicalResult.reason);
@@ -1056,8 +1098,11 @@ export function enableInventoryFeature() {
     if (mineResult.status === 'rejected' && !String(mineResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] mine inventory load failed:', mineResult.reason);
     }
+    if (lumberResult.status === 'rejected' && !String(lumberResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+      console.warn('[inventory] lumber inventory load failed:', lumberResult.reason);
+    }
 
-    medicalItems = [...medical, ...farm, ...mine];
+    medicalItems = [...medical, ...farm, ...mine, ...lumber];
     publishInventorySnapshot(medicalItems);
     renderMedicalInventory();
   }
@@ -1250,6 +1295,14 @@ export function enableInventoryFeature() {
     const mineItems = Array.isArray(event?.detail?.items) ? event.detail.items : [];
     const nonMineItems = medicalItems.filter((item) => !String(item?.itemType || '').startsWith('mine_'));
     medicalItems = [...nonMineItems, ...mineItems];
+    publishInventorySnapshot(medicalItems);
+    renderMedicalInventory();
+  }
+
+  function handleLumberInventoryChanged(event) {
+    const lumberItems = Array.isArray(event?.detail?.items) ? event.detail.items : [];
+    const nonLumberItems = medicalItems.filter((item) => !String(item?.itemType || '').startsWith('lumber_'));
+    medicalItems = [...nonLumberItems, ...lumberItems];
     publishInventorySnapshot(medicalItems);
     renderMedicalInventory();
   }
@@ -1449,6 +1502,7 @@ export function enableInventoryFeature() {
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
   window.addEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
   window.addEventListener('mn:mine-inventory-changed', handleMineInventoryChanged);
+  window.addEventListener('mn:lumber-inventory-changed', handleLumberInventoryChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
   window.addEventListener('mn:player-inventory-changed', refreshMedicalInventory);
@@ -1494,6 +1548,7 @@ export function enableInventoryFeature() {
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
     window.removeEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
     window.removeEventListener('mn:mine-inventory-changed', handleMineInventoryChanged);
+    window.removeEventListener('mn:lumber-inventory-changed', handleLumberInventoryChanged);
     window.removeEventListener('mn:player-health-changed', handleHealthChanged);
     window.removeEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
     window.removeEventListener('mn:player-inventory-changed', refreshMedicalInventory);
