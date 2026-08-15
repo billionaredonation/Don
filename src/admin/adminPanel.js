@@ -460,6 +460,7 @@ export function enableAdminPanel({
         const selectedClass = String(selectedObjectId) === id ? ' is-selected' : '';
         const baseLabel = object.name || object.type || 'Объект';
         const label = baseLabel;
+        const sourceLabel = object.adminMapSnapshotOnly ? ' · карта' : '';
 
         return `
           <button
@@ -469,7 +470,7 @@ export function enableAdminPanel({
             title="${escapeHtml(label)} #${escapeHtml(shortId)}"
           >
             <span>${escapeHtml(object.icon || '◆')} ${escapeHtml(label)}</span>
-            <b>#${escapeHtml(shortId)}</b>
+            <b>#${escapeHtml(shortId)}${sourceLabel}</b>
           </button>
         `;
       })
@@ -514,10 +515,31 @@ export function enableAdminPanel({
     fillEditor(getSelectedObject());
   }
 
+  function mergeMapSnapshotObjects(freshObjects = []) {
+    const activeRegistry = window.__MN_ACTIVE_MAP_OBJECTS_BY_CITY__;
+    const activeObjects = activeRegistry && typeof activeRegistry === 'object'
+      ? activeRegistry[String(cityId)]
+      : [];
+    const byId = new Map();
+
+    (Array.isArray(freshObjects) ? freshObjects : []).forEach((object) => {
+      const id = String(object?.id || '');
+      if (id) byId.set(id, object);
+    });
+
+    (Array.isArray(activeObjects) ? activeObjects : []).forEach((object) => {
+      const id = String(object?.id || '');
+      if (!id || byId.has(id)) return;
+      byId.set(id, { ...object, adminMapSnapshotOnly: true });
+    });
+
+    return [...byId.values()];
+  }
+
   async function reloadObjects() {
     const freshObjects = await getMapObjects(cityId);
 
-    objects = freshObjects.map((object) => ({
+    objects = mergeMapSnapshotObjects(freshObjects).map((object) => ({
       ...object,
       selected: Boolean(selectedObjectId) && String(object.id) === String(selectedObjectId),
     }));
