@@ -460,7 +460,11 @@ export function enableMineFeature({ root, cityId } = {}) {
     window.__MN_PLAYER_CONTROLS_LOCKED__ = true;
     renderInventory();
     try {
-      const game = await playMineMiniGame({ resourceIcon: resource.icon, resourceLabel: resource.label });
+      const game = await playMineMiniGame({
+        resourceType: resource.resourceType,
+        resourceIcon: resource.icon,
+        resourceLabel: resource.label,
+      });
       if (destroyed || game.cancelled) return;
       const result = await extractMineNode({
         cityId,
