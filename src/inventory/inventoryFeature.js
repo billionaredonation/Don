@@ -78,6 +78,25 @@ function getItemIconMarkup(itemType, fallbackIcon = '□') {
     </svg>`;
 }
 
+function resolveItemMeta(item = {}) {
+  const itemType = String(item.itemType || item.item_type || '').trim();
+  const mineGrade = parseMineGradeItemType(itemType);
+
+  if (mineGrade) {
+    return {
+      label: `${mineGrade.subtype.label} · ${mineGrade.quality.shortLabel}`,
+      icon: mineGrade.subtype.icon,
+      mineGrade,
+    };
+  }
+
+  return ITEM_META[itemType] || {
+    label: item.label || itemType || 'Предмет',
+    icon: item.icon || '□',
+    mineGrade: null,
+  };
+}
+
 function publishInventorySnapshot(items = []) {
   const snapshot = (Array.isArray(items) ? items : [])
     .filter((item) => item && Number(item.quantity || 0) > 0)
@@ -312,12 +331,12 @@ function renderMedicalItems(slotItems = []) {
     }
 
     const itemType = String(item.itemType || '');
-    const meta = ITEM_META[itemType] || { label: item.label || itemType, icon: '□' };
+    const meta = resolveItemMeta(item);
     const quantity = Number(item.quantity || 0);
     const unitLabel = String(item.unitLabel || (itemType.startsWith('mine_') && itemType !== 'mine_tool_pickaxe' ? 'кг' : 'шт.'));
     const source = String(item.source || item.inventorySource || 'personal').toLowerCase();
     const isServiceStock = source === 'employee' || source === 'staff' || source === 'service';
-    const label = item.label || meta.label;
+    const label = meta.mineGrade ? meta.label : (item.label || meta.label);
     const sourceLabel = isServiceStock
       ? `Служебные${item.hospitalName ? ` · ${item.hospitalName}` : ''}`
       : 'Личные';
@@ -715,12 +734,12 @@ export function enableInventoryFeature() {
   }
 
   function getItemMeta(item = {}) {
-    const itemType = String(item.itemType || '');
-    return ITEM_META[itemType] || { label: item.label || itemType || 'Предмет', icon: item.icon || '□' };
+    return resolveItemMeta(item);
   }
 
   function getItemLabel(item = {}) {
-    return item.label || getItemMeta(item).label || 'Предмет';
+    const meta = getItemMeta(item);
+    return meta.mineGrade ? meta.label : (item.label || meta.label || 'Предмет');
   }
 
   function getItemSourceLabel(item = {}) {
@@ -771,10 +790,22 @@ export function enableInventoryFeature() {
     if (mineGrade) {
       const purity = Number(item.purityPercent ?? mineGrade.quality.purityPercent);
       const basePrice = getMineBaseGradePrice(mineGrade.subtype.subtypeCode, mineGrade.qualityLevel);
+      const batchPrice = Math.max(0, Math.round(basePrice * quantity));
       const washText = mineGrade.quality.washingRequired
-        ? 'Перед будущими крафтами сырьё потребуется промыть.'
-        : 'Сырьё уже можно использовать без обязательной промывки.';
-      return `${getItemLabel(item)} · ${quantity} кг.\n${sourceLabel}.\nКачество: ${mineGrade.quality.label}, очистка ${purity}%.\nБазовая цена до коэффициента скупщика: ${basePrice} ₴/кг.\n${washText}`;
+        ? 'Обработка: перед крафтом сырьё нужно промыть.'
+        : 'Обработка: обязательная промывка не нужна.';
+      return [
+        `${mineGrade.subtype.icon} ${mineGrade.subtype.label}`,
+        `${sourceLabel} · масса партии: ${quantity.toLocaleString('ru-RU')} кг`,
+        `Тип: ${mineGrade.subtype.description}`,
+        `Качество: ${mineGrade.qualityLevel}/5 — ${mineGrade.quality.label}`,
+        `Чистота: ${purity}%`,
+        `Цена: ${basePrice.toLocaleString('ru-RU')} ₴/кг до коэффициента скупщика`,
+        `Базовая стоимость партии: ${batchPrice.toLocaleString('ru-RU')} ₴`,
+        `Назначение: ${mineGrade.subtype.useLabel}.`,
+        mineGrade.subtype.specialLabel,
+        washText,
+      ].join('\n');
     }
 
     if (itemType.startsWith('medicine_')) {
