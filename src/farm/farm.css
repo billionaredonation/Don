@@ -17,13 +17,15 @@
   width: 24px;
   height: 24px;
   place-items: center;
-  border: 1px solid rgba(var(--mn-farm-item-rgb), .82);
-  border-radius: 9px;
-  background: linear-gradient(145deg, rgba(var(--mn-farm-item-rgb), .4), rgba(8, 18, 12, .96));
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 255, 255, .1);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   font-size: 22px;
   line-height: 1;
-  filter: none;
+  filter:
+    drop-shadow(0 2px 1px rgba(0, 0, 0, .9))
+    drop-shadow(0 4px 5px rgba(var(--mn-farm-item-rgb), .72));
   text-shadow: none;
   transform: translateZ(0);
 }
@@ -36,23 +38,27 @@
   place-items: center;
   width: 24px;
   height: 24px;
-  border: 1px solid rgba(var(--mn-farm-item-rgb), .82);
-  border-radius: 9px;
-  background: linear-gradient(145deg, rgba(var(--mn-farm-item-rgb), .42), rgba(8, 16, 11, .96));
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 255, 255, .1);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   font-size: 20px;
   line-height: 1;
-  filter: none;
+  filter:
+    drop-shadow(0 2px 1px rgba(0, 0, 0, .9))
+    drop-shadow(0 4px 5px rgba(var(--mn-farm-item-rgb), .72));
   text-shadow: none;
   transform: translateZ(0);
 }
 
+.map-object-type-farm_station.map-object-nearby .map-object-icon,
 .map-object-type-farm_wheat_plant.map-object-nearby .map-object-icon,
 .map-object-type-farm_apple_plant.map-object-nearby .map-object-icon,
 .map-object-type-farm_orange_plant.map-object-nearby .map-object-icon,
 .map-object-type-farm_corn_plant.map-object-nearby .map-object-icon {
-  border-color: rgba(var(--mn-farm-item-rgb), 1);
-  box-shadow: 0 0 0 3px rgba(var(--mn-farm-item-rgb), .3), 0 0 0 5px rgba(0, 0, 0, .52);
+  filter:
+    drop-shadow(0 2px 1px rgba(0, 0, 0, .92))
+    drop-shadow(0 5px 8px rgba(var(--mn-farm-item-rgb), .95));
 }
 
 .map-object-type-farm_wheat_plant.is-farm-plant-cooldown .map-object-icon,
@@ -60,7 +66,11 @@
 .map-object-type-farm_orange_plant.is-farm-plant-cooldown .map-object-icon,
 .map-object-type-farm_corn_plant.is-farm-plant-cooldown .map-object-icon {
   opacity: .42;
-  filter: grayscale(.65) brightness(.78);
+  filter:
+    grayscale(.65)
+    brightness(.78)
+    drop-shadow(0 2px 1px rgba(0, 0, 0, .85))
+    drop-shadow(0 3px 4px rgba(var(--mn-farm-item-rgb), .36));
 }
 
 .entity-interaction-hint > [data-interaction-hint-timer][hidden] {
