@@ -850,6 +850,7 @@ export function enableInventoryFeature() {
     if (!itemMenu) return;
     itemMenu.hidden = true;
     itemMenu.setAttribute('aria-hidden', 'true');
+    delete itemMenu.dataset.itemType;
     setItemMenuNotice('');
   }
 
@@ -863,6 +864,7 @@ export function enableInventoryFeature() {
     selectedInventoryItem = item;
     itemMenu.hidden = false;
     itemMenu.setAttribute('aria-hidden', 'false');
+    itemMenu.dataset.itemType = itemType;
     if (itemMenuIcon) itemMenuIcon.innerHTML = getItemIconMarkup(itemType, meta.icon || item.icon || '□');
     if (itemMenuTitle) itemMenuTitle.textContent = getItemLabel(item);
     if (itemMenuQuantity) {
