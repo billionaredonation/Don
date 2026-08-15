@@ -18,47 +18,51 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   overflow: visible !important;
 }
 
-.map-object-type-farm_station .map-object-icon {
-  display: grid;
-  width: 100%;
-  height: 100%;
-  place-items: center;
+.map-object-type-farm_station .map-object-icon,
+.map-object-type-farm_wheat_plant .map-object-icon,
+.map-object-type-farm_apple_plant .map-object-icon,
+.map-object-type-farm_orange_plant .map-object-icon,
+.map-object-type-farm_corn_plant .map-object-icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: inline-flex;
+  width: max-content;
+  height: max-content;
+  min-width: max-content;
+  min-height: max-content;
+  align-items: center;
+  justify-content: center;
+  box-sizing: content-box;
+  padding: 5px;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 28px;
-  line-height: 1;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  line-height: 1.2;
+  white-space: nowrap;
   filter:
-    drop-shadow(0 0 1px rgba(255, 255, 255, 1))
-    drop-shadow(0 0 4px rgba(255, 255, 255, .92))
-    drop-shadow(0 0 8px rgba(255, 255, 255, .58));
+    grayscale(0)
+    brightness(1)
+    invert(0)
+    drop-shadow(0 0 0 rgba(255, 255, 255, 0))
+    drop-shadow(0 2px 2px rgba(0, 0, 0, .55));
   overflow: visible;
   text-shadow: none;
-  transform: translateZ(0);
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  transition: filter 300ms ease, opacity 300ms ease;
+  will-change: filter;
 }
+
+.map-object-type-farm_station .map-object-icon { font-size: 28px; }
 
 .map-object-type-farm_wheat_plant .map-object-icon,
 .map-object-type-farm_apple_plant .map-object-icon,
 .map-object-type-farm_orange_plant .map-object-icon,
 .map-object-type-farm_corn_plant .map-object-icon {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
   font-size: 24px;
-  line-height: 1;
-  filter:
-    drop-shadow(0 0 1px rgba(255, 255, 255, 1))
-    drop-shadow(0 0 4px rgba(255, 255, 255, .92))
-    drop-shadow(0 0 8px rgba(255, 255, 255, .58));
-  overflow: visible;
-  text-shadow: none;
-  transform: translateZ(0);
 }
 
 .map-object-type-farm_station.map-object-nearby .map-object-icon,
@@ -67,9 +71,11 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 .map-object-type-farm_orange_plant.map-object-nearby .map-object-icon,
 .map-object-type-farm_corn_plant.map-object-nearby .map-object-icon {
   filter:
-    drop-shadow(0 0 1px rgba(255, 255, 255, 1))
-    drop-shadow(0 0 5px rgba(255, 255, 255, 1))
-    drop-shadow(0 0 10px rgba(255, 255, 255, .78));
+    grayscale(1)
+    brightness(0)
+    invert(1)
+    drop-shadow(0 0 3px rgba(255, 255, 255, .96))
+    drop-shadow(0 2px 2px rgba(0, 0, 0, .28));
 }
 
 .map-object-type-farm_wheat_plant.is-farm-plant-cooldown .map-object-icon,
@@ -80,7 +86,9 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   filter:
     grayscale(.65)
     brightness(.78)
-    drop-shadow(0 0 3px rgba(255, 255, 255, .62));
+    invert(0)
+    drop-shadow(0 0 0 rgba(255, 255, 255, 0))
+    drop-shadow(0 2px 2px rgba(0, 0, 0, .45));
 }
 
 .entity-interaction-hint > [data-interaction-hint-timer][hidden] {
