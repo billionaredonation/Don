@@ -17,6 +17,8 @@ import {
 const INTERACTION_RADIUS_PX = 108;
 const MOBILE_INTERACTION_RADIUS_PX = 150;
 const DIRECT_TAP_RADIUS_PX = 174;
+const WORK_OBJECT_INTERACTION_RADIUS_PX = 26;
+const MOBILE_WORK_OBJECT_INTERACTION_RADIUS_PX = 30;
 const JOB_STATION_INTERACTION_GAP_PX = 10;
 const MOBILE_JOB_STATION_INTERACTION_GAP_PX = 14;
 const HOUSE_TAP_TARGET_RADIUS_PX = 52;
@@ -1437,10 +1439,14 @@ export function enableEntityInteraction({
         : JOB_STATION_INTERACTION_GAP_PX;
     }
 
-    // Работы используют ту же зону реакции, что и дома. На телефоне действие
-    // запускается отдельной подсказкой, поэтому маленький hitbox иконки больше
-    // не участвует во взаимодействии.
-    if (isWorkObject(object)) return getInteractionRadius();
+    // Растения, месторождения и остальные рабочие точки срабатывают только
+    // почти вплотную. На телефоне оставляем лишь небольшой запас на движение
+    // между двумя проверками; размер кнопки подсказки на радиус не влияет.
+    if (isWorkObject(object)) {
+      return isMobileGameplayDevice()
+        ? MOBILE_WORK_OBJECT_INTERACTION_RADIUS_PX
+        : WORK_OBJECT_INTERACTION_RADIUS_PX;
+    }
 
     return directTap && isMobileGameplayDevice()
       ? DIRECT_TAP_RADIUS_PX
