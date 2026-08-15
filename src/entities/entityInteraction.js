@@ -51,6 +51,16 @@ const MINE_NODE_HINT_META = Object.freeze({
   mine_copper_node: Object.freeze({ name: 'медь', icon: '🟠' }),
 });
 
+const LUMBER_TREE_OBJECT_TYPES = new Set([
+  'lumber_deciduous_tree',
+  'lumber_pine_tree',
+]);
+
+const LUMBER_TREE_HINT_META = Object.freeze({
+  lumber_deciduous_tree: Object.freeze({ name: 'лиственное дерево', icon: '🌳' }),
+  lumber_pine_tree: Object.freeze({ name: 'сосну', icon: '🌲' }),
+});
+
 function isFarmPlantType(type) {
   return FARM_PLANT_OBJECT_TYPES.has(String(type || ''));
 }
@@ -69,6 +79,15 @@ function isMineStationObject(object) {
   return type === 'mine_station';
 }
 
+function isLumberTreeType(type) {
+  return LUMBER_TREE_OBJECT_TYPES.has(String(type || ''));
+}
+
+function isLumberStationObject(object) {
+  const type = String(object?.type || object?.payload?.jobType || '');
+  return type === 'lumber_station';
+}
+
 function isWorkObject(object) {
   const payload = object?.payload || {};
   const type = String(object?.type || payload.jobType || payload.type || '');
@@ -79,7 +98,9 @@ function isWorkObject(object) {
     isFarmStationObject(object) ||
     isFarmPlantType(type) ||
     isMineStationObject(object) ||
-    isMineNodeType(type)
+    isMineNodeType(type) ||
+    isLumberStationObject(object) ||
+    isLumberTreeType(type)
   );
 }
 
@@ -137,6 +158,27 @@ function getMineNodeHintState(object) {
     };
   }
   return { text: `⛏️ Добывать ${meta.name}`, timer: '', urgent: false };
+}
+
+function getLumberTreeHintState(object) {
+  const type = String(object?.type || object?.payload?.jobType || '');
+  const treeObjectId = String(object?.id || '');
+  const meta = LUMBER_TREE_HINT_META[type] || LUMBER_TREE_HINT_META.lumber_deciduous_tree;
+  if (window.__MN_LUMBER_TREE_STATES_READY__ === false) {
+    return { text: `${meta.icon} Проверяем дерево…`, timer: '', urgent: false };
+  }
+  const saved = window.__MN_LUMBER_TREE_STATES__?.[treeObjectId] || null;
+  const readyAt = saved?.readyAt || saved?.ready_at;
+  const readyMs = new Date(readyAt || 0).getTime();
+  if (Number.isFinite(readyMs) && readyMs > Date.now()) {
+    const seconds = Math.max(1, Math.ceil((readyMs - Date.now()) / 1000));
+    return {
+      text: `${meta.icon} Дерево восстанавливается`,
+      timer: `⏱ ${formatFarmPlantCountdown(readyAt)}`,
+      urgent: seconds <= 10,
+    };
+  }
+  return { text: `🪓 Срубить ${meta.name}`, timer: '', urgent: false };
 }
 
 /*
@@ -1465,6 +1507,8 @@ export function enableEntityInteraction({
     let nearestFarmPlantDistance = Number.POSITIVE_INFINITY;
     let nearestMineNode = null;
     let nearestMineNodeDistance = Number.POSITIVE_INFINITY;
+    let nearestLumberTree = null;
+    let nearestLumberTreeDistance = Number.POSITIVE_INFINITY;
     const radius = getInteractionRadius();
     const position = getCurrentPlayerPercent(playerPosition);
     const rect = viewport?.getBoundingClientRect?.();
@@ -1538,6 +1582,11 @@ export function enableEntityInteraction({
         nearestMineNodeDistance = distance;
       }
 
+      if (isLumberTreeType(candidateType) && distance < nearestLumberTreeDistance) {
+        nearestLumberTree = object;
+        nearestLumberTreeDistance = distance;
+      }
+
       if (distance < bestDistance) {
         bestObject = object;
         bestDistance = distance;
@@ -1547,6 +1596,7 @@ export function enableEntityInteraction({
     // Если растение и лавка стоят рядом, действие должно относиться к растению.
     if (isFarmStationObject(bestObject) && nearestFarmPlant) return nearestFarmPlant;
     if (isMineStationObject(bestObject) && nearestMineNode) return nearestMineNode;
+    if (isLumberStationObject(bestObject) && nearestLumberTree) return nearestLumberTree;
 
     return bestObject;
   }
@@ -1663,6 +1713,22 @@ export function enableEntityInteraction({
     return content;
   }
 
+  function updateLumberTreeHintContent(object) {
+    const content = getLumberTreeHintState(object);
+    const textEl = hint.querySelector('[data-interaction-hint-text]');
+    const timerEl = hint.querySelector('[data-interaction-hint-timer]');
+    if (textEl) textEl.textContent = content.text;
+    if (timerEl) {
+      timerEl.textContent = content.timer;
+      timerEl.hidden = !content.timer;
+    }
+    if (content.timer) hint.dataset.farmTimerActive = 'true';
+    else delete hint.dataset.farmTimerActive;
+    if (content.urgent) hint.dataset.farmTimerUrgent = 'true';
+    else delete hint.dataset.farmTimerUrgent;
+    return content;
+  }
+
   function showInteractionHintOnce(object) {
     if (!object?.id) return;
 
@@ -1685,15 +1751,17 @@ export function enableEntityInteraction({
     const objectType = String(object?.type || object?.payload?.jobType || '');
     const farmPlant = isFarmPlantType(objectType);
     const mineNode = isMineNodeType(objectType);
+    const lumberTree = isLumberTreeType(objectType);
     const job = isWorkObject(object);
     const persistentMobileJob = job && isMobileGameplayDevice();
     if (persistentMobileJob) hint.dataset.farmPlantAction = 'true';
     else delete hint.dataset.farmPlantAction;
 
     if (lastHintObjectId === objectId) {
-      if ((farmPlant || mineNode || persistentMobileJob) && window.__MN_PLAYER_CONTROLS_LOCKED__ !== true) {
+      if ((farmPlant || mineNode || lumberTree || persistentMobileJob) && window.__MN_PLAYER_CONTROLS_LOCKED__ !== true) {
         if (farmPlant) updateFarmPlantHintContent(object);
         else if (mineNode) updateMineNodeHintContent(object);
+        else if (lumberTree) updateLumberTreeHintContent(object);
         hint.hidden = false;
         hint.classList.add('is-visible');
       }
@@ -1708,14 +1776,19 @@ export function enableEntityInteraction({
     const hospital = panel?.isHospitalObject?.(object);
     const farmHint = farmPlant ? getFarmPlantHintState(object) : null;
     const mineHint = mineNode ? getMineNodeHintState(object) : null;
+    const lumberHint = lumberTree ? getLumberTreeHintState(object) : null;
     const jobHint = objectType === 'farm_station'
       ? 'Фермерская лавка'
       : objectType === 'mine_station'
         ? 'Шахтёрское снабжение'
+      : objectType === 'lumber_station'
+        ? 'Лесорубная точка · инструменты и продажа'
       : farmPlant
         ? farmHint.text
         : mineNode
           ? mineHint.text
+          : lumberTree
+            ? lumberHint.text
           : 'Рабочая точка';
 
     if (isMobileGameplayDevice()) {
@@ -1742,6 +1815,8 @@ export function enableEntityInteraction({
       updateFarmPlantHintContent(object);
     } else if (mineNode) {
       updateMineNodeHintContent(object);
+    } else if (lumberTree) {
+      updateLumberTreeHintContent(object);
     } else {
       delete hint.dataset.farmTimerActive;
       delete hint.dataset.farmTimerUrgent;
@@ -1757,7 +1832,7 @@ export function enableEntityInteraction({
 
     clearTimeout(hintHideTimer);
 
-    if (!farmPlant && !mineNode && !persistentMobileJob) {
+    if (!farmPlant && !mineNode && !lumberTree && !persistentMobileJob) {
       hintHideTimer = setTimeout(() => {
         hideInteractionHint();
       }, INTERACTION_HINT_VISIBLE_MS);
