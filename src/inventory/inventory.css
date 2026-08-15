@@ -853,6 +853,10 @@ body.mn-inventory-open .mn-vital-notice {
 .mn-inventory-item-menu[data-item-type^="mine_metal_technical_q"] { --mn-inventory-menu-item-rgb: 178, 147, 205; }
 .mn-inventory-item-menu[data-item-type^="mine_copper_raw_q"] { --mn-inventory-menu-item-rgb: 187, 117, 69; }
 .mn-inventory-item-menu[data-item-type^="mine_copper_conductive_q"] { --mn-inventory-menu-item-rgb: 241, 116, 67; }
+.mn-inventory-item-menu[data-item-type="lumber_tool_axe"] { --mn-inventory-menu-item-rgb: 145, 181, 123; }
+.mn-inventory-item-menu[data-item-type="lumber_tool_chainsaw"] { --mn-inventory-menu-item-rgb: 242, 157, 45; }
+.mn-inventory-item-menu[data-item-type="lumber_log"] { --mn-inventory-menu-item-rgb: 145, 92, 48; }
+.mn-inventory-item-menu[data-item-type="lumber_beam"] { --mn-inventory-menu-item-rgb: 173, 116, 77; }
 
 .mn-inventory-item-menu[data-item-type^="mine_coal_common_q"] .mn-inventory-item-menu-card header span {
   color: #17131e;
@@ -1334,6 +1338,15 @@ html.mn-inventory-open {
   filter: none;
 }
 
+.mn-inventory-lumber-asset {
+  display: block;
+  width: 86%;
+  height: 86%;
+  margin: auto;
+  object-fit: contain;
+  filter: none;
+}
+
 .mn-inventory-item-food { --mn-inventory-item-rgb: 67, 205, 132; }
 .mn-inventory-item-water,
 .mn-inventory-item[data-inventory-item-type="farm_water_bottle"] { --mn-inventory-item-rgb: 68, 169, 235; }
@@ -1355,6 +1368,10 @@ html.mn-inventory-open {
 .mn-inventory-item[data-inventory-item-type^="mine_metal_technical_q"] { --mn-inventory-item-rgb: 178, 147, 205; }
 .mn-inventory-item[data-inventory-item-type^="mine_copper_raw_q"] { --mn-inventory-item-rgb: 187, 117, 69; }
 .mn-inventory-item[data-inventory-item-type^="mine_copper_conductive_q"] { --mn-inventory-item-rgb: 241, 116, 67; }
+.mn-inventory-item[data-inventory-item-type="lumber_tool_axe"] { --mn-inventory-item-rgb: 145, 181, 123; }
+.mn-inventory-item[data-inventory-item-type="lumber_tool_chainsaw"] { --mn-inventory-item-rgb: 242, 157, 45; }
+.mn-inventory-item[data-inventory-item-type="lumber_log"] { --mn-inventory-item-rgb: 145, 92, 48; }
+.mn-inventory-item[data-inventory-item-type="lumber_beam"] { --mn-inventory-item-rgb: 173, 116, 77; }
 
 .mn-inventory-item[data-inventory-item-type^="mine_coal_common_q"] > span:first-child {
   color: #17131e;
