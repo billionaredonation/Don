@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { addRunningSkillXp, loadPlayerSkills } from '../farm/farmApi.js';
 import { loadMineSkills } from '../mine/mineApi.js';
+import { loadLumberSkills } from '../lumber/lumberApi.js';
 import { getPlayerSkillsSnapshot, publishPlayerSkills } from './playerSkillState.js';
 import './playerSkills.css';
 
@@ -21,32 +22,35 @@ function escapeHtml(value) {
 }
 
 function progressPercent(skill = {}) {
-  if (Number(skill.level) >= 5 || skill.nextLevelXp == null) return 100;
+  const maxLevel = Math.max(1, Number(skill.maxLevel) || 5);
+  if (Number(skill.level) >= maxLevel || skill.nextLevelXp == null) return 100;
   const start = Math.max(0, Number(skill.levelStartXp) || 0);
   const next = Math.max(start + 1, Number(skill.nextLevelXp) || start + 1);
   return Math.max(0, Math.min(100, ((Number(skill.xp) - start) / (next - start)) * 100));
 }
 
 function progressCaption(skill = {}) {
-  if (Number(skill.level) >= 5 || skill.nextLevelXp == null) return 'Максимальный уровень';
+  const maxLevel = Math.max(1, Number(skill.maxLevel) || 5);
+  if (Number(skill.level) >= maxLevel || skill.nextLevelXp == null) return 'Максимальный уровень';
   const start = Math.max(0, Number(skill.levelStartXp) || 0);
   const next = Math.max(start + 1, Number(skill.nextLevelXp) || start + 1);
   return `${Math.max(0, Number(skill.xp) - start).toLocaleString('ru-RU')} / ${(next - start).toLocaleString('ru-RU')} XP`;
 }
 
-function levelDots(level) {
-  return Array.from({ length: 5 }, (_, index) => (
+function levelDots(level, maxLevel = 5) {
+  return Array.from({ length: Math.max(1, Number(maxLevel) || 5) }, (_, index) => (
     `<i data-filled="${index < Number(level) ? 'true' : 'false'}"></i>`
   )).join('');
 }
 
 function skillCard(skill, extra = '') {
+  const maxLevel = Math.max(1, Number(skill.maxLevel) || 5);
   return `
     <article class="mn-skill-card">
       <div class="mn-skill-icon" aria-hidden="true">${escapeHtml(skill.icon || '✦')}</div>
       <div class="mn-skill-main">
-        <header><strong>${escapeHtml(skill.label)}</strong><span>Уровень ${Number(skill.level) || 1}/5</span></header>
-        <div class="mn-skill-level-dots" aria-hidden="true">${levelDots(skill.level)}</div>
+        <header><strong>${escapeHtml(skill.label)}</strong><span>Уровень ${Number(skill.level) || 1}/${maxLevel}</span></header>
+        <div class="mn-skill-level-dots" aria-hidden="true">${levelDots(skill.level, maxLevel)}</div>
         <div class="mn-skill-progress"><i style="width:${progressPercent(skill).toFixed(2)}%"></i></div>
         <footer><small>${progressCaption(skill)}</small>${extra}</footer>
       </div>
@@ -190,6 +194,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     const farmer = snapshot.skills?.farmer || {};
     const running = snapshot.skills?.running || {};
     const miner = snapshot.skills?.miner || {};
+    const lumberjack = snapshot.skills?.lumberjack || {};
     const crops = Array.isArray(snapshot.crops) ? snapshot.crops : [];
     const mineResources = Array.isArray(snapshot.mineResources) ? snapshot.mineResources : [];
     const mineSubtypes = Array.isArray(snapshot.mineSubtypes) ? snapshot.mineSubtypes : [];
@@ -254,11 +259,12 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     }).join('');
 
     function overviewCard(skill, eyebrow, accent) {
+      const maxLevel = Math.max(1, Number(skill.maxLevel) || 5);
       return `
         <article class="mn-skill-overview-card" data-accent="${accent}">
           <i>${escapeHtml(skill.icon || '✦')}</i>
           <span><small>${eyebrow}</small><strong>${escapeHtml(skill.label)}</strong><em><u style="width:${progressPercent(skill).toFixed(2)}%"></u></em></span>
-          <b>${Number(skill.level) || 1}/5</b>
+          <b>${Number(skill.level) || 1}/${maxLevel}</b>
         </article>`;
     }
 
@@ -268,6 +274,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         <div class="mn-skill-overview-grid">
           ${overviewCard(farmer, 'Работа', 'farm')}
           ${overviewCard(miner, 'Работа', 'mine')}
+          ${overviewCard(lumberjack, 'Работа', 'lumber')}
           ${overviewCard(running, 'Форма', 'running')}
         </div>
       </section>
@@ -286,6 +293,18 @@ export function enablePlayerSkillsFeature({ root } = {}) {
           ${skillCard(miner, '<b>Камень → уголь → металл → медь</b>')}
           <p class="mn-mine-tree-note">Нажмите на ресурс, чтобы увидеть только его подтипы, очистку и назначение.</p>
           <div class="mn-mine-resource-tree">${mineResourceBranches}</div>
+        </div>
+      </details>
+
+      <details class="mn-skill-profession is-lumber" data-skill-details="lumberjack">
+        <summary><i>🪓</i><span><small>Профессия</small><strong>Лесозаготовка</strong></span><b>${Number(lumberjack.level) || 1}/3</b></summary>
+        <div class="mn-skill-profession-body">
+          ${skillCard(lumberjack, '<b>Бревно → 4 бруса → производство</b>')}
+          <div class="mn-lumber-skill-roadmap">
+            <article data-unlocked="true"><i>🪵</i><span><b>1 уровень</b><small>Топор, рубка деревьев, бревно 20 кг и продажа за 200 ₴</small></span></article>
+            <article data-unlocked="${Number(lumberjack.level) >= 2 ? 'true' : 'false'}"><i>🪚</i><span><b>2 уровень</b><small>Бензопила: 1 бревно → 4 бруса по 5 кг; 55 ₴ за брус</small></span><strong>${Number(lumberjack.level) >= 2 ? 'Открыто' : '🔒'}</strong></article>
+            <article data-unlocked="${Number(lumberjack.level) >= 3 ? 'true' : 'false'}"><i>🏭</i><span><b>3 уровень</b><small>Поставка подготовленного бруса производствам</small></span><strong>${Number(lumberjack.level) >= 3 ? 'Открыто' : '🔒'}</strong></article>
+          </div>
         </div>
       </details>
 
@@ -316,13 +335,15 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   async function refreshSkills({ silent = true } = {}) {
     if (loadPromise) return loadPromise;
     loadPromise = (async () => {
-      const [farmResult, mineResult] = await Promise.allSettled([
+      const [farmResult, mineResult, lumberResult] = await Promise.allSettled([
         loadPlayerSkills(),
         loadMineSkills(),
+        loadLumberSkills(),
       ]);
 
       if (!destroyed && farmResult.status === 'fulfilled') publishPlayerSkills(farmResult.value);
       if (!destroyed && mineResult.status === 'fulfilled') publishPlayerSkills(mineResult.value);
+      if (!destroyed && lumberResult.status === 'fulfilled') publishPlayerSkills(lumberResult.value);
 
       if (farmResult.status === 'rejected' && !String(farmResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
         console.warn('[playerSkills] farm skills load failed:', farmResult.reason);
@@ -330,8 +351,11 @@ export function enablePlayerSkillsFeature({ root } = {}) {
       if (mineResult.status === 'rejected' && !String(mineResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
         console.warn('[playerSkills] mine skills load failed:', mineResult.reason);
       }
+      if (lumberResult.status === 'rejected' && !String(lumberResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+        console.warn('[playerSkills] lumber skills load failed:', lumberResult.reason);
+      }
 
-      const loaded = farmResult.status === 'fulfilled' || mineResult.status === 'fulfilled';
+      const loaded = farmResult.status === 'fulfilled' || mineResult.status === 'fulfilled' || lumberResult.status === 'fulfilled';
       if (!loaded && !silent && content) {
         content.innerHTML = '<div class="mn-skills-loading is-error">Не удалось загрузить навыки. Закройте профиль и попробуйте ещё раз.</div>';
       }
