@@ -1,3 +1,9 @@
+.map-object-type-mine_station { --mn-mine-node-rgb: 226, 151, 70; }
+.map-object-type-mine_stone_node { --mn-mine-node-rgb: 205, 211, 222; }
+.map-object-type-mine_coal_node { --mn-mine-node-rgb: 174, 151, 216; }
+.map-object-type-mine_metal_node { --mn-mine-node-rgb: 151, 173, 202; }
+.map-object-type-mine_copper_node { --mn-mine-node-rgb: 241, 116, 67; }
+
 .map-object-type-mine_station .map-object-icon,
 .map-object-type-mine_stone_node .map-object-icon,
 .map-object-type-mine_coal_node .map-object-icon,
@@ -5,10 +11,17 @@
 .map-object-type-mine_copper_node .map-object-icon {
   display: grid;
   place-items: center;
-  border: 1px solid rgba(231, 164, 79, .35);
+  border: 1px solid rgba(var(--mn-mine-node-rgb), .82);
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 28%, rgba(255, 208, 139, .24), rgba(34, 23, 16, .92));
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .4), 0 0 16px rgba(210, 129, 49, .12);
+  background: linear-gradient(145deg, rgba(var(--mn-mine-node-rgb), .38), rgba(12, 13, 16, .96));
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 255, 255, .1);
+  filter: none;
+  text-shadow: none;
+}
+
+.map-object-type-mine_coal_node .map-object-icon {
+  color: #17131e;
+  background: linear-gradient(145deg, rgba(235, 228, 250, .96), rgba(135, 116, 171, .94));
 }
 
 .map-object-type-mine_stone_node .map-object-icon,
@@ -20,8 +33,8 @@
 .map-object-type-mine_coal_node.map-object-nearby .map-object-icon,
 .map-object-type-mine_metal_node.map-object-nearby .map-object-icon,
 .map-object-type-mine_copper_node.map-object-nearby .map-object-icon {
-  border-color: rgba(255, 192, 109, .78);
-  box-shadow: 0 0 0 4px rgba(218, 137, 55, .1), 0 0 24px rgba(243, 160, 73, .28);
+  border-color: rgba(var(--mn-mine-node-rgb), 1);
+  box-shadow: 0 0 0 3px rgba(var(--mn-mine-node-rgb), .3), 0 0 0 5px rgba(0, 0, 0, .52);
 }
 
 .map-object.is-mine-node-cooldown .map-object-icon {
@@ -50,7 +63,6 @@
   inset: 0;
   border: 0;
   background: rgba(4, 3, 2, .82);
-  backdrop-filter: blur(9px);
 }
 
 .mn-mine-panel {
@@ -78,8 +90,8 @@
 }
 
 .mn-mine-panel > header span { display: grid; gap: 3px; }
-.mn-mine-panel > header small { color: #9b8775; font-size: 9px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
-.mn-mine-panel > header strong { font-size: 18px; }
+.mn-mine-panel > header small { color: #b6a08b; font-size: 10px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
+.mn-mine-panel > header strong { font-size: 20px; font-weight: 900; }
 .mn-mine-panel > header button {
   width: 38px; height: 38px; border: 0; border-radius: 12px; color: #fff;
   background: rgba(255, 255, 255, .08); font: 500 26px/1 system-ui; cursor: pointer;
@@ -88,16 +100,21 @@
 .mn-mine-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 10px 14px 0; gap: 8px; }
 .mn-mine-tabs button {
   min-height: 38px; border: 1px solid rgba(255, 255, 255, .07); border-radius: 12px;
-  color: #aa9a8c; background: rgba(255, 255, 255, .025); font-weight: 850; cursor: pointer;
+  color: #b9aa9d; background: rgba(255, 255, 255, .025); font-size: 13px; font-weight: 900; cursor: pointer;
 }
 .mn-mine-tabs button[data-active="true"] { border-color: rgba(226, 150, 71, .35); color: #ffd6a2; background: rgba(194, 111, 35, .13); }
 
 .mn-mine-chain {
   display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
   margin: 10px 14px; padding: 9px 12px; border: 1px solid rgba(255, 255, 255, .055); border-radius: 13px;
-  color: #ae9a87; background: rgba(255, 255, 255, .02); font-size: 10px; font-weight: 800;
+  color: #c0ad9b; background: rgba(255, 255, 255, .02); font-size: 12px; font-weight: 850;
 }
 .mn-mine-chain i { color: rgba(255, 255, 255, .22); font-style: normal; }
+.mn-mine-chain span { padding: 4px 7px; border: 1px solid rgba(255, 255, 255, .07); border-radius: 8px; }
+.mn-mine-chain span:nth-of-type(1) { border-color: rgba(205, 211, 222, .28); background: rgba(205, 211, 222, .1); }
+.mn-mine-chain span:nth-of-type(2) { border-color: rgba(174, 151, 216, .42); background: rgba(218, 205, 242, .22); color: #f5efff; }
+.mn-mine-chain span:nth-of-type(3) { border-color: rgba(151, 173, 202, .3); background: rgba(151, 173, 202, .11); }
+.mn-mine-chain span:nth-of-type(4) { border-color: rgba(241, 116, 67, .34); background: rgba(241, 116, 67, .12); }
 
 .mn-mine-tab-page {
   min-height: 0;
@@ -119,50 +136,71 @@
 }
 
 .mn-mine-shop-row { padding: 14px; text-align: left; cursor: pointer; }
-.mn-mine-shop-row > i { display: grid; place-items: center; width: 46px; height: 46px; flex: 0 0 46px; border-radius: 14px; background: rgba(205, 127, 51, .13); font-size: 23px; font-style: normal; }
+.mn-mine-shop-row > i { display: grid; place-items: center; width: 46px; height: 46px; flex: 0 0 46px; border: 1px solid rgba(166, 184, 203, .48); border-radius: 14px; background: rgba(166, 184, 203, .16); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); font-size: 23px; font-style: normal; filter: none; text-shadow: none; }
 .mn-mine-shop-row > span { display: grid; gap: 4px; min-width: 0; flex: 1; }
-.mn-mine-shop-row b { font-size: 14px; }
-.mn-mine-shop-row small { color: #927f6d; font-size: 10px; }
-.mn-mine-shop-row > strong { color: #ffcf91; font-size: 13px; white-space: nowrap; }
+.mn-mine-shop-row b { font-size: 15px; font-weight: 900; }
+.mn-mine-shop-row small { color: #b09b86; font-size: 11px; font-weight: 700; }
+.mn-mine-shop-row > strong { color: #ffcf91; font-size: 14px; font-weight: 900; white-space: nowrap; }
 .mn-mine-shop-row[data-owned="true"]::after { content: 'Куплено'; color: #8cdf9f; font-size: 10px; font-weight: 900; }
 .mn-mine-shop-row[data-owned="true"] > strong { display: none; }
 .mn-mine-shop-row:disabled { cursor: default; opacity: .72; }
 
-.mn-mine-quality-guide { display: grid; gap: 9px; margin-top: 10px; padding: 14px; border-radius: 15px; background: rgba(190, 115, 43, .07); color: #a69280; font-size: 10px; }
-.mn-mine-quality-guide > strong { color: #e9c393; font-size: 12px; }
+.mn-mine-quality-guide { display: grid; gap: 9px; margin-top: 10px; padding: 14px; border-radius: 15px; background: rgba(190, 115, 43, .07); color: #bba692; font-size: 11px; font-weight: 750; }
+.mn-mine-quality-guide > strong { color: #e9c393; font-size: 13px; font-weight: 900; }
 .mn-mine-quality-guide span { display: inline-flex; align-items: center; gap: 7px; }
 .mn-mine-quality-guide span b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 8px; color: #f5c98f; background: rgba(202, 126, 51, .16); }
 .mn-mine-quality-guide > i { margin-left: 9px; color: rgba(255, 255, 255, .2); font-style: normal; }
 
 .mn-mine-market-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, .025); }
 .mn-mine-market-head span { display: grid; gap: 3px; }
-.mn-mine-market-head b { font-size: 12px; }
-.mn-mine-market-head small { color: #8f7e6f; font-size: 9px; }
-.mn-mine-market-head > strong { color: #f0bf80; font-size: 12px; font-variant-numeric: tabular-nums; }
+.mn-mine-market-head b { font-size: 13px; font-weight: 900; }
+.mn-mine-market-head small { color: #aa9785; font-size: 10px; font-weight: 700; }
+.mn-mine-market-head > strong { color: #f0bf80; font-size: 13px; font-weight: 900; font-variant-numeric: tabular-nums; }
 
 .mn-mine-market-list { display: grid; gap: 9px; }
 .mn-mine-market-group { display: grid; gap: 7px; padding: 10px; border: 1px solid rgba(255, 255, 255, .055); border-radius: 16px; background: rgba(255, 255, 255, .018); }
 .mn-mine-market-group > header { display: flex; align-items: center; gap: 8px; padding: 0 2px 2px; }
-.mn-mine-market-group > header i { font-style: normal; }
-.mn-mine-market-group > header strong { font-size: 12px; }
-.mn-mine-market-group > header small { margin-left: auto; color: #7f7165; font-size: 8px; }
+.mn-mine-market-group > header i { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid rgba(var(--mn-mine-item-rgb, 205, 211, 222), .55); border-radius: 8px; background: rgba(var(--mn-mine-item-rgb, 205, 211, 222), .16); font-style: normal; }
+.mn-mine-market-group > header strong { font-size: 13px; font-weight: 900; }
+.mn-mine-market-group > header small { margin-left: auto; color: #9f8e7f; font-size: 9px; font-weight: 750; }
 
-.mn-mine-sale-row { padding: 9px 10px; }
-.mn-mine-sale-row > i { display: grid; place-items: center; width: 35px; height: 35px; flex: 0 0 35px; border-radius: 11px; background: rgba(209, 132, 53, .1); font-size: 18px; font-style: normal; }
+.mn-mine-market-group[data-mine-market-group="stone"] { --mn-mine-item-rgb: 205, 211, 222; }
+.mn-mine-market-group[data-mine-market-group="coal"] { --mn-mine-item-rgb: 174, 151, 216; }
+.mn-mine-market-group[data-mine-market-group="metal"] { --mn-mine-item-rgb: 151, 173, 202; }
+.mn-mine-market-group[data-mine-market-group="copper"] { --mn-mine-item-rgb: 241, 116, 67; }
+.mn-mine-market-group[data-mine-market-group="coal"] > header i {
+  color: #17131e;
+  background: linear-gradient(145deg, rgba(235, 228, 250, .94), rgba(135, 116, 171, .9));
+}
+
+.mn-mine-sale-row { --mn-mine-item-rgb: 205, 211, 222; padding: 9px 10px; border-color: rgba(var(--mn-mine-item-rgb), .22); background: linear-gradient(100deg, rgba(var(--mn-mine-item-rgb), .09), rgba(255, 255, 255, .025) 52%); }
+.mn-mine-sale-row > i { display: grid; place-items: center; width: 35px; height: 35px; flex: 0 0 35px; border: 1px solid rgba(var(--mn-mine-item-rgb), .52); border-radius: 11px; background: rgba(var(--mn-mine-item-rgb), .18); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07); font-size: 18px; font-style: normal; filter: none; text-shadow: none; }
 .mn-mine-sale-row > span { display: grid; gap: 3px; min-width: 0; flex: 1; }
-.mn-mine-sale-row b { font-size: 11px; }
-.mn-mine-sale-row b u { color: #d2a96f; font-size: 8px; text-decoration: none; }
-.mn-mine-sale-row small { overflow: hidden; color: #88796b; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.mn-mine-sale-row b { font-size: 12px; font-weight: 900; }
+.mn-mine-sale-row b u { color: #e0b878; font-size: 9px; font-weight: 900; text-decoration: none; }
+.mn-mine-sale-row small { overflow: hidden; color: #ac9986; font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .mn-mine-sale-row em { color: #e8c28f; font-style: normal; }
 .mn-mine-sale-row mark { color: #d9b37f; background: transparent; }
 .mn-mine-sale-row > div { display: flex; gap: 5px; }
-.mn-mine-sale-row button { min-height: 30px; padding: 0 9px; border: 1px solid rgba(220, 144, 66, .22); border-radius: 9px; color: #f7d2a2; background: rgba(187, 105, 31, .1); font-size: 9px; font-weight: 900; cursor: pointer; }
+.mn-mine-sale-row button { min-height: 30px; padding: 0 9px; border: 1px solid rgba(220, 144, 66, .22); border-radius: 9px; color: #f7d2a2; background: rgba(187, 105, 31, .1); font-size: 10px; font-weight: 900; cursor: pointer; }
+.mn-mine-sale-row[data-mine-sale-row="mine_stone_common"] { --mn-mine-item-rgb: 205, 211, 222; }
+.mn-mine-sale-row[data-mine-sale-row="mine_stone_dense"] { --mn-mine-item-rgb: 158, 169, 183; }
+.mn-mine-sale-row[data-mine-sale-row="mine_coal_common"] { --mn-mine-item-rgb: 174, 151, 216; }
+.mn-mine-sale-row[data-mine-sale-row="mine_coal_technical"] { --mn-mine-item-rgb: 214, 104, 63; }
+.mn-mine-sale-row[data-mine-sale-row="mine_metal_raw"] { --mn-mine-item-rgb: 151, 173, 202; }
+.mn-mine-sale-row[data-mine-sale-row="mine_metal_technical"] { --mn-mine-item-rgb: 178, 147, 205; }
+.mn-mine-sale-row[data-mine-sale-row="mine_copper_raw"] { --mn-mine-item-rgb: 187, 117, 69; }
+.mn-mine-sale-row[data-mine-sale-row="mine_copper_conductive"] { --mn-mine-item-rgb: 241, 116, 67; }
+.mn-mine-sale-row[data-mine-sale-row="mine_coal_common"] > i {
+  color: #17131e;
+  background: linear-gradient(145deg, rgba(235, 228, 250, .96), rgba(135, 116, 171, .92));
+}
 .mn-mine-sale-row button:disabled { opacity: .35; cursor: default; }
 .mn-mine-sale-row.is-market-locked { opacity: .45; filter: grayscale(.45); }
 .mn-mine-sale-row.is-market-empty { opacity: .55; }
 
 .mn-mine-panel > footer { min-height: 42px; padding: 10px 16px; border-top: 1px solid rgba(255, 255, 255, .06); }
-.mn-mine-panel > footer small { color: #9b8978; font-size: 10px; font-weight: 750; }
+.mn-mine-panel > footer small { color: #b3a08d; font-size: 11px; font-weight: 800; }
 .mn-mine-panel > footer small[data-type="success"] { color: #8cdda0; }
 .mn-mine-panel > footer small[data-type="error"] { color: #ff9b8b; }
 
@@ -191,7 +229,7 @@
 .mn-mine-game-arena { padding: 20px 15px 13px; border: 1px solid rgba(255, 255, 255, .055); border-radius: 17px; background: rgba(0, 0, 0, .18); cursor: pointer; }
 .mn-mine-game-track { position: relative; height: 56px; margin: 0 12px; }
 .mn-mine-game-track::before { content: ''; position: absolute; left: 0; right: 0; top: 27px; height: 5px; border-radius: 9px; background: linear-gradient(90deg, #322820, #765235, #322820); }
-.mn-mine-game-target { position: absolute; top: 18px; height: 23px; border: 1px solid rgba(255, 190, 106, .7); border-radius: 9px; background: rgba(222, 139, 55, .22); box-shadow: 0 0 18px rgba(223, 141, 58, .2); }
+.mn-mine-game-target { position: absolute; top: 18px; height: 23px; border: 1px solid rgba(255, 190, 106, .7); border-radius: 9px; background: rgba(222, 139, 55, .22); box-shadow: inset 0 0 0 1px rgba(255, 221, 177, .1); }
 .mn-mine-game-marker { position: absolute; left: 0; top: 5px; z-index: 2; display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 12px; background: #211b16; box-shadow: 0 8px 18px rgba(0, 0, 0, .5); font-size: 21px; transform: translateX(-50%); }
 .mn-mine-game-arena p { margin: 12px 0 0; color: #8d7c6e; font-size: 10px; text-align: center; }
 
@@ -211,11 +249,12 @@
   .mn-mine-modal, .mn-mine-minigame { padding: 7px; }
   .mn-mine-panel { width: min(760px, calc(100vw - 14px)); max-height: calc(100dvh - 14px); border-radius: 17px; }
   .mn-mine-panel > header { min-height: 48px; padding: 0 11px; }
-  .mn-mine-panel > header strong { font-size: 14px; }
+  .mn-mine-panel > header small { font-size: 9px; }
+  .mn-mine-panel > header strong { font-size: 15px; }
   .mn-mine-panel > header button { width: 32px; height: 32px; border-radius: 9px; font-size: 21px; }
   .mn-mine-tabs { padding: 6px 8px 0; gap: 5px; }
-  .mn-mine-tabs button { min-height: 30px; border-radius: 9px; font-size: 10px; }
-  .mn-mine-chain { margin: 6px 8px; padding: 6px 8px; gap: 5px; font-size: 8px; }
+  .mn-mine-tabs button { min-height: 30px; border-radius: 9px; font-size: 11px; }
+  .mn-mine-chain { margin: 6px 8px; padding: 6px 8px; gap: 5px; font-size: 9px; }
   .mn-mine-tab-page { padding: 0 8px 8px; }
   .mn-mine-shop-row { padding: 9px; }
   .mn-mine-quality-guide { grid-template-columns: 1fr; gap: 5px; margin-top: 6px; padding: 8px; }
@@ -225,9 +264,9 @@
   .mn-mine-market-group { gap: 5px; padding: 6px; border-radius: 12px; }
   .mn-mine-sale-row { gap: 7px; padding: 6px; border-radius: 10px; }
   .mn-mine-sale-row > i { width: 29px; height: 29px; flex-basis: 29px; font-size: 15px; }
-  .mn-mine-sale-row b { font-size: 9px; }
-  .mn-mine-sale-row small { font-size: 7px; }
-  .mn-mine-sale-row button { min-height: 25px; padding: 0 7px; font-size: 8px; }
+  .mn-mine-sale-row b { font-size: 10px; }
+  .mn-mine-sale-row small { font-size: 8px; }
+  .mn-mine-sale-row button { min-height: 25px; padding: 0 7px; font-size: 9px; }
   .mn-mine-panel > footer { min-height: 31px; padding: 6px 10px; }
   .mn-mine-minigame-panel { width: min(680px, calc(100vw - 14px)); padding: 10px; border-radius: 16px; }
   .mn-mine-minigame-panel > header > i { width: 36px; height: 36px; border-radius: 11px; font-size: 18px; }
