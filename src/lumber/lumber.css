@@ -1,0 +1,129 @@
+body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin)
+  .map-object:is(.map-object-type-lumber_station, .map-object-type-lumber_deciduous_tree, .map-object-type-lumber_pine_tree) {
+  contain: none !important;
+  overflow: visible !important;
+}
+
+.map-object-type-lumber_station .map-object-icon,
+.map-object-type-lumber_deciduous_tree .map-object-icon,
+.map-object-type-lumber_pine_tree .map-object-icon {
+  position: absolute; left: 50%; top: 50%; display: inline-flex; align-items: center; justify-content: center;
+  width: var(--mn-lumber-ring, 30px); height: var(--mn-lumber-ring, 30px); min-width: var(--mn-lumber-ring, 30px); min-height: var(--mn-lumber-ring, 30px);
+  border: 1.5px solid transparent; border-radius: 50%; background: transparent; box-shadow: none;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 21px; line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .58)); transform: translate(-50%, -50%); transition: opacity .3s ease, filter .3s ease, box-shadow .22s ease;
+}
+.map-object-type-lumber_station { --mn-lumber-ring: 33px; }
+.map-object-type-lumber_station.map-object-nearby .map-object-icon,
+.map-object-type-lumber_deciduous_tree.map-object-nearby .map-object-icon,
+.map-object-type-lumber_pine_tree.map-object-nearby .map-object-icon {
+  border-color: rgba(255, 255, 255, .98); box-shadow: 0 0 0 1px rgba(255,255,255,.45), 0 0 7px 2px rgba(255,255,255,.82), 0 0 15px rgba(105,207,113,.52);
+}
+.map-object.is-lumber-tree-cooldown .map-object-icon { opacity: .34; filter: grayscale(.8) brightness(.68) drop-shadow(0 2px 2px rgba(0,0,0,.4)); }
+
+.mn-lumber-modal, .mn-lumber-minigame {
+  position: fixed; inset: 0; z-index: 100060; display: grid; place-items: center; padding: 16px;
+  color: #f5fff1; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.mn-lumber-minigame { z-index: 100080; }
+.mn-lumber-modal[hidden] { display: none !important; }
+.mn-lumber-modal *, .mn-lumber-minigame * { box-sizing: border-box; }
+.mn-lumber-modal-backdrop, .mn-lumber-minigame-backdrop { position: absolute; inset: 0; border: 0; background: rgba(2, 7, 3, .84); }
+.mn-lumber-panel {
+  position: relative; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  width: min(790px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 32px)); overflow: hidden;
+  border: 1px solid rgba(119, 190, 95, .3); border-radius: 24px;
+  background: radial-gradient(circle at 15% -15%, rgba(77, 150, 58, .22), transparent 43%), linear-gradient(145deg, rgba(17, 29, 17, .99), rgba(7, 11, 8, .99));
+  box-shadow: 0 30px 95px rgba(0,0,0,.65), inset 0 1px rgba(255,255,255,.04);
+}
+.mn-lumber-panel > header { display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.mn-lumber-panel > header span { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.mn-lumber-panel > header small { color: #90a589; font-size: 10px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
+.mn-lumber-panel > header strong { font-size: 20px; }
+.mn-lumber-panel > header > b { padding: 7px 10px; border-radius: 10px; color: #c8f2b9; background: rgba(111,188,84,.13); font-size: 11px; white-space: nowrap; }
+.mn-lumber-panel > header > button { width: 38px; height: 38px; border: 0; border-radius: 12px; color: #fff; background: rgba(255,255,255,.08); font: 500 26px/1 system-ui; cursor: pointer; }
+.mn-lumber-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 14px 0; }
+.mn-lumber-tabs button { min-height: 38px; border: 1px solid rgba(255,255,255,.07); border-radius: 12px; color: #a4b39e; background: rgba(255,255,255,.025); font-size: 12px; font-weight: 900; cursor: pointer; }
+.mn-lumber-tabs button[data-active="true"] { border-color: rgba(123,201,93,.36); color: #d7ffc8; background: rgba(87,166,59,.14); }
+.mn-lumber-roadmap { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 14px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.055); border-radius: 13px; background: rgba(255,255,255,.02); }
+.mn-lumber-roadmap > span { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 9px; opacity: .42; }
+.mn-lumber-roadmap > span[data-unlocked="true"] { color: #d8f8ce; background: rgba(93,168,69,.1); opacity: 1; }
+.mn-lumber-roadmap > span[data-current="true"] { box-shadow: inset 0 0 0 1px rgba(139,219,108,.3); }
+.mn-lumber-roadmap b { display: grid; place-items: center; width: 21px; height: 21px; border-radius: 7px; background: rgba(255,255,255,.08); font-size: 10px; }
+.mn-lumber-roadmap small { font-size: 10px; font-weight: 850; }
+.mn-lumber-roadmap > i { color: rgba(255,255,255,.2); font-style: normal; }
+.mn-lumber-page { min-height: 0; padding: 0 14px 14px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: auto; -webkit-overflow-scrolling: touch; }
+.mn-lumber-page[hidden] { display: none !important; }
+.mn-lumber-tool-row, .mn-lumber-sale-row { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; border: 1px solid rgba(255,255,255,.075); border-radius: 15px; color: #f4ffef; background: rgba(255,255,255,.027); }
+.mn-lumber-tool-row { margin-bottom: 9px; padding: 13px; text-align: left; cursor: pointer; }
+.mn-lumber-tool-row > i, .mn-lumber-sale-row > i { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid rgba(129,193,103,.36); border-radius: 13px; background: rgba(92,164,65,.13); font-size: 22px; font-style: normal; }
+.mn-lumber-tool-row img, .mn-lumber-sale-row img { display: block; width: 86%; height: 86%; object-fit: contain; }
+.mn-lumber-tool-row > span, .mn-lumber-sale-row > span { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.mn-lumber-tool-row b, .mn-lumber-sale-row b { font-size: 14px; }
+.mn-lumber-tool-row small, .mn-lumber-sale-row small { color: #91a08b; font-size: 10px; font-weight: 700; }
+.mn-lumber-tool-row > strong { color: #c4eeae; font-size: 11px; white-space: nowrap; }
+.mn-lumber-tool-row[data-owned="true"]::after { content: 'Получено'; color: #8add9c; font-size: 10px; font-weight: 900; }
+.mn-lumber-tool-row[data-owned="true"] > strong { display: none; }
+.mn-lumber-tool-row[data-locked="true"] { opacity: .48; filter: grayscale(.5); }
+.mn-lumber-tool-row:disabled { cursor: default; }
+.mn-lumber-hint { margin: 9px 0 0; padding: 11px 12px; border-radius: 13px; color: #91a18b; background: rgba(97,161,73,.07); font-size: 10px; line-height: 1.55; }
+.mn-lumber-recipe { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 18px; border: 1px solid rgba(255,255,255,.07); border-radius: 18px; background: rgba(255,255,255,.025); }
+.mn-lumber-recipe > span { display: grid; justify-items: center; gap: 4px; }
+.mn-lumber-recipe > span > i { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: rgba(110,172,83,.13); font-size: 34px; font-style: normal; }
+.mn-lumber-recipe img { width: 58px; height: 58px; object-fit: contain; }
+.mn-lumber-recipe b { font-size: 13px; }
+.mn-lumber-recipe small { color: #8b9b84; font-size: 10px; }
+.mn-lumber-recipe > strong { padding: 6px 10px; border-radius: 9px; color: #d0efc1; background: rgba(116,185,89,.1); font-size: 10px; }
+.mn-lumber-batch { display: flex; justify-content: space-between; gap: 10px; margin: 9px 0; padding: 10px 12px; border-radius: 12px; color: #9aaa93; background: rgba(255,255,255,.025); font-size: 10px; }
+.mn-lumber-batch b { color: #d7f6c9; }
+.mn-lumber-primary { width: 100%; min-height: 44px; border: 1px solid rgba(130,209,100,.35); border-radius: 13px; color: #ecffe4; background: linear-gradient(90deg, rgba(64,139,43,.65), rgba(92,172,62,.55)); font-size: 12px; font-weight: 900; cursor: pointer; }
+.mn-lumber-primary:disabled { opacity: .4; cursor: default; }
+.mn-lumber-sale-row { margin-bottom: 8px; padding: 10px; }
+.mn-lumber-sale-row em { color: #c6eab6; font-style: normal; }
+.mn-lumber-sale-row > div { display: flex; gap: 5px; }
+.mn-lumber-sale-row button, .mn-lumber-industry button { min-height: 31px; padding: 0 9px; border: 1px solid rgba(124,198,95,.25); border-radius: 9px; color: #d7f5c9; background: rgba(83,153,57,.12); font-size: 10px; font-weight: 900; cursor: pointer; }
+.mn-lumber-sale-row button:disabled, .mn-lumber-industry button:disabled { opacity: .35; cursor: default; }
+.mn-lumber-profit { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 10px 0; padding: 10px; border-radius: 13px; color: #8f9e89; background: rgba(255,255,255,.022); font-size: 10px; }
+.mn-lumber-profit b { color: #d8e6d1; }.mn-lumber-profit strong { color: #92eb87; }.mn-lumber-profit i { font-style: normal; opacity: .6; }
+.mn-lumber-industry { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid rgba(255,255,255,.06); border-radius: 15px; opacity: .46; filter: grayscale(.5); }
+.mn-lumber-industry[data-unlocked="true"] { border-color: rgba(123,199,95,.2); background: rgba(81,151,56,.07); opacity: 1; filter: none; }
+.mn-lumber-industry > span { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; min-width: 0; flex: 1; }
+.mn-lumber-industry i { grid-row: span 2; font-size: 23px; font-style: normal; }.mn-lumber-industry b { font-size: 12px; }.mn-lumber-industry small { color: #8e9f87; font-size: 9px; }
+.mn-lumber-panel > footer { min-height: 42px; padding: 10px 16px; border-top: 1px solid rgba(255,255,255,.06); }
+.mn-lumber-panel > footer small { color: #97a590; font-size: 11px; font-weight: 800; }.mn-lumber-panel > footer small[data-type="success"] { color: #8cdda0; }.mn-lumber-panel > footer small[data-type="error"] { color: #ff9b8b; }
+
+.mn-lumber-minigame-panel {
+  position: relative; width: min(700px, calc(100vw - 32px)); padding: 17px; overflow: hidden;
+  border: 1px solid rgba(110,195,88,.34); border-radius: 22px;
+  background: radial-gradient(circle at 12% -15%, rgba(86,169,62,.22), transparent 42%), linear-gradient(150deg, #172218, #080b08 72%);
+  box-shadow: 0 30px 95px rgba(0,0,0,.7); transform: translateY(12px) scale(.97); opacity: 0; transition: .2s ease;
+}
+.mn-lumber-minigame-panel[data-visible="true"] { transform: none; opacity: 1; }
+.mn-lumber-minigame-panel > header { display: flex; align-items: center; gap: 11px; }
+.mn-lumber-minigame-panel > header > i { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: rgba(105,186,79,.13); font-size: 23px; font-style: normal; }
+.mn-lumber-minigame-panel > header span { display: grid; gap: 3px; min-width: 0; flex: 1; }.mn-lumber-minigame-panel > header small { color: #8eba7f; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }.mn-lumber-minigame-panel > header strong { font-size: 17px; }.mn-lumber-minigame-panel > header > b { color: #caffb8; font-size: 12px; }.mn-lumber-minigame-panel > header em { font-size: 18px; font-style: normal; }
+.mn-lumber-game-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 10px; }.mn-lumber-game-stats span { display: flex; justify-content: space-between; padding: 9px 11px; border-radius: 12px; background: rgba(255,255,255,.026); }.mn-lumber-game-stats small { color: #82907f; font-size: 9px; font-weight: 800; }.mn-lumber-game-stats strong { color: #cdf8be; font-size: 12px; font-variant-numeric: tabular-nums; }
+.mn-lumber-game-stage { position: relative; min-height: 250px; overflow: hidden; border: 1px solid rgba(110,195,88,.12); border-radius: 18px; background: rgba(0,0,0,.22); touch-action: none; user-select: none; }
+.mn-lumber-game-wood { position: absolute; inset: 35px 10% 52px; display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; padding: 18px 12px; border-radius: 44% 14px 14px 44%; background: linear-gradient(90deg,#5a321d,#8b5129 38%,#5d341d); box-shadow: inset 0 0 0 2px rgba(40,19,10,.5), inset 0 8px rgba(255,255,255,.04); transform: rotate(-2deg); }
+.mn-lumber-game-wood i { border-right: 2px dashed rgba(239,213,161,.25); }.mn-lumber-game-wood i[data-cut="true"] { border-color: rgba(174,255,143,.8); filter: drop-shadow(0 0 5px rgba(127,225,95,.7)); }
+.mn-lumber-game-track { position: absolute; right: 8%; bottom: 34px; left: 8%; height: 24px; border: 1px solid rgba(255,255,255,.09); border-radius: 14px; background: rgba(0,0,0,.55); }
+.mn-lumber-game-zone { position: absolute; top: 3px; bottom: 3px; border-radius: 9px; background: rgba(110,221,90,.68); box-shadow: 0 0 12px rgba(92,207,73,.4); }
+.mn-lumber-game-track > b { position: absolute; top: -5px; width: 4px; height: 32px; border-radius: 5px; background: #fff; box-shadow: 0 0 9px #fff; transform: translateX(-50%); }
+.mn-lumber-game-tool { position: absolute; top: 48px; left: 6%; display: grid; place-items: center; width: 82px; height: 82px; font-size: 58px; transform: rotate(-18deg); filter: drop-shadow(0 6px 6px rgba(0,0,0,.5)); }.mn-lumber-game-tool img { width: 78px; height: 78px; object-fit: contain; }
+.mn-lumber-game-stage p { position: absolute; right: 12px; bottom: 4px; left: 12px; margin: 0; color: #9aa697; font-size: 9px; font-weight: 750; text-align: center; }
+.mn-lumber-game-stage[data-feedback="good"] { border-color: rgba(111,230,89,.55); }.mn-lumber-game-stage[data-feedback="poor"] { animation: mn-lumber-error .24s ease; border-color: rgba(255,104,80,.5); }
+@keyframes mn-lumber-error { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+.mn-lumber-game-action { width: 100%; min-height: 43px; margin-top: 10px; border: 1px solid rgba(125,216,99,.35); border-radius: 13px; color: #efffe9; background: rgba(72,147,48,.45); font-size: 12px; font-weight: 900; cursor: pointer; }.mn-lumber-game-action:disabled { opacity: .45; }
+.mn-lumber-minigame-panel > footer { padding-top: 9px; color: #778474; font-size: 9px; text-align: center; }
+
+@media (max-width: 700px), (max-height: 520px), (hover: none) and (pointer: coarse) {
+  .mn-lumber-modal, .mn-lumber-minigame { padding: 7px; }.mn-lumber-panel { width: min(780px, calc(100vw - 14px)); max-height: calc(100dvh - 14px); border-radius: 17px; }.mn-lumber-panel > header { min-height: 49px; padding: 0 11px; }.mn-lumber-panel > header strong { font-size: 14px; }.mn-lumber-tabs { padding: 6px 8px 0; }.mn-lumber-tabs button { min-height: 31px; font-size: 10px; }.mn-lumber-roadmap { margin: 6px 8px; padding: 5px; }.mn-lumber-roadmap small { font-size: 8px; }.mn-lumber-page { padding: 0 8px 8px; }.mn-lumber-tool-row { padding: 8px; }.mn-lumber-recipe { padding: 9px; }.mn-lumber-recipe > span > i { width: 48px; height: 48px; font-size: 26px; }.mn-lumber-recipe img { width: 44px; height: 44px; }.mn-lumber-minigame-panel { width: min(700px, calc(100vw - 14px)); padding: 10px; }.mn-lumber-game-stage { min-height: 190px; }.mn-lumber-game-wood { top: 22px; bottom: 48px; }.mn-lumber-game-tool { top: 28px; width: 62px; height: 62px; font-size: 44px; }.mn-lumber-game-tool img { width: 58px; height: 58px; }
+}
+
+@media (orientation: portrait) and (hover: none) and (pointer: coarse) {
+  html.mn-force-rotate-landscape .mn-lumber-modal, body.mn-force-rotate-landscape .mn-lumber-modal,
+  html.mn-force-rotate-landscape .mn-lumber-minigame, body.mn-force-rotate-landscape .mn-lumber-minigame {
+    left: 50% !important; top: 50% !important; right: auto !important; bottom: auto !important; width: 100dvh !important; height: 100vw !important;
+    min-width: 100dvh !important; min-height: 100vw !important; transform: translate3d(-50%,-50%,0) rotate(90deg) !important; transform-origin: center center !important;
+  }
+}
