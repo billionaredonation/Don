@@ -316,6 +316,38 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'job_mine_copper_node_01',
   },
 
+  lumber_station: {
+    type: 'lumber_station',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Лесоруб · инструменты и продажа',
+    icon: '🪚',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_lumber_station_01',
+    defaultWidth: 2.6,
+    defaultHeight: 2.2,
+  },
+
+  lumber_deciduous_tree: {
+    type: 'lumber_deciduous_tree',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Лесоруб · лиственное дерево',
+    icon: '🌳',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_lumber_deciduous_tree_01',
+  },
+
+  lumber_pine_tree: {
+    type: 'lumber_pine_tree',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Лесоруб · сосна',
+    icon: '🌲',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_lumber_pine_tree_01',
+  },
+
   spawn: {
     type: 'spawn',
     category: MAP_OBJECT_CATEGORIES.MARKER,
