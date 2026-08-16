@@ -776,6 +776,25 @@ export function upsertPlayerMarker(
 
   state.lastUpdateAt = performance.now();
 
+  if (isMobileGameplayDevice()) {
+    /*
+      Mobile markers already have a short CSS transition. Running a separate
+      requestAnimationFrame loop for every visible player meant up to ten
+      permanent animation loops on a phone. Paint the newest packet once and
+      let the compositor interpolate the marker without JavaScript work.
+    */
+    if (state.animationId) {
+      cancelAnimationFrame(state.animationId);
+    }
+
+    state.currentX = state.targetX;
+    state.currentY = state.targetY;
+    state.currentAngle = state.targetAngle;
+    state.animationId = null;
+    paintRemoteMarker(state);
+    return;
+  }
+
   if (!state.animationId) {
     state.animationId =
       requestAnimationFrame(() =>
