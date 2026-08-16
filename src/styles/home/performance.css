@@ -276,13 +276,36 @@
 }
 
 
-/* -- Codex mobile performance patch ------------------------------------ */
-.gta-map-image,
-.gta-player-marker,
-.home-gameplay canvas,
-.home-gameplay .gta-map-title,
-.home-gameplay .gta-map-player {
-  /* Hint the compositor so mobile browsers avoid unnecessary repaints */
-  will-change: transform;
-  contain: layout paint style;
+/* =========================================================
+   MOBILE SUSTAINED PERFORMANCE
+   Keep only the moving viewport on its own compositor layer. Promoting the
+   map image, every player, fog canvas and HUD cards separately consumes GPU
+   memory and makes the WebView hotter during long sessions.
+   ========================================================= */
+@media (hover: none) and (pointer: coarse) {
+  body.mn-mobile-game-enabled .gta-map-image,
+  body.mn-mobile-game-enabled .gta-player-marker,
+  body.mn-mobile-game-enabled .home-gameplay canvas,
+  body.mn-mobile-game-enabled .home-gameplay .gta-map-title,
+  body.mn-mobile-game-enabled .home-gameplay .gta-map-player {
+    will-change: auto !important;
+  }
+
+  body.mn-mobile-game-enabled .gta-map-image {
+    transform: none !important;
+    contain: paint !important;
+  }
+
+  body.mn-mobile-game-enabled .gta-map-title,
+  body.mn-mobile-game-enabled .gta-map-player,
+  body.mn-mobile-game-enabled .gta-map-footer span,
+  body.mn-mobile-game-enabled .mobile-joystick-base,
+  body.mn-mobile-game-enabled .mobile-inventory-toggle {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .home[data-performance="low"].is-player-health-low .player-health-edge::before {
+    animation: none !important;
+  }
 }
