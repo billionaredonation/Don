@@ -137,6 +137,64 @@
   display: none;
 }
 
+.admin-business-legal-wrap[hidden],
+.admin-business-other-label-wrap[hidden] {
+  display: none;
+}
+
+.admin-business-legal-wrap {
+  margin-top: 9px;
+  padding: 10px;
+  border: 1px solid rgba(173, 229, 88, 0.2);
+  border-radius: 14px;
+  background: rgba(137, 191, 66, 0.065);
+}
+
+.admin-business-legal-wrap > .admin-editor-title {
+  margin-bottom: 3px;
+  color: #c9ec9d;
+}
+
+.admin-business-legal-summary {
+  display: grid;
+  gap: 5px;
+  margin-top: 9px;
+  padding: 9px;
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.admin-business-legal-summary strong {
+  color: #efffdc;
+  font-size: 11px;
+}
+
+.admin-business-legal-summary p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.admin-business-legal-summary span,
+.admin-business-legal-summary b {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.admin-business-legal-summary b {
+  color: #bfe984;
+}
+
+.admin-business-legal-wrap .admin-help {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
 [data-admin-mode="enabled"] .gta-map-stage {
   cursor: crosshair;
 }
