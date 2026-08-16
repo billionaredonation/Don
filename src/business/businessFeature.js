@@ -27,6 +27,7 @@ import {
   submitBusinessDeclaration,
   updateBusinessEmployee,
   updateBusinessShelf,
+  withdrawBusinessProfit,
 } from './businessApi.js';
 import {
   applyBusinessOwner,
@@ -163,18 +164,15 @@ function cartTotal(snapshot) {
   ), 0);
 }
 
+function warehouseQuantity(snapshot, itemType) {
+  const item = (snapshot?.warehouseItems || []).find((entry) => entry.itemType === itemType);
+  return Math.max(0, Number(item?.quantity) || 0);
+}
+
 function productOptions(selected = '') {
   return BUSINESS_PRODUCTS.map((product) => (
     `<option value="${product.itemType}"${selected === product.itemType ? ' selected' : ''}>${product.icon} ${escapeHtml(product.label)}</option>`
   )).join('');
-}
-
-function supplierOptions(selected = 'state_wholesale') {
-  return [
-    ['state_wholesale', 'Государственный опт'],
-    ['local_farms', 'Местные фермеры'],
-    ['import_distributor', 'Импортный дистрибьютор'],
-  ].map(([value, label]) => `<option value="${value}"${selected === value ? ' selected' : ''}>${label}</option>`).join('');
 }
 
 function procurementSupplierOptions(selected = 'player_checkpoint') {
@@ -217,15 +215,18 @@ function cartMarkup(snapshot) {
 
 function shelfDrawer(snapshot, shelfNo) {
   const shelf = (snapshot.shelves || []).find((item) => Number(item.shelfNo) === Number(shelfNo)) || { shelfNo };
+  const selectedProductType = shelf.productType || BUSINESS_PRODUCTS[0]?.itemType || '';
+  const availableToPlace = warehouseQuantity(snapshot, selectedProductType)
+    + (shelf.productType === selectedProductType ? Math.max(0, Number(shelf.stock) || 0) : 0);
   return `
     <aside class="mn-business-drawer" data-business-drawer>
       <header><span><small>Ручная расстановка</small><strong>Полка ${Number(shelf.shelfNo)}</strong></span><button type="button" data-business-drawer-close>×</button></header>
-      <label><span>Товар</span><select data-business-shelf-product>${productOptions(shelf.productType)}</select></label>
+      <label><span>Товар со склада</span><select data-business-shelf-product>${productOptions(selectedProductType)}</select><small data-business-shelf-available>Доступно для выкладки: ${availableToPlace} шт.</small></label>
       <div class="mn-business-drawer-grid">
         <label><span>Цена продажи</span><input type="number" min="1" max="1000000" value="${Number(shelf.salePrice) || getBusinessProduct(shelf.productType)?.suggestedPrice || 32}" data-business-shelf-price></label>
-        <label><span>Количество на полке</span><input type="number" min="0" max="1000000" value="${Number(shelf.stock) || 0}" data-business-shelf-stock></label>
+        <label><span>Количество на полке</span><input type="number" min="0" max="${availableToPlace}" value="${Math.min(availableToPlace, Number(shelf.stock) || 0)}" data-business-shelf-stock></label>
       </div>
-      <label><span>Поставщик</span><select data-business-shelf-supplier>${supplierOptions(shelf.supplierCode)}</select><small>Выбранный поставщик закрепляется за этой полкой.</small></label>
+      <p class="mn-business-drawer-note">При сохранении товар переносится со склада на полку. Лишний остаток и снятый товар автоматически возвращаются на склад.</p>
       <footer><button type="button" class="is-danger" data-business-shelf-clear>Убрать товар</button><button type="button" class="is-primary" data-business-shelf-save="${Number(shelf.shelfNo)}">Поставить на полку</button></footer>
     </aside>`;
 }
@@ -238,7 +239,56 @@ function staffDrawer(snapshot) {
       <div class="mn-business-employee-form"><input type="text" maxlength="40" placeholder="Ник или Telegram ID" aria-label="Ник или Telegram ID сотрудника" data-business-employee-target><select aria-label="Должность сотрудника" data-business-employee-role><option value="accountant">Бухгалтер</option><option value="merchandiser">Товаровед</option></select><button type="button" class="is-primary" data-business-employee-save>Назначить</button></div>
       <div class="mn-business-employees">${employees.length ? employees.map((employee) => `
         <article><i>${employee.role === 'accountant' ? '🧾' : '📦'}</i><span><strong>${escapeHtml(employee.nickname || employee.tgId)}</strong><small>${escapeHtml(BUSINESS_ROLE_LABELS[employee.role] || employee.role)} · ID ${escapeHtml(employee.tgId)}</small></span><button type="button" data-business-employee-remove="${escapeHtml(employee.tgId)}">Уволить</button></article>`).join('') : '<p>Сотрудников пока нет.</p>'}</div>
-      <p class="mn-business-drawer-note">Бухгалтер сдаёт декларации. Товаровед меняет ассортимент, остаток, цену и поставщика на полках.</p>
+      <p class="mn-business-drawer-note">Бухгалтер сдаёт декларации. Товаровед работает со складом, ассортиментом, остатком и ценой на полках.</p>
+    </aside>`;
+}
+
+function managementDrawer(snapshot) {
+  const role = snapshot.role || 'customer';
+  const actions = [];
+  if (role === 'owner' || role === 'merchandiser') {
+    actions.push(['warehouse', '📦', 'Склад', 'Остатки товара и выкладка на полки']);
+  }
+  if (role === 'owner') {
+    actions.push(['procurement', '🚚', 'Закупки', 'Планы поставок и бюджет']);
+    actions.push(['profit', '💸', 'Прибыль', 'Перевод денег владельцу']);
+    actions.push(['staff', '👥', 'Сотрудники', 'Должности и доступы']);
+    actions.push(['transfer', '⇄', 'Передача бизнеса', 'Продажа другому игроку']);
+  }
+  if (roleCanAccount(role)) {
+    actions.push(['tax', '🧾', 'Бухгалтерия', 'Налоги и декларации']);
+  }
+  if (isAdmin()) {
+    actions.push(['fine', '⚖', 'Администрирование', 'Назначить штраф бизнесу']);
+  }
+  return `
+    <aside class="mn-business-drawer is-management" data-business-drawer>
+      <header><span><small>${escapeHtml(BUSINESS_ROLE_LABELS[role] || 'Управление')}</small><strong>Управление магазином</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <div class="mn-business-management-grid">
+        ${actions.map(([mode, icon, title, copy]) => `<button type="button" data-business-management-open="${mode}"><i>${icon}</i><span><strong>${title}</strong><small>${copy}</small></span><b>›</b></button>`).join('')}
+      </div>
+      <p class="mn-business-drawer-note">Здесь показаны только разделы, доступные вашей должности. Покупка товаров остаётся в обычном торговом зале.</p>
+    </aside>`;
+}
+
+function warehouseDrawer(snapshot) {
+  const warehouseItems = BUSINESS_PRODUCTS.map((product) => ({
+    ...product,
+    quantity: warehouseQuantity(snapshot, product.itemType),
+  }));
+  const warehouseTotal = warehouseItems.reduce((sum, item) => sum + item.quantity, 0);
+  const shelfTotal = (snapshot.shelves || []).reduce((sum, shelf) => sum + Math.max(0, Number(shelf.stock) || 0), 0);
+  return `
+    <aside class="mn-business-drawer is-warehouse" data-business-drawer>
+      <header><span><small>Учёт товара</small><strong>Склад магазина</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <div class="mn-business-warehouse-summary">
+        <span><small>На складе</small><strong>${warehouseTotal} шт.</strong></span>
+        <span><small>На полках</small><strong>${shelfTotal} шт.</strong></span>
+      </div>
+      <div class="mn-business-warehouse-list">
+        ${warehouseItems.map((item) => `<article${item.quantity > 0 ? '' : ' class="is-empty"'}><i>${escapeHtml(item.icon)}</i><span><strong>${escapeHtml(item.label)}</strong><small>${item.quantity > 0 ? 'Можно разместить на полке' : 'Нет на складе'}</small></span><b>${item.quantity} шт.</b></article>`).join('')}
+      </div>
+      <p class="mn-business-drawer-note">Чтобы выложить товар, закройте управление и нажмите «Управлять» на нужной полке. Поставки по планам закупок будут поступать сюда после подключения пункта приёма.</p>
     </aside>`;
 }
 
@@ -305,6 +355,29 @@ function taxDrawer(snapshot) {
     </aside>`;
 }
 
+function profitDrawer(snapshot) {
+  const cashBalance = Math.max(0, Number(snapshot.cashBalance) || 0);
+  const playerBalance = Math.max(0, Number(snapshot.playerBalance ?? state.player?.balance) || 0);
+  const taxDebt = Math.max(0, Number(snapshot.taxDebt) || 0);
+  const fineDebt = Math.max(0, Number(snapshot.fineDebt) || 0);
+  const hasDebt = taxDebt + fineDebt > 0;
+  return `
+    <aside class="mn-business-drawer is-profit" data-business-drawer>
+      <header><span><small>Финансы владельца</small><strong>Снять прибыль</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <div class="mn-business-profit-summary">
+        <article><small>Доступно на счёте бизнеса</small><strong>${formatBusinessMoney(cashBalance)}</strong></article>
+        <article><small>Личный баланс сейчас</small><strong>${formatBusinessMoney(playerBalance)}</strong></article>
+      </div>
+      ${hasDebt ? `<div class="mn-business-profit-blocked"><strong>Снятие временно недоступно</strong><span>Налоговый долг: ${formatBusinessMoney(taxDebt)} · штрафы: ${formatBusinessMoney(fineDebt)}. Сначала закройте задолженность.</span></div>` : ''}
+      <label><span>Сумма снятия</span><input type="number" min="1" max="${cashBalance}" inputmode="numeric" placeholder="Введите сумму" data-business-profit-amount${cashBalance > 0 && !hasDebt ? '' : ' disabled'}><small>Деньги будут переведены со счёта бизнеса на ваш личный баланс.</small></label>
+      <footer>
+        <button type="button" data-business-profit-all${cashBalance > 0 && !hasDebt ? '' : ' disabled'}>Снять всё</button>
+        <button type="button" class="is-primary" data-business-profit-withdraw${cashBalance > 0 && !hasDebt ? '' : ' disabled'}>Снять прибыль</button>
+      </footer>
+      <p class="mn-business-drawer-note">Снять прибыль может только владелец. Операция записывается в историю бизнеса и не отменяется после подтверждения.</p>
+    </aside>`;
+}
+
 function transferDrawer(snapshot, foundPlayer = null) {
   return `
     <aside class="mn-business-drawer" data-business-drawer>
@@ -329,10 +402,14 @@ function storeMarkup(snapshot, drawerMode = '', drawerData = null) {
   const quantity = cartQuantity(snapshot);
   const role = snapshot.role || 'customer';
   const financeVisible = roleCanAccount(role);
+  const managementVisible = ['owner', 'accountant', 'merchandiser'].includes(role) || isAdmin();
   let drawer = '';
+  if (drawerMode === 'management') drawer = managementDrawer(snapshot);
+  if (drawerMode === 'warehouse') drawer = warehouseDrawer(snapshot);
   if (drawerMode === 'shelf') drawer = shelfDrawer(snapshot, drawerData);
   if (drawerMode === 'staff') drawer = staffDrawer(snapshot);
   if (drawerMode === 'procurement') drawer = procurementDrawer(snapshot, drawerData);
+  if (drawerMode === 'profit') drawer = profitDrawer(snapshot);
   if (drawerMode === 'tax') drawer = taxDrawer(snapshot);
   if (drawerMode === 'transfer') drawer = transferDrawer(snapshot, drawerData);
   if (drawerMode === 'fine') drawer = fineDrawer();
@@ -357,9 +434,7 @@ function storeMarkup(snapshot, drawerMode = '', drawerData = null) {
     <footer class="mn-business-store-footer">
       <button type="button" data-business-store-exit>🚪 Выйти</button>
       <span></span>
-      ${role === 'owner' ? '<button type="button" data-business-open-procurement>📦 Закупки</button><button type="button" data-business-open-staff>👥 Сотрудники</button><button type="button" data-business-open-transfer>⇄ Передать</button>' : ''}
-      ${financeVisible ? '<button type="button" data-business-open-tax>🧾 Налоги</button>' : ''}
-      ${isAdmin() ? '<button type="button" class="is-danger" data-business-open-fine>⚖ Штраф</button>' : ''}
+      ${managementVisible ? '<button type="button" class="is-primary" data-business-open-management>⚙ Управление</button>' : ''}
       <button type="button" data-business-refresh>↻</button>
     </footer>
     ${drawer}`;
@@ -495,8 +570,15 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     setStoreMessage('Выполняем действие…');
     try {
       const result = await action();
-      if (result?.role && Array.isArray(result?.shelves)) snapshot = result;
+      if (result?.role && Array.isArray(result?.shelves)) snapshot = { ...(snapshot || {}), ...result };
       else if (result?.procurementPlans && snapshot) snapshot = { ...snapshot, ...result };
+      else if (snapshot && Number.isFinite(Number(result?.businessCashBalance))) {
+        snapshot = {
+          ...snapshot,
+          cashBalance: Number(result.businessCashBalance),
+          playerBalance: Number(result.playerBalance ?? snapshot.playerBalance),
+        };
+      }
       renderStore();
       if (successMessage) { setStoreMessage(successMessage, 'success'); toast(successMessage, 'success'); }
       return result;
@@ -561,10 +643,26 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
 
   function handleStoreChange(event) {
     const productSelect = event.target?.closest?.('[data-business-procurement-product]');
-    if (!productSelect) return;
-    drawerMode = 'procurement';
-    drawerData = productSelect.value || '';
-    renderStore();
+    if (productSelect) {
+      drawerMode = 'procurement';
+      drawerData = productSelect.value || '';
+      renderStore();
+      return;
+    }
+    const shelfProductSelect = event.target?.closest?.('[data-business-shelf-product]');
+    if (shelfProductSelect) {
+      const shelf = (snapshot.shelves || []).find((entry) => Number(entry.shelfNo) === Number(drawerData));
+      const productType = shelfProductSelect.value || '';
+      const available = warehouseQuantity(snapshot, productType)
+        + (shelf?.productType === productType ? Math.max(0, Number(shelf.stock) || 0) : 0);
+      const availableLabel = storeContent.querySelector('[data-business-shelf-available]');
+      const stockInput = storeContent.querySelector('[data-business-shelf-stock]');
+      if (availableLabel) availableLabel.textContent = `Доступно для выкладки: ${available} шт.`;
+      if (stockInput) {
+        stockInput.max = String(available);
+        if (Number(stockInput.value) > available) stockInput.value = String(available);
+      }
+    }
   }
 
   async function handleStoreClick(event) {
@@ -573,17 +671,56 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (target.closest('[data-business-store-exit]')) { tryCloseStore(); return; }
     if (target.closest('[data-business-refresh]')) { await runStoreAction(() => refreshStore({ preserveDrawer: false }), 'Магазин обновлён.'); return; }
     if (target.closest('[data-business-drawer-close]')) { drawerMode = ''; drawerData = null; renderStore(); return; }
-    if (target.closest('[data-business-open-procurement]')) {
-      if (snapshot.role !== 'owner') return;
-      drawerMode = 'procurement';
-      drawerData = snapshot.procurementPlans?.[0]?.productType || BUSINESS_PRODUCTS[0]?.itemType || '';
+    if (target.closest('[data-business-open-management]')) {
+      drawerMode = 'management';
+      drawerData = null;
       renderStore();
       return;
     }
-    if (target.closest('[data-business-open-staff]')) { drawerMode = 'staff'; drawerData = null; renderStore(); return; }
-    if (target.closest('[data-business-open-tax]')) { drawerMode = 'tax'; drawerData = null; renderStore(); return; }
-    if (target.closest('[data-business-open-transfer]')) { drawerMode = 'transfer'; drawerData = null; renderStore(); return; }
-    if (target.closest('[data-business-open-fine]')) { drawerMode = 'fine'; drawerData = null; renderStore(); return; }
+    const managementOpen = target.closest('[data-business-management-open]');
+    if (managementOpen) {
+      const mode = managementOpen.dataset.businessManagementOpen || '';
+      const allowed = (mode === 'warehouse' && ['owner', 'merchandiser'].includes(snapshot.role))
+        || (mode === 'procurement' && snapshot.role === 'owner')
+        || (mode === 'profit' && snapshot.role === 'owner')
+        || (mode === 'staff' && snapshot.role === 'owner')
+        || (mode === 'transfer' && snapshot.role === 'owner')
+        || (mode === 'tax' && roleCanAccount(snapshot.role))
+        || (mode === 'fine' && isAdmin());
+      if (!allowed) return;
+      drawerMode = mode;
+      drawerData = mode === 'procurement'
+        ? (snapshot.procurementPlans?.[0]?.productType || BUSINESS_PRODUCTS[0]?.itemType || '')
+        : null;
+      renderStore();
+      return;
+    }
+    if (target.closest('[data-business-profit-all]')) {
+      if (snapshot.role !== 'owner') return;
+      const input = storeContent.querySelector('[data-business-profit-amount]');
+      if (input) {
+        input.value = String(Math.max(0, Math.floor(Number(snapshot.cashBalance) || 0)));
+        input.focus();
+      }
+      return;
+    }
+    if (target.closest('[data-business-profit-withdraw]')) {
+      if (snapshot.role !== 'owner') return;
+      const amount = Number(storeContent.querySelector('[data-business-profit-amount]')?.value || 0);
+      const result = await runStoreAction(() => withdrawBusinessProfit({
+        businessId: snapshot.businessId,
+        amount,
+      }), 'Прибыль переведена на личный баланс.');
+      const balance = Number(result?.playerBalance);
+      if (Number.isFinite(balance)) {
+        state.player = { ...(state.player || {}), balance };
+        save();
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+          detail: { balance, source: 'business_profit_withdrawal', result },
+        }));
+      }
+      return;
+    }
 
     const procurementEdit = target.closest('[data-business-procurement-edit]');
     if (procurementEdit) {
@@ -672,7 +809,8 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       const productType = storeContent.querySelector('[data-business-shelf-product]')?.value || '';
       const salePrice = Number(storeContent.querySelector('[data-business-shelf-price]')?.value || 0);
       const stock = Number(storeContent.querySelector('[data-business-shelf-stock]')?.value || 0);
-      const supplierCode = storeContent.querySelector('[data-business-shelf-supplier]')?.value || 'state_wholesale';
+      const currentShelf = (snapshot.shelves || []).find((entry) => Number(entry.shelfNo) === shelfNo);
+      const supplierCode = currentShelf?.supplierCode || 'state_wholesale';
       const result = await runStoreAction(() => updateBusinessShelf({ businessId: snapshot.businessId, shelfNo, productType, salePrice, stock, supplierCode }), 'Товар вручную расставлен на полке.');
       if (result) { drawerMode = ''; drawerData = null; renderStore(); }
       return;
@@ -868,4 +1006,3 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     offerModal?.remove();
   };
 }
-
