@@ -666,6 +666,7 @@ export function subscribeCityPlayers(cityId, handlers = {}) {
 export function createCityMovementChannel(cityId, handlers = {}) {
   let subscribed = false;
   let destroyed = false;
+  let presenceTracked = false;
   let lastSendAt = 0;
   let sendTimer = null;
   let queuedPayload = null;
@@ -673,14 +674,78 @@ export function createCityMovementChannel(cityId, handlers = {}) {
   const pendingPayloads = [];
   const pendingTreatmentPayloads = [];
   const MIN_CHANNEL_SEND_INTERVAL_MS = 45;
+  const localPlayerId = getLocalPlayerId();
+  const localSessionId = getSessionId();
+  let latestPresencePayload = {
+    playerId: localPlayerId,
+    player_id: localPlayerId,
+    sessionId: localSessionId,
+    session_id: localSessionId,
+    cityId,
+    city_id: cityId,
+    isOnline: true,
+    is_online: true,
+    updatedAt: new Date().toISOString(),
+  };
 
   const channel = supabase.channel(`city_movement_${cityId}`, {
     config: {
       broadcast: {
         self: false,
       },
+      presence: {
+        key: `${localPlayerId}:${localSessionId}`,
+      },
     },
   });
+
+  function getPresencePlayerId(presence = {}) {
+    return String(
+      presence.playerId || presence.player_id || presence.id || ''
+    ).trim();
+  }
+
+  function hasActivePresence(playerId) {
+    if (!playerId) return false;
+    const presenceState = channel.presenceState?.() || {};
+
+    return Object.values(presenceState)
+      .flat()
+      .some((presence) => getPresencePlayerId(presence) === String(playerId));
+  }
+
+  function trackLocalPresence(payload = latestPresencePayload) {
+    if (destroyed || !subscribed) return;
+    latestPresencePayload = {
+      ...latestPresencePayload,
+      ...payload,
+      playerId: localPlayerId,
+      player_id: localPlayerId,
+      sessionId: localSessionId,
+      session_id: localSessionId,
+      cityId,
+      city_id: cityId,
+      isOnline: true,
+      is_online: true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const result = channel.track(latestPresencePayload);
+    presenceTracked = true;
+    result?.catch?.((error) => {
+      presenceTracked = false;
+      console.warn('[playerPosition] city presence track failed:', error);
+    });
+  }
+
+  function untrackLocalPresence() {
+    if (!subscribed || !presenceTracked) return;
+    presenceTracked = false;
+    const result = channel.untrack();
+    result?.catch?.((error) => {
+      console.warn('[playerPosition] city presence untrack failed:', error);
+    });
+  }
 
   channel.on('broadcast', { event: 'player_move' }, (payload) => {
     if (destroyed) return;
@@ -690,6 +755,31 @@ export function createCityMovementChannel(cityId, handlers = {}) {
   channel.on('broadcast', { event: 'player_treatment' }, (payload) => {
     if (destroyed) return;
     handlers.onTreatment?.(payload.payload);
+  });
+
+  channel.on('presence', { event: 'join' }, ({ newPresences = [] }) => {
+    if (destroyed) return;
+    newPresences.forEach((presence) => {
+      const playerId = getPresencePlayerId(presence);
+      if (playerId) handlers.onPresenceJoin?.(playerId, presence);
+    });
+  });
+
+  channel.on('presence', { event: 'leave' }, ({ leftPresences = [] }) => {
+    if (destroyed) return;
+
+    leftPresences.forEach((presence) => {
+      const playerId = getPresencePlayerId(presence);
+      if (!playerId) return;
+
+      // Presence state is updated together with the leave event. Defer one
+      // microtask so another active tab/session of the same player can remain.
+      queueMicrotask(() => {
+        if (!destroyed && !hasActivePresence(playerId)) {
+          handlers.onPresenceLeave?.(playerId, presence);
+        }
+      });
+    });
   });
 
   function safeSend(payload, event = 'player_move') {
@@ -727,13 +817,27 @@ export function createCityMovementChannel(cityId, handlers = {}) {
   }
 
   channel.subscribe((status) => {
-    if (destroyed || status !== 'SUBSCRIBED') return;
+    if (destroyed) return;
+    if (status !== 'SUBSCRIBED') {
+      subscribed = false;
+      presenceTracked = false;
+      return;
+    }
 
     subscribed = true;
 
     while (pendingPayloads.length) {
       queuedPayload = pendingPayloads.shift();
     }
+
+    const shouldTrackPresence = !(
+      latestPresencePayload.isOnline === false ||
+      latestPresencePayload.is_online === false ||
+      queuedPayload?.isOnline === false ||
+      queuedPayload?.is_online === false
+    );
+    if (shouldTrackPresence) trackLocalPresence();
+    else untrackLocalPresence();
 
     flushQueuedSend();
     while (pendingTreatmentPayloads.length) {
@@ -744,6 +848,15 @@ export function createCityMovementChannel(cityId, handlers = {}) {
   return {
     sendMove(player) {
       if (destroyed || !player) return;
+
+      latestPresencePayload = {
+        ...latestPresencePayload,
+        ...player,
+        isOnline: true,
+        is_online: true,
+      };
+
+      if (subscribed && !presenceTracked) trackLocalPresence(latestPresencePayload);
 
       if (!subscribed) {
         pendingPayloads.push(player);
@@ -783,6 +896,10 @@ export function createCityMovementChannel(cityId, handlers = {}) {
         is_online: isOnline === true,
         updatedAt: player.updatedAt || new Date().toISOString(),
       };
+      latestPresencePayload = {
+        ...latestPresencePayload,
+        ...presencePayload,
+      };
 
       queuedPayload = null;
       if (sendTimer) {
@@ -798,6 +915,9 @@ export function createCityMovementChannel(cityId, handlers = {}) {
 
       lastSendAt = Date.now();
       safeSend(presencePayload);
+
+      if (isOnline === true) trackLocalPresence(presencePayload);
+      else untrackLocalPresence();
     },
 
     sendTreatment(treatment) {
@@ -811,6 +931,7 @@ export function createCityMovementChannel(cityId, handlers = {}) {
     },
 
     unsubscribe() {
+      untrackLocalPresence();
       destroyed = true;
       pendingPayloads.length = 0;
       pendingTreatmentPayloads.length = 0;
