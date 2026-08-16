@@ -5,6 +5,7 @@ import {
   BUSINESS_PRODUCTS,
   BUSINESS_ROLE_LABELS,
   formatBusinessMoney,
+  getBusinessLegalPayload,
   getBusinessProduct,
 } from './businessConfig.js';
 import {
@@ -24,7 +25,6 @@ import {
   submitBusinessDeclaration,
   updateBusinessEmployee,
   updateBusinessShelf,
-  updateBusinessTaxGroup,
 } from './businessApi.js';
 import {
   applyBusinessOwner,
@@ -108,7 +108,11 @@ function modalMarkup() {
           <article><small>Формат</small><strong>Продуктовый</strong></article>
         </div>
         <p data-business-details-copy>После покупки вы сможете вручную расставлять товар, назначать цены и нанимать сотрудников.</p>
-        <label class="mn-business-tax-select" data-business-purchase-tax><span>Налоговая группа</span><select data-business-purchase-tax-group><option value="2">ФОП 2 группа</option><option value="3">ФОП 3 группа</option></select></label>
+        <div class="mn-business-legal-fixed" data-business-purchase-tax>
+          <span><small>Юридическая форма</small><strong data-business-details-legal-form>ФОП</strong></span>
+          <span><small>Налоговый режим</small><strong data-business-details-tax-group>2 группа · фиксированные платежи</strong></span>
+          <em>Условия назначены администрацией и не меняются при покупке.</em>
+        </div>
         <div class="mn-business-message" data-business-details-message hidden></div>
         <footer>
           <button type="button" data-business-details-close>Назад</button>
@@ -226,21 +230,22 @@ function staffDrawer(snapshot) {
 function taxDrawer(snapshot) {
   const preview = snapshot.taxPreview || {};
   const declarations = snapshot.declarations || [];
+  const legal = getBusinessLegalPayload(snapshot);
   const declarationOpen = !snapshot.declarationAvailableAt || Date.now() >= new Date(snapshot.declarationAvailableAt).getTime();
   return `
     <aside class="mn-business-drawer" data-business-drawer>
-      <header><span><small>Игровая налоговая · 2026</small><strong>ФОП ${Number(snapshot.taxGroup) || 2} группа</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <header><span><small>Игровая налоговая · 2026</small><strong>${escapeHtml(legal.legalFormLabel)} · ${escapeHtml(legal.taxGroupLabel)}</strong></span><button type="button" data-business-drawer-close>×</button></header>
       <div class="mn-business-tax-summary">
         <article><small>Оборот недели</small><strong>${formatBusinessMoney(snapshot.revenueCurrentWeek)}</strong></article>
         <article><small>Начисление сейчас</small><strong>${formatBusinessMoney(preview.total)}</strong></article>
         <article><small>Налоговый долг</small><strong>${formatBusinessMoney(snapshot.taxDebt)}</strong></article>
         <article><small>Штрафы</small><strong>${formatBusinessMoney(snapshot.fineDebt)}</strong></article>
       </div>
-      ${snapshot.role === 'owner' ? `<label><span>Группа ФОП</span><select data-business-tax-group><option value="2"${Number(snapshot.taxGroup) === 2 ? ' selected' : ''}>2 группа · фиксированные платежи</option><option value="3"${Number(snapshot.taxGroup) === 3 ? ' selected' : ''}>3 группа · 6% оборота + ЕСВ</option></select><small>Группу можно сменить только до начала оборота и без долгов.</small></label>` : ''}
+      <div class="mn-business-tax-locked"><span>Установлено администрацией</span><strong>${escapeHtml(legal.legalFormLabel)} · ${escapeHtml(legal.taxGroupLabel)}</strong><small>Владелец и бухгалтер не могут менять форму или налоговый режим.</small></div>
       <div class="mn-business-tax-lines"><p><span>Единый налог</span><b>${formatBusinessMoney(preview.singleTax)}</b></p><p><span>Военный сбор</span><b>${formatBusinessMoney(preview.militaryLevy)}</b></p><p><span>ЕСВ</span><b>${formatBusinessMoney(preview.socialContribution)}</b></p><p><span>Срок</span><b>${formatDate(snapshot.declarationDueAt)}</b></p></div>
       <button type="button" class="is-primary mn-business-declare" data-business-declare${declarationOpen ? '' : ' disabled'}>${declarationOpen ? 'Сдать недельную декларацию' : `Откроется ${formatDate(snapshot.declarationAvailableAt)}`}</button>
-      <p class="mn-business-drawer-note">Реальные ставки 2026 пересчитаны в недельный игровой цикл. Просроченные недели автоматически переходят в долг; администрация может отдельно назначить штраф.</p>
-      <div class="mn-business-declarations"><strong>Последние декларации</strong>${declarations.length ? declarations.map((entry) => `<p data-status="${escapeHtml(entry.status)}"><span>${formatDate(entry.submittedAt)} · ФОП ${Number(entry.taxGroup)}</span><b>${formatBusinessMoney(entry.assessedTotal)} / оплачено ${formatBusinessMoney(entry.paidTotal)}</b></p>`).join('') : '<small>Деклараций пока нет.</small>'}</div>
+      <p class="mn-business-drawer-note">Ставки 2026 пересчитаны в недельный игровой цикл. Просроченные недели автоматически переходят в долг; администрация может отдельно назначить штраф.</p>
+      <div class="mn-business-declarations"><strong>Последние декларации</strong>${declarations.length ? declarations.map((entry) => `<p data-status="${escapeHtml(entry.status)}"><span>${formatDate(entry.submittedAt)} · ${escapeHtml(legal.legalFormLabel)} ${Number(entry.taxGroup)}</span><b>${formatBusinessMoney(entry.assessedTotal)} / оплачено ${formatBusinessMoney(entry.paidTotal)}</b></p>`).join('') : '<small>Деклараций пока нет.</small>'}</div>
     </aside>`;
 }
 
@@ -346,18 +351,20 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     const ownerId = getBusinessOwnerId(activeObject);
     const ownerName = activeObject.ownerName || activeObject.payload?.ownerName || activeObject.payload?.owner_name;
     const owned = Boolean(ownerId);
+    const legal = getBusinessLegalPayload(activeObject);
     detailsModal.querySelector('[data-business-details-name]').textContent = activeObject.name || 'Продуктовый магазин';
     detailsModal.querySelector('[data-business-details-icon]').textContent = activeObject.icon || '🛒';
     detailsModal.querySelector('[data-business-details-price]').textContent = owned ? 'Действующий бизнес' : formatBusinessMoney(businessPrice(activeObject));
     detailsModal.querySelector('[data-business-details-status]').textContent = owned ? (isOwner(activeObject) ? 'Ваш бизнес' : 'Магазин открыт') : 'Продаётся государством';
     detailsModal.querySelector('[data-business-details-city]').textContent = cityName(activeObject.cityId || activeObject.city_id || activeObject.payload?.cityId || activeCityId);
     detailsModal.querySelector('[data-business-details-owner]').textContent = owned ? String(ownerName || ownerId) : 'Государство';
+    detailsModal.querySelector('[data-business-details-legal-form]').textContent = legal.legalFormLabel;
+    detailsModal.querySelector('[data-business-details-tax-group]').textContent = legal.taxGroupLabel;
     detailsModal.querySelector('[data-business-details-copy]').textContent = owned
       ? (isOwner(activeObject) ? 'Вы владелец. Внутри доступны полки, сотрудники, касса, налоги и передача игроку.' : 'Зайдите, выберите товар на полках и оплатите его на кассе. С неоплаченной корзиной выйти нельзя.')
       : 'После покупки вы сможете вручную расставлять товар, назначать цены, нанимать сотрудников и сдавать недельные декларации.';
     detailsModal.querySelector('[data-business-buy]').hidden = owned;
     detailsModal.querySelector('[data-business-enter]').hidden = !owned;
-    detailsModal.querySelector('[data-business-purchase-tax]').hidden = owned;
   }
 
   function openDetails(object) {
@@ -445,11 +452,11 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
 
   async function handleBuy() {
     if (!activeObject || busy) return;
-    const taxGroup = Number(detailsModal.querySelector('[data-business-purchase-tax-group]')?.value || 2);
+    const legal = getBusinessLegalPayload(activeObject);
     busy = true;
     setDetailsMessage('Оформляем бизнес…');
     try {
-      const result = await purchaseBusiness({ businessId: businessId(activeObject), taxGroup });
+      const result = await purchaseBusiness(businessId(activeObject));
       const ownerId = result.ownerTgId || currentPlayerId();
       const ownerName = result.ownerName || state.nickname || state.player?.nickname || 'Игрок';
       applyBusinessOwner(activeObject, { ownerId, ownerName });
@@ -465,7 +472,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       } }));
       window.dispatchEvent(new CustomEvent('mn:businesses-updated', { detail: { cityId: result.cityId || activeCityId, businessId: businessId(activeObject), result } }));
       renderDetails();
-      setDetailsMessage(`Бизнес куплен. Оформлена ФОП ${taxGroup} группа.`, 'success');
+      setDetailsMessage(`Бизнес куплен. Условия: ${result.legalFormLabel || legal.legalFormLabel} · ${result.taxGroupLabel || legal.taxGroupLabel}.`, 'success');
     } catch (error) {
       setDetailsMessage(getBusinessUserErrorMessage(error), 'error');
     } finally { busy = false; }
@@ -545,8 +552,6 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       await runStoreAction(() => submitBusinessDeclaration(snapshot.businessId), 'Декларация передана в игровую налоговую.');
       return;
     }
-    const taxSelect = target.closest('[data-business-tax-group]');
-    if (taxSelect) return;
     if (target.closest('[data-business-transfer-find]')) {
       const value = storeContent.querySelector('[data-business-transfer-target]')?.value || '';
       const player = await runStoreAction(() => findBusinessTransferPlayer(value));
@@ -569,12 +574,6 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       const result = await runStoreAction(() => fineBusiness({ businessId: snapshot.businessId, amount, reason }), 'Штраф начислен бизнесу.');
       if (result) await refreshStore({ preserveDrawer: false });
     }
-  }
-
-  async function handleStoreChange(event) {
-    const select = event.target?.closest?.('[data-business-tax-group]');
-    if (!select || busy) return;
-    await runStoreAction(() => updateBusinessTaxGroup({ businessId: snapshot.businessId, taxGroup: Number(select.value) }), `Налоговая группа изменена на ФОП ${Number(select.value)}.`);
   }
 
   function renderOfferTimer() {
@@ -693,7 +692,6 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (event.target.closest('[data-business-enter]')) void openStore();
   });
   storeModal?.addEventListener('click', handleStoreClick);
-  storeModal?.addEventListener('change', handleStoreChange);
   offerModal?.querySelector('[data-business-offer-accept]')?.addEventListener('click', () => void resolveOffer(true));
   offerModal?.querySelector('[data-business-offer-reject]')?.addEventListener('click', () => void resolveOffer(false));
   window.addEventListener('mn:entity-action', handleEntityAction);
