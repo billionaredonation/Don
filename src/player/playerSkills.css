@@ -91,6 +91,27 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-profile-skills-button b { font-size: 16px; }
 .mn-profile-skills-button small { color: #85958d; margin-top: 3px; }
 .mn-profile-skills-button > strong { color: #78eea0; white-space: nowrap; }
+.mn-profile-property-button { margin-top: 10px; border-color: rgba(227, 194, 89, .22); background: linear-gradient(90deg, rgba(154, 117, 34, .16), rgba(255, 255, 255, .035)); }
+.mn-profile-property-button i { color: #f4d986; background: rgba(220, 180, 68, .13); }
+.mn-profile-property-button > strong { color: #eed477; }
+
+.mn-profile-property-content { display: grid; gap: 13px; }
+.mn-profile-property-section { overflow: hidden; border: 1px solid rgba(255, 255, 255, .07); border-radius: 18px; background: rgba(255, 255, 255, .025); }
+.mn-profile-property-section > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.mn-profile-property-section > header > span { display: grid; gap: 2px; }
+.mn-profile-property-section > header small { color: #78877f; font-size: 8px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; }
+.mn-profile-property-section > header strong { font-size: 14px; }
+.mn-profile-property-section > header > b { display: grid; place-items: center; min-width: 31px; height: 26px; border-radius: 9px; color: #8df0ad; background: rgba(83, 218, 128, .10); font-size: 10px; }
+.mn-profile-property-section.is-business > header > b { color: #ebd071; background: rgba(219, 177, 60, .1); }
+.mn-profile-property-section > div { display: grid; gap: 6px; padding: 8px; }
+.mn-profile-property-card, .mn-profile-property-empty { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px; border: 1px solid rgba(255, 255, 255, .055); border-radius: 13px; background: rgba(4, 12, 8, .55); }
+.mn-profile-property-card > i, .mn-profile-property-empty > i { display: grid; place-items: center; width: 39px; height: 39px; flex: 0 0 39px; border-radius: 12px; background: rgba(73, 215, 121, .10); font-size: 18px; font-style: normal; }
+.mn-profile-property-card[data-property-type="business"] > i { background: rgba(218, 178, 62, .11); }
+.mn-profile-property-card > span, .mn-profile-property-empty > span { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.mn-profile-property-card strong, .mn-profile-property-empty strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.mn-profile-property-card small, .mn-profile-property-empty small { color: #7e8c84; font-size: 8px; }
+.mn-profile-property-card > b { color: #718079; font-size: 8px; letter-spacing: .08em; }
+.mn-profile-property-empty { color: #78877f; border-style: dashed; }
 
 .mn-profile-back { padding: 0 0 15px; border: 0; color: #8cecad; background: transparent; font-weight: 850; cursor: pointer; }
 .mn-skills-content { display: grid; gap: 16px; }
@@ -236,6 +257,10 @@ body.mn-player-profile-open .mn-hospital-management-hint {
   .mn-profile-stats article > i { width: 36px; height: 36px; }
   .mn-profile-level-note { margin: 8px 2px 10px; }
   .mn-profile-skills-button { padding: 11px; }
+  .mn-profile-property-button { margin-top: 6px; }
+  .mn-profile-property-section > header { padding: 8px 10px; }
+  .mn-profile-property-section > div { padding: 5px; }
+  .mn-profile-property-card, .mn-profile-property-empty { padding: 6px; }
   .mn-profile-back { padding-bottom: 8px; font-size: 11px; }
   .mn-skills-content { gap: 8px; }
   .mn-skill-section { gap: 7px; padding: 8px; border-radius: 15px; }
