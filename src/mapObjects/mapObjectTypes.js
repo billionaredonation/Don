@@ -1,3 +1,5 @@
+import { getBusinessLegalPayload } from '../business/businessConfig.js';
+
 export const MAP_OBJECT_CATEGORIES = {
   DECOR: 'decor',
   HOUSE: 'house',
@@ -428,9 +430,11 @@ export function createMapObjectDraft({
   if (config.category === MAP_OBJECT_CATEGORIES.BUSINESS) {
     objectName = name || config.label;
     const currentPrice = Number(nextPayload.price);
+    const legalPayload = getBusinessLegalPayload(nextPayload);
 
     nextPayload = {
       ...nextPayload,
+      ...legalPayload,
       kind: 'business',
       businessType: config.type,
       businessLabel: config.label,
