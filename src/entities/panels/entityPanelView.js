@@ -16,7 +16,7 @@ function formatMoney(value) {
     return '';
   }
 
-  return `${number.toLocaleString('ru-RU')} $`;
+  return `${number.toLocaleString('ru-RU')} ₴`;
 }
 
 
@@ -24,7 +24,7 @@ function formatMoney(value) {
 export function getBusinessPanelData(object) {
   const price = formatMoney(object?.payload?.price);
   const income = Number(object?.payload?.incomePerHour || 0);
-  const ownerId = object?.payload?.ownerId || '';
+  const ownerId = object?.owner_id || object?.ownerId || object?.payload?.ownerId || object?.payload?.owner_id || '';
   const locked = Boolean(object?.payload?.locked);
 
   const incomeText = income > 0
@@ -40,7 +40,7 @@ export function getBusinessPanelData(object) {
       price,
       incomeText,
     ].filter(Boolean).join(' · '),
-    actionLabel: ownerId ? 'Информация' : locked ? 'Закрыто' : 'Купить бизнес',
+    actionLabel: ownerId ? 'Войти в магазин' : locked ? 'Закрыто' : 'Купить бизнес',
   };
 }
 
