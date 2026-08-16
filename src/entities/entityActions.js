@@ -42,7 +42,7 @@ export function getEntityPrimaryActionLabel(object) {
   }
 
   if (kind === 'business') {
-    if (object?.payload?.ownerId) return 'Информация';
+    if (object?.owner_id || object?.ownerId || object?.payload?.ownerId || object?.payload?.owner_id) return 'Войти в магазин';
     if (object?.payload?.locked) return 'Закрыто';
     return 'Купить бизнес';
   }
@@ -98,7 +98,7 @@ export function getEntityMetaText(object) {
     'object';
 
   const price = Number(object?.payload?.price || 0);
-  const ownerId = object?.payload?.ownerId || '';
+  const ownerId = object?.owner_id || object?.ownerId || object?.payload?.ownerId || object?.payload?.owner_id || '';
   const locked = Boolean(object?.payload?.locked);
 
   const statusText = ownerId
@@ -108,7 +108,7 @@ export function getEntityMetaText(object) {
       : 'свободен';
 
   const priceText = price > 0
-    ? ` · ${price.toLocaleString('ru-RU')} $`
+    ? ` · ${price.toLocaleString('ru-RU')} ₴`
     : '';
 
   return `${kindLabel} · ${classLabel} · ${statusText}${priceText}`;
