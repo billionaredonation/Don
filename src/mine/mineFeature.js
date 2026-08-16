@@ -22,6 +22,11 @@ import './mine.css';
 const MINE_STATE_REFRESH_MS = 5000;
 const MINE_INVENTORY_REFRESH_MS = 12000;
 
+function isMineStreamObject(object = {}) {
+  const type = String(object.type || object?.payload?.jobType || '');
+  return type === 'mine_station' || Boolean(getMineResourceByObjectType(type));
+}
+
 function emitToast(message, type = 'info') {
   window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 }
@@ -359,6 +364,53 @@ export function enableMineFeature({ root, cityId } = {}) {
     return nodeLoadPromise;
   }
 
+  function startMineStreamLoading() {
+    if (destroyed) return;
+    const wasActive = Boolean(realtimeChannel || stateTimer || inventoryTimer);
+
+    if (!realtimeChannel) {
+      realtimeChannel = supabase
+        .channel(`mine-nodes:${cityId}:${Math.random().toString(16).slice(2)}`)
+        .on('postgres_changes', {
+          event: '*', schema: 'public', table: 'mine_node_states', filter: `city_id=eq.${cityId}`,
+        }, (payload) => {
+          if (payload.eventType === 'DELETE') removeNodeState(payload.old?.node_object_id);
+          else upsertNodeState(payload.new);
+        })
+        .subscribe();
+    }
+    if (!stateTimer) stateTimer = window.setInterval(refreshNodeStates, MINE_STATE_REFRESH_MS);
+    if (!inventoryTimer) {
+      inventoryTimer = window.setInterval(
+        () => refreshInventory({ silent: true }),
+        MINE_INVENTORY_REFRESH_MS,
+      );
+    }
+    if (!wasActive) {
+      void refreshNodeStates();
+      void refreshInventory({ silent: true });
+    }
+  }
+
+  function stopMineStreamLoading() {
+    window.clearInterval(stateTimer);
+    window.clearInterval(inventoryTimer);
+    stateTimer = 0;
+    inventoryTimer = 0;
+    if (realtimeChannel) {
+      const channel = realtimeChannel;
+      realtimeChannel = null;
+      void supabase.removeChannel(channel);
+    }
+  }
+
+  function handleJobStreamWindow(event) {
+    if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
+    const objects = Array.isArray(event?.detail?.objects) ? event.detail.objects : [];
+    if (objects.some(isMineStreamObject)) startMineStreamLoading();
+    else stopMineStreamLoading();
+  }
+
   async function refreshMarket({ silent = true } = {}) {
     if (!activeBuyerObjectId) return null;
     const buyerId = activeBuyerObjectId;
@@ -400,6 +452,7 @@ export function enableMineFeature({ root, cityId } = {}) {
 
   function openModal(object) {
     if (!modal || busy) return;
+    startMineStreamLoading();
     marketRequestVersion += 1;
     activeBuyerObjectId = String(object?.id || '');
     marketLoading = false;
@@ -434,6 +487,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     const objectType = String(object?.type || object?.payload?.jobType || '');
     const resource = getMineResourceByObjectType(objectType);
     if (!resource) return;
+    startMineStreamLoading();
 
     if (!nodeStatesReady) {
       emitToast('Проверяем состояние месторождения…');
@@ -556,31 +610,22 @@ export function enableMineFeature({ root, cityId } = {}) {
   panel?.addEventListener('click', handleSell);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('mn:mine-object-action', handleMineObject);
-
-  realtimeChannel = supabase
-    .channel(`mine-nodes:${cityId}:${Math.random().toString(16).slice(2)}`)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'mine_node_states', filter: `city_id=eq.${cityId}`,
-    }, (payload) => {
-      if (payload.eventType === 'DELETE') removeNodeState(payload.old?.node_object_id);
-      else upsertNodeState(payload.new);
-    })
-    .subscribe();
-
-  stateTimer = window.setInterval(refreshNodeStates, MINE_STATE_REFRESH_MS);
-  inventoryTimer = window.setInterval(() => refreshInventory({ silent: true }), MINE_INVENTORY_REFRESH_MS);
+  window.addEventListener('mn:job-stream-window-changed', handleJobStreamWindow);
   marketTimer = window.setInterval(renderMarketCountdown, 1000);
-  void refreshNodeStates();
-  void refreshInventory({ silent: true });
+  handleJobStreamWindow({
+    detail: {
+      cityId,
+      objects: window.__MN_ACTIVE_JOB_OBJECTS_BY_CITY__?.[String(cityId)] || [],
+    },
+  });
 
   return () => {
     destroyed = true;
-    window.clearInterval(stateTimer);
-    window.clearInterval(inventoryTimer);
+    stopMineStreamLoading();
     window.clearInterval(marketTimer);
-    if (realtimeChannel) void supabase.removeChannel(realtimeChannel);
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('mn:mine-object-action', handleMineObject);
+    window.removeEventListener('mn:job-stream-window-changed', handleJobStreamWindow);
     tabPages.forEach((page) => {
       page.removeEventListener('touchstart', handleScrollTouchStart);
       page.removeEventListener('touchmove', handleScrollTouchMove);
