@@ -163,6 +163,25 @@
 .mn-business-inline { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
 .mn-business-found-player { margin: 0 14px 12px; }
 .mn-business-drawer > .is-primary, .mn-business-drawer > .is-danger { width: calc(100% - 28px); margin: 0 14px 12px; }
+.mn-business-procurement-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 11px 14px; }
+.mn-business-procurement-preview > span { display: grid; gap: 4px; padding: 11px; border: 1px solid rgba(178,224,91,.12); border-radius: 12px; background: rgba(144,194,65,.055); }
+.mn-business-procurement-preview small { color: #829077; font-size: 9px; text-transform: uppercase; }
+.mn-business-procurement-preview strong { color: #d9eec1; font-size: 13px; }
+.mn-business-procurement-preview[data-state="error"] > span:last-child { border-color: rgba(241,105,82,.24); background: rgba(211,64,48,.09); }
+.mn-business-procurement-preview[data-state="error"] > span:last-child strong { color: #ffb6a9; }
+.mn-business-procurement-list { display: grid; gap: 7px; margin: 12px 14px 16px; }
+.mn-business-procurement-list > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.065); }
+.mn-business-procurement-list > header strong { font-size: 12px; }
+.mn-business-procurement-list > header span { color: #a7c985; font-size: 10px; }
+.mn-business-procurement-list article { display: grid; grid-template-columns: auto minmax(0,1fr) auto auto auto; align-items: center; gap: 7px; padding: 9px; border: 1px solid rgba(255,255,255,.065); border-radius: 12px; background: rgba(255,255,255,.025); }
+.mn-business-procurement-list article.is-selected { border-color: rgba(183,227,96,.25); background: rgba(143,193,65,.07); }
+.mn-business-procurement-list article > i { font-size: 21px; font-style: normal; }
+.mn-business-procurement-list article > span { display: grid; gap: 3px; min-width: 0; }
+.mn-business-procurement-list article > span strong { font-size: 11px; }
+.mn-business-procurement-list article > span small { overflow: hidden; color: #7f8c76; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.mn-business-procurement-list article > b { color: #cceca3; font-size: 10px; white-space: nowrap; }
+.mn-business-procurement-list article > button { min-height: 32px; padding: 0 8px; font-size: 8px; }
+.mn-business-procurement-list > p { margin: 8px 0; color: #7b8872; font-size: 10px; text-align: center; }
 
 .mn-business-transfer-offer > section { position: relative; width: min(440px, calc(100vw - 36px)); padding: 20px; border: 1px solid rgba(184, 228, 94, .25); border-radius: 23px; background: #0b120b; box-shadow: 0 28px 90px rgba(0,0,0,.68); }
 .mn-business-transfer-offer > section > small { color: #a8ba94; font-size: 8px; font-weight: 900; letter-spacing: .13em; text-transform: uppercase; }
@@ -172,60 +191,6 @@
 .mn-business-transfer-offer section > p { color: #a9b79d; font-size: 9px; line-height: 1.5; }
 .mn-business-transfer-offer section > footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .mn-business-offer-result { padding: 8px; border-radius: 10px; background: rgba(255,255,255,.04); }
-
-@media (max-width: 760px), (max-height: 560px), (hover: none) and (pointer: coarse) {
-  .mn-business-details, .mn-business-transfer-offer { padding: 7px; }
-  .mn-business-details-card { width: min(700px, calc(100vw - 14px)); max-height: calc(100dvh - 14px); border-radius: 17px; }
-  .mn-business-details-card > header { padding: 10px 13px; }
-  .mn-business-details-hero { margin: 9px 12px 7px; padding: 9px; }
-  .mn-business-details-hero > i { width: 43px; height: 43px; flex-basis: 43px; font-size: 22px; }
-  .mn-business-details-grid { margin: 0 12px; }
-  .mn-business-details-card > p { margin: 8px 14px; font-size: 9px; }
-  .mn-business-tax-select { margin: 0 12px 7px; }
-  .mn-business-legal-fixed { margin: 0 12px 7px; }
-  .mn-business-details-card > footer { padding: 8px 12px 11px; }
-  .mn-business-store { padding: 4px; }
-  .mn-business-store-shell { width: 100%; height: 100%; border-radius: 14px; }
-  .mn-business-store-header { padding: 7px 10px; }
-  .mn-business-store-header strong { font-size: 13px; }
-  .mn-business-store-header b, .mn-business-store-header em { padding: 5px 7px; font-size: 7px; }
-  .mn-business-store-main { grid-template-columns: minmax(0,1fr) 220px; }
-  .mn-business-sales-floor { padding: 7px; }
-  .mn-business-aisle-title { margin-bottom: 5px; }
-  .mn-business-shelves { gap: 5px; }
-  .mn-business-shelf { min-height: 86px !important; padding: 6px !important; }
-  .mn-business-shelf small { left: 6px; top: 5px; font-size: 6px; }
-  .mn-business-shelf > i { font-size: 21px; }
-  .mn-business-shelf > strong { font-size: 8px; }
-  .mn-business-shelf > span { font-size: 6px; }
-  .mn-business-shelf > em { margin: 0; padding: 2px 5px; font-size: 6px; }
-  .mn-business-shelf::after { bottom: 8px; height: 2px; }
-  .mn-business-checkout-counter { gap: 7px; margin-top: 6px; padding: 6px; border-radius: 11px; }
-  .mn-business-checkout-counter > i { width: 30px; height: 30px; font-size: 15px; }
-  .mn-business-checkout-counter > button { min-height: 30px; padding: 0 8px; font-size: 7px; }
-  .mn-business-cart > header, .mn-business-cart > footer { padding: 7px; }
-  .mn-business-cart > div { padding: 4px; }
-  .mn-business-cart article { padding: 5px 3px; }
-  .mn-business-store-message { margin: 0 7px 4px; padding: 6px 8px; font-size: 7px; }
-  .mn-business-store-footer { gap: 4px; padding: 5px 7px; }
-  .mn-business-store-footer > button { min-height: 28px; padding: 0 7px; font-size: 6px; }
-  .mn-business-drawer { inset: 48px 7px 38px auto; width: min(430px, calc(100% - 14px)); border-radius: 13px; }
-  .mn-business-drawer > header { padding: 8px 10px; }
-  .mn-business-drawer > header > button { width: 30px; height: 30px; flex-basis: 30px; font-size: 19px; }
-  .mn-business-drawer > label { margin: 7px 10px; }
-  .mn-business-drawer input, .mn-business-drawer select, .mn-business-drawer textarea { min-height: 34px; padding: 6px 8px; }
-  .mn-business-employee-form { grid-template-columns: 1fr 125px auto; padding: 7px 10px; }
-  .mn-business-employees, .mn-business-tax-summary { padding-left: 10px; padding-right: 10px; }
-  .mn-business-drawer-note { margin: 7px 10px; }
-}
-
-@media (max-width: 520px) and (orientation: portrait) {
-  .mn-business-details-grid { grid-template-columns: 1fr; }
-  .mn-business-store-main { grid-template-columns: 1fr; }
-  .mn-business-cart { border-top: 1px solid rgba(255,255,255,.07); border-left: 0; max-height: 170px; }
-  .mn-business-shelves { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .mn-business-employee-form { grid-template-columns: 1fr; }
-}
 
 @media (orientation: portrait) and (max-width: 920px) {
   html.mn-force-rotate-landscape .mn-business-details,
@@ -326,16 +291,16 @@ body.mn-business-open [data-hospital-management-hint] { display: none !important
 
 /* Phone/tablet layout: preserve touch targets and let each modal scroll on its
    own instead of shrinking the whole desktop composition. */
-@media (max-width: 760px), (max-height: 560px), (hover: none) and (pointer: coarse) {
+@media (max-width: 900px), (max-height: 620px), (hover: none) and (pointer: coarse) {
   .mn-business-details,
-  .mn-business-transfer-offer { padding: 0; align-items: stretch; }
+  .mn-business-transfer-offer { padding: 6px; align-items: center; }
   .mn-business-details-card,
   .mn-business-transfer-offer > section {
-    width: 100%;
-    max-width: none;
-    max-height: 100dvh;
-    margin: 0;
-    border-radius: 0;
+    width: min(680px, calc(100% - 12px));
+    max-width: calc(100% - 12px);
+    max-height: calc(100% - 12px);
+    margin: auto;
+    border-radius: 16px;
     overscroll-behavior: contain;
   }
   .mn-business-details-card > header,
@@ -381,15 +346,15 @@ body.mn-business-open [data-hospital-management-hint] { display: none !important
   .mn-business-store button,
   .mn-business-transfer-offer button { min-height: 44px; font-size: 12px; }
 
-  .mn-business-store { padding: 0; }
-  .mn-business-store-shell { width: 100%; height: 100%; border: 0; border-radius: 0; }
+  .mn-business-store { padding: 4px; }
+  .mn-business-store-shell { width: 100%; height: 100%; border-radius: 14px; }
   .mn-business-store-header { gap: 8px; padding: 9px 11px; }
   .mn-business-store-header small { font-size: 9px; }
   .mn-business-store-header strong { font-size: 16px; }
   .mn-business-store-header > div { gap: 5px; }
   .mn-business-store-header b,
   .mn-business-store-header em { padding: 6px 8px; font-size: 10px; }
-  .mn-business-store-main { grid-template-columns: minmax(0, 1fr) minmax(190px, 28vw); }
+  .mn-business-store-main { grid-template-columns: minmax(0, 1fr) minmax(190px, 29%); }
   .mn-business-sales-floor { padding: 10px; }
   .mn-business-aisle-title { margin-bottom: 8px; }
   .mn-business-aisle-title small { font-size: 9px; }
@@ -433,11 +398,12 @@ body.mn-business-open [data-hospital-management-hint] { display: none !important
 
   .mn-business-drawer {
     position: fixed;
-    inset: 0;
-    width: 100%;
-    max-width: none;
-    border: 0;
-    border-radius: 0;
+    inset: 7px 7px 7px auto;
+    width: min(520px, calc(100% - 14px));
+    max-width: calc(100% - 14px);
+    max-height: calc(100% - 14px);
+    border: 1px solid rgba(186, 229, 96, .22);
+    border-radius: 15px;
     padding-bottom: env(safe-area-inset-bottom);
     overscroll-behavior: contain;
   }
@@ -452,7 +418,7 @@ body.mn-business-open [data-hospital-management-hint] { display: none !important
   .mn-business-drawer-grid { gap: 10px; margin: 0 14px; }
   .mn-business-drawer > footer { position: sticky; bottom: 0; padding: 10px 14px; background: rgba(9, 15, 9, .97); }
   .mn-business-drawer > footer > button { flex: 1; }
-  .mn-business-employee-form { grid-template-columns: 1fr; gap: 9px; padding: 12px 14px; }
+  .mn-business-employee-form { grid-template-columns: minmax(0, 1fr) 145px auto; gap: 9px; padding: 12px 14px; }
   .mn-business-employees,
   .mn-business-tax-summary { padding-left: 14px; padding-right: 14px; }
   .mn-business-employees article { padding: 10px; }
@@ -471,8 +437,21 @@ body.mn-business-open [data-hospital-management-hint] { display: none !important
   .mn-business-declarations > strong { font-size: 13px; }
   .mn-business-declarations > p { align-items: flex-start; flex-direction: column; font-size: 10px; }
   .mn-business-inline { grid-template-columns: minmax(0, 1fr) auto; }
+  .mn-business-procurement-preview { gap: 8px; margin: 10px 14px; }
+  .mn-business-procurement-preview > span { padding: 10px; }
+  .mn-business-procurement-preview small { font-size: 10px; }
+  .mn-business-procurement-preview strong { font-size: 13px; }
+  .mn-business-procurement-list > header strong { font-size: 13px; }
+  .mn-business-procurement-list > header span { font-size: 11px; }
+  .mn-business-procurement-list article { grid-template-columns: auto minmax(0,1fr) auto; gap: 8px; }
+  .mn-business-procurement-list article > span strong { font-size: 12px; }
+  .mn-business-procurement-list article > span small { font-size: 10px; }
+  .mn-business-procurement-list article > b { font-size: 11px; }
+  .mn-business-procurement-list article > button { min-height: 40px; font-size: 10px; }
+  .mn-business-procurement-list article > button:first-of-type { grid-column: 2; }
+  .mn-business-procurement-list article > button:last-of-type { grid-column: 3; }
 
-  .mn-business-transfer-offer > section { overflow: auto; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+  .mn-business-transfer-offer > section { width: min(520px, calc(100% - 12px)); overflow: auto; padding: 16px 18px calc(16px + env(safe-area-inset-bottom)); }
   .mn-business-transfer-offer > section > small { font-size: 10px; }
   .mn-business-transfer-offer h3 { font-size: 21px; }
   .mn-business-transfer-offer section > div { font-size: 13px; }
@@ -480,13 +459,16 @@ body.mn-business-open [data-hospital-management-hint] { display: none !important
 }
 
 @media (max-width: 520px) and (orientation: portrait) {
-  .mn-business-details-grid,
-  .mn-business-legal-fixed,
-  .mn-business-drawer-grid { grid-template-columns: 1fr; }
-  .mn-business-legal-fixed > em { grid-column: auto; }
-  .mn-business-store-main { grid-template-columns: 1fr; overflow: auto; }
-  .mn-business-sales-floor { overflow: visible; }
-  .mn-business-cart { min-height: 190px; max-height: 230px; border-top: 1px solid rgba(255,255,255,.07); border-left: 0; }
-  .mn-business-shelves { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .mn-business-store-footer > span { display: none; }
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-details-grid,
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-legal-fixed,
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-drawer-grid,
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-procurement-preview { grid-template-columns: 1fr; }
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-legal-fixed > em { grid-column: auto; }
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-store-main { grid-template-columns: 1fr; overflow: auto; }
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-sales-floor { overflow: visible; }
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-cart { min-height: 190px; max-height: 230px; border-top: 1px solid rgba(255,255,255,.07); border-left: 0; }
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-shelves { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-store-footer > span { display: none; }
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-drawer { inset: 6px; width: auto; max-width: none; max-height: calc(100% - 12px); }
+  :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-employee-form { grid-template-columns: 1fr; }
 }
