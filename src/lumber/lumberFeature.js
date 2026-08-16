@@ -17,6 +17,11 @@ import './lumber.css';
 const STATE_REFRESH_MS = 5000;
 const INVENTORY_REFRESH_MS = 12000;
 
+function isLumberStreamObject(object = {}) {
+  const type = String(object.type || object?.payload?.jobType || '');
+  return type === 'lumber_station' || Boolean(getLumberTreeByObjectType(type));
+}
+
 function emitToast(message, type = 'info') {
   window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 }
@@ -246,8 +251,52 @@ export function enableLumberFeature({ root, cityId } = {}) {
     return treeLoadPromise;
   }
 
+  function startLumberStreamLoading() {
+    if (destroyed) return;
+    const wasActive = Boolean(realtimeChannel || stateTimer || inventoryTimer);
+
+    if (!realtimeChannel) {
+      realtimeChannel = supabase.channel(`lumber-trees:${cityId}:${Math.random().toString(16).slice(2)}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'lumber_tree_states', filter: `city_id=eq.${cityId}` }, (payload) => {
+          if (payload.eventType === 'DELETE') removeTreeState(payload.old?.tree_object_id);
+          else upsertTreeState(payload.new);
+        }).subscribe();
+    }
+    if (!stateTimer) stateTimer = window.setInterval(refreshTreeStates, STATE_REFRESH_MS);
+    if (!inventoryTimer) {
+      inventoryTimer = window.setInterval(
+        () => refreshInventory({ silent: true }),
+        INVENTORY_REFRESH_MS,
+      );
+    }
+    if (!wasActive) {
+      void refreshTreeStates();
+      void refreshInventory({ silent: true });
+    }
+  }
+
+  function stopLumberStreamLoading() {
+    window.clearInterval(stateTimer);
+    window.clearInterval(inventoryTimer);
+    stateTimer = 0;
+    inventoryTimer = 0;
+    if (realtimeChannel) {
+      const channel = realtimeChannel;
+      realtimeChannel = null;
+      void supabase.removeChannel(channel);
+    }
+  }
+
+  function handleJobStreamWindow(event) {
+    if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
+    const objects = Array.isArray(event?.detail?.objects) ? event.detail.objects : [];
+    if (objects.some(isLumberStreamObject)) startLumberStreamLoading();
+    else stopLumberStreamLoading();
+  }
+
   function openModal(object) {
     if (!modal || busy) return;
+    startLumberStreamLoading();
     activeStationObjectId = String(object?.id || '');
     setStatus('');
     modal.hidden = false;
@@ -274,6 +323,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     if (busy) return;
     const tree = getLumberTreeByObjectType(object?.type || object?.payload?.jobType);
     if (!tree) return;
+    startLumberStreamLoading();
     if (!treeStatesReady && !await refreshTreeStates()) {
       emitToast('Не удалось проверить дерево. Попробуйте ещё раз.', 'error');
       return;
@@ -401,24 +451,20 @@ export function enableLumberFeature({ root, cityId } = {}) {
   panel?.addEventListener('click', handleSell);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('mn:lumber-object-action', handleLumberObject);
-
-  realtimeChannel = supabase.channel(`lumber-trees:${cityId}:${Math.random().toString(16).slice(2)}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'lumber_tree_states', filter: `city_id=eq.${cityId}` }, (payload) => {
-      if (payload.eventType === 'DELETE') removeTreeState(payload.old?.tree_object_id);
-      else upsertTreeState(payload.new);
-    }).subscribe();
-  stateTimer = window.setInterval(refreshTreeStates, STATE_REFRESH_MS);
-  inventoryTimer = window.setInterval(() => refreshInventory({ silent: true }), INVENTORY_REFRESH_MS);
-  void refreshTreeStates();
-  void refreshInventory({ silent: true });
+  window.addEventListener('mn:job-stream-window-changed', handleJobStreamWindow);
+  handleJobStreamWindow({
+    detail: {
+      cityId,
+      objects: window.__MN_ACTIVE_JOB_OBJECTS_BY_CITY__?.[String(cityId)] || [],
+    },
+  });
 
   return () => {
     destroyed = true;
-    window.clearInterval(stateTimer);
-    window.clearInterval(inventoryTimer);
-    if (realtimeChannel) void supabase.removeChannel(realtimeChannel);
+    stopLumberStreamLoading();
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('mn:lumber-object-action', handleLumberObject);
+    window.removeEventListener('mn:job-stream-window-changed', handleJobStreamWindow);
     document.body.classList.remove('mn-lumber-modal-open');
     modal?.remove();
     cancelLumberMiniGame();
