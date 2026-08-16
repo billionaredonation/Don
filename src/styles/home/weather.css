@@ -115,11 +115,15 @@
   animation: gtaCloudDrift 48s ease-in-out infinite alternate;
 }
 
+.home[data-weather="rain"] {
+  --mn-rain-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='128' viewBox='0 0 96 128'%3E%3Cg fill='none' stroke='%23d7ecff' stroke-linecap='round'%3E%3Cpath d='M10 2L4 22' stroke-opacity='.78' stroke-width='1.5'/%3E%3Cpath d='M42 18L35 42' stroke-opacity='.58' stroke-width='1.2'/%3E%3Cpath d='M75 4L68 28' stroke-opacity='.7' stroke-width='1.4'/%3E%3Cpath d='M92 48L85 72' stroke-opacity='.48' stroke-width='1.1'/%3E%3Cpath d='M24 61L17 85' stroke-opacity='.66' stroke-width='1.35'/%3E%3Cpath d='M58 72L51 96' stroke-opacity='.76' stroke-width='1.45'/%3E%3Cpath d='M82 101L76 122' stroke-opacity='.62' stroke-width='1.25'/%3E%3Cpath d='M7 106L2 124' stroke-opacity='.46' stroke-width='1.05'/%3E%3C/g%3E%3C/svg%3E");
+}
+
 .home[data-weather="rain"] .gta-weather-rain {
   inset: -128px -8%;
   opacity: 0.82;
   background-color: transparent;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='128' viewBox='0 0 96 128'%3E%3Cg fill='none' stroke='%23d7ecff' stroke-linecap='round'%3E%3Cpath d='M10 2L4 22' stroke-opacity='.78' stroke-width='1.5'/%3E%3Cpath d='M42 18L35 42' stroke-opacity='.58' stroke-width='1.2'/%3E%3Cpath d='M75 4L68 28' stroke-opacity='.7' stroke-width='1.4'/%3E%3Cpath d='M92 48L85 72' stroke-opacity='.48' stroke-width='1.1'/%3E%3Cpath d='M24 61L17 85' stroke-opacity='.66' stroke-width='1.35'/%3E%3Cpath d='M58 72L51 96' stroke-opacity='.76' stroke-width='1.45'/%3E%3Cpath d='M82 101L76 122' stroke-opacity='.62' stroke-width='1.25'/%3E%3Cpath d='M7 106L2 124' stroke-opacity='.46' stroke-width='1.05'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: var(--mn-rain-pattern);
   background-repeat: repeat;
   background-size: 96px 128px;
   filter: none;
@@ -193,6 +197,27 @@
     inset: -128px -64px;
     contain: layout paint style;
     will-change: transform;
+  }
+
+  /*
+    Walking already moves the camera every frame. While it moves, replace the
+    separate animated rain surface with one static texture on the stage's
+    existing vignette layer. No additional fullscreen alpha layer is composited
+    until the player stops, then the smooth rain resumes automatically.
+  */
+  body.mn-player-moving .home[data-weather="rain"] .gta-map-stage > .gta-map-weather[data-screen-weather="true"] {
+    display: none;
+  }
+
+  body.mn-player-moving .home[data-weather="rain"] .gta-map-stage::before {
+    background-image:
+      var(--mn-rain-pattern),
+      linear-gradient(180deg, rgba(105,135,165,0.12) 0%, rgba(38,60,82,0.03) 44%, rgba(18,34,52,0.09) 100%),
+      linear-gradient(90deg, rgba(0,0,0,0.48) 0%, transparent 16%, transparent 84%, rgba(0,0,0,0.48) 100%),
+      linear-gradient(180deg, rgba(0,0,0,0.42) 0%, transparent 18%, transparent 80%, rgba(0,0,0,0.48) 100%);
+    background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+    background-size: 96px 128px, 100% 100%, 100% 100%, 100% 100%;
+    background-position: 0 -42px, 0 0, 0 0, 0 0;
   }
 }
 
@@ -338,7 +363,7 @@
     will-change: transform;
     backface-visibility: hidden;
     background-color: transparent;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='128' viewBox='0 0 96 128'%3E%3Cg fill='none' stroke='%23d7ecff' stroke-linecap='round'%3E%3Cpath d='M10 2L4 22' stroke-opacity='.78' stroke-width='1.5'/%3E%3Cpath d='M42 18L35 42' stroke-opacity='.58' stroke-width='1.2'/%3E%3Cpath d='M75 4L68 28' stroke-opacity='.7' stroke-width='1.4'/%3E%3Cpath d='M92 48L85 72' stroke-opacity='.48' stroke-width='1.1'/%3E%3Cpath d='M24 61L17 85' stroke-opacity='.66' stroke-width='1.35'/%3E%3Cpath d='M58 72L51 96' stroke-opacity='.76' stroke-width='1.45'/%3E%3Cpath d='M82 101L76 122' stroke-opacity='.62' stroke-width='1.25'/%3E%3Cpath d='M7 106L2 124' stroke-opacity='.46' stroke-width='1.05'/%3E%3C/g%3E%3C/svg%3E");
+    background-image: var(--mn-rain-pattern);
     background-repeat: repeat;
     background-size: 96px 128px;
     animation: gtaMobileRainLite 0.82s linear infinite !important;
