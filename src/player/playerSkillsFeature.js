@@ -2,6 +2,9 @@ import { state } from '../state.js';
 import { addRunningSkillXp, loadPlayerSkills } from '../farm/farmApi.js';
 import { loadMineSkills } from '../mine/mineApi.js';
 import { loadLumberSkills } from '../lumber/lumberApi.js';
+import { fetchPlayerOwnedHouses } from '../houses/housesRepository.js';
+import { fetchPlayerOwnedBusinesses } from '../business/businessRepository.js';
+import { getCityConfig } from '../cities/index.js';
 import { getPlayerSkillsSnapshot, publishPlayerSkills } from './playerSkillState.js';
 import './playerSkills.css';
 
@@ -80,12 +83,22 @@ function profileMarkup() {
           <button class="mn-profile-skills-button" type="button" data-profile-open-skills>
             <span><i>✦</i><b>Навыки</b><small>Профессии, ресурсы и физическая форма</small></span><strong>Открыть ›</strong>
           </button>
+          <button class="mn-profile-skills-button mn-profile-property-button" type="button" data-profile-open-property>
+            <span><i>⌂</i><b>Дома и бизнесы</b><small>Вся собственность, включая другие города</small></span><strong>Открыть ›</strong>
+          </button>
         </div>
 
         <div class="mn-profile-page" data-profile-page="skills" hidden>
           <button class="mn-profile-back" type="button" data-profile-back>‹ Назад в профиль</button>
           <div class="mn-skills-content" data-skills-content>
             <div class="mn-skills-loading">Загружаем навыки…</div>
+          </div>
+        </div>
+
+        <div class="mn-profile-page" data-profile-page="property" hidden>
+          <button class="mn-profile-back" type="button" data-profile-back>‹ Назад в профиль</button>
+          <div class="mn-profile-property-content" data-profile-property-content>
+            <div class="mn-skills-loading">Загружаем собственность…</div>
           </div>
         </div>
       </section>
@@ -117,12 +130,76 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   const profileButton = root.querySelector('.player-profile-card');
   const content = modal?.querySelector('[data-skills-content]');
   const skillsPage = modal?.querySelector('[data-profile-page="skills"]');
+  const propertyPage = modal?.querySelector('[data-profile-page="property"]');
+  const propertyContent = modal?.querySelector('[data-profile-property-content]');
   let destroyed = false;
   let loadPromise = null;
   let runningXpPending = 0;
   let runningXpInFlight = false;
   let flushTimer = 0;
   let skillsTouch = null;
+  let propertyLoadPromise = null;
+  let propertySnapshot = { houses: [], businesses: [] };
+
+  function propertyCityName(item = {}) {
+    const payload = item.payload || {};
+    const cityId = String(item.cityId || item.city_id || payload.cityId || payload.city_id || '').trim();
+    return cityId ? (getCityConfig(cityId)?.name || cityId) : 'Город не указан';
+  }
+
+  function renderPropertyList(items = [], type = 'house') {
+    if (!items.length) {
+      return `<div class="mn-profile-property-empty"><i>${type === 'house' ? '🏠' : '🛒'}</i><span><strong>${type === 'house' ? 'Домов пока нет' : 'Бизнесов пока нет'}</strong><small>Покупать имущество можно в любом городе.</small></span></div>`;
+    }
+    return items.map((item) => {
+      const payload = item.payload || {};
+      const id = String(item.mapObjectId || item.id || '').replaceAll('-', '').slice(-6).toUpperCase() || '—';
+      const name = type === 'house'
+        ? `${item.icon || '🏠'} Дом № ${id}`
+        : `${item.icon || '🛒'} ${item.name || payload.businessLabel || 'Продуктовый магазин'}`;
+      const detail = type === 'house'
+        ? (payload.houseClassLabel || payload.houseClass || item.class || 'Стандарт')
+        : 'Продуктовый бизнес';
+      return `<article class="mn-profile-property-card" data-property-type="${type}"><i>${type === 'house' ? '🏠' : '🛒'}</i><span><strong>${escapeHtml(name)}</strong><small>${escapeHtml(propertyCityName(item))} · ${escapeHtml(detail)}</small></span><b>${escapeHtml(id)}</b></article>`;
+    }).join('');
+  }
+
+  function renderProperty() {
+    if (!propertyContent) return;
+    const houses = propertySnapshot.houses || [];
+    const businesses = propertySnapshot.businesses || [];
+    propertyContent.innerHTML = `
+      <section class="mn-profile-property-section">
+        <header><span><small>Недвижимость</small><strong>Дома</strong></span><b>${houses.length}</b></header>
+        <div>${renderPropertyList(houses, 'house')}</div>
+      </section>
+      <section class="mn-profile-property-section is-business">
+        <header><span><small>Коммерческая собственность</small><strong>Бизнесы</strong></span><b>${businesses.length}</b></header>
+        <div>${renderPropertyList(businesses, 'business')}</div>
+      </section>`;
+  }
+
+  async function refreshProperty() {
+    if (propertyLoadPromise) return propertyLoadPromise;
+    const playerId = String(state.telegramId || state.player?.tg_id || '').trim();
+    if (!playerId) return null;
+    propertyLoadPromise = (async () => {
+      const [housesResult, businessesResult] = await Promise.allSettled([
+        fetchPlayerOwnedHouses({ playerId }),
+        fetchPlayerOwnedBusinesses({ playerId }),
+      ]);
+      if (!destroyed) {
+        propertySnapshot = {
+          houses: housesResult.status === 'fulfilled' ? housesResult.value : [],
+          businesses: businessesResult.status === 'fulfilled' ? businessesResult.value : [],
+        };
+        renderProperty();
+      }
+      propertyLoadPromise = null;
+      return propertySnapshot;
+    })();
+    return propertyLoadPromise;
+  }
 
   function usesForcedMobileRotation() {
     return Boolean(
@@ -325,10 +402,15 @@ export function enablePlayerSkillsFeature({ root } = {}) {
       element.hidden = element.dataset.profilePage !== page;
     });
     const title = modal?.querySelector('[data-profile-title]');
-    if (title) title.textContent = page === 'skills' ? 'Навыки' : 'Профиль';
+    if (title) title.textContent = page === 'skills' ? 'Навыки' : page === 'property' ? 'Дома и бизнесы' : 'Профиль';
     if (page === 'skills') {
       renderSkills();
       if (skillsPage) skillsPage.scrollTop = 0;
+    }
+    if (page === 'property') {
+      if (propertyPage) propertyPage.scrollTop = 0;
+      if (propertyContent) propertyContent.innerHTML = '<div class="mn-skills-loading">Загружаем собственность…</div>';
+      void refreshProperty();
     }
   }
 
@@ -437,10 +519,16 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     showLevelToast(event.detail);
   }
 
+  function handlePropertyChanged() {
+    propertyLoadPromise = null;
+    if (propertyPage?.hidden === false) void refreshProperty();
+  }
+
   profileButton?.addEventListener('click', openProfile);
   modal?.querySelectorAll('[data-profile-close]').forEach((button) => button.addEventListener('click', closeProfile));
   modal?.querySelector('[data-profile-open-skills]')?.addEventListener('click', () => setPage('skills'));
-  modal?.querySelector('[data-profile-back]')?.addEventListener('click', () => setPage('overview'));
+  modal?.querySelector('[data-profile-open-property]')?.addEventListener('click', () => setPage('property'));
+  modal?.querySelectorAll('[data-profile-back]').forEach((button) => button.addEventListener('click', () => setPage('overview')));
   skillsPage?.addEventListener('touchstart', handleSkillsTouchStart, { passive: true });
   skillsPage?.addEventListener('touchmove', handleSkillsTouchMove, { passive: false });
   skillsPage?.addEventListener('touchend', handleSkillsTouchEnd, { passive: true });
@@ -450,6 +538,8 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   window.addEventListener('mn:player-skill-level-up', handleLevelUp);
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
   window.addEventListener('mn:player-running-xp', handleRunningXp);
+  window.addEventListener('mn:houses-updated', handlePropertyChanged);
+  window.addEventListener('mn:businesses-updated', handlePropertyChanged);
   document.addEventListener('visibilitychange', handleVisibilityChange);
   void refreshSkills({ silent: true });
 
@@ -467,6 +557,8 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     window.removeEventListener('mn:player-skill-level-up', handleLevelUp);
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
     window.removeEventListener('mn:player-running-xp', handleRunningXp);
+    window.removeEventListener('mn:houses-updated', handlePropertyChanged);
+    window.removeEventListener('mn:businesses-updated', handlePropertyChanged);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     document.body.classList.remove('mn-player-profile-open');
     modal?.remove();
