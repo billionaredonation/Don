@@ -550,3 +550,4 @@ export function createMapObjectDraft({
     updatedAt: new Date().toISOString(),
   };
 }
+
