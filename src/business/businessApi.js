@@ -42,6 +42,10 @@ export function getBusinessUserErrorMessage(error) {
     BUSINESS_PRICE_INVALID: 'Укажите корректную цену.',
     BUSINESS_STOCK_INVALID: 'Укажите корректное количество товара.',
     BUSINESS_SUPPLIER_INVALID: 'Выберите доступного поставщика.',
+    BUSINESS_PROCUREMENT_QUANTITY_INVALID: 'Укажите корректное количество для закупки.',
+    BUSINESS_PROCUREMENT_PRICE_INVALID: 'Укажите корректную закупочную цену за единицу.',
+    BUSINESS_PROCUREMENT_BUDGET_INVALID: 'Укажите корректный бюджет закупки.',
+    BUSINESS_PROCUREMENT_BUDGET_LOW: 'Выделенного бюджета не хватает на указанное количество товара.',
     BUSINESS_EMPLOYEE_NOT_FOUND: 'Игрок не найден.',
     BUSINESS_EMPLOYEE_ROLE_INVALID: 'Выберите корректную должность.',
     BUSINESS_SELF_EMPLOYMENT_INVALID: 'Владельца не нужно добавлять в сотрудники.',
@@ -80,6 +84,8 @@ export const removeBusinessCartItem = (payload) => invokeBusinessAction('cart_re
 export const checkoutBusinessCart = (businessId) => invokeBusinessAction('checkout', { businessId });
 export const updateBusinessEmployee = (payload) => invokeBusinessAction('employee_upsert', payload);
 export const removeBusinessEmployee = (payload) => invokeBusinessAction('employee_remove', payload);
+export const saveBusinessProcurementPlan = (payload) => invokeBusinessAction('set_procurement', payload);
+export const deleteBusinessProcurementPlan = (payload) => invokeBusinessAction('delete_procurement', payload);
 export const submitBusinessDeclaration = (businessId) => invokeBusinessAction('declaration', { businessId });
 export const updateBusinessTaxGroup = ({ businessId, taxGroup }) => invokeBusinessAction('tax_group', { businessId, taxGroup });
 export const findBusinessTransferPlayer = (target) => invokeBusinessAction('find_transfer_player', { target });
