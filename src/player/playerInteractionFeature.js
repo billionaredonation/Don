@@ -71,6 +71,8 @@ function errorText(error) {
     TRADE_ALREADY_PENDING: 'У вас уже есть активное предложение обмена.',
     TRADE_BALANCE_NOT_ENOUGH: 'Для этой сделки недостаточно денег.',
     TRADE_ITEM_NOT_ENOUGH: 'Для этой сделки недостаточно предметов.',
+    TRADE_BUSINESS_ITEMS_ONLY: 'Продукты магазина можно обменивать на деньги или другие продукты магазина.',
+    TRADE_BUSINESS_MIGRATION_REQUIRED: 'Сначала примените SQL-миграцию передачи продуктов и обновите player-interaction.',
     TRADE_NOT_PENDING: 'Предложение уже закрыто.',
     TRADE_EXPIRED: 'Время предложения истекло.',
     PLAYER_NOT_FOUND: 'Игрок не найден.',
@@ -1072,6 +1074,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
             }));
           }
           window.dispatchEvent(new CustomEvent('mn:player-inventory-changed'));
+          window.dispatchEvent(new CustomEvent('mn:business-inventory-changed', { detail: { source: 'player_trade' } }));
           await broadcastTo(result.initiatorTgId, 'trade_resolved', result);
           incomingOffer = null;
           close();
@@ -1366,6 +1369,7 @@ export function enablePlayerInteractionFeature({ playerPosition } = {}) {
         }));
       }
       window.dispatchEvent(new CustomEvent('mn:player-inventory-changed'));
+      window.dispatchEvent(new CustomEvent('mn:business-inventory-changed', { detail: { source: 'player_trade' } }));
       if (panel.dataset.trade === 'true') close();
       showTradeSuccessToast();
     } else toast('Предложение трейда закрыто.');
