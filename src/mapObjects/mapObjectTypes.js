@@ -116,6 +116,7 @@ export const MAP_OBJECT_TYPES = {
     category: MAP_OBJECT_CATEGORIES.BUSINESS,
     label: 'Магазин',
     icon: '🛒',
+    defaultPrice: 250000,
     defaultScale: 1.12,
     defaultRotation: 0,
     defaultAsset: 'business_shop_01',
@@ -426,6 +427,7 @@ export function createMapObjectDraft({
 
   if (config.category === MAP_OBJECT_CATEGORIES.BUSINESS) {
     objectName = name || config.label;
+    const currentPrice = Number(nextPayload.price);
 
     nextPayload = {
       ...nextPayload,
@@ -434,7 +436,9 @@ export function createMapObjectDraft({
       businessLabel: config.label,
       ownerId: nextPayload.ownerId || null,
       incomePerHour: nextPayload.incomePerHour || 0,
-      price: nextPayload.price || 0,
+      price: Number.isFinite(currentPrice) && currentPrice > 0
+        ? Math.round(currentPrice)
+        : Math.max(0, Math.round(Number(config.defaultPrice) || 0)),
       buyable: nextPayload.buyable ?? true,
     };
   }
