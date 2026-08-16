@@ -45,7 +45,8 @@ export function getBusinessUserErrorMessage(error) {
     BUSINESS_EMPLOYEE_NOT_FOUND: 'Игрок не найден.',
     BUSINESS_EMPLOYEE_ROLE_INVALID: 'Выберите корректную должность.',
     BUSINESS_SELF_EMPLOYMENT_INVALID: 'Владельца не нужно добавлять в сотрудники.',
-    BUSINESS_TAX_GROUP_INVALID: 'Доступны только ФОП 2 и ФОП 3 группы.',
+    BUSINESS_TAX_GROUP_INVALID: 'Для выбранной юридической формы этот налоговый режим недоступен.',
+    BUSINESS_TAX_ADMIN_CONFIGURED: 'Юридическая форма и налоговый режим назначены администрацией.',
     BUSINESS_TAX_GROUP_LOCKED: 'Нельзя менять группу при обороте или налоговой задолженности.',
     BUSINESS_DECLARATION_NOT_DUE: 'Декларация откроется за сутки до недельного срока.',
     BUSINESS_DEBT_MUST_BE_PAID: 'Сначала закройте налоговую задолженность и штрафы.',
@@ -72,7 +73,7 @@ export async function invokeBusinessAction(action, payload = {}) {
 }
 
 export const loadBusinessSnapshot = (businessId) => invokeBusinessAction('snapshot', { businessId });
-export const purchaseBusiness = ({ businessId, taxGroup }) => invokeBusinessAction('purchase', { businessId, taxGroup });
+export const purchaseBusiness = (businessId) => invokeBusinessAction('purchase', { businessId });
 export const updateBusinessShelf = (payload) => invokeBusinessAction('set_shelf', payload);
 export const addBusinessCartItem = (payload) => invokeBusinessAction('cart_add', payload);
 export const removeBusinessCartItem = (payload) => invokeBusinessAction('cart_remove', payload);
