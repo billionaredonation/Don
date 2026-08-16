@@ -10,7 +10,7 @@ const MOBILE_TILE_PRELOAD_RADIUS = 3;
 const MOBILE_TILE_KEEP_RADIUS = 4;
 const MOBILE_TILE_IDLE_DELAY = 110;
 const MOBILE_TILE_CLEANUP_DELAY = 7800;
-const MOBILE_CAMERA_EVENT_INTERVAL_MS = 90;
+const MOBILE_CAMERA_EVENT_INTERVAL_MS = 180;
 const DESKTOP_CAMERA_EVENT_INTERVAL_MS = 34;
 
 function clamp(value, min, max) {
@@ -277,14 +277,7 @@ export function enableMapControls(stage, viewport, options = {}) {
   const activeTiles = new Map();
   const preloadedTileSrcs = new Set();
 
-  const cameraFollowLerp = mobile
-    ? (lowPower ? 0.40 : 0.50)
-    : 1;
-  const cameraSettleEpsilon = mobile ? 0.018 : 0.001;
-  const cameraSnapDistance = mobile ? 280 : 0;
-
   let cameraFrameId = 0;
-  let cameraReady = false;
   let cameraFocusFrameId = 0;
   let cameraFocusTimerId = 0;
   let lastCameraFocusDispatchedAt = Number.NEGATIVE_INFINITY;
@@ -761,29 +754,15 @@ export function enableMapControls(stage, viewport, options = {}) {
     const step = () => {
       cameraFrameId = 0;
 
-      const dx = targetMapX - x;
-      const dy = targetMapY - y;
-      const distance = Math.hypot(dx, dy);
-
-      if (!cameraReady || !mobile || distance > cameraSnapDistance) {
-        x = targetMapX;
-        y = targetMapY;
-        cameraReady = true;
-        applyTransform();
-        return;
-      }
-
-      if (distance <= cameraSettleEpsilon) {
-        x = targetMapX;
-        y = targetMapY;
-        applyTransform();
-        return;
-      }
-
-      x += dx * cameraFollowLerp;
-      y += dy * cameraFollowLerp;
+      /*
+        The movement controller already smooths renderX/renderY. A second
+        recursive camera easing loop kept repainting the entire mobile map
+        between input frames and continued for several frames after stopping.
+        Apply the latest smoothed target once per scheduled camera frame.
+      */
+      x = targetMapX;
+      y = targetMapY;
       applyTransform();
-      ensureCameraLoop();
     };
 
     cameraFrameId = requestAnimationFrame(step);
