@@ -2,17 +2,63 @@ import { handleHouseAction } from '../houses/houseActions.js';
 import { handleBusinessAction } from './businessActions.js';
 import { handleNpcAction } from './npcActions.js';
 
+const BUSINESS_ENTITY_TYPES = new Set([
+  'shop',
+  'grocery',
+  'cafe',
+  'gas_station',
+  'bank',
+  'warehouse',
+  'office',
+  'market',
+]);
+
 export function getEntityKind(object) {
-  const rawKind = object?.category || object?.payload?.kind || object?.type || 'marker';
-  const type = object?.type || object?.payload?.type || object?.payload?.serviceType || '';
+  const payload = object?.payload || {};
+  const outerCategory = String(object?.category || '').trim();
+  const payloadCategory = String(payload.category || '').trim();
+  const payloadKind = String(payload.kind || '').trim();
+  const businessType = String(payload.businessType || payload.business_type || '').trim();
+  const rawKind = outerCategory || payloadKind || String(object?.type || '').trim() || 'marker';
+  const type = getEntityType(object);
 
   if (rawKind === 'hospital' || type === 'hospital') return 'service';
 
-  return rawKind;
+  // Some older/admin-created rows are stored as a technical `marker`, while
+  // their payload contains the real entity kind. Prefer the semantic payload
+  // so Y never routes a shop into the empty marker action.
+  if (
+    outerCategory === 'business' ||
+    payloadCategory === 'business' ||
+    payloadKind === 'business' ||
+    BUSINESS_ENTITY_TYPES.has(type) ||
+    BUSINESS_ENTITY_TYPES.has(businessType)
+  ) return 'business';
+
+  if (outerCategory === 'house' || payloadCategory === 'house' || payloadKind === 'house' || type === 'house') return 'house';
+  if (outerCategory === 'job' || payloadCategory === 'job' || payloadKind === 'job') return 'job';
+  if (outerCategory === 'service' || payloadCategory === 'service' || payloadKind === 'service') return 'service';
+  if (outerCategory === 'npc' || payloadCategory === 'npc' || payloadKind === 'npc') return 'npc';
+  if (outerCategory === 'decor' || payloadCategory === 'decor' || payloadKind === 'decor') return 'decor';
+
+  return outerCategory || payloadCategory || payloadKind || type || 'marker';
 }
 
 export function getEntityType(object) {
-  return object?.type || object?.payload?.type || object?.payload?.serviceType || '';
+  const payload = object?.payload || {};
+  const outerType = String(object?.type || '').trim();
+  const semanticType = String(
+    payload.serviceType ||
+    payload.jobType ||
+    payload.businessType ||
+    payload.business_type ||
+    payload.type ||
+    ''
+  ).trim();
+
+  return outerType === 'marker' && semanticType
+    ? semanticType
+    : outerType || semanticType;
 }
 
 export function getEntityKindLabel(object) {
