@@ -10,7 +10,7 @@ export function handleBusinessAction(object) {
 }
 
 export function getBusinessActionType(object) {
-  if (object?.payload?.ownerId) return 'info';
+  if (object?.owner_id || object?.ownerId || object?.payload?.ownerId || object?.payload?.owner_id) return 'info';
   if (object?.payload?.locked) return 'locked';
   return 'buy';
 }
