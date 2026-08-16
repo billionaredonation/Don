@@ -13,8 +13,10 @@ export const NETWORK_CONFIG = {
     presenceHeartbeatInterval: 12000,
     onlineTtlMs: 45000,
 
-    staleAfter: 60000,
-    staleCheckInterval: 9000,
+    // Realtime Presence removes normal exits immediately. This short TTL is
+    // only a safety net for a dead socket / lost connection.
+    staleAfter: 26000,
+    staleCheckInterval: 4000,
 
     // Для снимка из БД даём запас, потому что updated_at сейчас
     // пишет клиент. Жёсткие 3-18 секунд ломали видимость при рассинхроне часов.
@@ -32,7 +34,7 @@ export const NETWORK_CONFIG = {
       hardDbSaveInterval: 22000,
       heartbeatDelay: 9000,
       presenceHeartbeatInterval: 12000,
-      staleCheckInterval: 9000,
+      staleCheckInterval: 4000,
       snapshotRefreshInterval: 14000,
       idleSnapshotRefreshInterval: 22000,
       snapshotPlayerMaxAgeMs: 90000,
