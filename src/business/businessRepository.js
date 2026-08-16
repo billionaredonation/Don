@@ -100,3 +100,4 @@ export function applyBusinessOwner(object, owner = {}) {
   };
   return object;
 }
+
