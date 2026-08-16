@@ -172,7 +172,7 @@ function supplierOptions(selected = 'state_wholesale') {
     ['state_wholesale', 'Государственный опт'],
     ['local_farms', 'Местные фермеры'],
     ['import_distributor', 'Импортный дистрибьютор'],
-  ].map(([value, label]) => `<option value="${value}"${selected === value ? ' selected' : ''}>${label} · заготовка</option>`).join('');
+  ].map(([value, label]) => `<option value="${value}"${selected === value ? ' selected' : ''}>${label}</option>`).join('');
 }
 
 function shelvesMarkup(snapshot) {
@@ -180,14 +180,18 @@ function shelvesMarkup(snapshot) {
   return (snapshot.shelves || []).map((shelf) => {
     const product = shelf.product || getBusinessProduct(shelf.productType);
     const empty = !product || !shelf.productType;
+    const available = !empty && Number(shelf.stock) > 0;
     return `
-      <button type="button" class="mn-business-shelf${empty ? ' is-empty' : ''}" data-business-shelf="${Number(shelf.shelfNo)}">
+      <article class="mn-business-shelf${empty ? ' is-empty' : ''}${available ? '' : ' is-unavailable'}">
         <small>Полка ${Number(shelf.shelfNo)}</small>
         <i>${empty ? '＋' : escapeHtml(product.icon)}</i>
         <strong>${empty ? 'Пустая полка' : escapeHtml(product.label)}</strong>
-        <span>${empty ? (canStock ? 'Расставить товар' : 'Товар закончился') : `${formatBusinessMoney(shelf.salePrice)} · ${Number(shelf.stock)} шт.`}</span>
-        ${canStock ? '<em>Настроить</em>' : empty ? '' : '<em>Взять</em>'}
-      </button>`;
+        <span>${empty ? (canStock ? 'Можно заполнить товаром' : 'Товара нет') : `${formatBusinessMoney(shelf.salePrice)} · ${Number(shelf.stock)} шт.`}</span>
+        <div class="mn-business-shelf-actions">
+          ${available ? `<button type="button" class="is-primary" data-business-shelf-buy="${Number(shelf.shelfNo)}">Купить</button>` : ''}
+          ${canStock ? `<button type="button" data-business-shelf-configure="${Number(shelf.shelfNo)}">Управлять</button>` : ''}
+        </div>
+      </article>`;
   }).join('');
 }
 
@@ -210,7 +214,7 @@ function shelfDrawer(snapshot, shelfNo) {
         <label><span>Цена продажи</span><input type="number" min="1" max="1000000" value="${Number(shelf.salePrice) || getBusinessProduct(shelf.productType)?.suggestedPrice || 32}" data-business-shelf-price></label>
         <label><span>Количество на полке</span><input type="number" min="0" max="1000000" value="${Number(shelf.stock) || 0}" data-business-shelf-stock></label>
       </div>
-      <label><span>Поставщик · заготовка</span><select data-business-shelf-supplier>${supplierOptions(shelf.supplierCode)}</select><small>Выбор сохраняется, но закупочная цена и реальные поставки пока не списывают деньги.</small></label>
+      <label><span>Поставщик</span><select data-business-shelf-supplier>${supplierOptions(shelf.supplierCode)}</select><small>Выбранный поставщик закрепляется за этой полкой.</small></label>
       <footer><button type="button" class="is-danger" data-business-shelf-clear>Убрать товар</button><button type="button" class="is-primary" data-business-shelf-save="${Number(shelf.shelfNo)}">Поставить на полку</button></footer>
     </aside>`;
 }
@@ -219,11 +223,11 @@ function staffDrawer(snapshot) {
   const employees = snapshot.employees || [];
   return `
     <aside class="mn-business-drawer" data-business-drawer>
-      <header><span><small>Владелец</small><strong>Сотрудники</strong></span><button type="button" data-business-drawer-close>×</button></header>
-      <div class="mn-business-employee-form"><input type="text" maxlength="40" placeholder="Ник или Telegram ID" data-business-employee-target><select data-business-employee-role><option value="accountant">Бухгалтерия</option><option value="merchandiser">Расстановка товара</option></select><button type="button" class="is-primary" data-business-employee-save>Назначить</button></div>
+      <header><span><small>Управление магазином</small><strong>Персонал</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <div class="mn-business-employee-form"><input type="text" maxlength="40" placeholder="Ник или Telegram ID" aria-label="Ник или Telegram ID сотрудника" data-business-employee-target><select aria-label="Должность сотрудника" data-business-employee-role><option value="accountant">Бухгалтер</option><option value="merchandiser">Товаровед</option></select><button type="button" class="is-primary" data-business-employee-save>Назначить</button></div>
       <div class="mn-business-employees">${employees.length ? employees.map((employee) => `
         <article><i>${employee.role === 'accountant' ? '🧾' : '📦'}</i><span><strong>${escapeHtml(employee.nickname || employee.tgId)}</strong><small>${escapeHtml(BUSINESS_ROLE_LABELS[employee.role] || employee.role)} · ID ${escapeHtml(employee.tgId)}</small></span><button type="button" data-business-employee-remove="${escapeHtml(employee.tgId)}">Уволить</button></article>`).join('') : '<p>Сотрудников пока нет.</p>'}</div>
-      <p class="mn-business-drawer-note">Бухгалтер может сдавать декларации. Сотрудник по расстановке может менять товар, остаток и цену на полках.</p>
+      <p class="mn-business-drawer-note">Бухгалтер сдаёт декларации. Товаровед меняет ассортимент, остаток, цену и поставщика на полках.</p>
     </aside>`;
 }
 
@@ -234,17 +238,17 @@ function taxDrawer(snapshot) {
   const declarationOpen = !snapshot.declarationAvailableAt || Date.now() >= new Date(snapshot.declarationAvailableAt).getTime();
   return `
     <aside class="mn-business-drawer" data-business-drawer>
-      <header><span><small>Игровая налоговая · 2026</small><strong>${escapeHtml(legal.legalFormLabel)} · ${escapeHtml(legal.taxGroupLabel)}</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <header><span><small>Налоговая отчётность · 2026</small><strong>${escapeHtml(legal.legalFormLabel)} · ${escapeHtml(legal.taxGroupLabel)}</strong></span><button type="button" data-business-drawer-close>×</button></header>
       <div class="mn-business-tax-summary">
         <article><small>Оборот недели</small><strong>${formatBusinessMoney(snapshot.revenueCurrentWeek)}</strong></article>
-        <article><small>Начисление сейчас</small><strong>${formatBusinessMoney(preview.total)}</strong></article>
+        <article><small>К уплате за период</small><strong>${formatBusinessMoney(preview.total)}</strong></article>
         <article><small>Налоговый долг</small><strong>${formatBusinessMoney(snapshot.taxDebt)}</strong></article>
         <article><small>Штрафы</small><strong>${formatBusinessMoney(snapshot.fineDebt)}</strong></article>
       </div>
-      <div class="mn-business-tax-locked"><span>Установлено администрацией</span><strong>${escapeHtml(legal.legalFormLabel)} · ${escapeHtml(legal.taxGroupLabel)}</strong><small>Владелец и бухгалтер не могут менять форму или налоговый режим.</small></div>
+      <div class="mn-business-tax-locked"><span>Условия регистрации</span><strong>${escapeHtml(legal.legalFormLabel)} · ${escapeHtml(legal.taxGroupLabel)}</strong><small>Юридическую форму и налоговый режим назначает администрация при размещении бизнеса.</small></div>
       <div class="mn-business-tax-lines"><p><span>Единый налог</span><b>${formatBusinessMoney(preview.singleTax)}</b></p><p><span>Военный сбор</span><b>${formatBusinessMoney(preview.militaryLevy)}</b></p><p><span>ЕСВ</span><b>${formatBusinessMoney(preview.socialContribution)}</b></p><p><span>Срок</span><b>${formatDate(snapshot.declarationDueAt)}</b></p></div>
       <button type="button" class="is-primary mn-business-declare" data-business-declare${declarationOpen ? '' : ' disabled'}>${declarationOpen ? 'Сдать недельную декларацию' : `Откроется ${formatDate(snapshot.declarationAvailableAt)}`}</button>
-      <p class="mn-business-drawer-note">Ставки 2026 пересчитаны в недельный игровой цикл. Просроченные недели автоматически переходят в долг; администрация может отдельно назначить штраф.</p>
+      <p class="mn-business-drawer-note">Налоговый период длится 7 игровых дней. После пропуска срока начисление переходит в задолженность. Штраф назначается отдельно по правилам проекта.</p>
       <div class="mn-business-declarations"><strong>Последние декларации</strong>${declarations.length ? declarations.map((entry) => `<p data-status="${escapeHtml(entry.status)}"><span>${formatDate(entry.submittedAt)} · ${escapeHtml(legal.legalFormLabel)} ${Number(entry.taxGroup)}</span><b>${formatBusinessMoney(entry.assessedTotal)} / оплачено ${formatBusinessMoney(entry.paidTotal)}</b></p>`).join('') : '<small>Деклараций пока нет.</small>'}</div>
     </aside>`;
 }
@@ -252,17 +256,17 @@ function taxDrawer(snapshot) {
 function transferDrawer(snapshot, foundPlayer = null) {
   return `
     <aside class="mn-business-drawer" data-business-drawer>
-      <header><span><small>Передача как у домов</small><strong>Продать игроку</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <header><span><small>Сделка между игроками</small><strong>Продать бизнес</strong></span><button type="button" data-business-drawer-close>×</button></header>
       <label><span>Ник или Telegram ID покупателя</span><div class="mn-business-inline"><input type="text" maxlength="40" value="${escapeHtml(foundPlayer?.nickname || '')}" data-business-transfer-target><button type="button" data-business-transfer-find>Проверить</button></div></label>
       ${foundPlayer ? `<div class="mn-business-found-player"><i>●</i><span><strong>${escapeHtml(foundPlayer.nickname)}</strong><small>Онлайн · ID ${escapeHtml(foundPlayer.tgId)}</small></span></div><label><span>Цена сделки</span><input type="number" min="1" max="1000000000" data-business-transfer-price placeholder="Введите цену"></label><button type="button" class="is-primary" data-business-transfer-send="${escapeHtml(foundPlayer.tgId)}">Отправить предложение</button>` : ''}
-      <p class="mn-business-drawer-note">Покупатель получает окно Y/N и может подтвердить сделку через 10 секунд. Из цены удерживается 10% налога. Передача невозможна при долгах бизнеса.</p>
+      <p class="mn-business-drawer-note">Покупатель получит предложение сделки. Подтверждение станет доступно через 10 секунд. Комиссия — 10% от цены. Бизнес с налоговой задолженностью передать нельзя.</p>
     </aside>`;
 }
 
 function fineDrawer() {
   return `
     <aside class="mn-business-drawer" data-business-drawer>
-      <header><span><small>Администрация · налоговая</small><strong>Назначить штраф</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <header><span><small>Контроль бизнеса</small><strong>Назначить штраф</strong></span><button type="button" data-business-drawer-close>×</button></header>
       <label><span>Сумма штрафа</span><input type="number" min="1" max="1000000000" data-business-fine-amount></label>
       <label><span>Основание по правилам проекта</span><textarea maxlength="300" rows="4" data-business-fine-reason></textarea></label>
       <button type="button" class="is-danger" data-business-fine-send>Начислить штраф</button>
@@ -286,9 +290,9 @@ function storeMarkup(snapshot, drawerMode = '', drawerData = null) {
     </header>
     <main class="mn-business-store-main">
       <section class="mn-business-sales-floor">
-        <div class="mn-business-aisle-title"><span><small>Торговый зал</small><strong>${roleCanStock(role) ? 'Нажмите на полку для расстановки' : 'Выберите товар и идите на кассу'}</strong></span><i>Холодильники · заготовка</i></div>
+        <div class="mn-business-aisle-title"><span><small>Торговый зал</small><strong>${roleCanStock(role) ? 'Покупайте товар или управляйте полками' : 'Выберите товары и оплатите их на кассе'}</strong></span></div>
         <div class="mn-business-shelves">${shelvesMarkup(snapshot)}</div>
-        <div class="mn-business-checkout-counter"><i>▤</i><span><small>Касса</small><strong>${quantity ? `${quantity} товар(а) к оплате` : 'Покупок пока нет'}</strong></span><button type="button" data-business-checkout${quantity ? '' : ' disabled'}>Оплатить ${formatBusinessMoney(cartTotal(snapshot))}</button></div>
+        <div class="mn-business-checkout-counter"><i>▤</i><span><small>Касса</small><strong>${quantity ? `${quantity} шт. в корзине` : 'Корзина пуста'}</strong></span><button type="button" data-business-checkout${quantity ? '' : ' disabled'}>Оплатить ${formatBusinessMoney(cartTotal(snapshot))}</button></div>
       </section>
       <aside class="mn-business-cart">
         <header><span><small>До оплаты</small><strong>Корзина</strong></span><b>${quantity} шт.</b></header>
@@ -489,11 +493,20 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (target.closest('[data-business-open-transfer]')) { drawerMode = 'transfer'; drawerData = null; renderStore(); return; }
     if (target.closest('[data-business-open-fine]')) { drawerMode = 'fine'; drawerData = null; renderStore(); return; }
 
-    const shelfButton = target.closest('[data-business-shelf]');
-    if (shelfButton) {
-      const shelfNo = Number(shelfButton.dataset.businessShelf);
+    const shelfConfigureButton = target.closest('[data-business-shelf-configure]');
+    if (shelfConfigureButton) {
+      const shelfNo = Number(shelfConfigureButton.dataset.businessShelfConfigure);
+      if (!roleCanStock(snapshot.role)) return;
+      drawerMode = 'shelf';
+      drawerData = shelfNo;
+      renderStore();
+      return;
+    }
+
+    const shelfBuyButton = target.closest('[data-business-shelf-buy]');
+    if (shelfBuyButton) {
+      const shelfNo = Number(shelfBuyButton.dataset.businessShelfBuy);
       const shelf = (snapshot.shelves || []).find((item) => Number(item.shelfNo) === shelfNo);
-      if (roleCanStock(snapshot.role)) { drawerMode = 'shelf'; drawerData = shelfNo; renderStore(); return; }
       if (!shelf?.productType || Number(shelf.stock) < 1) { setStoreMessage('На этой полке товара нет.', 'error'); return; }
       await runStoreAction(() => addBusinessCartItem({ businessId: snapshot.businessId, shelfNo, quantity: 1 }), `${shelf.product?.label || 'Товар'} добавлен в корзину.`);
       return;
