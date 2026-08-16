@@ -232,6 +232,12 @@ export function setupTelegramGameShell() {
         target?.closest?.('.mn-hospital-reception-panel') ||
         target?.closest?.('.mn-hospital-management-panel') ||
         target?.closest?.('.mn-player-interaction-panel') ||
+        target?.closest?.('.mn-business-details-card') ||
+        target?.closest?.('.mn-business-sales-floor') ||
+        target?.closest?.('.mn-business-cart > div') ||
+        target?.closest?.('.mn-business-store-footer') ||
+        target?.closest?.('.mn-business-drawer') ||
+        target?.closest?.('.mn-business-transfer-offer > section') ||
         target?.closest?.('.map-modal-panel') ||
         target?.closest?.('.mn-interior-object-panel') ||
         target?.closest?.('.mn-interior-collider-panel');
