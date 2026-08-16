@@ -22,6 +22,11 @@ const ONLINE_TTL_MS =
 const SNAPSHOT_PLAYER_MAX_AGE_MS =
   NETWORK_CONFIG.movement.snapshotPlayerMaxAgeMs || 120000;
 
+const REMOTE_OFFLINE_TOMBSTONE_MS = Math.max(
+  SNAPSHOT_PLAYER_MAX_AGE_MS + 10000,
+  100000
+);
+
 const DESKTOP_SNAPSHOT_REFRESH_INTERVAL_MS = 4200;
 const MOBILE_SNAPSHOT_REFRESH_INTERVAL_MS = 8500;
 const SNAPSHOT_REFRESH_INTERVAL_MS = DESKTOP_SNAPSHOT_REFRESH_INTERVAL_MS;
@@ -834,7 +839,11 @@ function startStalePlayersCleanup(entities, localPlayerId, localPlayerPosition, 
           updatedAt &&
           now - updatedAt > staleAfter
         ) {
-          removePlayerMarker(entities, playerId);
+          if (typeof options.onPlayerStale === 'function') {
+            options.onPlayerStale(playerId);
+          } else {
+            removePlayerMarker(entities, playerId);
+          }
         }
       });
   }, checkInterval);
@@ -842,8 +851,14 @@ function startStalePlayersCleanup(entities, localPlayerId, localPlayerPosition, 
   return () => clearInterval(timer);
 }
 
-function enableOfflineOnExit() {
+function enableOfflineOnExit(broadcastOffline) {
+  let offlineSent = false;
+
   const goOffline = () => {
+    if (offlineSent) return;
+    offlineSent = true;
+    broadcastOffline?.();
+
     setPlayerOffline().catch((error) => {
       console.warn(
         '[network] set offline failed:',
@@ -855,16 +870,19 @@ function enableOfflineOnExit() {
   window.addEventListener('pagehide', goOffline);
   window.addEventListener('beforeunload', goOffline);
 
-  return () => {
-    window.removeEventListener(
-      'pagehide',
-      goOffline
-    );
+  return {
+    goOffline,
+    cleanup() {
+      window.removeEventListener(
+        'pagehide',
+        goOffline
+      );
 
-    window.removeEventListener(
-      'beforeunload',
-      goOffline
-    );
+      window.removeEventListener(
+        'beforeunload',
+        goOffline
+      );
+    },
   };
 }
 
@@ -941,6 +959,11 @@ function startPlayersSnapshotRefresh(entities, cityId, selfPlayerId, localPlayer
           const playerId = player.playerId;
 
           if (!playerId || isSamePlayer(playerId, selfPlayerId)) {
+            return false;
+          }
+
+          if (options.isPlayerSuppressed?.(playerId)) {
+            removePlayerMarker(entities, playerId);
             return false;
           }
 
@@ -1077,7 +1100,39 @@ export function setupPlayerNetwork({
   let movementFlushFrame = null;
   let lastMovementFlushAt = 0;
   const pendingRemotePlayers = new Map();
+  const remoteOfflineUntil = new Map();
   const packetFlushInterval = getRemotePacketFlushInterval();
+
+  function isRemotePlayerSuppressed(playerId) {
+    const safePlayerId = String(playerId || '');
+    const offlineUntil = Number(remoteOfflineUntil.get(safePlayerId) || 0);
+
+    if (!offlineUntil) return false;
+    if (offlineUntil > Date.now()) return true;
+
+    remoteOfflineUntil.delete(safePlayerId);
+    return false;
+  }
+
+  function markRemotePlayerOffline(playerId) {
+    const safePlayerId = String(playerId || '');
+    if (!safePlayerId || isSamePlayer(safePlayerId, selfPlayerId)) return;
+
+    remoteOfflineUntil.set(
+      safePlayerId,
+      Date.now() + REMOTE_OFFLINE_TOMBSTONE_MS
+    );
+    pendingRemotePlayers.delete(safePlayerId);
+    removePlayerMarker(entities, safePlayerId);
+  }
+
+  function markRemotePlayerOnline(playerId) {
+    const safePlayerId = String(playerId || '');
+    if (safePlayerId) remoteOfflineUntil.delete(safePlayerId);
+  }
+
+  streamingOptions.isPlayerSuppressed = isRemotePlayerSuppressed;
+  streamingOptions.onPlayerStale = markRemotePlayerOffline;
 
   function cancelMovementFlush() {
     if (movementFlushFrame) {
@@ -1118,7 +1173,7 @@ export function setupPlayerNetwork({
         }
 
         if (!isPlayerOnlineFlagEnabled(player)) {
-          removePlayerMarker(entities, player.playerId);
+          markRemotePlayerOffline(player.playerId);
           return false;
         }
 
@@ -1179,6 +1234,20 @@ export function setupPlayerNetwork({
     const playerId = getPlayerId(rawPlayer);
 
     if (!playerId) return;
+    if (!isPlayerOnlineFlagEnabled(rawPlayer)) {
+      markRemotePlayerOffline(playerId);
+      return;
+    }
+
+    // A late DB UPDATE from the position save that ran during teardown must
+    // not resurrect a player after Broadcast/Presence already reported leave.
+    if (upsertOptions.source === 'postgres' && isRemotePlayerSuppressed(playerId)) {
+      return;
+    }
+
+    // A fresh realtime/broadcast packet is authoritative and means the player
+    // has reconnected after an earlier leave tombstone.
+    markRemotePlayerOnline(playerId);
 
     // Храним только последний пакет по каждому игроку.
     // Это убирает микрофризы от пачек realtime/broadcast сообщений.
@@ -1218,7 +1287,16 @@ export function setupPlayerNetwork({
         queueRemotePlayer(player, {
           instant: false,
           skipFreshnessCheck: true,
+          source: 'movement',
         });
+      },
+      onPresenceJoin(playerId) {
+        if (!isSamePlayer(playerId, selfPlayerId)) {
+          markRemotePlayerOnline(playerId);
+        }
+      },
+      onPresenceLeave(playerId) {
+        markRemotePlayerOffline(playerId);
       },
       onTreatment(treatment) {
         const remotePlayerId = getPlayerId(treatment);
@@ -1253,8 +1331,23 @@ export function setupPlayerNetwork({
       streamingOptions
     );
 
-  const cleanupOffline =
-    enableOfflineOnExit();
+  function broadcastSelfOffline() {
+    movementChannel?.sendPresence?.({
+      playerId: selfPlayerId,
+      player_id: selfPlayerId,
+      cityId,
+      city_id: cityId,
+      x: playerPosition?.x,
+      y: playerPosition?.y,
+      angle: playerPosition?.angle || 0,
+      isOnline: false,
+      is_online: false,
+      updatedAt: new Date().toISOString(),
+    }, false);
+  }
+
+  const offlineLifecycle =
+    enableOfflineOnExit(broadcastSelfOffline);
 
   let cleanupRealtime = null;
 
@@ -1269,6 +1362,7 @@ export function setupPlayerNetwork({
             queueRemotePlayer(player, {
               instant: true,
               maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
+              source: 'postgres',
             });
           },
 
@@ -1276,6 +1370,7 @@ export function setupPlayerNetwork({
             queueRemotePlayer(player, {
               instant: false,
               maxAgeMs: SNAPSHOT_PLAYER_MAX_AGE_MS,
+              source: 'postgres',
             });
           },
 
@@ -1289,11 +1384,7 @@ export function setupPlayerNetwork({
               return;
             }
 
-            pendingRemotePlayers.delete(String(playerId));
-            removePlayerMarker(
-              entities,
-              playerId
-            );
+            markRemotePlayerOffline(playerId);
           },
         });
     } catch (error) {
@@ -1308,6 +1399,7 @@ export function setupPlayerNetwork({
     movementChannel,
 
     cleanup() {
+      offlineLifecycle?.goOffline?.();
       stopped = true;
       cancelMovementFlush();
       pendingRemotePlayers.clear();
@@ -1317,7 +1409,7 @@ export function setupPlayerNetwork({
       cleanupStalePlayers?.();
       cleanupPresenceHeartbeat?.();
       cleanupSnapshotRefresh?.();
-      cleanupOffline?.();
+      offlineLifecycle?.cleanup?.();
 
       window.removeEventListener('mn:local-player-treatment-state-changed', broadcastLocalTreatment);
       movementChannel?.unsubscribe?.();
@@ -1331,6 +1423,7 @@ export function setupPlayerNetwork({
       });
 
       remoteMarkers.clear();
+      remoteOfflineUntil.clear();
     },
   };
 }
