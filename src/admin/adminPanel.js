@@ -27,6 +27,15 @@ import {
 
 import { createAdminObjectMover } from './adminObjectMover.js';
 import { saveAdminObject } from './adminObjectEditor.js';
+import {
+  BUSINESS_LEGAL_FORMS,
+  getBusinessLegalForm,
+  getBusinessLegalPayload,
+  getBusinessTaxGroupLabel,
+  getBusinessTaxGroups,
+  normalizeBusinessLegalForm,
+  normalizeBusinessTaxGroup,
+} from '../business/businessConfig.js';
 
 const ADMIN_TELEPORT_HOTKEY_STORAGE_KEY = 'mn-admin-teleport-hotkey';
 const DEFAULT_ADMIN_TELEPORT_HOTKEY = 't';
@@ -136,6 +145,12 @@ function createHouseClassOptionsHtml() {
     .join('');
 }
 
+function createBusinessLegalFormOptionsHtml() {
+  return Object.values(BUSINESS_LEGAL_FORMS)
+    .map((form) => `<option value="${form.value}">${form.label} · ${form.title}</option>`)
+    .join('');
+}
+
 export function enableAdminPanel({
   root,
   stage,
@@ -156,6 +171,9 @@ export function enableAdminPanel({
   let selectedType = 'house';
   let selectedObjectSection = 'property';
   let selectedVariant = 'standard';
+  let selectedBusinessLegalForm = 'fop';
+  let selectedBusinessTaxGroup = 2;
+  let selectedBusinessOtherLabel = '';
   let objects = [];
   let selectedObjectId = null;
   let objectMover = null;
@@ -202,6 +220,32 @@ export function enableAdminPanel({
         ${createHouseClassOptionsHtml()}
       </select>
     </label>
+
+    <div class="admin-business-legal-wrap" hidden>
+      <div class="admin-editor-title">Юридическая форма бизнеса</div>
+      <label class="admin-label">
+        Форма
+        <select class="admin-select admin-business-legal-form">
+          ${createBusinessLegalFormOptionsHtml()}
+        </select>
+      </label>
+      <label class="admin-label admin-business-other-label-wrap" hidden>
+        Название иной формы
+        <input class="admin-input admin-business-other-label" maxlength="48" placeholder="Например: кооператив" />
+      </label>
+      <label class="admin-label">
+        Налоговый режим
+        <select class="admin-select admin-business-tax-group"></select>
+      </label>
+      <div class="admin-business-legal-summary">
+        <strong data-admin-business-legal-title>ФОП</strong>
+        <p data-admin-business-legal-description></p>
+        <span data-admin-business-legal-responsibility></span>
+        <span data-admin-business-legal-accounting></span>
+        <b data-admin-business-legal-tax></b>
+      </div>
+      <small class="admin-help">Эти условия закрепляются за объектом до покупки. Покупатель не сможет выбрать или сменить их.</small>
+    </div>
 
     <label class="admin-label">
       Название
@@ -274,6 +318,16 @@ export function enableAdminPanel({
   const objectSectionButtons = [...panel.querySelectorAll('[data-admin-object-section]')];
   const houseClassWrap = panel.querySelector('.admin-house-class-wrap');
   const houseClassSelect = panel.querySelector('.admin-house-class');
+  const businessLegalWrap = panel.querySelector('.admin-business-legal-wrap');
+  const businessLegalFormSelect = panel.querySelector('.admin-business-legal-form');
+  const businessTaxGroupSelect = panel.querySelector('.admin-business-tax-group');
+  const businessOtherLabelWrap = panel.querySelector('.admin-business-other-label-wrap');
+  const businessOtherLabelInput = panel.querySelector('.admin-business-other-label');
+  const businessLegalTitle = panel.querySelector('[data-admin-business-legal-title]');
+  const businessLegalDescription = panel.querySelector('[data-admin-business-legal-description]');
+  const businessLegalResponsibility = panel.querySelector('[data-admin-business-legal-responsibility]');
+  const businessLegalAccounting = panel.querySelector('[data-admin-business-legal-accounting]');
+  const businessLegalTax = panel.querySelector('[data-admin-business-legal-tax]');
   const nameInput = panel.querySelector('.admin-object-name');
   const jobSizeWrap = panel.querySelector('.admin-job-size-wrap');
   const jobWidthInput = panel.querySelector('.admin-job-width');
@@ -345,6 +399,52 @@ export function enableAdminPanel({
     if (jobHeightInput) jobHeightInput.value = String(normalizeJobDimension(payload.renderHeight, fallbackHeight));
   }
 
+  function getSelectedBusinessLegalPayload() {
+    return getBusinessLegalPayload({
+      legalForm: selectedBusinessLegalForm,
+      legalFormLabel: selectedBusinessLegalForm === 'other' ? selectedBusinessOtherLabel : '',
+      taxGroup: selectedBusinessTaxGroup,
+    });
+  }
+
+  function syncBusinessLegalEditor(object = null) {
+    const config = getMapObjectType(selectedType);
+    const isBusiness = config.category === 'business';
+    if (businessLegalWrap) businessLegalWrap.hidden = !isBusiness;
+    if (!isBusiness) return;
+
+    const payload = object?.payload || {};
+    if (payload.legalForm || payload.legal_form) {
+      selectedBusinessLegalForm = normalizeBusinessLegalForm(payload.legalForm || payload.legal_form);
+      selectedBusinessOtherLabel = selectedBusinessLegalForm === 'other'
+        ? String(payload.legalFormLabel || payload.legal_form_label || '').trim().slice(0, 48)
+        : '';
+      selectedBusinessTaxGroup = normalizeBusinessTaxGroup(
+        selectedBusinessLegalForm,
+        payload.taxGroup ?? payload.tax_group
+      );
+    } else {
+      selectedBusinessLegalForm = normalizeBusinessLegalForm(selectedBusinessLegalForm);
+      selectedBusinessTaxGroup = normalizeBusinessTaxGroup(selectedBusinessLegalForm, selectedBusinessTaxGroup);
+    }
+
+    const form = getBusinessLegalForm(selectedBusinessLegalForm);
+    const groups = getBusinessTaxGroups(selectedBusinessLegalForm);
+    businessLegalFormSelect.value = selectedBusinessLegalForm;
+    businessTaxGroupSelect.innerHTML = groups
+      .map((group) => `<option value="${group}">${getBusinessTaxGroupLabel(selectedBusinessLegalForm, group)}</option>`)
+      .join('');
+    selectedBusinessTaxGroup = normalizeBusinessTaxGroup(selectedBusinessLegalForm, selectedBusinessTaxGroup);
+    businessTaxGroupSelect.value = String(selectedBusinessTaxGroup);
+    businessOtherLabelWrap.hidden = selectedBusinessLegalForm !== 'other';
+    businessOtherLabelInput.value = selectedBusinessOtherLabel;
+    businessLegalTitle.textContent = `${form.label} · ${form.title}`;
+    businessLegalDescription.textContent = form.description;
+    businessLegalResponsibility.textContent = `Ответственность: ${form.responsibility}`;
+    businessLegalAccounting.textContent = `Учёт: ${form.accounting}`;
+    businessLegalTax.textContent = `Налоги: ${getBusinessTaxGroupLabel(selectedBusinessLegalForm, selectedBusinessTaxGroup)}`;
+  }
+
   function updateVariantVisibility() {
     const config = getMapObjectType(selectedType);
     const isHouse = config.type === 'house';
@@ -362,6 +462,7 @@ export function enableAdminPanel({
     }
 
     if (isJob && isSizedJob && !getSelectedObject()) syncJobSizeInputs(null);
+    syncBusinessLegalEditor(getSelectedObject());
   }
 
   function updateCoords(x, y) {
@@ -611,12 +712,12 @@ function setEnabled(next) {
 
   async function addObjectAt(x, y) {
     const selectedConfig = getMapObjectType(selectedType);
-    const draftPayload = hasEditableJobFootprint(selectedType)
-      ? {
-          renderWidth: normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6),
-          renderHeight: normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2),
-        }
-      : {};
+    const draftPayload = {};
+    if (hasEditableJobFootprint(selectedType)) {
+      draftPayload.renderWidth = normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6);
+      draftPayload.renderHeight = normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2);
+    }
+    if (selectedConfig.category === 'business') Object.assign(draftPayload, getSelectedBusinessLegalPayload());
 
     const draft = createMapObjectDraft({
       cityId,
@@ -644,13 +745,17 @@ function setEnabled(next) {
     if (!object) return;
 
     const selectedConfig = getMapObjectType(selectedType);
-    const jobPayload = hasEditableJobFootprint(selectedType)
-      ? {
-          ...(object.payload || {}),
-          renderWidth: normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6),
-          renderHeight: normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2),
-        }
-      : null;
+    const editorPayload = { ...(object.payload || {}) };
+    let hasEditorPayload = false;
+    if (hasEditableJobFootprint(selectedType)) {
+      editorPayload.renderWidth = normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6);
+      editorPayload.renderHeight = normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2);
+      hasEditorPayload = true;
+    }
+    if (selectedConfig.category === 'business') {
+      Object.assign(editorPayload, getSelectedBusinessLegalPayload());
+      hasEditorPayload = true;
+    }
 
     await saveAdminObject({
       cityId,
@@ -658,7 +763,7 @@ function setEnabled(next) {
       selectedType,
       selectedVariant,
       name: nameInput.value.trim(),
-      patch: jobPayload ? { ...patch, payload: { ...(patch.payload || {}), ...jobPayload } } : patch,
+      patch: hasEditorPayload ? { ...patch, payload: { ...(patch.payload || {}), ...editorPayload } } : patch,
     });
 
     await reloadObjects();
@@ -939,6 +1044,21 @@ function setEnabled(next) {
 
   houseClassSelect.addEventListener('change', () => {
     selectedVariant = houseClassSelect.value;
+  });
+
+  businessLegalFormSelect?.addEventListener('change', () => {
+    selectedBusinessLegalForm = normalizeBusinessLegalForm(businessLegalFormSelect.value);
+    selectedBusinessTaxGroup = normalizeBusinessTaxGroup(selectedBusinessLegalForm, selectedBusinessTaxGroup);
+    syncBusinessLegalEditor();
+  });
+
+  businessTaxGroupSelect?.addEventListener('change', () => {
+    selectedBusinessTaxGroup = normalizeBusinessTaxGroup(selectedBusinessLegalForm, businessTaxGroupSelect.value);
+    syncBusinessLegalEditor();
+  });
+
+  businessOtherLabelInput?.addEventListener('input', () => {
+    selectedBusinessOtherLabel = String(businessOtherLabelInput.value || '').trim().slice(0, 48);
   });
 
   function previewSelectedJobSize() {
