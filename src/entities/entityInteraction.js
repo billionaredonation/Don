@@ -1119,6 +1119,7 @@ export function enableEntityInteraction({
   let lastRenderX = Number.NaN;
   let lastRenderY = Number.NaN;
   let lastRenderedIdsKey = '';
+  let lastJobStreamKey = '';
   let loadedRegion = null;
   let lastMovingObjectsRenderAt = 0;
   let pendingRenderAfterMovement = false;
@@ -1136,6 +1137,39 @@ export function enableEntityInteraction({
 
     registry[String(cityId)] = mapObjects.filter(Boolean).slice();
     window.__MN_ACTIVE_MAP_OBJECTS_BY_CITY__ = registry;
+  }
+
+  function publishJobStreamWindow(objects = renderedObjects, { force = false } = {}) {
+    const jobs = (Array.isArray(objects) ? objects : [])
+      .filter((object) => object?.id && isWorkObject(object));
+    const key = jobs
+      .map((object) => {
+        const type = String(object?.type || object?.payload?.jobType || object?.payload?.type || '');
+        return `${type}:${String(object.id)}`;
+      })
+      .sort()
+      .join('|');
+
+    if (!force && key === lastJobStreamKey) return;
+    lastJobStreamKey = key;
+
+    const registry = window.__MN_ACTIVE_JOB_OBJECTS_BY_CITY__ &&
+      typeof window.__MN_ACTIVE_JOB_OBJECTS_BY_CITY__ === 'object'
+      ? window.__MN_ACTIVE_JOB_OBJECTS_BY_CITY__
+      : {};
+
+    registry[String(cityId)] = jobs.slice();
+    window.__MN_ACTIVE_JOB_OBJECTS_BY_CITY__ = registry;
+    window.dispatchEvent(new CustomEvent('mn:job-stream-window-changed', {
+      detail: {
+        cityId,
+        objects: jobs.slice(),
+        objectIds: jobs.map((object) => String(object.id)),
+        jobTypes: [...new Set(jobs.map((object) => (
+          String(object?.type || object?.payload?.jobType || object?.payload?.type || '')
+        )).filter(Boolean))],
+      },
+    }));
   }
 
   function renderOverview() {
@@ -1394,6 +1428,7 @@ export function enableEntityInteraction({
 
     moveLayerAboveMap(viewport, layer);
     renderMapObjects(layer, renderedObjects);
+    publishJobStreamWindow(renderedObjects);
 
     window.dispatchEvent(new CustomEvent('mn:map-objects-rendered', {
       detail: {
@@ -2086,6 +2121,7 @@ export function enableEntityInteraction({
     objectById = new Map();
     objectGrid = new Map();
     renderedObjects = [];
+    publishJobStreamWindow([], { force: true });
     publishMapObjectsSnapshot();
     hideInteractionHint({ reset: true });
   }
@@ -2322,6 +2358,12 @@ export function enableEntityInteraction({
     const activeObjectsRegistry = window.__MN_ACTIVE_MAP_OBJECTS_BY_CITY__;
     if (activeObjectsRegistry && typeof activeObjectsRegistry === 'object') {
       delete activeObjectsRegistry[String(cityId)];
+    }
+
+    publishJobStreamWindow([], { force: true });
+    const activeJobsRegistry = window.__MN_ACTIVE_JOB_OBJECTS_BY_CITY__;
+    if (activeJobsRegistry && typeof activeJobsRegistry === 'object') {
+      delete activeJobsRegistry[String(cityId)];
     }
 
     hint.remove();
