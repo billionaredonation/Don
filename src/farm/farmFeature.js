@@ -26,6 +26,11 @@ function isFarmPlantObject(object = {}) {
   return Boolean(getFarmPlantType(type));
 }
 
+function isFarmStreamObject(object = {}) {
+  const type = String(object.type || object?.payload?.jobType || '');
+  return type === 'farm_station' || isFarmPlantObject(object);
+}
+
 function emitToast(message, type = 'info') {
   window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 }
@@ -340,8 +345,61 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return plantStatesLoadPromise;
   }
 
+  function startFarmStreamLoading() {
+    if (destroyed) return;
+    const wasActive = Boolean(realtimeChannel || stateRefreshTimer || inventoryRefreshTimer);
+
+    if (!realtimeChannel) {
+      realtimeChannel = supabase
+        .channel(`farm-plants:${cityId}:${Math.random().toString(16).slice(2)}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'farm_plant_states',
+          filter: `city_id=eq.${cityId}`,
+        }, (payload) => {
+          if (payload.eventType === 'DELETE') removePlantState(payload.old?.plant_object_id);
+          else upsertPlantState(payload.new);
+        })
+        .subscribe();
+    }
+    if (!stateRefreshTimer) {
+      stateRefreshTimer = window.setInterval(refreshPlantStates, FARM_STATE_REFRESH_MS);
+    }
+    if (!inventoryRefreshTimer) {
+      inventoryRefreshTimer = window.setInterval(
+        () => refreshInventory({ silent: true }),
+        FARM_INVENTORY_REFRESH_MS,
+      );
+    }
+    if (!wasActive) {
+      void refreshPlantStates();
+      void refreshInventory({ silent: true });
+    }
+  }
+
+  function stopFarmStreamLoading() {
+    window.clearInterval(stateRefreshTimer);
+    window.clearInterval(inventoryRefreshTimer);
+    stateRefreshTimer = 0;
+    inventoryRefreshTimer = 0;
+    if (realtimeChannel) {
+      const channel = realtimeChannel;
+      realtimeChannel = null;
+      void supabase.removeChannel(channel);
+    }
+  }
+
+  function handleJobStreamWindow(event) {
+    if (event?.detail?.cityId && String(event.detail.cityId) !== String(cityId)) return;
+    const objects = Array.isArray(event?.detail?.objects) ? event.detail.objects : [];
+    if (objects.some(isFarmStreamObject)) startFarmStreamLoading();
+    else stopFarmStreamLoading();
+  }
+
   function openModal(object) {
     if (!modal || busy) return;
+    startFarmStreamLoading();
     activeBuyerObjectId = String(object?.id || '');
     marketState = { items: [] };
     publishMarket(marketState);
@@ -414,6 +472,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
   async function workWithPlant(object) {
     if (!isFarmPlantObject(object) || busy) return;
+    startFarmStreamLoading();
 
     if (!plantStatesReady) {
       emitToast('Проверяем сохранённое состояние растения…', 'info');
@@ -562,35 +621,23 @@ export function enableFarmFeature({ root, cityId } = {}) {
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('mn:farm-object-action', handleFarmObjectEvent);
   window.addEventListener('mn:player-skills-changed', renderInventory);
-
-  realtimeChannel = supabase
-    .channel(`farm-plants:${cityId}:${Math.random().toString(16).slice(2)}`)
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'farm_plant_states',
-      filter: `city_id=eq.${cityId}`,
-    }, (payload) => {
-      if (payload.eventType === 'DELETE') removePlantState(payload.old?.plant_object_id);
-      else upsertPlantState(payload.new);
-    })
-    .subscribe();
-
-  stateRefreshTimer = window.setInterval(refreshPlantStates, FARM_STATE_REFRESH_MS);
-  inventoryRefreshTimer = window.setInterval(() => refreshInventory({ silent: true }), FARM_INVENTORY_REFRESH_MS);
+  window.addEventListener('mn:job-stream-window-changed', handleJobStreamWindow);
   marketCountdownTimer = window.setInterval(renderMarketCountdown, 1000);
-  void refreshPlantStates();
-  void refreshInventory({ silent: true });
+  handleJobStreamWindow({
+    detail: {
+      cityId,
+      objects: window.__MN_ACTIVE_JOB_OBJECTS_BY_CITY__?.[String(cityId)] || [],
+    },
+  });
 
   return () => {
     destroyed = true;
-    window.clearInterval(stateRefreshTimer);
-    window.clearInterval(inventoryRefreshTimer);
+    stopFarmStreamLoading();
     window.clearInterval(marketCountdownTimer);
-    if (realtimeChannel) void supabase.removeChannel(realtimeChannel);
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('mn:farm-object-action', handleFarmObjectEvent);
     window.removeEventListener('mn:player-skills-changed', renderInventory);
+    window.removeEventListener('mn:job-stream-window-changed', handleJobStreamWindow);
     document.body.classList.remove('mn-farm-modal-open');
     modal?.remove();
     cancelFarmMiniGame();
