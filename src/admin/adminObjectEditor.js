@@ -58,15 +58,39 @@ export async function saveAdminObject({
   }
 
   if (config.category === 'business') {
+    const currentName = String(name || object.name || '').trim();
+    const currentPrice = Number(object.payload?.price ?? object.price ?? 0);
+    const ownerId = object.payload?.ownerId || object.payload?.owner_id || object.ownerId || object.owner_id || null;
+    const ownerName = object.payload?.ownerName || object.payload?.owner_name || object.ownerName || object.owner_name || null;
+
+    nextPatch.icon = config.icon;
+    nextPatch.asset = config.defaultAsset;
+    nextPatch.scale = object.scale || config.defaultScale;
+    nextPatch.name = currentName || config.label;
+    nextPatch.variant = '';
     nextPatch.payload = {
       ...(object.payload || {}),
       kind: 'business',
+      type: selectedType,
+      category: 'business',
       businessType: selectedType,
       businessLabel: config.label,
-      ownerId: object.payload?.ownerId || null,
+      id: String(object.id),
+      objectId: String(object.id),
+      mapObjectId: String(object.id),
+      cityId: String(cityId),
+      city_id: String(cityId),
+      ownerId,
+      owner_id: ownerId,
+      ownerName,
+      owner_name: ownerName,
+      owned: Boolean(ownerId),
       incomePerHour: object.payload?.incomePerHour || 0,
-      price: object.payload?.price || 0,
+      price: Number.isFinite(currentPrice) && currentPrice > 0
+        ? Math.round(currentPrice)
+        : Math.max(0, Math.round(Number(config.defaultPrice) || 0)),
       buyable: true,
+      locked: Boolean(object.payload?.locked),
     };
   }
 
