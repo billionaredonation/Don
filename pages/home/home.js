@@ -1487,9 +1487,22 @@ register('home', async (root) => {
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
+  const weatherLayer = root.querySelector('.gta-map-weather');
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
+
+  /*
+    Desktop rain must not live inside the moving multi-thousand-pixel map.
+    Keeping it there makes every camera frame composite the animated rain over
+    the whole world surface. A stage-level layer stays viewport-sized while the
+    map moves underneath it. Mobile keeps its proven existing layout untouched.
+  */
+  if (!isMobileGameplay && weather.type === 'rain' && weatherLayer && stage) {
+    weatherLayer.dataset.screenWeather = 'true';
+    stage.append(weatherLayer);
+  }
+
   const cleanupGameToasts = enableGameToastFeature();
   const cleanupMobileGameplayChrome = enableMobileGameplayChrome();
   const entityInteractionPanel = createEntityInteractionPanel(root);
