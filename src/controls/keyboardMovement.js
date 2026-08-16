@@ -154,6 +154,13 @@ export function enableKeyboardPlayerMovement(
   const RENDER_EPSILON = 0.00006;
   const MARKER_DATA_SYNC_INTERVAL = 100;
 
+  /*
+    Keep desktop movement display-aligned without running at an uncontrolled
+    120/144 fps. On common monitors this produces a stable 60-75 fps cadence,
+    which is smooth while leaving enough frame budget for the large map.
+  */
+  const DESKTOP_TARGET_FRAME_MS = 1000 / 60;
+
   // Broadcast быстрый, DB реже. DB-запись во время движения не должна давить кадр.
   const BROADCAST_INTERVAL = Math.max(SYNC_CONFIG.broadcastInterval || 35, 90);
   const DB_SAVE_INTERVAL = Math.max(SYNC_CONFIG.dbSaveInterval || 1400, 12000);
@@ -171,6 +178,7 @@ export function enableKeyboardPlayerMovement(
   let velocityY = 0;
 
   let animationId = null;
+  let loopTimer = null;
   let heartbeatTimer = null;
   let destroyed = false;
   let lastFrameAt = performance.now();
@@ -412,7 +420,10 @@ export function enableKeyboardPlayerMovement(
   }
 
   function loop(now = performance.now()) {
+    animationId = null;
+
     if (destroyed) return;
+    if (document.hidden) return;
     if (
       window.__MN_INTERIOR_ACTIVE__ === true ||
       window.__MN_INVENTORY_OPEN__ === true ||
@@ -501,14 +512,66 @@ export function enableKeyboardPlayerMovement(
       return;
     }
 
-    animationId = requestAnimationFrame(loop);
+    scheduleLoopFrame();
   }
 
-  function ensureLoopRunning() {
-    if (!animationId && !destroyed) {
-      lastFrameAt = performance.now();
+  function scheduleLoopFrame(immediate = false) {
+    if (animationId || loopTimer || destroyed || document.hidden) return;
+
+    const elapsed = performance.now() - lastFrameAt;
+    const wait = immediate
+      ? 0
+      : Math.max(0, DESKTOP_TARGET_FRAME_MS - elapsed);
+
+    const requestFrame = () => {
+      loopTimer = null;
+      if (destroyed || document.hidden || animationId) return;
       animationId = requestAnimationFrame(loop);
+    };
+
+    if (wait <= 4) {
+      requestFrame();
+      return;
     }
+
+    loopTimer = window.setTimeout(requestFrame, Math.max(0, wait - 4));
+  }
+
+  function ensureLoopRunning(immediate = false) {
+    if (immediate && loopTimer) {
+      window.clearTimeout(loopTimer);
+      loopTimer = null;
+    }
+
+    if (!animationId && !loopTimer && !destroyed && !document.hidden) {
+      lastFrameAt = performance.now();
+      scheduleLoopFrame(immediate);
+    }
+  }
+
+  function handleVisibilityChange() {
+    if (document.hidden) {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+
+      if (loopTimer) {
+        window.clearTimeout(loopTimer);
+        loopTimer = null;
+      }
+
+      keys.clear();
+      inputX = 0;
+      inputY = 0;
+      velocityX = 0;
+      velocityY = 0;
+      setDesktopRuntimeMoving(false);
+      setDesktopRuntimeSprinting(false);
+      return;
+    }
+
+    ensureLoopRunning(true);
   }
 
   function handleSprintAvailabilityChanged() {
@@ -595,7 +658,7 @@ export function enableKeyboardPlayerMovement(
     if (allowedKeys.includes(key)) {
       event.preventDefault();
       keys.add(key);
-      ensureLoopRunning();
+      ensureLoopRunning(true);
     }
   }
 
@@ -621,7 +684,7 @@ export function enableKeyboardPlayerMovement(
       }, 90);
     }
 
-    ensureLoopRunning();
+    ensureLoopRunning(true);
   }
 
   window.addEventListener('keydown', onKeyDown);
@@ -631,6 +694,7 @@ export function enableKeyboardPlayerMovement(
   window.addEventListener('mn:inventory-opened', pauseForHouseSpawnPicker);
   window.addEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
   window.addEventListener('mn:player-controls-lock-changed', handlePlayerControlsLockChanged);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
   forceSyncPosition();
   savePositionToDb(true);
@@ -648,9 +712,15 @@ export function enableKeyboardPlayerMovement(
     window.removeEventListener('mn:inventory-opened', pauseForHouseSpawnPicker);
     window.removeEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
     window.removeEventListener('mn:player-controls-lock-changed', handlePlayerControlsLockChanged);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
 
     if (animationId) {
       cancelAnimationFrame(animationId);
+    }
+
+    if (loopTimer) {
+      window.clearTimeout(loopTimer);
+      loopTimer = null;
     }
 
     setDesktopRuntimeMoving(false);
