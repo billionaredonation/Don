@@ -119,10 +119,10 @@ export function enableFogOfWar({
   const GRID_SIZE = mobile ? 28 : 42;
   const REVEAL_RADIUS = mobile ? 2 : 3;
   const VISION_RADIUS = mobile ? 17 : 15;
-  const LOOP_DELAY_MS = mobile ? 180 : 120;
+  const LOOP_DELAY_MS = mobile ? 320 : 120;
   const SAVE_DELAY_MS = mobile ? 1800 : 900;
-  const MIN_MOVE_PERCENT = mobile ? 0.55 : 0.28;
-  const MAX_CANVAS_SIDE = mobile ? 760 : 1280;
+  const MIN_MOVE_PERCENT = mobile ? 0.85 : 0.28;
+  const MAX_CANVAS_SIDE = mobile ? 560 : 1280;
 
   const canvas = document.createElement('canvas');
 
@@ -152,7 +152,7 @@ export function enableFogOfWar({
 
   function resizeCanvas() {
     const cssSize = getViewportCssSize(viewport);
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, mobile ? 0.9 : 1.25);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, mobile ? 0.7 : 1.25);
     const capScale = Math.min(1, MAX_CANVAS_SIDE / Math.max(cssSize.width, cssSize.height));
     const internalScale = Math.max(0.35, pixelRatio * capScale);
 
@@ -282,6 +282,11 @@ export function enableFogOfWar({
 
   function tick() {
     if (destroyed) return;
+
+    if (document.hidden) {
+      loopTimer = window.setTimeout(tick, 1000);
+      return;
+    }
 
     const x = clamp(toFiniteNumber(playerPosition.x, 50), 0, 100);
     const y = clamp(toFiniteNumber(playerPosition.y, 50), 0, 100);
