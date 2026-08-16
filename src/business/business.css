@@ -824,3 +824,482 @@
     max-height: calc(100% - 14px);
   }
 }
+/* Fluid business UI -------------------------------------------------------
+   The game can be either genuinely landscape or a portrait Telegram viewport
+   rotated with .mn-force-rotate-landscape. Keep one logical landscape layout
+   in both cases and size drawers from the available game surface. */
+@media (max-width: 1100px), (hover: none) and (pointer: coarse) {
+  .mn-business-store {
+    box-sizing: border-box;
+    padding:
+      max(4px, env(safe-area-inset-top))
+      max(4px, env(safe-area-inset-right))
+      max(4px, env(safe-area-inset-bottom))
+      max(4px, env(safe-area-inset-left));
+  }
+
+  .mn-business-store-shell {
+    width: 100%;
+    height: 100%;
+    border-radius: clamp(10px, 1.8vw, 18px);
+  }
+
+  .mn-business-store-header {
+    gap: 8px;
+    min-width: 0;
+    padding: clamp(7px, 1.5dvh, 12px) clamp(9px, 1.6vw, 15px);
+  }
+
+  .mn-business-store-header > span,
+  .mn-business-store-header > div { min-width: 0; }
+  .mn-business-store-header > span { overflow: hidden; }
+  .mn-business-store-header strong {
+    overflow: hidden;
+    font-size: clamp(13px, 1.8vw, 17px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mn-business-store-header small { font-size: clamp(7px, 1.05vw, 10px); }
+  .mn-business-store-header > div { flex: 0 0 auto; }
+  .mn-business-store-header b,
+  .mn-business-store-header em {
+    padding: 5px 7px;
+    font-size: clamp(8px, 1.15vw, 11px);
+    white-space: nowrap;
+  }
+
+  .mn-business-store-main {
+    grid-template-columns: minmax(0, 1fr) clamp(210px, 29vw, 310px);
+  }
+  .mn-business-sales-floor {
+    overflow: auto;
+    padding: clamp(7px, 1.4vw, 13px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .mn-business-shelves {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(5px, 1.1vw, 9px);
+  }
+  .mn-business-shelf {
+    min-height: clamp(104px, 22dvh, 142px) !important;
+    padding: clamp(7px, 1.1vw, 11px) !important;
+  }
+  .mn-business-shelf > i { font-size: clamp(22px, 3.2vw, 31px); }
+  .mn-business-shelf > strong { font-size: clamp(10px, 1.35vw, 13px); }
+  .mn-business-shelf > span { font-size: clamp(8px, 1.05vw, 10px); }
+  .mn-business-shelf small { font-size: clamp(7px, .95vw, 9px); }
+  .mn-business-shelf-actions > button {
+    min-height: clamp(30px, 7dvh, 38px);
+    padding-inline: clamp(7px, 1.2vw, 11px);
+    font-size: clamp(8px, 1.1vw, 10px);
+  }
+
+  .mn-business-store-footer {
+    gap: 5px;
+    padding: 5px 8px max(5px, env(safe-area-inset-bottom));
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .mn-business-store-footer::-webkit-scrollbar { display: none; }
+  .mn-business-store-footer > button {
+    min-height: clamp(34px, 8dvh, 42px);
+    flex: 0 0 auto;
+    font-size: clamp(9px, 1.15vw, 11px);
+  }
+
+  .mn-business-drawer {
+    --mn-business-drawer-top: clamp(54px, 11dvh, 70px);
+    --mn-business-drawer-bottom-space: clamp(49px, 10dvh, 62px);
+    position: absolute;
+    inset: var(--mn-business-drawer-top) clamp(6px, 1.4vw, 14px) auto auto;
+    box-sizing: border-box;
+    width: clamp(310px, 42vw, 440px);
+    max-width: calc(100% - 12px);
+    height: auto;
+    max-height: calc(100% - var(--mn-business-drawer-top) - var(--mn-business-drawer-bottom-space));
+    padding-bottom: 0;
+    overflow-x: hidden;
+    overflow-y: auto !important;
+    border-radius: clamp(12px, 1.8vw, 18px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(184, 226, 98, .32) transparent;
+  }
+  .mn-business-drawer.is-management {
+    max-height: calc(100% - var(--mn-business-drawer-top) - var(--mn-business-drawer-bottom-space));
+  }
+  .mn-business-drawer::-webkit-scrollbar { width: 4px; }
+  .mn-business-drawer::-webkit-scrollbar-track { background: transparent; }
+  .mn-business-drawer::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+    background: rgba(184, 226, 98, .32);
+  }
+
+  .mn-business-drawer > header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: clamp(8px, 1.5dvh, 13px) clamp(10px, 1.5vw, 14px);
+    background: rgba(9, 15, 9, .985);
+  }
+  .mn-business-drawer > header small { font-size: clamp(8px, 1vw, 10px); }
+  .mn-business-drawer > header strong { font-size: clamp(13px, 1.55vw, 17px); }
+  .mn-business-drawer > header > button {
+    width: clamp(34px, 7dvh, 42px);
+    height: clamp(34px, 7dvh, 42px);
+    flex-basis: clamp(34px, 7dvh, 42px);
+    font-size: clamp(20px, 2.7vw, 25px);
+  }
+  .mn-business-drawer > label { gap: 5px; margin: 9px 11px; }
+  .mn-business-drawer label > span { font-size: clamp(9px, 1.05vw, 11px); }
+  .mn-business-drawer label small,
+  .mn-business-drawer-note { font-size: clamp(8px, 1vw, 10px); }
+  .mn-business-drawer input,
+  .mn-business-drawer select,
+  .mn-business-drawer textarea {
+    min-height: clamp(36px, 8dvh, 44px);
+    padding: 7px 9px;
+    font-size: clamp(11px, 1.25vw, 13px);
+  }
+  .mn-business-drawer textarea { min-height: clamp(70px, 18dvh, 100px); }
+  .mn-business-drawer-grid { gap: 7px; margin-inline: 11px; }
+  .mn-business-drawer > footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    gap: 6px;
+    padding: 8px 11px;
+    background: rgba(9, 15, 9, .985);
+  }
+  .mn-business-drawer > footer > button { flex: 1 1 0; }
+  .mn-business-drawer > .is-primary,
+  .mn-business-drawer > .is-danger {
+    width: calc(100% - 22px);
+    margin: 0 11px 9px;
+  }
+  .mn-business-drawer-note { margin: 9px 11px; }
+
+  .mn-business-management-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 9px 11px 2px;
+  }
+  .mn-business-management-grid > button {
+    min-height: clamp(52px, 12dvh, 66px);
+    gap: 7px;
+    padding: 8px;
+  }
+  .mn-business-management-grid > button > i {
+    width: clamp(30px, 6dvh, 37px);
+    height: clamp(30px, 6dvh, 37px);
+    font-size: clamp(17px, 2.4vw, 21px);
+  }
+  .mn-business-management-grid > button strong { font-size: clamp(10px, 1.2vw, 12px); }
+  .mn-business-management-grid > button small {
+    display: block;
+    overflow: hidden;
+    font-size: clamp(8px, .95vw, 9px);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mn-business-management-grid > button > b { font-size: clamp(14px, 2vw, 18px); }
+
+  .mn-business-warehouse-summary,
+  .mn-business-tax-summary,
+  .mn-business-profit-summary { gap: 6px; padding: 9px 11px 2px; }
+  .mn-business-warehouse-list { gap: 5px; padding: 7px 11px 2px; }
+  .mn-business-warehouse-list article { gap: 7px; padding: 8px; }
+  .mn-business-warehouse-list article > i { font-size: clamp(18px, 2.7vw, 23px); }
+  .mn-business-warehouse-list article strong { font-size: clamp(10px, 1.2vw, 12px); }
+  .mn-business-warehouse-list article small {
+    display: block;
+    font-size: clamp(8px, .95vw, 9px);
+  }
+  .mn-business-warehouse-list article > b { font-size: clamp(9px, 1.1vw, 11px); }
+  .mn-business-employee-form {
+    grid-template-columns: minmax(0, 1fr) minmax(110px, .55fr) auto;
+    gap: 6px;
+    padding: 9px 11px;
+  }
+  .mn-business-employees { padding-inline: 11px; }
+  .mn-business-procurement-preview { gap: 6px; margin: 8px 11px; }
+  .mn-business-procurement-list { gap: 5px; margin: 9px 11px 12px; padding: 0; }
+  .mn-business-procurement-list article {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 5px;
+    padding: 7px;
+  }
+  .mn-business-procurement-list article > b { grid-column: 2 / -1; }
+  .mn-business-procurement-list article > button {
+    grid-column: auto !important;
+    min-height: 34px;
+  }
+}
+
+/* Compact genuine-landscape phones. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .mn-business-store-main { grid-template-columns: minmax(0, 1fr) clamp(190px, 28vw, 250px); }
+  .mn-business-shelves { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mn-business-shelf { min-height: clamp(96px, 28dvh, 122px) !important; }
+  .mn-business-drawer {
+    --mn-business-drawer-top: 50px;
+    --mn-business-drawer-bottom-space: 47px;
+    inset: var(--mn-business-drawer-top) 6px auto auto;
+    width: clamp(286px, 44vw, 380px);
+  }
+  .mn-business-details,
+  .mn-business-transfer-offer { padding: 5px; }
+  .mn-business-details-card,
+  .mn-business-transfer-offer > section {
+    width: min(520px, calc(100% - 10px));
+    max-width: calc(100% - 10px);
+    max-height: calc(100dvh - 10px);
+  }
+}
+
+/* Extra-narrow phones still retain two management columns, while forms that
+   need typing stack vertically and stay fully reachable by scrolling. */
+@media (max-width: 620px) and (orientation: landscape) {
+  .mn-business-store-main { grid-template-columns: minmax(0, 1fr) minmax(178px, 34%); }
+  .mn-business-shelves { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mn-business-store-header em { display: none; }
+  .mn-business-drawer { width: min(330px, calc(100% - 12px)); }
+  .mn-business-employee-form { grid-template-columns: 1fr; }
+  .mn-business-drawer-grid { grid-template-columns: 1fr; }
+}
+
+/* Telegram portrait viewport rotated into landscape. Here 100dvh is the
+   logical width and 100vw is the logical height after the 90-degree turn. */
+@media (orientation: portrait) and (max-width: 920px) {
+  :is(html, body).mn-force-rotate-landscape .mn-business-store {
+    box-sizing: border-box;
+    padding: 3px !important;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-shell {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: clamp(9px, 1.5dvh, 14px) !important;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header {
+    gap: 6px;
+    padding: clamp(6px, 1.7vw, 10px) clamp(8px, 1.2dvh, 12px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header small {
+    font-size: clamp(7px, 1.8vw, 9px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header strong {
+    font-size: clamp(12px, 3.2vw, 16px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header b,
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header em {
+    padding: 4px 6px;
+    font-size: clamp(7px, 2vw, 10px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-main {
+    grid-template-columns: minmax(0, 1fr) clamp(185px, 25dvh, 285px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-sales-floor { padding: clamp(5px, 1dvh, 9px); }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelves {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(4px, .8dvh, 7px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf {
+    min-height: clamp(94px, 27vw, 132px) !important;
+    padding: clamp(5px, 1dvh, 9px) !important;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf > i { font-size: clamp(20px, 5.8vw, 28px); }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf > strong { font-size: clamp(9px, 2.6vw, 12px); }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf > span { font-size: clamp(7px, 2.1vw, 10px); }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf small { font-size: clamp(7px, 1.8vw, 9px); }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf-actions > button {
+    min-height: clamp(29px, 8vw, 36px);
+    padding-inline: clamp(6px, 1dvh, 9px);
+    font-size: clamp(8px, 2vw, 10px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-footer {
+    gap: 4px;
+    padding: 4px 6px;
+    overflow-x: auto;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-footer > button {
+    min-height: clamp(32px, 9vw, 39px);
+    padding-inline: 8px;
+    font-size: clamp(8px, 2vw, 10px);
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer {
+    --mn-business-drawer-top: clamp(48px, 13vw, 64px);
+    --mn-business-drawer-bottom-space: clamp(44px, 12vw, 58px);
+    position: absolute;
+    inset: var(--mn-business-drawer-top) clamp(5px, .8dvh, 9px) auto auto;
+    width: clamp(286px, 42dvh, 420px);
+    max-width: calc(100% - 10px);
+    height: auto;
+    max-height: calc(100% - var(--mn-business-drawer-top) - var(--mn-business-drawer-bottom-space));
+    padding-bottom: 0;
+    overflow-x: hidden;
+    overflow-y: auto !important;
+    border-radius: clamp(10px, 1.4dvh, 15px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer.is-management {
+    max-height: calc(100% - var(--mn-business-drawer-top) - var(--mn-business-drawer-bottom-space));
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > header {
+    padding: clamp(7px, 1.9vw, 11px) clamp(9px, 1.2dvh, 13px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > header small {
+    font-size: clamp(7px, 1.8vw, 9px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > header strong {
+    font-size: clamp(12px, 3vw, 16px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > header > button {
+    width: clamp(32px, 8.5vw, 40px);
+    height: clamp(32px, 8.5vw, 40px);
+    flex-basis: clamp(32px, 8.5vw, 40px);
+    font-size: clamp(19px, 5vw, 24px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > label {
+    gap: 5px;
+    margin: 8px 10px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer label > span {
+    font-size: clamp(8px, 2vw, 10px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer label small,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer-note {
+    display: block;
+    font-size: clamp(7px, 1.8vw, 9px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer input,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer select,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer textarea {
+    min-height: clamp(34px, 9vw, 42px);
+    padding: 6px 8px;
+    font-size: clamp(10px, 2.5vw, 13px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer textarea {
+    min-height: clamp(64px, 18vw, 94px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-inline: 10px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > footer {
+    gap: 5px;
+    padding: 7px 10px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > footer > button,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > .is-primary,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > .is-danger {
+    min-height: clamp(32px, 8.5vw, 40px);
+    font-size: clamp(9px, 2.2vw, 11px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > .is-primary,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > .is-danger {
+    width: calc(100% - 20px);
+    margin: 0 10px 8px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer-note { margin: 8px 10px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px 10px 2px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button {
+    min-height: clamp(49px, 13vw, 62px);
+    gap: 6px;
+    padding: 7px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button > i {
+    width: clamp(28px, 7.5vw, 36px);
+    height: clamp(28px, 7.5vw, 36px);
+    font-size: clamp(16px, 4.5vw, 20px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button strong {
+    font-size: clamp(9px, 2.4vw, 12px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button small {
+    display: block;
+    font-size: clamp(7px, 1.7vw, 9px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button > b {
+    font-size: clamp(13px, 3.5vw, 17px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-summary,
+  :is(html, body).mn-force-rotate-landscape .mn-business-tax-summary,
+  :is(html, body).mn-force-rotate-landscape .mn-business-profit-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    padding: 8px 10px 2px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list,
+  :is(html, body).mn-force-rotate-landscape .mn-business-procurement-list {
+    gap: 5px;
+    margin: 0;
+    padding: 7px 10px 2px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article {
+    gap: 6px;
+    padding: 7px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article > i {
+    font-size: clamp(17px, 4.8vw, 22px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article strong {
+    font-size: clamp(9px, 2.4vw, 12px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article small {
+    display: block;
+    font-size: clamp(7px, 1.8vw, 9px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article > b {
+    font-size: clamp(9px, 2.2vw, 11px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-employee-form {
+    grid-template-columns: minmax(0, 1fr) minmax(105px, .55fr) auto;
+    gap: 5px;
+    padding: 8px 10px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-employees { padding-inline: 10px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-procurement-preview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    margin: 8px 10px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-details-card {
+    width: min(500px, calc(100% - 18px));
+    max-width: calc(100% - 18px);
+    max-height: calc(100% - 16px);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-transfer-offer > section {
+    width: min(440px, calc(100% - 18px));
+    max-width: calc(100% - 18px);
+    max-height: calc(100% - 16px);
+  }
+}
+
+/* Very small forced-landscape devices (for example 568 x 320 logical). */
+@media (orientation: portrait) and (max-width: 380px) and (max-height: 700px) {
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-main {
+    grid-template-columns: minmax(0, 1fr) minmax(170px, 30dvh);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelves {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header em { display: none; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer {
+    --mn-business-drawer-top: 46px;
+    --mn-business-drawer-bottom-space: 43px;
+    inset: var(--mn-business-drawer-top) 5px auto auto;
+    width: min(310px, calc(100% - 10px));
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-employee-form,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer-grid {
+    grid-template-columns: 1fr;
+  }
+}
