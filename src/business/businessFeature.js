@@ -13,6 +13,7 @@ import {
   addBusinessCartItem,
   checkoutBusinessCart,
   createBusinessTransfer,
+  deleteBusinessProcurementPlan,
   findBusinessTransferPlayer,
   fineBusiness,
   getBusinessUserErrorMessage,
@@ -22,6 +23,7 @@ import {
   rejectBusinessTransfer,
   removeBusinessCartItem,
   removeBusinessEmployee,
+  saveBusinessProcurementPlan,
   submitBusinessDeclaration,
   updateBusinessEmployee,
   updateBusinessShelf,
@@ -175,6 +177,15 @@ function supplierOptions(selected = 'state_wholesale') {
   ].map(([value, label]) => `<option value="${value}"${selected === value ? ' selected' : ''}>${label}</option>`).join('');
 }
 
+function procurementSupplierOptions(selected = 'player_checkpoint') {
+  return [
+    ['player_checkpoint', 'Игроки через пункт приёма'],
+    ['local_farms', 'Местные фермеры'],
+    ['state_wholesale', 'Государственный опт'],
+    ['import_distributor', 'Импортный дистрибьютор'],
+  ].map(([value, label]) => `<option value="${value}"${selected === value ? ' selected' : ''}>${label}</option>`).join('');
+}
+
 function shelvesMarkup(snapshot) {
   const canStock = roleCanStock(snapshot.role);
   return (snapshot.shelves || []).map((shelf) => {
@@ -231,6 +242,47 @@ function staffDrawer(snapshot) {
     </aside>`;
 }
 
+function procurementDrawer(snapshot, selectedProductType = '') {
+  const plans = Array.isArray(snapshot.procurementPlans) ? snapshot.procurementPlans : [];
+  const productType = String(selectedProductType || plans[0]?.productType || BUSINESS_PRODUCTS[0]?.itemType || '');
+  const product = getBusinessProduct(productType) || BUSINESS_PRODUCTS[0];
+  const plan = plans.find((entry) => entry.productType === productType) || null;
+  const targetQuantity = Math.max(1, Number(plan?.targetQuantity) || 100);
+  const unitPrice = Math.max(1, Number(plan?.unitPrice) || Math.max(1, Math.round(Number(product?.suggestedPrice || 10) * 0.65)));
+  const requiredBudget = targetQuantity * unitPrice;
+  const allocatedBudget = Math.max(requiredBudget, Number(plan?.allocatedBudget) || requiredBudget);
+  return `
+    <aside class="mn-business-drawer is-procurement" data-business-drawer>
+      <header><span><small>Только для владельца</small><strong>План закупки</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <label><span>Какой товар закупаем</span><select data-business-procurement-product>${productOptions(productType)}</select></label>
+      <div class="mn-business-drawer-grid">
+        <label><span>Количество</span><input type="number" min="1" max="1000000" inputmode="numeric" value="${targetQuantity}" data-business-procurement-quantity></label>
+        <label><span>Цена за единицу</span><input type="number" min="1" max="1000000" inputmode="numeric" value="${unitPrice}" data-business-procurement-price></label>
+      </div>
+      <label><span>У кого закупаем</span><select data-business-procurement-supplier>${procurementSupplierOptions(plan?.supplierCode)}</select></label>
+      <label><span>Выделенный бюджет</span><input type="number" min="1" max="1000000000" inputmode="numeric" value="${allocatedBudget}" data-business-procurement-budget><small>Сейчас сумма только записывается в план и не списывается со счёта бизнеса.</small></label>
+      <div class="mn-business-procurement-preview" data-business-procurement-preview>
+        <span><small>Стоимость партии</small><strong data-business-procurement-required>${formatBusinessMoney(requiredBudget)}</strong></span>
+        <span><small>Запас бюджета</small><strong data-business-procurement-reserve>${formatBusinessMoney(allocatedBudget - requiredBudget)}</strong></span>
+      </div>
+      <button type="button" class="is-primary mn-business-procurement-save" data-business-procurement-save>Сохранить план закупки</button>
+      <p class="mn-business-drawer-note">Это подготовка под будущие поставки. Позже игрок сможет привезти выбранный товар на пункт приёма и получить оплату из указанного бюджета.</p>
+      <div class="mn-business-procurement-list">
+        <header><strong>Сохранённые планы</strong><span>${formatBusinessMoney(snapshot.plannedProcurementBudget || 0)} всего</span></header>
+        ${plans.length ? plans.map((entry) => {
+          const entryProduct = entry.product || getBusinessProduct(entry.productType) || {};
+          return `<article${entry.productType === productType ? ' class="is-selected"' : ''}>
+            <i>${escapeHtml(entryProduct.icon || '📦')}</i>
+            <span><strong>${escapeHtml(entryProduct.label || entry.productType)}</strong><small>${Number(entry.targetQuantity)} шт. × ${formatBusinessMoney(entry.unitPrice)} · ${escapeHtml(entry.supplierName || 'Поставщик')}</small></span>
+            <b>${formatBusinessMoney(entry.allocatedBudget)}</b>
+            <button type="button" data-business-procurement-edit="${escapeHtml(entry.productType)}">Изменить</button>
+            <button type="button" class="is-danger" data-business-procurement-delete="${escapeHtml(entry.productType)}">Удалить</button>
+          </article>`;
+        }).join('') : '<p>Планов закупки пока нет.</p>'}
+      </div>
+    </aside>`;
+}
+
 function taxDrawer(snapshot) {
   const preview = snapshot.taxPreview || {};
   const declarations = snapshot.declarations || [];
@@ -280,6 +332,7 @@ function storeMarkup(snapshot, drawerMode = '', drawerData = null) {
   let drawer = '';
   if (drawerMode === 'shelf') drawer = shelfDrawer(snapshot, drawerData);
   if (drawerMode === 'staff') drawer = staffDrawer(snapshot);
+  if (drawerMode === 'procurement') drawer = procurementDrawer(snapshot, drawerData);
   if (drawerMode === 'tax') drawer = taxDrawer(snapshot);
   if (drawerMode === 'transfer') drawer = transferDrawer(snapshot, drawerData);
   if (drawerMode === 'fine') drawer = fineDrawer();
@@ -304,7 +357,7 @@ function storeMarkup(snapshot, drawerMode = '', drawerData = null) {
     <footer class="mn-business-store-footer">
       <button type="button" data-business-store-exit>🚪 Выйти</button>
       <span></span>
-      ${role === 'owner' ? '<button type="button" data-business-open-staff>👥 Сотрудники</button><button type="button" data-business-open-transfer>⇄ Передать</button>' : ''}
+      ${role === 'owner' ? '<button type="button" data-business-open-procurement>📦 Закупки</button><button type="button" data-business-open-staff>👥 Сотрудники</button><button type="button" data-business-open-transfer>⇄ Передать</button>' : ''}
       ${financeVisible ? '<button type="button" data-business-open-tax>🧾 Налоги</button>' : ''}
       ${isAdmin() ? '<button type="button" class="is-danger" data-business-open-fine>⚖ Штраф</button>' : ''}
       <button type="button" data-business-refresh>↻</button>
@@ -365,7 +418,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     detailsModal.querySelector('[data-business-details-legal-form]').textContent = legal.legalFormLabel;
     detailsModal.querySelector('[data-business-details-tax-group]').textContent = legal.taxGroupLabel;
     detailsModal.querySelector('[data-business-details-copy]').textContent = owned
-      ? (isOwner(activeObject) ? 'Вы владелец. Внутри доступны полки, сотрудники, касса, налоги и передача игроку.' : 'Зайдите, выберите товар на полках и оплатите его на кассе. С неоплаченной корзиной выйти нельзя.')
+      ? (isOwner(activeObject) ? 'Вы владелец. Внутри доступны полки, закупки, сотрудники, касса, налоги и передача игроку.' : 'Зайдите, выберите товар на полках и оплатите его на кассе. С неоплаченной корзиной выйти нельзя.')
       : 'После покупки вы сможете вручную расставлять товар, назначать цены, нанимать сотрудников и сдавать недельные декларации.';
     detailsModal.querySelector('[data-business-buy]').hidden = owned;
     detailsModal.querySelector('[data-business-enter]').hidden = !owned;
@@ -443,6 +496,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     try {
       const result = await action();
       if (result?.role && Array.isArray(result?.shelves)) snapshot = result;
+      else if (result?.procurementPlans && snapshot) snapshot = { ...snapshot, ...result };
       renderStore();
       if (successMessage) { setStoreMessage(successMessage, 'success'); toast(successMessage, 'success'); }
       return result;
@@ -482,16 +536,97 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     } finally { busy = false; }
   }
 
+  function updateProcurementPreview() {
+    const preview = storeContent?.querySelector('[data-business-procurement-preview]');
+    if (!preview) return;
+    const quantity = Math.max(0, Math.floor(Number(storeContent.querySelector('[data-business-procurement-quantity]')?.value || 0)));
+    const unitPrice = Math.max(0, Math.floor(Number(storeContent.querySelector('[data-business-procurement-price]')?.value || 0)));
+    const budget = Math.max(0, Math.floor(Number(storeContent.querySelector('[data-business-procurement-budget]')?.value || 0)));
+    const required = quantity * unitPrice;
+    const reserve = budget - required;
+    const requiredElement = preview.querySelector('[data-business-procurement-required]');
+    const reserveElement = preview.querySelector('[data-business-procurement-reserve]');
+    if (requiredElement) requiredElement.textContent = formatBusinessMoney(required);
+    if (reserveElement) reserveElement.textContent = reserve >= 0
+      ? formatBusinessMoney(reserve)
+      : `Не хватает ${formatBusinessMoney(Math.abs(reserve))}`;
+    preview.dataset.state = reserve < 0 ? 'error' : 'ready';
+  }
+
+  function handleStoreInput(event) {
+    if (event.target?.closest?.('[data-business-procurement-quantity], [data-business-procurement-price], [data-business-procurement-budget]')) {
+      updateProcurementPreview();
+    }
+  }
+
+  function handleStoreChange(event) {
+    const productSelect = event.target?.closest?.('[data-business-procurement-product]');
+    if (!productSelect) return;
+    drawerMode = 'procurement';
+    drawerData = productSelect.value || '';
+    renderStore();
+  }
+
   async function handleStoreClick(event) {
     const target = event.target;
     if (!(target instanceof Element) || busy) return;
     if (target.closest('[data-business-store-exit]')) { tryCloseStore(); return; }
     if (target.closest('[data-business-refresh]')) { await runStoreAction(() => refreshStore({ preserveDrawer: false }), 'Магазин обновлён.'); return; }
     if (target.closest('[data-business-drawer-close]')) { drawerMode = ''; drawerData = null; renderStore(); return; }
+    if (target.closest('[data-business-open-procurement]')) {
+      if (snapshot.role !== 'owner') return;
+      drawerMode = 'procurement';
+      drawerData = snapshot.procurementPlans?.[0]?.productType || BUSINESS_PRODUCTS[0]?.itemType || '';
+      renderStore();
+      return;
+    }
     if (target.closest('[data-business-open-staff]')) { drawerMode = 'staff'; drawerData = null; renderStore(); return; }
     if (target.closest('[data-business-open-tax]')) { drawerMode = 'tax'; drawerData = null; renderStore(); return; }
     if (target.closest('[data-business-open-transfer]')) { drawerMode = 'transfer'; drawerData = null; renderStore(); return; }
     if (target.closest('[data-business-open-fine]')) { drawerMode = 'fine'; drawerData = null; renderStore(); return; }
+
+    const procurementEdit = target.closest('[data-business-procurement-edit]');
+    if (procurementEdit) {
+      drawerMode = 'procurement';
+      drawerData = procurementEdit.dataset.businessProcurementEdit || '';
+      renderStore();
+      return;
+    }
+    const procurementDelete = target.closest('[data-business-procurement-delete]');
+    if (procurementDelete) {
+      const productType = procurementDelete.dataset.businessProcurementDelete || '';
+      const result = await runStoreAction(() => deleteBusinessProcurementPlan({
+        businessId: snapshot.businessId,
+        productType,
+      }), 'План закупки удалён.');
+      if (result) {
+        drawerMode = 'procurement';
+        drawerData = result.procurementPlans?.[0]?.productType || BUSINESS_PRODUCTS[0]?.itemType || '';
+        renderStore();
+      }
+      return;
+    }
+    if (target.closest('[data-business-procurement-save]')) {
+      const productType = storeContent.querySelector('[data-business-procurement-product]')?.value || '';
+      const targetQuantity = Number(storeContent.querySelector('[data-business-procurement-quantity]')?.value || 0);
+      const unitPrice = Number(storeContent.querySelector('[data-business-procurement-price]')?.value || 0);
+      const supplierCode = storeContent.querySelector('[data-business-procurement-supplier]')?.value || 'player_checkpoint';
+      const allocatedBudget = Number(storeContent.querySelector('[data-business-procurement-budget]')?.value || 0);
+      const result = await runStoreAction(() => saveBusinessProcurementPlan({
+        businessId: snapshot.businessId,
+        productType,
+        targetQuantity,
+        unitPrice,
+        supplierCode,
+        allocatedBudget,
+      }), 'План закупки сохранён. Деньги пока не списываются.');
+      if (result) {
+        drawerMode = 'procurement';
+        drawerData = productType;
+        renderStore();
+      }
+      return;
+    }
 
     const shelfConfigureButton = target.closest('[data-business-shelf-configure]');
     if (shelfConfigureButton) {
@@ -705,6 +840,8 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (event.target.closest('[data-business-enter]')) void openStore();
   });
   storeModal?.addEventListener('click', handleStoreClick);
+  storeModal?.addEventListener('input', handleStoreInput);
+  storeModal?.addEventListener('change', handleStoreChange);
   offerModal?.querySelector('[data-business-offer-accept]')?.addEventListener('click', () => void resolveOffer(true));
   offerModal?.querySelector('[data-business-offer-reject]')?.addEventListener('click', () => void resolveOffer(false));
   window.addEventListener('mn:entity-action', handleEntityAction);
