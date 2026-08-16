@@ -162,6 +162,40 @@
   mix-blend-mode: normal;
 }
 
+/*
+  Desktop rain is reparented to the fixed game stage by home.js. The animated
+  surface is now only viewport-sized and no longer inherits the camera's
+  translate/scale transform. This removes the expensive world-sized composite
+  pass that caused frame drops while walking.
+*/
+@media (hover: hover) and (pointer: fine) {
+  .home[data-weather="rain"] .gta-map-stage > .gta-map-weather[data-screen-weather="true"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 7;
+    overflow: hidden;
+    contain: strict;
+    isolation: isolate;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  .home[data-weather="rain"] .gta-map-stage > .gta-map-weather[data-screen-weather="true"] .gta-weather-clouds {
+    inset: 0;
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+
+  .home[data-weather="rain"] .gta-map-stage > .gta-map-weather[data-screen-weather="true"] .gta-weather-rain {
+    inset: -128px -64px;
+    contain: layout paint style;
+    will-change: transform;
+  }
+}
+
 .home[data-weather="cloudy"] .gta-map-weather::before {
   content: "";
   position: absolute;
