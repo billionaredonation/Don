@@ -1,6 +1,6 @@
 .mn-business-details,
 .mn-business-transfer-offer {
-  position: fixed; inset: 0; z-index: 100060; display: grid; place-items: center; padding: 18px;
+  position: fixed; inset: 0; z-index: 2147483100; display: grid; place-items: center; padding: 18px;
   color: #f8fbf4; font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 }
 .mn-business-details[hidden], .mn-business-store[hidden], .mn-business-transfer-offer[hidden] { display: none !important; }
@@ -57,7 +57,7 @@
 .mn-business-store button.is-danger, .mn-business-drawer button.is-danger { border-color: rgba(241, 105, 82, .28); color: #ffc5b9; background: rgba(211, 64, 48, .12); }
 .mn-business-store button:disabled, .mn-business-transfer-offer button:disabled { opacity: .38; cursor: default; }
 
-.mn-business-store { position: fixed; inset: 0; z-index: 100055; padding: 10px; color: #f5f8ef; background: rgba(2, 5, 3, .92); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.mn-business-store { position: fixed; inset: 0; z-index: 2147483000; padding: 10px; color: #f5f8ef; background: rgba(2, 5, 3, .92); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
 .mn-business-store-shell {
   width: min(1180px, 100%); height: min(760px, 100%); margin: auto; overflow: hidden;
   border: 1px solid rgba(186, 229, 95, .19); border-radius: 24px;
@@ -526,4 +526,259 @@
   :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-store-footer > span { display: none; }
   :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-drawer { inset: auto 6px calc(56px + env(safe-area-inset-bottom)); width: auto; max-width: none; max-height: min(74dvh, 560px); }
   :root:not(.mn-force-rotate-landscape) body:not(.mn-force-rotate-landscape) .mn-business-employee-form { grid-template-columns: 1fr; }
+}
+
+/* Telegram keeps some phones in portrait viewport coordinates and rotates the
+   game surface itself. In that mode the ordinary touch scale is far too large,
+   so use the real landscape space instead of rendering a stretched phone UI. */
+@media (orientation: portrait) and (max-width: 920px) {
+  :is(html, body).mn-force-rotate-landscape .mn-business-store { padding: 3px !important; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-shell {
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 11px !important;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header {
+    gap: 6px;
+    padding: 6px 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header > span { gap: 1px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header small { font-size: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header strong { font-size: 13px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header > div { gap: 4px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header b,
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header em {
+    padding: 4px 6px;
+    border-radius: 7px;
+    font-size: 8px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-main {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 25%);
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-sales-floor {
+    overflow-y: auto;
+    padding: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-aisle-title {
+    margin-bottom: 4px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-aisle-title small { font-size: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-aisle-title strong { font-size: 11px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelves {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf {
+    min-height: 102px !important;
+    gap: 2px;
+    padding: 6px 5px !important;
+    border-radius: 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf small {
+    left: 6px;
+    top: 5px;
+    font-size: 7px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf > i { font-size: 21px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf > strong { font-size: 10px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf > span { font-size: 8px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf::after {
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+    height: 2px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf-actions {
+    gap: 4px;
+    margin-top: 3px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-shelf-actions > button {
+    min-height: 29px;
+    padding: 0 7px;
+    border-radius: 7px;
+    font-size: 8px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-checkout-counter {
+    gap: 6px;
+    margin-top: 5px;
+    padding: 5px 7px;
+    border-radius: 10px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-checkout-counter > i {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-checkout-counter small { font-size: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-checkout-counter strong { font-size: 10px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-checkout-counter > button {
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart > header,
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart > footer { padding: 7px 8px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart > header small { font-size: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart > header strong { font-size: 11px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart > header b { font-size: 8px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart > div { padding: 5px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart article {
+    gap: 5px;
+    padding: 5px 3px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart article > i { font-size: 16px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart article strong { font-size: 9px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart article small,
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart article > b { font-size: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart article > button {
+    min-width: 28px;
+    min-height: 28px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart-empty {
+    gap: 7px;
+    padding: 9px 7px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart-empty > i { font-size: 21px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart-empty strong { font-size: 10px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart-empty small { font-size: 8px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-cart > footer strong { font-size: 11px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-message {
+    margin: 0 6px 3px;
+    padding: 5px 7px;
+    font-size: 8px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-footer {
+    gap: 4px;
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-footer > button {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer {
+    position: fixed;
+    inset: auto 6px calc(47px + env(safe-area-inset-bottom)) auto;
+    width: min(360px, 38%);
+    max-width: min(360px, 38%);
+    max-height: calc(100% - 56px - env(safe-area-inset-bottom));
+    padding-bottom: 0;
+    border-radius: 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > header {
+    padding: 7px 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > header small { font-size: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > header strong { font-size: 13px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > header > button {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+    border-radius: 9px;
+    font-size: 20px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > label {
+    gap: 4px;
+    margin: 8px 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer label > span { font-size: 8px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer label small,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer-note { font-size: 8px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer input,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer select,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer textarea {
+    min-height: 34px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    font-size: 10px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer textarea { min-height: 72px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer-grid {
+    gap: 6px;
+    margin: 0 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > footer {
+    gap: 6px;
+    padding: 7px 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > footer > button,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > .is-primary,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > .is-danger {
+    min-height: 34px;
+    font-size: 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > .is-primary,
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer > .is-danger {
+    width: calc(100% - 18px);
+    margin: 0 9px 8px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-drawer-note { margin: 8px 9px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    padding: 7px 8px 1px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button {
+    min-height: 50px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 8px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button > i {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    font-size: 16px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button strong { font-size: 10px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button small { font-size: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-management-grid > button > b { font-size: 14px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-summary,
+  :is(html, body).mn-force-rotate-landscape .mn-business-tax-summary,
+  :is(html, body).mn-force-rotate-landscape .mn-business-profit-summary {
+    gap: 5px;
+    padding: 7px 9px 0;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-summary > span,
+  :is(html, body).mn-force-rotate-landscape .mn-business-tax-summary article,
+  :is(html, body).mn-force-rotate-landscape .mn-business-profit-summary article { padding: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list,
+  :is(html, body).mn-force-rotate-landscape .mn-business-procurement-list {
+    gap: 5px;
+    padding: 6px 9px 1px;
+    margin: 0;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article { padding: 6px 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article > i { font-size: 17px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article strong { font-size: 9px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article small { font-size: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-warehouse-list article > b { font-size: 9px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-procurement-preview {
+    gap: 5px;
+    margin: 7px 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-procurement-preview > span { padding: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-employee-form {
+    grid-template-columns: minmax(0, 1fr) 110px auto;
+    gap: 5px;
+    padding: 7px 9px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-employees { padding: 0 9px; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-employees article { padding: 6px; }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-details-card,
+  :is(html, body).mn-force-rotate-landscape .mn-business-transfer-offer > section {
+    width: min(460px, calc(100% - 18px));
+    max-width: calc(100% - 18px);
+    max-height: calc(100% - 14px);
+  }
 }
