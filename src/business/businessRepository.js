@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { getBusinessLegalPayload } from './businessConfig.js';
 
 function normalizePayload(value) {
   if (value && typeof value === 'object') return value;
@@ -23,6 +24,12 @@ export function getBusinessOwnerId(object) {
 
 export function normalizeBusinessForUi(object = {}) {
   const payload = normalizePayload(object.payload);
+  const legalPayload = getBusinessLegalPayload({
+    ...payload,
+    legalForm: object.legalForm || object.legal_form || payload.legalForm || payload.legal_form,
+    legalFormLabel: object.legalFormLabel || object.legal_form_label || payload.legalFormLabel || payload.legal_form_label,
+    taxGroup: object.taxGroup ?? object.tax_group ?? payload.taxGroup ?? payload.tax_group,
+  });
   const id = String(object.id || payload.mapObjectId || payload.objectId || '').trim();
   const ownerId = getBusinessOwnerId(object);
   const cityId = String(object.city_id || object.cityId || payload.cityId || payload.city_id || '').trim();
@@ -35,8 +42,10 @@ export function normalizeBusinessForUi(object = {}) {
     ownerName: object.ownerName || object.owner_name || payload.ownerName || payload.owner_name || null,
     price: Number(object.price ?? payload.price ?? 0) || 0,
     businessType: String(payload.businessType || payload.business_type || object.type || 'shop'),
+    ...legalPayload,
     payload: {
       ...payload,
+      ...legalPayload,
       mapObjectId: id,
       objectId: id,
       cityId,
