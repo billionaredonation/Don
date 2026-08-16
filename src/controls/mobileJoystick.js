@@ -273,6 +273,15 @@ export function enableMobileJoystick(
   const STAMINA_PAINT_INTERVAL = 95;
 
   /*
+    Telegram WebView follows the phone refresh rate. On 90/120 Hz screens the
+    old requestAnimationFrame loop rendered the whole moving map 90/120 times
+    per second, although this top-down map does not need that many frames.
+    A stable 30 fps keeps movement responsive and cuts the largest continuous
+    GPU/CPU load by two to four times.
+  */
+  const MOBILE_TARGET_FRAME_MS = 1000 / 30;
+
+  /*
     Мобилка не должна спамить сетью/DB на каждом кадре.
     Движение остаётся 60fps локально, а синхра уходит реже — так меньше
     микрофризов и телефон меньше греется.
@@ -332,6 +341,7 @@ export function enableMobileJoystick(
   let targetMoveY = 0;
 
   let animationId = null;
+  let loopTimer = null;
   let heartbeatTimer = null;
   let stickUpdateFrame = null;
   let pendingStickClientX = 0;
@@ -800,7 +810,10 @@ export function enableMobileJoystick(
   }
 
   function loop(now = performance.now()) {
+    animationId = null;
+
     if (destroyed) return;
+    if (document.hidden) return;
     if (
       window.__MN_INTERIOR_ACTIVE__ === true ||
       window.__MN_PLAYER_CONTROLS_LOCKED__ === true
@@ -904,14 +917,64 @@ export function enableMobileJoystick(
       return;
     }
 
-    animationId = requestAnimationFrame(loop);
+    scheduleLoopFrame();
   }
 
-  function ensureLoopRunning() {
-    if (!animationId && !destroyed) {
-      lastFrameAt = performance.now();
+  function scheduleLoopFrame(immediate = false) {
+    if (animationId || loopTimer || destroyed || document.hidden) return;
+
+    const elapsed = performance.now() - lastFrameAt;
+    const wait = immediate
+      ? 0
+      : Math.max(0, MOBILE_TARGET_FRAME_MS - elapsed);
+
+    const requestFrame = () => {
+      loopTimer = null;
+      if (destroyed || document.hidden || animationId) return;
       animationId = requestAnimationFrame(loop);
+    };
+
+    if (wait <= 5) {
+      requestFrame();
+      return;
     }
+
+    // Wake shortly before the target frame; requestAnimationFrame aligns the
+    // actual paint with the display without keeping a full-rate RAF alive.
+    loopTimer = window.setTimeout(requestFrame, Math.max(0, wait - 4));
+  }
+
+  function ensureLoopRunning(immediate = false) {
+    if (immediate && loopTimer) {
+      window.clearTimeout(loopTimer);
+      loopTimer = null;
+    }
+
+    if (!animationId && !loopTimer && !destroyed && !document.hidden) {
+      lastFrameAt = performance.now();
+      scheduleLoopFrame(immediate);
+    }
+  }
+
+  function handleVisibilityChange() {
+    if (document.hidden) {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+
+      if (loopTimer) {
+        window.clearTimeout(loopTimer);
+        loopTimer = null;
+      }
+
+      activePointerId = null;
+      resetStick(true);
+      window.__MN_MOBILE_PLAYER_MOVING__ = false;
+      return;
+    }
+
+    ensureLoopRunning(true);
   }
 
   function startHeartbeat() {
@@ -962,7 +1025,7 @@ export function enableMobileJoystick(
     queuePositionSave(true);
     window.__MN_MOBILE_PLAYER_MOVING__ = false;
     window.__MN_MOBILE_NETWORK_PAUSE_UNTIL__ = performance.now() + 350;
-    ensureLoopRunning();
+    ensureLoopRunning(true);
   }
 
   function handleViewportChange() {
@@ -999,7 +1062,7 @@ export function enableMobileJoystick(
       return;
     }
 
-    ensureLoopRunning();
+    ensureLoopRunning(true);
   }
 
   function onExternalTeleport(event) {
@@ -1051,7 +1114,7 @@ export function enableMobileJoystick(
     }
 
     updateStick(event.clientX, event.clientY);
-    ensureLoopRunning();
+    ensureLoopRunning(true);
   }
 
   function onPointerMove(event) {
@@ -1107,6 +1170,7 @@ export function enableMobileJoystick(
   window.addEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
   window.addEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
   window.addEventListener('mn:player-controls-lock-changed', handlePlayerControlsLockChanged);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
   syncViewportSize();
   renderPlayer(true);
@@ -1140,11 +1204,17 @@ export function enableMobileJoystick(
     window.removeEventListener('mn:house-spawn-picker-opened', pauseForHouseSpawnPicker);
     window.removeEventListener('mn:player-sprint-availability-changed', handleSprintAvailabilityChanged);
     window.removeEventListener('mn:player-controls-lock-changed', handlePlayerControlsLockChanged);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
 
     clearInterval(heartbeatTimer);
 
     if (animationId) {
       cancelAnimationFrame(animationId);
+    }
+
+    if (loopTimer) {
+      window.clearTimeout(loopTimer);
+      loopTimer = null;
     }
 
     if (stickUpdateFrame) {
