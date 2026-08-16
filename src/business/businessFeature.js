@@ -26,7 +26,12 @@ import {
   updateBusinessShelf,
   updateBusinessTaxGroup,
 } from './businessApi.js';
-import { applyBusinessOwner, getBusinessOwnerId, normalizeBusinessForUi } from './businessRepository.js';
+import {
+  applyBusinessOwner,
+  getBusinessOwnerId,
+  isBusinessObject,
+  normalizeBusinessForUi,
+} from './businessRepository.js';
 import './business.css';
 
 // Realtime delivers normal offers immediately. The slow fallback only repairs
@@ -676,6 +681,12 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (event?.detail?.business) openDetails(event.detail.business);
   }
 
+  function handleEntityAction(event) {
+    const object = event?.detail?.object;
+    if (!object) return;
+    if (event?.detail?.kind === 'business' || isBusinessObject(object)) openDetails(object);
+  }
+
   detailsModal?.addEventListener('click', (event) => {
     if (event.target.closest('[data-business-details-close]')) closeDetails();
     if (event.target.closest('[data-business-buy]')) void handleBuy();
@@ -685,6 +696,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
   storeModal?.addEventListener('change', handleStoreChange);
   offerModal?.querySelector('[data-business-offer-accept]')?.addEventListener('click', () => void resolveOffer(true));
   offerModal?.querySelector('[data-business-offer-reject]')?.addEventListener('click', () => void resolveOffer(false));
+  window.addEventListener('mn:entity-action', handleEntityAction);
   window.addEventListener('mn:business-selected', handleBusinessSelected);
   window.addEventListener('keydown', handleKeyDown, true);
   const transferChannel = supabase.channel(`mn-business-trades:${currentPlayerId()}`);
@@ -698,6 +710,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     destroyed = true;
     window.clearInterval(poll);
     window.clearInterval(offerTimer);
+    window.removeEventListener('mn:entity-action', handleEntityAction);
     window.removeEventListener('mn:business-selected', handleBusinessSelected);
     window.removeEventListener('keydown', handleKeyDown, true);
     supabase.removeChannel(transferChannel);
