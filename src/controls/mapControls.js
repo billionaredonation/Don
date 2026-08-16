@@ -833,7 +833,18 @@ export function enableMapControls(stage, viewport, options = {}) {
       worldHeight,
     });
 
-    ensureCameraLoop();
+    if (mobile) {
+      ensureCameraLoop();
+    } else {
+      /*
+        Keyboard movement already runs on a display-aligned frame. Applying the
+        desktop camera here removes the extra one-frame queue that could make
+        a stable 60 fps input feel like a delayed/30 fps camera.
+      */
+      x = targetMapX;
+      y = targetMapY;
+      applyTransform();
+    }
     scheduleTileUpdate();
   }
 
