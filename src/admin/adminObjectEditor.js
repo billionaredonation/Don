@@ -1,5 +1,6 @@
 import { getHouseClass, getMapObjectType } from '../mapObjects/mapObjectTypes.js';
 import { updateMapObject } from '../mapObjects/mapObjectsRepository.js';
+import { getBusinessLegalPayload } from '../business/businessConfig.js';
 
 export async function saveAdminObject({
   cityId,
@@ -58,10 +59,12 @@ export async function saveAdminObject({
   }
 
   if (config.category === 'business') {
+    const sourcePayload = { ...(object.payload || {}), ...(patch.payload || {}) };
     const currentName = String(name || object.name || '').trim();
-    const currentPrice = Number(object.payload?.price ?? object.price ?? 0);
-    const ownerId = object.payload?.ownerId || object.payload?.owner_id || object.ownerId || object.owner_id || null;
-    const ownerName = object.payload?.ownerName || object.payload?.owner_name || object.ownerName || object.owner_name || null;
+    const currentPrice = Number(sourcePayload.price ?? object.price ?? 0);
+    const ownerId = sourcePayload.ownerId || sourcePayload.owner_id || object.ownerId || object.owner_id || null;
+    const ownerName = sourcePayload.ownerName || sourcePayload.owner_name || object.ownerName || object.owner_name || null;
+    const legalPayload = getBusinessLegalPayload(sourcePayload);
 
     nextPatch.icon = config.icon;
     nextPatch.asset = config.defaultAsset;
@@ -69,7 +72,8 @@ export async function saveAdminObject({
     nextPatch.name = currentName || config.label;
     nextPatch.variant = '';
     nextPatch.payload = {
-      ...(object.payload || {}),
+      ...sourcePayload,
+      ...legalPayload,
       kind: 'business',
       type: selectedType,
       category: 'business',
@@ -85,12 +89,12 @@ export async function saveAdminObject({
       ownerName,
       owner_name: ownerName,
       owned: Boolean(ownerId),
-      incomePerHour: object.payload?.incomePerHour || 0,
+      incomePerHour: sourcePayload.incomePerHour || 0,
       price: Number.isFinite(currentPrice) && currentPrice > 0
         ? Math.round(currentPrice)
         : Math.max(0, Math.round(Number(config.defaultPrice) || 0)),
       buyable: true,
-      locked: Boolean(object.payload?.locked),
+      locked: Boolean(sourcePayload.locked),
     };
   }
 
