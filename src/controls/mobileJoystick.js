@@ -276,10 +276,11 @@ export function enableMobileJoystick(
     Telegram WebView follows the phone refresh rate. On 90/120 Hz screens the
     old requestAnimationFrame loop rendered the whole moving map 90/120 times
     per second, although this top-down map does not need that many frames.
-    A stable 30 fps keeps movement responsive and cuts the largest continuous
-    GPU/CPU load by two to four times.
+    Target about 50 fps. Depending on the phone display cadence this resolves
+    to a stable 45-60 fps: visibly smoother than 30, but still without the old
+    uncontrolled 90/120 fps heat load.
   */
-  const MOBILE_TARGET_FRAME_MS = 1000 / 30;
+  const MOBILE_TARGET_FRAME_MS = 1000 / 50;
 
   /*
     Мобилка не должна спамить сетью/DB на каждом кадре.
