@@ -1493,12 +1493,12 @@ register('home', async (root) => {
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
 
   /*
-    Desktop rain must not live inside the moving multi-thousand-pixel map.
-    Keeping it there makes every camera frame composite the animated rain over
-    the whole world surface. A stage-level layer stays viewport-sized while the
-    map moves underneath it. Mobile keeps its proven existing layout untouched.
+    Rain must not live inside the moving multi-thousand-pixel map. Keeping it
+    there makes every camera frame composite the animated texture over the
+    whole world surface. A stage-level layer stays screen-sized on both desktop
+    and mobile while the map moves underneath it.
   */
-  if (!isMobileGameplay && weather.type === 'rain' && weatherLayer && stage) {
+  if (weather.type === 'rain' && weatherLayer && stage) {
     weatherLayer.dataset.screenWeather = 'true';
     stage.append(weatherLayer);
   }
