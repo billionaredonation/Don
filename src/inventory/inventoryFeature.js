@@ -4,6 +4,8 @@ import { state } from '../state.js';
 import { loadFarmInventory } from '../farm/farmApi.js';
 import { loadMineInventory } from '../mine/mineApi.js';
 import { loadLumberInventory } from '../lumber/lumberApi.js';
+import { loadBusinessInventory, useBusinessInventoryItem } from '../business/businessApi.js';
+import { getBusinessProduct } from '../business/businessConfig.js';
 import { getMineBaseGradePrice, parseMineGradeItemType } from '../mine/mineConfig.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import { applyPlayerPositionVitalRestore } from '../player/playerPosition.js';
@@ -45,6 +47,12 @@ const ITEM_META = Object.freeze({
   lumber_tool_chainsaw: { label: 'Бензопила', icon: '🪚' },
   lumber_log: { label: 'Бревно', icon: '🪵' },
   lumber_beam: { label: 'Брус', icon: '▰' },
+  grocery_bread: { label: 'Хлеб', icon: '🍞' },
+  grocery_milk: { label: 'Молоко', icon: '🥛' },
+  grocery_apple: { label: 'Яблоко', icon: '🍎' },
+  grocery_canned_food: { label: 'Консервы', icon: '🥫' },
+  grocery_water: { label: 'Вода', icon: '💧' },
+  grocery_snack: { label: 'Снеки', icon: '🍪' },
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
@@ -123,6 +131,10 @@ function publishInventorySnapshot(items = []) {
 
 function getConsumptionEffectType(itemType) {
   const normalized = String(itemType || '').trim().toLowerCase();
+  if (normalized.startsWith('grocery_')) {
+    const product = getBusinessProduct(normalized);
+    return Number(product?.waterRestore || 0) > Number(product?.foodRestore || 0) ? 'water' : 'food';
+  }
   if (normalized.startsWith('farm_')) return '';
   if (normalized.startsWith('mine_')) return '';
   if (normalized.startsWith('lumber_')) return '';
@@ -371,6 +383,7 @@ function renderMedicalItems(slotItems = []) {
       itemType.startsWith('farm_') ? 'mn-inventory-item-farm' : '',
       itemType.startsWith('mine_') ? 'mn-inventory-item-mine' : '',
       itemType.startsWith('lumber_') ? 'mn-inventory-item-lumber' : '',
+      itemType.startsWith('grocery_') ? 'mn-inventory-item-food' : '',
     ].filter(Boolean).join(' ');
 
     return `
@@ -781,6 +794,11 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nВосстанавливает 20 единиц воды. Хорошая гидратация ускоряет восстановление стамины до 3 минут.`;
     }
 
+    if (itemType.startsWith('grocery_')) {
+      const product = getBusinessProduct(itemType) || {};
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nКуплено в продуктовом магазине. Восстанавливает ${Number(product.foodRestore) || 0} еды и ${Number(product.waterRestore) || 0} воды.`;
+    }
+
     if (itemType === 'farm_rake' || itemType === 'farm_scissors') {
       return `${getItemLabel(item)} · постоянный инструмент.\n${sourceLabel}.\nПрочность в прототипе не расходуется.`;
     }
@@ -1069,11 +1087,12 @@ export function enableInventoryFeature() {
   }
 
   async function refreshMedicalInventory() {
-    const [medicalResult, farmResult, mineResult, lumberResult] = await Promise.allSettled([
+    const [medicalResult, farmResult, mineResult, lumberResult, businessResult] = await Promise.allSettled([
       loadMyMedicalInventory(),
       loadFarmInventory(),
       loadMineInventory(),
       loadLumberInventory(),
+      loadBusinessInventory(),
     ]);
 
     const medical = medicalResult.status === 'fulfilled' && Array.isArray(medicalResult.value?.items)
@@ -1088,6 +1107,9 @@ export function enableInventoryFeature() {
     const lumber = lumberResult.status === 'fulfilled' && Array.isArray(lumberResult.value?.items)
       ? lumberResult.value.items
       : (Array.isArray(window.__MN_LUMBER_INVENTORY_ITEMS__) ? window.__MN_LUMBER_INVENTORY_ITEMS__ : []);
+    const business = businessResult.status === 'fulfilled' && Array.isArray(businessResult.value?.items)
+      ? businessResult.value.items
+      : (Array.isArray(window.__MN_BUSINESS_INVENTORY_ITEMS__) ? window.__MN_BUSINESS_INVENTORY_ITEMS__ : []);
 
     if (medicalResult.status === 'rejected' && !String(medicalResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] medical inventory load failed:', medicalResult.reason);
@@ -1101,8 +1123,12 @@ export function enableInventoryFeature() {
     if (lumberResult.status === 'rejected' && !String(lumberResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] lumber inventory load failed:', lumberResult.reason);
     }
+    if (businessResult.status === 'rejected' && !String(businessResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+      console.warn('[inventory] business inventory load failed:', businessResult.reason);
+    }
 
-    medicalItems = [...medical, ...farm, ...mine, ...lumber];
+    window.__MN_BUSINESS_INVENTORY_ITEMS__ = business;
+    medicalItems = [...medical, ...farm, ...mine, ...lumber, ...business];
     publishInventorySnapshot(medicalItems);
     renderMedicalInventory();
   }
@@ -1147,11 +1173,14 @@ export function enableInventoryFeature() {
       }));
     }
     try {
-      let result = await useInventoryItem({
-        itemType,
-        source: item.source || item.inventorySource || 'personal',
-        hospitalId: item.hospitalId || null,
-      });
+      const itemSource = String(item.source || item.inventorySource || 'personal').toLowerCase();
+      let result = itemSource === 'business' || itemType.startsWith('grocery_')
+        ? await useBusinessInventoryItem(itemType)
+        : await useInventoryItem({
+          itemType,
+          source: item.source || item.inventorySource || 'personal',
+          hospitalId: item.hospitalId || null,
+        });
 
       if (itemType === 'water_bottle' && result?.canonicalVitalsUpdated !== true) {
         const restoredVitals = await applyPlayerPositionVitalRestore({ waterRestore: 20 });
@@ -1191,13 +1220,13 @@ export function enableInventoryFeature() {
       window.dispatchEvent(new CustomEvent('mn:toast', {
         detail: {
           type: 'success',
-          message: itemType === 'food'
+          message: consumptionEffect === 'food'
             ? `${result?.itemLabel || getItemLabel(item)} применён. Сытость восстановлена.`
-            : `${result?.itemLabel || getItemLabel(item)} выпита. Вода восстановлена на 20.`,
+            : `${result?.itemLabel || getItemLabel(item)} выпита. Вода восстановлена на ${Math.max(0, Number(result?.waterRestore) || 20)}.`,
         },
       }));
       setItemMenuNotice(
-        itemType === 'food'
+        consumptionEffect === 'food'
           ? `${result?.itemLabel || getItemLabel(item)} применён. Сытость: ${Math.round(Number(result?.food ?? currentVitals.food))}/100, вода: ${Math.round(Number(result?.water ?? currentVitals.water))}/100.`
           : `${result?.itemLabel || getItemLabel(item)} выпита. Вода: ${Math.round(Number(result?.water ?? currentVitals.water))}/100.`,
         'success'
@@ -1503,6 +1532,7 @@ export function enableInventoryFeature() {
   window.addEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
   window.addEventListener('mn:mine-inventory-changed', handleMineInventoryChanged);
   window.addEventListener('mn:lumber-inventory-changed', handleLumberInventoryChanged);
+  window.addEventListener('mn:business-inventory-changed', refreshMedicalInventory);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
   window.addEventListener('mn:player-inventory-changed', refreshMedicalInventory);
@@ -1549,6 +1579,7 @@ export function enableInventoryFeature() {
     window.removeEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
     window.removeEventListener('mn:mine-inventory-changed', handleMineInventoryChanged);
     window.removeEventListener('mn:lumber-inventory-changed', handleLumberInventoryChanged);
+    window.removeEventListener('mn:business-inventory-changed', refreshMedicalInventory);
     window.removeEventListener('mn:player-health-changed', handleHealthChanged);
     window.removeEventListener('mn:medical-inventory-changed', refreshMedicalInventory);
     window.removeEventListener('mn:player-inventory-changed', refreshMedicalInventory);
