@@ -20,15 +20,16 @@ function buildSynchronizationPlugin() {
         source: JSON.stringify({ buildId: BUILD_ID }),
       });
 
-      // Грабли добавляются владельцем проекта как grabl.png в корень репозитория.
+      // Рабочие PNG добавляются владельцем проекта в корень репозитория.
       // Сборка не падает, пока файла ещё нет, а после добавления кладёт его рядом с index.html.
-      if (existsSync('grabl.png')) {
+      ['grabl.png', 'benzopila.png', 'brus.png'].forEach((fileName) => {
+        if (!existsSync(fileName)) return;
         this.emitFile({
           type: 'asset',
-          fileName: 'grabl.png',
-          source: readFileSync('grabl.png'),
+          fileName,
+          source: readFileSync(fileName),
         });
-      }
+      });
     },
   };
 }
