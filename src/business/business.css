@@ -239,3 +239,254 @@
     transform-origin: center center !important;
   }
 }
+
+/* Business windows own the screen while they are open. Keep unrelated HUD
+   shortcuts out of the way without changing the hospital feature itself. */
+body.mn-business-open [data-hospital-management-hint] { display: none !important; }
+
+/* Readable desktop scale. */
+.mn-business-details-card > header small,
+.mn-business-drawer > header small { font-size: 11px; }
+.mn-business-details-grid small,
+.mn-business-legal-fixed small,
+.mn-business-tax-select > span,
+.mn-business-drawer label > span { font-size: 11px; }
+.mn-business-details-grid strong,
+.mn-business-legal-fixed strong { font-size: 13px; }
+.mn-business-legal-fixed > em,
+.mn-business-drawer label small,
+.mn-business-drawer-note { font-size: 11px; }
+.mn-business-details-card select,
+.mn-business-drawer input,
+.mn-business-drawer select,
+.mn-business-drawer textarea { font-size: 13px; }
+.mn-business-message,
+.mn-business-store-message { font-size: 12px; }
+.mn-business-details-card button,
+.mn-business-store button,
+.mn-business-transfer-offer button { font-size: 12px; }
+.mn-business-store-header small,
+.mn-business-aisle-title small,
+.mn-business-checkout-counter small,
+.mn-business-cart > header small { font-size: 10px; }
+.mn-business-store-header b,
+.mn-business-store-header em { font-size: 11px; }
+.mn-business-aisle-title strong { font-size: 14px; }
+
+/* A shelf has two independent actions: buying never opens owner controls. */
+.mn-business-shelf {
+  box-sizing: border-box;
+  border: 1px solid rgba(176, 221, 91, .16);
+  border-radius: 12px;
+}
+.mn-business-shelf > strong { font-size: 14px; }
+.mn-business-shelf > span { font-size: 11px; }
+.mn-business-shelf small { font-size: 10px; }
+.mn-business-shelf-actions {
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 7px;
+}
+.mn-business-shelf-actions > button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 11px;
+}
+.mn-business-shelf.is-empty .mn-business-shelf-actions { margin-top: 4px; }
+.mn-business-shelf.is-unavailable:not(.is-empty) { opacity: .68; }
+.mn-business-checkout-counter strong { font-size: 13px; }
+.mn-business-cart article strong { font-size: 12px; }
+.mn-business-cart article small,
+.mn-business-cart article > b { font-size: 10px; }
+.mn-business-cart-empty strong { font-size: 12px; }
+.mn-business-cart-empty small { font-size: 10px; }
+.mn-business-store-footer > button { min-height: 40px; font-size: 11px; }
+.mn-business-employees strong,
+.mn-business-found-player strong { font-size: 13px; }
+.mn-business-employees small,
+.mn-business-found-player small { font-size: 10px; }
+.mn-business-employees button { min-height: 36px; font-size: 10px; }
+.mn-business-employees > p { font-size: 11px; }
+.mn-business-tax-summary small { font-size: 10px; }
+.mn-business-tax-summary strong { font-size: 14px; }
+.mn-business-tax-locked > span { font-size: 9px; }
+.mn-business-tax-locked > strong { font-size: 13px; }
+.mn-business-tax-locked > small,
+.mn-business-tax-lines p,
+.mn-business-declarations > small { font-size: 11px; }
+.mn-business-declarations > strong { font-size: 13px; }
+.mn-business-declarations > p { font-size: 10px; }
+.mn-business-transfer-offer > section > small { font-size: 10px; }
+.mn-business-transfer-offer section > div { font-size: 13px; }
+.mn-business-transfer-offer section > p { font-size: 12px; }
+
+/* Phone/tablet layout: preserve touch targets and let each modal scroll on its
+   own instead of shrinking the whole desktop composition. */
+@media (max-width: 760px), (max-height: 560px), (hover: none) and (pointer: coarse) {
+  .mn-business-details,
+  .mn-business-transfer-offer { padding: 0; align-items: stretch; }
+  .mn-business-details-card,
+  .mn-business-transfer-offer > section {
+    width: 100%;
+    max-width: none;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    overscroll-behavior: contain;
+  }
+  .mn-business-details-card > header,
+  .mn-business-drawer > header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 12px 14px;
+    background: rgba(9, 15, 9, .98);
+  }
+  .mn-business-details-card > header small,
+  .mn-business-drawer > header small { font-size: 10px; }
+  .mn-business-details-card > header strong,
+  .mn-business-drawer > header strong { font-size: 18px; }
+  .mn-business-details-card > header > button,
+  .mn-business-drawer > header > button {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    font-size: 26px;
+  }
+  .mn-business-details-hero { margin: 12px 14px 9px; padding: 12px; }
+  .mn-business-details-hero > i { width: 50px; height: 50px; flex-basis: 50px; font-size: 25px; }
+  .mn-business-details-hero strong { font-size: 20px; }
+  .mn-business-details-hero small { font-size: 12px; }
+  .mn-business-details-grid { gap: 8px; margin: 0 14px; }
+  .mn-business-details-grid article { padding: 11px; }
+  .mn-business-details-grid small,
+  .mn-business-legal-fixed small { font-size: 10px; }
+  .mn-business-details-grid strong,
+  .mn-business-legal-fixed strong { font-size: 13px; }
+  .mn-business-details-card > p { margin: 10px 15px; font-size: 12px; }
+  .mn-business-legal-fixed { margin: 0 14px 10px; }
+  .mn-business-legal-fixed > em { font-size: 10px; }
+  .mn-business-details-card > footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(9, 15, 9, .97);
+  }
+  .mn-business-details-card button,
+  .mn-business-store button,
+  .mn-business-transfer-offer button { min-height: 44px; font-size: 12px; }
+
+  .mn-business-store { padding: 0; }
+  .mn-business-store-shell { width: 100%; height: 100%; border: 0; border-radius: 0; }
+  .mn-business-store-header { gap: 8px; padding: 9px 11px; }
+  .mn-business-store-header small { font-size: 9px; }
+  .mn-business-store-header strong { font-size: 16px; }
+  .mn-business-store-header > div { gap: 5px; }
+  .mn-business-store-header b,
+  .mn-business-store-header em { padding: 6px 8px; font-size: 10px; }
+  .mn-business-store-main { grid-template-columns: minmax(0, 1fr) minmax(190px, 28vw); }
+  .mn-business-sales-floor { padding: 10px; }
+  .mn-business-aisle-title { margin-bottom: 8px; }
+  .mn-business-aisle-title small { font-size: 9px; }
+  .mn-business-aisle-title strong { font-size: 13px; }
+  .mn-business-shelves { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .mn-business-shelf { min-height: 132px !important; gap: 3px; padding: 10px 7px !important; }
+  .mn-business-shelf small { left: 8px; top: 7px; font-size: 9px; }
+  .mn-business-shelf > i { font-size: 27px; }
+  .mn-business-shelf > strong { font-size: 13px; }
+  .mn-business-shelf > span { font-size: 10px; }
+  .mn-business-shelf-actions { gap: 5px; margin-top: 5px; }
+  .mn-business-shelf-actions > button { min-height: 38px; padding: 0 9px; font-size: 11px; }
+  .mn-business-shelf::after { bottom: 9px; height: 3px; }
+  .mn-business-checkout-counter { gap: 8px; margin-top: 8px; padding: 8px; }
+  .mn-business-checkout-counter > i { width: 38px; height: 38px; font-size: 18px; }
+  .mn-business-checkout-counter small { font-size: 9px; }
+  .mn-business-checkout-counter strong { font-size: 12px; }
+  .mn-business-checkout-counter > button { min-height: 42px; padding: 0 10px; font-size: 11px; }
+  .mn-business-cart > header,
+  .mn-business-cart > footer { padding: 9px; }
+  .mn-business-cart > header small { font-size: 9px; }
+  .mn-business-cart > header strong { font-size: 13px; }
+  .mn-business-cart article { gap: 6px; padding: 8px 4px; }
+  .mn-business-cart article strong { font-size: 11px; }
+  .mn-business-cart article small,
+  .mn-business-cart article > b { font-size: 9px; }
+  .mn-business-cart article > button { min-width: 38px; min-height: 38px; }
+  .mn-business-cart-empty { padding: 12px 8px; }
+  .mn-business-cart-empty strong { font-size: 11px; }
+  .mn-business-cart-empty small { font-size: 9px; }
+  .mn-business-store-message { margin: 0 8px 5px; padding: 8px 10px; font-size: 11px; }
+  .mn-business-store-footer {
+    gap: 5px;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .mn-business-store-footer::-webkit-scrollbar { display: none; }
+  .mn-business-store-footer > span { min-width: 4px; }
+  .mn-business-store-footer > button { min-height: 42px; padding: 0 10px; flex: 0 0 auto; font-size: 10px; }
+
+  .mn-business-drawer {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    overscroll-behavior: contain;
+  }
+  .mn-business-drawer > label { gap: 7px; margin: 12px 14px; }
+  .mn-business-drawer label > span { font-size: 11px; }
+  .mn-business-drawer label small,
+  .mn-business-drawer-note { font-size: 11px; }
+  .mn-business-drawer input,
+  .mn-business-drawer select,
+  .mn-business-drawer textarea { min-height: 46px; padding: 10px 12px; font-size: 14px; }
+  .mn-business-drawer textarea { min-height: 104px; }
+  .mn-business-drawer-grid { gap: 10px; margin: 0 14px; }
+  .mn-business-drawer > footer { position: sticky; bottom: 0; padding: 10px 14px; background: rgba(9, 15, 9, .97); }
+  .mn-business-drawer > footer > button { flex: 1; }
+  .mn-business-employee-form { grid-template-columns: 1fr; gap: 9px; padding: 12px 14px; }
+  .mn-business-employees,
+  .mn-business-tax-summary { padding-left: 14px; padding-right: 14px; }
+  .mn-business-employees article { padding: 10px; }
+  .mn-business-employees strong,
+  .mn-business-found-player strong { font-size: 13px; }
+  .mn-business-employees small,
+  .mn-business-found-player small { font-size: 10px; }
+  .mn-business-employees button { min-height: 40px; font-size: 11px; }
+  .mn-business-tax-summary article { padding: 11px; }
+  .mn-business-tax-summary small { font-size: 10px; }
+  .mn-business-tax-summary strong { font-size: 14px; }
+  .mn-business-tax-locked > span { font-size: 9px; }
+  .mn-business-tax-locked > strong { font-size: 13px; }
+  .mn-business-tax-locked > small,
+  .mn-business-tax-lines p { font-size: 11px; }
+  .mn-business-declarations > strong { font-size: 13px; }
+  .mn-business-declarations > p { align-items: flex-start; flex-direction: column; font-size: 10px; }
+  .mn-business-inline { grid-template-columns: minmax(0, 1fr) auto; }
+
+  .mn-business-transfer-offer > section { overflow: auto; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+  .mn-business-transfer-offer > section > small { font-size: 10px; }
+  .mn-business-transfer-offer h3 { font-size: 21px; }
+  .mn-business-transfer-offer section > div { font-size: 13px; }
+  .mn-business-transfer-offer section > p { font-size: 12px; }
+}
+
+@media (max-width: 520px) and (orientation: portrait) {
+  .mn-business-details-grid,
+  .mn-business-legal-fixed,
+  .mn-business-drawer-grid { grid-template-columns: 1fr; }
+  .mn-business-legal-fixed > em { grid-column: auto; }
+  .mn-business-store-main { grid-template-columns: 1fr; overflow: auto; }
+  .mn-business-sales-floor { overflow: visible; }
+  .mn-business-cart { min-height: 190px; max-height: 230px; border-top: 1px solid rgba(255,255,255,.07); border-left: 0; }
+  .mn-business-shelves { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .mn-business-store-footer > span { display: none; }
+}
