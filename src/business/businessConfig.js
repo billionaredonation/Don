@@ -93,8 +93,8 @@ export function getBusinessLegalPayload(source = {}) {
 
 export const BUSINESS_ROLE_LABELS = Object.freeze({
   owner: 'Владелец',
-  accountant: 'Бухгалтерия',
-  merchandiser: 'Расстановка товара',
+  accountant: 'Бухгалтер',
+  merchandiser: 'Товаровед',
   customer: 'Покупатель',
 });
 
