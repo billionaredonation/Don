@@ -236,7 +236,15 @@ function staffDrawer(snapshot) {
   return `
     <aside class="mn-business-drawer" data-business-drawer>
       <header><span><small>Управление магазином</small><strong>Персонал</strong></span><button type="button" data-business-drawer-close>×</button></header>
-      <div class="mn-business-employee-form"><input type="text" maxlength="40" placeholder="Ник или Telegram ID" aria-label="Ник или Telegram ID сотрудника" data-business-employee-target><select aria-label="Должность сотрудника" data-business-employee-role><option value="accountant">Бухгалтер</option><option value="merchandiser">Товаровед</option></select><button type="button" class="is-primary" data-business-employee-save>Назначить</button></div>
+      <div class="mn-business-employee-form">
+        <input type="text" maxlength="40" placeholder="Ник или Telegram ID" aria-label="Ник или Telegram ID сотрудника" data-business-employee-target>
+        <div class="mn-business-role-picker" role="group" aria-label="Должность сотрудника">
+          <button type="button" class="is-active" aria-pressed="true" data-business-role-option="accountant">Бухгалтер</button>
+          <button type="button" aria-pressed="false" data-business-role-option="merchandiser">Товаровед</button>
+        </div>
+        <input type="hidden" value="accountant" data-business-employee-role>
+        <button type="button" class="is-primary" data-business-employee-save>Назначить</button>
+      </div>
       <div class="mn-business-employees">${employees.length ? employees.map((employee) => `
         <article><i>${employee.role === 'accountant' ? '🧾' : '📦'}</i><span><strong>${escapeHtml(employee.nickname || employee.tgId)}</strong><small>${escapeHtml(BUSINESS_ROLE_LABELS[employee.role] || employee.role)} · ID ${escapeHtml(employee.tgId)}</small></span><button type="button" data-business-employee-remove="${escapeHtml(employee.tgId)}">Уволить</button></article>`).join('') : '<p>Сотрудников пока нет.</p>'}</div>
       <p class="mn-business-drawer-note">Бухгалтер сдаёт декларации. Товаровед работает со складом, ассортиментом, остатком и ценой на полках.</p>
@@ -819,6 +827,19 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       const shelfNo = Number(drawerData);
       const result = await runStoreAction(() => updateBusinessShelf({ businessId: snapshot.businessId, shelfNo, productType: '', salePrice: 0, stock: 0, supplierCode: 'state_wholesale' }), 'Товар убран с полки.');
       if (result) { drawerMode = ''; drawerData = null; renderStore(); }
+      return;
+    }
+
+    if (target.closest('[data-business-role-option]')) {
+      const option = target.closest('[data-business-role-option]');
+      const role = option?.dataset.businessRoleOption || 'accountant';
+      const hiddenInput = storeContent.querySelector('[data-business-employee-role]');
+      if (hiddenInput) hiddenInput.value = role;
+      storeContent.querySelectorAll('[data-business-role-option]').forEach((button) => {
+        const active = button.dataset.businessRoleOption === role;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
       return;
     }
 
