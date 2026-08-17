@@ -64,13 +64,27 @@ export function getFarmUserErrorMessage(error) {
     FARM_TOWER_EMPTY: 'Водонапорная башня пуста. Владелец или помощник должен пополнить её.',
     FARM_TOWER_REQUIRED: 'Сначала администратор должен установить и привязать к ферме водонапорную башню.',
     FARM_TOWER_NOT_LINKED: 'Башня не привязана к этой ферме. Администратор должен указать ID фермы.',
+    FARM_TOWER_TOO_FAR: 'Подойдите ближе к водонапорной башне.',
+    FARM_TOWER_FULL: 'Водонапорная башня уже заполнена.',
+    FARM_TOWER_FILL_REQUIRES_BUCKET: 'Башня теперь заполняется только ведрами. Наберите воду у привязанной бочки и подойдите к башне.',
+    FARM_BARREL_REQUIRED: 'Сначала администратор должен установить бесконечную бочку воды и привязать её к этой ферме.',
+    FARM_BARREL_NOT_LINKED: 'Бочка не привязана к этой ферме.',
+    FARM_BARREL_TOO_FAR: 'Подойдите ближе к бочке с водой.',
+    FARM_BUCKET_REQUIRED: 'Сначала возьмите ведро со склада фермы.',
+    FARM_BUCKET_EMPTY: 'В ведрах нет воды. Наполните их у бесконечной бочки.',
+    FARM_BUCKET_CARGO_FULL: 'Все ваши ведра уже заполнены водой.',
+    FARM_BUCKET_STOCK_EMPTY: 'На складе фермы нет свободных ведер.',
+    FARM_BUCKET_QUANTITY_INVALID: 'Некорректное количество ведер.',
+    FARM_BUCKET_STATE_UNAVAILABLE: 'Не удалось загрузить состояние ведер.',
+    FARM_ADMIN_REQUIRED: 'Эта тестовая функция доступна только администратору.',
+    FARM_WAREHOUSE_FULL: 'Склад урожая фермы заполнен: 100 / 100 ед.',
     FARM_WATER_NOTHING_TO_FILL: 'Нечего заливать: либо резерв воды пуст, либо башня уже заполнена.',
     FARM_WATER_AMOUNT_INVALID: 'Укажите корректное количество воды.',
     FARM_BUSINESS_NOT_FOUND: 'Фермерское предприятие не найдено.',
     FARM_BUSINESS_ALREADY_OWNED: 'Эта ферма уже принадлежит игроку.',
     FARM_BUSINESS_NOT_OWNED: 'Ферма ещё не куплена.',
     FARM_BUSINESS_OWNER_REQUIRED: 'Это действие доступно только владельцу фермы.',
-    FARM_BUSINESS_STAFF_REQUIRED: 'Пополнять башню может только владелец или помощник.',
+    FARM_BUSINESS_STAFF_REQUIRED: 'Ведра и водоснабжение фермы доступны только владельцу или помощнику.',
     FARM_BUSINESS_CASH_NOT_ENOUGH: 'На балансе фермы недостаточно денег.',
     FARM_BUSINESS_AMOUNT_INVALID: 'Введите корректную сумму.',
     FARM_ASSISTANT_NOT_FOUND: 'Игрок для должности помощника не найден.',
@@ -218,6 +232,10 @@ export const depositFarmBusiness = ({ businessId, cityId, amount }) => invokeFar
 export const withdrawFarmBusiness = ({ businessId, cityId, amount }) => invokeFarmBusinessAction('withdraw', { businessId, cityId, amount });
 export const setFarmBusinessAssistant = ({ businessId, cityId, target }) => invokeFarmBusinessAction('assistant_set', { businessId, cityId, target });
 export const setFarmBusinessToolPrice = ({ businessId, cityId, itemType, price }) => invokeFarmBusinessAction('tool_price', { businessId, cityId, itemType, price });
+export const adminSeedFarmBusinessBuckets = ({ businessId, cityId, quantity = 10 }) => invokeFarmBusinessAction('admin_seed_buckets', { businessId, cityId, quantity });
+export const takeFarmBusinessBucket = ({ businessId, cityId, quantity = 1 }) => invokeFarmBusinessAction('take_bucket', { businessId, cityId, quantity });
+export const fillFarmBucketFromBarrel = ({ businessId, cityId, barrelObjectId }) => invokeFarmBusinessAction('fill_bucket', { businessId, cityId, barrelObjectId });
+export const interactFarmWaterTower = ({ businessId, cityId, towerObjectId }) => invokeFarmBusinessAction('tower_interact', { businessId, cityId, towerObjectId });
 export const orderFarmBusinessSupply = ({ businessId, cityId, supplyType, quantity }) => invokeFarmBusinessAction('order_supply', { businessId, cityId, supplyType, quantity });
 export const fillFarmWaterTower = ({ businessId, cityId, liters }) => invokeFarmBusinessAction('fill_tower', { businessId, cityId, liters });
 export const buyFarmBusinessTool = ({ businessId, cityId, itemType }) => invokeFarmBusinessAction('buy_tool', { businessId, cityId, itemType });
