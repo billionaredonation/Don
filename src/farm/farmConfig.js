@@ -37,6 +37,7 @@ export const FARM_ITEMS = Object.freeze({
   farm_rake: Object.freeze({ itemType: 'farm_rake', label: 'Грабли', price: 100, minPrice: 100, kind: 'tool', durability: 100, durabilityCost: 2.5 }),
   farm_scissors: Object.freeze({ itemType: 'farm_scissors', label: 'Ножницы', price: 100, minPrice: 100, kind: 'tool', durability: 100, durabilityCost: 2.5 }),
   farm_water_bottle: Object.freeze({ itemType: 'farm_water_bottle', label: 'Вода для полива', price: 5, kind: 'water', waterUses: 2 }),
+  farm_water_bucket: Object.freeze({ itemType: 'farm_water_bucket', label: 'Ведро', icon: '🪣', kind: 'container', waterCapacityLiters: 10 }),
   farm_apple: Object.freeze({ itemType: 'farm_apple', label: 'Яблоко', icon: '🍎', sellPrice: 10, kind: 'harvest' }),
   farm_wheat: Object.freeze({ itemType: 'farm_wheat', label: 'Пшеница', icon: '🌾', sellPrice: 35, kind: 'harvest' }),
   farm_orange: Object.freeze({ itemType: 'farm_orange', label: 'Апельсин', icon: '🍊', sellPrice: 15, kind: 'harvest' }),
@@ -50,4 +51,3 @@ export function getFarmItem(itemType) {
 export function getFarmPlantType(objectType) {
   return FARM_PLANT_TYPES[String(objectType || '').trim()] || null;
 }
-
