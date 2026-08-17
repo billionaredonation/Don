@@ -11,7 +11,6 @@ import {
   loadFarmInventory,
   loadFarmMarket,
   loadFarmPlantStates,
-  loadFarmWaterAvailability,
   interactFarmWaterTower,
   orderFarmBusinessSupply,
   purchaseFarmBusiness,
@@ -826,17 +825,11 @@ export function enableFarmFeature({ root, cityId } = {}) {
       return;
     }
     if (next.action === 'water') {
-      try {
-        const availability = await loadFarmWaterAvailability();
-        if (availability?.hasWater !== true) {
-          emitToast('Нужна техническая вода. Подойдите к водонапорной башне, привязанной к этой ферме, и наберите воду.', 'error');
-          return;
-        }
-      } catch (error) {
-        emitToast(getFarmUserErrorMessage(error), 'error');
-        return;
-      }
-
+      // Не делаем отдельную проверку water_status перед мини-игрой.
+      // Источник истины — серверная farm_water_plot: именно она проверяет и
+      // расходует техническую воду, которую игрок набрал из башни.
+      // Старый water_status мог видеть устаревший/неполный снимок inventory и
+      // ложно блокировал полив сразу после успешного набора воды.
       const result = await runMiniGameAction(
         'water',
         (miniGameScore) => waterFarmPlant({ ...request, miniGameScore }),
