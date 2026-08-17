@@ -1280,3 +1280,15 @@ body.admin-mode .admin-panel,
     border-radius: 6px;
   }
 }
+
+/* Farm business link editor */
+.admin-farm-business-wrap {
+  margin: 8px 0 10px;
+  padding: 10px;
+  border: 1px solid rgba(140, 206, 159, .14);
+  border-radius: 12px;
+  background: rgba(89, 158, 108, .055);
+}
+.admin-farm-business-wrap[hidden] { display: none !important; }
+.admin-farm-business-wrap .admin-editor-title { color: rgba(210, 243, 219, .86); }
+.admin-farm-business-id:disabled { opacity: .68; cursor: not-allowed; }
