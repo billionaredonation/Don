@@ -50,3 +50,4 @@ export function getFarmItem(itemType) {
 export function getFarmPlantType(objectType) {
   return FARM_PLANT_TYPES[String(objectType || '').trim()] || null;
 }
+
