@@ -218,13 +218,23 @@ export const MAP_OBJECT_TYPES = {
   farm_station: {
     type: 'farm_station',
     category: MAP_OBJECT_CATEGORIES.JOB,
-    label: 'Ферма · снабжение',
+    label: 'Ферма · предприятие ООО',
     icon: '👨‍🌾',
     defaultScale: 1,
     defaultRotation: 0,
     defaultAsset: 'job_farm_station_01',
     defaultWidth: 2.6,
     defaultHeight: 2.2,
+  },
+
+  farm_water_tower: {
+    type: 'farm_water_tower',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Ферма · водонапорная башня',
+    icon: '🚰',
+    defaultScale: 1.15,
+    defaultRotation: 0,
+    defaultAsset: '',
   },
 
   farm_wheat_plant: {
@@ -530,6 +540,26 @@ export function createMapObjectDraft({
     basePayload.serverOwned = true;
     basePayload.publicAccess = true;
     basePayload.visible = basePayload.visible ?? true;
+  }
+
+  if (config.type === 'farm_station') {
+    basePayload.farmBusiness = true;
+    basePayload.farmBusinessId = objectId;
+    basePayload.farm_business_id = objectId;
+    basePayload.legalForm = 'ooo';
+    basePayload.legalFormLabel = 'ООО';
+    basePayload.price = 1_000_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
+  if (config.type === 'farm_water_tower') {
+    basePayload.towerCapacityLiters = 500;
+    basePayload.tower_capacity_liters = 500;
   }
 
   return {
