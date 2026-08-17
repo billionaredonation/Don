@@ -718,8 +718,13 @@ export function enableFarmFeature({ root, cityId } = {}) {
   }
 
   function setTab(tab) {
+    if (modal) modal.dataset.activeTab = String(tab || 'tools');
     tabButtons.forEach((button) => { button.dataset.active = button.dataset.farmTab === tab ? 'true' : 'false'; });
-    tabPages.forEach((page) => { page.hidden = page.dataset.farmPage !== tab; });
+    tabPages.forEach((page) => {
+      const active = page.dataset.farmPage === tab;
+      page.hidden = !active;
+      if (active) page.scrollTop = 0;
+    });
     if (tab === 'sell') void refreshMarket({ silent: true });
     if (tab === 'business') void refreshBusiness({ silent: true });
   }
