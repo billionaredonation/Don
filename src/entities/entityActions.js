@@ -121,6 +121,7 @@ export function getEntityMetaText(object) {
   if (kind === 'job') {
     if (type === 'farm_station') return 'Фермерское ООО · инструменты, скупщик и управление';
     if (type === 'farm_water_tower') return 'Ферма · водонапорная башня · 500 л';
+    if (type === 'farm_water_barrel') return 'Ферма · бесконечная вода · наполнение ведер';
     if (type === 'farm_wheat_plant') return 'Ферма · растение пшеницы';
     if (type === 'farm_apple_plant') return 'Ферма · яблоня';
     if (type === 'farm_orange_plant') return 'Ферма · апельсиновое дерево';
