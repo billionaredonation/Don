@@ -169,14 +169,44 @@ function mergeToolDurability(inventory, toolsResult) {
   return { ...(payload || {}), items };
 }
 
+function mergeTechnicalWater(inventory, waterStatus) {
+  const payload = inventory?.inventory && typeof inventory.inventory === 'object' ? inventory.inventory : inventory;
+  const baseItems = Array.isArray(payload?.items) ? payload.items.map((item) => ({ ...item })) : [];
+
+  // Technical irrigation water is no longer stored through the legacy farm_buy_item()
+  // path. Remove any old/stale bottle from the legacy inventory snapshot and expose
+  // one virtual item backed by farm_player_irrigation_water instead.
+  const items = baseItems.filter((item) => String(item?.itemType || item?.item_type || '') !== 'farm_water_bottle');
+  const waterUses = Math.max(0, Math.floor(Number(waterStatus?.waterUses ?? waterStatus?.water_uses ?? 0)));
+  if (waterUses > 0) {
+    items.push({
+      itemType: 'farm_water_bottle',
+      label: 'Вода для полива',
+      icon: '💧',
+      quantity: 1,
+      waterUses,
+      technical: true,
+      source: 'personal',
+    });
+  }
+
+  return { ...(payload || {}), items };
+}
+
 export async function loadFarmInventory() {
   const inventory = await invokeFarmAction('inventory');
-  try {
-    const tools = await invokeFarmBusinessAction('player_tools');
-    return mergeToolDurability(inventory, tools);
-  } catch {
-    return inventory;
-  }
+  const [toolsResult, waterResult] = await Promise.allSettled([
+    invokeFarmBusinessAction('player_tools'),
+    invokeFarmBusinessAction('water_status'),
+  ]);
+
+  const withTools = toolsResult.status === 'fulfilled'
+    ? mergeToolDurability(inventory, toolsResult.value)
+    : inventory;
+
+  return waterResult.status === 'fulfilled'
+    ? mergeTechnicalWater(withTools, waterResult.value)
+    : withTools;
 }
 
 export async function loadFarmWaterAvailability() {
