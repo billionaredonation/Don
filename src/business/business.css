@@ -151,7 +151,11 @@
 .mn-business-warehouse-list article strong { font-size: 11px; }
 .mn-business-warehouse-list article small { color: #7d8975; font-size: 8px; }
 .mn-business-warehouse-list article > b { color: #cbeaa4; font-size: 11px; white-space: nowrap; }
-.mn-business-employee-form { display: grid; grid-template-columns: 1fr 150px auto; gap: 7px; padding: 12px 14px; }
+.mn-business-employee-form { display: grid; grid-template-columns: minmax(0,1fr) minmax(0, 220px) auto; gap: 7px; padding: 12px 14px; }
+.mn-business-role-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mn-business-role-picker > button { min-height: 38px; padding: 0 10px; border-radius: 11px; font-size: 10px; }
+.mn-business-role-picker > button.is-active { border-color: rgba(181,228,93,.38); color: #eff9dd; background: rgba(163,211,78,.18); box-shadow: inset 0 0 0 1px rgba(181,228,93,.16); }
+.mn-business-employee-form > input[type="hidden"] { display: none; }
 .mn-business-employees { display: grid; gap: 6px; padding: 0 14px; }
 .mn-business-employees article, .mn-business-found-player { display: flex; align-items: center; gap: 9px; padding: 9px; border: 1px solid rgba(255,255,255,.06); border-radius: 12px; background: rgba(255,255,255,.025); }
 .mn-business-employees article > i, .mn-business-found-player > i { font-style: normal; }
@@ -469,7 +473,8 @@
   .mn-business-warehouse-list article strong { font-size: 13px; }
   .mn-business-warehouse-list article small { font-size: 10px; }
   .mn-business-warehouse-list article > b { font-size: 12px; }
-  .mn-business-employee-form { grid-template-columns: minmax(0, 1fr) 145px auto; gap: 9px; padding: 12px 14px; }
+  .mn-business-employee-form { grid-template-columns: minmax(0, 1fr) minmax(0, 210px) auto; gap: 9px; padding: 12px 14px; }
+  .mn-business-role-picker > button { min-height: 42px; font-size: 12px; }
   .mn-business-employees,
   .mn-business-tax-summary,
   .mn-business-profit-summary { padding-left: 14px; padding-right: 14px; }
@@ -537,10 +542,15 @@
    game surface itself. In that mode the ordinary touch scale is far too large,
    so use the real landscape space instead of rendering a stretched phone UI. */
 @media (orientation: portrait) and (max-width: 920px) {
-  :is(html, body).mn-force-rotate-landscape .mn-business-store { padding: 3px !important; }
+  :is(html, body).mn-force-rotate-landscape .mn-business-store {
+    padding: 4px 30px 6px 4px !important;
+    box-sizing: border-box;
+  }
   :is(html, body).mn-force-rotate-landscape .mn-business-store-shell {
-    width: 100% !important;
+    width: calc(100% - 26px) !important;
+    max-width: calc(100% - 26px) !important;
     height: 100% !important;
+    margin-right: auto;
     border-radius: 11px !important;
   }
   :is(html, body).mn-force-rotate-landscape .mn-business-store-header {
@@ -810,6 +820,15 @@
     gap: 4px;
     padding: 5px 7px;
   }
+  :is(html, body).mn-force-rotate-landscape .mn-business-role-picker {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-business-role-picker > button {
+    min-height: 28px;
+    font-size: 8px;
+    border-radius: 7px;
+  }
   :is(html, body).mn-force-rotate-landscape .mn-business-employee-form > button {
     grid-column: auto;
     min-height: 29px;
@@ -826,6 +845,18 @@
 }
 
 /* Mobile business drawer hardening: use the rotated game viewport, not the physical portrait viewport. */
+body.mn-mobile-game-enabled .mn-business-store {
+  padding: 5px 16px 8px 5px;
+  box-sizing: border-box;
+}
+
+body.mn-mobile-game-enabled .mn-business-store-shell {
+  width: calc(100% - 12px);
+  max-width: calc(100% - 12px);
+  height: calc(100% - 2px);
+  margin-right: auto;
+}
+
 body.mn-mobile-game-enabled .mn-business-drawer {
   position: absolute;
   inset: auto 6px 48px auto;
@@ -848,6 +879,10 @@ body.mn-mobile-game-enabled .mn-business-drawer.is-management {
   inset: auto 6px 48px auto;
   width: clamp(235px, 30%, 300px);
   max-height: min(58%, 300px);
+}
+
+body.mn-mobile-game-enabled .mn-business-store-footer {
+  padding-right: max(10px, env(safe-area-inset-right));
 }
 
 body.mn-mobile-game-enabled .mn-business-drawer > header {
@@ -1028,12 +1063,24 @@ body.mn-mobile-game-enabled .mn-business-warehouse-list article > b {
 }
 
 body.mn-mobile-game-enabled .mn-business-employee-form {
-  grid-template-columns: minmax(0, 1fr) minmax(105px, .65fr);
+  grid-template-columns: 1fr;
   gap: 5px;
   padding: 7px 9px;
 }
 
-body.mn-mobile-game-enabled .mn-business-employee-form > input {
+body.mn-mobile-game-enabled .mn-business-role-picker {
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+body.mn-mobile-game-enabled .mn-business-role-picker > button {
+  min-height: 34px;
+  padding-inline: 8px;
+  font-size: 9px;
+  border-radius: 8px;
+}
+
+body.mn-mobile-game-enabled .mn-business-employee-form > input:not([type="hidden"]) {
   grid-column: 1 / -1;
 }
 
@@ -1087,3 +1134,65 @@ body.mn-mobile-game-enabled .mn-business-procurement-preview > span {
   max-height: min(56%, 275px);
 }
 
+
+/* Mobile business v2: keep the rotated Telegram chrome outside the store and
+   keep the staff role choice inside the game UI instead of a native popup. */
+@media (orientation: portrait) and (max-width: 920px) {
+  :is(html, body).mn-force-rotate-landscape .mn-business-store {
+    /* The physical Telegram top bar becomes the logical LEFT edge after rotate(90deg). */
+    --mn-business-telegram-guard: max(104px, calc(env(safe-area-inset-top) + 68px));
+    display: grid;
+    place-items: center;
+    box-sizing: border-box !important;
+    padding: 8px 10px 8px var(--mn-business-telegram-guard) !important;
+    background: rgba(2, 5, 3, .78);
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-shell {
+    width: min(1060px, 100%) !important;
+    height: min(500px, 100%) !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: auto !important;
+    border-radius: 13px !important;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-shell > div,
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-main {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-main {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 24%);
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-header,
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-footer {
+    position: relative;
+    z-index: 6;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-store-footer > button {
+    pointer-events: auto;
+    touch-action: manipulation;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-employee-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-role-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 4px;
+    width: 100%;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-business-role-picker > button {
+    min-height: 30px;
+    padding: 0 6px;
+    border-radius: 7px;
+    font-size: 8px;
+    touch-action: manipulation;
+  }
+}
