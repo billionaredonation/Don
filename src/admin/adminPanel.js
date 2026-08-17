@@ -273,7 +273,7 @@ export function enableAdminPanel({
         ID бизнеса фермы
         <input class="admin-input admin-farm-business-id" maxlength="100" placeholder="ID объекта «Ферма · предприятие ООО»" />
       </label>
-      <small class="admin-help" data-admin-farm-link-help>Для растений и водонапорной башни укажите ID объекта фермы. Доход 300 ₴ и вода будут идти именно в этот бизнес.</small>
+      <small class="admin-help" data-admin-farm-link-help>Для растений, водонапорной башни и бесконечной бочки укажите ID объекта фермы. Урожай, вода и доход 300 ₴ будут идти именно в этот бизнес.</small>
     </div>
 
     <div class="admin-row">
@@ -403,7 +403,7 @@ export function enableAdminPanel({
   }
 
   function isFarmBusinessLinkType(type = selectedType) {
-    return type === 'farm_station' || type === 'farm_water_tower' || /^farm_(wheat|apple|orange|corn)_plant$/.test(String(type || ''));
+    return type === 'farm_station' || type === 'farm_water_tower' || type === 'farm_water_barrel' || /^farm_(wheat|apple|orange|corn)_plant$/.test(String(type || ''));
   }
 
   function getFarmBusinessLink(object = {}) {
@@ -441,8 +441,8 @@ export function enableAdminPanel({
       : String(payload.farmBusinessId || payload.farm_business_id || '').trim();
     farmBusinessIdInput.placeholder = isStation ? 'ID появится после установки объекта' : 'ID объекта «Ферма · предприятие ООО»';
     if (farmBusinessLinkHelp) farmBusinessLinkHelp.textContent = isStation
-      ? 'Этот объект сам является бизнесом фермы: его ID автоматически используется для башни и всех участков.'
-      : 'Обязательно укажите ID объекта «Ферма · предприятие ООО». Доход 300 ₴ и вода будут привязаны к нему. На одну ферму допускается одна башня 500 л.';
+      ? 'Этот объект сам является бизнесом фермы: его ID автоматически используется для башни, бочки и всех участков.'
+      : 'Обязательно укажите ID объекта «Ферма · предприятие ООО». Башня, бесконечная бочка, участки и доход 300 ₴ будут работать только с этим бизнесом. На одну ферму допускается одна башня 500 л.';
   }
 
   function syncJobSizeInputs(object = null) {
