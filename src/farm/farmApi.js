@@ -2,6 +2,7 @@ import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 
 const FARM_FUNCTION_NAME = 'farm-work';
+const FARM_BUSINESS_FUNCTION_NAME = 'farm-business';
 
 function telegramInitData() {
   return String(window.Telegram?.WebApp?.initData || '').trim();
@@ -45,17 +46,40 @@ export function getFarmUserErrorMessage(error) {
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.',
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела. Перезапустите мини-приложение.',
     SERVER_NOT_CONFIGURED: 'Сервер фермы не настроен.',
-    UNKNOWN_ACTION: 'Edge Function farm-work не обновлена.',
+    UNKNOWN_ACTION: 'Edge Function фермы не обновлена.',
     FARM_DATABASE_MIGRATION_REQUIRED: 'Сначала примените новую SQL-миграцию фермы, затем обновите Edge Function farm-work.',
+    FARM_BUSINESS_DATABASE_MIGRATION_REQUIRED: 'Примените SQL-миграцию фермерского бизнеса и задеплойте Edge Function farm-business.',
     PLAYER_NOT_FOUND: 'Игрок не найден.',
     PLAYER_POSITION_NOT_FOUND: 'Позиция игрока не найдена. Перезайдите в город.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
+    NOT_ENOUGH_MONEY: 'Недостаточно денег.',
     FARM_TOOL_ALREADY_OWNED: 'Этот инструмент у вас уже есть.',
-    FARM_WATER_BOTTLE_ALREADY_OWNED: 'У вас уже есть вода для полива. Сначала используйте оставшиеся заряды.',
+    FARM_TOOL_STILL_USABLE: 'Этот инструмент ещё не сломан. Новый пока не нужен.',
+    FARM_TOOL_OUT_OF_STOCK: 'На складе фермы закончился этот инструмент. Владелец должен заказать поставку.',
+    FARM_TOOL_DURABILITY_REQUIRED: 'Для старого инструмента ещё не создана прочность. Откройте лавку фермы один раз.',
+    FARM_TOOL_BROKEN: 'Инструмент сломан. Купите новый в фермерской лавке.',
+    FARM_TOOL_PRICE_MIN_100: 'Цена инструмента не может быть ниже 100 ₴.',
+    FARM_WATER_BOTTLE_ALREADY_OWNED: 'У вас уже набрана вода для полива. Сначала используйте оставшиеся заряды.',
     FARM_WATER_STATUS_UNAVAILABLE: 'Не удалось проверить запас воды. Попробуйте ещё раз.',
+    FARM_TOWER_EMPTY: 'Водонапорная башня пуста. Владелец или помощник должен пополнить её.',
+    FARM_TOWER_REQUIRED: 'Сначала администратор должен установить и привязать к ферме водонапорную башню.',
+    FARM_TOWER_NOT_LINKED: 'Башня не привязана к этой ферме. Администратор должен указать ID фермы.',
+    FARM_WATER_NOTHING_TO_FILL: 'Нечего заливать: либо резерв воды пуст, либо башня уже заполнена.',
+    FARM_WATER_AMOUNT_INVALID: 'Укажите корректное количество воды.',
+    FARM_BUSINESS_NOT_FOUND: 'Фермерское предприятие не найдено.',
+    FARM_BUSINESS_ALREADY_OWNED: 'Эта ферма уже принадлежит игроку.',
+    FARM_BUSINESS_NOT_OWNED: 'Ферма ещё не куплена.',
+    FARM_BUSINESS_OWNER_REQUIRED: 'Это действие доступно только владельцу фермы.',
+    FARM_BUSINESS_STAFF_REQUIRED: 'Пополнять башню может только владелец или помощник.',
+    FARM_BUSINESS_CASH_NOT_ENOUGH: 'На балансе фермы недостаточно денег.',
+    FARM_BUSINESS_AMOUNT_INVALID: 'Введите корректную сумму.',
+    FARM_ASSISTANT_NOT_FOUND: 'Игрок для должности помощника не найден.',
+    FARM_BUSINESS_SELF_ASSISTANT: 'Владельца нельзя назначить своим помощником.',
+    FARM_SUPPLY_QUANTITY_INVALID: 'Укажите корректное количество поставки.',
+    FARM_PLANT_BUSINESS_MISMATCH: 'Этот участок привязан к другой ферме или не привязан вообще.',
     FARM_RAKE_REQUIRED: 'Сначала купите грабли на точке снабжения.',
     FARM_SCISSORS_REQUIRED: 'Сначала купите ножницы на точке снабжения.',
-    FARM_WATER_REQUIRED: 'Нужна вода. Подойдёт вода с фермы или бутылка из столовой.',
+    FARM_WATER_REQUIRED: 'Нужна вода. Наберите её в водонапорной башне фермы.',
     FARM_PLANT_NOT_FOUND: 'Растение не найдено. Возможно, объект удалён администратором.',
     FARM_PLANT_TOO_FAR: 'Подойдите ближе к растению.',
     FARM_PLANT_STAGE_INVALID: 'Сейчас растению нужно другое действие.',
@@ -96,25 +120,53 @@ export function getFarmUserErrorMessage(error) {
   return code ? messages[code] : raw;
 }
 
-export async function invokeFarmAction(action, payload = {}) {
+async function invokeFunction(functionName, action, payload = {}) {
   const initData = telegramInitData();
   if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
-
-  const { data, error } = await supabase.functions.invoke(FARM_FUNCTION_NAME, {
+  const { data, error } = await supabase.functions.invoke(functionName, {
     body: { initData, action, ...payload },
   });
-
   if (error) throw await normalizeError(error);
   if (!data?.ok) throw new Error(data?.error || data?.reason || 'FARM_REQUEST_FAILED');
   return data.result;
 }
 
+export function invokeFarmAction(action, payload = {}) {
+  return invokeFunction(FARM_FUNCTION_NAME, action, payload);
+}
+
+export function invokeFarmBusinessAction(action, payload = {}) {
+  return invokeFunction(FARM_BUSINESS_FUNCTION_NAME, action, payload);
+}
+
+function mergeToolDurability(inventory, toolsResult) {
+  const payload = inventory?.inventory && typeof inventory.inventory === 'object' ? inventory.inventory : inventory;
+  const items = Array.isArray(payload?.items) ? payload.items.map((item) => ({ ...item })) : [];
+  const toolRows = Array.isArray(toolsResult?.items) ? toolsResult.items : [];
+  const byType = new Map(toolRows.map((item) => [String(item.itemType || item.item_type), item]));
+  items.forEach((item) => {
+    const tool = byType.get(String(item.itemType || item.item_type || ''));
+    if (tool) {
+      item.durability = Number(tool.durability);
+      item.maxDurability = Number(tool.maxDurability || 100);
+      item.broken = Number(tool.durability) <= 0;
+    }
+  });
+  return { ...(payload || {}), items };
+}
+
 export async function loadFarmInventory() {
-  return invokeFarmAction('inventory');
+  const inventory = await invokeFarmAction('inventory');
+  try {
+    const tools = await invokeFarmBusinessAction('player_tools');
+    return mergeToolDurability(inventory, tools);
+  } catch {
+    return inventory;
+  }
 }
 
 export async function loadFarmWaterAvailability() {
-  return invokeFarmAction('water_status');
+  return invokeFarmBusinessAction('water_status');
 }
 
 export async function loadPlayerSkills() {
@@ -125,6 +177,7 @@ export async function addRunningSkillXp(xp) {
   return invokeFarmAction('running_xp', { xp });
 }
 
+// Оставлено для совместимости с другими участками кода. Лавка фермы больше не вызывает эту функцию напрямую.
 export async function buyFarmItem(itemType) {
   return invokeFarmAction('buy', { itemType });
 }
@@ -133,16 +186,16 @@ export async function loadFarmPlantStates(cityId) {
   return invokeFarmAction('plants', { cityId });
 }
 
-export async function weedFarmPlant({ cityId, plantObjectId, miniGameScore = 0 }) {
-  return invokeFarmAction('weed', { cityId, plantObjectId, miniGameScore });
+export async function weedFarmPlant({ cityId, businessId, plantObjectId, miniGameScore = 0 }) {
+  return invokeFarmBusinessAction('plant_work', { cityId, businessId, plantObjectId, plantAction: 'weed', miniGameScore });
 }
 
-export async function waterFarmPlant({ cityId, plantObjectId, miniGameScore = 0 }) {
-  return invokeFarmAction('water', { cityId, plantObjectId, miniGameScore });
+export async function waterFarmPlant({ cityId, businessId, plantObjectId, miniGameScore = 0 }) {
+  return invokeFarmBusinessAction('plant_work', { cityId, businessId, plantObjectId, plantAction: 'water', miniGameScore });
 }
 
-export async function harvestFarmPlant({ cityId, plantObjectId, miniGameScore = 0 }) {
-  return invokeFarmAction('harvest', { cityId, plantObjectId, miniGameScore });
+export async function harvestFarmPlant({ cityId, businessId, plantObjectId, miniGameScore = 0 }) {
+  return invokeFarmBusinessAction('plant_work', { cityId, businessId, plantObjectId, plantAction: 'harvest', miniGameScore });
 }
 
 export async function loadFarmMarket({ cityId, buyerObjectId }) {
@@ -150,5 +203,22 @@ export async function loadFarmMarket({ cityId, buyerObjectId }) {
 }
 
 export async function sellFarmItem({ cityId, buyerObjectId, itemType, quantity = 1 }) {
-  return invokeFarmAction('sell', { cityId, buyerObjectId, itemType, quantity });
+  return invokeFarmBusinessAction('sell_crop', {
+    cityId,
+    businessId: buyerObjectId,
+    buyerObjectId,
+    itemType,
+    quantity,
+  });
 }
+
+export const loadFarmBusinessSnapshot = ({ businessId, cityId }) => invokeFarmBusinessAction('snapshot', { businessId, cityId });
+export const purchaseFarmBusiness = ({ businessId, cityId }) => invokeFarmBusinessAction('purchase', { businessId, cityId });
+export const depositFarmBusiness = ({ businessId, cityId, amount }) => invokeFarmBusinessAction('deposit', { businessId, cityId, amount });
+export const withdrawFarmBusiness = ({ businessId, cityId, amount }) => invokeFarmBusinessAction('withdraw', { businessId, cityId, amount });
+export const setFarmBusinessAssistant = ({ businessId, cityId, target }) => invokeFarmBusinessAction('assistant_set', { businessId, cityId, target });
+export const setFarmBusinessToolPrice = ({ businessId, cityId, itemType, price }) => invokeFarmBusinessAction('tool_price', { businessId, cityId, itemType, price });
+export const orderFarmBusinessSupply = ({ businessId, cityId, supplyType, quantity }) => invokeFarmBusinessAction('order_supply', { businessId, cityId, supplyType, quantity });
+export const fillFarmWaterTower = ({ businessId, cityId, liters }) => invokeFarmBusinessAction('fill_tower', { businessId, cityId, liters });
+export const buyFarmBusinessTool = ({ businessId, cityId, itemType }) => invokeFarmBusinessAction('buy_tool', { businessId, cityId, itemType });
+export const takeFarmWaterFromTower = ({ businessId, cityId, towerObjectId }) => invokeFarmBusinessAction('take_water', { businessId, cityId, towerObjectId });
