@@ -43,6 +43,31 @@ const FARM_STATE_REFRESH_MS = 5000;
 const FARM_INVENTORY_REFRESH_MS = 12000;
 const FARM_RAKE_ASSET_URL = `${String(import.meta.env.BASE_URL || '/')}grabl.png`;
 
+const FREE_TOWER_WATER_BALANCE_GUARD_KEY = '__MN_FREE_TOWER_WATER_BALANCE_GUARD__';
+const FREE_TOWER_WATER_LEGACY_PRICE = 5;
+const FREE_TOWER_WATER_BALANCE_GUARD_MS = 4000;
+
+function armFreeTowerWaterBalanceGuard() {
+  const currentBalance = Number(state.player?.balance);
+  window[FREE_TOWER_WATER_BALANCE_GUARD_KEY] = {
+    reason: 'farm_tower_free_water',
+    legacyPrice: FREE_TOWER_WATER_LEGACY_PRICE,
+    expectedBalance: Number.isFinite(currentBalance) ? currentBalance : null,
+    phase: 'armed',
+    originalBalance: null,
+    deductedBalance: null,
+    transitions: [],
+    expiresAt: Date.now() + FREE_TOWER_WATER_BALANCE_GUARD_MS,
+  };
+}
+
+function finishFreeTowerWaterBalanceGuardSoon() {
+  const guard = window[FREE_TOWER_WATER_BALANCE_GUARD_KEY];
+  if (!guard || guard.reason !== 'farm_tower_free_water') return;
+  guard.requestFinishedAt = Date.now();
+  guard.expiresAt = Math.max(Number(guard.expiresAt) || 0, Date.now() + 1200);
+}
+
 function isFarmPlantObject(object = {}) {
   const type = String(object.type || object?.payload?.jobType || '');
   return Boolean(getFarmPlantType(type));
@@ -907,6 +932,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
       return;
     }
     busy = true;
+    armFreeTowerWaterBalanceGuard();
     try {
       const result = await interactFarmWaterTower({
         businessId,
@@ -923,6 +949,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     } catch (error) {
       emitToast(getFarmUserErrorMessage(error), 'error');
     } finally {
+      finishFreeTowerWaterBalanceGuardSoon();
       busy = false;
       renderInventory();
     }
@@ -1070,4 +1097,3 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
-
