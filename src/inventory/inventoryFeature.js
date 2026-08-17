@@ -800,22 +800,20 @@ export function enableInventoryFeature() {
     }
 
     if (itemType === 'farm_rake' || itemType === 'farm_scissors') {
-      return `${getItemLabel(item)} · постоянный инструмент.\n${sourceLabel}.\nПрочность в прототипе не расходуется.`;
+      const durability = Number(item.durability);
+      const durabilityText = Number.isFinite(durability)
+        ? `${Math.max(0, durability).toFixed(durability % 1 ? 1 : 0)} / 100`
+        : 'нужно активировать в лавке';
+      return `${getItemLabel(item)} · инструмент фермы.\n${sourceLabel}.\nПрочность: ${durabilityText}. Каждый обработанный куст расходует 2.5 прочности.`;
     }
 
     if (itemType === 'farm_water_bottle') {
       const uses = Number(item.waterUses || 0);
-      return `${getItemLabel(item)} · ${quantity} бут.\n${sourceLabel}.\nТехническая вода с пестицидами: пить нельзя, только для полива.\nОсталось поливов: ${uses}. Одна бутылка даёт 2 полива.`;
+      return `${getItemLabel(item)} · ${quantity} бут.\n${sourceLabel}.\nТехническая вода из водонапорной башни: пить нельзя, только для полива.\nОсталось поливов: ${uses}. Один набранный литр даёт 2 полива.`;
     }
 
     if (['farm_apple', 'farm_wheat', 'farm_orange', 'farm_corn'].includes(itemType)) {
-      const price = {
-        farm_apple: 10,
-        farm_wheat: 35,
-        farm_orange: 15,
-        farm_corn: 30,
-      }[itemType] || 0;
-      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nМожно продать фермеру по ${price} ₴ за штуку.`;
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nМожно продать фермерскому предприятию или другому игроку. Выплата скупщика идёт с баланса конкретной фермы.`;
     }
 
     if (itemType === 'mine_tool_pickaxe') {
@@ -1148,7 +1146,7 @@ export function enableInventoryFeature() {
     }
 
     if (itemType === 'farm_water_bottle') {
-      const message = 'Это техническая вода с пестицидами. Пить её нельзя — только поливать растения.';
+      const message = 'Это техническая вода из водонапорной башни. Пить её нельзя — только поливать растения.';
       setItemMenuNotice(message, 'error');
       window.dispatchEvent(new CustomEvent('mn:toast', {
         detail: { type: 'error', message },
