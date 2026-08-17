@@ -1822,3 +1822,380 @@ body.mn-farm-modal-open { overflow: hidden; }
   .mn-farm-water-cargo { grid-template-columns: 1fr; }
   .mn-farm-business-inline { flex-wrap: wrap; }
 }
+
+/* Farm modal mobile re-adaptation ----------------------------------------- */
+/* The farm now has a third (management) section. Keep all three tabs on one
+   row and make the long management screen use the scrollable content area
+   instead of growing the whole dialog. */
+.mn-farm-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mn-farm-tab-page {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(151, 205, 166, .28) transparent;
+}
+.mn-farm-tab-page::-webkit-scrollbar { width: 4px; }
+.mn-farm-tab-page::-webkit-scrollbar-track { background: transparent; }
+.mn-farm-tab-page::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(151, 205, 166, .28);
+}
+
+@media (max-width: 760px), (hover: none) and (pointer: coarse), (orientation: landscape) and (max-height: 520px) {
+  .mn-farm-modal {
+    overscroll-behavior: none;
+  }
+
+  .mn-farm-panel {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .mn-farm-panel > header {
+    gap: 7px;
+  }
+  .mn-farm-panel > header > span {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .mn-farm-panel > header > span > small,
+  .mn-farm-panel > header > span > strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mn-farm-business-role {
+    flex: 0 0 auto;
+    max-width: 112px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mn-farm-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex: 0 0 auto;
+  }
+  .mn-farm-tabs button {
+    min-width: 0;
+    padding-inline: 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    touch-action: manipulation;
+  }
+
+  .mn-farm-tab-page {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-gutter: stable;
+  }
+
+  .mn-farm-tab-page button,
+  .mn-farm-tab-page input {
+    touch-action: manipulation;
+  }
+
+  /* The workflow hint is useful in the worker screens, but on the management
+     tab it only steals scarce vertical space. Owner income remains visible in
+     the owner-only KPI inside management. */
+  .mn-farm-modal[data-active-tab='business'] .mn-farm-cycle-guide {
+    display: none;
+  }
+
+  .mn-farm-business-page {
+    gap: 5px;
+    padding-bottom: 8px;
+  }
+
+  .mn-farm-business-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .mn-farm-business-summary article {
+    min-width: 0;
+    min-height: 50px;
+    padding: 5px 6px;
+  }
+  .mn-farm-business-summary small { font-size: 6.5px; }
+  .mn-farm-business-summary strong {
+    overflow: hidden;
+    font-size: 10.5px;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mn-farm-business-summary span {
+    overflow: hidden;
+    font-size: 7px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mn-farm-business-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .mn-farm-business-kpis > span {
+    min-width: 0;
+    padding: 5px 6px;
+  }
+  .mn-farm-business-kpis small { font-size: 6.5px; }
+  .mn-farm-business-kpis b {
+    overflow: hidden;
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mn-farm-business-management {
+    gap: 5px;
+  }
+  .mn-farm-business-management > section {
+    min-width: 0;
+    gap: 5px;
+    padding: 6px;
+    border-radius: 9px;
+  }
+  .mn-farm-business-management h4 { font-size: 9px; }
+  .mn-farm-business-management section > small {
+    font-size: 6.8px;
+    line-height: 1.25;
+  }
+
+  .mn-farm-business-inline {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 5px;
+    align-items: center;
+  }
+  .mn-farm-business-inline input {
+    width: 100%;
+    min-width: 0;
+  }
+  .mn-farm-business-inline button {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+  .mn-farm-business-inline > button:only-child {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .mn-farm-supply-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .mn-farm-supply-grid label {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px;
+    padding: 5px;
+  }
+  .mn-farm-supply-grid label > span {
+    overflow: hidden;
+    font-size: 7.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mn-farm-supply-grid input,
+  .mn-farm-supply-grid button,
+  .mn-farm-business-inline input,
+  .mn-farm-business-inline button {
+    height: 29px;
+    min-height: 29px;
+    font-size: 8px;
+  }
+
+  .mn-farm-warehouse-head {
+    gap: 6px;
+  }
+  .mn-farm-warehouse-head > span {
+    min-width: 0;
+  }
+  .mn-farm-warehouse-head h4,
+  .mn-farm-warehouse-head small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mn-farm-warehouse-head > b {
+    padding: 4px 6px;
+    font-size: 8px;
+  }
+  .mn-farm-warehouse-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .mn-farm-warehouse-grid > span {
+    min-width: 0;
+    min-height: 31px;
+    grid-template-columns: 17px minmax(0, 1fr) auto;
+    gap: 3px;
+    padding: 3px 4px;
+  }
+  .mn-farm-warehouse-grid i { font-size: 13px; }
+  .mn-farm-warehouse-grid small { font-size: 6.5px; }
+  .mn-farm-warehouse-grid b { font-size: 8px; }
+
+  .mn-farm-water-cargo {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .mn-farm-water-cargo > span {
+    min-width: 0;
+    padding: 4px 5px;
+    overflow: hidden;
+    font-size: 7px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Physical portrait Telegram WebView rotated by telegramGameShell. The native
+   Telegram top chrome becomes the logical LEFT edge. Reserve that edge so no
+   farm controls end up under "Закрити", the menu button or the status bar. */
+@media (orientation: portrait) and (max-width: 920px) {
+  :is(html, body).mn-force-rotate-landscape .mn-farm-modal {
+    --mn-farm-telegram-guard: max(104px, calc(env(safe-area-inset-top) + 68px));
+    box-sizing: border-box !important;
+    padding:
+      8px
+      max(9px, env(safe-area-inset-right))
+      8px
+      var(--mn-farm-telegram-guard) !important;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-farm-panel {
+    width: min(720px, calc(100dvh - var(--mn-farm-telegram-guard) - 18px)) !important;
+    max-width: 100% !important;
+    max-height: calc(100vw - 16px) !important;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-farm-panel > header {
+    min-height: 38px;
+    padding: 5px 8px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-farm-panel > header small { font-size: 7px; }
+  :is(html, body).mn-force-rotate-landscape .mn-farm-panel > header strong { font-size: 13px; }
+  :is(html, body).mn-force-rotate-landscape .mn-farm-panel > header button {
+    width: 29px;
+    height: 29px;
+    font-size: 17px;
+    touch-action: manipulation;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-farm-business-role {
+    max-width: 90px;
+    padding: 3px 6px;
+    font-size: 7px;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-farm-tabs {
+    gap: 4px;
+    padding: 4px 7px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-farm-tabs button {
+    min-height: 28px;
+    border-radius: 8px;
+    font-size: 9px;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-farm-cycle-guide {
+    min-height: 29px;
+    margin: 0 7px 4px;
+    padding: 3px 6px;
+    gap: 4px;
+    font-size: 8px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-farm-cycle-guide b {
+    width: 17px;
+    height: 17px;
+    font-size: 12px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-farm-cycle-guide b img {
+    width: 16px;
+    height: 16px;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-farm-cycle-guide em {
+    display: none;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-farm-tab-page {
+    gap: 4px;
+    padding: 0 7px 5px;
+    overflow-x: hidden;
+    overflow-y: scroll !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  :is(html, body).mn-force-rotate-landscape .mn-farm-panel > footer {
+    min-height: 22px;
+    padding: 3px 8px 5px;
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 540px) and (orientation: portrait) {
+  html:not(.mn-force-rotate-landscape) .mn-farm-tabs,
+  body:not(.mn-force-rotate-landscape) .mn-farm-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  html:not(.mn-force-rotate-landscape) .mn-farm-business-summary,
+  body:not(.mn-force-rotate-landscape) .mn-farm-business-summary,
+  html:not(.mn-force-rotate-landscape) .mn-farm-business-kpis,
+  body:not(.mn-force-rotate-landscape) .mn-farm-business-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  html:not(.mn-force-rotate-landscape) .mn-farm-business-inline,
+  body:not(.mn-force-rotate-landscape) .mn-farm-business-inline {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  html:not(.mn-force-rotate-landscape) .mn-farm-business-inline > input,
+  body:not(.mn-force-rotate-landscape) .mn-farm-business-inline > input {
+    grid-column: 1 / -1;
+  }
+  html:not(.mn-force-rotate-landscape) .mn-farm-business-inline > button:only-child,
+  body:not(.mn-force-rotate-landscape) .mn-farm-business-inline > button:only-child {
+    grid-column: 1 / -1;
+  }
+
+  html:not(.mn-force-rotate-landscape) .mn-farm-supply-grid,
+  body:not(.mn-force-rotate-landscape) .mn-farm-supply-grid {
+    grid-template-columns: 1fr;
+  }
+
+  html:not(.mn-force-rotate-landscape) .mn-farm-warehouse-grid,
+  body:not(.mn-force-rotate-landscape) .mn-farm-warehouse-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  html:not(.mn-force-rotate-landscape) .mn-farm-water-cargo,
+  body:not(.mn-force-rotate-landscape) .mn-farm-water-cargo {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Owner-only income note: readable on desktop, omitted on compact layouts where
+   the same figure is available in the management KPI. */
+.mn-farm-cycle-guide > em:not([hidden]) {
+  display: block;
+  min-width: 0;
+  margin-left: auto;
+  color: rgba(188, 225, 198, .64);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: right;
+}
+
+@media (max-width: 760px), (hover: none) and (pointer: coarse), (orientation: landscape) and (max-height: 520px) {
+  .mn-farm-cycle-guide > em { display: none !important; }
+  .mn-farm-business-inline > [data-farm-take-bucket] { grid-column: 1 / -1; justify-self: start; }
+}
