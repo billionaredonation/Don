@@ -194,6 +194,13 @@ export async function saveAdminObject({
       nextPatch.payload.towerCapacityLiters = 500;
       nextPatch.payload.tower_capacity_liters = 500;
     }
+
+    if (selectedType === 'farm_water_barrel') {
+      nextPatch.payload.infiniteWater = true;
+      nextPatch.payload.infinite_water = true;
+      nextPatch.payload.bucketFillLiters = 10;
+      nextPatch.payload.bucket_fill_liters = 10;
+    }
   }
 
   if (config.category === 'marker') {
