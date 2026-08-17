@@ -14,6 +14,54 @@ function getPlayerRowId(row = {}) {
 
 const PLAYER_VITAL_FIELDS = Object.freeze(['health', 'food', 'water']);
 
+const FREE_TOWER_WATER_BALANCE_GUARD_KEY = '__MN_FREE_TOWER_WATER_BALANCE_GUARD__';
+
+function shouldSuppressFreeTowerWaterBalanceTransition(row = {}, payload = {}) {
+  const guard = window[FREE_TOWER_WATER_BALANCE_GUARD_KEY];
+  if (!guard || guard.reason !== 'farm_tower_free_water') return false;
+
+  const now = Date.now();
+  if (!Number.isFinite(Number(guard.expiresAt)) || Number(guard.expiresAt) < now) {
+    delete window[FREE_TOWER_WATER_BALANCE_GUARD_KEY];
+    return false;
+  }
+
+  const balance = Number(row?.balance);
+  const oldBalance = Number(payload?.old?.balance);
+  const legacyPrice = Math.max(0, Number(guard.legacyPrice) || 0);
+  if (!Number.isFinite(balance) || !Number.isFinite(oldBalance) || legacyPrice <= 0) return false;
+
+  const transitionKey = `${oldBalance}>${balance}`;
+  const knownTransitions = Array.isArray(guard.transitions) ? guard.transitions : [];
+  if (knownTransitions.includes(transitionKey)) return true;
+
+  const delta = balance - oldBalance;
+  const expectedBalance = Number(guard.expectedBalance);
+
+  if (guard.phase === 'armed' && delta === -legacyPrice) {
+    if (Number.isFinite(expectedBalance) && oldBalance !== expectedBalance) return false;
+    guard.phase = 'deducted';
+    guard.originalBalance = oldBalance;
+    guard.deductedBalance = balance;
+    guard.transitions = [...knownTransitions, transitionKey];
+    return true;
+  }
+
+  if (guard.phase === 'deducted' && delta === legacyPrice) {
+    const originalBalance = Number(guard.originalBalance);
+    const deductedBalance = Number(guard.deductedBalance);
+    if (Number.isFinite(originalBalance) && Number.isFinite(deductedBalance)
+      && oldBalance === deductedBalance && balance === originalBalance) {
+      guard.phase = 'restored';
+      guard.transitions = [...knownTransitions, transitionKey];
+      guard.expiresAt = Math.max(Number(guard.expiresAt) || 0, now + 800);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function getPlayerVitalsFromRow(row = {}) {
   return PLAYER_VITAL_FIELDS.reduce((vitals, field) => {
     const value = Number(row?.[field]);
@@ -231,6 +279,12 @@ export function setupGameRealtime({
     const hasVitals = hasPlayerVitals(row);
 
     if (!hasBalance && !hasVitals) return;
+
+    // Бесплатная техническая вода всё ещё проходит через legacy farm_buy_item():
+    // RPC на мгновение списывает старую цену 5 ₴ и тут же возвращает её.
+    // Это не доход/расход игрока, поэтому не отправляем эту служебную пару
+    // -5/+5 в HUD и не показываем ложную анимацию изменения баланса.
+    if (hasBalance && shouldSuppressFreeTowerWaterBalanceTransition(row, payload)) return;
 
     const signature = createBalanceSignature(row);
 
