@@ -126,13 +126,13 @@ function farmModalMarkup() {
         <nav class="mn-farm-tabs" aria-label="Разделы фермы">
           <button type="button" data-farm-tab="tools" data-active="true">Инструменты</button>
           <button type="button" data-farm-tab="sell">Продажа</button>
-          <button type="button" data-farm-tab="business">Бизнес</button>
+          <button type="button" data-farm-tab="business">Управление</button>
         </nav>
         <div class="mn-farm-cycle-guide" aria-label="Порядок работы на ферме">
           <span><b><img src="${FARM_RAKE_ASSET_URL}" alt=""></b>Прополоть</span>
           <i>→</i><span><b>💧</b>Полить</span>
           <i>→</i><span><b>✂️</b>Собрать</span>
-          <em>Владелец фермы получает ${FARM_PLOT_INCOME} ₴ за каждый завершённый участок.</em>
+          <em data-farm-owner-income-note hidden>Доход владельца: ${FARM_PLOT_INCOME} ₴ за каждый завершённый участок.</em>
         </div>
         <div class="mn-farm-tab-page" data-farm-page="tools">
           <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_rake">
@@ -192,7 +192,7 @@ function farmModalMarkup() {
           </section>
           <div class="mn-farm-business-owned" data-farm-business-owned hidden>
             <div class="mn-farm-business-kpis">
-              <span><small>Доход с участков</small><b data-farm-plot-income>0 ₴</b></span>
+              <span data-farm-owner-income-kpi hidden><small>Доход с участков</small><b data-farm-plot-income>0 ₴</b></span>
               <span><small>Выкуп урожая</small><b data-farm-crop-spend>0 ₴</b></span>
               <span><small>Башня</small><b data-farm-tower-present>не установлена</b></span>
               <span><small>Склад урожая</small><b><em data-farm-warehouse-used>0</em> / ${FARM_WAREHOUSE_CAPACITY}</b></span>
@@ -385,6 +385,9 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
     const roleEl = modal.querySelector('[data-farm-business-role]');
     if (roleEl) roleEl.textContent = roleLabel;
+    modal.querySelectorAll('[data-farm-owner-income-note], [data-farm-owner-income-kpi]').forEach((element) => {
+      element.hidden = !isOwner;
+    });
     const ownerEl = modal.querySelector('[data-farm-owner]');
     if (ownerEl) ownerEl.textContent = owned ? (business?.ownerNickname || business?.ownerTgId || 'Владелец') : 'Государство';
     const assistantEl = modal.querySelector('[data-farm-assistant]');
