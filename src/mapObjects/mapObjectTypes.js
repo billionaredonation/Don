@@ -237,6 +237,16 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: '',
   },
 
+  farm_water_barrel: {
+    type: 'farm_water_barrel',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Ферма · бесконечная бочка воды',
+    icon: '🛢️',
+    defaultScale: 1.05,
+    defaultRotation: 0,
+    defaultAsset: '',
+  },
+
   farm_wheat_plant: {
     type: 'farm_wheat_plant',
     category: MAP_OBJECT_CATEGORIES.JOB,
@@ -560,6 +570,13 @@ export function createMapObjectDraft({
   if (config.type === 'farm_water_tower') {
     basePayload.towerCapacityLiters = 500;
     basePayload.tower_capacity_liters = 500;
+  }
+
+  if (config.type === 'farm_water_barrel') {
+    basePayload.infiniteWater = true;
+    basePayload.infinite_water = true;
+    basePayload.bucketFillLiters = 10;
+    basePayload.bucket_fill_liters = 10;
   }
 
   return {
