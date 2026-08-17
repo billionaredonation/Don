@@ -199,8 +199,15 @@ function farmModalMarkup() {
             </div>
             <div class="mn-farm-business-management" data-farm-business-management hidden>
               <section data-farm-owner-only>
-                <h4>Баланс предприятия</h4>
-                <div class="mn-farm-business-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-finance-amount><button type="button" data-farm-deposit>Внести</button><button type="button" data-farm-withdraw>Снять</button></div>
+                <h4>Оборотные средства</h4>
+                <div class="mn-farm-business-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-deposit-amount><button type="button" data-farm-deposit>Внести на баланс</button></div>
+                <small>Эти деньги используются для выкупа урожая у работников и закупки инструментов.</small>
+              </section>
+              <section data-farm-owner-only>
+                <h4>Снять прибыль</h4>
+                <div class="mn-farm-water-cargo"><span>Доступно владельцу: <b data-farm-withdrawable>0 ₴</b></span></div>
+                <div class="mn-farm-business-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-withdraw-amount><button type="button" data-farm-withdraw>Снять</button><button type="button" data-farm-withdraw-all>Снять всё</button></div>
+                <small>Деньги переводятся с баланса фермерского ООО прямо на личный баланс владельца.</small>
               </section>
               <section data-farm-owner-only>
                 <h4>Помощник</h4>
@@ -382,8 +389,13 @@ export function enableFarmFeature({ root, cityId } = {}) {
     if (ownerEl) ownerEl.textContent = owned ? (business?.ownerNickname || business?.ownerTgId || 'Владелец') : 'Государство';
     const assistantEl = modal.querySelector('[data-farm-assistant]');
     if (assistantEl) assistantEl.textContent = `Помощник: ${business?.assistantNickname || business?.assistantTgId || 'нет'}`;
+    const cashBalance = Math.max(0, Math.floor(Number(business?.cashBalance) || 0));
     const cashEl = modal.querySelector('[data-farm-cash]');
-    if (cashEl) cashEl.textContent = formatMoney(business?.cashBalance || 0);
+    if (cashEl) cashEl.textContent = formatMoney(cashBalance);
+    modal.querySelectorAll('[data-farm-withdrawable]').forEach((element) => { element.textContent = formatMoney(cashBalance); });
+    const withdrawAmountInput = modal.querySelector('[data-farm-withdraw-amount]');
+    if (withdrawAmountInput) withdrawAmountInput.max = String(cashBalance);
+    modal.querySelectorAll('[data-farm-withdraw], [data-farm-withdraw-all]').forEach((button) => { button.disabled = busy || !isOwner || cashBalance <= 0; });
     const towerWaterEl = modal.querySelector('[data-farm-tower-water]');
     if (towerWaterEl) towerWaterEl.textContent = Number(business?.towerWaterLiters || 0).toLocaleString('ru-RU');
     const barrelPresentEl = modal.querySelector('[data-farm-barrel-present]');
@@ -836,7 +848,11 @@ export function enableFarmFeature({ root, cityId } = {}) {
         gameOptions,
       );
       if (result) {
-        emitToast(`Растение полито водой из башни · точность ${result.miniGameScore}%. Теперь соберите урожай ✂️`, 'success');
+        const remainingUses = Math.max(0, Math.floor(Number(result.waterUsesRemaining ?? result.waterUses ?? 0)));
+        emitToast(`Растение полито водой из башни · точность ${result.miniGameScore}% · осталось поливов: ${remainingUses}. Теперь соберите урожай ✂️`, 'success');
+        // Technical water is stored by farm-business, not by the legacy farm inventory.
+        // Refresh immediately so the inventory shows the remaining virtual water item.
+        void refreshInventory({ silent: true });
       }
       return;
     }
@@ -932,7 +948,11 @@ export function enableFarmFeature({ root, cityId } = {}) {
         cityId,
         towerObjectId: String(object?.id || ''),
       });
-      if (result?.inventory) publishInventory(result.inventory);
+      // farm-business now keeps irrigation water in its own authoritative state.
+      // Reload through loadFarmInventory() so the virtual technical-water item appears
+      // immediately and stale legacy farm_water_bottle rows are ignored.
+      const freshInventory = await loadFarmInventory();
+      publishInventory(freshInventory);
       if (result?.business && activeBuyerObjectId === businessId) publishBusiness(result.business);
       if (result?.mode === 'poured') {
         emitToast(`В башню вылито ${Number(result.pouredLiters || 0).toLocaleString('ru-RU')} л 💧 · теперь ${Number(result?.business?.towerWaterLiters ?? result?.towerWaterLiters ?? 0).toLocaleString('ru-RU')} / ${FARM_TOWER_CAPACITY_LITERS} л.`, 'success');
@@ -996,10 +1016,22 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
     const deposit = event.target?.closest?.('[data-farm-deposit]');
     const withdraw = event.target?.closest?.('[data-farm-withdraw]');
-    if (deposit || withdraw) {
-      const amount = Math.max(0, Math.floor(Number(modal?.querySelector('[data-farm-finance-amount]')?.value) || 0));
+    const withdrawAll = event.target?.closest?.('[data-farm-withdraw-all]');
+    if (deposit || withdraw || withdrawAll) {
+      const amount = deposit
+        ? Math.max(0, Math.floor(Number(modal?.querySelector('[data-farm-deposit-amount]')?.value) || 0))
+        : withdrawAll
+          ? Math.max(0, Math.floor(Number(businessState?.cashBalance) || 0))
+          : Math.max(0, Math.floor(Number(modal?.querySelector('[data-farm-withdraw-amount]')?.value) || 0));
       const fn = deposit ? depositFarmBusiness : withdrawFarmBusiness;
-      await runBusinessAction(deposit ? 'Пополняем баланс предприятия…' : 'Снимаем деньги с предприятия…', () => fn({ businessId: activeBuyerObjectId, cityId, amount }));
+      const result = await runBusinessAction(
+        deposit ? 'Пополняем баланс предприятия…' : 'Переводим прибыль владельцу…',
+        () => fn({ businessId: activeBuyerObjectId, cityId, amount }),
+      );
+      if (result) {
+        const input = modal?.querySelector(deposit ? '[data-farm-deposit-amount]' : '[data-farm-withdraw-amount]');
+        if (input) input.value = '';
+      }
       return;
     }
 
@@ -1090,4 +1122,3 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
-
