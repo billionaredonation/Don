@@ -267,6 +267,15 @@ export function enableAdminPanel({
       <small class="admin-help">Размер рабочей зоны используется для лавки и будущих крупных рабочих объектов.</small>
     </div>
 
+    <div class="admin-farm-business-wrap" hidden>
+      <div class="admin-editor-title">Привязка фермерского предприятия</div>
+      <label class="admin-label">
+        ID бизнеса фермы
+        <input class="admin-input admin-farm-business-id" maxlength="100" placeholder="ID объекта «Ферма · предприятие ООО»" />
+      </label>
+      <small class="admin-help" data-admin-farm-link-help>Для растений и водонапорной башни укажите ID объекта фермы. Доход 300 ₴ и вода будут идти именно в этот бизнес.</small>
+    </div>
+
     <div class="admin-row">
       <button class="admin-btn admin-place-here" type="button">Поставить тут</button>
       <button class="admin-btn admin-move-selected-here" type="button">Перенести сюда</button>
@@ -332,6 +341,9 @@ export function enableAdminPanel({
   const jobSizeWrap = panel.querySelector('.admin-job-size-wrap');
   const jobWidthInput = panel.querySelector('.admin-job-width');
   const jobHeightInput = panel.querySelector('.admin-job-height');
+  const farmBusinessWrap = panel.querySelector('.admin-farm-business-wrap');
+  const farmBusinessIdInput = panel.querySelector('.admin-farm-business-id');
+  const farmBusinessLinkHelp = panel.querySelector('[data-admin-farm-link-help]');
 
   const xEl = panel.querySelector('.admin-x');
   const yEl = panel.querySelector('.admin-y');
@@ -388,6 +400,49 @@ export function enableAdminPanel({
   function hasEditableJobFootprint(type = selectedType) {
     const config = getMapObjectType(type);
     return config.category === 'job' && Number.isFinite(Number(config.defaultWidth)) && Number.isFinite(Number(config.defaultHeight));
+  }
+
+  function isFarmBusinessLinkType(type = selectedType) {
+    return type === 'farm_station' || type === 'farm_water_tower' || /^farm_(wheat|apple|orange|corn)_plant$/.test(String(type || ''));
+  }
+
+  function getFarmBusinessLink(object = {}) {
+    const payload = object?.payload || {};
+    return String(payload.farmBusinessId || payload.farm_business_id || '').trim();
+  }
+
+  function validateFarmBusinessLink(type, farmBusinessId, { excludeObjectId = null } = {}) {
+    if (!farmBusinessId) return 'Сначала укажите ID бизнеса фермы для этого объекта.';
+    const station = objects.find((object) => String(object?.id || '') === farmBusinessId);
+    if (!station || String(station?.type || station?.payload?.jobType || '') !== 'farm_station') {
+      return 'Указанный ID не принадлежит объекту «Ферма · предприятие ООО» в этом городе.';
+    }
+    if (type === 'farm_water_tower') {
+      const duplicateTower = objects.find((object) => {
+        if (excludeObjectId && String(object?.id || '') === String(excludeObjectId)) return false;
+        const objectType = String(object?.type || object?.payload?.jobType || '');
+        return objectType === 'farm_water_tower' && getFarmBusinessLink(object) === farmBusinessId;
+      });
+      if (duplicateTower) return 'У этой фермы уже есть привязанная водонапорная башня. На один бизнес — одна башня 500 л.';
+    }
+    return '';
+  }
+
+  function syncFarmBusinessLinkInput(object = null) {
+    const visible = isFarmBusinessLinkType(selectedType);
+    if (farmBusinessWrap) farmBusinessWrap.hidden = !visible;
+    if (!visible || !farmBusinessIdInput) return;
+    const isStation = selectedType === 'farm_station';
+    const objectId = String(object?.id || '').trim();
+    const payload = object?.payload || {};
+    farmBusinessIdInput.disabled = isStation;
+    farmBusinessIdInput.value = isStation
+      ? objectId
+      : String(payload.farmBusinessId || payload.farm_business_id || '').trim();
+    farmBusinessIdInput.placeholder = isStation ? 'ID появится после установки объекта' : 'ID объекта «Ферма · предприятие ООО»';
+    if (farmBusinessLinkHelp) farmBusinessLinkHelp.textContent = isStation
+      ? 'Этот объект сам является бизнесом фермы: его ID автоматически используется для башни и всех участков.'
+      : 'Обязательно укажите ID объекта «Ферма · предприятие ООО». Доход 300 ₴ и вода будут привязаны к нему. На одну ферму допускается одна башня 500 л.';
   }
 
   function syncJobSizeInputs(object = null) {
@@ -462,6 +517,7 @@ export function enableAdminPanel({
     }
 
     if (isJob && isSizedJob && !getSelectedObject()) syncJobSizeInputs(null);
+    syncFarmBusinessLinkInput(getSelectedObject());
     syncBusinessLegalEditor(getSelectedObject());
   }
 
@@ -526,6 +582,7 @@ export function enableAdminPanel({
       nameInput.value = '';
       updateVariantVisibility();
       syncJobSizeInputs(null);
+      syncFarmBusinessLinkInput(null);
       return;
     }
 
@@ -544,6 +601,7 @@ export function enableAdminPanel({
 
     updateVariantVisibility();
     if (hasEditableJobFootprint(selectedType)) syncJobSizeInputs(object);
+    syncFarmBusinessLinkInput(object);
   }
 
   function renderObjectList() {
@@ -718,6 +776,17 @@ function setEnabled(next) {
       draftPayload.renderHeight = normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2);
     }
     if (selectedConfig.category === 'business') Object.assign(draftPayload, getSelectedBusinessLegalPayload());
+    if (isFarmBusinessLinkType(selectedType) && selectedType !== 'farm_station') {
+      const farmBusinessId = String(farmBusinessIdInput?.value || '').trim();
+      const farmLinkError = validateFarmBusinessLink(selectedType, farmBusinessId);
+      if (farmLinkError) {
+        showAdminNotice(farmLinkError);
+        farmBusinessIdInput?.focus();
+        return;
+      }
+      draftPayload.farmBusinessId = farmBusinessId;
+      draftPayload.farm_business_id = farmBusinessId;
+    }
 
     const draft = createMapObjectDraft({
       cityId,
@@ -754,6 +823,22 @@ function setEnabled(next) {
     }
     if (selectedConfig.category === 'business') {
       Object.assign(editorPayload, getSelectedBusinessLegalPayload());
+      hasEditorPayload = true;
+    }
+    if (isFarmBusinessLinkType(selectedType)) {
+      const farmBusinessId = selectedType === 'farm_station'
+        ? String(object.id || '')
+        : String(farmBusinessIdInput?.value || '').trim();
+      const farmLinkError = selectedType === 'farm_station'
+        ? ''
+        : validateFarmBusinessLink(selectedType, farmBusinessId, { excludeObjectId: object.id });
+      if (!farmBusinessId || farmLinkError) {
+        showAdminNotice(farmLinkError || 'Укажите ID бизнеса фермы перед сохранением объекта.');
+        farmBusinessIdInput?.focus();
+        return;
+      }
+      editorPayload.farmBusinessId = farmBusinessId;
+      editorPayload.farm_business_id = farmBusinessId;
       hasEditorPayload = true;
     }
 
@@ -1040,6 +1125,7 @@ function setEnabled(next) {
     selectedType = typeSelect.value;
     updateVariantVisibility();
     if (hasEditableJobFootprint(selectedType)) syncJobSizeInputs(null);
+    syncFarmBusinessLinkInput(null);
   });
 
   houseClassSelect.addEventListener('change', () => {
