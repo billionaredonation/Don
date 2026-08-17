@@ -1813,7 +1813,9 @@ export function enableEntityInteraction({
     const mineHint = mineNode ? getMineNodeHintState(object) : null;
     const lumberHint = lumberTree ? getLumberTreeHintState(object) : null;
     const jobHint = objectType === 'farm_station'
-      ? 'Фермерская лавка'
+      ? 'Фермерская лавка · бизнес'
+      : objectType === 'farm_water_tower'
+        ? 'Набрать воду для полива'
       : objectType === 'mine_station'
         ? 'Шахтёрское снабжение'
       : objectType === 'lumber_station'
