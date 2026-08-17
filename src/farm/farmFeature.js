@@ -1,18 +1,36 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import {
-  buyFarmItem,
+  buyFarmBusinessTool,
+  depositFarmBusiness,
+  fillFarmWaterTower,
   getFarmUserErrorMessage,
   harvestFarmPlant,
+  loadFarmBusinessSnapshot,
   loadFarmInventory,
   loadFarmMarket,
   loadFarmPlantStates,
   loadFarmWaterAvailability,
+  orderFarmBusinessSupply,
+  purchaseFarmBusiness,
   sellFarmItem,
+  setFarmBusinessAssistant,
+  setFarmBusinessToolPrice,
+  takeFarmWaterFromTower,
   waterFarmPlant,
   weedFarmPlant,
+  withdrawFarmBusiness,
 } from './farmApi.js';
 import { FARM_ITEMS, getFarmPlantType } from './farmConfig.js';
+import {
+  FARM_BUSINESS_PRICE,
+  FARM_PLOT_INCOME,
+  FARM_TOOL_DURABILITY_COST,
+  FARM_TOOL_DURABILITY_MAX,
+  FARM_TOOL_MIN_PRICE,
+  FARM_TOWER_CAPACITY_LITERS,
+  getFarmBusinessId,
+} from './farmBusinessConfig.js';
 import { cancelFarmMiniGame, playFarmMiniGame } from './farmMiniGame.js';
 import { getCropSkillStatus, publishPlayerSkills } from '../player/playerSkillState.js';
 import './farm.css';
@@ -28,7 +46,7 @@ function isFarmPlantObject(object = {}) {
 
 function isFarmStreamObject(object = {}) {
   const type = String(object.type || object?.payload?.jobType || '');
-  return type === 'farm_station' || isFarmPlantObject(object);
+  return type === 'farm_station' || type === 'farm_water_tower' || isFarmPlantObject(object);
 }
 
 function emitToast(message, type = 'info') {
@@ -73,35 +91,43 @@ function farmModalMarkup() {
       <button class="mn-farm-modal-backdrop" type="button" data-farm-close aria-label="Закрыть"></button>
       <section class="mn-farm-panel" role="dialog" aria-modal="true" aria-labelledby="mn-farm-title">
         <header>
-          <span><small>Работа · ферма</small><strong id="mn-farm-title">Фермерская лавка</strong></span>
+          <span><small>Работа · фермерское предприятие</small><strong id="mn-farm-title">Фермерская лавка</strong></span>
+          <b class="mn-farm-business-role" data-farm-business-role>Работник</b>
           <button type="button" data-farm-close aria-label="Закрыть">×</button>
         </header>
         <nav class="mn-farm-tabs" aria-label="Разделы фермы">
           <button type="button" data-farm-tab="tools" data-active="true">Инструменты</button>
           <button type="button" data-farm-tab="sell">Продажа</button>
+          <button type="button" data-farm-tab="business">Бизнес</button>
         </nav>
         <div class="mn-farm-cycle-guide" aria-label="Порядок работы на ферме">
           <span><b><img src="${FARM_RAKE_ASSET_URL}" alt=""></b>Прополоть</span>
           <i>→</i><span><b>💧</b>Полить</span>
           <i>→</i><span><b>✂️</b>Собрать</span>
+          <em>Владелец фермы получает ${FARM_PLOT_INCOME} ₴ за каждый завершённый участок.</em>
         </div>
         <div class="mn-farm-tab-page" data-farm-page="tools">
           <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_rake">
             <i class="mn-farm-glyph is-rake" aria-hidden="true"><img src="${FARM_RAKE_ASSET_URL}" alt=""></i>
-            <span><b>Грабли</b><small>Постоянный инструмент для прополки</small></span><strong>2 ₴</strong>
+            <span><b>Грабли</b><small>100 прочности · −${FARM_TOOL_DURABILITY_COST} за куст · склад <em data-farm-tool-stock="farm_rake">0</em> шт.</small></span>
+            <strong><span data-farm-tool-price="farm_rake">${FARM_TOOL_MIN_PRICE}</span> ₴</strong>
           </button>
           <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_scissors">
             <i class="mn-farm-glyph is-scissors" aria-hidden="true">✂️</i>
-            <span><b>Ножницы</b><small>Постоянный инструмент для сбора</small></span><strong>2 ₴</strong>
+            <span><b>Ножницы</b><small>100 прочности · −${FARM_TOOL_DURABILITY_COST} за куст · склад <em data-farm-tool-stock="farm_scissors">0</em> шт.</small></span>
+            <strong><span data-farm-tool-price="farm_scissors">${FARM_TOOL_MIN_PRICE}</span> ₴</strong>
           </button>
-          <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_water_bottle">
-            <i class="mn-farm-glyph is-water" aria-hidden="true">💧</i>
-            <span><b>Вода для полива</b><small>2 полива · с пестицидами, пить нельзя</small></span><strong>5 ₴</strong>
-          </button>
+          <div class="mn-farm-water-info">
+            <i>💧</i><span><b>Вода у бота больше не продаётся</b><small>Найдите водонапорную башню этой фермы. Каждый работник может бесплатно набрать 1 л технической воды — этого хватает на 2 полива.</small></span>
+          </div>
+          <div class="mn-farm-tool-durability">
+            <span>Грабли <b data-farm-durability="farm_rake">—</b></span>
+            <span>Ножницы <b data-farm-durability="farm_scissors">—</b></span>
+          </div>
         </div>
         <div class="mn-farm-tab-page" data-farm-page="sell" hidden>
           <div class="mn-farm-market-head">
-            <span><b>Рынок этого скупщика</b><small>Цена и общий лимит обновляются каждые 3 часа</small></span>
+            <span><b>Рынок этого предприятия</b><small>Выплата идёт с баланса бизнеса. Цена и общий лимит обновляются каждые 3 часа.</small></span>
             <strong data-farm-market-reset>Загрузка…</strong>
           </div>
           <div class="mn-farm-sale-row" data-farm-sale-row="farm_apple">
@@ -123,6 +149,55 @@ function farmModalMarkup() {
             <i class="mn-farm-glyph" aria-hidden="true">🌽</i>
             <span><b>Кукуруза <u data-farm-sale-level="farm_corn">ур. 1</u></b><small><em data-farm-sale-count="farm_corn">0</em> шт. · <mark data-farm-sale-price="farm_corn">—</mark> ₴/шт. · лимит <mark data-farm-sale-limit="farm_corn">—</mark></small></span>
             <div><button type="button" data-farm-sell="farm_corn" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_corn" data-quantity="0">Всё</button></div>
+          </div>
+        </div>
+        <div class="mn-farm-tab-page mn-farm-business-page" data-farm-page="business" hidden>
+          <div class="mn-farm-business-summary">
+            <article><small>Форма</small><strong>ООО</strong><span>Фермерское предприятие</span></article>
+            <article><small>Владелец</small><strong data-farm-owner>Государство</strong><span data-farm-assistant>Помощник: нет</span></article>
+            <article><small>Баланс бизнеса</small><strong data-farm-cash>0 ₴</strong><span>Из него оплачается урожай и поставки</span></article>
+            <article><small>Водонапорная башня</small><strong><span data-farm-tower-water>0</span> / ${FARM_TOWER_CAPACITY_LITERS} л</strong><span>Резерв: <b data-farm-water-reserve>0</b> л</span></article>
+          </div>
+          <section class="mn-farm-business-buy" data-farm-business-buy>
+            <span><small>Государственная продажа</small><strong>Купить фермерское ООО</strong><p>После покупки доход по привязанным участкам, торговля урожаем, вода и инструменты работают через баланс этого предприятия.</p></span>
+            <button type="button" data-farm-business-purchase>Купить за ${FARM_BUSINESS_PRICE.toLocaleString('ru-RU')} ₴</button>
+          </section>
+          <div class="mn-farm-business-owned" data-farm-business-owned hidden>
+            <div class="mn-farm-business-kpis">
+              <span><small>Доход с участков</small><b data-farm-plot-income>0 ₴</b></span>
+              <span><small>Выкуп урожая</small><b data-farm-crop-spend>0 ₴</b></span>
+              <span><small>Башня</small><b data-farm-tower-present>не установлена</b></span>
+            </div>
+            <div class="mn-farm-business-management" data-farm-business-management hidden>
+              <section data-farm-owner-only>
+                <h4>Баланс предприятия</h4>
+                <div class="mn-farm-business-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-finance-amount><button type="button" data-farm-deposit>Внести</button><button type="button" data-farm-withdraw>Снять</button></div>
+              </section>
+              <section data-farm-owner-only>
+                <h4>Помощник</h4>
+                <div class="mn-farm-business-inline"><input type="text" maxlength="40" placeholder="Ник или Telegram ID" data-farm-assistant-target><button type="button" data-farm-assistant-save>Назначить</button><button type="button" data-farm-assistant-clear>Снять</button></div>
+                <small>Помощник может заливать доставленную воду в башню. Заказывать поставки и снимать деньги может только владелец.</small>
+              </section>
+              <section>
+                <h4>Водонапорная башня</h4>
+                <div class="mn-farm-business-inline"><input type="number" min="1" max="500" step="1" value="100" inputmode="numeric" data-farm-fill-liters><button type="button" data-farm-fill-tower>Залить в башню</button></div>
+              </section>
+              <section data-farm-owner-only>
+                <h4>Заказать доставку</h4>
+                <div class="mn-farm-supply-grid">
+                  <label><span>Вода · 3 ₴/л</span><input type="number" min="1" max="5000" value="100" data-farm-order-quantity="water"><button type="button" data-farm-order="water">Заказать</button></label>
+                  <label><span>Грабли · 70 ₴/шт.</span><input type="number" min="1" max="1000" value="10" data-farm-order-quantity="farm_rake"><button type="button" data-farm-order="farm_rake">Заказать</button></label>
+                  <label><span>Ножницы · 70 ₴/шт.</span><input type="number" min="1" max="1000" value="10" data-farm-order-quantity="farm_scissors"><button type="button" data-farm-order="farm_scissors">Заказать</button></label>
+                </div>
+              </section>
+              <section data-farm-owner-only>
+                <h4>Розничные цены инструментов</h4>
+                <div class="mn-farm-supply-grid">
+                  <label><span>Грабли · минимум 100 ₴</span><input type="number" min="100" value="100" data-farm-price-input="farm_rake"><button type="button" data-farm-price-save="farm_rake">Сохранить</button></label>
+                  <label><span>Ножницы · минимум 100 ₴</span><input type="number" min="100" value="100" data-farm-price-input="farm_scissors"><button type="button" data-farm-price-save="farm_scissors">Сохранить</button></label>
+                </div>
+              </section>
+            </div>
           </div>
         </div>
         <footer><small data-farm-status></small></footer>
@@ -147,6 +222,8 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let busy = false;
   let inventoryState = { items: [] };
   let marketState = { items: [] };
+  let businessState = null;
+  let activeFarmObject = null;
   let activeBuyerObjectId = '';
   let plantStates = new Map();
   let plantStatesReady = false;
@@ -155,6 +232,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let inventoryRefreshTimer = 0;
   let marketCountdownTimer = 0;
   let marketRefreshPromise = null;
+  let businessRefreshPromise = null;
   let realtimeChannel = null;
 
   window.__MN_FARM_PLANT_STATES_READY__ = false;
@@ -217,8 +295,143 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return inventoryState;
   }
 
+  function inventoryItem(itemType) {
+    return inventoryState?.items?.find?.((item) => String(item.itemType || item.item_type || '') === String(itemType)) || null;
+  }
+
   function itemQuantity(itemType) {
-    return Number(inventoryState?.items?.find?.((item) => item.itemType === itemType)?.quantity || 0);
+    return Number(inventoryItem(itemType)?.quantity || 0);
+  }
+
+  function toolDurability(itemType) {
+    const direct = Number(inventoryItem(itemType)?.durability);
+    if (Number.isFinite(direct)) return direct;
+    const row = businessState?.playerTools?.find?.((item) => String(item.itemType || item.item_type || '') === String(itemType));
+    const value = Number(row?.durability);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function syncBusinessToolsIntoInventory() {
+    const rows = Array.isArray(businessState?.playerTools) ? businessState.playerTools : [];
+    if (!rows.length || !Array.isArray(inventoryState?.items)) return;
+    const byType = new Map(rows.map((item) => [String(item.itemType || item.item_type || ''), item]));
+    inventoryState.items = inventoryState.items.map((item) => {
+      const row = byType.get(String(item.itemType || item.item_type || ''));
+      return row ? { ...item, durability: Number(row.durability), maxDurability: Number(row.maxDurability || FARM_TOOL_DURABILITY_MAX), broken: Number(row.durability) <= 0 } : item;
+    });
+    window.__MN_FARM_INVENTORY_ITEMS__ = inventoryState.items.map((item) => ({ ...item }));
+    window.__MN_FARM_INVENTORY_STATE__ = inventoryState;
+  }
+
+  function formatMoney(value) {
+    return `${Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ru-RU')} ₴`;
+  }
+
+  function renderBusiness() {
+    if (!modal) return;
+    const business = businessState;
+    const owned = Boolean(business?.owned);
+    const role = String(business?.role || 'worker');
+    const isOwner = role === 'owner';
+    const isStaff = isOwner || role === 'assistant';
+    const roleLabel = role === 'owner' ? 'Владелец' : role === 'assistant' ? 'Помощник' : 'Работник';
+
+    const roleEl = modal.querySelector('[data-farm-business-role]');
+    if (roleEl) roleEl.textContent = roleLabel;
+    const ownerEl = modal.querySelector('[data-farm-owner]');
+    if (ownerEl) ownerEl.textContent = owned ? (business?.ownerNickname || business?.ownerTgId || 'Владелец') : 'Государство';
+    const assistantEl = modal.querySelector('[data-farm-assistant]');
+    if (assistantEl) assistantEl.textContent = `Помощник: ${business?.assistantNickname || business?.assistantTgId || 'нет'}`;
+    const cashEl = modal.querySelector('[data-farm-cash]');
+    if (cashEl) cashEl.textContent = formatMoney(business?.cashBalance || 0);
+    const towerWaterEl = modal.querySelector('[data-farm-tower-water]');
+    if (towerWaterEl) towerWaterEl.textContent = Number(business?.towerWaterLiters || 0).toLocaleString('ru-RU');
+    const reserveEl = modal.querySelector('[data-farm-water-reserve]');
+    if (reserveEl) reserveEl.textContent = Number(business?.waterReserveLiters || 0).toLocaleString('ru-RU');
+    const plotIncomeEl = modal.querySelector('[data-farm-plot-income]');
+    if (plotIncomeEl) plotIncomeEl.textContent = formatMoney(business?.plotIncomeTotal || 0);
+    const cropSpendEl = modal.querySelector('[data-farm-crop-spend]');
+    if (cropSpendEl) cropSpendEl.textContent = formatMoney(business?.cropPurchaseSpend || 0);
+    const towerPresentEl = modal.querySelector('[data-farm-tower-present]');
+    if (towerPresentEl) towerPresentEl.textContent = business?.towerPresent ? 'установлена' : 'не установлена';
+
+    const buyBlock = modal.querySelector('[data-farm-business-buy]');
+    if (buyBlock) buyBlock.hidden = owned;
+    const ownedBlock = modal.querySelector('[data-farm-business-owned]');
+    if (ownedBlock) ownedBlock.hidden = !owned;
+    const management = modal.querySelector('[data-farm-business-management]');
+    if (management) management.hidden = !owned || !isStaff;
+    modal.querySelectorAll('[data-farm-owner-only]').forEach((element) => { element.hidden = !isOwner; });
+
+    ['farm_rake', 'farm_scissors'].forEach((itemType) => {
+      const tool = business?.tools?.[itemType] || {};
+      modal.querySelectorAll(`[data-farm-tool-stock="${itemType}"]`).forEach((element) => { element.textContent = String(Number(tool.stock || 0)); });
+      modal.querySelectorAll(`[data-farm-tool-price="${itemType}"]`).forEach((element) => { element.textContent = String(Number(tool.price || FARM_TOOL_MIN_PRICE)); });
+      const priceInput = modal.querySelector(`[data-farm-price-input="${itemType}"]`);
+      if (priceInput && document.activeElement !== priceInput) priceInput.value = String(Number(tool.price || FARM_TOOL_MIN_PRICE));
+    });
+
+    syncBusinessToolsIntoInventory();
+    renderInventory();
+  }
+
+  function publishBusiness(result) {
+    const business = result?.business && typeof result.business === 'object' ? result.business : result;
+    if (!business || typeof business !== 'object') return businessState;
+    businessState = business;
+    const playerBalance = Number(business.playerBalance ?? result?.playerBalance);
+    if (Number.isFinite(playerBalance)) {
+      state.player = { ...(state.player || {}), balance: playerBalance };
+      window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance: playerBalance, source: 'farm_business' } }));
+    }
+    window.__MN_FARM_BUSINESS_STATE__ = { ...businessState };
+    renderBusiness();
+    return businessState;
+  }
+
+  async function refreshBusiness({ silent = true } = {}) {
+    if (!activeBuyerObjectId) return null;
+    if (businessRefreshPromise) return businessRefreshPromise;
+    const requestedId = activeBuyerObjectId;
+    businessRefreshPromise = (async () => {
+      try {
+        const result = await loadFarmBusinessSnapshot({ businessId: requestedId, cityId });
+        if (requestedId === activeBuyerObjectId) {
+          const published = publishBusiness(result);
+          if (published?.owned === false && modal?.hidden === false) setTab('business');
+          return published;
+        }
+        return result;
+      } catch (error) {
+        if (!silent) setStatus(getFarmUserErrorMessage(error), 'error');
+        return null;
+      } finally {
+        businessRefreshPromise = null;
+      }
+    })();
+    return businessRefreshPromise;
+  }
+
+  function applyToolDurability(result) {
+    const itemType = String(result?.itemType || result?.item_type || '');
+    const durability = Number(result?.durability);
+    if (!itemType || !Number.isFinite(durability)) return;
+    const row = inventoryItem(itemType);
+    if (row) {
+      row.durability = durability;
+      row.maxDurability = Number(result?.maxDurability || FARM_TOOL_DURABILITY_MAX);
+      row.broken = durability <= 0;
+    }
+    if (businessState) {
+      const rows = Array.isArray(businessState.playerTools) ? businessState.playerTools : [];
+      const index = rows.findIndex((item) => String(item.itemType || item.item_type || '') === itemType);
+      const next = { itemType, durability, maxDurability: Number(result?.maxDurability || FARM_TOOL_DURABILITY_MAX) };
+      if (index >= 0) rows[index] = { ...rows[index], ...next };
+      else rows.push(next);
+      businessState.playerTools = rows;
+    }
+    window.__MN_FARM_INVENTORY_ITEMS__ = (inventoryState.items || []).map((item) => ({ ...item }));
+    renderInventory();
   }
 
   function marketItem(itemType) {
@@ -275,17 +488,28 @@ export function enableFarmFeature({ root, cityId } = {}) {
         button.disabled = busy
           || itemQuantity(itemType) <= 0
           || !activeBuyerObjectId
+          || businessState?.owned === false
           || market?.unlocked === false
           || Number(market?.remainingQuantity ?? 0) <= 0;
       });
     });
 
-    modal?.querySelectorAll('[data-farm-buy]').forEach((button) => {
-      const itemType = button.dataset.farmBuy;
-      const owned = FARM_ITEMS[itemType]?.permanent === true && itemQuantity(itemType) > 0;
-      const waterLoaded = itemType === 'farm_water_bottle' && itemQuantity(itemType) > 0;
-      button.disabled = busy || owned || waterLoaded;
-      button.dataset.owned = owned || waterLoaded ? 'true' : 'false';
+    ['farm_rake', 'farm_scissors'].forEach((itemType) => {
+      const button = modal?.querySelector(`[data-farm-buy="${itemType}"]`);
+      const durability = toolDurability(itemType);
+      const legacyOwned = itemQuantity(itemType) > 0;
+      const needsMigration = legacyOwned && durability === null;
+      const usable = Number.isFinite(durability) && durability > 0;
+      const stock = Number(businessState?.tools?.[itemType]?.stock || 0);
+      if (button) {
+        button.disabled = busy || !businessState?.owned || usable || (!needsMigration && stock <= 0);
+        button.dataset.owned = usable ? 'true' : 'false';
+        button.dataset.broken = Number.isFinite(durability) && durability <= 0 ? 'true' : 'false';
+        button.title = needsMigration ? 'Активировать систему прочности для старого инструмента' : usable ? `Осталось ${durability}% прочности` : '';
+      }
+      modal?.querySelectorAll(`[data-farm-durability="${itemType}"]`).forEach((element) => {
+        element.textContent = durability === null ? (legacyOwned ? 'активировать' : 'нет') : `${Math.max(0, durability).toFixed(durability % 1 ? 1 : 0)} / ${FARM_TOOL_DURABILITY_MAX}`;
+      });
     });
   }
 
@@ -367,10 +591,10 @@ export function enableFarmFeature({ root, cityId } = {}) {
       stateRefreshTimer = window.setInterval(refreshPlantStates, FARM_STATE_REFRESH_MS);
     }
     if (!inventoryRefreshTimer) {
-      inventoryRefreshTimer = window.setInterval(
-        () => refreshInventory({ silent: true }),
-        FARM_INVENTORY_REFRESH_MS,
-      );
+      inventoryRefreshTimer = window.setInterval(() => {
+        void refreshInventory({ silent: true });
+        if (modal?.hidden === false && activeBuyerObjectId) void refreshBusiness({ silent: true });
+      }, FARM_INVENTORY_REFRESH_MS);
     }
     if (!wasActive) {
       void refreshPlantStates();
@@ -400,14 +624,19 @@ export function enableFarmFeature({ root, cityId } = {}) {
   function openModal(object) {
     if (!modal || busy) return;
     startFarmStreamLoading();
+    activeFarmObject = object || null;
     activeBuyerObjectId = String(object?.id || '');
     marketState = { items: [] };
+    businessState = null;
     publishMarket(marketState);
+    renderBusiness();
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-farm-modal-open');
+    setTab('tools');
     void refreshInventory({ silent: false });
-    void refreshMarket({ silent: false });
+    void refreshMarket({ silent: true });
+    void refreshBusiness({ silent: false });
   }
 
   function closeModal() {
@@ -415,6 +644,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mn-farm-modal-open');
+    activeFarmObject = null;
     setStatus('');
   }
 
@@ -422,6 +652,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     tabButtons.forEach((button) => { button.dataset.active = button.dataset.farmTab === tab ? 'true' : 'false'; });
     tabPages.forEach((page) => { page.hidden = page.dataset.farmPage !== tab; });
     if (tab === 'sell') void refreshMarket({ silent: true });
+    if (tab === 'business') void refreshBusiness({ silent: true });
   }
 
   function getPlantAction(object) {
@@ -470,6 +701,24 @@ export function enableFarmFeature({ root, cityId } = {}) {
     }
   }
 
+  function ensureToolReady(itemType) {
+    const quantity = itemQuantity(itemType);
+    const durability = toolDurability(itemType);
+    if (quantity <= 0) {
+      emitToast(itemType === 'farm_rake' ? 'Для прополки нужны грабли. Купите их у фермерского предприятия.' : 'Для сбора урожая нужны ножницы. Купите их у фермерского предприятия.', 'error');
+      return false;
+    }
+    if (durability === null) {
+      emitToast('Старый инструмент нужно один раз активировать в лавке фермы, чтобы получить 100 прочности.', 'info');
+      return false;
+    }
+    if (durability <= 0) {
+      emitToast('Инструмент сломан. Купите новый в лавке фермы.', 'error');
+      return false;
+    }
+    return true;
+  }
+
   async function workWithPlant(object) {
     if (!isFarmPlantObject(object) || busy) return;
     startFarmStreamLoading();
@@ -484,6 +733,12 @@ export function enableFarmFeature({ root, cityId } = {}) {
       if (busy) return;
     }
 
+    const businessId = getFarmBusinessId(object);
+    if (!businessId) {
+      emitToast('Этот участок не привязан к фермерскому бизнесу. Администратор должен указать ID фермы у объекта растения.', 'error');
+      return;
+    }
+
     const next = getPlantAction(object);
     if (!next) return;
     const cropSkill = getCropSkillStatus(next.plant.cropType);
@@ -496,26 +751,30 @@ export function enableFarmFeature({ root, cityId } = {}) {
       return;
     }
 
-    const request = { cityId, plantObjectId: String(object.id || '') };
+    const request = { cityId, businessId, plantObjectId: String(object.id || '') };
     const gameOptions = {
       cropType: next.plant.cropType,
       cropIcon: next.plant.icon,
       cropLabel: next.plant.label,
     };
     if (next.action === 'weed') {
+      if (!ensureToolReady('farm_rake')) return;
       const result = await runMiniGameAction(
         'weed',
         (miniGameScore) => weedFarmPlant({ ...request, miniGameScore }),
         gameOptions,
       );
-      if (result) emitToast(`Растение прополото · точность ${result.miniGameScore}%. Теперь полейте его водой 💧`, 'success');
+      if (result) {
+        if (result.toolDurability) applyToolDurability(result.toolDurability);
+        emitToast(`Растение прополото · точность ${result.miniGameScore}%. Грабли −${FARM_TOOL_DURABILITY_COST} прочности. Теперь полейте его водой 💧`, 'success');
+      }
       return;
     }
     if (next.action === 'water') {
       try {
         const availability = await loadFarmWaterAvailability();
         if (availability?.hasWater !== true) {
-          emitToast('Купите воду прежде чем начать обработку растения. Подойдёт вода из фермерской лавки или столовой.', 'error');
+          emitToast('Нужна техническая вода. Подойдите к водонапорной башне, привязанной к этой ферме, и наберите воду.', 'error');
           return;
         }
       } catch (error) {
@@ -529,40 +788,47 @@ export function enableFarmFeature({ root, cityId } = {}) {
         gameOptions,
       );
       if (result) {
-        if (result.waterSource === 'cafeteria') {
-          window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
-        }
-        emitToast(`Растение полито · точность ${result.miniGameScore}%. Теперь соберите урожай ✂️`, 'success');
+        emitToast(`Растение полито водой из башни · точность ${result.miniGameScore}%. Теперь соберите урожай ✂️`, 'success');
       }
       return;
     }
     if (next.action === 'harvest') {
+      if (!ensureToolReady('farm_scissors')) return;
       const result = await runMiniGameAction(
         'harvest',
         (miniGameScore) => harvestFarmPlant({ ...request, miniGameScore }),
         gameOptions,
       );
       if (result) {
+        if (result.toolDurability) applyToolDurability(result.toolDurability);
         if (result.skills) publishPlayerSkills(result, { levelUps: result.levelUps });
         const harvested = FARM_ITEMS[result.harvestedItemType] || FARM_ITEMS[next.plant.harvestItemType];
         const quantity = Math.max(1, Number(result.harvestQuantity) || 1);
         const quality = Number(result.harvestQuality ?? result.miniGameScore) || 0;
         const item = `${harvested?.icon || next.plant.icon} ${harvested?.label || next.plant.label} ×${quantity}`;
-        emitToast(`${item} · качество ${quality}%. Новый урожай через ${formatRemaining(result.respawnSeconds || next.plant.respawnSeconds)}.`, 'success');
+        if (result.plotIncome?.credited && businessState?.businessId === businessId) {
+          businessState.cashBalance = Number(result.plotIncome.cashBalance ?? businessState.cashBalance ?? 0);
+          businessState.plotIncomeTotal = Number(businessState.plotIncomeTotal || 0) + Number(result.plotIncome.amount || FARM_PLOT_INCOME);
+          renderBusiness();
+        }
+        emitToast(`${item} · качество ${quality}%. Ножницы −${FARM_TOOL_DURABILITY_COST} прочности · ферме +${result.plotIncome?.credited ? Number(result.plotIncome.amount || FARM_PLOT_INCOME) : 0} ₴. Новый урожай через ${formatRemaining(result.respawnSeconds || next.plant.respawnSeconds)}.`, 'success');
       }
     }
   }
 
   async function handleBuy(event) {
     const button = event.target?.closest?.('[data-farm-buy]');
-    if (!button || busy) return;
+    if (!button || busy || !activeBuyerObjectId) return;
     const itemType = String(button.dataset.farmBuy || '');
     busy = true;
     renderInventory();
-    setStatus('Покупаем предмет…');
+    setStatus('Покупаем инструмент…');
     try {
-      publishInventory(await buyFarmItem(itemType));
-      setStatus(`${FARM_ITEMS[itemType]?.label || 'Предмет'} получен.`, 'success');
+      const result = await buyFarmBusinessTool({ businessId: activeBuyerObjectId, cityId, itemType });
+      if (result?.inventory) publishInventory(result.inventory);
+      if (result?.business) publishBusiness(result.business);
+      const durability = Number(result?.business?.playerTools?.find?.((row) => String(row.itemType || row.item_type) === itemType)?.durability ?? FARM_TOOL_DURABILITY_MAX);
+      setStatus(result?.migrated ? `${FARM_ITEMS[itemType]?.label || 'Инструмент'} активирован · прочность ${durability}/100.` : `${FARM_ITEMS[itemType]?.label || 'Инструмент'} куплен · прочность 100/100.`, 'success');
     } catch (error) {
       setStatus(getFarmUserErrorMessage(error), 'error');
     } finally {
@@ -586,10 +852,13 @@ export function enableFarmFeature({ root, cityId } = {}) {
         itemType,
         quantity,
       });
-      publishInventory(result);
-      if (result.market) publishMarket(result.market);
+      if (result?.inventory || Array.isArray(result?.items)) publishInventory(result);
+      else void refreshInventory({ silent: true });
+      if (result?.market) publishMarket(result.market);
+      else void refreshMarket({ silent: true });
+      if (result?.business) publishBusiness(result.business);
       setStatus(
-        `Продано ${result.soldQuantity || 0} шт. по ${Number(result.unitPrice || 0)} ₴ · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴`,
+        `Продано ${result.soldQuantity || 0} шт. по ${Number(result.unitPrice || 0)} ₴ · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴. Выплата списана с баланса фермы.`,
         'success',
       );
     } catch (error) {
@@ -600,11 +869,105 @@ export function enableFarmFeature({ root, cityId } = {}) {
     }
   }
 
+  async function handleTakeWater(object) {
+    if (busy) return;
+    const businessId = getFarmBusinessId(object);
+    if (!businessId) {
+      emitToast('Эта водонапорная башня не привязана к ферме. Укажите ID бизнеса в админке.', 'error');
+      return;
+    }
+    busy = true;
+    try {
+      const result = await takeFarmWaterFromTower({
+        businessId,
+        cityId,
+        towerObjectId: String(object?.id || ''),
+      });
+      if (result?.inventory) publishInventory(result.inventory);
+      if (result?.business) publishBusiness(result.business);
+      emitToast(`Набран 1 л технической воды 💧 · в башне осталось ${Number(result?.business?.towerWaterLiters ?? 0).toLocaleString('ru-RU')} л.`, 'success');
+    } catch (error) {
+      emitToast(getFarmUserErrorMessage(error), 'error');
+    } finally {
+      busy = false;
+      renderInventory();
+    }
+  }
+
+  async function runBusinessAction(label, action) {
+    if (busy || !activeBuyerObjectId) return;
+    busy = true;
+    renderInventory();
+    setStatus(label);
+    try {
+      const result = await action();
+      publishBusiness(result?.business || result);
+      setStatus('Готово.', 'success');
+      return result;
+    } catch (error) {
+      setStatus(getFarmUserErrorMessage(error), 'error');
+      return null;
+    } finally {
+      busy = false;
+      renderInventory();
+    }
+  }
+
+  async function handleBusinessControls(event) {
+    const purchase = event.target?.closest?.('[data-farm-business-purchase]');
+    if (purchase) {
+      await runBusinessAction('Оформляем покупку фермерского ООО…', () => purchaseFarmBusiness({ businessId: activeBuyerObjectId, cityId }));
+      return;
+    }
+
+    const deposit = event.target?.closest?.('[data-farm-deposit]');
+    const withdraw = event.target?.closest?.('[data-farm-withdraw]');
+    if (deposit || withdraw) {
+      const amount = Math.max(0, Math.floor(Number(modal?.querySelector('[data-farm-finance-amount]')?.value) || 0));
+      const fn = deposit ? depositFarmBusiness : withdrawFarmBusiness;
+      await runBusinessAction(deposit ? 'Пополняем баланс предприятия…' : 'Снимаем деньги с предприятия…', () => fn({ businessId: activeBuyerObjectId, cityId, amount }));
+      return;
+    }
+
+    const assistantSave = event.target?.closest?.('[data-farm-assistant-save]');
+    const assistantClear = event.target?.closest?.('[data-farm-assistant-clear]');
+    if (assistantSave || assistantClear) {
+      const target = assistantClear ? '' : String(modal?.querySelector('[data-farm-assistant-target]')?.value || '').trim();
+      const result = await runBusinessAction(assistantClear ? 'Снимаем помощника…' : 'Назначаем помощника…', () => setFarmBusinessAssistant({ businessId: activeBuyerObjectId, cityId, target }));
+      if (result && modal?.querySelector('[data-farm-assistant-target]')) modal.querySelector('[data-farm-assistant-target]').value = '';
+      return;
+    }
+
+    const fill = event.target?.closest?.('[data-farm-fill-tower]');
+    if (fill) {
+      const liters = Math.max(0, Number(modal?.querySelector('[data-farm-fill-liters]')?.value) || 0);
+      await runBusinessAction('Заливаем воду в башню…', () => fillFarmWaterTower({ businessId: activeBuyerObjectId, cityId, liters }));
+      return;
+    }
+
+    const order = event.target?.closest?.('[data-farm-order]');
+    if (order) {
+      const supplyType = String(order.dataset.farmOrder || '');
+      const quantity = Math.max(0, Number(modal?.querySelector(`[data-farm-order-quantity="${supplyType}"]`)?.value) || 0);
+      await runBusinessAction('Оформляем поставку…', () => orderFarmBusinessSupply({ businessId: activeBuyerObjectId, cityId, supplyType, quantity }));
+      return;
+    }
+
+    const priceSave = event.target?.closest?.('[data-farm-price-save]');
+    if (priceSave) {
+      const itemType = String(priceSave.dataset.farmPriceSave || '');
+      const price = Math.max(0, Math.floor(Number(modal?.querySelector(`[data-farm-price-input="${itemType}"]`)?.value) || 0));
+      await runBusinessAction('Сохраняем розничную цену…', () => setFarmBusinessToolPrice({ businessId: activeBuyerObjectId, cityId, itemType, price }));
+    }
+  }
+
   function handleFarmObjectEvent(event) {
     const object = event?.detail?.object;
     const type = String(object?.type || object?.payload?.jobType || '');
     if (type === 'farm_station') {
       openModal(object);
+    } else if (type === 'farm_water_tower') {
+      void handleTakeWater(object);
     } else if (isFarmPlantObject(object)) {
       void workWithPlant(object);
     }
@@ -618,6 +981,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   modal?.querySelectorAll('[data-farm-close]').forEach((button) => button.addEventListener('click', closeModal));
   panel?.addEventListener('click', handleBuy);
   panel?.addEventListener('click', handleSell);
+  panel?.addEventListener('click', handleBusinessControls);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('mn:farm-object-action', handleFarmObjectEvent);
   window.addEventListener('mn:player-skills-changed', renderInventory);
