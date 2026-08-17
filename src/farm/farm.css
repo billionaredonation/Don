@@ -1,4 +1,5 @@
 .map-object-type-farm_station,
+.map-object-type-farm_water_tower,
 .map-object-type-farm_wheat_plant,
 .map-object-type-farm_apple_plant,
 .map-object-type-farm_orange_plant,
@@ -9,6 +10,7 @@
 body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer-admin)
   .map-object:is(
     .map-object-type-farm_station,
+    .map-object-type-farm_water_tower,
     .map-object-type-farm_wheat_plant,
     .map-object-type-farm_apple_plant,
     .map-object-type-farm_orange_plant,
@@ -19,6 +21,7 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 }
 
 .map-object-type-farm_station .map-object-icon,
+.map-object-type-farm_water_tower .map-object-icon,
 .map-object-type-farm_wheat_plant .map-object-icon,
 .map-object-type-farm_apple_plant .map-object-icon,
 .map-object-type-farm_orange_plant .map-object-icon,
@@ -69,12 +72,14 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 }
 
 .map-object-type-farm_station { --mn-interaction-ring-size: 38px; }
+.map-object-type-farm_water_tower { --mn-interaction-ring-size: 36px; }
 .map-object-type-farm_wheat_plant,
 .map-object-type-farm_apple_plant,
 .map-object-type-farm_orange_plant,
 .map-object-type-farm_corn_plant { --mn-interaction-ring-size: 34px; }
 
 .map-object-type-farm_station.map-object-nearby .map-object-icon,
+.map-object-type-farm_water_tower.map-object-nearby .map-object-icon,
 .map-object-type-farm_wheat_plant.map-object-nearby .map-object-icon,
 .map-object-type-farm_apple_plant.map-object-nearby .map-object-icon,
 .map-object-type-farm_orange_plant.map-object-nearby .map-object-icon,
@@ -1511,4 +1516,218 @@ body.mn-farm-modal-open { overflow: hidden; }
     width: min(560px, calc(100dvh - 20px)) !important;
     max-height: calc(100vw - 14px) !important;
   }
+}
+
+/* Farm business v2 -------------------------------------------------------- */
+.mn-farm-business-role {
+  margin-left: auto;
+  padding: 5px 9px;
+  border: 1px solid rgba(142, 216, 164, .18);
+  border-radius: 999px;
+  background: rgba(97, 183, 122, .11);
+  color: #b9edc8;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mn-farm-water-info,
+.mn-farm-tool-durability,
+.mn-farm-business-buy,
+.mn-farm-business-summary article,
+.mn-farm-business-kpis > span,
+.mn-farm-business-management > section {
+  border: 1px solid rgba(125, 177, 140, .14);
+  background: rgba(15, 24, 18, .72);
+}
+
+.mn-farm-water-info {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border-radius: 11px;
+}
+.mn-farm-water-info > i { font-size: 24px; font-style: normal; text-align: center; }
+.mn-farm-water-info > span { display: grid; gap: 2px; min-width: 0; }
+.mn-farm-water-info b { color: #edf6ef; font-size: 12px; }
+.mn-farm-water-info small { color: rgba(237, 246, 239, .62); font-size: 10px; line-height: 1.3; }
+
+.mn-farm-tool-durability {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px;
+  border-radius: 11px;
+}
+.mn-farm-tool-durability > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .025);
+  color: rgba(237, 246, 239, .7);
+  font-size: 10px;
+  font-weight: 800;
+}
+.mn-farm-tool-durability b { color: #dff4e5; font-size: 11px; }
+
+.mn-farm-business-page { gap: 7px; }
+.mn-farm-business-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.mn-farm-business-summary article {
+  display: grid;
+  gap: 2px;
+  min-height: 67px;
+  padding: 9px 10px;
+  border-radius: 11px;
+}
+.mn-farm-business-summary small,
+.mn-farm-business-kpis small {
+  color: rgba(229, 242, 233, .54);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.mn-farm-business-summary strong { color: #f0f8f2; font-size: 15px; font-weight: 950; }
+.mn-farm-business-summary span { color: rgba(229, 242, 233, .58); font-size: 9px; }
+
+.mn-farm-business-buy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 12px;
+}
+.mn-farm-business-buy > span { display: grid; gap: 2px; min-width: 0; }
+.mn-farm-business-buy small { color: rgba(231, 242, 234, .5); font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.mn-farm-business-buy strong { color: #f2faf4; font-size: 14px; }
+.mn-farm-business-buy p { max-width: 520px; margin: 2px 0 0; color: rgba(231, 242, 234, .57); font-size: 9px; line-height: 1.35; }
+.mn-farm-business-buy button,
+.mn-farm-business-inline button,
+.mn-farm-supply-grid button {
+  min-height: 34px;
+  border: 1px solid rgba(153, 226, 174, .26);
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(137, 218, 160, .26), rgba(74, 145, 94, .22));
+  color: #eefaf1;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.mn-farm-business-buy button { padding: 0 13px; }
+
+.mn-farm-business-owned { display: grid; gap: 7px; }
+.mn-farm-business-owned[hidden],
+.mn-farm-business-management[hidden],
+.mn-farm-business-buy[hidden],
+.mn-farm-business-management [hidden] { display: none !important; }
+.mn-farm-business-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.mn-farm-business-kpis > span {
+  display: grid;
+  gap: 2px;
+  padding: 8px 9px;
+  border-radius: 10px;
+}
+.mn-farm-business-kpis b { color: #eaf6ed; font-size: 11px; }
+
+.mn-farm-business-management { display: grid; gap: 7px; }
+.mn-farm-business-management > section {
+  display: grid;
+  gap: 6px;
+  padding: 9px;
+  border-radius: 11px;
+}
+.mn-farm-business-management h4 { margin: 0; color: #eaf5ed; font-size: 11px; font-weight: 900; }
+.mn-farm-business-management section > small { color: rgba(230, 242, 233, .5); font-size: 8px; line-height: 1.35; }
+.mn-farm-business-inline { display: flex; gap: 6px; min-width: 0; }
+.mn-farm-business-inline input,
+.mn-farm-supply-grid input {
+  min-width: 0;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid rgba(137, 183, 149, .15);
+  border-radius: 8px;
+  outline: none;
+  background: rgba(2, 9, 4, .48);
+  color: #eff8f1;
+  font-size: 10px;
+  font-weight: 800;
+}
+.mn-farm-business-inline input { flex: 1 1 120px; }
+.mn-farm-business-inline button { padding: 0 10px; }
+.mn-farm-supply-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mn-farm-supply-grid label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  align-items: center;
+  padding: 6px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .025);
+}
+.mn-farm-supply-grid label > span { grid-column: 1 / -1; color: rgba(232, 244, 235, .7); font-size: 9px; font-weight: 850; }
+.mn-farm-supply-grid input { width: 100%; }
+.mn-farm-supply-grid button { padding: 0 8px; }
+
+.mn-farm-shop-row[data-owned='true'] { opacity: .76; }
+.mn-farm-shop-row[data-broken='true'] { border-color: rgba(240, 107, 107, .24); }
+
+/* Water tower is an interactive farm object, not a full-screen work zone. */
+.map-object-type-farm_water_tower .map-object-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(114, 202, 234, .28);
+  border-radius: 50%;
+  background: rgba(14, 54, 67, .76);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .32), inset 0 0 0 1px rgba(255, 255, 255, .05);
+  font-size: 17px;
+}
+
+@media (max-width: 760px), (hover: none) and (pointer: coarse), (orientation: landscape) and (max-height: 520px) {
+  .mn-farm-business-role { padding: 4px 7px; font-size: 8px; }
+  .mn-farm-business-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mn-farm-business-summary article { min-height: 54px; padding: 6px 7px; }
+  .mn-farm-business-summary strong { font-size: 11px; }
+  .mn-farm-business-summary span { font-size: 7.5px; line-height: 1.2; }
+  .mn-farm-business-buy { padding: 7px 8px; gap: 7px; }
+  .mn-farm-business-buy p { font-size: 7.5px; }
+  .mn-farm-business-buy button { min-height: 30px; padding-inline: 9px; font-size: 9px; }
+  .mn-farm-business-kpis > span { padding: 6px 7px; }
+  .mn-farm-business-management > section { padding: 7px; gap: 5px; }
+  .mn-farm-business-inline input,
+  .mn-farm-business-inline button,
+  .mn-farm-supply-grid input,
+  .mn-farm-supply-grid button { height: 30px; min-height: 30px; font-size: 9px; }
+  .mn-farm-supply-grid label { padding: 5px; }
+  .mn-farm-water-info { min-height: 43px; padding: 5px 8px; grid-template-columns: 30px minmax(0, 1fr); }
+  .mn-farm-water-info > i { font-size: 19px; }
+  .mn-farm-water-info b { font-size: 10px; }
+  .mn-farm-water-info small { font-size: 8px; }
+  .mn-farm-tool-durability { padding: 5px; }
+  .mn-farm-tool-durability > span { min-height: 28px; font-size: 8px; }
+}
+
+@media (max-width: 540px) and (orientation: portrait) {
+  .mn-farm-business-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mn-farm-business-buy { align-items: stretch; flex-direction: column; }
+  .mn-farm-supply-grid { grid-template-columns: 1fr; }
 }
