@@ -12,10 +12,25 @@ import {
 } from './lumberApi.js';
 import { LUMBER_ITEMS, LUMBER_LEVELS, getLumberTreeByObjectType } from './lumberConfig.js';
 import { cancelLumberMiniGame, playLumberChopMiniGame, playLumberSawMiniGame } from './lumberMiniGame.js';
+import { JOB_BUSINESS_TYPES, formatJobBusinessMoney } from '../jobs/jobBusinessConfig.js';
+import {
+  commitJobBusinessPayout,
+  depositJobBusiness,
+  getJobBusinessUserErrorMessage,
+  loadJobBusinessSnapshot,
+  purchaseJobBusiness,
+  refundJobBusinessPayout,
+  reserveJobBusinessPayout,
+  setJobBusinessAssistant,
+  withdrawJobBusiness,
+} from '../jobs/jobBusinessApi.js';
+import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
+import '../jobs/jobBusiness.css';
 import './lumber.css';
 
 const STATE_REFRESH_MS = 5000;
 const INVENTORY_REFRESH_MS = 12000;
+const LUMBER_BUSINESS_CONFIG = JOB_BUSINESS_TYPES.lumber;
 
 function isLumberStreamObject(object = {}) {
   const type = String(object.type || object?.payload?.jobType || '');
@@ -62,6 +77,7 @@ function modalMarkup() {
           <button type="button" data-lumber-tab="tools" data-active="true">Инструменты</button>
           <button type="button" data-lumber-tab="saw">Распил</button>
           <button type="button" data-lumber-tab="sell">Продажа</button>
+          <button type="button" data-lumber-tab="business">Управление</button>
         </nav>
         <div class="mn-lumber-roadmap">
           ${Object.values(LUMBER_LEVELS).map((level) => `<span data-lumber-roadmap-level="${level.level}"><b>${level.level}</b><small>${level.label}</small></span>`).join('<i>→</i>')}
@@ -96,6 +112,14 @@ function modalMarkup() {
             <button type="button" data-lumber-sell="lumber_beam" data-quantity="0" data-channel="industry">Отправить все брусья</button>
           </section>
         </div>
+        ${jobBusinessPageMarkup({
+          prefix: 'lumber',
+          config: LUMBER_BUSINESS_CONFIG,
+          items: [
+            { itemType: 'lumber_log', label: 'Брёвна', icon: '🪵' },
+            { itemType: 'lumber_beam', label: 'Брус', icon: '▰' },
+          ],
+        })}
         <footer><small data-lumber-status></small></footer>
       </section>
     </div>`;
@@ -116,6 +140,8 @@ export function enableLumberFeature({ root, cityId } = {}) {
   let busy = false;
   let activeStationObjectId = '';
   let inventoryState = { items: [] };
+  let businessState = null;
+  let businessRefreshPromise = null;
   let treeStates = new Map();
   let treeStatesReady = false;
   let treeLoadPromise = null;
@@ -140,6 +166,85 @@ export function enableLumberFeature({ root, cityId } = {}) {
 
   const hasItem = (itemType) => itemQuantity(itemType) > 0;
   const currentLevel = () => Math.max(1, Math.min(3, Number(inventoryState?.skills?.skills?.lumberjack?.level || getLumberjackSkillStatus().level) || 1));
+
+  function renderBusiness() {
+    const business = businessState;
+    const owned = Boolean(business?.owned);
+    const role = String(business?.role || 'worker');
+    const isOwner = role === 'owner';
+    const isStaff = isOwner || role === 'assistant';
+    const canInspect = isStaff || Boolean(business?.isAdmin);
+    const roleLabel = isOwner ? 'Владелец' : role === 'assistant' ? 'Помощник' : business?.isAdmin ? 'Администратор' : 'Работник';
+
+    const owner = modal?.querySelector('[data-lumber-business-owner]');
+    if (owner) owner.textContent = owned ? (business?.ownerNickname || business?.ownerTgId || 'Владелец') : 'Государство';
+    const assistant = modal?.querySelector('[data-lumber-business-assistant]');
+    if (assistant) assistant.textContent = `Помощник: ${business?.assistantNickname || business?.assistantTgId || 'нет'}`;
+    const roleOutput = modal?.querySelector('[data-lumber-business-role]');
+    if (roleOutput) roleOutput.textContent = roleLabel;
+    const stateOutput = modal?.querySelector('[data-lumber-business-state]');
+    if (stateOutput) stateOutput.textContent = owned ? 'Частное предприятие' : 'Государственная точка';
+
+    const buy = modal?.querySelector('[data-lumber-business-buy]');
+    if (buy) buy.hidden = owned;
+    const ownedBlock = modal?.querySelector('[data-lumber-business-owned]');
+    if (ownedBlock) ownedBlock.hidden = !owned;
+    const privateBlock = modal?.querySelector('[data-lumber-business-private]');
+    if (privateBlock) privateBlock.hidden = !canInspect;
+    const management = modal?.querySelector('[data-lumber-business-management]');
+    if (management) management.hidden = !canInspect;
+    modal?.querySelectorAll('[data-lumber-business-owner-only]').forEach((element) => { element.hidden = !isOwner; });
+
+    const cash = modal?.querySelector('[data-lumber-business-cash]');
+    if (cash) cash.textContent = formatJobBusinessMoney(business?.cashBalance || 0);
+    const payout = modal?.querySelector('[data-lumber-business-payout]');
+    if (payout) payout.textContent = formatJobBusinessMoney(business?.totalPayout || 0);
+
+    const warehouse = business?.warehouse || { capacity: LUMBER_BUSINESS_CONFIG.warehouseCapacity, used: 0, free: LUMBER_BUSINESS_CONFIG.warehouseCapacity, items: {} };
+    modal?.querySelectorAll('[data-lumber-business-warehouse-used]').forEach((element) => { element.textContent = Number(warehouse.used || 0).toLocaleString('ru-RU'); });
+    const free = modal?.querySelector('[data-lumber-business-warehouse-free]');
+    if (free) free.textContent = Number(warehouse.free ?? LUMBER_BUSINESS_CONFIG.warehouseCapacity).toLocaleString('ru-RU');
+    const capacity = Math.max(1, Number(warehouse.capacity || LUMBER_BUSINESS_CONFIG.warehouseCapacity));
+    const percent = Math.min(100, Math.max(0, Number(warehouse.used || 0) / capacity * 100));
+    modal?.querySelectorAll('[data-lumber-business-warehouse-meter]').forEach((element) => element.style.setProperty('--mn-jobbiz-progress', `${percent}%`));
+    ['lumber_log', 'lumber_beam'].forEach((itemType) => {
+      modal?.querySelectorAll(`[data-lumber-business-warehouse-item="${itemType}"]`).forEach((element) => {
+        element.textContent = Number(warehouse?.items?.[itemType] || 0).toLocaleString('ru-RU');
+      });
+    });
+    modal?.querySelectorAll('[data-lumber-business-purchase], [data-lumber-business-deposit], [data-lumber-business-withdraw], [data-lumber-business-withdraw-all], [data-lumber-business-assistant-save], [data-lumber-business-assistant-clear]')
+      .forEach((button) => { button.disabled = busy; });
+  }
+
+  function publishBusiness(result) {
+    const business = result?.business && typeof result.business === 'object' ? result.business : result;
+    if (!business || typeof business !== 'object') return businessState;
+    businessState = business;
+    const balance = Number(business.playerBalance ?? result?.playerBalance ?? result?.meta?.playerBalance);
+    if (Number.isFinite(balance)) {
+      state.player = { ...(state.player || {}), balance };
+      window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'lumber_business' } }));
+    }
+    window.__MN_LUMBER_BUSINESS_STATE__ = { ...businessState };
+    renderBusiness();
+    return businessState;
+  }
+
+  function refreshBusiness({ silent = true } = {}) {
+    if (!activeStationObjectId) return Promise.resolve(null);
+    if (businessRefreshPromise) return businessRefreshPromise;
+    businessRefreshPromise = (async () => {
+      try {
+        return publishBusiness(await loadJobBusinessSnapshot({ businessId: activeStationObjectId, cityId, jobType: 'lumber' }));
+      } catch (error) {
+        if (!silent) setStatus(getJobBusinessUserErrorMessage(error), 'error');
+        return null;
+      } finally {
+        businessRefreshPromise = null;
+      }
+    })();
+    return businessRefreshPromise;
+  }
 
   function publishInventory(result) {
     const payload = result?.inventory && typeof result.inventory === 'object' ? result.inventory : result;
@@ -196,6 +301,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     if (industryStatus) industryStatus.textContent = level >= 3 ? 'Открыто: брус подходит для производств' : 'Откроется на 3 уровне';
     const industryButton = modal?.querySelector('[data-channel="industry"]');
     if (industryButton) industryButton.disabled = busy || level < 3 || beamCount < 1;
+    renderBusiness();
   }
 
   function publishTreeStates() {
@@ -298,12 +404,14 @@ export function enableLumberFeature({ root, cityId } = {}) {
     if (!modal || busy) return;
     startLumberStreamLoading();
     activeStationObjectId = String(object?.id || '');
+    businessState = null;
     setStatus('');
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-lumber-modal-open');
     renderInventory();
     void refreshInventory({ silent: false });
+    void refreshBusiness({ silent: true });
   }
 
   function closeModal() {
@@ -317,6 +425,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
   function setTab(tab) {
     tabs.forEach((button) => { button.dataset.active = button.dataset.lumberTab === tab ? 'true' : 'false'; });
     pages.forEach((page) => { page.hidden = page.dataset.lumberPage !== tab; });
+    if (tab === 'business') void refreshBusiness({ silent: false });
   }
 
   async function workWithTree(object) {
@@ -393,19 +502,107 @@ export function enableLumberFeature({ root, cityId } = {}) {
   async function handleSell(event) {
     const button = event.target?.closest?.('[data-lumber-sell]');
     if (!button || busy || performance.now() < scrollClickBlockedUntil) return;
+    const itemType = String(button.dataset.lumberSell || '');
+    const available = itemQuantity(itemType);
+    const requestedRaw = Math.max(0, Math.floor(Number(button.dataset.quantity) || 0));
+    const requestedQuantity = requestedRaw > 0 ? Math.min(available, requestedRaw) : available;
+    if (requestedQuantity <= 0) return;
+
     busy = true;
     renderInventory();
     const channel = String(button.dataset.channel || 'station');
     setStatus(channel === 'industry' ? 'Оформляем поставку производству…' : 'Взвешиваем древесину…');
+    let reservationId = '';
+    let reserved = false;
     try {
-      const result = await sellLumberItem({
-        cityId, stationObjectId: activeStationObjectId, itemType: button.dataset.lumberSell,
-        quantity: Math.max(0, Math.floor(Number(button.dataset.quantity) || 0)), channel,
-      });
+      const business = businessState || await refreshBusiness({ silent: false });
+      if (!business) return;
+      if (business.owned) {
+        const expectedAmount = requestedQuantity * Math.max(0, Number(LUMBER_ITEMS[itemType]?.sellPrice || 0));
+        const reservation = await reserveJobBusinessPayout({ businessId: activeStationObjectId, cityId, jobType: 'lumber', itemType, quantity: requestedQuantity, amount: expectedAmount });
+        if (reservation?.business) publishBusiness(reservation.business);
+        reservationId = String(reservation?.reservationId || '');
+        reserved = Boolean(reservationId);
+      }
+
+      const result = await sellLumberItem({ cityId, stationObjectId: activeStationObjectId, itemType, quantity: requestedRaw, channel });
       if (result?.inventory) publishInventory(result.inventory);
+
+      if (reserved) {
+        try {
+          const committed = await commitJobBusinessPayout({ businessId: activeStationObjectId, cityId, jobType: 'lumber', reservationId, quantity: Math.max(1, Number(result.soldQuantity) || requestedQuantity), amount: Math.max(0, Number(result.totalPrice) || 0) });
+          if (committed?.business) publishBusiness(committed.business);
+        } catch (commitError) {
+          console.warn('[lumber] business payout commit failed:', commitError);
+          void refreshBusiness({ silent: true });
+        }
+      }
       setStatus(`Продано ${Number(result.soldQuantity) || 0} шт. · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴${channel === 'industry' ? ' · производство' : ''}`, 'success');
-    } catch (error) { setStatus(getLumberUserErrorMessage(error), 'error'); }
-    finally { busy = false; renderInventory(); }
+    } catch (error) {
+      if (reserved && reservationId) {
+        try {
+          const refunded = await refundJobBusinessPayout({ businessId: activeStationObjectId, cityId, jobType: 'lumber', reservationId });
+          if (refunded?.business) publishBusiness(refunded.business);
+        } catch (refundError) { console.warn('[lumber] payout refund failed:', refundError); }
+      }
+      const raw = String(error?.message || error || '');
+      setStatus(raw.includes('JOB_BUSINESS_') ? getJobBusinessUserErrorMessage(error) : getLumberUserErrorMessage(error), 'error');
+    } finally {
+      busy = false;
+      renderInventory();
+    }
+  }
+
+  async function runBusinessAction(label, action) {
+    if (busy || !activeStationObjectId) return null;
+    busy = true;
+    renderInventory();
+    setStatus(label);
+    try {
+      const result = await action();
+      publishBusiness(result?.business || result);
+      setStatus('Готово.', 'success');
+      return result;
+    } catch (error) {
+      setStatus(getJobBusinessUserErrorMessage(error), 'error');
+      return null;
+    } finally {
+      busy = false;
+      renderInventory();
+    }
+  }
+
+  async function handleBusinessControls(event) {
+    if (event.target?.closest?.('[data-lumber-business-purchase]')) {
+      await runBusinessAction('Оформляем покупку лесозаготовительного предприятия…', () => purchaseJobBusiness({ businessId: activeStationObjectId, cityId, jobType: 'lumber' }));
+      return;
+    }
+    const deposit = event.target?.closest?.('[data-lumber-business-deposit]');
+    const withdraw = event.target?.closest?.('[data-lumber-business-withdraw]');
+    const withdrawAll = event.target?.closest?.('[data-lumber-business-withdraw-all]');
+    if (deposit || withdraw || withdrawAll) {
+      const amount = deposit
+        ? Math.max(0, Math.floor(Number(modal?.querySelector('[data-lumber-business-deposit-amount]')?.value) || 0))
+        : withdrawAll ? Math.max(0, Math.floor(Number(businessState?.cashBalance) || 0))
+          : Math.max(0, Math.floor(Number(modal?.querySelector('[data-lumber-business-withdraw-amount]')?.value) || 0));
+      const fn = deposit ? depositJobBusiness : withdrawJobBusiness;
+      const result = await runBusinessAction(deposit ? 'Пополняем баланс предприятия…' : 'Переводим средства владельцу…', () => fn({ businessId: activeStationObjectId, cityId, jobType: 'lumber', amount }));
+      if (result) {
+        const input = modal?.querySelector(deposit ? '[data-lumber-business-deposit-amount]' : '[data-lumber-business-withdraw-amount]');
+        if (input) input.value = '';
+      }
+      return;
+    }
+    const saveAssistant = event.target?.closest?.('[data-lumber-business-assistant-save]');
+    const clearAssistant = event.target?.closest?.('[data-lumber-business-assistant-clear]');
+    if (saveAssistant || clearAssistant) {
+      const target = clearAssistant ? '' : String(modal?.querySelector('[data-lumber-business-assistant-target]')?.value || '').trim();
+      const result = await runBusinessAction(clearAssistant ? 'Снимаем помощника…' : 'Назначаем помощника…', () => setJobBusinessAssistant({ businessId: activeStationObjectId, cityId, jobType: 'lumber', target }));
+      if (result) {
+        const input = modal?.querySelector('[data-lumber-business-assistant-target]');
+        if (input) input.value = '';
+      }
+    }
   }
 
   function handleLumberObject(event) {
@@ -449,6 +646,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
   panel?.addEventListener('click', handleTool);
   panel?.addEventListener('click', handleSaw);
   panel?.addEventListener('click', handleSell);
+  panel?.addEventListener('click', handleBusinessControls);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('mn:lumber-object-action', handleLumberObject);
   window.addEventListener('mn:job-stream-window-changed', handleJobStreamWindow);
@@ -469,6 +667,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     modal?.remove();
     cancelLumberMiniGame();
     delete window.__MN_LUMBER_TREE_STATES__;
+    delete window.__MN_LUMBER_BUSINESS_STATE__;
     window.__MN_LUMBER_TREE_STATES_READY__ = false;
   };
 }
