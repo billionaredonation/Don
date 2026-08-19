@@ -127,3 +127,29 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
     min-width: 100dvh !important; min-height: 100vw !important; transform: translate3d(-50%,-50%,0) rotate(90deg) !important; transform-origin: center center !important;
   }
 }
+
+/* Production business */
+.mn-lumber-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mn-lumber-panel > .mn-jobbiz-page { min-height: 0; padding: 0 14px 14px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.mn-lumber-panel .mn-jobbiz-buy button,
+.mn-lumber-panel .mn-jobbiz-inline button:not(.is-ghost) { border-color: rgba(123,201,93,.34); background: linear-gradient(180deg,rgba(94,177,67,.27),rgba(62,135,43,.2)); color: #e7ffdf; }
+.mn-lumber-panel .mn-jobbiz-progress > i { background: linear-gradient(90deg, rgba(81,168,57,.75), rgba(139,226,107,.95)); }
+@media (max-width: 760px) {
+  .mn-lumber-panel { width: min(96vw, 650px); max-height: calc(100dvh - 18px); border-radius: 17px; }
+  .mn-lumber-panel > header { min-height: 58px; padding: 0 12px; gap: 7px; }
+  .mn-lumber-panel > header strong { font-size: 15px; }
+  .mn-lumber-panel > header > b { padding: 5px 7px; font-size: 9px; }
+  .mn-lumber-panel > header > button { width: 32px; height: 32px; font-size: 21px; }
+  .mn-lumber-tabs { gap: 5px; padding: 7px 8px 0; }
+  .mn-lumber-tabs button { min-height: 34px; padding: 0 4px; border-radius: 9px; font-size: 9px; }
+  .mn-lumber-roadmap { margin: 7px 8px; padding: 6px; gap: 4px; }
+  .mn-lumber-roadmap > span { padding: 4px 5px; gap: 4px; }
+  .mn-lumber-roadmap small { font-size: 8px; }
+  .mn-lumber-panel > .mn-jobbiz-page { padding: 0 8px 10px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .mn-lumber-panel { max-height: calc(100dvh - 10px); }
+  .mn-lumber-panel > header { min-height: 46px; }
+  .mn-lumber-roadmap { margin-block: 5px; }
+  .mn-lumber-tabs button { min-height: 30px; }
+}
