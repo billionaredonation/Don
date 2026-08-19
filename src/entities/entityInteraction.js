@@ -1915,6 +1915,11 @@ export function enableEntityInteraction({
       } else {
         const nearestWhileMoving = getNearestInteractableObject();
 
+        // Keep .map-object-nearby synced while moving too. Without this, the
+        // green water-icon highlight could appear only after stopping or remain
+        // visible after the player had already walked away.
+        setNearestVisual(nearestWhileMoving);
+
         if (nearestWhileMoving) {
           showInteractionHintOnce(nearestWhileMoving);
         } else {
