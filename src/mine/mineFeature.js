@@ -17,10 +17,25 @@ import {
 } from './mineConfig.js';
 import { cancelMineMiniGame, playMineMiniGame } from './mineMiniGame.js';
 import { getMineResourceSkillStatus, publishPlayerSkills } from '../player/playerSkillState.js';
+import { JOB_BUSINESS_TYPES, formatJobBusinessMoney } from '../jobs/jobBusinessConfig.js';
+import {
+  commitJobBusinessPayout,
+  depositJobBusiness,
+  getJobBusinessUserErrorMessage,
+  loadJobBusinessSnapshot,
+  purchaseJobBusiness,
+  refundJobBusinessPayout,
+  reserveJobBusinessPayout,
+  setJobBusinessAssistant,
+  withdrawJobBusiness,
+} from '../jobs/jobBusinessApi.js';
+import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
+import '../jobs/jobBusiness.css';
 import './mine.css';
 
 const MINE_STATE_REFRESH_MS = 5000;
 const MINE_INVENTORY_REFRESH_MS = 12000;
+const MINE_BUSINESS_CONFIG = JOB_BUSINESS_TYPES.mine;
 
 function isMineStreamObject(object = {}) {
   const type = String(object.type || object?.payload?.jobType || '');
@@ -88,6 +103,7 @@ function modalMarkup() {
         <nav class="mn-mine-tabs" aria-label="Разделы шахты">
           <button type="button" data-mine-tab="tools" data-active="true">Снаряжение</button>
           <button type="button" data-mine-tab="sell">Скупщик</button>
+          <button type="button" data-mine-tab="business">Управление</button>
         </nav>
         <div class="mn-mine-chain" aria-label="Цепочка открытия ресурсов">
           <span>🪨 Камень</span><i>→</i><span>⚫ Уголь</span><i>→</i><span>⚙️ Металл</span><i>→</i><span>🟠 Медь</span>
@@ -110,6 +126,11 @@ function modalMarkup() {
           </div>
           <div class="mn-mine-market-list">${marketRowsMarkup()}</div>
         </div>
+        ${jobBusinessPageMarkup({
+          prefix: 'mine',
+          config: MINE_BUSINESS_CONFIG,
+          items: Object.values(MINE_SUBTYPES).map((item) => ({ itemType: item.subtypeCode, label: item.label, icon: item.icon })),
+        })}
         <footer><small data-mine-status></small></footer>
       </section>
     </div>`;
@@ -132,6 +153,8 @@ export function enableMineFeature({ root, cityId } = {}) {
   let busy = false;
   let inventoryState = { items: [] };
   let marketState = { items: [] };
+  let businessState = null;
+  let businessRefreshPromise = null;
   let activeBuyerObjectId = '';
   let marketLoading = false;
   let marketLoadFailed = false;
@@ -267,6 +290,85 @@ export function enableMineFeature({ root, cityId } = {}) {
     return marketState.items?.find?.((item) => String(item.subtypeCode || '') === subtypeCode) || null;
   }
 
+  function renderBusiness() {
+    const business = businessState;
+    const owned = Boolean(business?.owned);
+    const role = String(business?.role || 'worker');
+    const isOwner = role === 'owner';
+    const isStaff = isOwner || role === 'assistant';
+    const canInspect = isStaff || Boolean(business?.isAdmin);
+    const roleLabel = isOwner ? 'Владелец' : role === 'assistant' ? 'Помощник' : business?.isAdmin ? 'Администратор' : 'Работник';
+
+    const owner = modal?.querySelector('[data-mine-business-owner]');
+    if (owner) owner.textContent = owned ? (business?.ownerNickname || business?.ownerTgId || 'Владелец') : 'Государство';
+    const assistant = modal?.querySelector('[data-mine-business-assistant]');
+    if (assistant) assistant.textContent = `Помощник: ${business?.assistantNickname || business?.assistantTgId || 'нет'}`;
+    const roleOutput = modal?.querySelector('[data-mine-business-role]');
+    if (roleOutput) roleOutput.textContent = roleLabel;
+    const stateOutput = modal?.querySelector('[data-mine-business-state]');
+    if (stateOutput) stateOutput.textContent = owned ? 'Частное предприятие' : 'Государственная точка';
+
+    const buy = modal?.querySelector('[data-mine-business-buy]');
+    if (buy) buy.hidden = owned;
+    const ownedBlock = modal?.querySelector('[data-mine-business-owned]');
+    if (ownedBlock) ownedBlock.hidden = !owned;
+    const privateBlock = modal?.querySelector('[data-mine-business-private]');
+    if (privateBlock) privateBlock.hidden = !canInspect;
+    const management = modal?.querySelector('[data-mine-business-management]');
+    if (management) management.hidden = !canInspect;
+    modal?.querySelectorAll('[data-mine-business-owner-only]').forEach((element) => { element.hidden = !isOwner; });
+
+    const cash = modal?.querySelector('[data-mine-business-cash]');
+    if (cash) cash.textContent = formatJobBusinessMoney(business?.cashBalance || 0);
+    const payout = modal?.querySelector('[data-mine-business-payout]');
+    if (payout) payout.textContent = formatJobBusinessMoney(business?.totalPayout || 0);
+
+    const warehouse = business?.warehouse || { capacity: MINE_BUSINESS_CONFIG.warehouseCapacity, used: 0, free: MINE_BUSINESS_CONFIG.warehouseCapacity, items: {} };
+    modal?.querySelectorAll('[data-mine-business-warehouse-used]').forEach((element) => { element.textContent = Number(warehouse.used || 0).toLocaleString('ru-RU'); });
+    const free = modal?.querySelector('[data-mine-business-warehouse-free]');
+    if (free) free.textContent = Number(warehouse.free ?? MINE_BUSINESS_CONFIG.warehouseCapacity).toLocaleString('ru-RU');
+    const capacity = Math.max(1, Number(warehouse.capacity || MINE_BUSINESS_CONFIG.warehouseCapacity));
+    const percent = Math.min(100, Math.max(0, Number(warehouse.used || 0) / capacity * 100));
+    modal?.querySelectorAll('[data-mine-business-warehouse-meter]').forEach((element) => element.style.setProperty('--mn-jobbiz-progress', `${percent}%`));
+    Object.keys(MINE_SUBTYPES).forEach((itemType) => {
+      modal?.querySelectorAll(`[data-mine-business-warehouse-item="${itemType}"]`).forEach((element) => {
+        element.textContent = Number(warehouse?.items?.[itemType] || 0).toLocaleString('ru-RU');
+      });
+    });
+    modal?.querySelectorAll('[data-mine-business-purchase], [data-mine-business-deposit], [data-mine-business-withdraw], [data-mine-business-withdraw-all], [data-mine-business-assistant-save], [data-mine-business-assistant-clear]')
+      .forEach((button) => { button.disabled = busy; });
+  }
+
+  function publishBusiness(result) {
+    const business = result?.business && typeof result.business === 'object' ? result.business : result;
+    if (!business || typeof business !== 'object') return businessState;
+    businessState = business;
+    const balance = Number(business.playerBalance ?? result?.playerBalance ?? result?.meta?.playerBalance);
+    if (Number.isFinite(balance)) {
+      state.player = { ...(state.player || {}), balance };
+      window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'mine_business' } }));
+    }
+    window.__MN_MINE_BUSINESS_STATE__ = { ...businessState };
+    renderBusiness();
+    return businessState;
+  }
+
+  function refreshBusiness({ silent = true } = {}) {
+    if (!activeBuyerObjectId) return Promise.resolve(null);
+    if (businessRefreshPromise) return businessRefreshPromise;
+    businessRefreshPromise = (async () => {
+      try {
+        return publishBusiness(await loadJobBusinessSnapshot({ businessId: activeBuyerObjectId, cityId, jobType: 'mine' }));
+      } catch (error) {
+        if (!silent) setStatus(getJobBusinessUserErrorMessage(error), 'error');
+        return null;
+      } finally {
+        businessRefreshPromise = null;
+      }
+    })();
+    return businessRefreshPromise;
+  }
+
   function renderMarketCountdown() {
     const output = modal?.querySelector('[data-mine-market-reset]');
     if (!output) return;
@@ -327,6 +429,7 @@ export function enableMineFeature({ root, cityId } = {}) {
       button.disabled = busy || hasPickaxe();
       button.dataset.owned = hasPickaxe() ? 'true' : 'false';
     });
+    renderBusiness();
   }
 
   async function refreshInventory({ silent = true } = {}) {
@@ -455,6 +558,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     startMineStreamLoading();
     marketRequestVersion += 1;
     activeBuyerObjectId = String(object?.id || '');
+    businessState = null;
     marketLoading = false;
     marketLoadFailed = false;
     marketState = { items: [] };
@@ -464,6 +568,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-mine-modal-open');
     void refreshInventory({ silent: false });
+    void refreshBusiness({ silent: true });
   }
 
   function closeModal() {
@@ -480,6 +585,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     tabButtons.forEach((button) => { button.dataset.active = button.dataset.mineTab === tab ? 'true' : 'false'; });
     tabPages.forEach((page) => { page.hidden = page.dataset.minePage !== tab; });
     if (tab === 'sell') void refreshMarket({ silent: false });
+    if (tab === 'business') void refreshBusiness({ silent: false });
   }
 
   async function workWithNode(object) {
@@ -566,24 +672,140 @@ export function enableMineFeature({ root, cityId } = {}) {
   async function handleSell(event) {
     const button = event.target?.closest?.('[data-mine-sell]');
     if (!button || busy || performance.now() < scrollClickBlockedUntil) return;
+    const subtypeCode = String(button.dataset.mineSell || '');
+    const market = marketItem(subtypeCode);
+    const available = inventoryQuantity(subtypeCode);
+    const requestedRaw = Math.max(0, Math.floor(Number(button.dataset.quantity) || 0));
+    const marketRemaining = Math.max(0, Number(market?.remainingQuantity ?? available));
+    const requestedQuantity = requestedRaw > 0
+      ? Math.min(available, marketRemaining, requestedRaw)
+      : Math.min(available, marketRemaining);
+    if (requestedQuantity <= 0) return;
+
     busy = true;
     renderInventory();
     setStatus('Взвешиваем и продаём сырьё…');
+    let reservationId = '';
+    let reserved = false;
     try {
+      const business = businessState || await refreshBusiness({ silent: false });
+      if (!business) return;
+      if (business.owned) {
+        if (!market || market.unlocked === false) throw new Error('MINE_MARKET_UNAVAILABLE');
+        const expectedAmount = requestedQuantity * Math.max(0, Number(market.unitPrice || 0));
+        const reservation = await reserveJobBusinessPayout({
+          businessId: activeBuyerObjectId,
+          cityId,
+          jobType: 'mine',
+          itemType: subtypeCode,
+          quantity: requestedQuantity,
+          amount: expectedAmount,
+        });
+        if (reservation?.business) publishBusiness(reservation.business);
+        reservationId = String(reservation?.reservationId || '');
+        reserved = Boolean(reservationId);
+      }
+
       const result = await sellMineSubtype({
         cityId,
         buyerObjectId: activeBuyerObjectId,
-        subtypeCode: String(button.dataset.mineSell || ''),
-        quantity: Math.max(0, Math.floor(Number(button.dataset.quantity) || 0)),
+        subtypeCode,
+        quantity: requestedRaw,
       });
       if (result.inventory) publishInventory(result.inventory);
       if (result.market) publishMarket(result.market);
+
+      if (reserved) {
+        try {
+          const committed = await commitJobBusinessPayout({
+            businessId: activeBuyerObjectId,
+            cityId,
+            jobType: 'mine',
+            reservationId,
+            quantity: Math.max(1, Number(result.soldQuantity) || requestedQuantity),
+            amount: Math.max(0, Number(result.totalPrice) || 0),
+          });
+          if (committed?.business) publishBusiness(committed.business);
+        } catch (commitError) {
+          console.warn('[mine] business payout commit failed:', commitError);
+          void refreshBusiness({ silent: true });
+        }
+      }
+
       setStatus(`Продано ${Number(result.soldQuantity) || 0} кг · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴`, 'success');
     } catch (error) {
-      setStatus(getMineUserErrorMessage(error), 'error');
+      if (reserved && reservationId) {
+        try {
+          const refunded = await refundJobBusinessPayout({ businessId: activeBuyerObjectId, cityId, jobType: 'mine', reservationId });
+          if (refunded?.business) publishBusiness(refunded.business);
+        } catch (refundError) { console.warn('[mine] payout refund failed:', refundError); }
+      }
+      const raw = String(error?.message || error || '');
+      setStatus(raw.includes('JOB_BUSINESS_') ? getJobBusinessUserErrorMessage(error) : getMineUserErrorMessage(error), 'error');
     } finally {
       busy = false;
       renderInventory();
+    }
+  }
+
+  async function runBusinessAction(label, action) {
+    if (busy || !activeBuyerObjectId) return null;
+    busy = true;
+    renderInventory();
+    setStatus(label);
+    try {
+      const result = await action();
+      publishBusiness(result?.business || result);
+      setStatus('Готово.', 'success');
+      return result;
+    } catch (error) {
+      setStatus(getJobBusinessUserErrorMessage(error), 'error');
+      return null;
+    } finally {
+      busy = false;
+      renderInventory();
+    }
+  }
+
+  async function handleBusinessControls(event) {
+    if (event.target?.closest?.('[data-mine-business-purchase]')) {
+      await runBusinessAction('Оформляем покупку горнодобывающего предприятия…', () => purchaseJobBusiness({ businessId: activeBuyerObjectId, cityId, jobType: 'mine' }));
+      return;
+    }
+
+    const deposit = event.target?.closest?.('[data-mine-business-deposit]');
+    const withdraw = event.target?.closest?.('[data-mine-business-withdraw]');
+    const withdrawAll = event.target?.closest?.('[data-mine-business-withdraw-all]');
+    if (deposit || withdraw || withdrawAll) {
+      const amount = deposit
+        ? Math.max(0, Math.floor(Number(modal?.querySelector('[data-mine-business-deposit-amount]')?.value) || 0))
+        : withdrawAll
+          ? Math.max(0, Math.floor(Number(businessState?.cashBalance) || 0))
+          : Math.max(0, Math.floor(Number(modal?.querySelector('[data-mine-business-withdraw-amount]')?.value) || 0));
+      const fn = deposit ? depositJobBusiness : withdrawJobBusiness;
+      const result = await runBusinessAction(
+        deposit ? 'Пополняем баланс шахты…' : 'Переводим средства владельцу…',
+        () => fn({ businessId: activeBuyerObjectId, cityId, jobType: 'mine', amount }),
+      );
+      if (result) {
+        const input = modal?.querySelector(deposit ? '[data-mine-business-deposit-amount]' : '[data-mine-business-withdraw-amount]');
+        if (input) input.value = '';
+      }
+      return;
+    }
+
+    const saveAssistant = event.target?.closest?.('[data-mine-business-assistant-save]');
+    const clearAssistant = event.target?.closest?.('[data-mine-business-assistant-clear]');
+    if (saveAssistant || clearAssistant) {
+      const target = clearAssistant ? '' : String(modal?.querySelector('[data-mine-business-assistant-target]')?.value || '').trim();
+      const result = await runBusinessAction(
+        clearAssistant ? 'Снимаем помощника…' : 'Назначаем помощника…',
+        () => setJobBusinessAssistant({ businessId: activeBuyerObjectId, cityId, jobType: 'mine', target }),
+      );
+      if (result) {
+        const input = modal?.querySelector('[data-mine-business-assistant-target]');
+        if (input) input.value = '';
+      }
     }
   }
 
@@ -608,6 +830,7 @@ export function enableMineFeature({ root, cityId } = {}) {
   modal?.querySelectorAll('[data-mine-close]').forEach((button) => button.addEventListener('click', closeModal));
   panel?.addEventListener('click', handleBuy);
   panel?.addEventListener('click', handleSell);
+  panel?.addEventListener('click', handleBusinessControls);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('mn:mine-object-action', handleMineObject);
   window.addEventListener('mn:job-stream-window-changed', handleJobStreamWindow);
@@ -636,6 +859,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     modal?.remove();
     cancelMineMiniGame();
     delete window.__MN_MINE_NODE_STATES__;
+    delete window.__MN_MINE_BUSINESS_STATE__;
     window.__MN_MINE_NODE_STATES_READY__ = false;
   };
 }
