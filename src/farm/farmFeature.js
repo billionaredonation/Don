@@ -117,136 +117,199 @@ function farmModalMarkup() {
   return `
     <div class="mn-farm-modal" data-farm-modal hidden aria-hidden="true">
       <button class="mn-farm-modal-backdrop" type="button" data-farm-close aria-label="Закрыть"></button>
-      <section class="mn-farm-panel" role="dialog" aria-modal="true" aria-labelledby="mn-farm-title">
-        <header>
-          <span><small>Работа · фермерское предприятие</small><strong id="mn-farm-title">Фермерская лавка</strong></span>
-          <b class="mn-farm-business-role" data-farm-business-role>Работник</b>
-          <button type="button" data-farm-close aria-label="Закрыть">×</button>
+      <section class="mn-farm-panel mn-farm-ui4" role="dialog" aria-modal="true" aria-labelledby="mn-farm-title">
+        <header class="mn-farm4-header">
+          <div class="mn-farm4-brand">
+            <span class="mn-farm4-brand-icon" aria-hidden="true">🌱</span>
+            <span class="mn-farm4-brand-copy">
+              <small>Работа · фермерское предприятие</small>
+              <strong id="mn-farm-title">Фермерская лавка</strong>
+            </span>
+          </div>
+          <div class="mn-farm4-header-actions">
+            <b class="mn-farm4-role" data-farm-business-role>Работник</b>
+            <button class="mn-farm4-close" type="button" data-farm-close aria-label="Закрыть">×</button>
+          </div>
         </header>
-        <nav class="mn-farm-tabs" aria-label="Разделы фермы" role="tablist">
-          <button type="button" data-farm-tab="tools" data-active="true" role="tab" aria-selected="true"><i aria-hidden="true">🧰</i><span>Инструменты</span></button>
-          <button type="button" data-farm-tab="sell" role="tab" aria-selected="false"><i aria-hidden="true">₴</i><span>Продажа</span></button>
-          <button type="button" data-farm-tab="business" role="tab" aria-selected="false"><i aria-hidden="true">⚙</i><span>Управление</span></button>
-        </nav>
-        <div class="mn-farm-cycle-guide" aria-label="Порядок работы на ферме">
-          <span><b><img src="${FARM_RAKE_ASSET_URL}" alt=""></b>Прополоть</span>
-          <i>→</i><span><b>💧</b>Полить</span>
-          <i>→</i><span><b>✂️</b>Собрать</span>
-          <em data-farm-owner-income-note hidden>Доход владельца: ${FARM_PLOT_INCOME} ₴ за каждый завершённый участок.</em>
-        </div>
-        <div class="mn-farm-tab-page" data-farm-page="tools">
-          <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_rake">
-            <i class="mn-farm-glyph is-rake" aria-hidden="true"><img src="${FARM_RAKE_ASSET_URL}" alt=""></i>
-            <span><b>Грабли</b><small>100 прочности · −${FARM_TOOL_DURABILITY_COST} за куст · склад <em data-farm-tool-stock="farm_rake">0</em> шт.</small></span>
-            <strong><span data-farm-tool-price="farm_rake">${FARM_TOOL_MIN_PRICE}</span> ₴</strong>
-          </button>
-          <button type="button" class="mn-farm-shop-row" data-farm-buy="farm_scissors">
-            <i class="mn-farm-glyph is-scissors" aria-hidden="true">✂️</i>
-            <span><b>Ножницы</b><small>100 прочности · −${FARM_TOOL_DURABILITY_COST} за куст · склад <em data-farm-tool-stock="farm_scissors">0</em> шт.</small></span>
-            <strong><span data-farm-tool-price="farm_scissors">${FARM_TOOL_MIN_PRICE}</span> ₴</strong>
-          </button>
-          <div class="mn-farm-water-info">
-            <i>💧</i><span><b>Вода теперь идёт через хозяйство фермы</b><small>Владелец или помощник берёт ведро со склада, наполняет его у бесконечной бочки и физически относит воду в башню. Работники набирают воду для полива уже из башни.</small></span>
-          </div>
-          <div class="mn-farm-tool-durability">
-            <span>Грабли <b data-farm-durability="farm_rake">—</b></span>
-            <span>Ножницы <b data-farm-durability="farm_scissors">—</b></span>
-          </div>
-        </div>
-        <div class="mn-farm-tab-page" data-farm-page="sell" hidden>
-          <div class="mn-farm-market-head">
-            <span><b>Рынок этого предприятия</b><small>Выплата идёт с баланса бизнеса. Цена и общий лимит обновляются каждые 3 часа.</small></span>
-            <strong data-farm-market-reset>Загрузка…</strong>
-          </div>
-          <div class="mn-farm-sale-row" data-farm-sale-row="farm_apple">
-            <i class="mn-farm-glyph" aria-hidden="true">🍎</i>
-            <span><b>Яблоко <u data-farm-sale-level="farm_apple">ур. 1</u></b><small><em data-farm-sale-count="farm_apple">0</em> шт. · <mark data-farm-sale-price="farm_apple">—</mark> ₴/шт. · лимит <mark data-farm-sale-limit="farm_apple">—</mark></small></span>
-            <div><button type="button" data-farm-sell="farm_apple" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_apple" data-quantity="0">Всё</button></div>
-          </div>
-          <div class="mn-farm-sale-row" data-farm-sale-row="farm_orange">
-            <i class="mn-farm-glyph" aria-hidden="true">🍊</i>
-            <span><b>Апельсин <u data-farm-sale-level="farm_orange">ур. 1</u></b><small><em data-farm-sale-count="farm_orange">0</em> шт. · <mark data-farm-sale-price="farm_orange">—</mark> ₴/шт. · лимит <mark data-farm-sale-limit="farm_orange">—</mark></small></span>
-            <div><button type="button" data-farm-sell="farm_orange" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_orange" data-quantity="0">Всё</button></div>
-          </div>
-          <div class="mn-farm-sale-row" data-farm-sale-row="farm_wheat">
-            <i class="mn-farm-glyph" aria-hidden="true">🌾</i>
-            <span><b>Пшеница <u data-farm-sale-level="farm_wheat">ур. 1</u></b><small><em data-farm-sale-count="farm_wheat">0</em> шт. · <mark data-farm-sale-price="farm_wheat">—</mark> ₴/шт. · лимит <mark data-farm-sale-limit="farm_wheat">—</mark></small></span>
-            <div><button type="button" data-farm-sell="farm_wheat" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_wheat" data-quantity="0">Всё</button></div>
-          </div>
-          <div class="mn-farm-sale-row" data-farm-sale-row="farm_corn">
-            <i class="mn-farm-glyph" aria-hidden="true">🌽</i>
-            <span><b>Кукуруза <u data-farm-sale-level="farm_corn">ур. 1</u></b><small><em data-farm-sale-count="farm_corn">0</em> шт. · <mark data-farm-sale-price="farm_corn">—</mark> ₴/шт. · лимит <mark data-farm-sale-limit="farm_corn">—</mark></small></span>
-            <div><button type="button" data-farm-sell="farm_corn" data-quantity="1">1 шт.</button><button type="button" data-farm-sell="farm_corn" data-quantity="0">Всё</button></div>
-          </div>
-        </div>
-        <div class="mn-farm-tab-page mn-farm-business-page" data-farm-page="business" hidden>
-          <div class="mn-farm-business-summary">
-            <article><small>Форма</small><strong>ООО</strong><span>Фермерское предприятие</span></article>
-            <article><small>Владелец</small><strong data-farm-owner>Государство</strong><span data-farm-assistant>Помощник: нет</span></article>
-            <article><small>Баланс бизнеса</small><strong data-farm-cash>0 ₴</strong><span>Из него оплачается урожай и поставки</span></article>
-            <article><small>Водоснабжение</small><strong><span data-farm-tower-water>0</span> / ${FARM_TOWER_CAPACITY_LITERS} л</strong><span>Бочка: <b data-farm-barrel-present>нет</b> · ведра: <b data-farm-bucket-stock>0</b></span></article>
-          </div>
-          <section class="mn-farm-business-buy" data-farm-business-buy>
-            <span><small>Государственная продажа</small><strong>Купить фермерское ООО</strong><p>После покупки доход по участкам, выкуп урожая и инструменты работают через баланс предприятия. Для воды должны быть привязаны башня и бесконечная бочка.</p></span>
-            <button type="button" data-farm-business-purchase>Купить за ${FARM_BUSINESS_PRICE.toLocaleString('ru-RU')} ₴</button>
-          </section>
-          <div class="mn-farm-business-owned" data-farm-business-owned hidden>
-            <div class="mn-farm-business-kpis">
-              <span data-farm-owner-income-kpi hidden><small>Доход с участков</small><b data-farm-plot-income>0 ₴</b></span>
-              <span><small>Выкуп урожая</small><b data-farm-crop-spend>0 ₴</b></span>
-              <span><small>Башня</small><b data-farm-tower-present>не установлена</b></span>
-              <span><small>Склад урожая</small><b><em data-farm-warehouse-used>0</em> / ${FARM_WAREHOUSE_CAPACITY}</b></span>
+
+        <div class="mn-farm4-shell">
+          <aside class="mn-farm4-sidebar">
+            <nav class="mn-farm4-tabs" aria-label="Разделы фермы" role="tablist">
+              <button type="button" data-farm-tab="tools" data-active="true" role="tab" aria-selected="true">
+                <i aria-hidden="true">🧰</i><span><b>Инструменты</b><small>Покупка и состояние</small></span>
+              </button>
+              <button type="button" data-farm-tab="sell" role="tab" aria-selected="false">
+                <i aria-hidden="true">₴</i><span><b>Продажа</b><small>Урожай и рынок</small></span>
+              </button>
+              <button type="button" data-farm-tab="business" role="tab" aria-selected="false">
+                <i aria-hidden="true">⚙</i><span><b>Управление</b><small>Бизнес и склад</small></span>
+              </button>
+            </nav>
+
+            <div class="mn-farm4-cycle" aria-label="Порядок работы на ферме">
+              <small>Цикл работы</small>
+              <div>
+                <span><i><img src="${FARM_RAKE_ASSET_URL}" alt=""></i><b>Прополоть</b></span>
+                <em>→</em>
+                <span><i>💧</i><b>Полить</b></span>
+                <em>→</em>
+                <span><i>✂️</i><b>Собрать</b></span>
+              </div>
+              <p data-farm-owner-income-note hidden>Доход владельца: ${FARM_PLOT_INCOME} ₴ за завершённый участок.</p>
             </div>
-            <div class="mn-farm-business-management" data-farm-business-management hidden>
-              <section class="mn-farm-management-card is-finance" data-farm-owner-only>
-                <h4><i aria-hidden="true">₴</i><span>Оборотные средства</span></h4>
-                <div class="mn-farm-business-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-deposit-amount><button type="button" data-farm-deposit>Внести на баланс</button></div>
-                <small>Эти деньги используются для выкупа урожая у работников и закупки инструментов.</small>
+          </aside>
+
+          <main class="mn-farm4-content">
+            <section class="mn-farm4-page" data-farm-page="tools">
+              <div class="mn-farm4-page-head">
+                <span><small>Рабочее снаряжение</small><h3>Инструменты</h3><p>Купите инструмент один раз и следите за его прочностью. Новый можно взять после поломки.</p></span>
+              </div>
+
+              <div class="mn-farm4-tool-grid">
+                <button type="button" class="mn-farm4-tool-card" data-farm-buy="farm_rake">
+                  <i class="mn-farm4-tool-icon is-rake" aria-hidden="true"><img src="${FARM_RAKE_ASSET_URL}" alt=""></i>
+                  <span class="mn-farm4-tool-copy">
+                    <span class="mn-farm4-card-title"><b>Грабли</b><strong><span data-farm-tool-price="farm_rake">${FARM_TOOL_MIN_PRICE}</span> ₴</strong></span>
+                    <small>100 прочности · −${FARM_TOOL_DURABILITY_COST} за куст</small>
+                    <span class="mn-farm4-tool-meta"><em>На складе <b data-farm-tool-stock="farm_rake">0</b> шт.</em><em>Прочность <b data-farm-durability="farm_rake">—</b></em></span>
+                    <span class="mn-farm4-progress"><i data-farm-durability-meter="farm_rake"></i></span>
+                  </span>
+                </button>
+
+                <button type="button" class="mn-farm4-tool-card" data-farm-buy="farm_scissors">
+                  <i class="mn-farm4-tool-icon is-scissors" aria-hidden="true">✂️</i>
+                  <span class="mn-farm4-tool-copy">
+                    <span class="mn-farm4-card-title"><b>Ножницы</b><strong><span data-farm-tool-price="farm_scissors">${FARM_TOOL_MIN_PRICE}</span> ₴</strong></span>
+                    <small>100 прочности · −${FARM_TOOL_DURABILITY_COST} за куст</small>
+                    <span class="mn-farm4-tool-meta"><em>На складе <b data-farm-tool-stock="farm_scissors">0</b> шт.</em><em>Прочность <b data-farm-durability="farm_scissors">—</b></em></span>
+                    <span class="mn-farm4-progress"><i data-farm-durability-meter="farm_scissors"></i></span>
+                  </span>
+                </button>
+              </div>
+
+              <section class="mn-farm4-info-card is-water-info">
+                <i aria-hidden="true">💧</i>
+                <span><b>Полив идёт через водоснабжение фермы</b><small>Владелец или помощник берёт ведро со склада, набирает воду у бесконечной бочки и переносит её в башню. Работник набирает воду для полива уже из башни.</small></span>
               </section>
-              <section class="mn-farm-management-card is-profit" data-farm-owner-only>
-                <h4><i aria-hidden="true">↗</i><span>Снять прибыль</span></h4>
-                <div class="mn-farm-water-cargo"><span>Доступно владельцу: <b data-farm-withdrawable>0 ₴</b></span></div>
-                <div class="mn-farm-business-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-withdraw-amount><button type="button" data-farm-withdraw>Снять</button><button type="button" data-farm-withdraw-all>Снять всё</button></div>
-                <small>Деньги переводятся с баланса фермерского ООО прямо на личный баланс владельца.</small>
+            </section>
+
+            <section class="mn-farm4-page" data-farm-page="sell" hidden>
+              <div class="mn-farm4-page-head is-market">
+                <span><small>Рынок предприятия</small><h3>Продажа урожая</h3><p>Выплата идёт с баланса бизнеса. Цена и лимит обновляются каждые 3 часа.</p></span>
+                <strong class="mn-farm4-countdown"><small>До обновления</small><b data-farm-market-reset>Загрузка…</b></strong>
+              </div>
+
+              <div class="mn-farm4-crop-grid">
+                <article class="mn-farm4-crop-card" data-farm-sale-row="farm_apple">
+                  <div class="mn-farm4-crop-main"><i aria-hidden="true">🍎</i><span><b>Яблоко</b><small data-farm-sale-level="farm_apple">ур. 1</small></span></div>
+                  <div class="mn-farm4-crop-stats"><span><small>У вас</small><b><em data-farm-sale-count="farm_apple">0</em> шт.</b></span><span><small>Цена</small><b><mark data-farm-sale-price="farm_apple">—</mark> ₴</b></span><span><small>Лимит</small><b><mark data-farm-sale-limit="farm_apple">—</mark></b></span></div>
+                  <div class="mn-farm4-crop-actions"><button type="button" data-farm-sell="farm_apple" data-quantity="1">Продать 1</button><button type="button" data-farm-sell="farm_apple" data-quantity="0">Продать всё</button></div>
+                </article>
+
+                <article class="mn-farm4-crop-card" data-farm-sale-row="farm_orange">
+                  <div class="mn-farm4-crop-main"><i aria-hidden="true">🍊</i><span><b>Апельсин</b><small data-farm-sale-level="farm_orange">ур. 1</small></span></div>
+                  <div class="mn-farm4-crop-stats"><span><small>У вас</small><b><em data-farm-sale-count="farm_orange">0</em> шт.</b></span><span><small>Цена</small><b><mark data-farm-sale-price="farm_orange">—</mark> ₴</b></span><span><small>Лимит</small><b><mark data-farm-sale-limit="farm_orange">—</mark></b></span></div>
+                  <div class="mn-farm4-crop-actions"><button type="button" data-farm-sell="farm_orange" data-quantity="1">Продать 1</button><button type="button" data-farm-sell="farm_orange" data-quantity="0">Продать всё</button></div>
+                </article>
+
+                <article class="mn-farm4-crop-card" data-farm-sale-row="farm_wheat">
+                  <div class="mn-farm4-crop-main"><i aria-hidden="true">🌾</i><span><b>Пшеница</b><small data-farm-sale-level="farm_wheat">ур. 1</small></span></div>
+                  <div class="mn-farm4-crop-stats"><span><small>У вас</small><b><em data-farm-sale-count="farm_wheat">0</em> шт.</b></span><span><small>Цена</small><b><mark data-farm-sale-price="farm_wheat">—</mark> ₴</b></span><span><small>Лимит</small><b><mark data-farm-sale-limit="farm_wheat">—</mark></b></span></div>
+                  <div class="mn-farm4-crop-actions"><button type="button" data-farm-sell="farm_wheat" data-quantity="1">Продать 1</button><button type="button" data-farm-sell="farm_wheat" data-quantity="0">Продать всё</button></div>
+                </article>
+
+                <article class="mn-farm4-crop-card" data-farm-sale-row="farm_corn">
+                  <div class="mn-farm4-crop-main"><i aria-hidden="true">🌽</i><span><b>Кукуруза</b><small data-farm-sale-level="farm_corn">ур. 1</small></span></div>
+                  <div class="mn-farm4-crop-stats"><span><small>У вас</small><b><em data-farm-sale-count="farm_corn">0</em> шт.</b></span><span><small>Цена</small><b><mark data-farm-sale-price="farm_corn">—</mark> ₴</b></span><span><small>Лимит</small><b><mark data-farm-sale-limit="farm_corn">—</mark></b></span></div>
+                  <div class="mn-farm4-crop-actions"><button type="button" data-farm-sell="farm_corn" data-quantity="1">Продать 1</button><button type="button" data-farm-sell="farm_corn" data-quantity="0">Продать всё</button></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="mn-farm4-page mn-farm4-business-page" data-farm-page="business" hidden>
+              <div class="mn-farm4-page-head">
+                <span><small>Фермерское ООО</small><h3>Управление предприятием</h3><p>Ключевые показатели, склад, вода, персонал и финансы — в одном месте.</p></span>
+              </div>
+
+              <div class="mn-farm4-business-summary">
+                <article><i aria-hidden="true">🏢</i><span><small>Форма</small><strong>ООО</strong><em>Фермерское предприятие</em></span></article>
+                <article><i aria-hidden="true">👤</i><span><small>Владелец</small><strong data-farm-owner>Государство</strong><em data-farm-assistant>Помощник: нет</em></span></article>
+                <article><i aria-hidden="true">₴</i><span><small>Баланс бизнеса</small><strong data-farm-cash>0 ₴</strong><em>Оплата урожая и поставок</em></span></article>
+                <article><i aria-hidden="true">💧</i><span><small>Водоснабжение</small><strong><span data-farm-tower-water>0</span> / ${FARM_TOWER_CAPACITY_LITERS} л</strong><em>Бочка: <b data-farm-barrel-present>нет</b> · ведра: <b data-farm-bucket-stock>0</b></em><span class="mn-farm4-progress is-water"><i data-farm-water-meter></i></span></span></article>
+              </div>
+
+              <section class="mn-farm4-buy-business" data-farm-business-buy>
+                <div><i aria-hidden="true">🌾</i><span><small>Государственная продажа</small><strong>Купить фермерское ООО</strong><p>После покупки выкуп урожая, доход участков, инструменты и вода работают через баланс предприятия.</p></span></div>
+                <button type="button" data-farm-business-purchase>Купить за ${FARM_BUSINESS_PRICE.toLocaleString('ru-RU')} ₴</button>
               </section>
-              <section class="mn-farm-management-card is-assistant" data-farm-owner-only>
-                <h4><i aria-hidden="true">●</i><span>Помощник</span></h4>
-                <div class="mn-farm-business-inline"><input type="text" maxlength="40" placeholder="Ник или Telegram ID" data-farm-assistant-target><button type="button" data-farm-assistant-save>Назначить</button><button type="button" data-farm-assistant-clear>Снять</button></div>
-                <small>Помощник может брать ведра со склада, наполнять их у бочки и заливать воду в башню. Деньги и поставки инструментов контролирует владелец.</small>
-              </section>
-              <section class="mn-farm-management-card mn-farm-warehouse-section is-warehouse">
-                <div class="mn-farm-warehouse-head"><span><h4>Склад урожая</h4><small>Всё, что работники продают ферме, остаётся здесь. Общая вместимость — ${FARM_WAREHOUSE_CAPACITY} ед.</small></span><b><em data-farm-warehouse-used>0</em> / ${FARM_WAREHOUSE_CAPACITY}</b></div>
-                <div class="mn-farm-warehouse-grid">
-                  <span><i>🍎</i><small>Яблоко</small><b data-farm-warehouse-item="farm_apple">0</b></span>
-                  <span><i>🍊</i><small>Апельсин</small><b data-farm-warehouse-item="farm_orange">0</b></span>
-                  <span><i>🌾</i><small>Пшеница</small><b data-farm-warehouse-item="farm_wheat">0</b></span>
-                  <span><i>🌽</i><small>Кукуруза</small><b data-farm-warehouse-item="farm_corn">0</b></span>
+
+              <div class="mn-farm4-business-owned" data-farm-business-owned hidden>
+                <div class="mn-farm4-kpis">
+                  <span data-farm-owner-income-kpi hidden><small>Доход с участков</small><b data-farm-plot-income>0 ₴</b></span>
+                  <span><small>Выкуп урожая</small><b data-farm-crop-spend>0 ₴</b></span>
+                  <span><small>Башня</small><b data-farm-tower-present>не установлена</b></span>
+                  <span><small>Склад урожая</small><b><em data-farm-warehouse-used>0</em> / ${FARM_WAREHOUSE_CAPACITY}</b></span>
                 </div>
-              </section>
-              <section class="mn-farm-management-card is-water">
-                <h4><i aria-hidden="true">💧</i><span>Вода и многоразовые ведра</span></h4>
-                <div class="mn-farm-water-cargo"><span>На складе: <b data-farm-bucket-stock>0</b> вед.</span><span>У вас: <b data-farm-player-buckets>0</b> вед. · <b data-farm-player-water>0</b> / <b data-farm-player-water-capacity>0</b> л</span></div>
-                <div class="mn-farm-business-inline"><button type="button" data-farm-take-bucket>Взять ведро со склада</button><button type="button" data-farm-admin-seed-buckets data-farm-admin-only hidden>Админ: +10 ведер</button></div>
-                <small>Ведро вмещает ${FARM_BUCKET_CAPACITY_LITERS} л и не исчезает после использования. Наполните его у привязанной бочки 🛢️, затем подойдите к башне 🚰 — вода перельётся при взаимодействии.</small>
-              </section>
-              <section class="mn-farm-management-card is-order" data-farm-owner-only>
-                <h4><i aria-hidden="true">↓</i><span>Заказать инструменты</span></h4>
-                <div class="mn-farm-supply-grid">
-                  <label><span>Грабли · 70 ₴/шт.</span><input type="number" min="1" max="1000" value="10" data-farm-order-quantity="farm_rake"><button type="button" data-farm-order="farm_rake">Заказать</button></label>
-                  <label><span>Ножницы · 70 ₴/шт.</span><input type="number" min="1" max="1000" value="10" data-farm-order-quantity="farm_scissors"><button type="button" data-farm-order="farm_scissors">Заказать</button></label>
+
+                <div class="mn-farm4-management" data-farm-business-management hidden>
+                  <section class="mn-farm4-manage-card is-finance" data-farm-owner-only>
+                    <header><i aria-hidden="true">＋</i><span><b>Пополнить баланс</b><small>Оборотные средства предприятия</small></span></header>
+                    <div class="mn-farm4-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-deposit-amount><button type="button" data-farm-deposit>Внести</button></div>
+                    <p>Используются для выкупа урожая и закупки инструментов.</p>
+                  </section>
+
+                  <section class="mn-farm4-manage-card is-profit" data-farm-owner-only>
+                    <header><i aria-hidden="true">↗</i><span><b>Снять прибыль</b><small>Перевод владельцу</small></span></header>
+                    <div class="mn-farm4-compact-stat">Доступно: <b data-farm-withdrawable>0 ₴</b></div>
+                    <div class="mn-farm4-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-withdraw-amount><button type="button" data-farm-withdraw>Снять</button><button type="button" class="is-ghost" data-farm-withdraw-all>Всё</button></div>
+                  </section>
+
+                  <section class="mn-farm4-manage-card is-assistant" data-farm-owner-only>
+                    <header><i aria-hidden="true">👥</i><span><b>Помощник</b><small>Доступ к воде и ведрам</small></span></header>
+                    <div class="mn-farm4-inline"><input type="text" maxlength="40" placeholder="Ник или Telegram ID" data-farm-assistant-target><button type="button" data-farm-assistant-save>Назначить</button><button type="button" class="is-ghost" data-farm-assistant-clear>Снять</button></div>
+                    <p>Финансы и поставки инструментов остаются под контролем владельца.</p>
+                  </section>
+
+                  <section class="mn-farm4-manage-card is-warehouse">
+                    <header class="mn-farm4-warehouse-head"><i aria-hidden="true">📦</i><span><b>Склад урожая</b><small>Вместимость ${FARM_WAREHOUSE_CAPACITY} ед.</small></span><strong><em data-farm-warehouse-used>0</em> / ${FARM_WAREHOUSE_CAPACITY}</strong></header>
+                    <span class="mn-farm4-progress is-warehouse"><i data-farm-warehouse-meter></i></span>
+                    <div class="mn-farm4-warehouse-grid">
+                      <span><i>🍎</i><small>Яблоко</small><b data-farm-warehouse-item="farm_apple">0</b></span>
+                      <span><i>🍊</i><small>Апельсин</small><b data-farm-warehouse-item="farm_orange">0</b></span>
+                      <span><i>🌾</i><small>Пшеница</small><b data-farm-warehouse-item="farm_wheat">0</b></span>
+                      <span><i>🌽</i><small>Кукуруза</small><b data-farm-warehouse-item="farm_corn">0</b></span>
+                    </div>
+                  </section>
+
+                  <section class="mn-farm4-manage-card is-water">
+                    <header><i aria-hidden="true">💧</i><span><b>Вода и ведра</b><small>Хозяйственная система полива</small></span></header>
+                    <div class="mn-farm4-water-stats"><span><small>На складе</small><b><span data-farm-bucket-stock>0</span> вед.</b></span><span><small>У вас</small><b><span data-farm-player-buckets>0</span> вед.</b></span><span><small>В ведрах</small><b><span data-farm-player-water>0</span> / <span data-farm-player-water-capacity>0</span> л</b></span></div>
+                    <div class="mn-farm4-inline"><button type="button" data-farm-take-bucket>Взять ведро</button><button type="button" class="is-ghost" data-farm-admin-seed-buckets data-farm-admin-only hidden>Админ: +10 ведер</button></div>
+                    <p>Наполните ведро у бесконечной бочки ♾️, затем перенесите воду к башне 🚰.</p>
+                  </section>
+
+                  <section class="mn-farm4-manage-card is-order" data-farm-owner-only>
+                    <header><i aria-hidden="true">↓</i><span><b>Поставка инструментов</b><small>Закупка на склад предприятия</small></span></header>
+                    <div class="mn-farm4-supply-grid">
+                      <label><span><b>Грабли</b><small>70 ₴/шт.</small></span><input type="number" min="1" max="1000" value="10" data-farm-order-quantity="farm_rake"><button type="button" data-farm-order="farm_rake">Заказать</button></label>
+                      <label><span><b>Ножницы</b><small>70 ₴/шт.</small></span><input type="number" min="1" max="1000" value="10" data-farm-order-quantity="farm_scissors"><button type="button" data-farm-order="farm_scissors">Заказать</button></label>
+                    </div>
+                  </section>
+
+                  <section class="mn-farm4-manage-card is-pricing" data-farm-owner-only>
+                    <header><i aria-hidden="true">%</i><span><b>Цены инструментов</b><small>Розничная цена для работников</small></span></header>
+                    <div class="mn-farm4-supply-grid">
+                      <label><span><b>Грабли</b><small>минимум 100 ₴</small></span><input type="number" min="100" value="100" data-farm-price-input="farm_rake"><button type="button" data-farm-price-save="farm_rake">Сохранить</button></label>
+                      <label><span><b>Ножницы</b><small>минимум 100 ₴</small></span><input type="number" min="100" value="100" data-farm-price-input="farm_scissors"><button type="button" data-farm-price-save="farm_scissors">Сохранить</button></label>
+                    </div>
+                  </section>
                 </div>
-              </section>
-              <section class="mn-farm-management-card is-pricing" data-farm-owner-only>
-                <h4><i aria-hidden="true">%</i><span>Розничные цены инструментов</span></h4>
-                <div class="mn-farm-supply-grid">
-                  <label><span>Грабли · минимум 100 ₴</span><input type="number" min="100" value="100" data-farm-price-input="farm_rake"><button type="button" data-farm-price-save="farm_rake">Сохранить</button></label>
-                  <label><span>Ножницы · минимум 100 ₴</span><input type="number" min="100" value="100" data-farm-price-input="farm_scissors"><button type="button" data-farm-price-save="farm_scissors">Сохранить</button></label>
-                </div>
-              </section>
-            </div>
-          </div>
+              </div>
+            </section>
+          </main>
         </div>
-        <footer><small data-farm-status></small></footer>
+
+        <footer class="mn-farm4-status"><small data-farm-status></small></footer>
       </section>
     </div>`;
 }
@@ -384,7 +447,10 @@ export function enableFarmFeature({ root, cityId } = {}) {
     const roleLabel = role === 'owner' ? 'Владелец' : role === 'assistant' ? 'Помощник' : isAdmin ? 'Администратор' : 'Работник';
 
     const roleEl = modal.querySelector('[data-farm-business-role]');
-    if (roleEl) roleEl.textContent = roleLabel;
+    if (roleEl) {
+      roleEl.textContent = roleLabel;
+      roleEl.dataset.role = role;
+    }
     modal.querySelectorAll('[data-farm-owner-income-note], [data-farm-owner-income-kpi]').forEach((element) => {
       element.hidden = !isOwner;
     });
@@ -399,8 +465,13 @@ export function enableFarmFeature({ root, cityId } = {}) {
     const withdrawAmountInput = modal.querySelector('[data-farm-withdraw-amount]');
     if (withdrawAmountInput) withdrawAmountInput.max = String(cashBalance);
     modal.querySelectorAll('[data-farm-withdraw], [data-farm-withdraw-all]').forEach((button) => { button.disabled = busy || !isOwner || cashBalance <= 0; });
+    const towerWater = Math.max(0, Number(business?.towerWaterLiters || 0));
     const towerWaterEl = modal.querySelector('[data-farm-tower-water]');
-    if (towerWaterEl) towerWaterEl.textContent = Number(business?.towerWaterLiters || 0).toLocaleString('ru-RU');
+    if (towerWaterEl) towerWaterEl.textContent = towerWater.toLocaleString('ru-RU');
+    const towerWaterPercent = Math.min(100, (towerWater / FARM_TOWER_CAPACITY_LITERS) * 100);
+    modal.querySelectorAll('[data-farm-water-meter]').forEach((element) => {
+      element.style.setProperty('--mn-farm-meter-value', `${towerWaterPercent}%`);
+    });
     const barrelPresentEl = modal.querySelector('[data-farm-barrel-present]');
     if (barrelPresentEl) barrelPresentEl.textContent = business?.barrelPresent ? 'есть' : 'нет';
     modal.querySelectorAll('[data-farm-bucket-stock]').forEach((element) => { element.textContent = String(Number(business?.bucketStock || 0)); });
@@ -409,7 +480,13 @@ export function enableFarmFeature({ root, cityId } = {}) {
     modal.querySelectorAll('[data-farm-player-water]').forEach((element) => { element.textContent = Number(cargo.waterLiters || 0).toLocaleString('ru-RU'); });
     modal.querySelectorAll('[data-farm-player-water-capacity]').forEach((element) => { element.textContent = Number(cargo.capacityLiters || 0).toLocaleString('ru-RU'); });
     const warehouse = business?.warehouse || { capacity: FARM_WAREHOUSE_CAPACITY, used: 0, free: FARM_WAREHOUSE_CAPACITY, items: {} };
-    modal.querySelectorAll('[data-farm-warehouse-used]').forEach((element) => { element.textContent = String(Number(warehouse.used || 0)); });
+    const warehouseUsed = Math.max(0, Number(warehouse.used || 0));
+    const warehouseCapacity = Math.max(1, Number(warehouse.capacity || FARM_WAREHOUSE_CAPACITY));
+    modal.querySelectorAll('[data-farm-warehouse-used]').forEach((element) => { element.textContent = String(warehouseUsed); });
+    const warehousePercent = Math.min(100, (warehouseUsed / warehouseCapacity) * 100);
+    modal.querySelectorAll('[data-farm-warehouse-meter]').forEach((element) => {
+      element.style.setProperty('--mn-farm-meter-value', `${warehousePercent}%`);
+    });
     ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn'].forEach((itemType) => {
       modal.querySelectorAll(`[data-farm-warehouse-item="${itemType}"]`).forEach((element) => { element.textContent = String(Number(warehouse?.items?.[itemType]?.quantity || 0)); });
     });
@@ -578,6 +655,12 @@ export function enableFarmFeature({ root, cityId } = {}) {
       }
       modal?.querySelectorAll(`[data-farm-durability="${itemType}"]`).forEach((element) => {
         element.textContent = durability === null ? (legacyOwned ? 'активировать' : 'нет') : `${Math.max(0, durability).toFixed(durability % 1 ? 1 : 0)} / ${FARM_TOOL_DURABILITY_MAX}`;
+      });
+      const durabilityPercent = Number.isFinite(durability)
+        ? Math.min(100, Math.max(0, (durability / FARM_TOOL_DURABILITY_MAX) * 100))
+        : 0;
+      modal?.querySelectorAll(`[data-farm-durability-meter="${itemType}"]`).forEach((element) => {
+        element.style.setProperty('--mn-farm-meter-value', `${durabilityPercent}%`);
       });
     });
   }
