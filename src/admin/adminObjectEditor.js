@@ -190,6 +190,30 @@ export async function saveAdminObject({
       });
     }
 
+    if (selectedType === 'lumber_station' || selectedType === 'mine_station') {
+      const ownerId = nextPatch.payload.ownerId || nextPatch.payload.owner_id || null;
+      const ownerName = nextPatch.payload.ownerName || nextPatch.payload.owner_name || null;
+      const jobBusinessType = selectedType === 'lumber_station' ? 'lumber' : 'mine';
+      Object.assign(nextPatch.payload, {
+        jobBusiness: true,
+        jobBusinessId: String(object.id),
+        job_business_id: String(object.id),
+        jobBusinessType,
+        job_business_type: jobBusinessType,
+        legalForm: 'ooo',
+        legalFormLabel: 'ООО',
+        price: 1_000_000,
+        buyable: true,
+        transferable: true,
+        serverOwned: false,
+        ownerId,
+        owner_id: ownerId,
+        ownerName,
+        owner_name: ownerName,
+        owned: Boolean(ownerId),
+      });
+    }
+
     if (selectedType === 'farm_water_tower') {
       nextPatch.payload.towerCapacityLiters = 500;
       nextPatch.payload.tower_capacity_liters = 500;
