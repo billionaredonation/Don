@@ -290,7 +290,7 @@ export const MAP_OBJECT_TYPES = {
   mine_station: {
     type: 'mine_station',
     category: MAP_OBJECT_CATEGORIES.JOB,
-    label: 'Шахта · снабжение и скупщик',
+    label: 'Шахта · предприятие',
     icon: '⛏️',
     defaultScale: 1,
     defaultRotation: 0,
@@ -342,7 +342,7 @@ export const MAP_OBJECT_TYPES = {
   lumber_station: {
     type: 'lumber_station',
     category: MAP_OBJECT_CATEGORIES.JOB,
-    label: 'Лесоруб · инструменты и продажа',
+    label: 'Лесоруб · предприятие',
     icon: '🪚',
     defaultScale: 1,
     defaultRotation: 0,
@@ -556,6 +556,24 @@ export function createMapObjectDraft({
     basePayload.farmBusiness = true;
     basePayload.farmBusinessId = objectId;
     basePayload.farm_business_id = objectId;
+    basePayload.legalForm = 'ooo';
+    basePayload.legalFormLabel = 'ООО';
+    basePayload.price = 1_000_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
+  if (config.type === 'lumber_station' || config.type === 'mine_station') {
+    const jobBusinessType = config.type === 'lumber_station' ? 'lumber' : 'mine';
+    basePayload.jobBusiness = true;
+    basePayload.jobBusinessId = objectId;
+    basePayload.job_business_id = objectId;
+    basePayload.jobBusinessType = jobBusinessType;
+    basePayload.job_business_type = jobBusinessType;
     basePayload.legalForm = 'ooo';
     basePayload.legalFormLabel = 'ООО';
     basePayload.price = 1_000_000;
