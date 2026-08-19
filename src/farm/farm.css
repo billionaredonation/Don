@@ -1,5 +1,6 @@
 .map-object-type-farm_station,
 .map-object-type-farm_water_tower,
+.map-object-type-farm_water_barrel,
 .map-object-type-farm_wheat_plant,
 .map-object-type-farm_apple_plant,
 .map-object-type-farm_orange_plant,
@@ -11,6 +12,7 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   .map-object:is(
     .map-object-type-farm_station,
     .map-object-type-farm_water_tower,
+    .map-object-type-farm_water_barrel,
     .map-object-type-farm_wheat_plant,
     .map-object-type-farm_apple_plant,
     .map-object-type-farm_orange_plant,
@@ -22,6 +24,7 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 
 .map-object-type-farm_station .map-object-icon,
 .map-object-type-farm_water_tower .map-object-icon,
+.map-object-type-farm_water_barrel .map-object-icon,
 .map-object-type-farm_wheat_plant .map-object-icon,
 .map-object-type-farm_apple_plant .map-object-icon,
 .map-object-type-farm_orange_plant .map-object-icon,
@@ -62,24 +65,83 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   z-index: 1;
 }
 
-.map-object-type-farm_station .map-object-icon { font-size: 28px; }
+/* Карта фермы: служебные объекты одного визуального масштаба с фермером. */
+.map-object-type-farm_station .map-object-icon,
+.map-object-type-farm_water_tower .map-object-icon {
+  font-size: 28px;
+}
 
+.map-object-type-farm_station,
+.map-object-type-farm_water_tower,
+.map-object-type-farm_water_barrel {
+  --mn-interaction-ring-size: 38px;
+}
+
+/* Растения намеренно компактнее служебных объектов, чтобы поле не превращалось
+   в стену из крупных emoji и было легче видеть игрока/границы участка. */
 .map-object-type-farm_wheat_plant .map-object-icon,
 .map-object-type-farm_apple_plant .map-object-icon,
 .map-object-type-farm_orange_plant .map-object-icon,
 .map-object-type-farm_corn_plant .map-object-icon {
-  font-size: 24px;
+  font-size: 18px;
 }
 
-.map-object-type-farm_station { --mn-interaction-ring-size: 38px; }
-.map-object-type-farm_water_tower { --mn-interaction-ring-size: 36px; }
 .map-object-type-farm_wheat_plant,
 .map-object-type-farm_apple_plant,
 .map-object-type-farm_orange_plant,
-.map-object-type-farm_corn_plant { --mn-interaction-ring-size: 34px; }
+.map-object-type-farm_corn_plant {
+  --mn-interaction-ring-size: 28px;
+}
+
+/* Бесконечная бочка с водой. Не используем системную 🛢️: на разных ОС она
+   выглядит как нефтяная бочка и визуально сильно отличается. Вместо неё —
+   стабильная CSS-бочка с водяной палитрой и знаком бесконечности. */
+.map-object-type-farm_water_barrel .map-object-icon {
+  position: absolute;
+  font-size: 0;
+}
+
+.map-object-type-farm_water_barrel .map-object-icon::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 25px;
+  height: 29px;
+  border: 2px solid rgba(220, 245, 255, .92);
+  border-radius: 6px 6px 7px 7px;
+  background:
+    linear-gradient(to bottom,
+      rgba(255, 255, 255, .30) 0 2px,
+      transparent 2px 7px,
+      rgba(10, 72, 145, .48) 7px 9px,
+      transparent 9px 19px,
+      rgba(10, 72, 145, .48) 19px 21px,
+      transparent 21px 27px,
+      rgba(255, 255, 255, .24) 27px 29px),
+    linear-gradient(145deg, #67d4ff 0%, #238eea 52%, #1768c9 100%);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, .48),
+    inset 3px 0 4px rgba(255, 255, 255, .18),
+    inset -4px 0 5px rgba(3, 47, 104, .24);
+  transform: translate(-50%, -50%);
+}
+
+.map-object-type-farm_water_barrel .map-object-icon::after {
+  content: "∞";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  color: #fff;
+  font: 900 16px/1 Arial, sans-serif;
+  letter-spacing: -1px;
+  text-shadow: 0 1px 2px rgba(0, 45, 105, .78);
+  transform: translate(-50%, -52%);
+}
 
 .map-object-type-farm_station.map-object-nearby .map-object-icon,
 .map-object-type-farm_water_tower.map-object-nearby .map-object-icon,
+.map-object-type-farm_water_barrel.map-object-nearby .map-object-icon,
 .map-object-type-farm_wheat_plant.map-object-nearby .map-object-icon,
 .map-object-type-farm_apple_plant.map-object-nearby .map-object-icon,
 .map-object-type-farm_orange_plant.map-object-nearby .map-object-icon,
@@ -1757,29 +1819,28 @@ body.mn-farm-modal-open { overflow: hidden; }
 .mn-farm-shop-row[data-owned='true'] { opacity: .76; }
 .mn-farm-shop-row[data-broken='true'] { border-color: rgba(240, 107, 107, .24); }
 
-/* Water tower is an interactive farm object, not a full-screen work zone. */
+/* Башня и бесконечная бочка держат тот же визуальный размер, что и фермер.
+   Здесь не добавляем отдельную плашку: подсветка взаимодействия уже есть выше. */
 .map-object-type-farm_water_tower .map-object-icon {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(114, 202, 234, .28);
+  display: inline-flex;
+  width: var(--mn-interaction-ring-size);
+  height: var(--mn-interaction-ring-size);
+  border-color: transparent;
   border-radius: 50%;
-  background: rgba(14, 54, 67, .76);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, .32), inset 0 0 0 1px rgba(255, 255, 255, .05);
-  font-size: 17px;
+  background: transparent;
+  box-shadow: none;
+  font-size: 28px;
 }
 
 .map-object-type-farm_water_barrel .map-object-icon {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(131, 177, 210, .24);
-  border-radius: 9px;
-  background: rgba(31, 55, 72, .8);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, .32), inset 0 0 0 1px rgba(255, 255, 255, .05);
-  font-size: 17px;
+  display: inline-flex;
+  width: var(--mn-interaction-ring-size);
+  height: var(--mn-interaction-ring-size);
+  border-color: transparent;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0;
 }
 
 @media (max-width: 760px), (hover: none) and (pointer: coarse), (orientation: landscape) and (max-height: 520px) {
