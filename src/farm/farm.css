@@ -65,8 +65,8 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   z-index: 1;
 }
 
-/* Карта фермы: служебные объекты держим компактными. Для водных точек
-   контейнер почти совпадает с реальным размером значка — без большого круга вокруг. */
+/* Карта фермы: размеры водных точек совпадают с реальным квадратом emoji.
+   Никаких круглых подложек или дополнительных декоративных контейнеров. */
 .map-object-type-farm_station .map-object-icon {
   font-size: 28px;
 }
@@ -77,30 +77,65 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 
 .map-object-type-farm_water_tower,
 .map-object-type-farm_water_barrel {
-  --mn-interaction-ring-size: 30px;
+  --mn-interaction-ring-size: 36px;
 }
 
 .map-object-type-farm_water_tower .map-object-icon,
 .map-object-type-farm_water_barrel .map-object-icon {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  box-shadow: none;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   overflow: visible;
 }
 
+/* 🚰 остаётся настоящим emoji. Квадрат 36x36 — только его реальный габарит. */
 .map-object-type-farm_water_tower .map-object-icon {
-  font-size: 28px;
+  font-size: 30px;
   line-height: 1;
-  transition: filter 180ms ease, transform 180ms ease;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .52));
+  transition: filter 160ms ease;
 }
 
-/* Растения намеренно компактнее служебных объектов, чтобы поле не превращалось
-   в стену из крупных emoji и было легче видеть игрока/границы участка. */
+/* Вечная вода отображается настоящим emoji ♾️, а не CSS-кругом. */
+.map-object-type-farm_water_barrel .map-object-icon {
+  font-size: 0;
+  line-height: 1;
+}
+
+.map-object-type-farm_water_barrel .map-object-icon::before {
+  content: "♾️";
+  display: block;
+  position: static;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: initial;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  text-shadow: none;
+  transform: none;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .52));
+  transition: filter 160ms ease;
+}
+
+.map-object-type-farm_water_barrel .map-object-icon::after {
+  content: none;
+  display: none;
+}
+
+/* Растения компактнее служебных точек, чтобы не закрывать карту. */
 .map-object-type-farm_wheat_plant .map-object-icon,
 .map-object-type-farm_apple_plant .map-object-icon,
 .map-object-type-farm_orange_plant .map-object-icon,
@@ -115,40 +150,7 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   --mn-interaction-ring-size: 28px;
 }
 
-/* Вечная вода: квадратный значок ровно под визуальный размер emoji-подобной
-   иконки. Так он по масштабу совпадает с 🚰 и не выглядит отдельным большим кругом. */
-.map-object-type-farm_water_barrel .map-object-icon {
-  position: absolute;
-  font-size: 0;
-}
-
-.map-object-type-farm_water_barrel .map-object-icon::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  border: 1px solid rgba(210, 239, 255, .82);
-  border-radius: 7px;
-  background: linear-gradient(145deg, #5dc8ff 0%, #2b92ed 54%, #176ccc 100%);
-  box-shadow:
-    0 2px 3px rgba(0, 0, 0, .42),
-    inset 0 1px 2px rgba(255, 255, 255, .24),
-    inset 0 -2px 3px rgba(8, 68, 135, .28);
-  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.map-object-type-farm_water_barrel .map-object-icon::after {
-  content: "∞";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  color: #fff;
-  font: 900 16px/1 Arial, sans-serif;
-  letter-spacing: -1px;
-  text-shadow: 0 1px 2px rgba(0, 45, 105, .72);
-  transform: translate(-50%, -52%);
-}
-
-/* Обычные объекты фермы сохраняют прежнюю нейтральную подсветку. */
+/* Остальные объекты фермы сохраняют прежнюю белую подсветку. */
 .map-object-type-farm_station.map-object-nearby .map-object-icon,
 .map-object-type-farm_wheat_plant.map-object-nearby .map-object-icon,
 .map-object-type-farm_apple_plant.map-object-nearby .map-object-icon,
@@ -162,37 +164,23 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
     inset 0 0 5px rgba(255, 255, 255, .24) !important;
 }
 
-/* Только 🚰 и ∞ зеленеют при реальном приближении игрока. Сам квадрат не
-   увеличивается: подсветка идёт по визуальному размеру значка и полностью
-   исчезает после снятия .map-object-nearby. */
+/* Только 🚰 и ♾️ зеленеют в реальной дистанции взаимодействия. */
 .map-object-type-farm_water_tower.map-object-nearby .map-object-icon {
   filter:
-    hue-rotate(-82deg)
-    saturate(1.35)
+    hue-rotate(-88deg)
+    saturate(1.45)
     brightness(1.08)
-    drop-shadow(0 0 3px rgba(74, 235, 111, .95))
-    drop-shadow(0 0 7px rgba(40, 209, 82, .72)) !important;
-}
-
-.map-object-type-farm_water_barrel.map-object-nearby .map-object-icon {
-  box-shadow: none !important;
+    drop-shadow(0 0 3px rgba(78, 244, 116, .98))
+    drop-shadow(0 0 8px rgba(40, 215, 83, .78)) !important;
 }
 
 .map-object-type-farm_water_barrel.map-object-nearby .map-object-icon::before {
-  border-color: rgba(210, 255, 220, .96);
-  background: linear-gradient(145deg, #67e68c 0%, #28bd5c 54%, #15863d 100%);
-  box-shadow:
-    0 0 3px rgba(94, 255, 132, .95),
-    0 0 8px rgba(42, 224, 88, .74),
-    0 2px 3px rgba(0, 0, 0, .40),
-    inset 0 1px 2px rgba(255, 255, 255, .24),
-    inset 0 -2px 3px rgba(8, 92, 43, .24);
-}
-
-.map-object-type-farm_water_barrel.map-object-nearby .map-object-icon::after {
-  text-shadow:
-    0 1px 2px rgba(0, 77, 31, .72),
-    0 0 4px rgba(255, 255, 255, .18);
+  filter:
+    hue-rotate(-88deg)
+    saturate(1.45)
+    brightness(1.08)
+    drop-shadow(0 0 3px rgba(78, 244, 116, .98))
+    drop-shadow(0 0 8px rgba(40, 215, 83, .78)) !important;
 }
 
 .map-object-type-farm_wheat_plant.is-farm-plant-cooldown .map-object-icon,
@@ -1859,30 +1847,6 @@ body.mn-farm-modal-open { overflow: hidden; }
 
 .mn-farm-shop-row[data-owned='true'] { opacity: .76; }
 .mn-farm-shop-row[data-broken='true'] { border-color: rgba(240, 107, 107, .24); }
-
-/* Башня и бесконечная бочка держат тот же визуальный размер, что и фермер.
-   Здесь не добавляем отдельную плашку: подсветка взаимодействия уже есть выше. */
-.map-object-type-farm_water_tower .map-object-icon {
-  display: inline-flex;
-  width: var(--mn-interaction-ring-size);
-  height: var(--mn-interaction-ring-size);
-  border-color: transparent;
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: none;
-  font-size: 28px;
-}
-
-.map-object-type-farm_water_barrel .map-object-icon {
-  display: inline-flex;
-  width: var(--mn-interaction-ring-size);
-  height: var(--mn-interaction-ring-size);
-  border-color: transparent;
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: none;
-  font-size: 0;
-}
 
 @media (max-width: 760px), (hover: none) and (pointer: coarse), (orientation: landscape) and (max-height: 520px) {
   .mn-farm-business-role { padding: 4px 7px; font-size: 8px; }
