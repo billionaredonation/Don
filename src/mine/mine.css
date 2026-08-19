@@ -560,3 +560,26 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
     max-height: calc(100vw - 12px);
   }
 }
+
+/* Production business */
+.mn-mine-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mn-mine-panel > .mn-jobbiz-page { min-height: 0; padding: 0 14px 14px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.mn-mine-panel .mn-jobbiz-buy button,
+.mn-mine-panel .mn-jobbiz-inline button:not(.is-ghost) { border-color: rgba(226,150,71,.33); background: linear-gradient(180deg,rgba(210,132,52,.25),rgba(154,86,30,.2)); color: #ffe2bb; }
+.mn-mine-panel .mn-jobbiz-progress > i { background: linear-gradient(90deg, rgba(194,111,35,.76), rgba(241,167,86,.96)); }
+@media (max-width: 760px) {
+  .mn-mine-panel { width: min(96vw, 650px); max-height: calc(100dvh - 18px); border-radius: 17px; }
+  .mn-mine-panel > header { min-height: 58px; padding: 0 12px; }
+  .mn-mine-panel > header strong { font-size: 15px; }
+  .mn-mine-panel > header button { width: 32px; height: 32px; font-size: 21px; }
+  .mn-mine-tabs { gap: 5px; padding: 7px 8px 0; }
+  .mn-mine-tabs button { min-height: 34px; padding: 0 5px; border-radius: 9px; font-size: 9px; }
+  .mn-mine-chain { margin: 7px 8px; padding: 6px; gap: 4px; font-size: 9px; }
+  .mn-mine-panel > .mn-jobbiz-page { padding: 0 8px 10px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .mn-mine-panel { max-height: calc(100dvh - 10px); }
+  .mn-mine-panel > header { min-height: 46px; }
+  .mn-mine-chain { margin-block: 5px; }
+  .mn-mine-tabs button { min-height: 30px; }
+}
