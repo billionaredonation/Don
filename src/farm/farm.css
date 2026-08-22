@@ -4522,3 +4522,56 @@ button.mn-farm-shop-row,
   :is(html, body).mn-force-rotate-landscape .mn-farm4-water-stats { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
   :is(html, body).mn-force-rotate-landscape .mn-farm4-supply-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 }
+
+/* Final mobile pass: the body of every tab is the scroll owner. */
+@media (max-width: 760px), (max-height: 620px), (hover: none) and (pointer: coarse) {
+  .mn-farm-modal { padding: max(5px, env(safe-area-inset-top)) max(5px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(5px, env(safe-area-inset-left)); }
+  .mn-farm-panel.mn-farm-ui4 {
+    width: min(900px, calc(100vw - 10px)) !important;
+    height: calc(100dvh - 10px) !important;
+    min-height: 0 !important;
+    max-height: calc(100dvh - 10px) !important;
+  }
+  .mn-farm4-shell,
+  .mn-farm4-content { min-height: 0 !important; overflow: hidden !important; }
+  .mn-farm4-page {
+    min-width: 0;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    touch-action: pan-y !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: auto;
+  }
+  .mn-farm-ui4 > .mn-farm4-status { flex: 0 0 auto; min-height: 24px; padding: 4px 8px max(4px, env(safe-area-inset-bottom)); }
+  .mn-farm4-management,
+  .mn-farm4-tool-grid,
+  .mn-farm4-crop-grid { min-width: 0; }
+  .mn-farm4-manage-card { min-width: 0; overflow: hidden; }
+}
+@media (max-width: 680px) and (orientation: portrait) {
+  .mn-farm4-shell { display: grid !important; grid-template-rows: auto minmax(0, 1fr) !important; grid-template-columns: 1fr !important; }
+  .mn-farm4-sidebar { min-height: auto !important; }
+  .mn-farm4-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .mn-farm4-content { height: auto !important; }
+  .mn-farm4-page { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+}
+@media (max-width: 420px) and (orientation: portrait) {
+  .mn-farm4-business-summary,
+  .mn-farm4-kpis { grid-template-columns: 1fr !important; }
+  .mn-farm4-supply-grid label { grid-template-columns: 1fr 62px !important; }
+  .mn-farm4-supply-grid label > button { grid-column: 1 / -1; width: 100%; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .mn-farm-ui4 > .mn-farm4-header { min-height: 44px; }
+  .mn-farm4-cycle { display: none !important; }
+  .mn-farm4-sidebar { padding: 6px !important; }
+  .mn-farm4-tabs button { min-height: 36px !important; }
+  .mn-farm-ui4 > .mn-farm4-status { min-height: 20px; padding-block: 2px; }
+}
+@media (orientation: portrait) and (max-width: 920px) {
+  :is(html, body).mn-force-rotate-landscape .mn-farm-panel.mn-farm-ui4 { height: calc(100vw - 10px) !important; max-height: calc(100vw - 10px) !important; }
+  :is(html, body).mn-force-rotate-landscape .mn-farm4-page { touch-action: pan-y !important; overflow-y: auto !important; }
+}
