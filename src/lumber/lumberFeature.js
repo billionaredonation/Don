@@ -184,6 +184,13 @@ export function enableLumberFeature({ root, cityId } = {}) {
     if (roleOutput) roleOutput.textContent = roleLabel;
     const stateOutput = modal?.querySelector('[data-lumber-business-state]');
     if (stateOutput) stateOutput.textContent = owned ? 'Частное предприятие' : 'Государственная точка';
+    const publicState = modal?.querySelector('[data-lumber-business-public-state]');
+    if (publicState) publicState.textContent = owned ? 'Частное' : 'Государственное';
+    const businessTab = modal?.querySelector('[data-lumber-tab="business"]');
+    if (businessTab) {
+      businessTab.hidden = owned && !canInspect;
+      businessTab.textContent = canInspect ? 'Управление' : 'Предприятие';
+    }
 
     const buy = modal?.querySelector('[data-lumber-business-buy]');
     if (buy) buy.hidden = owned;
