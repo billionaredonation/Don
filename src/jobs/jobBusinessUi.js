@@ -20,7 +20,11 @@ export function jobBusinessPageMarkup({ prefix, config, items = [] }) {
 
   return `
     <div class="mn-jobbiz-page" data-${p}-page="business" hidden>
-      <div class="mn-jobbiz-summary">
+      <div class="mn-jobbiz-intro">
+        <span><small data-${p}-business-eyebrow>Рабочее предприятие</small><strong data-${p}-business-heading>${esc(config.shortLabel)}</strong><p data-${p}-business-description>Работа доступна всем игрокам. Владение влияет только на управление, склад и финансы.</p></span>
+        <b data-${p}-business-public-state>Государственное</b>
+      </div>
+      <div class="mn-jobbiz-summary" data-${p}-business-private hidden>
         <article><i>👤</i><span><small>Владелец</small><strong data-${p}-business-owner>Государство</strong><em data-${p}-business-assistant>Помощник: нет</em></span></article>
         <article><i>🏢</i><span><small>Предприятие</small><strong>${esc(config.shortLabel)}</strong><em>Производственный бизнес</em></span></article>
         <article><i>💼</i><span><small>Ваша роль</small><strong data-${p}-business-role>Работник</strong><em data-${p}-business-state>Государственная точка</em></span></article>
@@ -37,7 +41,7 @@ export function jobBusinessPageMarkup({ prefix, config, items = [] }) {
       </section>
 
       <div class="mn-jobbiz-owned" data-${p}-business-owned hidden>
-        <div class="mn-jobbiz-kpis" data-${p}-business-private hidden>
+        <div class="mn-jobbiz-kpis">
           <span><small>Баланс предприятия</small><b data-${p}-business-cash>0 ₴</b></span>
           <span><small>Выплачено работникам</small><b data-${p}-business-payout>0 ₴</b></span>
           <span><small>Свободно на складе</small><b data-${p}-business-warehouse-free>${Number(config.warehouseCapacity).toLocaleString('ru-RU')}</b></span>
