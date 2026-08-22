@@ -4599,7 +4599,7 @@ button.mn-farm-shop-row,
     min-height: 0 !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
-    touch-action: auto !important;
+    touch-action: none !important;
     -webkit-overflow-scrolling: touch !important;
   }
   :is(html, body).mn-force-rotate-landscape .mn-farm4-sidebar {
