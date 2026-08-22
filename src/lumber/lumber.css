@@ -153,3 +153,46 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   .mn-lumber-roadmap { margin-block: 5px; }
   .mn-lumber-tabs button { min-height: 30px; }
 }
+
+/* Final mobile layout: content always owns the remaining viewport height. */
+@media (max-width: 760px), (max-height: 620px), (hover: none) and (pointer: coarse) {
+  .mn-lumber-modal { padding: max(5px, env(safe-area-inset-top)) max(5px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(5px, env(safe-area-inset-left)); }
+  .mn-lumber-panel {
+    width: min(760px, calc(100vw - 10px));
+    height: calc(100dvh - 10px);
+    min-height: 0;
+    max-height: calc(100dvh - 10px);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  }
+  .mn-lumber-panel > header { min-height: 48px; }
+  .mn-lumber-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mn-lumber-page,
+  .mn-lumber-panel > .mn-jobbiz-page {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mn-lumber-panel > footer { min-height: 28px; padding: 5px 9px; }
+}
+@media (max-width: 480px) and (orientation: portrait) {
+  .mn-lumber-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mn-lumber-roadmap { overflow-x: auto; justify-content: flex-start; white-space: nowrap; scrollbar-width: none; }
+  .mn-lumber-roadmap::-webkit-scrollbar { display: none; }
+  .mn-lumber-sale-row { align-items: flex-start; flex-wrap: wrap; }
+  .mn-lumber-sale-row > div { width: 100%; justify-content: stretch; }
+  .mn-lumber-sale-row > div button { flex: 1; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .mn-lumber-panel { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  .mn-lumber-roadmap { display: none; }
+  .mn-lumber-panel > footer { min-height: 22px; padding-block: 3px; }
+}
+@media (orientation: portrait) and (max-width: 920px) {
+  :is(html, body).mn-force-rotate-landscape .mn-lumber-panel { height: calc(100vw - 10px) !important; max-height: calc(100vw - 10px) !important; }
+  :is(html, body).mn-force-rotate-landscape .mn-lumber-page,
+  :is(html, body).mn-force-rotate-landscape .mn-lumber-panel > .mn-jobbiz-page { touch-action: pan-y !important; overflow-y: auto !important; }
+}
