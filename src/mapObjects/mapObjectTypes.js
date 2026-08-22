@@ -124,6 +124,17 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'business_shop_01',
   },
 
+  tool_store: {
+    type: 'tool_store',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Магазин инструментов',
+    icon: '🧰',
+    defaultPrice: 600000,
+    defaultScale: 1.12,
+    defaultRotation: 0,
+    defaultAsset: 'business_shop_01',
+  },
+
   cafe: {
     type: 'cafe',
     category: MAP_OBJECT_CATEGORIES.BUSINESS,
@@ -615,4 +626,3 @@ export function createMapObjectDraft({
     updatedAt: new Date().toISOString(),
   };
 }
-
