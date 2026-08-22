@@ -4572,6 +4572,39 @@ button.mn-farm-shop-row,
   .mn-farm-ui4 > .mn-farm4-status { min-height: 20px; padding-block: 2px; }
 }
 @media (orientation: portrait) and (max-width: 920px) {
-  :is(html, body).mn-force-rotate-landscape .mn-farm-panel.mn-farm-ui4 { height: calc(100vw - 10px) !important; max-height: calc(100vw - 10px) !important; }
-  :is(html, body).mn-force-rotate-landscape .mn-farm4-page { touch-action: pan-y !important; overflow-y: auto !important; }
+  :is(html, body).mn-force-rotate-landscape .mn-farm-panel.mn-farm-ui4 {
+    width: min(820px, calc(100dvh - var(--mn-farm-telegram-guard, 104px) - 18px)) !important;
+    height: calc(100vw - 16px) !important;
+    min-height: 0 !important;
+    max-height: calc(100vw - 16px) !important;
+    max-width: calc(100dvh - var(--mn-farm-telegram-guard, 104px) - 18px) !important;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-farm4-shell {
+    display: grid !important;
+    grid-template-columns: 146px minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    width: 100% !important;
+    min-height: 0 !important;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-farm4-content {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-farm4-page {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    touch-action: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  :is(html, body).mn-force-rotate-landscape .mn-farm4-sidebar {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
 }
