@@ -102,3 +102,4 @@ export const rejectBusinessTransfer = (offerId) => invokeBusinessAction('reject_
 export const loadBusinessInventory = () => invokeBusinessAction('inventory');
 export const useBusinessInventoryItem = (itemType) => invokeBusinessAction('use_item', { itemType });
 export const fineBusiness = (payload) => invokeBusinessAction('fine', payload);
+
