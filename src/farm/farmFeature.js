@@ -343,6 +343,8 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let marketRefreshPromise = null;
   let businessRefreshPromise = null;
   let realtimeChannel = null;
+  let scrollTouch = null;
+  let scrollClickBlockedUntil = 0;
 
   window.__MN_FARM_PLANT_STATES_READY__ = false;
 
@@ -824,6 +826,50 @@ export function enableFarmFeature({ root, cityId } = {}) {
     if (tab === 'business') void refreshBusiness({ silent: true });
   }
 
+  function usesForcedMobileRotation() {
+    return Boolean(
+      window.matchMedia?.('(orientation: portrait)')?.matches
+      && (
+        document.documentElement.classList.contains('mn-force-rotate-landscape')
+        || document.body.classList.contains('mn-force-rotate-landscape')
+      )
+    );
+  }
+
+  function handleScrollTouchStart(event) {
+    const page = event.target?.closest?.('[data-farm-page]');
+    if (!page || page.hidden || !usesForcedMobileRotation() || event.touches.length !== 1) {
+      scrollTouch = null;
+      return;
+    }
+    const touch = event.touches[0];
+    scrollTouch = {
+      page,
+      identifier: touch.identifier,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      scrollTop: page.scrollTop,
+    };
+  }
+
+  function handleScrollTouchMove(event) {
+    if (!scrollTouch) return;
+    const touch = Array.from(event.touches).find((item) => item.identifier === scrollTouch.identifier);
+    if (!touch) return;
+    const deltaX = touch.clientX - scrollTouch.clientX;
+    const deltaY = touch.clientY - scrollTouch.clientY;
+    const scrollDelta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : -deltaY;
+    if (Math.abs(scrollDelta) < 3) return;
+    const maximum = Math.max(0, scrollTouch.page.scrollHeight - scrollTouch.page.clientHeight);
+    scrollTouch.page.scrollTop = Math.max(0, Math.min(maximum, scrollTouch.scrollTop + scrollDelta));
+    scrollClickBlockedUntil = performance.now() + 350;
+    event.preventDefault();
+  }
+
+  function handleScrollTouchEnd() {
+    scrollTouch = null;
+  }
+
   function getPlantAction(object) {
     const objectType = String(object?.type || object?.payload?.jobType || '');
     const plant = getFarmPlantType(objectType);
@@ -985,7 +1031,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
   async function handleBuy(event) {
     const button = event.target?.closest?.('[data-farm-buy]');
-    if (!button || busy || !activeBuyerObjectId) return;
+    if (!button || busy || !activeBuyerObjectId || performance.now() < scrollClickBlockedUntil) return;
     const itemType = String(button.dataset.farmBuy || '');
     busy = true;
     renderInventory();
@@ -1006,7 +1052,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
   async function handleSell(event) {
     const button = event.target?.closest?.('[data-farm-sell]');
-    if (!button || busy) return;
+    if (!button || busy || performance.now() < scrollClickBlockedUntil) return;
     const itemType = String(button.dataset.farmSell || '');
     const quantity = Math.max(0, Math.floor(Number(button.dataset.quantity) || 0));
     busy = true;
@@ -1111,6 +1157,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   }
 
   async function handleBusinessControls(event) {
+    if (performance.now() < scrollClickBlockedUntil) return;
     const purchase = event.target?.closest?.('[data-farm-business-purchase]');
     if (purchase) {
       await runBusinessAction('Оформляем покупку фермерского ООО…', () => purchaseFarmBusiness({ businessId: activeBuyerObjectId, cityId }));
@@ -1194,6 +1241,12 @@ export function enableFarmFeature({ root, cityId } = {}) {
   }
 
   tabButtons.forEach((button) => button.addEventListener('click', () => setTab(button.dataset.farmTab)));
+  tabPages.forEach((page) => {
+    page.addEventListener('touchstart', handleScrollTouchStart, { passive: true });
+    page.addEventListener('touchmove', handleScrollTouchMove, { passive: false });
+    page.addEventListener('touchend', handleScrollTouchEnd, { passive: true });
+    page.addEventListener('touchcancel', handleScrollTouchEnd, { passive: true });
+  });
   modal?.querySelectorAll('[data-farm-close]').forEach((button) => button.addEventListener('click', closeModal));
   panel?.addEventListener('click', handleBuy);
   panel?.addEventListener('click', handleSell);
@@ -1218,6 +1271,12 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.removeEventListener('mn:farm-object-action', handleFarmObjectEvent);
     window.removeEventListener('mn:player-skills-changed', renderInventory);
     window.removeEventListener('mn:job-stream-window-changed', handleJobStreamWindow);
+    tabPages.forEach((page) => {
+      page.removeEventListener('touchstart', handleScrollTouchStart);
+      page.removeEventListener('touchmove', handleScrollTouchMove);
+      page.removeEventListener('touchend', handleScrollTouchEnd);
+      page.removeEventListener('touchcancel', handleScrollTouchEnd);
+    });
     document.body.classList.remove('mn-farm-modal-open');
     modal?.remove();
     cancelFarmMiniGame();
@@ -1225,4 +1284,3 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
-
