@@ -234,8 +234,8 @@ function farmModalMarkup() {
               <div class="mn-farm4-business-summary">
                 <article><i aria-hidden="true">🏢</i><span><small>Форма</small><strong>ООО</strong><em>Фермерское предприятие</em></span></article>
                 <article><i aria-hidden="true">👤</i><span><small>Владелец</small><strong data-farm-owner>Государство</strong><em data-farm-assistant>Помощник: нет</em></span></article>
-                <article><i aria-hidden="true">₴</i><span><small>Баланс бизнеса</small><strong data-farm-cash>0 ₴</strong><em>Оплата урожая и поставок</em></span></article>
-                <article><i aria-hidden="true">💧</i><span><small>Водоснабжение</small><strong><span data-farm-tower-water>0</span> / ${FARM_TOWER_CAPACITY_LITERS} л</strong><em>Бочка: <b data-farm-barrel-present>нет</b> · ведра: <b data-farm-bucket-stock>0</b></em><span class="mn-farm4-progress is-water"><i data-farm-water-meter></i></span></span></article>
+                <article data-farm-private><i aria-hidden="true">₴</i><span><small>Баланс бизнеса</small><strong data-farm-cash>0 ₴</strong><em>Оплата урожая и поставок</em></span></article>
+                <article data-farm-private><i aria-hidden="true">💧</i><span><small>Водоснабжение</small><strong><span data-farm-tower-water>0</span> / ${FARM_TOWER_CAPACITY_LITERS} л</strong><em>Бочка: <b data-farm-barrel-present>нет</b> · ведра: <b data-farm-bucket-stock>0</b></em><span class="mn-farm4-progress is-water"><i data-farm-water-meter></i></span></span></article>
               </div>
 
               <section class="mn-farm4-buy-business" data-farm-business-buy>
@@ -451,6 +451,16 @@ export function enableFarmFeature({ root, cityId } = {}) {
       roleEl.textContent = roleLabel;
       roleEl.dataset.role = role;
     }
+    const canManage = isStaff || isAdmin;
+    const businessTab = modal.querySelector('[data-farm-tab="business"]');
+    if (businessTab) {
+      businessTab.hidden = owned && !canManage;
+      const label = businessTab.querySelector('b');
+      const hint = businessTab.querySelector('small');
+      if (label) label.textContent = canManage ? 'Управление' : 'Предприятие';
+      if (hint) hint.textContent = canManage ? 'Финансы и склад' : 'Покупка бизнеса';
+    }
+    modal.querySelectorAll('[data-farm-private]').forEach((element) => { element.hidden = !canManage; });
     modal.querySelectorAll('[data-farm-owner-income-note], [data-farm-owner-income-kpi]').forEach((element) => {
       element.hidden = !isOwner;
     });
@@ -543,7 +553,6 @@ export function enableFarmFeature({ root, cityId } = {}) {
         const result = await loadFarmBusinessSnapshot({ businessId: requestedId, cityId });
         if (requestedId === activeBuyerObjectId) {
           const published = publishBusiness(result);
-          if (published?.owned === false && modal?.hidden === false) setTab('business');
           return published;
         }
         return result;
@@ -633,7 +642,6 @@ export function enableFarmFeature({ root, cityId } = {}) {
         button.disabled = busy
           || itemQuantity(itemType) <= 0
           || !activeBuyerObjectId
-          || businessState?.owned === false
           || market?.unlocked === false
           || Number(market?.remainingQuantity ?? 0) <= 0
           || Number(businessState?.warehouse?.free ?? FARM_WAREHOUSE_CAPACITY) <= 0;
@@ -648,7 +656,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
       const usable = Number.isFinite(durability) && durability > 0;
       const stock = Number(businessState?.tools?.[itemType]?.stock || 0);
       if (button) {
-        button.disabled = busy || !businessState?.owned || usable || (!needsMigration && stock <= 0);
+        button.disabled = busy || usable || (!needsMigration && businessState?.owned !== false && stock <= 0);
         button.dataset.owned = usable ? 'true' : 'false';
         button.dataset.broken = Number.isFinite(durability) && durability <= 0 ? 'true' : 'false';
         button.title = needsMigration ? 'Активировать систему прочности для старого инструмента' : usable ? `Осталось ${durability}% прочности` : '';
