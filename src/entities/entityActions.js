@@ -5,6 +5,7 @@ import { handleNpcAction } from './npcActions.js';
 const BUSINESS_ENTITY_TYPES = new Set([
   'shop',
   'grocery',
+  'tool_store',
   'cafe',
   'gas_station',
   'bank',
