@@ -1,4 +1,5 @@
 export const BUSINESS_TYPE_GROCERY = 'grocery';
+export const BUSINESS_TYPE_TOOL_STORE = 'tool_store';
 
 export const BUSINESS_LEGAL_FORMS = Object.freeze({
   fop: Object.freeze({
@@ -107,9 +108,27 @@ export const BUSINESS_PRODUCTS = Object.freeze([
   { itemType: 'grocery_snack', label: 'Снеки', icon: '🍪', foodRestore: 14, waterRestore: 0, suggestedPrice: 38 },
 ]);
 
+export const BUSINESS_TOOL_PRODUCTS = Object.freeze([
+  { itemType: 'farm_rake', label: 'Грабли', icon: '🧹', suggestedPrice: 240, kind: 'tool', permanent: true },
+  { itemType: 'farm_scissors', label: 'Садовые ножницы', icon: '✂️', suggestedPrice: 260, kind: 'tool', permanent: true },
+  { itemType: 'mine_tool_pickaxe', label: 'Шахтёрская кирка', icon: '⛏️', suggestedPrice: 650, kind: 'tool', permanent: true },
+  { itemType: 'lumber_tool_axe', label: 'Топор лесоруба', icon: '🪓', suggestedPrice: 520, kind: 'tool', permanent: true },
+  { itemType: 'lumber_tool_chainsaw', label: 'Бензопила', icon: '🪚', suggestedPrice: 1800, kind: 'tool', permanent: true },
+]);
+
+export const BUSINESS_PRODUCTS_BY_TYPE = Object.freeze({
+  [BUSINESS_TYPE_GROCERY]: BUSINESS_PRODUCTS,
+  shop: BUSINESS_PRODUCTS,
+  [BUSINESS_TYPE_TOOL_STORE]: BUSINESS_TOOL_PRODUCTS,
+});
+
 export const BUSINESS_PRODUCT_BY_TYPE = Object.freeze(
-  Object.fromEntries(BUSINESS_PRODUCTS.map((product) => [product.itemType, product])),
+  Object.fromEntries([...BUSINESS_PRODUCTS, ...BUSINESS_TOOL_PRODUCTS].map((product) => [product.itemType, product])),
 );
+
+export function getBusinessProducts(businessType = BUSINESS_TYPE_GROCERY) {
+  return BUSINESS_PRODUCTS_BY_TYPE[String(businessType || '').trim().toLowerCase()] || BUSINESS_PRODUCTS;
+}
 
 // Реальные показатели ФОП Украины на 2026 год. В игре месячные платежи
 // пересчитываются в недельный эквивалент, потому что декларационный цикл — 7 дней.
