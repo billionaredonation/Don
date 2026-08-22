@@ -307,6 +307,13 @@ export function enableMineFeature({ root, cityId } = {}) {
     if (roleOutput) roleOutput.textContent = roleLabel;
     const stateOutput = modal?.querySelector('[data-mine-business-state]');
     if (stateOutput) stateOutput.textContent = owned ? 'Частное предприятие' : 'Государственная точка';
+    const publicState = modal?.querySelector('[data-mine-business-public-state]');
+    if (publicState) publicState.textContent = owned ? 'Частное' : 'Государственное';
+    const businessTab = modal?.querySelector('[data-mine-tab="business"]');
+    if (businessTab) {
+      businessTab.hidden = owned && !canInspect;
+      businessTab.textContent = canInspect ? 'Управление' : 'Предприятие';
+    }
 
     const buy = modal?.querySelector('[data-mine-business-buy]');
     if (buy) buy.hidden = owned;
