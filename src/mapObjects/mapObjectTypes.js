@@ -382,6 +382,18 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'job_lumber_pine_tree_01',
   },
 
+  fruit_factory: {
+    type: 'fruit_factory',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Фруктовый завод · предприятие',
+    icon: '🏭',
+    defaultScale: 1.1,
+    defaultRotation: 0,
+    defaultAsset: 'job_factory_01',
+    defaultWidth: 3.2,
+    defaultHeight: 2.5,
+  },
+
   spawn: {
     type: 'spawn',
     category: MAP_OBJECT_CATEGORIES.MARKER,
@@ -588,6 +600,21 @@ export function createMapObjectDraft({
     basePayload.legalForm = 'ooo';
     basePayload.legalFormLabel = 'ООО';
     basePayload.price = 1_000_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
+  if (config.type === 'fruit_factory') {
+    basePayload.factoryBusiness = true;
+    basePayload.factoryId = objectId;
+    basePayload.factory_id = objectId;
+    basePayload.legalForm = 'tov';
+    basePayload.legalFormLabel = 'ТОВ';
+    basePayload.price = 3_500_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
     basePayload.serverOwned = false;
