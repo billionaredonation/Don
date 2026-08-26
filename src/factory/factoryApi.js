@@ -27,6 +27,17 @@ export const loadFactorySuppliers = (businessId, cityId) => invoke('store_suppli
 export const orderFactorySupply = (payload) => invoke('store_order', payload);
 export const receiveFactorySupply = (payload) => invoke('store_receive', payload);
 export const setFactoryWholesalePrice = (factoryId, cityId, productType, unitPrice) => invoke('wholesale_price', { factoryId, cityId, productType, unitPrice });
+export const createFactoryRawContract = (payload) => invoke('raw_contract_create', payload);
+export const respondFactoryRawContract = (factoryId, cityId, contractId, decision) => invoke('raw_contract_respond', { factoryId, cityId, contractId, decision });
+export const deliverFactoryRawContract = (factoryId, cityId, contractId, quantity) => invoke('raw_contract_deliver', { factoryId, cityId, contractId, quantity });
+export const loadRawMarket = () => invoke('raw_market_snapshot');
+export const sellToFactory = (factoryId, cityId, itemType, quantity) => invoke('raw_market_sell', { factoryId, cityId, itemType, quantity });
+export const loadProductionExchange = () => invoke('exchange_snapshot');
+export const createFactoryOffer = (payload) => invoke('exchange_factory_offer', payload);
+export const createStoreRequest = (payload) => invoke('exchange_store_request', payload);
+export const acceptStoreRequest = (requestId, factoryId, cityId) => invoke('exchange_request_accept', { requestId, factoryId, cityId });
+export const buyFactoryOffer = (offerId, businessId) => invoke('exchange_offer_buy', { offerId, businessId });
+export const setFactoryProductionWage = (factoryId, cityId, productType, wage) => invoke('production_wage', { factoryId, cityId, productType, wage });
 
 export function getFactoryError(error) {
   const raw = String(error?.message || error || 'FACTORY_REQUEST_FAILED');
@@ -42,6 +53,9 @@ export function getFactoryError(error) {
     FACTORY_PRICE_TOO_LOW: 'Завод отклонил цену: предложение ниже его оптовой цены.', FACTORY_PRODUCT_NOT_ENOUGH: 'На заводе недостаточно готового товара.',
     FACTORY_STORE_OWNER_REQUIRED: 'Закупку может оформить только владелец магазина.', FACTORY_DELIVERY_NOT_READY: 'Машина ещё в пути.',
     FACTORY_STORE_ACCOUNT_LOW: 'На счёте магазина недостаточно денег.', FACTORY_STORE_WAREHOUSE_ADAPTER_REQUIRED: 'Склад магазина использует неизвестную серверу схему. Обновите интеграционную миграцию.',
+    FACTORY_CONTRACT_TARGET_NOT_FOUND: 'Поставщик или ферма не найдены.', FACTORY_CONTRACT_OWNER_REQUIRED: 'Договор закупки создаёт только владелец завода.',
+    FACTORY_CONTRACT_SUPPLIER_REQUIRED: 'Это предложение предназначено другому поставщику.', FACTORY_CONTRACT_NOT_ACTIVE: 'Договор ещё не принят или уже закрыт.',
+    FACTORY_CONTRACT_QUALITY_LOW: 'Партия не соответствует требованиям договора.', FACTORY_CONTRACT_EXPIRED: 'Срок предложения истёк.',
   };
   const key = Object.keys(messages).find((code) => raw.includes(code));
   return key ? messages[key] : raw;
