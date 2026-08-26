@@ -56,6 +56,7 @@ export function getFactoryError(error) {
     FACTORY_CONTRACT_TARGET_NOT_FOUND: 'Поставщик или ферма не найдены.', FACTORY_CONTRACT_OWNER_REQUIRED: 'Договор закупки создаёт только владелец завода.',
     FACTORY_CONTRACT_SUPPLIER_REQUIRED: 'Это предложение предназначено другому поставщику.', FACTORY_CONTRACT_NOT_ACTIVE: 'Договор ещё не принят или уже закрыт.',
     FACTORY_CONTRACT_QUALITY_LOW: 'Партия не соответствует требованиям договора.', FACTORY_CONTRACT_EXPIRED: 'Срок предложения истёк.',
+    FARM_FACTORY_TRANSFER_ADAPTER_REQUIRED: 'Сервер пока не смог связать склад фермы с заводом. Примените SQL-хотфикс адаптера склада.',
   };
   const key = Object.keys(messages).find((code) => raw.includes(code));
   return key ? messages[key] : raw;
