@@ -100,7 +100,8 @@ function isWorkObject(object) {
     isMineStationObject(object) ||
     isMineNodeType(type) ||
     isLumberStationObject(object) ||
-    isLumberTreeType(type)
+    isLumberTreeType(type) ||
+    type === 'fruit_factory'
   );
 }
 
