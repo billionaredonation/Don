@@ -51,6 +51,10 @@ export function getBusinessUserErrorMessage(error) {
     BUSINESS_PROCUREMENT_ACCOUNT_LOW: 'На счёте бизнеса недостаточно денег для этой поставки.',
     BUSINESS_PROFIT_AMOUNT_INVALID: 'Укажите корректную сумму для снятия.',
     BUSINESS_PROFIT_NOT_ENOUGH: 'На счёте бизнеса недостаточно денег.',
+    BUSINESS_DEPOSIT_AMOUNT_INVALID: 'Укажите корректную сумму пополнения.',
+    BUSINESS_TAX_PAYMENT_INVALID: 'Укажите корректную сумму оплаты.',
+    BUSINESS_TAX_DEBT_EMPTY: 'У бизнеса нет налоговой задолженности.',
+    BUSINESS_ACCOUNT_LOW: 'На счёте бизнеса недостаточно денег для оплаты задолженности.',
     BUSINESS_EMPLOYEE_NOT_FOUND: 'Игрок не найден.',
     BUSINESS_EMPLOYEE_ROLE_INVALID: 'Выберите корректную должность.',
     BUSINESS_SELF_EMPLOYMENT_INVALID: 'Владельца не нужно добавлять в сотрудники.',
@@ -81,6 +85,17 @@ export async function invokeBusinessAction(action, payload = {}) {
   return data.result;
 }
 
+async function invokeBusinessFinanceAction(action, payload = {}) {
+  const initData = telegramInitData();
+  if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
+  const { data, error } = await supabase.functions.invoke('fruit-factory', {
+    body: { initData, action, ...payload },
+  });
+  if (error) throw await normalizeError(error);
+  if (!data?.ok) throw new Error(data?.error || data?.reason || 'BUSINESS_REQUEST_FAILED');
+  return data.result;
+}
+
 export const loadBusinessSnapshot = (businessId) => invokeBusinessAction('snapshot', { businessId });
 export const purchaseBusiness = (businessId) => invokeBusinessAction('purchase', { businessId });
 export const updateBusinessShelf = (payload) => invokeBusinessAction('set_shelf', payload);
@@ -92,6 +107,8 @@ export const removeBusinessEmployee = (payload) => invokeBusinessAction('employe
 export const saveBusinessProcurementPlan = (payload) => invokeBusinessAction('set_procurement', payload);
 export const deleteBusinessProcurementPlan = (payload) => invokeBusinessAction('delete_procurement', payload);
 export const withdrawBusinessProfit = (payload) => invokeBusinessAction('withdraw_profit', payload);
+export const depositBusinessFunds = ({ businessId, amount }) => invokeBusinessFinanceAction('business_deposit', { businessId, amount });
+export const payBusinessDebt = ({ businessId, amount }) => invokeBusinessFinanceAction('business_pay_debt', { businessId, amount });
 export const submitBusinessDeclaration = (businessId) => invokeBusinessAction('declaration', { businessId });
 export const updateBusinessTaxGroup = ({ businessId, taxGroup }) => invokeBusinessAction('tax_group', { businessId, taxGroup });
 export const findBusinessTransferPlayer = (target) => invokeBusinessAction('find_transfer_player', { target });
@@ -102,4 +119,3 @@ export const rejectBusinessTransfer = (offerId) => invokeBusinessAction('reject_
 export const loadBusinessInventory = () => invokeBusinessAction('inventory');
 export const useBusinessInventoryItem = (itemType) => invokeBusinessAction('use_item', { itemType });
 export const fineBusiness = (payload) => invokeBusinessAction('fine', payload);
-
