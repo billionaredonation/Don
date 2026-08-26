@@ -1073,5 +1073,3 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     offerModal?.remove();
   };
 }
-
-
