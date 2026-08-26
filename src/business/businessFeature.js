@@ -13,6 +13,7 @@ import {
   addBusinessCartItem,
   checkoutBusinessCart,
   createBusinessTransfer,
+  depositBusinessFunds,
   deleteBusinessProcurementPlan,
   findBusinessTransferPlayer,
   fineBusiness,
@@ -20,6 +21,7 @@ import {
   loadBusinessSnapshot,
   loadPendingBusinessTransfer,
   purchaseBusiness,
+  payBusinessDebt,
   rejectBusinessTransfer,
   removeBusinessCartItem,
   removeBusinessEmployee,
@@ -364,20 +366,22 @@ function taxDrawer(snapshot) {
   const preview = snapshot.taxPreview || {};
   const declarations = snapshot.declarations || [];
   const legal = getBusinessLegalPayload(snapshot);
-  const declarationOpen = !snapshot.declarationAvailableAt || Date.now() >= new Date(snapshot.declarationAvailableAt).getTime();
+  const totalDebt = Math.max(0, Number(snapshot.taxDebt) || 0) + Math.max(0, Number(snapshot.fineDebt) || 0);
+  const cashBalance = Math.max(0, Number(snapshot.cashBalance) || 0);
   return `
     <aside class="mn-business-drawer" data-business-drawer>
       <header><span><small>Налоговая отчётность · 2026</small><strong>${escapeHtml(legal.legalFormLabel)} · ${escapeHtml(legal.taxGroupLabel)}</strong></span><button type="button" data-business-drawer-close>×</button></header>
       <div class="mn-business-tax-summary">
-        <article><small>Оборот недели</small><strong>${formatBusinessMoney(snapshot.revenueCurrentWeek)}</strong></article>
+        <article><small>Оборот периода</small><strong>${formatBusinessMoney(snapshot.revenueCurrentWeek)}</strong></article>
         <article><small>К уплате за период</small><strong>${formatBusinessMoney(preview.total)}</strong></article>
         <article><small>Налоговый долг</small><strong>${formatBusinessMoney(snapshot.taxDebt)}</strong></article>
         <article><small>Штрафы</small><strong>${formatBusinessMoney(snapshot.fineDebt)}</strong></article>
       </div>
       <div class="mn-business-tax-locked"><span>Условия регистрации</span><strong>${escapeHtml(legal.legalFormLabel)} · ${escapeHtml(legal.taxGroupLabel)}</strong><small>Юридическую форму и налоговый режим назначает администрация при размещении бизнеса.</small></div>
       <div class="mn-business-tax-lines"><p><span>Единый налог</span><b>${formatBusinessMoney(preview.singleTax)}</b></p><p><span>Военный сбор</span><b>${formatBusinessMoney(preview.militaryLevy)}</b></p><p><span>ЕСВ</span><b>${formatBusinessMoney(preview.socialContribution)}</b></p><p><span>Срок</span><b>${formatDate(snapshot.declarationDueAt)}</b></p></div>
-      <button type="button" class="is-primary mn-business-declare" data-business-declare${declarationOpen ? '' : ' disabled'}>${declarationOpen ? 'Сдать недельную декларацию' : `Откроется ${formatDate(snapshot.declarationAvailableAt)}`}</button>
-      <p class="mn-business-drawer-note">Налоговый период длится 7 игровых дней. После пропуска срока начисление переходит в задолженность. Штраф назначается отдельно по правилам проекта.</p>
+      <button type="button" class="is-primary mn-business-declare" data-business-declare>Сдать декларацию сейчас</button>
+      ${totalDebt > 0 ? `<label><span>Погашение налогов и штрафов</span><input type="number" min="1" max="${Math.min(totalDebt,cashBalance)}" value="${Math.min(totalDebt,cashBalance)}" inputmode="numeric" data-business-debt-amount><small>Долг ${formatBusinessMoney(totalDebt)} · на счёте ${formatBusinessMoney(cashBalance)}</small></label><button type="button" class="is-primary" data-business-debt-pay${cashBalance > 0 ? '' : ' disabled'}>Оплатить задолженность</button>` : ''}
+      <p class="mn-business-drawer-note">Декларацию можно сдавать в любой момент. Она закрывает текущий период и сразу списывает рассчитанные налоги со счёта бизнеса. Если средств не хватает, остаток становится долгом.</p>
       <div class="mn-business-declarations"><strong>Последние декларации</strong>${declarations.length ? declarations.map((entry) => `<p data-status="${escapeHtml(entry.status)}"><span>${formatDate(entry.submittedAt)} · ${escapeHtml(legal.legalFormLabel)} ${Number(entry.taxGroup)}</span><b>${formatBusinessMoney(entry.assessedTotal)} / оплачено ${formatBusinessMoney(entry.paidTotal)}</b></p>`).join('') : '<small>Деклараций пока нет.</small>'}</div>
     </aside>`;
 }
@@ -390,12 +394,14 @@ function profitDrawer(snapshot) {
   const hasDebt = taxDebt + fineDebt > 0;
   return `
     <aside class="mn-business-drawer is-profit" data-business-drawer>
-      <header><span><small>Финансы владельца</small><strong>Снять прибыль</strong></span><button type="button" data-business-drawer-close>×</button></header>
+      <header><span><small>Финансы владельца</small><strong>Счёт бизнеса</strong></span><button type="button" data-business-drawer-close>×</button></header>
       <div class="mn-business-profit-summary">
         <article><small>Доступно на счёте бизнеса</small><strong>${formatBusinessMoney(cashBalance)}</strong></article>
         <article><small>Личный баланс сейчас</small><strong>${formatBusinessMoney(playerBalance)}</strong></article>
       </div>
       ${hasDebt ? `<div class="mn-business-profit-blocked"><strong>Снятие временно недоступно</strong><span>Налоговый долг: ${formatBusinessMoney(taxDebt)} · штрафы: ${formatBusinessMoney(fineDebt)}. Сначала закройте задолженность.</span></div>` : ''}
+      <label><span>Пополнить счёт</span><input type="number" min="1" max="${playerBalance}" inputmode="numeric" placeholder="Сумма пополнения" data-business-deposit-amount${playerBalance > 0 ? '' : ' disabled'}><small>Средства спишутся с личного баланса владельца и поступят на счёт магазина.</small></label>
+      <button type="button" class="is-primary" data-business-deposit${playerBalance > 0 ? '' : ' disabled'}>Пополнить баланс бизнеса</button>
       <label><span>Сумма снятия</span><input type="number" min="1" max="${cashBalance}" inputmode="numeric" placeholder="Введите сумму" data-business-profit-amount${cashBalance > 0 && !hasDebt ? '' : ' disabled'}><small>Деньги будут переведены со счёта бизнеса на ваш личный баланс.</small></label>
       <footer>
         <button type="button" data-business-profit-all${cashBalance > 0 && !hasDebt ? '' : ' disabled'}>Снять всё</button>
@@ -525,7 +531,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     detailsModal.querySelector('[data-business-details-tax-group]').textContent = legal.taxGroupLabel;
     detailsModal.querySelector('[data-business-details-copy]').textContent = owned
       ? (isOwner(activeObject) ? 'Вы владелец. Внутри доступны полки, закупки, сотрудники, касса, налоги и передача игроку.' : 'Зайдите, выберите товар на полках и оплатите его на кассе. С неоплаченной корзиной выйти нельзя.')
-      : 'После покупки вы сможете вручную расставлять товар, назначать цены, нанимать сотрудников и сдавать недельные декларации.';
+      : 'После покупки вы сможете вручную расставлять товар, назначать цены, нанимать сотрудников и сдавать декларации в удобный момент.';
     detailsModal.querySelector('[data-business-buy]').hidden = owned;
     detailsModal.querySelector('[data-business-enter]').hidden = !owned;
   }
@@ -743,6 +749,18 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       }
       return;
     }
+    if (target.closest('[data-business-deposit]')) {
+      if (snapshot.role !== 'owner') return;
+      const amount = Number(storeContent.querySelector('[data-business-deposit-amount]')?.value || 0);
+      const result = await runStoreAction(() => depositBusinessFunds({ businessId: snapshot.businessId, amount }), 'Счёт бизнеса пополнен.');
+      const balance = Number(result?.playerBalance);
+      if (Number.isFinite(balance)) {
+        state.player = { ...(state.player || {}), balance };
+        save();
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'business_deposit', result } }));
+      }
+      return;
+    }
     if (target.closest('[data-business-profit-withdraw]')) {
       if (snapshot.role !== 'owner') return;
       const amount = Number(storeContent.querySelector('[data-business-profit-amount]')?.value || 0);
@@ -903,6 +921,11 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
 
     if (target.closest('[data-business-declare]')) {
       await runStoreAction(() => submitBusinessDeclaration(snapshot.businessId), 'Декларация передана в игровую налоговую.');
+      return;
+    }
+    if (target.closest('[data-business-debt-pay]')) {
+      const amount = Number(storeContent.querySelector('[data-business-debt-amount]')?.value || 0);
+      await runStoreAction(() => payBusinessDebt({ businessId: snapshot.businessId, amount }), 'Налоговая задолженность оплачена.');
       return;
     }
     if (target.closest('[data-business-transfer-find]')) {
