@@ -100,12 +100,9 @@ export const BUSINESS_ROLE_LABELS = Object.freeze({
 });
 
 export const BUSINESS_PRODUCTS = Object.freeze([
-  { itemType: 'grocery_bread', label: 'Хлеб', icon: '🍞', foodRestore: 18, waterRestore: 0, suggestedPrice: 32 },
-  { itemType: 'grocery_milk', label: 'Молоко', icon: '🥛', foodRestore: 8, waterRestore: 15, suggestedPrice: 46 },
-  { itemType: 'grocery_apple', label: 'Яблоко', icon: '🍎', foodRestore: 12, waterRestore: 4, suggestedPrice: 24 },
-  { itemType: 'grocery_canned_food', label: 'Консервы', icon: '🥫', foodRestore: 30, waterRestore: 0, suggestedPrice: 78 },
-  { itemType: 'grocery_water', label: 'Вода', icon: '💧', foodRestore: 0, waterRestore: 28, suggestedPrice: 28 },
-  { itemType: 'grocery_snack', label: 'Снеки', icon: '🍪', foodRestore: 14, waterRestore: 0, suggestedPrice: 38 },
+  { itemType: 'grocery_apple_juice', factoryProduct: 'apple_juice', label: 'Яблочный сок', icon: '🧃', foodRestore: 4, waterRestore: 24, suggestedPrice: 58 },
+  { itemType: 'grocery_orange_juice', factoryProduct: 'orange_juice', label: 'Апельсиновый сок', icon: '🥤', foodRestore: 5, waterRestore: 26, suggestedPrice: 68 },
+  { itemType: 'grocery_fruit_puree', factoryProduct: 'fruit_puree', label: 'Фруктовое пюре', icon: '🥫', foodRestore: 22, waterRestore: 5, suggestedPrice: 72 },
 ]);
 
 export const BUSINESS_TOOL_PRODUCTS = Object.freeze([
