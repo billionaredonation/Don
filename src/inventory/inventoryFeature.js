@@ -53,6 +53,9 @@ const ITEM_META = Object.freeze({
   grocery_canned_food: { label: 'Консервы', icon: '🥫' },
   grocery_water: { label: 'Вода', icon: '💧' },
   grocery_snack: { label: 'Снеки', icon: '🍪' },
+  factory_apple_juice: { label: 'Яблочный сок', icon: '🧃' },
+  factory_orange_juice: { label: 'Апельсиновый сок', icon: '🥤' },
+  factory_fruit_puree: { label: 'Фруктовое пюре', icon: '🥫' },
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
