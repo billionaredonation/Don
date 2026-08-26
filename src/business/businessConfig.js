@@ -6,7 +6,7 @@ export const BUSINESS_LEGAL_FORMS = Object.freeze({
     value: 'fop',
     label: 'ФОП',
     title: 'Физическое лицо-предприниматель',
-    description: 'Простая форма для небольшого бизнеса. Владелец отвечает лично и сдаёт недельную декларацию.',
+    description: 'Простая форма для небольшого бизнеса. Владелец отвечает лично и сдаёт декларацию за текущий период в удобный момент.',
     responsibility: 'Личная ответственность владельца',
     accounting: 'Упрощённая бухгалтерия',
     taxGroups: Object.freeze([2, 3]),
@@ -128,7 +128,7 @@ export function getBusinessProducts(businessType = BUSINESS_TYPE_GROCERY) {
 }
 
 // Реальные показатели ФОП Украины на 2026 год. В игре месячные платежи
-// пересчитываются в недельный эквивалент, потому что декларационный цикл — 7 дней.
+// пересчитываются в недельный игровой эквивалент для расчёта одного закрываемого периода.
 export const BUSINESS_TAX_2026 = Object.freeze({
   effectiveYear: 2026,
   minimumSalary: 8647,
@@ -178,4 +178,3 @@ export function getWeeklyTaxPreview(group, turnover = 0) {
     group: taxGroup,
   };
 }
-
