@@ -18,4 +18,3 @@ export const FACTORY_RAW_ITEMS = Object.freeze([
 
 export function getFactoryRecipe(id) { return FACTORY_RECIPES[String(id || '').trim()] || null; }
 export function formatFactoryMoney(value) { return `${Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ru-RU')} ₴`; }
-
