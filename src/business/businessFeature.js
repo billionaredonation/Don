@@ -36,6 +36,7 @@ import {
   normalizeBusinessForUi,
 } from './businessRepository.js';
 import './business.css';
+import { loadFactorySuppliers, orderFactorySupply, receiveFactorySupply, getFactoryError } from '../factory/factoryApi.js';
 
 // Realtime delivers normal offers immediately. The slow fallback only repairs
 // a missed broadcast and avoids another permanent 2-second request per player.
@@ -189,11 +190,11 @@ function productOptions(snapshot, selected = '') {
   )).join('');
 }
 
-function procurementSupplierOptions(snapshot, selected = 'player_checkpoint') {
-  const suppliers = businessTypeOf(snapshot) === 'tool_store'
-    ? [['player_checkpoint', 'Игроки-поставщики'], ['local_farms', 'Региональный склад'], ['state_wholesale', 'Государственный опт'], ['import_distributor', 'Импортный производитель']]
-    : [['player_checkpoint', 'Игроки через пункт приёма'], ['local_farms', 'Местные фермеры'], ['state_wholesale', 'Государственный опт'], ['import_distributor', 'Импортный дистрибьютор']];
-  return suppliers.map(([value, label]) => `<option value="${value}"${selected === value ? ' selected' : ''}>${label}</option>`).join('');
+function procurementSupplierOptions(snapshot, productType, selected = '') {
+  if (businessTypeOf(snapshot) === 'tool_store') return '<option value="state_wholesale">Центральный склад инструментов</option>';
+  const suppliers = (snapshot.factorySuppliers || []).filter((supplier) => supplier.productType === productType && Number(supplier.available) > 0);
+  if (!suppliers.length) return '<option value="">Нет заводов с товаром</option>';
+  return suppliers.map((supplier) => `<option value="${escapeHtml(supplier.factoryId)}"${selected === supplier.factoryId ? ' selected' : ''}>🏭 ${escapeHtml(supplier.factoryName)} · ${Number(supplier.available)} шт. · от ${formatBusinessMoney(supplier.unitPrice)}</option>`).join('');
 }
 
 function shelvesMarkup(snapshot) {
@@ -313,13 +314,17 @@ function warehouseDrawer(snapshot) {
 }
 
 function procurementDrawer(snapshot, selectedProductType = '') {
+  if (businessTypeOf(snapshot) === 'tool_store') return '<aside class="mn-business-drawer" data-business-drawer><header><span><small>Снабжение</small><strong>Закупки инструментов</strong></span><button type="button" data-business-drawer-close>×</button></header><p class="mn-business-drawer-note">Снабжение магазина инструментов работает через центральный склад.</p></aside>';
   const plans = Array.isArray(snapshot.procurementPlans) ? snapshot.procurementPlans : [];
+  const orders = Array.isArray(snapshot.factoryOrders) ? snapshot.factoryOrders : [];
   const catalog = productsFor(snapshot);
   const productType = String(selectedProductType || plans[0]?.productType || catalog[0]?.itemType || '');
   const product = getBusinessProduct(productType) || catalog[0];
   const plan = plans.find((entry) => entry.productType === productType) || null;
+  const matchingSuppliers = (snapshot.factorySuppliers || []).filter((entry) => entry.productType === productType && Number(entry.available) > 0);
+  const supplier = matchingSuppliers.find((entry) => entry.factoryId === plan?.supplierCode) || matchingSuppliers[0] || null;
   const targetQuantity = Math.max(1, Number(plan?.targetQuantity) || 100);
-  const unitPrice = Math.max(1, Number(plan?.unitPrice) || Math.max(1, Math.round(Number(product?.suggestedPrice || 10) * 0.65)));
+  const unitPrice = Math.max(1, Number(plan?.unitPrice) || Number(supplier?.unitPrice) || Math.max(1, Math.round(Number(product?.suggestedPrice || 10) * 0.65)));
   const requiredBudget = targetQuantity * unitPrice;
   const allocatedBudget = Math.max(requiredBudget, Number(plan?.allocatedBudget) || requiredBudget);
   return `
@@ -330,14 +335,14 @@ function procurementDrawer(snapshot, selectedProductType = '') {
         <label><span>Количество</span><input type="number" min="1" max="1000000" inputmode="numeric" value="${targetQuantity}" data-business-procurement-quantity></label>
         <label><span>Цена за единицу</span><input type="number" min="1" max="1000000" inputmode="numeric" value="${unitPrice}" data-business-procurement-price></label>
       </div>
-      <label><span>У кого закупаем</span><select data-business-procurement-supplier>${procurementSupplierOptions(snapshot, plan?.supplierCode)}</select></label>
-      <label><span>Выделенный бюджет</span><input type="number" min="1" max="1000000000" inputmode="numeric" value="${allocatedBudget}" data-business-procurement-budget><small>${businessTypeOf(snapshot) === 'tool_store' ? 'После подтверждения стоимость партии спишется со счёта бизнеса, а инструменты сразу поступят на склад.' : 'Сейчас сумма только записывается в план и не списывается со счёта бизнеса.'}</small></label>
+      <label><span>У какого завода закупаем</span><select data-business-procurement-supplier>${procurementSupplierOptions(snapshot, productType, supplier?.factoryId)}</select></label>
+      <label><span>Бюджет поставки</span><input type="number" min="1" max="1000000000" inputmode="numeric" value="${allocatedBudget}" data-business-procurement-budget><small>Цена ниже оптовой будет отклонена заводом. После заказа деньги резервируются, а товар отправляется со склада производства.</small></label>
       <div class="mn-business-procurement-preview" data-business-procurement-preview>
         <span><small>Стоимость партии</small><strong data-business-procurement-required>${formatBusinessMoney(requiredBudget)}</strong></span>
         <span><small>Запас бюджета</small><strong data-business-procurement-reserve>${formatBusinessMoney(allocatedBudget - requiredBudget)}</strong></span>
       </div>
-      <button type="button" class="is-primary mn-business-procurement-save" data-business-procurement-save>Сохранить план закупки</button>
-      <p class="mn-business-drawer-note">Это подготовка под будущие поставки. Позже игрок сможет привезти выбранный товар на пункт приёма и получить оплату из указанного бюджета.</p>
+      <button type="button" class="is-primary mn-business-procurement-save" data-business-factory-order${supplier ? '' : ' disabled'}>Оформить поставку с завода</button>
+      <p class="mn-business-drawer-note">Прямых закупок с фермы больше нет: ферма поставляет сырьё производству, завод перерабатывает его, после чего готовый товар едет на склад магазина.</p>
       <div class="mn-business-procurement-list">
         <header><strong>Сохранённые планы</strong><span>${formatBusinessMoney(snapshot.plannedProcurementBudget || 0)} всего</span></header>
         ${plans.length ? plans.map((entry) => {
@@ -351,6 +356,7 @@ function procurementDrawer(snapshot, selectedProductType = '') {
           </article>`;
         }).join('') : '<p>Планов закупки пока нет.</p>'}
       </div>
+      <div class="mn-business-procurement-list"><header><strong>Доставки</strong><span>${orders.length}</span></header>${orders.length ? orders.map((order) => `<article><i>🚚</i><span><strong>${escapeHtml(getBusinessProduct(order.productType)?.label || order.productType)}</strong><small>${Number(order.quantity)} шт. · ${escapeHtml(order.factoryName || 'Завод')} · ${order.status === 'in_transit' ? 'в пути' : 'принято'}</small></span><b>${formatBusinessMoney(order.totalPrice)}</b>${order.status === 'in_transit' ? `<button type="button" data-business-factory-receive="${escapeHtml(order.id)}">Принять</button>` : ''}</article>`).join('') : '<p>Активных доставок пока нет.</p>'}</div>
     </aside>`;
 }
 
@@ -550,8 +556,12 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
   async function refreshStore({ preserveDrawer = true } = {}) {
     if (!activeObject) return;
     const next = await loadBusinessSnapshot(businessId(activeObject));
+    let supply = {};
+    if (businessTypeOf(next) !== 'tool_store') {
+      try { supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId); } catch (error) { console.warn('[business] factory supply unavailable:', error); }
+    }
     if (destroyed) return;
-    snapshot = next;
+    snapshot = { ...next, ...supply };
     if (!preserveDrawer) { drawerMode = ''; drawerData = null; }
     renderStore();
   }
@@ -561,7 +571,10 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     busy = true;
     setDetailsMessage('Загружаем магазин…');
     try {
-      snapshot = await loadBusinessSnapshot(businessId(activeObject));
+      const next = await loadBusinessSnapshot(businessId(activeObject));
+      let supply = {};
+      if (businessTypeOf(next) !== 'tool_store') supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId);
+      snapshot = { ...next, ...supply };
       drawerMode = '';
       drawerData = null;
       closeDetails();
@@ -609,7 +622,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       if (successMessage) { setStoreMessage(successMessage, 'success'); toast(successMessage, 'success'); }
       return result;
     } catch (error) {
-      const message = getBusinessUserErrorMessage(error);
+      const message = getFactoryError(error) !== String(error?.message || error) ? getFactoryError(error) : getBusinessUserErrorMessage(error);
       setStoreMessage(message, 'error');
       toast(message, 'error');
       return null;
@@ -767,6 +780,21 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
         drawerData = result.procurementPlans?.[0]?.productType || productsFor(snapshot)[0]?.itemType || '';
         renderStore();
       }
+      return;
+    }
+    if (target.closest('[data-business-factory-order]')) {
+      const productType = storeContent.querySelector('[data-business-procurement-product]')?.value || '';
+      const factoryId = storeContent.querySelector('[data-business-procurement-supplier]')?.value || '';
+      const quantity = Number(storeContent.querySelector('[data-business-procurement-quantity]')?.value || 0);
+      const unitPrice = Number(storeContent.querySelector('[data-business-procurement-price]')?.value || 0);
+      const result = await runStoreAction(() => orderFactorySupply({ businessId: snapshot.businessId, cityId: activeObject.cityId || activeCityId, factoryId, productType, quantity, unitPrice }), 'Заказ оплачен и передан в доставку.');
+      if (result) await refreshStore();
+      return;
+    }
+    const factoryReceive = target.closest('[data-business-factory-receive]');
+    if (factoryReceive) {
+      const result = await runStoreAction(() => receiveFactorySupply({ businessId: snapshot.businessId, cityId: activeObject.cityId || activeCityId, orderId: factoryReceive.dataset.businessFactoryReceive }), 'Поставка принята на склад магазина.');
+      if (result) await refreshStore();
       return;
     }
     if (target.closest('[data-business-procurement-save]')) {
@@ -1045,4 +1073,3 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     offerModal?.remove();
   };
 }
-
