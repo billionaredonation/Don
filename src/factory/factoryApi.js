@@ -23,6 +23,10 @@ export const depositFactory = (factoryId, cityId, amount) => invoke('deposit', {
 export const withdrawFactory = (factoryId, cityId, amount) => invoke('withdraw', { factoryId, cityId, amount });
 export const setFactoryStaff = (factoryId, cityId, target, role) => invoke('staff_set', { factoryId, cityId, target, role });
 export const removeFactoryStaff = (factoryId, cityId, target) => invoke('staff_remove', { factoryId, cityId, target });
+export const loadFactorySuppliers = (businessId, cityId) => invoke('store_suppliers', { businessId, cityId });
+export const orderFactorySupply = (payload) => invoke('store_order', payload);
+export const receiveFactorySupply = (payload) => invoke('store_receive', payload);
+export const setFactoryWholesalePrice = (factoryId, cityId, productType, unitPrice) => invoke('wholesale_price', { factoryId, cityId, productType, unitPrice });
 
 export function getFactoryError(error) {
   const raw = String(error?.message || error || 'FACTORY_REQUEST_FAILED');
@@ -35,6 +39,9 @@ export function getFactoryError(error) {
     FACTORY_BUSY: 'Производственная линия уже занята.', FACTORY_BATCH_NOT_READY: 'Партия ещё перерабатывается.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.', FACTORY_CASH_NOT_ENOUGH: 'В бюджете завода недостаточно денег на зарплату.',
     FACTORY_INVENTORY_NOT_ENOUGH: 'В инвентаре недостаточно фруктов.', FACTORY_AMOUNT_INVALID: 'Введите корректное количество.',
+    FACTORY_PRICE_TOO_LOW: 'Завод отклонил цену: предложение ниже его оптовой цены.', FACTORY_PRODUCT_NOT_ENOUGH: 'На заводе недостаточно готового товара.',
+    FACTORY_STORE_OWNER_REQUIRED: 'Закупку может оформить только владелец магазина.', FACTORY_DELIVERY_NOT_READY: 'Машина ещё в пути.',
+    FACTORY_STORE_ACCOUNT_LOW: 'На счёте магазина недостаточно денег.', FACTORY_STORE_WAREHOUSE_ADAPTER_REQUIRED: 'Склад магазина использует неизвестную серверу схему. Обновите интеграционную миграцию.',
   };
   const key = Object.keys(messages).find((code) => raw.includes(code));
   return key ? messages[key] : raw;
