@@ -43,6 +43,7 @@ export function getConstructionError(error) {
     CONSTRUCTION_BATCH_NOT_READY: 'Партия ещё производится.', PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
     CONSTRUCTION_CASH_NOT_ENOUGH: 'В бюджете предприятия недостаточно денег.', LUMBER_INVENTORY_NOT_ENOUGH: 'В инвентаре недостаточно древесины.',
     CONSTRUCTION_STORE_REQUIRED: 'Поставка доступна только инструментальному магазину.', CONSTRUCTION_STORE_ACCOUNT_LOW: 'На счёте магазина недостаточно денег.',
+    CONSTRUCTION_PRODUCT_NOT_ENOUGH: 'На складе завода недостаточно готовой продукции.',
   };
   const key = Object.keys(messages).find((code) => raw.includes(code));
   return key ? messages[key] : raw;
