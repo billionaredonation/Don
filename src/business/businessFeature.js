@@ -39,7 +39,7 @@ import {
 } from './businessRepository.js';
 import './business.css';
 import { loadFactorySuppliers, orderFactorySupply, receiveFactorySupply, getFactoryError } from '../factory/factoryApi.js';
-import { loadConstructionSuppliers, orderConstructionSupply, receiveConstructionSupply, getConstructionError } from '../construction/constructionApi.js';
+import { loadConstructionSuppliers, createConstructionStoreRequest, orderConstructionSupply, receiveConstructionSupply, getConstructionError } from '../construction/constructionApi.js';
 
 // Realtime delivers normal offers immediately. The slow fallback only repairs
 // a missed broadcast and avoids another permanent 2-second request per player.
@@ -333,6 +333,23 @@ function procurementDrawer(snapshot, selectedProductType = '') {
   const unitPrice = Math.max(1, Number(plan?.unitPrice) || Number(supplier?.unitPrice) || Math.max(1, Math.round(Number(product?.suggestedPrice || 10) * 0.65)));
   const requiredBudget = targetQuantity * unitPrice;
   const allocatedBudget = Math.max(requiredBudget, Number(plan?.allocatedBudget) || requiredBudget);
+  if (businessTypeOf(snapshot) === 'tool_store') {
+    return `
+      <aside class="mn-business-drawer is-procurement" data-business-drawer>
+        <header><span><small>Только для владельца</small><strong>Заявка на закупку</strong></span><button type="button" data-business-drawer-close>×</button></header>
+        <label><span>Какой товар закупаем</span><select data-business-procurement-product>${productOptions(snapshot, productType)}</select></label>
+        <div class="mn-business-drawer-grid">
+          <label><span>Количество</span><input type="number" min="1" max="1000000" inputmode="numeric" value="${targetQuantity}" data-business-procurement-quantity></label>
+          <label><span>Предлагаемая цена за единицу</span><input type="number" min="1" max="1000000" inputmode="numeric" value="${unitPrice}" data-business-procurement-price></label>
+        </div>
+        <div class="mn-business-procurement-preview" data-business-procurement-preview>
+          <span><small>Максимальная стоимость партии</small><strong data-business-procurement-required>${formatBusinessMoney(requiredBudget)}</strong></span>
+          <span><small>Статус</small><strong>Ожидает завод</strong></span>
+        </div>
+        <button type="button" class="is-primary mn-business-procurement-save" data-business-procurement-publish>Разместить заявку на бирже</button>
+        <p class="mn-business-drawer-note">Выбирать завод не нужно. Заявка появится на бирже готовой продукции, и владелец подходящего завода сможет принять её при наличии товара. Деньги спишутся только после принятия заявки заводом.</p>
+      </aside>`;
+  }
   return `
     <aside class="mn-business-drawer is-procurement" data-business-drawer>
       <header><span><small>Только для владельца</small><strong>План закупки</strong></span><button type="button" data-business-drawer-close>×</button></header>
@@ -817,6 +834,24 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
         : orderFactorySupply;
       const result = await runStoreAction(() => supplyOrder({ businessId: snapshot.businessId, cityId: activeObject.cityId || activeCityId, factoryId, productType, quantity, unitPrice }), 'Заказ оплачен и передан в доставку.');
       if (result) await refreshStore();
+      return;
+    }
+    if (target.closest('[data-business-procurement-publish]')) {
+      const productType = storeContent.querySelector('[data-business-procurement-product]')?.value || '';
+      const quantity = Number(storeContent.querySelector('[data-business-procurement-quantity]')?.value || 0);
+      const unitPrice = Number(storeContent.querySelector('[data-business-procurement-price]')?.value || 0);
+      const result = await runStoreAction(() => createConstructionStoreRequest({
+        businessId: snapshot.businessId,
+        cityId: activeObject.cityId || activeCityId,
+        productType,
+        quantity,
+        unitPrice,
+      }), 'Заявка опубликована на бирже. Теперь её могут принять владельцы заводов.');
+      if (result) {
+        drawerMode = '';
+        drawerData = null;
+        await refreshStore({ preserveDrawer: false });
+      }
       return;
     }
     const factoryReceive = target.closest('[data-business-factory-receive]');
