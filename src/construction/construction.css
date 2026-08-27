@@ -2,3 +2,4 @@
 .mn-construction-backdrop .mn-factory-panel header small,.mn-construction-backdrop .mn-factory-panel>nav button.is-active{color:#f0b86e}
 .mn-construction-backdrop .mn-factory-line{border-color:#e1a75d45;background:#e1a75d0d}
 .mn-construction-backdrop .mn-factory-panel button:not([data-construction-close]):not([data-construction-tab]){background:#e7ad63;color:#160e05}
+.mn-construction-backdrop .mn-factory-warehouse article>div{display:grid;grid-template-columns:62px auto;gap:5px}.mn-construction-backdrop .mn-factory-warehouse article>div input{width:62px}.mn-construction-backdrop .mn-factory-warehouse article>div button{min-width:68px}
