@@ -1,7 +1,7 @@
 import '../factory/factory.css';
 import './construction.css';
 import { CONSTRUCTION_FACTORY_CONFIG, CONSTRUCTION_RAW_ITEMS, CONSTRUCTION_RECIPES, formatConstructionMoney } from './constructionConfig.js';
-import { loadConstructionSnapshot, purchaseConstructionFactory, startConstructionBatch, finishConstructionBatch, depositConstructionFactory, withdrawConstructionFactory, setConstructionWholesalePrice, getConstructionError } from './constructionApi.js';
+import { loadConstructionSnapshot, purchaseConstructionFactory, startConstructionBatch, finishConstructionBatch, depositConstructionFactory, withdrawConstructionFactory, setConstructionWholesalePrice, sellLumberToConstructionFactory, getConstructionError } from './constructionApi.js';
 
 const objectType = (o) => String(o?.type || o?.payload?.jobType || '');
 const objectId = (o) => String(o?.id || o?.payload?.factoryId || o?.payload?.factory_id || '');
@@ -9,7 +9,7 @@ const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent(
 
 function markup() {
   const recipes = Object.values(CONSTRUCTION_RECIPES).map((r) => `<article class="mn-factory-recipe"><i>${r.icon}</i><span><strong>${r.label}</strong><small>${r.inputIcon} ${r.inputQty} → ${r.outputQty} ед. · ${r.seconds} сек.</small></span><button data-construction-start="${r.id}">Запустить</button></article>`).join('');
-  const raw = CONSTRUCTION_RAW_ITEMS.map((i) => `<article><i>${i.icon}</i><span><small>${i.label}</small><strong data-construction-raw="${i.itemType}">0</strong></span><em>Поставка лесорубов</em></article>`).join('');
+  const raw = CONSTRUCTION_RAW_ITEMS.map((i) => `<article><i>${i.icon}</i><span><small>${i.label}</small><strong data-construction-raw="${i.itemType}">0</strong></span><div><input type="number" min="1" value="1" inputmode="numeric" data-construction-deliver-qty="${i.itemType}" aria-label="Количество"><button data-construction-deliver="${i.itemType}">Сдать</button></div></article>`).join('');
   return `<div class="mn-factory-backdrop mn-construction-backdrop" data-construction-modal hidden><section class="mn-factory-panel"><header><div><small>ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ</small><h2>Завод стройматериалов</h2><p>Древесина лесорубов → обработка → инструментальный магазин</p></div><button data-construction-close>×</button></header><nav><button data-construction-tab="production" class="is-active">Производство</button><button data-construction-tab="warehouse">Склады</button><button data-construction-tab="management">Управление</button></nav><main>
     <section data-construction-page="production"><div class="mn-factory-status"><span><small>Статус</small><strong data-construction-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-construction-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-construction-cash>—</strong></span></div><div class="mn-factory-line" data-construction-line><i>🏗️</i><span><strong>Линия свободна</strong><small>Выберите технологическую карту</small></span><button data-construction-finish hidden>Забрать партию</button></div><h3>Технологические карты</h3><div class="mn-factory-recipes">${recipes}</div></section>
     <section data-construction-page="warehouse" hidden><h3>Сырьевой склад</h3><div class="mn-factory-warehouse">${raw}</div><h3>Готовые стройматериалы</h3><div class="mn-factory-products">${Object.values(CONSTRUCTION_RECIPES).map((r) => `<article><i>${r.icon}</i><span><small>${r.label}</small><strong data-construction-product="${r.id}">0</strong></span></article>`).join('')}</div></section>
@@ -47,6 +47,13 @@ export function enableConstructionFeature({ root, cityId }) {
   q('[data-construction-deposit]').onclick = () => run(() => depositConstructionFactory(currentId, cityId, Number(q('[data-construction-money]').value)));
   q('[data-construction-withdraw]').onclick = () => run(() => withdrawConstructionFactory(currentId, cityId, Number(q('[data-construction-money]').value)));
   qa('[data-construction-price-save]').forEach((b) => { b.onclick = () => run(() => setConstructionWholesalePrice(currentId, cityId, b.dataset.constructionPriceSave, Number(q(`[data-construction-price="${b.dataset.constructionPriceSave}"]`).value))); });
+  qa('[data-construction-deliver]').forEach((b) => { b.onclick = () => run(async () => {
+    const result = await sellLumberToConstructionFactory(currentId, cityId, b.dataset.constructionDeliver, Number(q(`[data-construction-deliver-qty="${b.dataset.constructionDeliver}"]`).value));
+    const balance = Number(result?.playerBalance);
+    if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'construction_factory_delivery' } }));
+    window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed', { detail: { inventory: result?.inventory } }));
+    notify(`Сырьё принято заводом. Получено ${Number(result?.payout || 0).toLocaleString('ru-RU')} ₴.`, 'success');
+  }); });
   const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== 'construction_factory') return; currentId = objectId(object); modal.hidden = false; tab('production'); void run(refresh); };
   window.addEventListener('mn:construction-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:construction-object-action', onAction); modal.remove(); };
