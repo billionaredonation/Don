@@ -47,6 +47,9 @@ const ITEM_META = Object.freeze({
   lumber_tool_chainsaw: { label: 'Бензопила', icon: '🪚' },
   lumber_log: { label: 'Бревно', icon: '🪵' },
   lumber_beam: { label: 'Брус', icon: '▰' },
+  construction_board: { label: 'Обрезная доска', icon: '🪚' },
+  construction_timber: { label: 'Строительный брус', icon: '▰' },
+  construction_plywood: { label: 'Фанерный лист', icon: '🟫' },
   grocery_bread: { label: 'Хлеб', icon: '🍞' },
   grocery_milk: { label: 'Молоко', icon: '🥛' },
   grocery_apple: { label: 'Яблоко', icon: '🍎' },
@@ -831,7 +834,7 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · постоянный инструмент со 2 уровня.\n${sourceLabel}.\nРаспиливает одно бревно 20 кг на 4 бруса по 5 кг.`;
     }
 
-    if (itemType === 'lumber_log' || itemType === 'lumber_beam') {
+    if (itemType === 'lumber_log' || itemType === 'lumber_beam' || itemType.startsWith('construction_')) {
       const unitWeight = Number(item.unitWeightKg || (itemType === 'lumber_log' ? 20 : 5));
       const totalWeight = Number(item.totalWeightKg || unitWeight * quantity);
       const price = itemType === 'lumber_log' ? 200 : 55;
@@ -931,7 +934,7 @@ export function enableInventoryFeature() {
       const medicineOnly = itemType.startsWith('medicine_');
       const farmNonUsable = itemType.startsWith('farm_');
       const mineNonUsable = itemType.startsWith('mine_');
-      const lumberNonUsable = itemType.startsWith('lumber_');
+      const lumberNonUsable = itemType.startsWith('lumber_') || itemType.startsWith('construction_');
       const hidden = medicineOnly || farmNonUsable || mineNonUsable || lumberNonUsable;
       itemMenuApply.hidden = hidden;
       itemMenuApply.disabled = hidden;
@@ -1597,4 +1600,3 @@ export function enableInventoryFeature() {
     overlay.remove();
   };
 }
-
