@@ -1,0 +1,4 @@
+.mn-construction-backdrop .mn-factory-panel{border-color:#e1a75d38;background:linear-gradient(155deg,#14100b,#080807 70%)}
+.mn-construction-backdrop .mn-factory-panel header small,.mn-construction-backdrop .mn-factory-panel>nav button.is-active{color:#f0b86e}
+.mn-construction-backdrop .mn-factory-line{border-color:#e1a75d45;background:#e1a75d0d}
+.mn-construction-backdrop .mn-factory-panel button:not([data-construction-close]):not([data-construction-tab]){background:#e7ad63;color:#160e05}
