@@ -111,6 +111,9 @@ export const BUSINESS_TOOL_PRODUCTS = Object.freeze([
   { itemType: 'mine_tool_pickaxe', label: 'Шахтёрская кирка', icon: '⛏️', suggestedPrice: 650, kind: 'tool', permanent: true },
   { itemType: 'lumber_tool_axe', label: 'Топор лесоруба', icon: '🪓', suggestedPrice: 520, kind: 'tool', permanent: true },
   { itemType: 'lumber_tool_chainsaw', label: 'Бензопила', icon: '🪚', suggestedPrice: 1800, kind: 'tool', permanent: true },
+  { itemType: 'construction_board', label: 'Обрезная доска', icon: '🪚', suggestedPrice: 135, kind: 'material', permanent: false },
+  { itemType: 'construction_timber', label: 'Строительный брус', icon: '▰', suggestedPrice: 195, kind: 'material', permanent: false },
+  { itemType: 'construction_plywood', label: 'Фанерный лист', icon: '🟫', suggestedPrice: 170, kind: 'material', permanent: false },
 ]);
 
 export const BUSINESS_PRODUCTS_BY_TYPE = Object.freeze({
