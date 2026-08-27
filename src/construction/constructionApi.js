@@ -22,9 +22,15 @@ export const depositConstructionFactory = (factoryId, cityId, amount) => invoke(
 export const withdrawConstructionFactory = (factoryId, cityId, amount) => invoke('withdraw', { factoryId, cityId, amount });
 export const setConstructionWholesalePrice = (factoryId, cityId, productType, unitPrice) => invoke('wholesale_price', { factoryId, cityId, productType, unitPrice });
 export const sellLumberToConstructionFactory = (factoryId, cityId, itemType, quantity) => invoke('raw_market_sell', { factoryId, cityId, itemType, quantity });
+export const loadConstructionRawMarket = (cityId) => invoke('raw_market_snapshot', { cityId });
 export const loadConstructionSuppliers = (businessId, cityId) => invoke('store_suppliers', { businessId, cityId });
 export const orderConstructionSupply = (payload) => invoke('store_order', payload);
 export const receiveConstructionSupply = (payload) => invoke('store_receive', payload);
+export const loadConstructionExchange = () => invoke('exchange_snapshot');
+export const createConstructionOffer = (payload) => invoke('exchange_factory_offer', payload);
+export const createConstructionStoreRequest = (payload) => invoke('exchange_store_request', payload);
+export const acceptConstructionStoreRequest = (requestId, factoryId, cityId) => invoke('exchange_request_accept', { requestId, factoryId, cityId });
+export const buyConstructionOffer = (offerId, businessId) => invoke('exchange_offer_buy', { offerId, businessId });
 
 export function getConstructionError(error) {
   const raw = String(error?.message || error || 'CONSTRUCTION_REQUEST_FAILED');
