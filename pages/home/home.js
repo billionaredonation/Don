@@ -41,6 +41,7 @@ import { enableFarmFeature } from '../../src/farm/farmFeature.js';
 import { enableMineFeature } from '../../src/mine/mineFeature.js';
 import { enableLumberFeature } from '../../src/lumber/lumberFeature.js';
 import { enableFactoryFeature } from '../../src/factory/factoryFeature.js';
+import { enableConstructionFeature } from '../../src/construction/constructionFeature.js';
 import { enableProductionMarketFeature } from '../../src/market/productionMarketFeature.js';
 import { enableHospitalManagementFeature } from '../../src/hospital/hospitalManagementFeature.js';
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
@@ -1576,6 +1577,7 @@ register('home', async (root) => {
   let cleanupMineFeature = null;
   let cleanupLumberFeature = null;
   let cleanupFactoryFeature = null;
+  let cleanupConstructionFeature = null;
   let cleanupProductionMarket = null;
   let cleanupGameRealtime = null;
   let cleanupMobileSelfMarker = null;
@@ -2221,6 +2223,7 @@ register('home', async (root) => {
   });
 
   cleanupFactoryFeature = enableFactoryFeature({ root, cityId });
+  cleanupConstructionFeature = enableConstructionFeature({ root, cityId });
   cleanupProductionMarket = enableProductionMarketFeature({ root });
 
   cleanupEntityInteraction = enableEntityInteraction({
@@ -2437,6 +2440,7 @@ register('home', async (root) => {
     cleanupMineFeature?.();
     cleanupLumberFeature?.();
     cleanupFactoryFeature?.();
+    cleanupConstructionFeature?.();
     cleanupProductionMarket?.();
     cleanupInteriorExitReturn?.();
     cleanupHouseSpawnPicker?.();
