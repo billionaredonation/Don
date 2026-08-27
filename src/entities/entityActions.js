@@ -136,6 +136,7 @@ export function getEntityMetaText(object) {
     if (type === 'lumber_deciduous_tree') return 'Лесоруб · лиственное дерево';
     if (type === 'lumber_pine_tree') return 'Лесоруб · сосна';
     if (type === 'fruit_factory') return 'Фруктовый завод · переработка и хранение продукции';
+    if (type === 'construction_factory') return 'Завод стройматериалов · древесина, производство и оптовые поставки';
     return 'Рабочая точка';
   }
 
@@ -206,6 +207,8 @@ export function dispatchEntityAction(object) {
     const cleanType = String(type || '');
     const eventName = cleanType === 'fruit_factory'
       ? 'mn:factory-object-action'
+      : cleanType === 'construction_factory'
+      ? 'mn:construction-object-action'
       : cleanType.startsWith('mine_')
       ? 'mn:mine-object-action'
       : cleanType.startsWith('lumber_')
@@ -224,4 +227,3 @@ export function dispatchEntityAction(object) {
     },
   }));
 }
-
