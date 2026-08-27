@@ -394,6 +394,18 @@ export const MAP_OBJECT_TYPES = {
     defaultHeight: 2.5,
   },
 
+  construction_factory: {
+    type: 'construction_factory',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Завод стройматериалов · предприятие',
+    icon: '🏗️',
+    defaultScale: 1.1,
+    defaultRotation: 0,
+    defaultAsset: 'job_factory_01',
+    defaultWidth: 3.2,
+    defaultHeight: 2.5,
+  },
+
   spawn: {
     type: 'spawn',
     category: MAP_OBJECT_CATEGORIES.MARKER,
@@ -623,6 +635,21 @@ export function createMapObjectDraft({
     basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
   }
 
+  if (config.type === 'construction_factory') {
+    basePayload.factoryBusiness = true;
+    basePayload.factoryId = objectId;
+    basePayload.factory_id = objectId;
+    basePayload.legalForm = 'tov';
+    basePayload.legalFormLabel = 'ТОВ';
+    basePayload.price = 4_200_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
   if (config.type === 'farm_water_tower') {
     basePayload.towerCapacityLiters = 500;
     basePayload.tower_capacity_liters = 500;
@@ -653,4 +680,3 @@ export function createMapObjectDraft({
     updatedAt: new Date().toISOString(),
   };
 }
-
