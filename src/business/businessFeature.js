@@ -39,6 +39,7 @@ import {
 } from './businessRepository.js';
 import './business.css';
 import { loadFactorySuppliers, orderFactorySupply, receiveFactorySupply, getFactoryError } from '../factory/factoryApi.js';
+import { loadConstructionSuppliers, orderConstructionSupply, receiveConstructionSupply, getConstructionError } from '../construction/constructionApi.js';
 
 // Realtime delivers normal offers immediately. The slow fallback only repairs
 // a missed broadcast and avoids another permanent 2-second request per player.
@@ -70,6 +71,10 @@ function businessPresentation(value) {
 
 function productsFor(value) {
   return getBusinessProducts(businessTypeOf(value));
+}
+
+function isConstructionProduct(itemType) {
+  return String(itemType || '').startsWith('construction_');
 }
 
 function businessPrice(object) {
@@ -193,7 +198,7 @@ function productOptions(snapshot, selected = '') {
 }
 
 function procurementSupplierOptions(snapshot, productType, selected = '') {
-  if (businessTypeOf(snapshot) === 'tool_store') return '<option value="state_wholesale">Центральный склад инструментов</option>';
+  if (businessTypeOf(snapshot) === 'tool_store' && !isConstructionProduct(productType)) return '<option value="state_wholesale">Центральный склад инструментов</option>';
   const suppliers = (snapshot.factorySuppliers || []).filter((supplier) => supplier.productType === productType && Number(supplier.available) > 0);
   if (!suppliers.length) return '<option value="">Нет заводов с товаром</option>';
   return suppliers.map((supplier) => `<option value="${escapeHtml(supplier.factoryId)}"${selected === supplier.factoryId ? ' selected' : ''}>🏭 ${escapeHtml(supplier.factoryName)} · ${Number(supplier.available)} шт. · от ${formatBusinessMoney(supplier.unitPrice)}</option>`).join('');
@@ -316,7 +321,6 @@ function warehouseDrawer(snapshot) {
 }
 
 function procurementDrawer(snapshot, selectedProductType = '') {
-  if (businessTypeOf(snapshot) === 'tool_store') return '<aside class="mn-business-drawer" data-business-drawer><header><span><small>Снабжение</small><strong>Закупки инструментов</strong></span><button type="button" data-business-drawer-close>×</button></header><p class="mn-business-drawer-note">Снабжение магазина инструментов работает через центральный склад.</p></aside>';
   const plans = Array.isArray(snapshot.procurementPlans) ? snapshot.procurementPlans : [];
   const orders = Array.isArray(snapshot.factoryOrders) ? snapshot.factoryOrders : [];
   const catalog = productsFor(snapshot);
@@ -565,6 +569,8 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     let supply = {};
     if (businessTypeOf(next) !== 'tool_store') {
       try { supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId); } catch (error) { console.warn('[business] factory supply unavailable:', error); }
+    } else {
+      try { supply = await loadConstructionSuppliers(businessId(activeObject), activeObject.cityId || activeCityId); } catch (error) { console.warn('[business] construction supply unavailable:', error); }
     }
     if (destroyed) return;
     snapshot = { ...next, ...supply };
@@ -580,6 +586,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       const next = await loadBusinessSnapshot(businessId(activeObject));
       let supply = {};
       if (businessTypeOf(next) !== 'tool_store') supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId);
+      else supply = await loadConstructionSuppliers(businessId(activeObject), activeObject.cityId || activeCityId);
       snapshot = { ...next, ...supply };
       drawerMode = '';
       drawerData = null;
@@ -805,13 +812,17 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       const factoryId = storeContent.querySelector('[data-business-procurement-supplier]')?.value || '';
       const quantity = Number(storeContent.querySelector('[data-business-procurement-quantity]')?.value || 0);
       const unitPrice = Number(storeContent.querySelector('[data-business-procurement-price]')?.value || 0);
-      const result = await runStoreAction(() => orderFactorySupply({ businessId: snapshot.businessId, cityId: activeObject.cityId || activeCityId, factoryId, productType, quantity, unitPrice }), 'Заказ оплачен и передан в доставку.');
+      const supplyOrder = businessTypeOf(snapshot) === 'tool_store' && isConstructionProduct(productType)
+        ? orderConstructionSupply
+        : orderFactorySupply;
+      const result = await runStoreAction(() => supplyOrder({ businessId: snapshot.businessId, cityId: activeObject.cityId || activeCityId, factoryId, productType, quantity, unitPrice }), 'Заказ оплачен и передан в доставку.');
       if (result) await refreshStore();
       return;
     }
     const factoryReceive = target.closest('[data-business-factory-receive]');
     if (factoryReceive) {
-      const result = await runStoreAction(() => receiveFactorySupply({ businessId: snapshot.businessId, cityId: activeObject.cityId || activeCityId, orderId: factoryReceive.dataset.businessFactoryReceive }), 'Поставка принята на склад магазина.');
+      const receiveSupply = businessTypeOf(snapshot) === 'tool_store' ? receiveConstructionSupply : receiveFactorySupply;
+      const result = await runStoreAction(() => receiveSupply({ businessId: snapshot.businessId, cityId: activeObject.cityId || activeCityId, orderId: factoryReceive.dataset.businessFactoryReceive }), 'Поставка принята на склад магазина.');
       if (result) await refreshStore();
       return;
     }
