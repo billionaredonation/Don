@@ -5,7 +5,7 @@ import { loadConstructionSnapshot, purchaseConstructionFactory, startConstructio
 
 const objectType = (o) => String(o?.type || o?.payload?.jobType || '');
 const objectId = (o) => String(o?.id || o?.payload?.factoryId || o?.payload?.factory_id || '');
-const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message, type } }));
+const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 
 function markup() {
   const recipes = Object.values(CONSTRUCTION_RECIPES).map((r) => `<article class="mn-factory-recipe"><i>${r.icon}</i><span><strong>${r.label}</strong><small>${r.inputIcon} ${r.inputQty} → ${r.outputQty} ед. · ${r.seconds} сек.</small></span><button data-construction-start="${r.id}">Запустить</button></article>`).join('');
@@ -42,7 +42,11 @@ export function enableConstructionFeature({ root, cityId }) {
   q('[data-construction-close]').onclick = () => { modal.hidden = true; clearTimeout(timer); };
   qa('[data-construction-tab]').forEach((b) => { b.onclick = () => tab(b.dataset.constructionTab); });
   q('[data-construction-purchase]').onclick = () => run(() => purchaseConstructionFactory(currentId, cityId, q('[data-construction-legal]').value));
-  qa('[data-construction-start]').forEach((b) => { b.onclick = () => run(() => startConstructionBatch(currentId, cityId, b.dataset.constructionStart)); });
+  qa('[data-construction-start]').forEach((b) => { b.onclick = () => run(async () => {
+    notify('Запускаем производственную линию…');
+    await startConstructionBatch(currentId, cityId, b.dataset.constructionStart);
+    notify('Линия запущена.', 'success');
+  }); });
   q('[data-construction-finish]').onclick = () => run(() => finishConstructionBatch(currentId, cityId, q('[data-construction-finish]').dataset.batchId));
   q('[data-construction-deposit]').onclick = () => run(() => depositConstructionFactory(currentId, cityId, Number(q('[data-construction-money]').value)));
   q('[data-construction-withdraw]').onclick = () => run(() => withdrawConstructionFactory(currentId, cityId, Number(q('[data-construction-money]').value)));
