@@ -40,3 +40,4 @@ export function enableLogisticsFeature({root}) {
   window.addEventListener('mn:logistics-open',open);
   return()=>{window.removeEventListener('mn:logistics-open',open);modal.remove()};
 }
+
