@@ -360,17 +360,26 @@ function toDbRow(object = {}) {
 function normalizeObject(object = {}) {
   const payload = normalizePayload(object.payload);
 
-  const type = String(
-    object.type ||
-      payload.type ||
-      'marker'
+  const storedType = String(object.type || '').trim();
+  const payloadType = String(payload.type || payload.jobType || '').trim();
+
+  // Legacy job objects are stored in map_objects as type/category = marker,
+  // while their real type lives in payload.type. Treating the wrapper as the
+  // real type made such objects invisible to the matching admin category and
+  // left them impossible to select/delete even though gameplay still opened
+  // their feature modal.
+  const type = (
+    (!storedType || storedType === 'marker') && payloadType
+      ? payloadType
+      : storedType || payloadType || 'marker'
   );
 
-  const category = String(
-    object.category ||
-      payload.category ||
-      type ||
-      'marker'
+  const storedCategory = String(object.category || '').trim();
+  const payloadCategory = String(payload.category || payload.kind || '').trim();
+  const category = (
+    (!storedCategory || storedCategory === 'marker') && payloadCategory
+      ? payloadCategory
+      : storedCategory || payloadCategory || type || 'marker'
   );
 
   return {
