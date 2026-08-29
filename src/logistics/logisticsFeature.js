@@ -1,0 +1,35 @@
+import { playIndustryMiniGame } from '../industry/industryMiniGames.js';
+import { acceptLogisticsContract, buyLogisticsVehicle, completeLogisticsContract, createLogisticsContract, loadLogisticsSnapshot, logisticsError } from './logisticsApi.js';
+import './logistics.css';
+
+const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+const money = (v) => `${Math.max(0,Math.round(Number(v)||0)).toLocaleString('ru-RU')} ₴`;
+const toast = (message,type='info') => window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message,type}}));
+const idOf = (o) => String(o?.id || o?.mapObjectId || o?.payload?.mapObjectId || '');
+
+function contractCard(c, ownActive) {
+  const assigned = c.status === 'assigned';
+  const role = c.roleId === 'loader' ? 'Грузчик' : 'Водитель';
+  return `<article class="mn-logistics-contract is-${esc(c.status)}"><header><span><small>${esc(c.cargoLabel||c.cargoType)}</small><strong>${Number(c.quantity||0)} ед. · ${esc(c.destination||'По городу')}</strong></span><b>${money(c.payout)}</b></header><div><span>Работа: ${role}</span><span>${assigned ? `Исполнитель: ${esc(c.workerName||'занят')}` : 'Свободная заявка'}</span></div>${c.canComplete?`<button data-logistics-complete="${esc(c.id)}" data-role="${esc(c.roleId)}">Выполнить этап</button>`:c.canAccept?`<button data-logistics-accept="${esc(c.id)}" data-role="${esc(c.roleId)}"${ownActive?' disabled':''}>Принять работу</button>`:''}</article>`;
+}
+
+function markup(s) {
+  const fleet=(s.fleet||[]), contracts=(s.contracts||[]), active=contracts.some(c=>c.isMine&&c.status==='assigned');
+  return `<header class="mn-logistics-head"><span><small>${esc(s.cityId)} · ТРАНСПОРТНАЯ КОМПАНИЯ</small><strong>🚚 ${esc(s.name||'Логистический центр')}</strong><em>${esc(s.roleLabel||'Посетитель')} · счёт ${s.canManage?money(s.cashBalance):'скрыт'}</em></span><button data-logistics-close>×</button></header><nav><button class="is-active" data-logistics-tab="board">Диспетчерская</button><button data-logistics-tab="fleet">Автопарк</button><button data-logistics-tab="manage">Управление</button></nav><main>
+  <section data-logistics-page="board"><div class="mn-logistics-stats"><article><small>Свободные заявки</small><strong>${contracts.filter(c=>c.status==='open').length}</strong></article><article><small>Активные рейсы</small><strong>${contracts.filter(c=>c.status==='assigned').length}</strong></article><article><small>Выполнено</small><strong>${Number(s.completedCount||0)}</strong></article></div><div class="mn-logistics-contracts">${contracts.length?contracts.map(c=>contractCard(c,active)).join(''):'<p>Заявок пока нет. Владелец может создать первую перевозку.</p>'}</div></section>
+  <section data-logistics-page="fleet" hidden><h3>Автопарк предприятия</h3><div class="mn-logistics-fleet">${fleet.map(v=>`<article><i>${v.icon}</i><span><strong>${esc(v.label)}</strong><small>Грузоподъёмность ${v.capacity} ед.</small></span><b>${v.quantity} шт.</b></article>`).join('')||'<p>Транспорт ещё не приобретён.</p>'}</div>${s.isOwner?'<div class="mn-logistics-buy"><button data-logistics-vehicle="van">Купить фургон · 180 000 ₴</button><button data-logistics-vehicle="truck">Купить грузовик · 420 000 ₴</button></div>':''}</section>
+  <section data-logistics-page="manage" hidden>${s.isOwner?`<h3>Новая заявка</h3><div class="mn-logistics-form"><input data-logistics-cargo placeholder="Тип груза" maxlength="48"><input type="number" min="1" value="20" data-logistics-quantity><input data-logistics-destination placeholder="Куда доставить" maxlength="64"><input type="number" min="10" value="250" data-logistics-payout><select data-logistics-role><option value="driver">Водитель</option><option value="loader">Грузчик</option></select><button data-logistics-create>Опубликовать заявку</button></div><p>Вознаграждение резервируется со счёта бизнеса. После выполнения оно поступит игроку.</p>`:'<p>Управление доступно владельцу.</p>'}</section></main>`;
+}
+
+export function enableLogisticsFeature({root}) {
+  root.insertAdjacentHTML('beforeend','<div class="mn-logistics-modal" data-logistics-modal hidden><section class="mn-logistics-panel" data-logistics-content></section></div>');
+  const modal=root.querySelector('[data-logistics-modal]'), content=modal.querySelector('[data-logistics-content]');
+  let businessId='', snapshot=null, busy=false;
+  const render=()=>{content.innerHTML=markup(snapshot);content.querySelectorAll('[data-logistics-tab]').forEach(b=>b.onclick=()=>{content.querySelectorAll('[data-logistics-tab]').forEach(x=>x.classList.toggle('is-active',x===b));content.querySelectorAll('[data-logistics-page]').forEach(p=>p.hidden=p.dataset.logisticsPage!==b.dataset.logisticsTab)});};
+  const refresh=async()=>{snapshot=await loadLogisticsSnapshot(businessId);render()};
+  const run=async(fn)=>{if(busy)return;busy=true;modal.classList.add('is-busy');try{await fn();await refresh()}catch(e){toast(logisticsError(e),'error')}finally{busy=false;modal.classList.remove('is-busy')}};
+  const open=e=>{businessId=String(e.detail?.businessId||idOf(e.detail?.object));modal.hidden=false;void run(refresh)};
+  content.onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.matches('[data-logistics-close]'))modal.hidden=true;if(b.dataset.logisticsAccept)void run(()=>acceptLogisticsContract(businessId,b.dataset.logisticsAccept,b.dataset.role));if(b.dataset.logisticsComplete)void run(async()=>{const game=b.dataset.role==='loader'?'loader':'forklift',result=await playIndustryMiniGame(game);if(!result.cancelled)await completeLogisticsContract(businessId,b.dataset.logisticsComplete,result)});if(b.dataset.logisticsVehicle)void run(()=>buyLogisticsVehicle(businessId,b.dataset.logisticsVehicle));if(b.matches('[data-logistics-create]'))void run(()=>createLogisticsContract({businessId,cargoType:content.querySelector('[data-logistics-cargo]').value,quantity:Number(content.querySelector('[data-logistics-quantity]').value),destination:content.querySelector('[data-logistics-destination]').value,payout:Number(content.querySelector('[data-logistics-payout]').value),roleId:content.querySelector('[data-logistics-role]').value}));};
+  window.addEventListener('mn:logistics-open',open);
+  return()=>{window.removeEventListener('mn:logistics-open',open);modal.remove()};
+}
