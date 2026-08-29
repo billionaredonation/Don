@@ -406,6 +406,17 @@ export const MAP_OBJECT_TYPES = {
     defaultHeight: 2.5,
   },
 
+  ...Object.fromEntries([
+    ['industry_food','Пищевой комбинат','🏭'],['industry_mill','Мукомольный завод','🌾'],['industry_sawmill','Лесопильный завод','🪚'],['industry_building_materials','Завод стройматериалов','🏗️'],['industry_cement','Цементный завод','🏭'],['industry_metallurgy','Металлургический комбинат','🔥'],['industry_cable','Кабельный завод','⚡'],['industry_tools','Завод инструментов','🛠️'],
+  ].map(([type,label,icon])=>[type,{type,category:MAP_OBJECT_CATEGORIES.JOB,label:`${label} · предприятие`,icon,defaultScale:1.1,defaultRotation:0,defaultAsset:'job_factory_01',defaultWidth:3.2,defaultHeight:2.5}])),
+
+  bakery: { type:'bakery', category:MAP_OBJECT_CATEGORIES.BUSINESS, label:'Пекарня', icon:'🥖', defaultPrice:650000, defaultScale:1.1, defaultRotation:0, defaultAsset:'business_shop_01' },
+  building_store: { type:'building_store', category:MAP_OBJECT_CATEGORIES.BUSINESS, label:'Строительный магазин', icon:'🧱', defaultPrice:900000, defaultScale:1.12, defaultRotation:0, defaultAsset:'business_shop_01' },
+  furniture_store: { type:'furniture_store', category:MAP_OBJECT_CATEGORIES.BUSINESS, label:'Мебельный магазин', icon:'🛋️', defaultPrice:850000, defaultScale:1.12, defaultRotation:0, defaultAsset:'business_shop_01' },
+  metal_store: { type:'metal_store', category:MAP_OBJECT_CATEGORIES.BUSINESS, label:'Металлобаза', icon:'🔩', defaultPrice:1100000, defaultScale:1.15, defaultRotation:0, defaultAsset:'business_warehouse_01' },
+  electric_store: { type:'electric_store', category:MAP_OBJECT_CATEGORIES.BUSINESS, label:'Магазин электрики', icon:'💡', defaultPrice:750000, defaultScale:1.1, defaultRotation:0, defaultAsset:'business_shop_01' },
+  logistics_hub: { type:'logistics_hub', category:MAP_OBJECT_CATEGORIES.BUSINESS, label:'Логистический центр', icon:'🚚', defaultPrice:1400000, defaultScale:1.18, defaultRotation:0, defaultAsset:'business_warehouse_01' },
+
   spawn: {
     type: 'spawn',
     category: MAP_OBJECT_CATEGORIES.MARKER,
