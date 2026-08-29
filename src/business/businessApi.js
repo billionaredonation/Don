@@ -27,7 +27,7 @@ export function getBusinessUserErrorMessage(error) {
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела. Перезапустите мини-приложение.',
     BUSINESS_DATABASE_MIGRATION_REQUIRED: 'Сначала примените SQL-миграцию бизнеса, затем обновите Edge Function business-store.',
     BUSINESS_NOT_FOUND: 'Магазин не найден.',
-    BUSINESS_TYPE_UNSUPPORTED: 'Для этого типа бизнеса интерьер пока не готов.',
+    BUSINESS_TYPE_UNSUPPORTED: 'Этот тип бизнеса пока не подключён к системе управления.',
     BUSINESS_ALREADY_OWNED: 'Этот бизнес уже куплен.',
     BUSINESS_NOT_OWNED: 'У бизнеса ещё нет владельца.',
     BUSINESS_ACCESS_DENIED: 'У вас нет доступа к этому действию.',
