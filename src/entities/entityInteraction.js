@@ -630,10 +630,11 @@ function getOverviewObjectColor(object) {
   return '#35e985';
 }
 
-function createMapObjectsOverviewLayer(viewport) {
+function createMapObjectsOverviewLayer(viewport, cityId = '') {
   const overviewLayer = document.createElement('div');
 
   overviewLayer.className = 'map-objects-overview-layer';
+  overviewLayer.dataset.cityId = String(cityId || '');
   overviewLayer.setAttribute('aria-hidden', 'true');
   viewport.appendChild(overviewLayer);
 
@@ -1094,6 +1095,15 @@ export function enableEntityInteraction({
 }) {
   if (!root || !viewport || !cityId || !panel) return null;
 
+  // A city screen may be mounted again without the previous controller being
+  // destroyed (Telegram WebView resume / hot frontend deploy). Remove those
+  // abandoned layers first: otherwise their buttons and overview dots live on
+  // even though the corresponding row no longer exists in map_objects.
+  viewport.querySelectorAll('.map-objects-layer-public, .map-objects-overview-layer').forEach((staleLayer) => {
+    if (String(staleLayer?.dataset?.cityId || '') !== String(cityId)) return;
+    staleLayer.remove();
+  });
+
   const layer = createMapObjectsLayer();
 
   layer.classList.add('map-objects-layer-public');
@@ -1101,7 +1111,7 @@ export function enableEntityInteraction({
 
   moveLayerAboveMap(viewport, layer);
 
-  const overviewLayer = createMapObjectsOverviewLayer(viewport);
+  const overviewLayer = createMapObjectsOverviewLayer(viewport, cityId);
   viewport.insertBefore(overviewLayer, layer);
 
   const hint = createInteractionHint(root);
