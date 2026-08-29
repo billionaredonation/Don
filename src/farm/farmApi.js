@@ -87,6 +87,9 @@ export function getFarmUserErrorMessage(error) {
     FARM_BUSINESS_STAFF_REQUIRED: 'Ведра и водоснабжение фермы доступны только владельцу или помощнику.',
     FARM_BUSINESS_CASH_NOT_ENOUGH: 'На балансе фермы недостаточно денег.',
     FARM_BUSINESS_AMOUNT_INVALID: 'Введите корректную сумму.',
+    FARM_BUSINESS_CROP_INVALID: 'Этот товар нельзя снять со склада урожая.',
+    FARM_BUSINESS_CROP_QUANTITY_INVALID: 'Укажите количество урожая от 1 до 100.',
+    FARM_BUSINESS_CROP_NOT_ENOUGH: 'На складе фермы недостаточно выбранного урожая.',
     FARM_ASSISTANT_NOT_FOUND: 'Игрок для должности помощника не найден.',
     FARM_BUSINESS_SELF_ASSISTANT: 'Владельца нельзя назначить своим помощником.',
     FARM_SUPPLY_QUANTITY_INVALID: 'Укажите корректное количество поставки.',
@@ -260,6 +263,7 @@ export const loadFarmBusinessSnapshot = ({ businessId, cityId }) => invokeFarmBu
 export const purchaseFarmBusiness = ({ businessId, cityId }) => invokeFarmBusinessAction('purchase', { businessId, cityId });
 export const depositFarmBusiness = ({ businessId, cityId, amount }) => invokeFarmBusinessAction('deposit', { businessId, cityId, amount });
 export const withdrawFarmBusiness = ({ businessId, cityId, amount }) => invokeFarmBusinessAction('withdraw', { businessId, cityId, amount });
+export const withdrawFarmBusinessCrop = ({ businessId, cityId, itemType, quantity }) => invokeFarmAction('business_crop_withdraw', { businessId, cityId, itemType, quantity });
 export const setFarmBusinessAssistant = ({ businessId, cityId, target }) => invokeFarmBusinessAction('assistant_set', { businessId, cityId, target });
 export const setFarmBusinessToolPrice = ({ businessId, cityId, itemType, price }) => invokeFarmBusinessAction('tool_price', { businessId, cityId, itemType, price });
 export const adminSeedFarmBusinessBuckets = ({ businessId, cityId, quantity = 10 }) => invokeFarmBusinessAction('admin_seed_buckets', { businessId, cityId, quantity });
