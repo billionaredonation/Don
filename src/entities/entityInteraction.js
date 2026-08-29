@@ -2236,10 +2236,17 @@ export function enableEntityInteraction({
 
     mapObjects = mapObjects.filter((object) => String(object?.id || '') !== objectId);
     renderedObjects = renderedObjects.filter((object) => String(object?.id || '') !== objectId);
+    findMapObjectElement(layer, objectId)?.remove();
+
+    panel?.updateSelectedObject?.((selectedObject) => (
+      String(selectedObject?.id || '') === objectId ? null : selectedObject
+    ));
 
     rebuildObjectIndex();
     lastRenderedIdsKey = '';
-    renderNearbyMapObjects(true);
+    renderOverview();
+    renderNearbyMapObjects(true, true);
+    publishMapObjectsSnapshot();
   }
 
   function onHousePurchased(event) {
@@ -2381,4 +2388,3 @@ export function enableEntityInteraction({
     layer.remove();
   };
 }
-
