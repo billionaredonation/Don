@@ -21,6 +21,7 @@ export const finishConstructionBatch = (factoryId, cityId, batchId) => invoke('f
 export const depositConstructionFactory = (factoryId, cityId, amount) => invoke('deposit', { factoryId, cityId, amount });
 export const withdrawConstructionFactory = (factoryId, cityId, amount) => invoke('withdraw', { factoryId, cityId, amount });
 export const setConstructionWholesalePrice = (factoryId, cityId, productType, unitPrice) => invoke('wholesale_price', { factoryId, cityId, productType, unitPrice });
+export const transferLumberToConstructionFactory = (factoryId, cityId, itemType, quantity) => invoke('deliver', { factoryId, cityId, itemType, quantity });
 export const sellLumberToConstructionFactory = (factoryId, cityId, itemType, quantity) => invoke('raw_market_sell', { factoryId, cityId, itemType, quantity });
 export const loadConstructionRawMarket = (cityId) => invoke('raw_market_snapshot', { cityId });
 export const loadConstructionSuppliers = (businessId, cityId) => invoke('store_suppliers', { businessId, cityId });
