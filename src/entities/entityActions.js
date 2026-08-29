@@ -12,6 +12,7 @@ const BUSINESS_ENTITY_TYPES = new Set([
   'warehouse',
   'office',
   'market',
+  'bakery','building_store','furniture_store','metal_store','electric_store','logistics_hub',
 ]);
 
 export function getEntityKind(object) {
@@ -137,6 +138,7 @@ export function getEntityMetaText(object) {
     if (type === 'lumber_pine_tree') return 'Лесоруб · сосна';
     if (type === 'fruit_factory') return 'Фруктовый завод · переработка и хранение продукции';
     if (type === 'construction_factory') return 'Завод стройматериалов · древесина, производство и оптовые поставки';
+    if (type.startsWith('industry_')) return 'Промышленное предприятие · работа, производство, склады и управление';
     return 'Рабочая точка';
   }
 
@@ -205,7 +207,9 @@ export function dispatchEntityAction(object) {
 
   if (kind === 'job') {
     const cleanType = String(type || '');
-    const eventName = cleanType === 'fruit_factory'
+    const eventName = cleanType.startsWith('industry_')
+      ? 'mn:industry-object-action'
+      : cleanType === 'fruit_factory'
       ? 'mn:factory-object-action'
       : cleanType === 'construction_factory'
       ? 'mn:construction-object-action'
