@@ -675,24 +675,10 @@ export function enableAdminPanel({
   }
 
   function mergeMapSnapshotObjects(freshObjects = []) {
-    const activeRegistry = window.__MN_ACTIVE_MAP_OBJECTS_BY_CITY__;
-    const activeObjects = activeRegistry && typeof activeRegistry === 'object'
-      ? activeRegistry[String(cityId)]
-      : [];
-    const byId = new Map();
-
-    (Array.isArray(freshObjects) ? freshObjects : []).forEach((object) => {
-      const id = String(object?.id || '');
-      if (id) byId.set(id, object);
-    });
-
-    (Array.isArray(activeObjects) ? activeObjects : []).forEach((object) => {
-      const id = String(object?.id || '');
-      if (!id || byId.has(id)) return;
-      byId.set(id, { ...object, adminMapSnapshotOnly: true });
-    });
-
-    return [...byId.values()];
+    // Admin reload performs a full city query. Mixing the gameplay snapshot
+    // back into that authoritative result resurrected rows already deleted
+    // from map_objects until the next complete page reload.
+    return (Array.isArray(freshObjects) ? freshObjects : []).filter(Boolean);
   }
 
   async function reloadObjects() {
