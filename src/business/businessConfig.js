@@ -116,14 +116,24 @@ export const BUSINESS_TOOL_PRODUCTS = Object.freeze([
   { itemType: 'construction_plywood', label: 'Фанерный лист', icon: '🟫', suggestedPrice: 170, kind: 'material', permanent: false },
 ]);
 
+export const BUSINESS_INDUSTRY_PRODUCTS = Object.freeze({
+  bakery:Object.freeze([{itemType:'food_wheat_flour',label:'Пшеничная мука',icon:'🥣',suggestedPrice:95},{itemType:'food_corn_flour',label:'Кукурузная мука',icon:'🟡',suggestedPrice:98}]),
+  building_store:Object.freeze([{itemType:'construction_board',label:'Обрезная доска',icon:'🪚',suggestedPrice:135},{itemType:'construction_timber',label:'Строительный брус',icon:'▰',suggestedPrice:195},{itemType:'construction_plywood',label:'Фанерный лист',icon:'🟫',suggestedPrice:170},{itemType:'construction_cement',label:'Цемент',icon:'⚪',suggestedPrice:145},{itemType:'construction_concrete',label:'Бетонная смесь',icon:'🧱',suggestedPrice:185}]),
+  furniture_store:Object.freeze([{itemType:'wood_dry_board',label:'Сухая доска',icon:'🪵',suggestedPrice:125},{itemType:'wood_furniture_panel',label:'Мебельный щит',icon:'🟫',suggestedPrice:280}]),
+  metal_store:Object.freeze([{itemType:'metal_steel',label:'Стальной прокат',icon:'🔩',suggestedPrice:240},{itemType:'metal_copper',label:'Медная катанка',icon:'🟠',suggestedPrice:285}]),
+  electric_store:Object.freeze([{itemType:'electric_copper_wire',label:'Медный провод',icon:'🧵',suggestedPrice:42},{itemType:'electric_power_cable',label:'Силовой кабель',icon:'🔌',suggestedPrice:190}]),
+  logistics_hub:Object.freeze([]),
+});
+
 export const BUSINESS_PRODUCTS_BY_TYPE = Object.freeze({
   [BUSINESS_TYPE_GROCERY]: BUSINESS_PRODUCTS,
   shop: BUSINESS_PRODUCTS,
   [BUSINESS_TYPE_TOOL_STORE]: BUSINESS_TOOL_PRODUCTS,
+  ...BUSINESS_INDUSTRY_PRODUCTS,
 });
 
 export const BUSINESS_PRODUCT_BY_TYPE = Object.freeze(
-  Object.fromEntries([...BUSINESS_PRODUCTS, ...BUSINESS_TOOL_PRODUCTS].map((product) => [product.itemType, product])),
+  Object.fromEntries([...BUSINESS_PRODUCTS, ...BUSINESS_TOOL_PRODUCTS, ...Object.values(BUSINESS_INDUSTRY_PRODUCTS).flat()].map((product) => [product.itemType, product])),
 );
 
 export function getBusinessProducts(businessType = BUSINESS_TYPE_GROCERY) {
