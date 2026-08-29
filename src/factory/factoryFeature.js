@@ -1,4 +1,5 @@
 import './factory.css';
+import './factoryRedesign.css';
 import { FACTORY_CONFIG, FACTORY_RAW_ITEMS, FACTORY_RECIPES, formatFactoryMoney } from './factoryConfig.js';
 import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, finishFactoryBatch, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, getFactoryError } from './factoryApi.js';
 
@@ -78,4 +79,3 @@ export function enableFactoryFeature({ root, cityId }) {
   window.addEventListener('mn:factory-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
 }
-
