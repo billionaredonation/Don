@@ -1,5 +1,6 @@
 import '../factory/factory.css';
 import './construction.css';
+import '../factory/factoryRedesign.css';
 import { CONSTRUCTION_FACTORY_CONFIG, CONSTRUCTION_RAW_ITEMS, CONSTRUCTION_RECIPES, formatConstructionMoney } from './constructionConfig.js';
 import { loadConstructionSnapshot, purchaseConstructionFactory, startConstructionBatch, finishConstructionBatch, depositConstructionFactory, withdrawConstructionFactory, setConstructionWholesalePrice, transferLumberToConstructionFactory, getConstructionError } from './constructionApi.js';
 
@@ -61,4 +62,3 @@ export function enableConstructionFeature({ root, cityId }) {
   window.addEventListener('mn:construction-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:construction-object-action', onAction); modal.remove(); };
 }
-
