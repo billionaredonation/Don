@@ -61,3 +61,4 @@ export function enableConstructionFeature({ root, cityId }) {
   window.addEventListener('mn:construction-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:construction-object-action', onAction); modal.remove(); };
 }
+
