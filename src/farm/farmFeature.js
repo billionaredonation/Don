@@ -21,6 +21,7 @@ import {
   waterFarmPlant,
   weedFarmPlant,
   withdrawFarmBusiness,
+  withdrawFarmBusinessCrop,
 } from './farmApi.js';
 import { FARM_ITEMS, getFarmPlantType } from './farmConfig.js';
 import {
@@ -278,6 +279,11 @@ function farmModalMarkup() {
                       <span><i>🍊</i><small>Апельсин</small><b data-farm-warehouse-item="farm_orange">0</b></span>
                       <span><i>🌾</i><small>Пшеница</small><b data-farm-warehouse-item="farm_wheat">0</b></span>
                       <span><i>🌽</i><small>Кукуруза</small><b data-farm-warehouse-item="farm_corn">0</b></span>
+                    </div>
+                    <div class="mn-farm4-warehouse-withdraw" data-farm-owner-only>
+                      <label><span>Что снимаем</span><select data-farm-crop-withdraw-type><option value="farm_apple">🍎 Яблоки</option><option value="farm_orange">🍊 Апельсины</option><option value="farm_wheat">🌾 Пшеница</option><option value="farm_corn">🌽 Кукуруза</option></select></label>
+                      <label><span>Количество</span><input type="number" min="1" max="100" step="1" inputmode="numeric" value="1" data-farm-crop-withdraw-quantity></label>
+                      <button type="button" data-farm-crop-withdraw>Снять урожай</button>
                     </div>
                   </section>
 
@@ -1144,7 +1150,12 @@ export function enableFarmFeature({ root, cityId } = {}) {
     setStatus(label);
     try {
       const result = await action();
-      publishBusiness(result?.business || result);
+      const snapshot = result?.business || (
+        result?.warehouse || result?.cashBalance !== undefined || result?.ownerTgId !== undefined
+          ? result
+          : null
+      );
+      if (snapshot) publishBusiness(snapshot);
       setStatus('Готово.', 'success');
       return result;
     } catch (error) {
@@ -1191,6 +1202,26 @@ export function enableFarmFeature({ root, cityId } = {}) {
       const target = assistantClear ? '' : String(modal?.querySelector('[data-farm-assistant-target]')?.value || '').trim();
       const result = await runBusinessAction(assistantClear ? 'Снимаем помощника…' : 'Назначаем помощника…', () => setFarmBusinessAssistant({ businessId: activeBuyerObjectId, cityId, target }));
       if (result && modal?.querySelector('[data-farm-assistant-target]')) modal.querySelector('[data-farm-assistant-target]').value = '';
+      return;
+    }
+
+    const cropWithdraw = event.target?.closest?.('[data-farm-crop-withdraw]');
+    if (cropWithdraw) {
+      const itemType = String(modal?.querySelector('[data-farm-crop-withdraw-type]')?.value || '');
+      const quantityInput = modal?.querySelector('[data-farm-crop-withdraw-quantity]');
+      const quantity = Math.max(0, Math.floor(Number(quantityInput?.value) || 0));
+      const result = await runBusinessAction(
+        'Передаём урожай владельцу…',
+        () => withdrawFarmBusinessCrop({ businessId: activeBuyerObjectId, cityId, itemType, quantity }),
+      );
+      if (result) {
+        if (quantityInput) quantityInput.value = '1';
+        await Promise.all([
+          refreshBusiness({ silent: true }),
+          refreshInventory({ silent: true }),
+        ]);
+        emitToast(`Со склада снято ${quantity} ед. урожая.`, 'success');
+      }
       return;
     }
 
