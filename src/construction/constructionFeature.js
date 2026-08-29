@@ -1,7 +1,7 @@
 import '../factory/factory.css';
 import './construction.css';
 import { CONSTRUCTION_FACTORY_CONFIG, CONSTRUCTION_RAW_ITEMS, CONSTRUCTION_RECIPES, formatConstructionMoney } from './constructionConfig.js';
-import { loadConstructionSnapshot, purchaseConstructionFactory, startConstructionBatch, finishConstructionBatch, depositConstructionFactory, withdrawConstructionFactory, setConstructionWholesalePrice, sellLumberToConstructionFactory, getConstructionError } from './constructionApi.js';
+import { loadConstructionSnapshot, purchaseConstructionFactory, startConstructionBatch, finishConstructionBatch, depositConstructionFactory, withdrawConstructionFactory, setConstructionWholesalePrice, transferLumberToConstructionFactory, getConstructionError } from './constructionApi.js';
 
 const objectType = (o) => String(o?.type || o?.payload?.jobType || '');
 const objectId = (o) => String(o?.id || o?.payload?.factoryId || o?.payload?.factory_id || '');
@@ -33,6 +33,7 @@ export function enableConstructionFeature({ root, cityId }) {
     CONSTRUCTION_RAW_ITEMS.forEach((i) => { q(`[data-construction-raw="${i.itemType}"]`).textContent = `${Number(raw[i.itemType] || 0)} ед.`; });
     Object.keys(CONSTRUCTION_RECIPES).forEach((id) => { q(`[data-construction-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; const input = q(`[data-construction-price="${id}"]`); if (input && prices[id]) input.value = String(prices[id]); });
     qa('[data-construction-start]').forEach((b) => { b.disabled = !factory.ownerId || Boolean(batch); });
+    qa('[data-construction-deliver]').forEach((b) => { b.disabled = !s.isOwner; });
     const line = q('[data-construction-line]'), finish = q('[data-construction-finish]'); clearTimeout(timer);
     if (!batch) { line.querySelector('strong').textContent = 'Линия свободна'; line.querySelector('small').textContent = 'Выберите технологическую карту'; finish.hidden = true; }
     else { const recipe = CONSTRUCTION_RECIPES[batch.recipeId]; const left = Math.max(0, Math.ceil((new Date(batch.readyAt).getTime() - Date.now()) / 1000)); line.querySelector('strong').textContent = `${recipe?.label || 'Партия'} · ${left ? `${left} сек.` : 'готово'}`; line.querySelector('small').textContent = `Работник: ${batch.workerName || '—'} · зарплата ${formatConstructionMoney(batch.wage)}`; finish.hidden = left > 0; finish.dataset.batchId = batch.id; if (left > 0) timer = setTimeout(render, 1000); }
@@ -52,11 +53,9 @@ export function enableConstructionFeature({ root, cityId }) {
   q('[data-construction-withdraw]').onclick = () => run(() => withdrawConstructionFactory(currentId, cityId, Number(q('[data-construction-money]').value)));
   qa('[data-construction-price-save]').forEach((b) => { b.onclick = () => run(() => setConstructionWholesalePrice(currentId, cityId, b.dataset.constructionPriceSave, Number(q(`[data-construction-price="${b.dataset.constructionPriceSave}"]`).value))); });
   qa('[data-construction-deliver]').forEach((b) => { b.onclick = () => run(async () => {
-    const result = await sellLumberToConstructionFactory(currentId, cityId, b.dataset.constructionDeliver, Number(q(`[data-construction-deliver-qty="${b.dataset.constructionDeliver}"]`).value));
-    const balance = Number(result?.playerBalance);
-    if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'construction_factory_delivery' } }));
+    const result = await transferLumberToConstructionFactory(currentId, cityId, b.dataset.constructionDeliver, Number(q(`[data-construction-deliver-qty="${b.dataset.constructionDeliver}"]`).value));
     window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed', { detail: { inventory: result?.inventory } }));
-    notify(`Сырьё принято заводом. Получено ${Number(result?.payout || 0).toLocaleString('ru-RU')} ₴.`, 'success');
+    notify('Сырьё перемещено на склад предприятия.', 'success');
   }); });
   const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== 'construction_factory') return; currentId = objectId(object); modal.hidden = false; tab('production'); void run(refresh); };
   window.addEventListener('mn:construction-object-action', onAction);
