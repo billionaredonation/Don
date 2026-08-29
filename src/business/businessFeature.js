@@ -557,9 +557,12 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     detailsModal.querySelector('[data-business-details-owner]').textContent = owned ? String(ownerName || ownerId) : 'Государство';
     detailsModal.querySelector('[data-business-details-legal-form]').textContent = legal.legalFormLabel;
     detailsModal.querySelector('[data-business-details-tax-group]').textContent = legal.taxGroupLabel;
-    detailsModal.querySelector('[data-business-details-copy]').textContent = owned
-      ? (isOwner(activeObject) ? 'Вы владелец. В модальном управлении доступны товары, закупки, сотрудники, касса, налоги и передача игроку.' : 'Откройте бизнес, выберите товар и оплатите его на кассе. С неоплаченной корзиной закрыть окно нельзя.')
-      : 'После покупки вы сможете вручную расставлять товар, назначать цены, нанимать сотрудников и сдавать декларации в удобный момент.';
+    const logistics = businessTypeOf(activeObject) === 'logistics_hub';
+    detailsModal.querySelector('[data-business-details-copy]').textContent = logistics
+      ? (owned ? 'Откройте диспетчерскую: заявки на перевозку, работа водителем и грузчиком, автопарк и история рейсов.' : 'После покупки вы получите диспетчерскую, автопарк и сможете создавать оплачиваемые заявки для водителей и грузчиков.')
+      : owned
+        ? (isOwner(activeObject) ? 'Вы владелец. В модальном управлении доступны товары, закупки, сотрудники, касса, налоги и передача игроку.' : 'Откройте бизнес, выберите товар и оплатите его на кассе. С неоплаченной корзиной закрыть окно нельзя.')
+        : 'После покупки вы сможете вручную расставлять товар, назначать цены, нанимать сотрудников и сдавать декларации в удобный момент.';
     detailsModal.querySelector('[data-business-buy]').hidden = owned;
     detailsModal.querySelector('[data-business-enter]').hidden = !owned;
   }
@@ -604,6 +607,13 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
 
   async function openStore() {
     if (!activeObject || busy) return;
+    if (businessTypeOf(activeObject) === 'logistics_hub') {
+      closeDetails();
+      window.dispatchEvent(new CustomEvent('mn:logistics-open', {
+        detail: { businessId: businessId(activeObject), object: activeObject },
+      }));
+      return;
+    }
     busy = true;
     setDetailsMessage('Загружаем магазин…');
     try {
