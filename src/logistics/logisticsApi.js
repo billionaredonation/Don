@@ -7,7 +7,11 @@ async function invoke(action, payload = {}) {
   const { data, error } = await supabase.functions.invoke('logistics-business', {
     body: { initData: telegramData, action, ...payload },
   });
-  if (error) throw new Error(error.message || 'LOGISTICS_REQUEST_FAILED');
+  if (error) {
+    let details = '';
+    try { details = String((await error.context?.clone?.().json())?.error || ''); } catch {}
+    throw new Error(details || error.message || 'LOGISTICS_REQUEST_FAILED');
+  }
   if (!data?.ok) throw new Error(data?.error || 'LOGISTICS_REQUEST_FAILED');
   return data.result;
 }
@@ -26,6 +30,9 @@ export function logisticsError(error) {
     LOGISTICS_CONTRACT_LIMIT: 'Сначала завершите активную заявку.',
     LOGISTICS_FLEET_REQUIRED: 'Для рейса нужен свободный транспорт.',
     LOGISTICS_CASH_NOT_ENOUGH: 'На счёте центра недостаточно денег.',
+    BUSINESS_DEPOSIT_AMOUNT_INVALID: 'Укажите корректную сумму пополнения.',
+    BUSINESS_PROFIT_NOT_ENOUGH: 'На счёте предприятия недостаточно денег.',
+    NOT_ENOUGH_MONEY: 'На личном балансе недостаточно денег.',
     LOGISTICS_CONTRACT_NOT_ASSIGNED: 'Эта заявка закреплена за другим игроком.',
     LOGISTICS_RESULT_LOW: 'Задание провалено — попробуйте ещё раз.',
   };
