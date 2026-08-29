@@ -57,7 +57,6 @@ export function enableConstructionFeature({ root, cityId }) {
     window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed', { detail: { inventory: result?.inventory } }));
     notify('Сырьё перемещено на склад предприятия.', 'success');
   }); });
-  
   const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== 'construction_factory') return; currentId = objectId(object); modal.hidden = false; tab('production'); void run(refresh); };
   window.addEventListener('mn:construction-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:construction-object-action', onAction); modal.remove(); };
