@@ -90,7 +90,7 @@ export function getEntityPrimaryActionLabel(object) {
   }
 
   if (kind === 'business') {
-    if (object?.owner_id || object?.ownerId || object?.payload?.ownerId || object?.payload?.owner_id) return 'Войти в магазин';
+    if (object?.owner_id || object?.ownerId || object?.payload?.ownerId || object?.payload?.owner_id) return 'Открыть бизнес';
     if (object?.payload?.locked) return 'Закрыто';
     return 'Купить бизнес';
   }
