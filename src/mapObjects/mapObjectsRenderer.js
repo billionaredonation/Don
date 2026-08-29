@@ -126,19 +126,22 @@ function getObjectId(object) {
 function getCategory(object) {
   const payload = getPayload(object);
 
-  return String(
-    object?.category ||
-      payload.category ||
-      payload.kind ||
-      object?.kind ||
-      object?.type ||
-      'marker'
-  );
+  const storedCategory = String(object?.category || '').trim();
+  const payloadCategory = String(payload.category || payload.kind || '').trim();
+
+  return (!storedCategory || storedCategory === 'marker') && payloadCategory
+    ? payloadCategory
+    : storedCategory || payloadCategory || object?.kind || object?.type || 'marker';
 }
 
 function getType(object, category) {
   const payload = getPayload(object);
-  return String(object?.type || payload.type || category || 'marker');
+  const storedType = String(object?.type || '').trim();
+  const payloadType = String(payload.type || payload.jobType || '').trim();
+
+  return (!storedType || storedType === 'marker') && payloadType
+    ? payloadType
+    : storedType || payloadType || category || 'marker';
 }
 
 function normalizeHouseClass(value) {
