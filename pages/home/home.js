@@ -36,6 +36,7 @@ import {
 
 import { enableHousesFeature } from '../../src/houses/housesFeature.js';
 import { enableBusinessFeature } from '../../src/business/businessFeature.js';
+import { enableLogisticsFeature } from '../../src/logistics/logisticsFeature.js';
 import { enableInventoryFeature } from '../../src/inventory/inventoryFeature.js';
 import { enableFarmFeature } from '../../src/farm/farmFeature.js';
 import { enableMineFeature } from '../../src/mine/mineFeature.js';
@@ -1526,6 +1527,7 @@ register('home', async (root) => {
     cityId,
     city,
   });
+  const cleanupLogisticsFeature = enableLogisticsFeature({ root, cityId });
 
   resetHouseModalsOnHomeEnter();
 
@@ -2433,6 +2435,7 @@ register('home', async (root) => {
     cleanupPlayerKnockout?.();
     cleanupHousesFeature?.();
     cleanupBusinessFeature?.();
+    cleanupLogisticsFeature?.();
     cleanupSingleHouseModalMode?.();
     cleanupMovement?.();
     cleanupMobileJoystick?.();
