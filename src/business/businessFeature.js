@@ -40,6 +40,7 @@ import {
 import './business.css';
 import { loadFactorySuppliers, orderFactorySupply, receiveFactorySupply, getFactoryError } from '../factory/factoryApi.js';
 import { loadConstructionSuppliers, createConstructionStoreRequest, orderConstructionSupply, receiveConstructionSupply, getConstructionError } from '../construction/constructionApi.js';
+import { INDUSTRY_STORES } from '../industry/industryConfig.js';
 
 // Realtime delivers normal offers immediately. The slow fallback only repairs
 // a missed broadcast and avoids another permanent 2-second request per player.
@@ -64,9 +65,15 @@ function businessTypeOf(value) {
 }
 
 function businessPresentation(value) {
-  return businessTypeOf(value) === 'tool_store'
-    ? { icon: '🧰', format: 'Инструменты', adjective: 'магазин инструментов', fallbackName: 'Магазин инструментов' }
-    : { icon: '🛒', format: 'Продуктовый', adjective: 'продуктовый', fallbackName: 'Продуктовый магазин' };
+  const type = businessTypeOf(value);
+  const configured = INDUSTRY_STORES[type];
+  if (configured) return {
+    icon: configured.icon,
+    format: configured.label,
+    adjective: configured.label.toLowerCase(),
+    fallbackName: configured.label,
+  };
+  return { icon: '🏢', format: 'Коммерческий', adjective: 'бизнес', fallbackName: 'Коммерческое предприятие' };
 }
 
 function productsFor(value) {
@@ -142,7 +149,7 @@ function modalMarkup() {
         <footer>
           <button type="button" data-business-details-close>Назад</button>
           <button type="button" class="is-primary" data-business-buy>Купить бизнес</button>
-          <button type="button" class="is-primary" data-business-enter hidden>Войти в магазин</button>
+          <button type="button" class="is-primary" data-business-enter hidden>Открыть бизнес</button>
         </footer>
       </section>
     </div>
@@ -551,7 +558,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     detailsModal.querySelector('[data-business-details-legal-form]').textContent = legal.legalFormLabel;
     detailsModal.querySelector('[data-business-details-tax-group]').textContent = legal.taxGroupLabel;
     detailsModal.querySelector('[data-business-details-copy]').textContent = owned
-      ? (isOwner(activeObject) ? 'Вы владелец. Внутри доступны полки, закупки, сотрудники, касса, налоги и передача игроку.' : 'Зайдите, выберите товар на полках и оплатите его на кассе. С неоплаченной корзиной выйти нельзя.')
+      ? (isOwner(activeObject) ? 'Вы владелец. В модальном управлении доступны товары, закупки, сотрудники, касса, налоги и передача игроку.' : 'Откройте бизнес, выберите товар и оплатите его на кассе. С неоплаченной корзиной закрыть окно нельзя.')
       : 'После покупки вы сможете вручную расставлять товар, назначать цены, нанимать сотрудников и сдавать декларации в удобный момент.';
     detailsModal.querySelector('[data-business-buy]').hidden = owned;
     detailsModal.querySelector('[data-business-enter]').hidden = !owned;
