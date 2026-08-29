@@ -1,0 +1,9 @@
+@media (max-width:700px){
+  .mn-fleet-title{display:grid}
+  .mn-fleet-title>b{text-align:left}
+  .mn-fleet-summary,.mn-logistics-fleet,.mn-logistics-buy{grid-template-columns:1fr}
+  .mn-fleet-summary{gap:7px}
+  .mn-logistics-buy article{grid-template-columns:auto 1fr}
+  .mn-logistics-buy article>b{grid-column:2}
+  .mn-fleet-card>div:last-child{grid-column:1/-1;text-align:left}
+}
