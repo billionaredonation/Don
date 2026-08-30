@@ -54,7 +54,9 @@ export function getFarmUserErrorMessage(error) {
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
     NOT_ENOUGH_MONEY: 'Недостаточно денег.',
     FARM_TOOL_ALREADY_OWNED: 'Этот инструмент у вас уже есть.',
-    FARM_TOOL_STILL_USABLE: 'Этот инструмент ещё не сломан. Новый пока не нужен.',
+    FARM_TOOL_STILL_USABLE: 'Этот инструмент ещё не сломан. Его можно обновить до 100% прочности.',
+    FARM_TOOL_ALREADY_FULL: 'Прочность инструмента уже 100%.',
+    FARM_TOOL_NOT_OWNED: 'Сначала получите или купите этот инструмент.',
     FARM_TOOL_OUT_OF_STOCK: 'На складе фермы закончился этот инструмент. Владелец должен заказать поставку.',
     FARM_TOOL_DURABILITY_REQUIRED: 'Для старого инструмента ещё не создана прочность. Откройте лавку фермы один раз.',
     FARM_TOOL_BROKEN: 'Инструмент сломан. Купите новый в фермерской лавке.',
@@ -273,4 +275,5 @@ export const interactFarmWaterTower = ({ businessId, cityId, towerObjectId }) =>
 export const orderFarmBusinessSupply = ({ businessId, cityId, supplyType, quantity }) => invokeFarmBusinessAction('order_supply', { businessId, cityId, supplyType, quantity });
 export const fillFarmWaterTower = ({ businessId, cityId, liters }) => invokeFarmBusinessAction('fill_tower', { businessId, cityId, liters });
 export const buyFarmBusinessTool = ({ businessId, cityId, itemType }) => invokeFarmBusinessAction('buy_tool', { businessId, cityId, itemType });
+export const refreshFarmBusinessTool = ({ businessId, cityId, itemType }) => invokeFarmBusinessAction('refresh_tool', { businessId, cityId, itemType });
 export const takeFarmWaterFromTower = ({ businessId, cityId, towerObjectId }) => invokeFarmBusinessAction('take_water', { businessId, cityId, towerObjectId });
