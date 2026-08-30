@@ -27,7 +27,7 @@ import {
 
 import { createAdminObjectMover } from './adminObjectMover.js';
 import { saveAdminObject } from './adminObjectEditor.js';
-import { grantAdminInventoryItem, getAdminInventoryCatalog } from './adminInventoryApi.js';
+import { grantAdminInventoryItem, getAdminInventoryCatalog, resolveAdminInventoryItem } from './adminInventoryApi.js';
 import {
   BUSINESS_LEGAL_FORMS,
   getBusinessLegalForm,
@@ -287,10 +287,11 @@ export function enableAdminPanel({
     <div class="admin-inventory-grant">
       <div class="admin-editor-title">Выдать предмет себе</div>
       <label class="admin-label">
-        Предмет / item_type
-        <input class="admin-input admin-grant-item" list="admin-item-catalog" placeholder="Например: mine_coal_technical_q5" autocomplete="off" />
+        Предмет
+        <input class="admin-input admin-grant-item" list="admin-item-catalog" placeholder="Начните писать: цемент, уголь, яблоко..." autocomplete="off" />
         <datalist id="admin-item-catalog"></datalist>
       </label>
+      <small class="admin-help">Выбирайте предмет по обычному названию. Внутренний item_type подставляется автоматически. При необходимости можно вручную ввести новый item_type.</small>
       <div class="admin-size-grid">
         <label class="admin-label">
           Количество
@@ -416,21 +417,21 @@ export function enableAdminPanel({
     return getObjectById(selectedObjectId);
   }
 
-  function setObjectSection(sectionKey, { preserveType = false } = {}) {
-    selectedObjectSection = ADMIN_OBJECT_SECTIONS[sectionKey] ? sectionKey : 'property';
-    if (grantCatalog) {
+  if (grantCatalog) {
     grantCatalog.innerHTML = getAdminInventoryCatalog()
-      .map((itemType) => `<option value="${escapeHtml(itemType)}"></option>`)
+      .map((item) => `<option value="${escapeHtml(item.label)}" label="${escapeHtml(item.category)}"></option>`)
       .join('');
   }
 
   grantSubmitButton?.addEventListener('click', async () => {
-    const itemType = String(grantItemInput?.value || '').trim();
+    const selectedItem = resolveAdminInventoryItem(grantItemInput?.value);
+    const itemType = String(selectedItem?.id || '').trim();
+    const itemLabel = String(selectedItem?.label || itemType);
     const quantity = Math.floor(Number(grantQuantityInput?.value || 0));
     const storage = String(grantStorageSelect?.value || 'auto');
 
     if (!itemType) {
-      if (grantStatus) grantStatus.textContent = 'Укажите item_type.';
+      if (grantStatus) grantStatus.textContent = 'Выберите предмет или введите item_type.';
       return;
     }
     if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 1000000000) {
@@ -443,14 +444,14 @@ export function enableAdminPanel({
     try {
       const result = await grantAdminInventoryItem({ itemType, quantity, storage });
       const resolvedStorage = String(result?.storage || storage || 'auto');
-      if (grantStatus) grantStatus.textContent = `Выдано: ${itemType} × ${quantity}. Инвентарь: ${resolvedStorage}. Всего: ${Number(result?.quantity || quantity)}.`;
+      if (grantStatus) grantStatus.textContent = `Выдано: ${itemLabel} × ${quantity}. Инвентарь: ${resolvedStorage}. Всего: ${Number(result?.quantity || quantity)}.`;
       window.dispatchEvent(new CustomEvent('mn:inventory-refresh-request'));
       window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
       window.dispatchEvent(new CustomEvent('mn:farm-inventory-changed'));
       window.dispatchEvent(new CustomEvent('mn:mine-inventory-changed'));
       window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed'));
       window.dispatchEvent(new CustomEvent('mn:business-inventory-changed'));
-      showAdminNotice(`Выдано ${itemType} × ${quantity}`);
+      showAdminNotice(`Выдано ${itemLabel} × ${quantity}`);
     } catch (error) {
       const message = String(error?.message || error || 'ADMIN_GRANT_FAILED');
       if (grantStatus) grantStatus.textContent = `Ошибка: ${message}`;
@@ -460,7 +461,10 @@ export function enableAdminPanel({
     }
   });
 
-  objectSectionButtons.forEach((button) => {
+  function setObjectSection(sectionKey, { preserveType = false } = {}) {
+    selectedObjectSection = ADMIN_OBJECT_SECTIONS[sectionKey] ? sectionKey : 'property';
+
+    objectSectionButtons.forEach((button) => {
       button.dataset.active = button.dataset.adminObjectSection === selectedObjectSection ? 'true' : 'false';
     });
 
