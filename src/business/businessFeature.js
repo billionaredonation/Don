@@ -38,7 +38,7 @@ import {
   normalizeBusinessForUi,
 } from './businessRepository.js';
 import './business.css';
-import { loadFactorySuppliers, orderFactorySupply, receiveFactorySupply, getFactoryError } from '../factory/factoryApi.js';
+import { loadFactorySuppliers, createStoreRequest as createFactoryStoreRequest, orderFactorySupply, receiveFactorySupply, getFactoryError } from '../factory/factoryApi.js';
 import { loadConstructionSuppliers, createConstructionStoreRequest, orderConstructionSupply, receiveConstructionSupply, getConstructionError } from '../construction/constructionApi.js';
 import { INDUSTRY_STORES } from '../industry/industryConfig.js';
 
@@ -340,7 +340,7 @@ function procurementDrawer(snapshot, selectedProductType = '') {
   const unitPrice = Math.max(1, Number(plan?.unitPrice) || Number(supplier?.unitPrice) || Math.max(1, Math.round(Number(product?.suggestedPrice || 10) * 0.65)));
   const requiredBudget = targetQuantity * unitPrice;
   const allocatedBudget = Math.max(requiredBudget, Number(plan?.allocatedBudget) || requiredBudget);
-  if (businessTypeOf(snapshot) === 'tool_store') {
+  if (businessTypeOf(snapshot) !== 'tool_store' || !isConstructionProduct(productType)) {
     return `
       <aside class="mn-business-drawer is-procurement" data-business-drawer>
         <header><span><small>Только для владельца</small><strong>Заявка на закупку</strong></span><button type="button" data-business-drawer-close>×</button></header>
@@ -354,7 +354,7 @@ function procurementDrawer(snapshot, selectedProductType = '') {
           <span><small>Статус</small><strong>Ожидает завод</strong></span>
         </div>
         <button type="button" class="is-primary mn-business-procurement-save" data-business-procurement-publish>Разместить заявку на бирже</button>
-        <p class="mn-business-drawer-note">Выбирать завод не нужно. Заявка появится на бирже готовой продукции, и владелец подходящего завода сможет принять её при наличии товара. Деньги спишутся только после принятия заявки заводом.</p>
+        <p class="mn-business-drawer-note">Выбирать завод не нужно. Заявка появится на бирже готовой продукции, и владелец подходящего завода сможет принять её после производства товара. Деньги спишутся только после принятия заявки.</p>
       </aside>`;
   }
   return `
@@ -857,7 +857,10 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       const productType = storeContent.querySelector('[data-business-procurement-product]')?.value || '';
       const quantity = Number(storeContent.querySelector('[data-business-procurement-quantity]')?.value || 0);
       const unitPrice = Number(storeContent.querySelector('[data-business-procurement-price]')?.value || 0);
-      const result = await runStoreAction(() => createConstructionStoreRequest({
+      const publishRequest = businessTypeOf(snapshot) === 'tool_store'
+        ? createConstructionStoreRequest
+        : createFactoryStoreRequest;
+      const result = await runStoreAction(() => publishRequest({
         businessId: snapshot.businessId,
         cityId: activeObject.cityId || activeCityId,
         productType,
