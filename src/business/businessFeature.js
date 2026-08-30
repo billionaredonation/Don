@@ -806,6 +806,12 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       drawerMode = 'cargo';
       drawerData = null;
       renderStore();
+      const cargoRows = Array.isArray(snapshot.deliveryCargo) ? snapshot.deliveryCargo.filter((row) => Number(row.quantity) > 0) : [];
+      // With one cargo type there is nothing to choose: start unloading from
+      // this very click instead of making the player press a second button.
+      if (cargoRows.length === 1) {
+        queueMicrotask(() => storeContent.querySelector('[data-business-cargo-unload]')?.click());
+      }
       return;
     }
     if (target.closest('[data-business-profit-all]')) {
