@@ -1292,3 +1292,21 @@ body.admin-mode .admin-panel,
 .admin-farm-business-wrap[hidden] { display: none !important; }
 .admin-farm-business-wrap .admin-editor-title { color: rgba(210, 243, 219, .86); }
 .admin-farm-business-id:disabled { opacity: .68; cursor: not-allowed; }
+
+
+/* Admin self inventory grant */
+.admin-inventory-grant {
+  margin: 8px 0 10px;
+  padding: 10px;
+  border: 1px solid rgba(112, 224, 143, .18);
+  border-radius: 12px;
+  background: rgba(71, 182, 103, .055);
+}
+.admin-inventory-grant .admin-grant-submit {
+  width: 100%;
+  margin-top: 8px;
+  background: rgba(103, 220, 137, .16);
+  border-color: rgba(111, 231, 146, .3);
+}
+.admin-inventory-grant .admin-grant-submit:disabled { opacity: .55; cursor: wait; }
+.admin-inventory-grant .admin-grant-status { min-height: 27px; }
