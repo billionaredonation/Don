@@ -552,9 +552,15 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return businessState;
   }
 
-  async function refreshBusiness({ silent = true } = {}) {
+  async function refreshBusiness({ silent = true, force = false } = {}) {
     if (!activeBuyerObjectId) return null;
-    if (businessRefreshPromise) return businessRefreshPromise;
+    if (businessRefreshPromise) {
+      if (!force) return businessRefreshPromise;
+      // A request started before a sale can contain the old warehouse values.
+      // Wait for it to finish and then request a genuinely fresh snapshot.
+      await businessRefreshPromise;
+      if (!activeBuyerObjectId) return null;
+    }
     const requestedId = activeBuyerObjectId;
     businessRefreshPromise = (async () => {
       try {
@@ -1072,10 +1078,17 @@ export function enableFarmFeature({ root, cityId } = {}) {
         quantity,
       });
       if (result?.inventory || Array.isArray(result?.items)) publishInventory(result);
-      else void refreshInventory({ silent: true });
       if (result?.market) publishMarket(result.market);
-      else void refreshMarket({ silent: true });
       if (result?.business) publishBusiness(result.business);
+
+      // The sell response is not guaranteed to contain every updated snapshot.
+      // Reload all three sources and await them so the warehouse never keeps a
+      // stale value after selling several different crops in quick succession.
+      await Promise.all([
+        refreshInventory({ silent: true }),
+        refreshMarket({ silent: true }),
+        refreshBusiness({ silent: true, force: true }),
+      ]);
       setStatus(
         `Продано ${result.soldQuantity || 0} шт. по ${Number(result.unitPrice || 0)} ₴ · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴. Выплата списана с баланса фермы.`,
         'success',
@@ -1315,5 +1328,4 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
-
 
