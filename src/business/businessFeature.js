@@ -217,6 +217,10 @@ function deliveryCargoMarkup(snapshot) {
   return `<div class="mn-business-procurement-list mn-business-delivery-cargo"><header><strong>Груз в машине</strong><span>${cargo.reduce((sum, row) => sum + Number(row.quantity || 0), 0)} ед.</span></header>${cargo.length ? cargo.map((row) => { const product = getBusinessProduct(row.storeProductType) || {}; return `<article><i>${escapeHtml(product.icon || '📦')}</i><span><strong>${escapeHtml(product.label || row.productType)}</strong><small>Готово к разгрузке в магазин</small></span><input type="number" min="1" max="${Number(row.quantity)}" value="${Number(row.quantity)}" data-business-cargo-qty="${escapeHtml(row.productType)}"><button type="button" data-business-cargo-unload="${escapeHtml(row.productType)}">Положить на склад</button></article>`; }).join('') : '<p>В машине пока нет готовой продукции.</p>'}</div>`;
 }
 
+function cargoUnloadDrawer(snapshot) {
+  return `<aside class="mn-business-drawer is-procurement" data-business-drawer><header><span><small>Приёмка товара</small><strong>Разгрузить машину</strong></span><button type="button" data-business-drawer-close>×</button></header><p class="mn-business-drawer-note">Выберите продукцию и количество. После подтверждения начнётся перенос коробок из машины в здание.</p>${deliveryCargoMarkup(snapshot)}</aside>`;
+}
+
 function shelvesMarkup(snapshot) {
   const canStock = roleCanStock(snapshot.role);
   return (snapshot.shelves || []).map((shelf) => {
@@ -290,6 +294,9 @@ function managementDrawer(snapshot) {
   if (role === 'owner' || role === 'merchandiser') {
     actions.push(['warehouse', '📦', 'Склад', 'Остатки товара и выкладка на полки']);
   }
+  if (Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length && role === 'customer') {
+    actions.push(['warehouse', '🚚', 'Разгрузка', 'Передать груз на склад магазина']);
+  }
   if (role === 'owner') {
     actions.push(['procurement', '🚚', 'Закупки', 'Планы поставок и бюджет']);
     actions.push(['profit', '💸', 'Прибыль', 'Перевод денег владельцу']);
@@ -329,7 +336,8 @@ function warehouseDrawer(snapshot) {
       <div class="mn-business-warehouse-list">
         ${warehouseItems.map((item) => `<article${item.quantity > 0 ? '' : ' class="is-empty"'}><i>${escapeHtml(item.icon)}</i><span><strong>${escapeHtml(item.label)}</strong><small>${item.quantity > 0 ? 'Можно разместить на полке' : 'Нет на складе'}</small></span><b>${item.quantity} шт.</b></article>`).join('')}
       </div>
-      <p class="mn-business-drawer-note">Чтобы выложить товар, закройте управление и нажмите «Управлять» на нужной полке. Поставки по планам закупок будут поступать сюда после подключения пункта приёма.</p>
+      <button type="button" class="is-primary" data-business-warehouse-replenish${Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length ? '' : ' disabled'}>🚚 Пополнить склад</button>
+      <p class="mn-business-drawer-note">Сначала выгрузите привезённую продукцию. После приёмки владелец или товаровед сможет выставить её на полки. Стороннему доставщику магазин начислит оплату за разгрузку.</p>
     </aside>`;
 }
 
@@ -471,13 +479,14 @@ function storeMarkup(snapshot, drawerMode = '', drawerData = null) {
   const quantity = cartQuantity(snapshot);
   const role = snapshot.role || 'customer';
   const financeVisible = roleCanAccount(role);
-  const managementVisible = ['owner', 'accountant', 'merchandiser'].includes(role) || isAdmin();
+  const managementVisible = ['owner', 'accountant', 'merchandiser'].includes(role) || isAdmin() || (Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length > 0);
   let drawer = '';
   if (drawerMode === 'management') drawer = managementDrawer(snapshot);
   if (drawerMode === 'warehouse') drawer = warehouseDrawer(snapshot);
   if (drawerMode === 'shelf') drawer = shelfDrawer(snapshot, drawerData);
   if (drawerMode === 'staff') drawer = staffDrawer(snapshot);
   if (drawerMode === 'procurement') drawer = procurementDrawer(snapshot, drawerData);
+  if (drawerMode === 'cargo') drawer = cargoUnloadDrawer(snapshot);
   if (drawerMode === 'profit') drawer = profitDrawer(snapshot);
   if (drawerMode === 'tax') drawer = taxDrawer(snapshot);
   if (drawerMode === 'transfer') drawer = transferDrawer(snapshot, drawerData);
@@ -777,7 +786,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     const managementOpen = target.closest('[data-business-management-open]');
     if (managementOpen) {
       const mode = managementOpen.dataset.businessManagementOpen || '';
-      const allowed = (mode === 'warehouse' && ['owner', 'merchandiser'].includes(snapshot.role))
+      const allowed = (mode === 'warehouse' && (['owner', 'merchandiser'].includes(snapshot.role) || (Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length > 0)))
         || (mode === 'procurement' && snapshot.role === 'owner')
         || (mode === 'profit' && snapshot.role === 'owner')
         || (mode === 'staff' && snapshot.role === 'owner')
@@ -789,6 +798,12 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       drawerData = mode === 'procurement'
         ? (snapshot.procurementPlans?.[0]?.productType || productsFor(snapshot)[0]?.itemType || '')
         : null;
+      renderStore();
+      return;
+    }
+    if (target.closest('[data-business-warehouse-replenish]')) {
+      drawerMode = 'cargo';
+      drawerData = null;
       renderStore();
       return;
     }
@@ -892,7 +907,17 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       const game = await playCargoTransferMiniGame({ direction: 'vehicle_to_store', productType, quantity });
       if (!game.success) return;
       const result = await runStoreAction(() => unloadVehicleToStore(snapshot.businessId, activeObject.cityId || activeCityId, productType, quantity), `На склад магазина принято ${quantity} ед.`);
-      if (result) await refreshStore();
+      if (result) {
+        const payment = Number(result.courierPayment || 0);
+        const balance = Number(result.playerBalance);
+        if (Number.isFinite(balance)) {
+          state.player = { ...(state.player || {}), balance };
+          save();
+          window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'delivery_payment' } }));
+        }
+        await refreshStore();
+        if (payment > 0) setStoreMessage(`Доставка завершена · заработано ${formatBusinessMoney(payment)}. Можно ехать к следующей точке при наличии груза.`, 'success');
+      }
       return;
     }
     const factoryReceive = target.closest('[data-business-factory-receive]');
