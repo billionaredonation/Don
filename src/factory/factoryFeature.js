@@ -86,6 +86,11 @@ export function enableFactoryFeature({ root, cityId }) {
   qa('[data-factory-load]').forEach((b) => { b.onclick = () => run(async () => {
     const productType = b.dataset.factoryLoad;
     const quantity = Math.max(1, Math.floor(Number(q(`[data-factory-load-qty="${productType}"]`).value) || 1));
+    const available = Number(snapshot?.products?.[productType] || 0);
+    if (quantity > available) {
+      notify(`На складе только ${available} ед. готового товара.`, 'error');
+      return;
+    }
     const game = await playCargoTransferMiniGame({ direction: 'factory_to_vehicle', productType, quantity });
     if (!game.success) return;
     await loadFactoryProductToVehicle(currentId, cityId, productType, quantity);
@@ -99,4 +104,3 @@ export function enableFactoryFeature({ root, cityId }) {
   window.addEventListener('mn:factory-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
 }
-
