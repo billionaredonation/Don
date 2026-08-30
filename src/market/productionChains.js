@@ -27,7 +27,7 @@ export const PRODUCTION_CHAINS = {
   tools:Object.freeze({id:'tools',factoryType:'industry_tools',factoryLabel:'Завод инструментов',factoryIcon:'🛠️',storeType:'tool_store',storeLabel:'Магазин инструментов',products:Object.freeze([{id:'mine_tool_pickaxe',label:'Кирка',icon:'⛏️'},{id:'lumber_tool_axe',label:'Топор',icon:'🪓'},{id:'lumber_tool_chainsaw',label:'Бензопила',icon:'🪚'}])}),
 };
 
-export function productionChain(id) { return PRODUCTION_CHAINS[String(id || '').trim()] || PRODUCTION_CHAINS.fruit; }
+export function productionChain(id) { return PRODUCTION_CHAINS[String(id || '').trim()] || PRODUCTION_CHAINS.food; }
 export function productionProduct(chainId, productId) { return productionChain(chainId).products.find((item) => item.id === productId) || null; }
 export function registerProductionChain(chain) {
   // Future server-provided chains can use the same shape without changing the market UI.
