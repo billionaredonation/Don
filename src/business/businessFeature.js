@@ -38,9 +38,10 @@ import {
   normalizeBusinessForUi,
 } from './businessRepository.js';
 import './business.css';
-import { loadFactorySuppliers, createStoreRequest as createFactoryStoreRequest, orderFactorySupply, receiveFactorySupply, getFactoryError } from '../factory/factoryApi.js';
+import { loadFactorySuppliers, createStoreRequest as createFactoryStoreRequest, orderFactorySupply, receiveFactorySupply, loadDeliveryCargo, unloadVehicleToStore, getFactoryError } from '../factory/factoryApi.js';
 import { loadConstructionSuppliers, createConstructionStoreRequest, orderConstructionSupply, receiveConstructionSupply, getConstructionError } from '../construction/constructionApi.js';
 import { INDUSTRY_STORES } from '../industry/industryConfig.js';
+import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
 
 // Realtime delivers normal offers immediately. The slow fallback only repairs
 // a missed broadcast and avoids another permanent 2-second request per player.
@@ -211,6 +212,11 @@ function procurementSupplierOptions(snapshot, productType, selected = '') {
   return suppliers.map((supplier) => `<option value="${escapeHtml(supplier.factoryId)}"${selected === supplier.factoryId ? ' selected' : ''}>🏭 ${escapeHtml(supplier.factoryName)} · ${Number(supplier.available)} шт. · от ${formatBusinessMoney(supplier.unitPrice)}</option>`).join('');
 }
 
+function deliveryCargoMarkup(snapshot) {
+  const cargo = Array.isArray(snapshot.deliveryCargo) ? snapshot.deliveryCargo : [];
+  return `<div class="mn-business-procurement-list mn-business-delivery-cargo"><header><strong>Груз в машине</strong><span>${cargo.reduce((sum, row) => sum + Number(row.quantity || 0), 0)} ед.</span></header>${cargo.length ? cargo.map((row) => { const product = getBusinessProduct(row.storeProductType) || {}; return `<article><i>${escapeHtml(product.icon || '📦')}</i><span><strong>${escapeHtml(product.label || row.productType)}</strong><small>Готово к разгрузке в магазин</small></span><input type="number" min="1" max="${Number(row.quantity)}" value="${Number(row.quantity)}" data-business-cargo-qty="${escapeHtml(row.productType)}"><button type="button" data-business-cargo-unload="${escapeHtml(row.productType)}">Положить на склад</button></article>`; }).join('') : '<p>В машине пока нет готовой продукции.</p>'}</div>`;
+}
+
 function shelvesMarkup(snapshot) {
   const canStock = roleCanStock(snapshot.role);
   return (snapshot.shelves || []).map((shelf) => {
@@ -355,6 +361,7 @@ function procurementDrawer(snapshot, selectedProductType = '') {
         </div>
         <button type="button" class="is-primary mn-business-procurement-save" data-business-procurement-publish>Разместить заявку на бирже</button>
         <p class="mn-business-drawer-note">Выбирать завод не нужно. Заявка появится на бирже готовой продукции, и владелец подходящего завода сможет принять её после производства товара. Деньги спишутся только после принятия заявки.</p>
+        ${deliveryCargoMarkup(snapshot)}
       </aside>`;
   }
   return `
@@ -600,7 +607,9 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       try { supply = await loadConstructionSuppliers(businessId(activeObject), activeObject.cityId || activeCityId); } catch (error) { console.warn('[business] construction supply unavailable:', error); }
     }
     if (destroyed) return;
-    snapshot = { ...next, ...supply };
+    let cargo = {};
+    try { cargo = await loadDeliveryCargo(); } catch (error) { console.warn('[business] delivery cargo unavailable:', error); }
+    snapshot = { ...next, ...supply, deliveryCargo: cargo.items || cargo.cargo || [] };
     if (!preserveDrawer) { drawerMode = ''; drawerData = null; }
     renderStore();
   }
@@ -621,7 +630,9 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       let supply = {};
       if (businessTypeOf(next) !== 'tool_store') supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId);
       else supply = await loadConstructionSuppliers(businessId(activeObject), activeObject.cityId || activeCityId);
-      snapshot = { ...next, ...supply };
+      let cargo = {};
+      try { cargo = await loadDeliveryCargo(); } catch (error) { console.warn('[business] delivery cargo unavailable:', error); }
+      snapshot = { ...next, ...supply, deliveryCargo: cargo.items || cargo.cargo || [] };
       drawerMode = '';
       drawerData = null;
       closeDetails();
@@ -872,6 +883,16 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
         drawerData = null;
         await refreshStore({ preserveDrawer: false });
       }
+      return;
+    }
+    const cargoUnload = target.closest('[data-business-cargo-unload]');
+    if (cargoUnload) {
+      const productType = cargoUnload.dataset.businessCargoUnload || '';
+      const quantity = Math.max(1, Math.floor(Number(storeContent.querySelector(`[data-business-cargo-qty="${productType}"]`)?.value) || 1));
+      const game = await playCargoTransferMiniGame({ direction: 'vehicle_to_store', productType, quantity });
+      if (!game.success) return;
+      const result = await runStoreAction(() => unloadVehicleToStore(snapshot.businessId, activeObject.cityId || activeCityId, productType, quantity), `На склад магазина принято ${quantity} ед.`);
+      if (result) await refreshStore();
       return;
     }
     const factoryReceive = target.closest('[data-business-factory-receive]');
