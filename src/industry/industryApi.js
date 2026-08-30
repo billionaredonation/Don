@@ -10,6 +10,9 @@ export const completeIndustryTask=(factoryId,cityId,taskId,result)=>invoke('task
 export const startIndustryBatch=(factoryId,cityId,recipeId)=>invoke('batch_start',{factoryId,cityId,recipeId});
 export const finishIndustryBatch=(factoryId,cityId,batchId)=>invoke('batch_finish',{factoryId,cityId,batchId});
 export const transferIndustryRaw=(factoryId,cityId,itemType,quantity)=>invoke('raw_transfer',{factoryId,cityId,itemType,quantity});
+export const sellIndustryRaw=(factoryId,cityId,itemType,quantity)=>invoke('raw_sell',{factoryId,cityId,itemType,quantity});
+export const loadIndustryRawMarket=()=>invoke('raw_market');
+export const setIndustryBuyPrice=(factoryId,cityId,itemType,unitPrice)=>invoke('buy_price_set',{factoryId,cityId,itemType,unitPrice});
 export const withdrawIndustryProduct=(factoryId,cityId,itemType,quantity)=>invoke('product_withdraw',{factoryId,cityId,itemType,quantity});
 export const setIndustryRole=(factoryId,cityId,target,roleId)=>invoke('staff_set',{factoryId,cityId,target,roleId});
 export const loadIndustryExchange=()=>invoke('exchange_snapshot');
@@ -17,4 +20,5 @@ export const createIndustryOffer=payload=>invoke('exchange_offer_create',payload
 export const createIndustryRequest=payload=>invoke('exchange_request_create',payload);
 export const acceptIndustryRequest=(requestId,factoryId,cityId)=>invoke('exchange_request_accept',{requestId,factoryId,cityId});
 export const buyIndustryOffer=(offerId,businessId)=>invoke('exchange_offer_buy',{offerId,businessId});
-export function industryError(e){const raw=String(e?.message||e||'INDUSTRY_REQUEST_FAILED');const map={TELEGRAM_SESSION_REQUIRED:'Откройте игру через Telegram.',INDUSTRY_OWNER_REQUIRED:'Действие доступно владельцу.',INDUSTRY_STAFF_REQUIRED:'Вы не приняты на это предприятие.',INDUSTRY_INPUT_NOT_ENOUGH:'На складе недостаточно сырья.',INDUSTRY_WAREHOUSE_FULL:'Склад предприятия заполнен.',INDUSTRY_TASK_EXPIRED:'Рабочее задание уже недействительно.',INDUSTRY_MIGRATION_REQUIRED:'Примените миграцию промышленной системы.'};return Object.entries(map).find(([k])=>raw.includes(k))?.[1]||raw;}
+export const buyIndustryOfferForFactory=(offerId,targetFactoryId,targetCityId)=>invoke('exchange_offer_buy_factory',{offerId,targetFactoryId,targetCityId});
+export function industryError(e){const raw=String(e?.message||e||'INDUSTRY_REQUEST_FAILED');const map={TELEGRAM_SESSION_REQUIRED:'Откройте игру через Telegram.',INDUSTRY_OWNER_REQUIRED:'Действие доступно владельцу.',INDUSTRY_STAFF_REQUIRED:'Вы не приняты на это предприятие.',INDUSTRY_INPUT_NOT_ENOUGH:'На складе недостаточно сырья.',INDUSTRY_WAREHOUSE_FULL:'Склад предприятия заполнен.',INDUSTRY_RAW_NOT_ACCEPTED:'Этот завод не принимает такое сырьё.',INDUSTRY_BUY_DISABLED:'Закупка этого сырья отключена.',INDUSTRY_PRICE_INVALID:'Некорректная цена закупки.',INDUSTRY_STORE_INCOMPATIBLE:'Этот товар нельзя отправить в выбранный магазин.',LOGISTICS_HUB_REQUIRED:'Нужен действующий логистический центр.',BUSINESS_CASH_NOT_ENOUGH:'На счёте бизнеса недостаточно денег.',INDUSTRY_TASK_EXPIRED:'Рабочее задание уже недействительно.',INDUSTRY_MIGRATION_REQUIRED:'Примените миграцию промышленной системы.'};return Object.entries(map).find(([k])=>raw.includes(k))?.[1]||raw;}
