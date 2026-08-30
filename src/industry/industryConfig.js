@@ -17,7 +17,7 @@ export const INDUSTRIES=Object.freeze({
  metallurgy:factory('metallurgy','Металлургический комбинат','🔥','metal_store',['mine'],[
   recipe('steel','Стальной прокат','🔩',{mine_metal:8,mine_coal:3},{metal_steel:5},120,95,['loader','sorter','operator','quality']),recipe('copper','Медная катанка','🟠',{mine_copper:7,mine_coal:2},{metal_copper:4},110,92,['sorter','operator','quality'])]),
  cable:factory('cable','Кабельный завод','⚡','electric_store',['metal'],[
-  recipe('copper_wire','Медный провод','🧵',{metal_copper:3},{electric_copper_wire:12},80,70,['operator','packer','quality']),recipe('power_cable','Силовой кабель','🔌',{electric_copper_wire:8,industrial_plastic:2},{electric_power_cable:4},105,86,['operator','packer','quality'])]),
+  recipe('copper_wire','Медный провод','🧵',{metal_copper:3},{electric_copper_wire:12},80,70,['operator','packer','quality']),recipe('power_cable','Силовой кабель','🔌',{electric_copper_wire:10},{electric_power_cable:4},105,86,['operator','packer','quality'])]),
  tools:factory('tools','Завод инструментов','🛠️','tool_store',['metal','wood'],[
   recipe('pickaxe','Кирка','⛏️',{metal_steel:2,wood_dry_board:1},{mine_tool_pickaxe:1},100,85,['operator','quality','packer']),recipe('axe','Топор','🪓',{metal_steel:2,wood_dry_board:1},{lumber_tool_axe:1},100,85,['operator','quality','packer']),recipe('chainsaw','Бензопила','🪚',{metal_steel:4,electric_power_cable:1},{lumber_tool_chainsaw:1},150,125,['operator','quality','packer'])]),
 });
