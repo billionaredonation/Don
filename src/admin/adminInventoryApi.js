@@ -2,29 +2,127 @@ import { supabase } from '../supabaseClient.js';
 
 const ADMIN_INVENTORY_FUNCTION = 'admin-inventory';
 
-const KNOWN_ITEMS = Object.freeze([
-  'food', 'water_bottle',
-  'medicine_light', 'medicine_strong', 'medicine_resuscitation',
-  'farm_rake', 'farm_scissors', 'farm_water_bottle', 'farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn',
-  'mine_tool_pickaxe',
-  'mine_stone_common_q1','mine_stone_common_q2','mine_stone_common_q3','mine_stone_common_q4','mine_stone_common_q5',
-  'mine_stone_dense_q1','mine_stone_dense_q2','mine_stone_dense_q3','mine_stone_dense_q4','mine_stone_dense_q5',
-  'mine_coal_common_q1','mine_coal_common_q2','mine_coal_common_q3','mine_coal_common_q4','mine_coal_common_q5',
-  'mine_coal_technical_q1','mine_coal_technical_q2','mine_coal_technical_q3','mine_coal_technical_q4','mine_coal_technical_q5',
-  'mine_metal_raw_q1','mine_metal_raw_q2','mine_metal_raw_q3','mine_metal_raw_q4','mine_metal_raw_q5',
-  'mine_metal_technical_q1','mine_metal_technical_q2','mine_metal_technical_q3','mine_metal_technical_q4','mine_metal_technical_q5',
-  'mine_copper_raw_q1','mine_copper_raw_q2','mine_copper_raw_q3','mine_copper_raw_q4','mine_copper_raw_q5',
-  'mine_copper_conductive_q1','mine_copper_conductive_q2','mine_copper_conductive_q3','mine_copper_conductive_q4','mine_copper_conductive_q5',
-  'lumber_tool_axe', 'lumber_tool_chainsaw', 'lumber_log', 'lumber_beam',
-  'construction_board', 'construction_timber', 'construction_plywood', 'construction_cement', 'construction_concrete',
-  'grocery_bread', 'grocery_milk', 'grocery_apple', 'grocery_canned_food', 'grocery_water', 'grocery_snack',
-  'grocery_apple_juice', 'grocery_orange_juice', 'grocery_fruit_puree',
-  'food_wheat_flour', 'food_corn_flour', 'wood_dry_board', 'wood_furniture_panel',
-  'metal_steel', 'metal_copper', 'electric_copper_wire', 'electric_power_cable',
+function mineQualityItems(prefix, label, icon = '⛏️') {
+  return Array.from({ length: 5 }, (_, index) => ({
+    id: `${prefix}_q${index + 1}`,
+    label: `${icon} ${label} · качество ${index + 1}`,
+    category: 'Шахта · добыча',
+  }));
+}
+
+/*
+ * Единый админ-каталог предметов MN-GAME.
+ * Включает:
+ * - текущие игровые предметы из frontend-конфигов;
+ * - все 40 вариантов шахтного сырья q1-q5;
+ * - производственные полуфабрикаты;
+ * - legacy-предметы, которые всё ещё присутствуют в RPC/БД.
+ *
+ * Object types (farm_*_plant, mine_*_node и т.п.) сюда намеренно НЕ входят:
+ * это объекты карты, а не предметы инвентаря.
+ */
+const ADMIN_ITEMS = Object.freeze([
+  // Игрок / медицина
+  { id: 'food', label: '🍔 Обед', category: 'Игрок' },
+  { id: 'water_bottle', label: '💧 Бутылка воды', category: 'Игрок' },
+  { id: 'medicine_light', label: '💊 Простые таблетки', category: 'Медицина' },
+  { id: 'medicine_strong', label: '💉 Среднеседативные таблетки', category: 'Медицина' },
+  { id: 'medicine_resuscitation', label: '⚕ Сильные седативные таблетки', category: 'Медицина' },
+
+  // Ферма — актуальная система
+  { id: 'farm_rake', label: '🧹 Грабли', category: 'Ферма' },
+  { id: 'farm_scissors', label: '✂️ Садовые ножницы', category: 'Ферма' },
+  { id: 'farm_water_bottle', label: '💧 Вода для полива', category: 'Ферма' },
+  { id: 'farm_water_bucket', label: '🪣 Ведро', category: 'Ферма' },
+  { id: 'farm_apple', label: '🍎 Яблоко', category: 'Ферма · урожай' },
+  { id: 'farm_orange', label: '🍊 Апельсин', category: 'Ферма · урожай' },
+  { id: 'farm_wheat', label: '🌾 Пшеница', category: 'Ферма · урожай' },
+  { id: 'farm_corn', label: '🌽 Кукуруза', category: 'Ферма · урожай' },
+
+  // Ферма — legacy, всё ещё существует в RPC/БД
+  { id: 'farm_hoe', label: '⌁ Тяпка · legacy', category: 'Ферма · старые предметы' },
+  { id: 'farm_water_charge', label: '💧 Заряд воды · legacy', category: 'Ферма · старые предметы' },
+  { id: 'farm_seed_apple', label: '🌱 Семена яблони · legacy', category: 'Ферма · старые предметы' },
+  { id: 'farm_seed_wheat', label: '🌱 Семена пшеницы · legacy', category: 'Ферма · старые предметы' },
+
+  // Шахта
+  { id: 'mine_tool_pickaxe', label: '⛏️ Шахтёрская кирка', category: 'Шахта · инструменты' },
+
+  ...mineQualityItems('mine_stone_common', 'Обычный камень', '🪨'),
+  ...mineQualityItems('mine_stone_dense', 'Плотный камень', '🪨'),
+  ...mineQualityItems('mine_coal_common', 'Обыкновенный уголь', '⚫'),
+  ...mineQualityItems('mine_coal_technical', 'Технический уголь', '🧱'),
+  ...mineQualityItems('mine_metal_raw', 'Сырой металл', '🔩'),
+  ...mineQualityItems('mine_metal_technical', 'Технический металл', '⛓️'),
+  ...mineQualityItems('mine_copper_raw', 'Медная руда', '🟤'),
+  ...mineQualityItems('mine_copper_conductive', 'Богатая медная руда', '🟠'),
+
+  // Нормализованное сырьё промышленности.
+  // Это не добываемые q-предметы, но эти item_type реально используются заводскими RPC.
+  { id: 'mine_stone', label: '🪨 Камень · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'industry' },
+  { id: 'mine_coal', label: '⚫ Уголь · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'industry' },
+  { id: 'mine_metal', label: '⚙️ Металл · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'industry' },
+  { id: 'mine_copper', label: '🟠 Медь · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'industry' },
+
+  // Лесозаготовка
+  { id: 'lumber_tool_axe', label: '🪓 Топор лесоруба', category: 'Лесозаготовка' },
+  { id: 'lumber_tool_chainsaw', label: '🪚 Бензопила', category: 'Лесозаготовка' },
+  { id: 'lumber_log', label: '🪵 Бревно', category: 'Лесозаготовка' },
+  { id: 'lumber_beam', label: '▰ Брус', category: 'Лесозаготовка' },
+
+  // Старый/новый завод стройматериалов
+  { id: 'construction_board', label: '🪚 Обрезная доска', category: 'Стройматериалы' },
+  { id: 'construction_timber', label: '▰ Строительный брус', category: 'Стройматериалы' },
+  { id: 'construction_plywood', label: '🟫 Фанерный лист', category: 'Стройматериалы' },
+  { id: 'construction_cement', label: '⚪ Цемент', category: 'Цементный завод' },
+  { id: 'construction_concrete', label: '🧱 Бетонная смесь', category: 'Цементный завод' },
+
+  // Продуктовый магазин / старые базовые товары
+  { id: 'grocery_bread', label: '🍞 Хлеб', category: 'Продуктовый магазин' },
+  { id: 'grocery_milk', label: '🥛 Молоко', category: 'Продуктовый магазин' },
+  { id: 'grocery_apple', label: '🍎 Яблоко · магазин', category: 'Продуктовый магазин' },
+  { id: 'grocery_canned_food', label: '🥫 Консервы', category: 'Продуктовый магазин' },
+  { id: 'grocery_water', label: '💧 Вода · магазин', category: 'Продуктовый магазин' },
+  { id: 'grocery_snack', label: '🍪 Снеки', category: 'Продуктовый магазин' },
+
+  // Пищевой завод
+  { id: 'grocery_apple_juice', label: '🧃 Яблочный сок', category: 'Пищевой завод' },
+  { id: 'grocery_orange_juice', label: '🥤 Апельсиновый сок', category: 'Пищевой завод' },
+  { id: 'grocery_fruit_puree', label: '🥫 Фруктовое пюре', category: 'Пищевой завод' },
+
+  // Мукомольный завод
+  { id: 'food_wheat_flour', label: '🥣 Пшеничная мука', category: 'Мукомольный завод' },
+  { id: 'food_corn_flour', label: '🟡 Кукурузная мука', category: 'Мукомольный завод' },
+
+  // Лесопильный завод
+  { id: 'wood_dry_board', label: '🪵 Сухая доска', category: 'Лесопильный завод' },
+  { id: 'wood_furniture_panel', label: '🟫 Мебельный щит', category: 'Лесопильный завод' },
+
+  // Металлургия
+  { id: 'metal_steel', label: '🔩 Стальной прокат', category: 'Металлургический завод' },
+  { id: 'metal_copper', label: '🟠 Медная катанка', category: 'Металлургический завод' },
+
+  // Кабельный завод
+  { id: 'industrial_plastic', label: '🧪 Промышленный пластик', category: 'Кабельный завод · сырьё', storage: 'industry' },
+  { id: 'electric_copper_wire', label: '🧵 Медный провод', category: 'Кабельный завод' },
+  { id: 'electric_power_cable', label: '🔌 Силовой кабель', category: 'Кабельный завод' },
 ]);
 
 export function getAdminInventoryCatalog() {
-  return [...KNOWN_ITEMS].sort((a, b) => a.localeCompare(b));
+  return [...ADMIN_ITEMS];
+}
+
+export function resolveAdminInventoryItem(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  const lower = raw.toLocaleLowerCase('ru');
+  const found = ADMIN_ITEMS.find((item) =>
+    item.id.toLocaleLowerCase('ru') === lower ||
+    item.label.toLocaleLowerCase('ru') === lower ||
+    `${item.label} — ${item.id}`.toLocaleLowerCase('ru') === lower
+  );
+  return found || { id: raw, label: raw, category: 'Ручной item_type', storage: 'auto' };
 }
 
 async function normalizeFunctionError(error) {
@@ -43,13 +141,16 @@ export async function grantAdminInventoryItem({ itemType, quantity, storage = 'a
   const initData = String(window.Telegram?.WebApp?.initData || '').trim();
   if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
 
+  const resolved = resolveAdminInventoryItem(itemType);
+  const resolvedStorage = storage === 'auto' && resolved?.storage ? resolved.storage : storage;
+
   const { data, error } = await supabase.functions.invoke(ADMIN_INVENTORY_FUNCTION, {
     body: {
       initData,
       action: 'grant_self',
-      itemType: String(itemType || '').trim(),
+      itemType: String(resolved?.id || itemType || '').trim(),
       quantity: Math.floor(Number(quantity || 0)),
-      storage: String(storage || 'auto').trim().toLowerCase(),
+      storage: String(resolvedStorage || 'auto').trim().toLowerCase(),
     },
   });
 
