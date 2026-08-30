@@ -5,7 +5,17 @@ import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFact
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const objectType = (o) => String(o?.type || o?.payload?.jobType || '');
-const objectId = (o) => String(o?.id || o?.payload?.factoryId || o?.payload?.factory_id || '');
+// A map object can have its own technical id while pointing at an existing
+// factory row. Always prefer the explicit binding so the market sale and the
+// factory modal read/write the same warehouse.
+const objectId = (o) => String(
+  o?.payload?.factoryId ||
+  o?.payload?.factory_id ||
+  o?.factoryId ||
+  o?.factory_id ||
+  o?.id ||
+  ''
+).trim();
 const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message, type } }));
 
 function markup() {
