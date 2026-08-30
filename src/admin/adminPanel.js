@@ -27,6 +27,7 @@ import {
 
 import { createAdminObjectMover } from './adminObjectMover.js';
 import { saveAdminObject } from './adminObjectEditor.js';
+import { grantAdminInventoryItem, getAdminInventoryCatalog } from './adminInventoryApi.js';
 import {
   BUSINESS_LEGAL_FORMS,
   getBusinessLegalForm,
@@ -283,6 +284,37 @@ export function enableAdminPanel({
 
     <div class="admin-separator"></div>
 
+    <div class="admin-inventory-grant">
+      <div class="admin-editor-title">Выдать предмет себе</div>
+      <label class="admin-label">
+        Предмет / item_type
+        <input class="admin-input admin-grant-item" list="admin-item-catalog" placeholder="Например: mine_coal_technical_q5" autocomplete="off" />
+        <datalist id="admin-item-catalog"></datalist>
+      </label>
+      <div class="admin-size-grid">
+        <label class="admin-label">
+          Количество
+          <input class="admin-input admin-grant-quantity" type="number" min="1" max="1000000000" step="1" value="1" inputmode="numeric" />
+        </label>
+        <label class="admin-label">
+          Инвентарь
+          <select class="admin-select admin-grant-storage">
+            <option value="auto">Авто</option>
+            <option value="farm">Ферма</option>
+            <option value="mine">Шахта</option>
+            <option value="lumber">Лесоруб</option>
+            <option value="business">Обычный / магазин</option>
+            <option value="medical">Медицина</option>
+            <option value="industry">Промышленный</option>
+          </select>
+        </label>
+      </div>
+      <button class="admin-btn admin-grant-submit" type="button">Выдать себе</button>
+      <small class="admin-help admin-grant-status">Можно ввести любой item_type вручную. «Авто» сам выбирает нужный инвентарь.</small>
+    </div>
+
+    <div class="admin-separator"></div>
+
     <div class="admin-editor-title">Выбранный объект</div>
 
     <div class="admin-selected">
@@ -322,6 +354,12 @@ export function enableAdminPanel({
   const btnDeleteSelected = panel.querySelector('.admin-delete-selected');
   const btnClearAll = panel.querySelector('.admin-clear-all');
   const btnCopy = panel.querySelector('.admin-copy-coords');
+  const grantItemInput = panel.querySelector('.admin-grant-item');
+  const grantQuantityInput = panel.querySelector('.admin-grant-quantity');
+  const grantStorageSelect = panel.querySelector('.admin-grant-storage');
+  const grantSubmitButton = panel.querySelector('.admin-grant-submit');
+  const grantStatus = panel.querySelector('.admin-grant-status');
+  const grantCatalog = panel.querySelector('#admin-item-catalog');
 
   const typeSelect = panel.querySelector('.admin-object-type');
   const objectSectionButtons = [...panel.querySelectorAll('[data-admin-object-section]')];
@@ -380,7 +418,49 @@ export function enableAdminPanel({
 
   function setObjectSection(sectionKey, { preserveType = false } = {}) {
     selectedObjectSection = ADMIN_OBJECT_SECTIONS[sectionKey] ? sectionKey : 'property';
-    objectSectionButtons.forEach((button) => {
+    if (grantCatalog) {
+    grantCatalog.innerHTML = getAdminInventoryCatalog()
+      .map((itemType) => `<option value="${escapeHtml(itemType)}"></option>`)
+      .join('');
+  }
+
+  grantSubmitButton?.addEventListener('click', async () => {
+    const itemType = String(grantItemInput?.value || '').trim();
+    const quantity = Math.floor(Number(grantQuantityInput?.value || 0));
+    const storage = String(grantStorageSelect?.value || 'auto');
+
+    if (!itemType) {
+      if (grantStatus) grantStatus.textContent = 'Укажите item_type.';
+      return;
+    }
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 1000000000) {
+      if (grantStatus) grantStatus.textContent = 'Количество: от 1 до 1 000 000 000.';
+      return;
+    }
+
+    grantSubmitButton.disabled = true;
+    if (grantStatus) grantStatus.textContent = 'Выдаю предмет…';
+    try {
+      const result = await grantAdminInventoryItem({ itemType, quantity, storage });
+      const resolvedStorage = String(result?.storage || storage || 'auto');
+      if (grantStatus) grantStatus.textContent = `Выдано: ${itemType} × ${quantity}. Инвентарь: ${resolvedStorage}. Всего: ${Number(result?.quantity || quantity)}.`;
+      window.dispatchEvent(new CustomEvent('mn:inventory-refresh-request'));
+      window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
+      window.dispatchEvent(new CustomEvent('mn:farm-inventory-changed'));
+      window.dispatchEvent(new CustomEvent('mn:mine-inventory-changed'));
+      window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed'));
+      window.dispatchEvent(new CustomEvent('mn:business-inventory-changed'));
+      showAdminNotice(`Выдано ${itemType} × ${quantity}`);
+    } catch (error) {
+      const message = String(error?.message || error || 'ADMIN_GRANT_FAILED');
+      if (grantStatus) grantStatus.textContent = `Ошибка: ${message}`;
+      showAdminNotice(`Выдача не прошла: ${message}`);
+    } finally {
+      grantSubmitButton.disabled = false;
+    }
+  });
+
+  objectSectionButtons.forEach((button) => {
       button.dataset.active = button.dataset.adminObjectSection === selectedObjectSection ? 'true' : 'false';
     });
 
