@@ -3,6 +3,7 @@ import { state } from '../state.js';
 import {
   adminSeedFarmBusinessBuckets,
   buyFarmBusinessTool,
+  refreshFarmBusinessTool,
   depositFarmBusiness,
   fillFarmBucketFromBarrel,
   getFarmUserErrorMessage,
@@ -163,7 +164,7 @@ function farmModalMarkup() {
           <main class="mn-farm4-content">
             <section class="mn-farm4-page" data-farm-page="tools">
               <div class="mn-farm4-page-head">
-                <span><small>Рабочее снаряжение</small><h3>Инструменты</h3><p>Купите инструмент один раз и следите за его прочностью. Новый можно взять после поломки.</p></span>
+                <span><small>Рабочее снаряжение</small><h3>Инструменты</h3><p>Купите инструмент один раз и следите за его прочностью. Изношенный инструмент можно обновить до 100%.</p></span>
               </div>
 
               <div class="mn-farm4-tool-grid">
@@ -173,7 +174,7 @@ function farmModalMarkup() {
                     <span class="mn-farm4-card-title"><b>Грабли</b><strong><span data-farm-tool-price="farm_rake">${FARM_TOOL_MIN_PRICE}</span> ₴</strong></span>
                     <small>100 прочности · −${FARM_TOOL_DURABILITY_COST} за куст</small>
                     <span class="mn-farm4-tool-meta"><em>На складе <b data-farm-tool-stock="farm_rake">0</b> шт.</em><em>Прочность <b data-farm-durability="farm_rake">—</b></em></span>
-                    <span class="mn-farm4-progress"><i data-farm-durability-meter="farm_rake"></i></span>
+                    <span class="mn-farm4-progress"><i data-farm-durability-meter="farm_rake"></i></span><small data-farm-tool-action="farm_rake"></small>
                   </span>
                 </button>
 
@@ -183,7 +184,7 @@ function farmModalMarkup() {
                     <span class="mn-farm4-card-title"><b>Ножницы</b><strong><span data-farm-tool-price="farm_scissors">${FARM_TOOL_MIN_PRICE}</span> ₴</strong></span>
                     <small>100 прочности · −${FARM_TOOL_DURABILITY_COST} за куст</small>
                     <span class="mn-farm4-tool-meta"><em>На складе <b data-farm-tool-stock="farm_scissors">0</b> шт.</em><em>Прочность <b data-farm-durability="farm_scissors">—</b></em></span>
-                    <span class="mn-farm4-progress"><i data-farm-durability-meter="farm_scissors"></i></span>
+                    <span class="mn-farm4-progress"><i data-farm-durability-meter="farm_scissors"></i></span><small data-farm-tool-action="farm_scissors"></small>
                   </span>
                 </button>
               </div>
@@ -667,14 +668,37 @@ export function enableFarmFeature({ root, cityId } = {}) {
       const durability = toolDurability(itemType);
       const legacyOwned = itemQuantity(itemType) > 0;
       const needsMigration = legacyOwned && durability === null;
-      const usable = Number.isFinite(durability) && durability > 0;
+      const ownedTool = legacyOwned || Number.isFinite(durability);
+      const needsRefresh = Number.isFinite(durability) && durability < FARM_TOOL_DURABILITY_MAX;
       const stock = Number(businessState?.tools?.[itemType]?.stock || 0);
+      const toolPrice = Math.max(FARM_TOOL_MIN_PRICE, Number(businessState?.tools?.[itemType]?.price || FARM_TOOL_MIN_PRICE));
+      const missing = Number.isFinite(durability) ? Math.max(0, FARM_TOOL_DURABILITY_MAX - durability) : 0;
+      const refreshPrice = Math.max(1, Math.ceil(toolPrice * (missing / FARM_TOOL_DURABILITY_MAX) * 0.5));
+
       if (button) {
-        button.disabled = busy || usable || (!needsMigration && businessState?.owned !== false && stock <= 0);
-        button.dataset.owned = usable ? 'true' : 'false';
+        // If tool exists, clicking the card refreshes durability. Warehouse stock is only
+        // required for the first purchase, never for repair.
+        button.disabled = busy
+          || (ownedTool && !needsMigration && !needsRefresh)
+          || (!ownedTool && !needsMigration && businessState?.owned !== false && stock <= 0);
+        button.dataset.owned = ownedTool && !needsRefresh ? 'true' : 'false';
         button.dataset.broken = Number.isFinite(durability) && durability <= 0 ? 'true' : 'false';
-        button.title = needsMigration ? 'Активировать систему прочности для старого инструмента' : usable ? `Осталось ${durability}% прочности` : '';
+        button.dataset.refresh = needsRefresh ? 'true' : 'false';
+        button.title = needsMigration
+          ? 'Активировать систему прочности для старого инструмента'
+          : needsRefresh
+            ? `Обновить ${FARM_ITEMS[itemType]?.label || 'инструмент'} до 100% примерно за ${refreshPrice} ₴`
+            : ownedTool
+              ? 'Прочность 100%'
+              : 'Купить инструмент';
       }
+
+      modal?.querySelectorAll(`[data-farm-tool-action="${itemType}"]`).forEach((element) => {
+        if (needsMigration) element.textContent = 'Нажмите, чтобы активировать прочность';
+        else if (needsRefresh) element.textContent = `Обновить до 100% · ~${refreshPrice} ₴`;
+        else if (ownedTool) element.textContent = 'Прочность 100%';
+        else element.textContent = 'Нажмите, чтобы купить';
+      });
       modal?.querySelectorAll(`[data-farm-durability="${itemType}"]`).forEach((element) => {
         element.textContent = durability === null ? (legacyOwned ? 'активировать' : 'нет') : `${Math.max(0, durability).toFixed(durability % 1 ? 1 : 0)} / ${FARM_TOOL_DURABILITY_MAX}`;
       });
@@ -1049,11 +1073,31 @@ export function enableFarmFeature({ root, cityId } = {}) {
     renderInventory();
     setStatus('Покупаем инструмент…');
     try {
-      const result = await buyFarmBusinessTool({ businessId: activeBuyerObjectId, cityId, itemType });
+      const durabilityBefore = toolDurability(itemType);
+      const hasTool = itemQuantity(itemType) > 0 || Number.isFinite(durabilityBefore);
+
+      const result = hasTool && Number.isFinite(durabilityBefore) && durabilityBefore < FARM_TOOL_DURABILITY_MAX
+        ? await refreshFarmBusinessTool({ businessId: activeBuyerObjectId, cityId, itemType })
+        : await buyFarmBusinessTool({ businessId: activeBuyerObjectId, cityId, itemType });
+
       if (result?.inventory) publishInventory(result.inventory);
       if (result?.business) publishBusiness(result.business);
-      const durability = Number(result?.business?.playerTools?.find?.((row) => String(row.itemType || row.item_type) === itemType)?.durability ?? FARM_TOOL_DURABILITY_MAX);
-      setStatus(result?.migrated ? `${FARM_ITEMS[itemType]?.label || 'Инструмент'} активирован · прочность ${durability}/100.` : `${FARM_ITEMS[itemType]?.label || 'Инструмент'} куплен · прочность 100/100.`, 'success');
+      if (result?.toolDurability) applyToolDurability(result.toolDurability);
+
+      const durability = Number(
+        result?.toolDurability?.durability
+        ?? result?.business?.playerTools?.find?.((row) => String(row.itemType || row.item_type) === itemType)?.durability
+        ?? FARM_TOOL_DURABILITY_MAX
+      );
+
+      if (result?.refreshed) {
+        setStatus(`${FARM_ITEMS[itemType]?.label || 'Инструмент'} обновлён до ${durability}/100 · ${Number(result.price || 0)} ₴.`, 'success');
+      } else {
+        setStatus(result?.migrated
+          ? `${FARM_ITEMS[itemType]?.label || 'Инструмент'} активирован · прочность ${durability}/100.`
+          : `${FARM_ITEMS[itemType]?.label || 'Инструмент'} куплен · прочность 100/100.`,
+        'success');
+      }
     } catch (error) {
       setStatus(getFarmUserErrorMessage(error), 'error');
     } finally {
