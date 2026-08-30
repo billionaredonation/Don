@@ -38,6 +38,9 @@ export const createStoreRequest = (payload) => invoke('exchange_store_request', 
 export const acceptStoreRequest = (requestId, factoryId, cityId) => invoke('exchange_request_accept', { requestId, factoryId, cityId });
 export const buyFactoryOffer = (offerId, businessId) => invoke('exchange_offer_buy', { offerId, businessId });
 export const setFactoryProductionWage = (factoryId, cityId, productType, wage) => invoke('production_wage', { factoryId, cityId, productType, wage });
+export const loadDeliveryCargo = () => invoke('delivery_cargo');
+export const loadFactoryProductToVehicle = (factoryId, cityId, productType, quantity) => invoke('vehicle_load', { factoryId, cityId, productType, quantity });
+export const unloadVehicleToStore = (businessId, cityId, productType, quantity) => invoke('vehicle_unload', { businessId, cityId, productType, quantity });
 
 export function getFactoryError(error) {
   const raw = String(error?.message || error || 'FACTORY_REQUEST_FAILED');
