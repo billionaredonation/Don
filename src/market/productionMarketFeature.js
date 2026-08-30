@@ -2,10 +2,10 @@ import './productionMarket.css';
 import { state, save } from '../state.js';
 import { loadRawMarket, sellToFactory, loadProductionExchange, createFactoryOffer, createStoreRequest, acceptStoreRequest, buyFactoryOffer, getFactoryError } from '../factory/factoryApi.js';
 import { loadConstructionExchange, loadConstructionRawMarket, sellLumberToConstructionFactory, createConstructionOffer, createConstructionStoreRequest, acceptConstructionStoreRequest, buyConstructionOffer, getConstructionError } from '../construction/constructionApi.js';
-import { PRODUCTION_CHAINS, productionChain, productionProduct } from './productionChains.js';
+import { PRODUCTION_CHAINS, productionChain, productionProduct, canonicalProductionChainForProduct } from './productionChains.js';
 import { loadIndustryExchange,loadIndustryRawMarket,sellIndustryRaw,createIndustryOffer,createIndustryRequest,acceptIndustryRequest,buyIndustryOffer,buyIndustryOfferForFactory } from '../industry/industryApi.js';
 
-const RAW_ITEMS={farm_apple:{icon:'🍎',label:'Яблоки',chainId:'food',groupId:'fruit'},farm_orange:{icon:'🍊',label:'Апельсины',chainId:'food',groupId:'fruit'},farm_wheat:{icon:'🌾',label:'Пшеница',chainId:'mill',groupId:'grain'},farm_corn:{icon:'🌽',label:'Кукуруза',chainId:'mill',groupId:'grain'},lumber_log:{icon:'🪵',label:'Брёвна',chainId:'sawmill',groupId:'wood'},lumber_beam:{icon:'▰',label:'Брус лесоруба',chainId:'sawmill',groupId:'wood'},mine_stone:{icon:'🪨',label:'Камень',chainId:'cement',groupId:'mine'},mine_coal:{icon:'⚫',label:'Уголь',chainId:'cement',groupId:'mine'},mine_metal:{icon:'⚙️',label:'Металлическая руда',chainId:'metallurgy',groupId:'mine'},mine_copper:{icon:'🟠',label:'Медная руда',chainId:'metallurgy',groupId:'mine'}};
+const RAW_ITEMS={farm_apple:{icon:'🍎',label:'Яблоки',chainId:'fruit',groupId:'fruit'},farm_orange:{icon:'🍊',label:'Апельсины',chainId:'fruit',groupId:'fruit'},farm_wheat:{icon:'🌾',label:'Пшеница',chainId:'mill',groupId:'grain'},farm_corn:{icon:'🌽',label:'Кукуруза',chainId:'mill',groupId:'grain'},lumber_log:{icon:'🪵',label:'Брёвна',chainId:'sawmill',groupId:'wood'},lumber_beam:{icon:'▰',label:'Брус лесоруба',chainId:'sawmill',groupId:'wood'},mine_stone:{icon:'🪨',label:'Камень',chainId:'cement',groupId:'mine'},mine_coal:{icon:'⚫',label:'Уголь',chainId:'cement',groupId:'mine'},mine_metal:{icon:'⚙️',label:'Металлическая руда',chainId:'metallurgy',groupId:'mine'},mine_copper:{icon:'🟠',label:'Медная руда',chainId:'metallurgy',groupId:'mine'}};
 
 const NEXT_FACTORY_CHAINS=Object.freeze({
   construction_cement:['cement'],metal_steel:['tools'],metal_copper:['cable'],
@@ -22,7 +22,7 @@ const STORE_FOR_PRODUCT=Object.freeze({
 });
 
 
-const RAW_GROUPS={fruit:{icon:'🍎',label:'Фрукты',chainId:'food'},grain:{icon:'🌾',label:'Зерновые',chainId:'mill'},wood:{icon:'🪵',label:'Древесина',chainId:'sawmill'},mine:{icon:'⛏️',label:'Руда и минералы',chainId:'metallurgy'}};
+const RAW_GROUPS={fruit:{icon:'🍎',label:'Фрукты',chainId:'fruit'},grain:{icon:'🌾',label:'Зерновые',chainId:'mill'},wood:{icon:'🪵',label:'Древесина',chainId:'sawmill'},mine:{icon:'⛏️',label:'Руда и минералы',chainId:'metallurgy'}};
 const esc=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const money=(v)=>`${Math.max(0,Math.round(Number(v)||0)).toLocaleString('ru-RU')} ₴`;
 const quantity=(v)=>Math.max(0,Math.floor(Number(v)||0));
@@ -135,12 +135,22 @@ async function loadUniversalExchange(){
       'grocery_fruit_puree'
     ]);
 
-    result.offers.push(...mapItems(data.offers).filter(item=>
-      !(item.chainId==='food'&&fruitProducts.has(String(item.productType||'')))
-    ));
-    result.requests.push(...mapItems(data.requests).filter(item=>
-      !(item.chainId==='food'&&fruitProducts.has(String(item.productType||'')))
-    ));
+    result.offers.push(...mapItems(data.offers)
+      .map(item=>({
+        ...item,
+        chainId:canonicalProductionChainForProduct(item.productType,item.chainId)
+      }))
+      .filter(item=>
+        !(item.chainId==='fruit'&&fruitProducts.has(String(item.productType||'')))
+      ));
+    result.requests.push(...mapItems(data.requests)
+      .map(item=>({
+        ...item,
+        chainId:canonicalProductionChainForProduct(item.productType,item.chainId)
+      }))
+      .filter(item=>
+        !(item.chainId==='fruit'&&fruitProducts.has(String(item.productType||'')))
+      ));
   }
 
   const dedupe=(items,keyFn)=>{
@@ -200,7 +210,7 @@ const publishStoreRequest=(chain,payload)=>{
 };
 
 function emptyState(icon,title,text){return `<div class="mn-market-empty"><i>${icon}</i><strong>${title}</strong><small>${text}</small></div>`;}
-function dealCard(entry,type,actors){const isRequest=type==='request',chain=productionChain(entry.chainId),product=productionProduct(entry.chainId,entry.productType),compatibleStores=actors.stores.filter(s=>{const expected=STORE_FOR_PRODUCT[entry.productType];return !expected||s.businessType===expected||(expected==='grocery'&&s.businessType==='shop')}),compatibleFactories=actors.factories.filter(f=>nextFactoryChains(entry.productType).includes(f.chainId)),compatible=isRequest?actors.factories.filter(f=>f.chainId===entry.chainId):[...compatibleStores,...compatibleFactories],id=esc(entry.id),actor=entityName(entry,isRequest?chain.storeLabel:chain.factoryLabel);const destinationOptions=isRequest?'':`${compatibleStores.map(s=>`<option value="store:${esc(s.id||s.businessId)}">🏪 ${esc(s.name)}</option>`).join('')}${compatibleFactories.map(f=>`<option value="factory:${esc(f.id||f.factoryId)}:${esc(f.cityId)}">🏭 ${esc(entityName(f,productionChain(f.chainId).factoryLabel))}</option>`).join('')}`;return `<article class="mn-deal-card ${isRequest?'is-request':'is-offer'}" data-chain="${esc(entry.chainId)}">
+function dealCard(entry,type,actors){entry={...entry,chainId:canonicalProductionChainForProduct(entry.productType,entry.chainId)};const isRequest=type==='request',chain=productionChain(entry.chainId),product=productionProduct(entry.chainId,entry.productType),compatibleStores=actors.stores.filter(s=>{const expected=STORE_FOR_PRODUCT[entry.productType];return !expected||s.businessType===expected||(expected==='grocery'&&s.businessType==='shop')}),compatibleFactories=actors.factories.filter(f=>nextFactoryChains(entry.productType).includes(f.chainId)),compatible=isRequest?actors.factories.filter(f=>f.chainId===entry.chainId):[...compatibleStores,...compatibleFactories],id=esc(entry.id),actor=entityName(entry,isRequest?chain.storeLabel:chain.factoryLabel);const destinationOptions=isRequest?'':`${compatibleStores.map(s=>`<option value="store:${esc(s.id||s.businessId)}">🏪 ${esc(s.name)}</option>`).join('')}${compatibleFactories.map(f=>`<option value="factory:${esc(f.id||f.factoryId)}:${esc(f.cityId)}">🏭 ${esc(entityName(f,productionChain(f.chainId).factoryLabel))}</option>`).join('')}`;return `<article class="mn-deal-card ${isRequest?'is-request':'is-offer'}" data-chain="${esc(entry.chainId)}">
   <div class="mn-deal-product"><i>${product?.icon||'📦'}</i><span><em>${isRequest?'МАГАЗИН ПОКУПАЕТ':'ЗАВОД ПРОДАЁТ'}</em><strong>${esc(product?.label||entry.productType)}</strong><small>${esc(actor)} · ${esc(entry.cityName||entry.cityId||'город не указан')}</small></span></div>
   <div class="mn-deal-numbers"><span><small>Количество</small><b>${quantity(entry.quantity)} ед.</b></span><span><small>Цена за единицу</small><b>${money(entry.unitPrice)}</b></span><span class="is-total"><small>${isRequest?'Магазин заплатит':'Стоимость партии'}</small><b>${dealTotal(entry)}</b></span></div>
   <div class="mn-deal-action">${compatible.length?`<label><span>${isRequest?'От какого завода поставляем':'Куда отправить партию'}</span><select ${isRequest?`data-request-factory="${id}"`:`data-offer-destination="${id}"`}>${isRequest?factoryOptions(compatible):destinationOptions}</select></label><button ${isRequest?`data-request-accept="${id}"`:`data-offer-buy="${id}"`} data-chain="${esc(entry.chainId)}">${isRequest?'Принять заказ':'Оформить поставку'} <span>→</span></button>`:`<p>${isRequest?'Нужен совместимый завод, которым вы управляете.':'Нужен совместимый магазин или следующий завод.'}</p>`}</div>
