@@ -535,6 +535,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
   let lastOfferId = '';
   let offerTimer = 0;
   let destroyed = false;
+  let cargoTransferRunning = false;
 
   function setBodyOpen() {
     document.body.classList.toggle('mn-business-open', detailsModal?.hidden === false || storeModal?.hidden === false || offerModal?.hidden === false);
@@ -902,12 +903,26 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     }
     const cargoUnload = target.closest('[data-business-cargo-unload]');
     if (cargoUnload) {
+      if (cargoTransferRunning) return;
       const productType = cargoUnload.dataset.businessCargoUnload || '';
       const quantity = Math.max(1, Math.floor(Number(storeContent.querySelector(`[data-business-cargo-qty="${productType}"]`)?.value) || 1));
-      const game = await playCargoTransferMiniGame({ direction: 'vehicle_to_store', productType, quantity });
-      if (!game.success) return;
-      const result = await runStoreAction(() => unloadVehicleToStore(snapshot.businessId, activeObject.cityId || activeCityId, productType, quantity), `На склад магазина принято ${quantity} ед.`);
-      if (result) {
+      const cargoRow = (snapshot.deliveryCargo || []).find((row) => row.productType === productType);
+      if (quantity > Number(cargoRow?.quantity || 0)) { setStoreMessage('В машине недостаточно этого товара.', 'error'); return; }
+      cargoTransferRunning = true;
+      busy = true;
+      const targetBusinessId = snapshot.businessId;
+      const targetCityId = activeObject.cityId || activeCityId;
+      // Close the shop before starting work so the loader job state is visible immediately.
+      storeModal.hidden = true;
+      storeModal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('mn-business-store-open');
+      document.body.classList.add('mn-cargo-loader-working');
+      setBodyOpen();
+      window.dispatchEvent(new CustomEvent('mn:delivery-work-state', { detail: { active: true, role: 'loader', icon: '📦' } }));
+      try {
+        const game = await playCargoTransferMiniGame({ direction: 'vehicle_to_store', productType, quantity });
+        if (!game.success) return;
+        const result = await unloadVehicleToStore(targetBusinessId, targetCityId, productType, quantity);
         const payment = Number(result.courierPayment || 0);
         const balance = Number(result.playerBalance);
         if (Number.isFinite(balance)) {
@@ -915,8 +930,14 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
           save();
           window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'delivery_payment' } }));
         }
-        await refreshStore();
-        if (payment > 0) setStoreMessage(`Доставка завершена · заработано ${formatBusinessMoney(payment)}. Можно ехать к следующей точке при наличии груза.`, 'success');
+        window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message: payment > 0 ? `Доставка завершена · +${formatBusinessMoney(payment)}.` : `На склад принято ${quantity} ед. товара.`, type: 'success' } }));
+      } catch (error) {
+        window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message: getFactoryError(error), type: 'error' } }));
+      } finally {
+        cargoTransferRunning = false;
+        busy = false;
+        document.body.classList.remove('mn-cargo-loader-working');
+        window.dispatchEvent(new CustomEvent('mn:delivery-work-state', { detail: { active: false, role: 'loader', icon: '📦' } }));
       }
       return;
     }
