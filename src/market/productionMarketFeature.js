@@ -93,14 +93,111 @@ async function loadUniversalRaw(){
 function rawMarkup(data){const offers=data.offers||[],availableItems=Object.entries(RAW_ITEMS).filter(([id])=>offers.some(o=>o.itemType===id)),selected=availableItems[0]?.[0]||'',chainIds=[...new Set(offers.map(o=>o.chainId).filter(Boolean))];return `<div class="mn-raw-navigation"><div><small>1. Направление производства</small><div class="mn-market-chain-filter"><button class="is-active" data-raw-chain="all">Все направления</button>${chainIds.map(id=>{const chain=productionChain(id);return `<button data-raw-chain="${esc(id)}">${chain.factoryIcon||'🏭'} ${esc(chain.factoryLabel||id)}</button>`;}).join('')}</div></div><div><small>2. Категория сырья</small><div class="mn-raw-group-filter"><button class="is-active" data-raw-group="all">Все категории</button>${Object.entries(RAW_GROUPS).filter(([,group])=>chainIds.includes(group.chainId)).map(([id,group])=>`<button data-raw-group="${id}" data-parent-chain="${group.chainId}">${group.icon} ${group.label}</button>`).join('')}</div></div></div><div class="mn-market-hero"><i>📦</i><span><strong>Продажа сырья производствам</strong><small>Направления формируются автоматически из работающих производств.</small></span></div><div class="mn-market-form"><label><span>3. Выберите конкретное сырьё</span><select data-raw-item>${availableItems.map(([id,item])=>`<option value="${id}">${item.icon} ${item.label}</option>`).join('')}</select></label><label><span>Количество</span><input type="number" min="1" value="10" data-raw-qty></label></div><div class="mn-market-list" data-raw-offers>${offers.length?offers.map(o=>{const item=RAW_ITEMS[o.itemType]||{icon:'📦',label:o.itemType};return `<article data-item="${esc(o.itemType)}" data-chain="${esc(o.chainId)}"${o.itemType===selected?'':' hidden'}><i>${item.icon}</i><span><strong>${esc(entityName(o,productionChain(o.chainId).factoryLabel))}</strong><small>${esc(o.cityName||o.cityId)} · принимает до ${Number(o.capacityLeft)} ед.</small></span><b>${money(o.unitPrice)} / ед.</b><button data-raw-sell="${esc(o.factoryId)}" data-chain="${esc(o.chainId)}" data-city="${esc(o.cityId)}" data-item="${esc(o.itemType)}" data-provider="${esc(o.rawProvider||'industry')}">Продать</button></article>`;}).join(''):'<p>Предприятия пока не принимают сырьё.</p>'}</div>`;}
 
 function normalizeExchange(source,chainId){const chain=productionChain(chainId),data=source||{};return {factories:(data.myFactories||[]).map(item=>({...item,chainId,name:entityName(item,chain.factoryLabel)})),stores:(data.myStores||[]).filter(item=>!item.businessType||item.businessType===chain.storeType).map(item=>({...item,chainId,name:entityName(item,chain.storeLabel)})),offers:(data.offers||[]).map(item=>({...item,chainId})),requests:(data.requests||[]).map(item=>({...item,chainId}))};}
-async function loadUniversalExchange(){const data=await loadIndustryExchange();return Object.fromEntries(['factories','stores','offers','requests'].map(key=>[key,(data?.[{factories:'myFactories',stores:'myStores',offers:'offers',requests:'requests'}[key]]||[]).map(item=>({...item,chainId:item.chainId||item.industryId}))]));}
+async function loadUniversalExchange(){
+  const [fruitResult,constructionResult,industryResult]=await Promise.allSettled([
+    loadProductionExchange(),
+    loadConstructionExchange(),
+    loadIndustryExchange()
+  ]);
+
+  const result={factories:[],stores:[],offers:[],requests:[]};
+
+  if(fruitResult.status==='fulfilled'){
+    const fruit=normalizeExchange(fruitResult.value,'fruit');
+    result.factories.push(...fruit.factories);
+    result.stores.push(...fruit.stores);
+    result.offers.push(...fruit.offers);
+    result.requests.push(...fruit.requests);
+  }
+
+  if(constructionResult.status==='fulfilled'){
+    const construction=normalizeExchange(constructionResult.value,'construction');
+    result.factories.push(...construction.factories);
+    result.stores.push(...construction.stores);
+    result.offers.push(...construction.offers);
+    result.requests.push(...construction.requests);
+  }
+
+  if(industryResult.status==='fulfilled'){
+    const data=industryResult.value||{};
+    const mapItems=(items=[])=>items.map(item=>({
+      ...item,
+      chainId:item.chainId||item.industryId
+    }));
+
+    result.factories.push(...mapItems(data.myFactories));
+    result.stores.push(...mapItems(data.myStores));
+
+    // Fruit juices/puree belong to legacy fruit_factory, not industry_food.
+    const fruitProducts=new Set([
+      'grocery_apple_juice',
+      'grocery_orange_juice',
+      'grocery_fruit_puree'
+    ]);
+
+    result.offers.push(...mapItems(data.offers).filter(item=>
+      !(item.chainId==='food'&&fruitProducts.has(String(item.productType||'')))
+    ));
+    result.requests.push(...mapItems(data.requests).filter(item=>
+      !(item.chainId==='food'&&fruitProducts.has(String(item.productType||'')))
+    ));
+  }
+
+  const dedupe=(items,keyFn)=>{
+    const seen=new Set();
+    return items.filter(item=>{
+      const key=keyFn(item);
+      if(seen.has(key))return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
+  result.factories=dedupe(
+    result.factories,
+    item=>`${item.chainId}|${item.id||item.factoryId}|${item.cityId||''}`
+  );
+  result.stores=dedupe(
+    result.stores,
+    item=>`${item.id||item.businessId}|${item.cityId||''}`
+  );
+  result.offers=dedupe(
+    result.offers,
+    item=>`${item.chainId}|${item.id}`
+  );
+  result.requests=dedupe(
+    result.requests,
+    item=>`${item.chainId}|${item.id}`
+  );
+
+  return result;
+}
 function productOptions(chainId){return productionChain(chainId).products.map(p=>`<option value="${esc(p.id)}">${p.icon} ${esc(p.label)}</option>`).join('');}
 function factoryOptions(items){return items.map(f=>`<option value="${esc(f.id||f.factoryId)}" data-city="${esc(f.cityId)}" data-chain="${esc(f.chainId)}">${productionChain(f.chainId).factoryIcon} ${esc(f.name)}</option>`).join('');}
 function storeOptions(items){return items.map(s=>`<option value="${esc(s.id||s.businessId)}" data-city="${esc(s.cityId)}" data-chain="${esc(s.chainId)}">🏪 ${esc(s.name)}</option>`).join('');}
-const buyExchangeOffer=(_chain,id,businessId)=>buyIndustryOffer(id,businessId);
-const takeExchangeRequest=(_chain,id,factoryId,cityId)=>acceptIndustryRequest(id,factoryId,cityId);
-const publishFactoryOffer=(_chain,payload)=>createIndustryOffer(payload);
-const publishStoreRequest=(_chain,payload)=>createIndustryRequest(payload);
+const buyExchangeOffer=(chain,id,businessId)=>{
+  if(chain==='fruit')return buyFactoryOffer(id,businessId);
+  if(chain==='construction')return buyConstructionOffer(id,businessId);
+  return buyIndustryOffer(id,businessId);
+};
+
+const takeExchangeRequest=(chain,id,factoryId,cityId)=>{
+  if(chain==='fruit')return acceptStoreRequest(id,factoryId,cityId);
+  if(chain==='construction')return acceptConstructionStoreRequest(id,factoryId,cityId);
+  return acceptIndustryRequest(id,factoryId,cityId);
+};
+
+const publishFactoryOffer=(chain,payload)=>{
+  if(chain==='fruit')return createFactoryOffer(payload);
+  if(chain==='construction')return createConstructionOffer(payload);
+  return createIndustryOffer(payload);
+};
+
+const publishStoreRequest=(chain,payload)=>{
+  if(chain==='fruit')return createStoreRequest(payload);
+  if(chain==='construction')return createConstructionStoreRequest(payload);
+  return createIndustryRequest(payload);
+};
 
 function emptyState(icon,title,text){return `<div class="mn-market-empty"><i>${icon}</i><strong>${title}</strong><small>${text}</small></div>`;}
 function dealCard(entry,type,actors){const isRequest=type==='request',chain=productionChain(entry.chainId),product=productionProduct(entry.chainId,entry.productType),compatibleStores=actors.stores.filter(s=>{const expected=STORE_FOR_PRODUCT[entry.productType];return !expected||s.businessType===expected||(expected==='grocery'&&s.businessType==='shop')}),compatibleFactories=actors.factories.filter(f=>nextFactoryChains(entry.productType).includes(f.chainId)),compatible=isRequest?actors.factories.filter(f=>f.chainId===entry.chainId):[...compatibleStores,...compatibleFactories],id=esc(entry.id),actor=entityName(entry,isRequest?chain.storeLabel:chain.factoryLabel);const destinationOptions=isRequest?'':`${compatibleStores.map(s=>`<option value="store:${esc(s.id||s.businessId)}">🏪 ${esc(s.name)}</option>`).join('')}${compatibleFactories.map(f=>`<option value="factory:${esc(f.id||f.factoryId)}:${esc(f.cityId)}">🏭 ${esc(entityName(f,productionChain(f.chainId).factoryLabel))}</option>`).join('')}`;return `<article class="mn-deal-card ${isRequest?'is-request':'is-offer'}" data-chain="${esc(entry.chainId)}">
