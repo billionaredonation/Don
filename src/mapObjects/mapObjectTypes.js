@@ -385,7 +385,7 @@ export const MAP_OBJECT_TYPES = {
   fruit_factory: {
     type: 'fruit_factory',
     category: MAP_OBJECT_CATEGORIES.JOB,
-    label: 'Фруктовый завод · предприятие',
+    label: 'Завод по производству питания · предприятие',
     icon: '🏭',
     defaultScale: 1.1,
     defaultRotation: 0,
@@ -407,7 +407,7 @@ export const MAP_OBJECT_TYPES = {
   },
 
   ...Object.fromEntries([
-    ['industry_food','Пищевой комбинат','🏭'],['industry_mill','Мукомольный завод','🌾'],['industry_sawmill','Лесопильный завод','🪚'],['industry_building_materials','Завод стройматериалов','🏗️'],['industry_cement','Цементный завод','🏭'],['industry_metallurgy','Металлургический комбинат','🔥'],['industry_cable','Кабельный завод','⚡'],['industry_tools','Завод инструментов','🛠️'],
+    ['industry_sawmill','Лесопильный завод','🪚'],['industry_building_materials','Завод стройматериалов','🏗️'],['industry_cement','Цементный завод','🏭'],['industry_metallurgy','Металлургический комбинат','🔥'],['industry_cable','Кабельный завод','⚡'],['industry_tools','Завод инструментов','🛠️'],
   ].map(([type,label,icon])=>[type,{type,category:MAP_OBJECT_CATEGORIES.JOB,label:`${label} · предприятие`,icon,defaultScale:1.1,defaultRotation:0,defaultAsset:'job_factory_01',defaultWidth:3.2,defaultHeight:2.5}])),
 
   bakery: { type:'bakery', category:MAP_OBJECT_CATEGORIES.BUSINESS, label:'Пекарня', icon:'🥖', defaultPrice:650000, defaultScale:1.1, defaultRotation:0, defaultAsset:'business_shop_01' },
