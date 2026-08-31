@@ -102,7 +102,9 @@ export const BUSINESS_ROLE_LABELS = Object.freeze({
 export const BUSINESS_PRODUCTS = Object.freeze([
   { itemType: 'grocery_apple_juice', factoryProduct: 'apple_juice', label: 'Яблочный сок', icon: '🧃', foodRestore: 4, waterRestore: 24, suggestedPrice: 58 },
   { itemType: 'grocery_orange_juice', factoryProduct: 'orange_juice', label: 'Апельсиновый сок', icon: '🥤', foodRestore: 5, waterRestore: 26, suggestedPrice: 68 },
-  { itemType: 'grocery_fruit_puree', factoryProduct: 'fruit_puree', label: 'Фруктовое пюре', icon: '🥫', foodRestore: 22, waterRestore: 5, suggestedPrice: 72 },
+  { itemType: 'grocery_fruit_salad', factoryProduct: 'fruit_salad', label: 'Фруктовый салат', icon: '🥗', foodRestore: 24, waterRestore: 9, suggestedPrice: 78 },
+  { itemType: 'grocery_bread', factoryProduct: 'bread', label: 'Хлеб', icon: '🍞', foodRestore: 28, waterRestore: 0, suggestedPrice: 52 },
+  { itemType: 'grocery_snack', factoryProduct: 'corn_snack', label: 'Кукурузные снеки', icon: '🍿', foodRestore: 18, waterRestore: -2, suggestedPrice: 46 },
 ]);
 
 export const BUSINESS_TOOL_PRODUCTS = Object.freeze([
