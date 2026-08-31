@@ -85,10 +85,10 @@ const ADMIN_ITEMS = Object.freeze([
   { id: 'grocery_water', label: '💧 Вода · магазин', category: 'Продуктовый магазин' },
   { id: 'grocery_snack', label: '🍪 Снеки', category: 'Продуктовый магазин' },
 
-  // Пищевой завод
-  { id: 'grocery_apple_juice', label: '🧃 Яблочный сок', category: 'Пищевой завод' },
-  { id: 'grocery_orange_juice', label: '🥤 Апельсиновый сок', category: 'Пищевой завод' },
-  { id: 'grocery_fruit_puree', label: '🥫 Фруктовое пюре', category: 'Пищевой завод' },
+  // Единый завод по производству питания
+  { id: 'grocery_apple_juice', label: '🧃 Яблочный сок', category: 'Завод питания' },
+  { id: 'grocery_orange_juice', label: '🥤 Апельсиновый сок', category: 'Завод питания' },
+  { id: 'grocery_fruit_salad', label: '🥗 Фруктовый салат', category: 'Завод питания' },
 
   // Мукомольный завод
   { id: 'food_wheat_flour', label: '🥣 Пшеничная мука', category: 'Мукомольный завод' },
