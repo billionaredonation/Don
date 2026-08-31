@@ -56,10 +56,10 @@ const ITEM_META = Object.freeze({
   grocery_canned_food: { label: 'Консервы', icon: '🥫' },
   grocery_water: { label: 'Вода', icon: '💧' },
   grocery_snack: { label: 'Снеки', icon: '🍪' },
-  grocery_apple_juice: { label: 'Яблочный сок', icon: '🧃' },
-  grocery_orange_juice: { label: 'Апельсиновый сок', icon: '🥤' },
-  grocery_fruit_puree: { label: 'Фруктовое пюре', icon: '🥫' },
-  grocery_fruit_salad: { label: 'Фруктовый салат', icon: '🥗' },
+  grocery_pasta: { label: 'Макароны (1 кг)', icon: '🍝' },
+  grocery_diet_fruit_salad: { label: 'Салат диетический', icon: '🥗' },
+  grocery_universal_fruit_salad: { label: 'Салат универсальный фруктовый', icon: '🥙' },
+  grocery_multifruit_juice: { label: 'Сок мультифрукт', icon: '🧃' },
   food_wheat_flour:{label:'Пшеничная мука',icon:'🥣'},food_corn_flour:{label:'Кукурузная мука',icon:'🟡'},wood_dry_board:{label:'Сухая доска',icon:'🪵'},wood_furniture_panel:{label:'Мебельный щит',icon:'🟫'},construction_cement:{label:'Цемент',icon:'⚪'},construction_concrete:{label:'Бетонная смесь',icon:'🧱'},metal_steel:{label:'Стальной прокат',icon:'🔩'},metal_copper:{label:'Медная катанка',icon:'🟠'},electric_copper_wire:{label:'Медный провод',icon:'🧵'},electric_power_cable:{label:'Силовой кабель',icon:'🔌'},
 });
 const VITAL_ALIASES = Object.freeze({
@@ -1602,4 +1602,3 @@ export function enableInventoryFeature() {
     overlay.remove();
   };
 }
-
