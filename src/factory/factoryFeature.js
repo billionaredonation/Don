@@ -1,7 +1,7 @@
 import './factory.css';
 import './factoryRedesign.css';
 import { FACTORY_CONFIG, FACTORY_RAW_ITEMS, FACTORY_RECIPES, FACTORY_ROLES, formatFactoryMoney } from './factoryConfig.js';
-import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, finishFactoryBatch, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, loadFactoryProductToVehicle, getFactoryError } from './factoryApi.js';
+import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, cookFactoryBatch, finishFactoryBatch, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, loadFactoryProductToVehicle, getFactoryError } from './factoryApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
@@ -27,7 +27,7 @@ function markup() {
     <header><div><small>ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ</small><h2>Продуктовый завод</h2><p>Ферма → грузчик → повар (3 сек.) → упаковщик → склад → логистика → склад магазина → полка</p></div><button data-factory-close aria-label="Закрыть">×</button></header>
     <nav><button data-factory-tab="production" class="is-active">Производство</button><button data-factory-tab="warehouse">Склады</button><button data-factory-tab="management">Управление</button></nav>
     <main>
-      <section data-factory-page="production"><div class="mn-factory-status"><span><small>Статус</small><strong data-factory-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-factory-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-factory-cash>—</strong></span></div><div class="mn-factory-workflow">${FACTORY_ROLES.map((role, index) => `<span><i>${role.icon}</i><b>${index + 1}. ${role.label}</b></span>`).join('<em>→</em>')}<em>→</em><span><i>🏬</i><b>Склад</b></span><em>→</em><span><i>🚚</i><b>Логистика</b></span></div><div class="mn-factory-line" data-factory-line><i>⚙️</i><span><strong>Линия свободна</strong><small>Выберите рецепт и запустите смену</small></span><button data-factory-finish hidden>Передать на склад</button></div><h3>Технологические карты</h3><div class="mn-factory-recipes">${recipes}</div></section>
+      <section data-factory-page="production"><div class="mn-factory-status"><span><small>Статус</small><strong data-factory-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-factory-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-factory-cash>—</strong></span></div><div class="mn-factory-workflow">${FACTORY_ROLES.map((role, index) => `<span><i>${role.icon}</i><b>${index + 1}. ${role.label}</b></span>`).join('<em>→</em>')}<em>→</em><span><i>🏬</i><b>Склад</b></span><em>→</em><span><i>🚚</i><b>Логистика</b></span></div><div class="mn-factory-line" data-factory-line><i>⚙️</i><span><strong>Линия свободна</strong><small>Выберите рецепт и запустите смену</small></span><button data-factory-cook hidden>Повар: готовить</button><button data-factory-finish hidden>Упаковать на склад</button></div><h3>Технологические карты</h3><div class="mn-factory-recipes">${recipes}</div></section>
       <section data-factory-page="warehouse" hidden><h3>Сырьевой склад</h3><div class="mn-factory-warehouse">${raw}</div><h3>Готовая продукция</h3><div class="mn-factory-products">${Object.values(FACTORY_RECIPES).map((r) => `<article><i>${r.icon}</i><span><small>${r.label}</small><strong data-factory-product="${r.id}">0</strong></span><div><input type="number" min="1" value="1" data-factory-load-qty="${r.id}" aria-label="Количество"><button data-factory-load="${r.id}">Забрать</button></div></article>`).join('')}</div></section>
       <section data-factory-page="management" hidden><div class="mn-factory-buy" data-factory-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatFactoryMoney(FACTORY_CONFIG.purchasePrice)}</strong><p>Выберите юридическую форму предприятия перед покупкой.</p></span><select data-factory-legal>${legal}</select><button data-factory-purchase>Купить завод</button></div><div data-factory-owned hidden><div class="mn-factory-owner"><span><small>Владелец</small><strong data-factory-owner>—</strong></span><span><small>Юр. форма</small><strong data-factory-legal-view>—</strong></span></div><div class="mn-factory-manage-grid"><article><h3>Бюджет</h3><input type="number" min="1" placeholder="Сумма" data-factory-money><div><button data-factory-deposit>Пополнить</button><button data-factory-withdraw>Снять</button></div></article><article><h3>Персонал</h3><input placeholder="Ник игрока" data-factory-staff-target><select data-factory-staff-role>${FACTORY_ROLES.map((role) => `<option value="${role.id}">${role.label}</option>`).join('')}</select><div><button data-factory-staff-save>Назначить</button><button data-factory-staff-remove>Снять</button></div></article><article class="is-wide"><h3>Оптовые цены для магазинов</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="1" value="${Math.max(1, Math.round(r.wage / r.outputQty * 1.8))}" data-factory-wholesale-price="${r.id}"><button data-factory-wholesale-save="${r.id}">Сохранить</button></label>`).join('')}</div></article><article class="is-wide"><h3>Оплата за изготовление партии</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="0" value="${r.wage}" data-factory-production-wage="${r.id}"><button data-factory-wage-save="${r.id}">Сохранить</button></label>`).join('')}</div></article></div></div></section>
     </main></section></div>`;
@@ -64,9 +64,23 @@ export function enableFactoryFeature({ root, cityId }) {
     Object.keys(FACTORY_RECIPES).forEach((id) => { const input = q(`[data-factory-production-wage="${id}"]`); if (input && wages[id] !== undefined) input.value = String(wages[id]); });
     qa('[data-factory-start]').forEach((b) => b.disabled = !business.ownerId || Boolean(batch));
     qa('[data-factory-deliver]').forEach((b) => b.disabled = !s.isOwner);
-    const line = q('[data-factory-line]'), finish = q('[data-factory-finish]');
-    if (!batch) { line.querySelector('strong').textContent = 'Линия свободна'; line.querySelector('small').textContent = 'Грузчик может подать сырьё по выбранному рецепту'; finish.hidden = true; }
-    else { const recipe = FACTORY_RECIPES[batch.recipeId]; const left = Math.max(0, Math.ceil((new Date(batch.readyAt).getTime() - Date.now()) / 1000)); line.querySelector('strong').textContent = `${recipe?.label || 'Партия'} · ${left ? `${left} сек.` : 'готово'}`; line.querySelector('small').textContent = `Работник: ${batch.workerName || '—'} · зарплата ${formatFactoryMoney(batch.wage)}`; finish.hidden = left > 0; finish.dataset.batchId = batch.id; clearTimeout(timer); if (left > 0) timer = setTimeout(render, 1000); }
+    const line = q('[data-factory-line]'), cook = q('[data-factory-cook]'), finish = q('[data-factory-finish]');
+    cook.hidden = true; finish.hidden = true;
+    if (!batch) { line.querySelector('strong').textContent = 'Линия свободна'; line.querySelector('small').textContent = 'Грузчик может подать сырьё по выбранному рецепту'; }
+    else {
+      const recipe = FACTORY_RECIPES[batch.recipeId];
+      const left = Math.max(0, Math.ceil((new Date(batch.readyAt).getTime() - Date.now()) / 1000));
+      if (batch.stage === 'loaded') {
+        line.querySelector('strong').textContent = `${recipe?.label || 'Партия'} · сырьё подано`;
+        line.querySelector('small').textContent = 'Теперь повар должен разложить ингредиенты и начать готовку';
+        cook.hidden = false; cook.disabled = !s.canCook; cook.dataset.batchId = batch.id;
+      } else {
+        line.querySelector('strong').textContent = `${recipe?.label || 'Партия'} · ${left ? `готовится ${left} сек.` : 'готово к упаковке'}`;
+        line.querySelector('small').textContent = left ? 'Повар готовит блюдо' : 'Упаковщик может передать продукт на склад';
+        finish.hidden = left > 0; finish.disabled = !s.canPack; finish.dataset.batchId = batch.id;
+        clearTimeout(timer); if (left > 0) timer = setTimeout(render, 1000);
+      }
+    }
     qa('[data-factory-page="management"] input, [data-factory-page="management"] select, [data-factory-page="management"] button').forEach((el) => { if (!el.matches('[data-factory-purchase],[data-factory-legal]')) el.disabled = !s.isOwner; });
   }
   function tab(name) { qa('[data-factory-tab]').forEach((b) => b.classList.toggle('is-active', b.dataset.factoryTab === name)); qa('[data-factory-page]').forEach((p) => p.hidden = p.dataset.factoryPage !== name); }
@@ -75,6 +89,7 @@ export function enableFactoryFeature({ root, cityId }) {
   qa('[data-factory-tab]').forEach((b) => b.onclick = () => tab(b.dataset.factoryTab));
   action('[data-factory-purchase]', () => purchaseFactory(currentId, cityId, q('[data-factory-legal]').value));
   qa('[data-factory-start]').forEach((b) => b.onclick = () => run(() => startFactoryBatch(currentId, cityId, b.dataset.factoryStart, q(`[data-factory-ingredient="${b.dataset.factoryStart}"]`)?.value || '')));
+  action('[data-factory-cook]', () => cookFactoryBatch(currentId, cityId, q('[data-factory-cook]').dataset.batchId));
   action('[data-factory-finish]', () => finishFactoryBatch(currentId, cityId, q('[data-factory-finish]').dataset.batchId));
   action('[data-factory-deposit]', () => depositFactory(currentId, cityId, Number(q('[data-factory-money]').value)));
   action('[data-factory-withdraw]', () => withdrawFactory(currentId, cityId, Number(q('[data-factory-money]').value)));
