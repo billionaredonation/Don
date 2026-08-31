@@ -210,3 +210,4 @@ export function playIndustryMiniGame(roleId, context = {}) {
     action.textContent = 'Начать';
   });
 }
+
