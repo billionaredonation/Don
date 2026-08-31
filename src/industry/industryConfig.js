@@ -29,15 +29,6 @@ const factory = (id, label, icon, storeType, rawGroups, recipes) =>
   });
 
 export const INDUSTRIES = Object.freeze({
-  food: factory('food', 'Пищевой комбинат', '🏭', 'grocery', ['farm'], [
-    recipe('apple_juice', 'Яблочный сок', '🧃', { farm_apple: 5 }, { grocery_apple_juice: 3 }, 60, 45, 'timing'),
-    recipe('orange_juice', 'Апельсиновый сок', '🥤', { farm_orange: 5 }, { grocery_orange_juice: 3 }, 75, 50, 'sequence'),
-    recipe('fruit_puree', 'Фруктовое пюре', '🥫', { farm_apple: 4, farm_orange: 4 }, { grocery_fruit_puree: 4 }, 90, 65, 'mixing'),
-  ]),
-  mill: factory('mill', 'Мукомольный завод', '🌾', 'bakery', ['farm'], [
-    recipe('wheat_flour', 'Пшеничная мука', '🥣', { farm_wheat: 8 }, { food_wheat_flour: 5 }, 70, 48, 'timing'),
-    recipe('corn_flour', 'Кукурузная мука', '🟡', { farm_corn: 8 }, { food_corn_flour: 5 }, 70, 48, 'timing'),
-  ]),
   sawmill: factory('sawmill', 'Лесопильный завод', '🪚', 'furniture_store', ['lumber'], [
     recipe('dry_board', 'Сухая доска', '🪵', { lumber_log: 2 }, { wood_dry_board: 6 }, 80, 58, 'timing'),
     recipe('furniture_panel', 'Мебельный щит', '🟫', { lumber_beam: 6 }, { wood_furniture_panel: 2 }, 100, 72, 'sequence'),
