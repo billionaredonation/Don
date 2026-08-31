@@ -104,3 +104,4 @@ export function enableFactoryFeature({ root, cityId }) {
   window.addEventListener('mn:factory-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
 }
+
