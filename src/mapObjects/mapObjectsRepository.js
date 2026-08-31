@@ -208,8 +208,16 @@ function isObjectInsideRange(object, range) {
 }
 
 function filterObjectsByRange(objects, range) {
+  const removedCommerceTypes = new Set([
+    'tool_store', 'bakery', 'building_store', 'furniture_store', 'metal_store', 'electric_store',
+    'construction_factory', 'industry_food', 'industry_mill', 'industry_sawmill',
+    'industry_building_materials', 'industry_cement', 'industry_metallurgy', 'industry_cable', 'industry_tools',
+  ]);
   const withoutLegacyFarmFields = Array.isArray(objects)
-    ? objects.filter((object) => !['farm_field', 'industry_food', 'industry_mill'].includes(String(object?.type || object?.payload?.jobType || '')))
+    ? objects.filter((object) => {
+      const type = String(object?.type || object?.payload?.jobType || object?.payload?.businessType || '');
+      return type !== 'farm_field' && !removedCommerceTypes.has(type);
+    })
     : [];
 
   if (!range) return withoutLegacyFarmFields;
@@ -622,7 +630,14 @@ async function fetchRemoteObjects(cityId, options = {}) {
   }
 
   const objects = Array.isArray(data)
-    ? data.map(fromDbRow).filter((object) => !['farm_field', 'industry_food', 'industry_mill'].includes(String(object?.type || object?.payload?.jobType || '')))
+    ? data.map(fromDbRow).filter((object) => {
+      const type = String(object?.type || object?.payload?.jobType || object?.payload?.businessType || '');
+      return type !== 'farm_field' && ![
+        'tool_store', 'bakery', 'building_store', 'furniture_store', 'metal_store', 'electric_store',
+        'construction_factory', 'industry_food', 'industry_mill', 'industry_sawmill',
+        'industry_building_materials', 'industry_cement', 'industry_metallurgy', 'industry_cable', 'industry_tools',
+      ].includes(type);
+    })
     : [];
 
   console.log(
