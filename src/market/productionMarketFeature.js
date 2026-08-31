@@ -5,7 +5,7 @@ import { loadConstructionExchange, loadConstructionRawMarket, sellLumberToConstr
 import { PRODUCTION_CHAINS, productionChain, productionProduct, canonicalProductionChainForProduct } from './productionChains.js';
 import { loadIndustryExchange,loadIndustryRawMarket,sellIndustryRaw,createIndustryOffer,createIndustryRequest,acceptIndustryRequest,buyIndustryOffer,buyIndustryOfferForFactory } from '../industry/industryApi.js';
 
-const RAW_ITEMS={farm_apple:{icon:'🍎',label:'Яблоки',chainId:'fruit',groupId:'fruit'},farm_orange:{icon:'🍊',label:'Апельсины',chainId:'fruit',groupId:'fruit'},farm_wheat:{icon:'🌾',label:'Пшеница',chainId:'mill',groupId:'grain'},farm_corn:{icon:'🌽',label:'Кукуруза',chainId:'mill',groupId:'grain'},lumber_log:{icon:'🪵',label:'Брёвна',chainId:'sawmill',groupId:'wood'},lumber_beam:{icon:'▰',label:'Брус лесоруба',chainId:'sawmill',groupId:'wood'},mine_stone:{icon:'🪨',label:'Камень',chainId:'cement',groupId:'mine'},mine_coal:{icon:'⚫',label:'Уголь',chainId:'cement',groupId:'mine'},mine_metal:{icon:'⚙️',label:'Металлическая руда',chainId:'metallurgy',groupId:'mine'},mine_copper:{icon:'🟠',label:'Медная руда',chainId:'metallurgy',groupId:'mine'}};
+const RAW_ITEMS={farm_apple:{icon:'🍎',label:'Яблоки',chainId:'fruit',groupId:'farm'},farm_orange:{icon:'🍊',label:'Апельсины',chainId:'fruit',groupId:'farm'},farm_wheat:{icon:'🌾',label:'Пшеница',chainId:'fruit',groupId:'farm'},farm_corn:{icon:'🌽',label:'Кукуруза',chainId:'fruit',groupId:'farm'},lumber_log:{icon:'🪵',label:'Брёвна',chainId:'sawmill',groupId:'wood'},lumber_beam:{icon:'▰',label:'Брус лесоруба',chainId:'sawmill',groupId:'wood'},mine_stone:{icon:'🪨',label:'Камень',chainId:'cement',groupId:'mine'},mine_coal:{icon:'⚫',label:'Уголь',chainId:'cement',groupId:'mine'},mine_metal:{icon:'⚙️',label:'Металлическая руда',chainId:'metallurgy',groupId:'mine'},mine_copper:{icon:'🟠',label:'Медная руда',chainId:'metallurgy',groupId:'mine'}};
 
 const NEXT_FACTORY_CHAINS=Object.freeze({
   construction_cement:['cement'],metal_steel:['tools'],metal_copper:['cable'],
@@ -14,7 +14,7 @@ const NEXT_FACTORY_CHAINS=Object.freeze({
 const nextFactoryChains=(itemType)=>NEXT_FACTORY_CHAINS[String(itemType||'')]||[];
 
 const STORE_FOR_PRODUCT=Object.freeze({
- grocery_apple_juice:'grocery',grocery_orange_juice:'grocery',grocery_fruit_puree:'grocery',
+ grocery_apple_juice:'grocery',grocery_orange_juice:'grocery',grocery_fruit_salad:'grocery',grocery_bread:'grocery',grocery_snack:'grocery',
  food_wheat_flour:'bakery',food_corn_flour:'bakery',wood_dry_board:'furniture_store',wood_furniture_panel:'furniture_store',
  construction_board:'building_store',construction_timber:'building_store',construction_plywood:'building_store',construction_cement:'building_store',construction_concrete:'building_store',
  metal_steel:'metal_store',metal_copper:'metal_store',electric_copper_wire:'electric_store',electric_power_cable:'electric_store',
@@ -22,7 +22,7 @@ const STORE_FOR_PRODUCT=Object.freeze({
 });
 
 
-const RAW_GROUPS={fruit:{icon:'🍎',label:'Фрукты',chainId:'fruit'},grain:{icon:'🌾',label:'Зерновые',chainId:'mill'},wood:{icon:'🪵',label:'Древесина',chainId:'sawmill'},mine:{icon:'⛏️',label:'Руда и минералы',chainId:'metallurgy'}};
+const RAW_GROUPS={farm:{icon:'🌾',label:'Сырьё с фермы',chainId:'fruit'},wood:{icon:'🪵',label:'Древесина',chainId:'sawmill'},mine:{icon:'⛏️',label:'Руда и минералы',chainId:'metallurgy'}};
 const esc=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const money=(v)=>`${Math.max(0,Math.round(Number(v)||0)).toLocaleString('ru-RU')} ₴`;
 const quantity=(v)=>Math.max(0,Math.floor(Number(v)||0));
@@ -60,7 +60,7 @@ async function loadUniversalRaw(){
   if(providers[2].status==='fulfilled'){
     merged.push(...(providers[2].value?.offers||[])
       .filter(item=>[
-        'food','mill','sawmill','building_materials',
+        'sawmill','building_materials',
         'cement','metallurgy','cable','tools'
       ].includes(String(item?.industryId||item?.chainId||'')))
       .map(item=>({
@@ -128,11 +128,13 @@ async function loadUniversalExchange(){
     result.factories.push(...mapItems(data.myFactories));
     result.stores.push(...mapItems(data.myStores));
 
-    // Fruit juices/puree belong to legacy fruit_factory, not industry_food.
+    // Все продукты фермы принадлежат единому fruit_factory.
     const fruitProducts=new Set([
       'grocery_apple_juice',
       'grocery_orange_juice',
-      'grocery_fruit_puree'
+      'grocery_fruit_salad',
+      'grocery_bread',
+      'grocery_snack'
     ]);
 
     result.offers.push(...mapItems(data.offers)
