@@ -136,7 +136,7 @@ export function getEntityMetaText(object) {
     if (type === 'lumber_station') return 'Лесоруб · топор, бензопила, распил и продажа';
     if (type === 'lumber_deciduous_tree') return 'Лесоруб · лиственное дерево';
     if (type === 'lumber_pine_tree') return 'Лесоруб · сосна';
-    if (type === 'fruit_factory') return 'Фруктовый завод · переработка и хранение продукции';
+    if (type === 'fruit_factory') return 'Завод питания · переработка всего сырья фермы, упаковка и логистика';
     if (type === 'construction_factory') return 'Завод стройматериалов · древесина, производство и оптовые поставки';
     if (type.startsWith('industry_')) return 'Промышленное предприятие · работа, производство, склады и управление';
     return 'Рабочая точка';
