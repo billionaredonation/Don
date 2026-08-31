@@ -20,11 +20,11 @@ const objectId = (o) => String(
 const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message, type } }));
 
 function markup() {
-  const recipes = Object.values(FACTORY_RECIPES).map((r) => `<article class="mn-factory-recipe"><i>${r.icon}</i><span><strong>${r.label}</strong><small>${r.inputIcon} ${r.inputQty} → ${r.outputQty} ед. · ${r.seconds} сек.</small></span><button data-factory-start="${r.id}">Запустить</button></article>`).join('');
+  const recipes = Object.values(FACTORY_RECIPES).map((r) => `<article class="mn-factory-recipe"><i>${r.icon}</i><span><strong>${r.label}</strong><small>${r.inputIcon} ${r.inputLabel}: ${r.inputQty} → ${r.outputQty} ед. · готовка 3 сек.</small>${r.anyFruit ? `<select data-factory-ingredient="${r.id}" aria-label="Выберите фрукт или ягоду"><option value="farm_apple">🍎 Яблоки</option><option value="farm_orange">🍊 Апельсины</option></select>` : ''}</span><button data-factory-start="${r.id}">Начать цепочку</button></article>`).join('');
   const raw = FACTORY_RAW_ITEMS.map((i) => `<article><i>${i.icon}</i><span><small>${i.label}</small><strong data-factory-raw="${i.itemType}">0</strong></span><div><input type="number" min="1" value="1" inputmode="numeric" data-factory-deliver-qty="${i.itemType}" aria-label="Количество"><button data-factory-deliver="${i.itemType}">Сдать</button></div></article>`).join('');
   const legal = FACTORY_CONFIG.legalForms.map((v) => `<option>${v}</option>`).join('');
   return `<div class="mn-factory-backdrop" data-factory-modal hidden><section class="mn-factory-panel">
-    <header><div><small>ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ</small><h2>Завод по производству питания</h2><p>Ферма → производство → упаковка → контроль → склад → логистика → магазин</p></div><button data-factory-close aria-label="Закрыть">×</button></header>
+    <header><div><small>ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ</small><h2>Продуктовый завод</h2><p>Ферма → грузчик → повар (3 сек.) → упаковщик → склад → логистика → склад магазина → полка</p></div><button data-factory-close aria-label="Закрыть">×</button></header>
     <nav><button data-factory-tab="production" class="is-active">Производство</button><button data-factory-tab="warehouse">Склады</button><button data-factory-tab="management">Управление</button></nav>
     <main>
       <section data-factory-page="production"><div class="mn-factory-status"><span><small>Статус</small><strong data-factory-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-factory-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-factory-cash>—</strong></span></div><div class="mn-factory-workflow">${FACTORY_ROLES.map((role, index) => `<span><i>${role.icon}</i><b>${index + 1}. ${role.label}</b></span>`).join('<em>→</em>')}<em>→</em><span><i>🏬</i><b>Склад</b></span><em>→</em><span><i>🚚</i><b>Логистика</b></span></div><div class="mn-factory-line" data-factory-line><i>⚙️</i><span><strong>Линия свободна</strong><small>Выберите рецепт и запустите смену</small></span><button data-factory-finish hidden>Передать на склад</button></div><h3>Технологические карты</h3><div class="mn-factory-recipes">${recipes}</div></section>
@@ -65,7 +65,7 @@ export function enableFactoryFeature({ root, cityId }) {
     qa('[data-factory-start]').forEach((b) => b.disabled = !business.ownerId || Boolean(batch));
     qa('[data-factory-deliver]').forEach((b) => b.disabled = !s.isOwner);
     const line = q('[data-factory-line]'), finish = q('[data-factory-finish]');
-    if (!batch) { line.querySelector('strong').textContent = 'Линия свободна'; line.querySelector('small').textContent = 'Выберите рецепт и запустите смену'; finish.hidden = true; }
+    if (!batch) { line.querySelector('strong').textContent = 'Линия свободна'; line.querySelector('small').textContent = 'Грузчик может подать сырьё по выбранному рецепту'; finish.hidden = true; }
     else { const recipe = FACTORY_RECIPES[batch.recipeId]; const left = Math.max(0, Math.ceil((new Date(batch.readyAt).getTime() - Date.now()) / 1000)); line.querySelector('strong').textContent = `${recipe?.label || 'Партия'} · ${left ? `${left} сек.` : 'готово'}`; line.querySelector('small').textContent = `Работник: ${batch.workerName || '—'} · зарплата ${formatFactoryMoney(batch.wage)}`; finish.hidden = left > 0; finish.dataset.batchId = batch.id; clearTimeout(timer); if (left > 0) timer = setTimeout(render, 1000); }
     qa('[data-factory-page="management"] input, [data-factory-page="management"] select, [data-factory-page="management"] button').forEach((el) => { if (!el.matches('[data-factory-purchase],[data-factory-legal]')) el.disabled = !s.isOwner; });
   }
@@ -74,7 +74,7 @@ export function enableFactoryFeature({ root, cityId }) {
   q('[data-factory-close]').onclick = () => { modal.hidden = true; clearTimeout(timer); };
   qa('[data-factory-tab]').forEach((b) => b.onclick = () => tab(b.dataset.factoryTab));
   action('[data-factory-purchase]', () => purchaseFactory(currentId, cityId, q('[data-factory-legal]').value));
-  qa('[data-factory-start]').forEach((b) => b.onclick = () => run(() => startFactoryBatch(currentId, cityId, b.dataset.factoryStart)));
+  qa('[data-factory-start]').forEach((b) => b.onclick = () => run(() => startFactoryBatch(currentId, cityId, b.dataset.factoryStart, q(`[data-factory-ingredient="${b.dataset.factoryStart}"]`)?.value || '')));
   action('[data-factory-finish]', () => finishFactoryBatch(currentId, cityId, q('[data-factory-finish]').dataset.batchId));
   action('[data-factory-deposit]', () => depositFactory(currentId, cityId, Number(q('[data-factory-money]').value)));
   action('[data-factory-withdraw]', () => withdrawFactory(currentId, cityId, Number(q('[data-factory-money]').value)));
@@ -104,4 +104,3 @@ export function enableFactoryFeature({ root, cityId }) {
   window.addEventListener('mn:factory-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
 }
-
