@@ -1,12 +1,13 @@
 export const PRODUCTION_CHAINS = {
-  food:Object.freeze({id:'food',factoryType:'industry_food',factoryLabel:'Пищевой комбинат',factoryIcon:'🏭',storeType:'grocery',storeLabel:'Продуктовый магазин',products:Object.freeze([])}),
   fruit: Object.freeze({
-    id: 'fruit', factoryType: 'fruit_factory', factoryLabel: 'Фруктовый завод', factoryIcon: '🏭',
+    id: 'fruit', factoryType: 'fruit_factory', factoryLabel: 'Завод по производству питания', factoryIcon: '🏭',
     storeType: 'grocery', storeLabel: 'Продуктовый магазин',
     products: Object.freeze([
       { id: 'grocery_apple_juice', label: 'Яблочный сок', icon: '🧃' },
       { id: 'grocery_orange_juice', label: 'Апельсиновый сок', icon: '🥤' },
-      { id: 'grocery_fruit_puree', label: 'Фруктовое пюре', icon: '🥫' },
+      { id: 'grocery_fruit_salad', label: 'Фруктовый салат', icon: '🥗' },
+      { id: 'grocery_bread', label: 'Хлеб', icon: '🍞' },
+      { id: 'grocery_snack', label: 'Кукурузные снеки', icon: '🍿' },
     ]),
   }),
   construction: Object.freeze({
@@ -18,7 +19,6 @@ export const PRODUCTION_CHAINS = {
       { id: 'construction_plywood', label: 'Фанерный лист', icon: '🟫' },
     ]),
   }),
-  mill:Object.freeze({id:'mill',factoryType:'industry_mill',factoryLabel:'Мукомольный завод',factoryIcon:'🌾',storeType:'bakery',storeLabel:'Пекарня',products:Object.freeze([{id:'food_wheat_flour',label:'Пшеничная мука',icon:'🥣'},{id:'food_corn_flour',label:'Кукурузная мука',icon:'🟡'}])}),
   sawmill:Object.freeze({id:'sawmill',factoryType:'industry_sawmill',factoryLabel:'Лесопильный завод',factoryIcon:'🪚',storeType:'furniture_store',storeLabel:'Мебельный магазин',products:Object.freeze([{id:'wood_dry_board',label:'Сухая доска',icon:'🪵'},{id:'wood_furniture_panel',label:'Мебельный щит',icon:'🟫'}])}),
   building_materials:Object.freeze({id:'building_materials',factoryType:'industry_building_materials',factoryLabel:'Завод стройматериалов',factoryIcon:'🏗️',storeType:'building_store',storeLabel:'Строительный магазин',products:Object.freeze([{id:'construction_board',label:'Обрезная доска',icon:'🪚'},{id:'construction_timber',label:'Строительный брус',icon:'▰'},{id:'construction_plywood',label:'Фанерный лист',icon:'🟫'}])}),
   cement:Object.freeze({id:'cement',factoryType:'industry_cement',factoryLabel:'Цементный завод',factoryIcon:'🏭',storeType:'building_store',storeLabel:'Строительный магазин',products:Object.freeze([{id:'construction_cement',label:'Цемент',icon:'⚪'},{id:'construction_concrete',label:'Бетонная смесь',icon:'🧱'}])}),
@@ -40,11 +40,12 @@ export function registerProductionChain(chain) {
 const PRODUCT_CHAIN_OVERRIDES = Object.freeze({
   grocery_apple_juice: 'fruit',
   grocery_orange_juice: 'fruit',
-  grocery_fruit_puree: 'fruit',
+  grocery_fruit_salad: 'fruit',
+  grocery_bread: 'fruit',
+  grocery_snack: 'fruit',
 });
 
 export function canonicalProductionChainForProduct(productId, fallbackChainId = '') {
   const product = String(productId || '').trim();
   return PRODUCT_CHAIN_OVERRIDES[product] || String(fallbackChainId || '').trim();
 }
-
