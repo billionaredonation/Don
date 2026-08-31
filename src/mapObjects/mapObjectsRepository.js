@@ -209,7 +209,7 @@ function isObjectInsideRange(object, range) {
 
 function filterObjectsByRange(objects, range) {
   const withoutLegacyFarmFields = Array.isArray(objects)
-    ? objects.filter((object) => String(object?.type || object?.payload?.jobType || '') !== 'farm_field')
+    ? objects.filter((object) => !['farm_field', 'industry_food', 'industry_mill'].includes(String(object?.type || object?.payload?.jobType || '')))
     : [];
 
   if (!range) return withoutLegacyFarmFields;
@@ -622,7 +622,7 @@ async function fetchRemoteObjects(cityId, options = {}) {
   }
 
   const objects = Array.isArray(data)
-    ? data.map(fromDbRow).filter((object) => String(object?.type || object?.payload?.jobType || '') !== 'farm_field')
+    ? data.map(fromDbRow).filter((object) => !['farm_field', 'industry_food', 'industry_mill'].includes(String(object?.type || object?.payload?.jobType || '')))
     : [];
 
   console.log(
