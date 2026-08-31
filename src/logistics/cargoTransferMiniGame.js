@@ -1,11 +1,11 @@
 import './cargoTransferMiniGame.css';
 
 const labels = {
-  apple_juice: ['🧃', 'Яблочный сок'],
-  orange_juice: ['🥤', 'Апельсиновый сок'],
-  fruit_salad: ['🥗', 'Фруктовый салат'],
   bread: ['🍞', 'Хлеб'],
-  corn_snack: ['🍿', 'Кукурузные снеки'],
+  pasta: ['🍝', 'Макароны (1 кг)'],
+  diet_fruit_salad: ['🥗', 'Салат диетический'],
+  universal_fruit_salad: ['🥙', 'Салат универсальный фруктовый'],
+  multifruit_juice: ['🧃', 'Сок мультифрукт'],
 };
 
 let activeCargoGame = null;
@@ -62,4 +62,3 @@ export function playCargoTransferMiniGame({ direction = 'factory_to_vehicle', pr
   });
   return activeCargoGame;
 }
-
