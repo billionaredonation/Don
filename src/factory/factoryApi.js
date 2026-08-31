@@ -18,7 +18,7 @@ export const loadFactorySnapshot = (factoryId, cityId) => invoke('snapshot', { f
 export const purchaseFactory = (factoryId, cityId, legalForm) => invoke('purchase', { factoryId, cityId, legalForm });
 export const transferFarmRawToFactory = (factoryId, cityId, itemType, quantity) => invoke('deliver', { factoryId, cityId, itemType, quantity });
 export const transferFruitToFactory = transferFarmRawToFactory;
-export const startFactoryBatch = (factoryId, cityId, recipeId) => invoke('start_batch', { factoryId, cityId, recipeId });
+export const startFactoryBatch = (factoryId, cityId, recipeId, ingredientType = '') => invoke('start_batch', { factoryId, cityId, recipeId, ingredientType });
 export const finishFactoryBatch = (factoryId, cityId, batchId) => invoke('finish_batch', { factoryId, cityId, batchId });
 export const depositFactory = (factoryId, cityId, amount) => invoke('deposit', { factoryId, cityId, amount });
 export const withdrawFactory = (factoryId, cityId, amount) => invoke('withdraw', { factoryId, cityId, amount });
@@ -65,4 +65,3 @@ export function getFactoryError(error) {
   const key = Object.keys(messages).find((code) => raw.includes(code));
   return key ? messages[key] : raw;
 }
-
