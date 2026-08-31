@@ -3,3 +3,4 @@ export const INDUSTRY_ROLES = Object.freeze({
   operator: { id: 'operator', label: 'Оператор станка', icon: '⚙️', game: 'operator' },
   quality: { id: 'quality', label: 'Контролёр качества', icon: '✅', game: 'inspection' },
 });
+
