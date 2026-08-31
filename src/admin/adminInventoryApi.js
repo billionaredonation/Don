@@ -79,9 +79,11 @@ const ADMIN_ITEMS = Object.freeze([
   { id: 'grocery_snack', label: '🍪 Снеки', category: 'Продуктовый магазин' },
 
   // Единый завод по производству питания
-  { id: 'grocery_apple_juice', label: '🧃 Яблочный сок', category: 'Завод питания' },
-  { id: 'grocery_orange_juice', label: '🥤 Апельсиновый сок', category: 'Завод питания' },
-  { id: 'grocery_fruit_salad', label: '🥗 Фруктовый салат', category: 'Завод питания' },
+  { id: 'grocery_bread', label: '🍞 Хлеб', category: 'Завод питания' },
+  { id: 'grocery_pasta', label: '🍝 Макароны (1 кг)', category: 'Завод питания' },
+  { id: 'grocery_diet_fruit_salad', label: '🥗 Салат диетический', category: 'Завод питания' },
+  { id: 'grocery_universal_fruit_salad', label: '🥙 Салат универсальный фруктовый', category: 'Завод питания' },
+  { id: 'grocery_multifruit_juice', label: '🧃 Сок мультифрукт', category: 'Завод питания' },
 
 ]);
 
