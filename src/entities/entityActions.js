@@ -5,14 +5,13 @@ import { handleNpcAction } from './npcActions.js';
 const BUSINESS_ENTITY_TYPES = new Set([
   'shop',
   'grocery',
-  'tool_store',
   'cafe',
   'gas_station',
   'bank',
   'warehouse',
   'office',
   'market',
-  'bakery','building_store','furniture_store','metal_store','electric_store','logistics_hub',
+  'logistics_hub',
 ]);
 
 export function getEntityKind(object) {
@@ -137,8 +136,6 @@ export function getEntityMetaText(object) {
     if (type === 'lumber_deciduous_tree') return 'Лесоруб · лиственное дерево';
     if (type === 'lumber_pine_tree') return 'Лесоруб · сосна';
     if (type === 'fruit_factory') return 'Завод питания · переработка всего сырья фермы, упаковка и логистика';
-    if (type === 'construction_factory') return 'Завод стройматериалов · древесина, производство и оптовые поставки';
-    if (type.startsWith('industry_')) return 'Промышленное предприятие · работа, производство, склады и управление';
     return 'Рабочая точка';
   }
 
@@ -207,12 +204,8 @@ export function dispatchEntityAction(object) {
 
   if (kind === 'job') {
     const cleanType = String(type || '');
-    const eventName = cleanType.startsWith('industry_')
-      ? 'mn:industry-object-action'
-      : cleanType === 'fruit_factory'
+    const eventName = cleanType === 'fruit_factory'
       ? 'mn:factory-object-action'
-      : cleanType === 'construction_factory'
-      ? 'mn:construction-object-action'
       : cleanType.startsWith('mine_')
       ? 'mn:mine-object-action'
       : cleanType.startsWith('lumber_')
