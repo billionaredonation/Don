@@ -62,3 +62,4 @@ export function playCargoTransferMiniGame({ direction = 'factory_to_vehicle', pr
   });
   return activeCargoGame;
 }
+
