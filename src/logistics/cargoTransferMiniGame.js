@@ -13,7 +13,9 @@ let activeCargoGame = null;
 export function playCargoTransferMiniGame({ direction = 'factory_to_vehicle', productType, quantity }) {
   if (activeCargoGame) return activeCargoGame;
   const amount = Math.max(1, Math.floor(Number(quantity) || 1));
-  const boxCount = Math.min(8, Math.max(3, Math.ceil(amount / 5)));
+  // Одна коробка представляет до пяти единиц продукции. Для партии из одной
+  // единицы нельзя требовать три коробки: это визуально и механически неверно.
+  const boxCount = Math.min(8, Math.max(1, Math.ceil(amount / 5)));
   const [icon, label] = labels[productType] || ['📦', 'Готовая продукция'];
   const loading = direction === 'factory_to_vehicle';
 
