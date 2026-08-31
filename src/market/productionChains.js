@@ -10,21 +10,6 @@ export const PRODUCTION_CHAINS = {
       { id: 'grocery_snack', label: 'Кукурузные снеки', icon: '🍿' },
     ]),
   }),
-  construction: Object.freeze({
-    id: 'construction', factoryType: 'construction_factory', factoryLabel: 'Завод стройматериалов', factoryIcon: '🏗️',
-    storeType: 'tool_store', storeLabel: 'Инструментальный магазин',
-    products: Object.freeze([
-      { id: 'construction_board', label: 'Обрезная доска', icon: '🪚' },
-      { id: 'construction_timber', label: 'Строительный брус', icon: '▰' },
-      { id: 'construction_plywood', label: 'Фанерный лист', icon: '🟫' },
-    ]),
-  }),
-  sawmill:Object.freeze({id:'sawmill',factoryType:'industry_sawmill',factoryLabel:'Лесопильный завод',factoryIcon:'🪚',storeType:'furniture_store',storeLabel:'Мебельный магазин',products:Object.freeze([{id:'wood_dry_board',label:'Сухая доска',icon:'🪵'},{id:'wood_furniture_panel',label:'Мебельный щит',icon:'🟫'}])}),
-  building_materials:Object.freeze({id:'building_materials',factoryType:'industry_building_materials',factoryLabel:'Завод стройматериалов',factoryIcon:'🏗️',storeType:'building_store',storeLabel:'Строительный магазин',products:Object.freeze([{id:'construction_board',label:'Обрезная доска',icon:'🪚'},{id:'construction_timber',label:'Строительный брус',icon:'▰'},{id:'construction_plywood',label:'Фанерный лист',icon:'🟫'}])}),
-  cement:Object.freeze({id:'cement',factoryType:'industry_cement',factoryLabel:'Цементный завод',factoryIcon:'🏭',storeType:'building_store',storeLabel:'Строительный магазин',products:Object.freeze([{id:'construction_cement',label:'Цемент',icon:'⚪'},{id:'construction_concrete',label:'Бетонная смесь',icon:'🧱'}])}),
-  metallurgy:Object.freeze({id:'metallurgy',factoryType:'industry_metallurgy',factoryLabel:'Металлургический комбинат',factoryIcon:'🔥',storeType:'metal_store',storeLabel:'Металлобаза',products:Object.freeze([{id:'metal_steel',label:'Стальной прокат',icon:'🔩'},{id:'metal_copper',label:'Медная катанка',icon:'🟠'}])}),
-  cable:Object.freeze({id:'cable',factoryType:'industry_cable',factoryLabel:'Кабельный завод',factoryIcon:'⚡',storeType:'electric_store',storeLabel:'Магазин электрики',products:Object.freeze([{id:'electric_copper_wire',label:'Медный провод',icon:'🧵'},{id:'electric_power_cable',label:'Силовой кабель',icon:'🔌'}])}),
-  tools:Object.freeze({id:'tools',factoryType:'industry_tools',factoryLabel:'Завод инструментов',factoryIcon:'🛠️',storeType:'tool_store',storeLabel:'Магазин инструментов',products:Object.freeze([{id:'mine_tool_pickaxe',label:'Кирка',icon:'⛏️'},{id:'lumber_tool_axe',label:'Топор',icon:'🪓'},{id:'lumber_tool_chainsaw',label:'Бензопила',icon:'🪚'}])}),
 };
 
 export function productionChain(id) { return PRODUCTION_CHAINS[String(id || '').trim()] || PRODUCTION_CHAINS.fruit; }
