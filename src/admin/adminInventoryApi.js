@@ -70,13 +70,6 @@ const ADMIN_ITEMS = Object.freeze([
   { id: 'lumber_log', label: '🪵 Бревно', category: 'Лесозаготовка' },
   { id: 'lumber_beam', label: '▰ Брус', category: 'Лесозаготовка' },
 
-  // Старый/новый завод стройматериалов
-  { id: 'construction_board', label: '🪚 Обрезная доска', category: 'Стройматериалы' },
-  { id: 'construction_timber', label: '▰ Строительный брус', category: 'Стройматериалы' },
-  { id: 'construction_plywood', label: '🟫 Фанерный лист', category: 'Стройматериалы' },
-  { id: 'construction_cement', label: '⚪ Цемент', category: 'Цементный завод' },
-  { id: 'construction_concrete', label: '🧱 Бетонная смесь', category: 'Цементный завод' },
-
   // Продуктовый магазин / старые базовые товары
   { id: 'grocery_bread', label: '🍞 Хлеб', category: 'Продуктовый магазин' },
   { id: 'grocery_milk', label: '🥛 Молоко', category: 'Продуктовый магазин' },
@@ -90,22 +83,6 @@ const ADMIN_ITEMS = Object.freeze([
   { id: 'grocery_orange_juice', label: '🥤 Апельсиновый сок', category: 'Завод питания' },
   { id: 'grocery_fruit_salad', label: '🥗 Фруктовый салат', category: 'Завод питания' },
 
-  // Мукомольный завод
-  { id: 'food_wheat_flour', label: '🥣 Пшеничная мука', category: 'Мукомольный завод' },
-  { id: 'food_corn_flour', label: '🟡 Кукурузная мука', category: 'Мукомольный завод' },
-
-  // Лесопильный завод
-  { id: 'wood_dry_board', label: '🪵 Сухая доска', category: 'Лесопильный завод' },
-  { id: 'wood_furniture_panel', label: '🟫 Мебельный щит', category: 'Лесопильный завод' },
-
-  // Металлургия
-  { id: 'metal_steel', label: '🔩 Стальной прокат', category: 'Металлургический завод' },
-  { id: 'metal_copper', label: '🟠 Медная катанка', category: 'Металлургический завод' },
-
-  // Кабельный завод
-  { id: 'industrial_plastic', label: '🧪 Промышленный пластик', category: 'Кабельный завод · сырьё', storage: 'industry' },
-  { id: 'electric_copper_wire', label: '🧵 Медный провод', category: 'Кабельный завод' },
-  { id: 'electric_power_cable', label: '🔌 Силовой кабель', category: 'Кабельный завод' },
 ]);
 
 export function getAdminInventoryCatalog() {
