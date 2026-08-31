@@ -346,7 +346,7 @@ function applyObjectStyle(element, object, meta) {
   const payload = getPayload(object);
   const jobWidth = clamp(toFiniteNumber(payload.renderWidth, meta.type === 'farm_field' ? 8 : 2.6), 0.8, 30);
   const jobHeight = clamp(toFiniteNumber(payload.renderHeight, meta.type === 'farm_field' ? 8 : 2.2), 0.8, 30);
-  const customJobSize = meta.category === 'job' && (['farm_field', 'farm_station', 'mine_station', 'lumber_station'].includes(meta.type) || meta.type.startsWith('industry_'));
+  const customJobSize = meta.category === 'job' && ['farm_field', 'farm_station', 'mine_station', 'lumber_station', 'fruit_factory'].includes(meta.type);
 
   element.style.position = 'absolute';
   element.style.left = `${x}%`;
