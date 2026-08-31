@@ -99,11 +99,11 @@ export const BUSINESS_ROLE_LABELS = Object.freeze({
 });
 
 export const BUSINESS_PRODUCTS = Object.freeze([
-  { itemType: 'grocery_apple_juice', factoryProduct: 'apple_juice', label: 'Яблочный сок', icon: '🧃', foodRestore: 4, waterRestore: 24, suggestedPrice: 58 },
-  { itemType: 'grocery_orange_juice', factoryProduct: 'orange_juice', label: 'Апельсиновый сок', icon: '🥤', foodRestore: 5, waterRestore: 26, suggestedPrice: 68 },
-  { itemType: 'grocery_fruit_salad', factoryProduct: 'fruit_salad', label: 'Фруктовый салат', icon: '🥗', foodRestore: 24, waterRestore: 9, suggestedPrice: 78 },
   { itemType: 'grocery_bread', factoryProduct: 'bread', label: 'Хлеб', icon: '🍞', foodRestore: 28, waterRestore: 0, suggestedPrice: 52 },
-  { itemType: 'grocery_snack', factoryProduct: 'corn_snack', label: 'Кукурузные снеки', icon: '🍿', foodRestore: 18, waterRestore: -2, suggestedPrice: 46 },
+  { itemType: 'grocery_pasta', factoryProduct: 'pasta', label: 'Макароны (1 кг)', icon: '🍝', foodRestore: 42, waterRestore: -2, suggestedPrice: 75 },
+  { itemType: 'grocery_diet_fruit_salad', factoryProduct: 'diet_fruit_salad', label: 'Салат диетический', icon: '🥗', foodRestore: 22, waterRestore: 8, suggestedPrice: 65 },
+  { itemType: 'grocery_universal_fruit_salad', factoryProduct: 'universal_fruit_salad', label: 'Салат универсальный фруктовый', icon: '🥙', foodRestore: 34, waterRestore: 12, suggestedPrice: 95 },
+  { itemType: 'grocery_multifruit_juice', factoryProduct: 'multifruit_juice', label: 'Сок мультифрукт', icon: '🧃', foodRestore: 5, waterRestore: 25, suggestedPrice: 45 },
 ]);
 
 export const BUSINESS_PRODUCTS_BY_TYPE = Object.freeze({
