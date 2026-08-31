@@ -3,11 +3,11 @@ export const PRODUCTION_CHAINS = {
     id: 'fruit', factoryType: 'fruit_factory', factoryLabel: 'Завод по производству питания', factoryIcon: '🏭',
     storeType: 'grocery', storeLabel: 'Продуктовый магазин',
     products: Object.freeze([
-      { id: 'grocery_apple_juice', label: 'Яблочный сок', icon: '🧃' },
-      { id: 'grocery_orange_juice', label: 'Апельсиновый сок', icon: '🥤' },
-      { id: 'grocery_fruit_salad', label: 'Фруктовый салат', icon: '🥗' },
       { id: 'grocery_bread', label: 'Хлеб', icon: '🍞' },
-      { id: 'grocery_snack', label: 'Кукурузные снеки', icon: '🍿' },
+      { id: 'grocery_pasta', label: 'Макароны (1 кг)', icon: '🍝' },
+      { id: 'grocery_diet_fruit_salad', label: 'Салат диетический', icon: '🥗' },
+      { id: 'grocery_universal_fruit_salad', label: 'Салат универсальный фруктовый', icon: '🥙' },
+      { id: 'grocery_multifruit_juice', label: 'Сок мультифрукт', icon: '🧃' },
     ]),
   }),
 };
@@ -23,11 +23,11 @@ export function registerProductionChain(chain) {
 
 
 const PRODUCT_CHAIN_OVERRIDES = Object.freeze({
-  grocery_apple_juice: 'fruit',
-  grocery_orange_juice: 'fruit',
-  grocery_fruit_salad: 'fruit',
   grocery_bread: 'fruit',
-  grocery_snack: 'fruit',
+  grocery_pasta: 'fruit',
+  grocery_diet_fruit_salad: 'fruit',
+  grocery_universal_fruit_salad: 'fruit',
+  grocery_multifruit_juice: 'fruit',
 });
 
 export function canonicalProductionChainForProduct(productId, fallbackChainId = '') {
