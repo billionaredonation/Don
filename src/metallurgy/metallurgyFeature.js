@@ -22,7 +22,7 @@ const esc = (value) => String(value ?? '')
   .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 const objectType = (object) => String(object?.type || object?.payload?.jobType || object?.payload?.type || '');
 const objectId = (object) => String(object?.payload?.metallurgyFactoryId || object?.payload?.factoryId || object?.id || '').trim();
-const toast = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message, type } }));
+const toast = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 
 function recipeMarkup(recipe) {
   const destinations = recipe.destinations.map((id) => METALLURGY_DESTINATIONS[id] || id).join(' · ');
@@ -143,6 +143,15 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
   qa('[data-metallurgy-produce]').forEach((button) => { button.onclick = () => {
     const recipeId = button.dataset.metallurgyProduce;
     const batches = Math.max(1, Math.min(100, Math.floor(Number(q(`[data-metallurgy-batches="${recipeId}"]`).value) || 1)));
+    const recipe = METALLURGY_RECIPES[recipeId];
+    const missing = Object.entries(recipe?.inputs || {}).find(([itemType, perBatch]) => Number(snapshot?.raw?.[itemType] || 0) < Number(perBatch) * batches);
+    if (missing) {
+      const [itemType, perBatch] = missing;
+      const item = METALLURGY_RAW_ITEMS.find((entry) => entry.itemType === itemType);
+      const available = Number(snapshot?.raw?.[itemType] || 0);
+      toast(`Недостаточно сырья: ${item?.label || itemType}. На складе ${available}, нужно ${Number(perBatch) * batches}.`, 'error');
+      return;
+    }
     run(() => produceMetallurgyBatch(currentFactoryId, cityId, recipeId, batches), 'Партия произведена и отправлена на склад.');
   }; });
   q('[data-metallurgy-purchase]').onclick = () => run(() => purchaseMetallurgyFactory(currentFactoryId, cityId), 'Металлургический завод куплен.');
@@ -154,4 +163,3 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     modal.remove();
   };
 }
-
