@@ -29,6 +29,9 @@ export function getMetallurgyError(error) {
     METALLURGY_FACTORY_ALREADY_OWNED: 'У этого завода уже есть владелец.',
     METALLURGY_OWNER_REQUIRED: 'Производством может управлять только владелец завода.',
     METALLURGY_RECIPE_INVALID: 'Такой технологической карты нет.',
+    METALLURGY_PRODUCT_INVALID: 'Такого компонента на складе нет.',
+    METALLURGY_DESTINATION_INVALID: 'Этот компонент нельзя отправить в выбранное место.',
+    METALLURGY_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовых компонентов.',
     METALLURGY_RAW_NOT_ENOUGH: 'На сырьевом складе недостаточно ресурсов для этой партии.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег для покупки завода.',
     METALLURGY_CASH_NOT_ENOUGH: 'На балансе завода недостаточно денег.',
@@ -54,3 +57,4 @@ export const purchaseMetallurgyFactory = (factoryId, cityId) => invokeMetallurgy
 export const produceMetallurgyBatch = (factoryId, cityId, recipeId, batches = 1) => invokeMetallurgyAction('produce', { factoryId, cityId, recipeId, batches });
 export const depositMetallurgyCash = (factoryId, cityId, amount) => invokeMetallurgyAction('deposit', { factoryId, cityId, amount });
 export const withdrawMetallurgyCash = (factoryId, cityId, amount) => invokeMetallurgyAction('withdraw', { factoryId, cityId, amount });
+export const dispatchMetallurgyProduct = (factoryId, cityId, productType, quantity, destination) => invokeMetallurgyAction('dispatch', { factoryId, cityId, productType, quantity, destination });
