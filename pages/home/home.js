@@ -42,6 +42,7 @@ import { enableFarmFeature } from '../../src/farm/farmFeature.js';
 import { enableMineFeature } from '../../src/mine/mineFeature.js';
 import { enableLumberFeature } from '../../src/lumber/lumberFeature.js';
 import { enableFactoryFeature } from '../../src/factory/factoryFeature.js';
+import { enableMetallurgyFeature } from '../../src/metallurgy/metallurgyFeature.js';
 import { enableProductionMarketFeature } from '../../src/market/productionMarketFeature.js';
 import { enableHospitalManagementFeature } from '../../src/hospital/hospitalManagementFeature.js';
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
@@ -1578,6 +1579,7 @@ register('home', async (root) => {
   let cleanupMineFeature = null;
   let cleanupLumberFeature = null;
   let cleanupFactoryFeature = null;
+  let cleanupMetallurgyFeature = null;
   let cleanupProductionMarket = null;
   let cleanupGameRealtime = null;
   let cleanupMobileSelfMarker = null;
@@ -2223,6 +2225,7 @@ register('home', async (root) => {
   });
 
   cleanupFactoryFeature = enableFactoryFeature({ root, cityId });
+  cleanupMetallurgyFeature = enableMetallurgyFeature({ root, cityId });
   cleanupProductionMarket = enableProductionMarketFeature({ root });
 
   cleanupEntityInteraction = enableEntityInteraction({
@@ -2440,6 +2443,7 @@ register('home', async (root) => {
     cleanupMineFeature?.();
     cleanupLumberFeature?.();
     cleanupFactoryFeature?.();
+    cleanupMetallurgyFeature?.();
     cleanupProductionMarket?.();
     cleanupInteriorExitReturn?.();
     cleanupHouseSpawnPicker?.();
@@ -2475,4 +2479,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
