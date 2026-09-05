@@ -101,7 +101,8 @@ function isWorkObject(object) {
     isMineNodeType(type) ||
     isLumberStationObject(object) ||
     isLumberTreeType(type) ||
-    type === 'fruit_factory'
+    type === 'fruit_factory' ||
+    type === 'metallurgy_factory'
   );
 }
 
@@ -2398,4 +2399,3 @@ export function enableEntityInteraction({
     layer.remove();
   };
 }
-
