@@ -10,6 +10,10 @@ export const PRODUCTION_CHAINS = {
       { id: 'grocery_multifruit_juice', label: 'Сок мультифрукт', icon: '🧃' },
     ]),
   }),
+  metallurgy: Object.freeze({
+    id: 'metallurgy', factoryType: 'metallurgy_factory', factoryLabel: 'Металлургический завод', factoryIcon: '🔥',
+    storeType: '', storeLabel: '', rawOnly: true, products: Object.freeze([]),
+  }),
 };
 
 export function productionChain(id) { return PRODUCTION_CHAINS[String(id || '').trim()] || PRODUCTION_CHAINS.fruit; }
