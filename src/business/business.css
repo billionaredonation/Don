@@ -4,25 +4,25 @@
   color: #f8fbf4; font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Tool store keeps the proven responsive store layout, but has its own warm
-   workshop identity so players never confuse it with the grocery business. */
-.mn-business-store[data-business-type="tool_store"] .mn-business-store-shell {
+/* Construction retail keeps the proven responsive store layout, but has its
+   own warm workshop identity so players never confuse it with groceries. */
+.mn-business-store:is([data-business-type="tool_store"], [data-business-type="construction_store"]) .mn-business-store-shell {
   border-color: rgba(238, 164, 73, .26);
   box-shadow: 0 24px 80px rgba(0, 0, 0, .62), inset 0 1px rgba(255, 196, 111, .04);
 }
-.mn-business-store[data-business-type="tool_store"] .mn-business-store-header b,
-.mn-business-store[data-business-type="tool_store"] .mn-business-shelf > small,
-.mn-business-store[data-business-type="tool_store"] .mn-business-cart > header b {
+.mn-business-store:is([data-business-type="tool_store"], [data-business-type="construction_store"]) .mn-business-store-header b,
+.mn-business-store:is([data-business-type="tool_store"], [data-business-type="construction_store"]) .mn-business-shelf > small,
+.mn-business-store:is([data-business-type="tool_store"], [data-business-type="construction_store"]) .mn-business-cart > header b {
   color: #ffd497;
   background: rgba(224, 137, 43, .12);
 }
-.mn-business-store[data-business-type="tool_store"] button.is-primary,
-.mn-business-store[data-business-type="tool_store"] [data-business-checkout] {
+.mn-business-store:is([data-business-type="tool_store"], [data-business-type="construction_store"]) button.is-primary,
+.mn-business-store:is([data-business-type="tool_store"], [data-business-type="construction_store"]) [data-business-checkout] {
   border-color: rgba(242, 169, 78, .36);
   color: #fff5e5;
   background: linear-gradient(135deg, rgba(193, 102, 28, .92), rgba(126, 66, 22, .94));
 }
-.mn-business-store[data-business-type="tool_store"] .mn-business-shelf:not(.is-empty) > i {
+.mn-business-store:is([data-business-type="tool_store"], [data-business-type="construction_store"]) .mn-business-shelf:not(.is-empty) > i {
   border-color: rgba(235, 164, 78, .25);
   background: rgba(184, 101, 28, .12);
 }
