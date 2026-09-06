@@ -26,3 +26,4 @@ export async function loadIndustryInventory() {
   if (!data?.ok) throw new Error(data?.error || 'INDUSTRY_INVENTORY_FAILED');
   return data.result;
 }
+
