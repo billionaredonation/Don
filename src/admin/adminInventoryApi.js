@@ -59,20 +59,20 @@ const ADMIN_ITEMS = Object.freeze([
 
   // Нормализованное сырьё промышленности.
   // Это не добываемые q-предметы, но эти item_type реально используются заводскими RPC.
-  { id: 'mine_stone', label: '🪨 Камень · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'industry' },
-  { id: 'mine_coal', label: '⚫ Уголь · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'industry' },
-  { id: 'mine_metal', label: '⚙️ Металл · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'industry' },
-  { id: 'mine_copper', label: '🟠 Медь · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'industry' },
+  { id: 'mine_stone', label: '🪨 Камень · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'mine' },
+  { id: 'mine_coal', label: '⚫ Уголь · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'mine' },
+  { id: 'mine_metal', label: '⚙️ Металл · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'mine' },
+  { id: 'mine_copper', label: '🟠 Медь · сырьё завода', category: 'Промышленность · служебное сырьё', storage: 'mine' },
 
   // Шахтное сырьё без качества — именно эти item_type принимает металлургия.
-  { id: 'mine_stone_common', label: '🪨 Обычный камень · без качества', category: 'Промышленность · шахтное сырьё', storage: 'industry' },
-  { id: 'mine_stone_dense', label: '🗿 Плотный камень · без качества', category: 'Промышленность · шахтное сырьё', storage: 'industry' },
-  { id: 'mine_coal_common', label: '⚫ Обыкновенный уголь · без качества', category: 'Промышленность · шахтное сырьё', storage: 'industry' },
-  { id: 'mine_coal_technical', label: '🧱 Технический уголь · без качества', category: 'Промышленность · шахтное сырьё', storage: 'industry' },
-  { id: 'mine_metal_raw', label: '🔩 Сырой металл · без качества', category: 'Промышленность · шахтное сырьё', storage: 'industry' },
-  { id: 'mine_metal_technical', label: '⛓️ Технический металл · без качества', category: 'Промышленность · шахтное сырьё', storage: 'industry' },
-  { id: 'mine_copper_raw', label: '🟤 Медная руда · без качества', category: 'Промышленность · шахтное сырьё', storage: 'industry' },
-  { id: 'mine_copper_conductive', label: '🟠 Богатая медная руда · без качества', category: 'Промышленность · шахтное сырьё', storage: 'industry' },
+  { id: 'mine_stone_common', label: '🪨 Обычный камень · без качества', category: 'Промышленность · шахтное сырьё', storage: 'mine' },
+  { id: 'mine_stone_dense', label: '🗿 Плотный камень · без качества', category: 'Промышленность · шахтное сырьё', storage: 'mine' },
+  { id: 'mine_coal_common', label: '⚫ Обыкновенный уголь · без качества', category: 'Промышленность · шахтное сырьё', storage: 'mine' },
+  { id: 'mine_coal_technical', label: '🧱 Технический уголь · без качества', category: 'Промышленность · шахтное сырьё', storage: 'mine' },
+  { id: 'mine_metal_raw', label: '🔩 Сырой металл · без качества', category: 'Промышленность · шахтное сырьё', storage: 'mine' },
+  { id: 'mine_metal_technical', label: '⛓️ Технический металл · без качества', category: 'Промышленность · шахтное сырьё', storage: 'mine' },
+  { id: 'mine_copper_raw', label: '🟤 Медная руда · без качества', category: 'Промышленность · шахтное сырьё', storage: 'mine' },
+  { id: 'mine_copper_conductive', label: '🟠 Богатая медная руда · без качества', category: 'Промышленность · шахтное сырьё', storage: 'mine' },
   { id: 'industrial_plastic', label: '🧩 Технический пластик', category: 'Промышленность · служебное сырьё', storage: 'industry' },
 
   // Лесозаготовка
