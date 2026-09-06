@@ -102,7 +102,8 @@ function isWorkObject(object) {
     isLumberStationObject(object) ||
     isLumberTreeType(type) ||
     type === 'fruit_factory' ||
-    type === 'metallurgy_factory'
+    type === 'metallurgy_factory' ||
+    type === 'wood_processing_factory'
   );
 }
 
@@ -1834,6 +1835,8 @@ export function enableEntityInteraction({
         ? 'Шахтёрское снабжение'
       : objectType === 'lumber_station'
         ? 'Лесорубная точка · инструменты и продажа'
+      : objectType === 'wood_processing_factory'
+        ? 'Деревоперерабатывающий завод · производство деталей'
       : farmPlant
         ? farmHint.text
         : mineNode
