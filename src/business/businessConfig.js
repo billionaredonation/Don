@@ -1,4 +1,5 @@
 export const BUSINESS_TYPE_GROCERY = 'grocery';
+export const BUSINESS_TYPE_CONSTRUCTION = 'construction_store';
 
 export const BUSINESS_LEGAL_FORMS = Object.freeze({
   fop: Object.freeze({
@@ -106,17 +107,29 @@ export const BUSINESS_PRODUCTS = Object.freeze([
   { itemType: 'grocery_multifruit_juice', factoryProduct: 'multifruit_juice', label: 'Сок мультифрукт', icon: '🧃', foodRestore: 5, waterRestore: 25, suggestedPrice: 45 },
 ]);
 
+export const CONSTRUCTION_STORE_PRODUCTS = Object.freeze([
+  { itemType: 'support_beam', label: 'Опорная балка', icon: '🏗️', suggestedPrice: 650, kind: 'material' },
+  { itemType: 'rebar', label: 'Арматура', icon: '〰️', suggestedPrice: 420, kind: 'material' },
+  { itemType: 'farm_rake', label: 'Готовые грабли', icon: 'Г', suggestedPrice: 240, kind: 'tool', permanent: true },
+  { itemType: 'mine_tool_pickaxe', label: 'Готовая кирка', icon: '⛏️', suggestedPrice: 650, kind: 'tool', permanent: true },
+  { itemType: 'farm_scissors', label: 'Готовые ножницы', icon: '✂️', suggestedPrice: 260, kind: 'tool', permanent: true },
+  { itemType: 'construction_hand_saw', label: 'Готовая ручная пила', icon: '🪚', suggestedPrice: 420, kind: 'tool', permanent: true },
+  { itemType: 'lumber_tool_axe', label: 'Готовый топор', icon: '🪓', suggestedPrice: 520, kind: 'tool', permanent: true },
+  { itemType: 'lumber_tool_chainsaw', label: 'Готовая бензопила', icon: '🪚', suggestedPrice: 1800, kind: 'tool', permanent: true },
+]);
+
 export const BUSINESS_PRODUCTS_BY_TYPE = Object.freeze({
   [BUSINESS_TYPE_GROCERY]: BUSINESS_PRODUCTS,
   shop: BUSINESS_PRODUCTS,
+  [BUSINESS_TYPE_CONSTRUCTION]: CONSTRUCTION_STORE_PRODUCTS,
 });
 
 export const BUSINESS_PRODUCT_BY_TYPE = Object.freeze(
-  Object.fromEntries(BUSINESS_PRODUCTS.map((product) => [product.itemType, product])),
+  Object.fromEntries([...BUSINESS_PRODUCTS, ...CONSTRUCTION_STORE_PRODUCTS].map((product) => [product.itemType, product])),
 );
 
 export function getBusinessProducts(businessType = BUSINESS_TYPE_GROCERY) {
-  return BUSINESS_PRODUCTS_BY_TYPE[String(businessType || '').trim().toLowerCase()] || BUSINESS_PRODUCTS;
+  return BUSINESS_PRODUCTS_BY_TYPE[String(businessType || '').trim().toLowerCase()] || [];
 }
 
 // Реальные показатели ФОП Украины на 2026 год. В игре месячные платежи
