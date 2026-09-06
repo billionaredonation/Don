@@ -66,12 +66,21 @@ function businessTypeOf(value) {
 function businessPresentation(value) {
   const type = businessTypeOf(value);
   if (type === 'grocery' || type === 'shop') return { icon: '🛒', format: 'Продуктовый магазин', adjective: 'продуктовый магазин', fallbackName: 'Продуктовый магазин' };
+  if (type === 'construction_store') return { icon: '🧰', format: 'Стройматериалы и инструменты', adjective: 'магазин стройматериалов', fallbackName: 'Магазин стройматериалов' };
   if (type === 'logistics_hub') return { icon: '🚚', format: 'Логистический центр', adjective: 'логистический центр', fallbackName: 'Логистический центр' };
   return { icon: '🏢', format: 'Коммерческий', adjective: 'бизнес', fallbackName: 'Коммерческое предприятие' };
 }
 
 function productsFor(value) {
   return getBusinessProducts(businessTypeOf(value));
+}
+
+function isGroceryBusiness(value) {
+  return ['grocery', 'shop'].includes(businessTypeOf(value));
+}
+
+function isConstructionBusiness(value) {
+  return businessTypeOf(value) === 'construction_store';
 }
 
 function businessPrice(object) {
@@ -324,8 +333,9 @@ function warehouseDrawer(snapshot) {
       <div class="mn-business-warehouse-list">
         ${warehouseItems.map((item) => `<article${item.quantity > 0 ? '' : ' class="is-empty"'}><i>${escapeHtml(item.icon)}</i><span><strong>${escapeHtml(item.label)}</strong><small>${item.quantity > 0 ? 'Можно разместить на полке' : 'Нет на складе'}</small></span><b>${item.quantity} шт.</b></article>`).join('')}
       </div>
-      <button type="button" class="is-primary" data-business-warehouse-replenish${Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length ? '' : ' disabled'}>🚚 Пополнить склад</button>
-      <p class="mn-business-drawer-note">Сначала выгрузите привезённую продукцию. После приёмки владелец или товаровед сможет выставить её на полки. Стороннему доставщику магазин начислит оплату за разгрузку.</p>
+      ${isConstructionBusiness(snapshot)
+        ? '<p class="mn-business-drawer-note">Опорные балки и арматура поступают с металлургического завода. Готовые инструменты поступают с завода по сборке инструментов. После приёмки товар можно выставить на полки.</p>'
+        : `<button type="button" class="is-primary" data-business-warehouse-replenish${Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length ? '' : ' disabled'}>🚚 Пополнить склад</button><p class="mn-business-drawer-note">Сначала выгрузите привезённую продукцию. После приёмки владелец или товаровед сможет выставить её на полки. Стороннему доставщику магазин начислит оплату за разгрузку.</p>`}
     </aside>`;
 }
 
@@ -342,7 +352,17 @@ function procurementDrawer(snapshot, selectedProductType = '') {
   const unitPrice = Math.max(1, Number(plan?.unitPrice) || Number(supplier?.unitPrice) || Math.max(1, Math.round(Number(product?.suggestedPrice || 10) * 0.65)));
   const requiredBudget = targetQuantity * unitPrice;
   const allocatedBudget = Math.max(requiredBudget, Number(plan?.allocatedBudget) || requiredBudget);
-  if (businessTypeOf(snapshot) === 'grocery' || businessTypeOf(snapshot) === 'shop') {
+  if (isConstructionBusiness(snapshot)) {
+    return `
+      <aside class="mn-business-drawer is-procurement" data-business-drawer>
+        <header><span><small>Поставки производств</small><strong>Закупки стройматериалов</strong></span><button type="button" data-business-drawer-close>×</button></header>
+        <div class="mn-business-warehouse-list">
+          ${catalog.map((item) => `<article${warehouseQuantity(snapshot, item.itemType) > 0 ? '' : ' class="is-empty"'}><i>${escapeHtml(item.icon)}</i><span><strong>${escapeHtml(item.label)}</strong><small>${item.kind === 'material' ? 'Металлургический завод' : 'Завод по сборке инструментов'}</small></span><b>${warehouseQuantity(snapshot, item.itemType)} шт.</b></article>`).join('')}
+        </div>
+        <p class="mn-business-drawer-note">Владелец соответствующего завода снимает готовую продукцию со своего склада и выбирает «Магазин стройматериалов». Подтверждённая партия поступает на склад магазина, после чего товаровед выставляет её на полки.</p>
+      </aside>`;
+  }
+  if (isGroceryBusiness(snapshot)) {
     return `
       <aside class="mn-business-drawer is-procurement" data-business-drawer>
         <header><span><small>Только для владельца</small><strong>Заявка на закупку</strong></span><button type="button" data-business-drawer-close>×</button></header>
@@ -599,10 +619,14 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (!activeObject) return;
     const next = await loadBusinessSnapshot(businessId(activeObject));
     let supply = {};
-    try { supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId); } catch (error) { console.warn('[business] factory supply unavailable:', error); }
+    if (isGroceryBusiness(activeObject)) {
+      try { supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId); } catch (error) { console.warn('[business] factory supply unavailable:', error); }
+    }
     if (destroyed) return;
     let cargo = {};
-    try { cargo = await loadDeliveryCargo(); } catch (error) { console.warn('[business] delivery cargo unavailable:', error); }
+    if (isGroceryBusiness(activeObject)) {
+      try { cargo = await loadDeliveryCargo(); } catch (error) { console.warn('[business] delivery cargo unavailable:', error); }
+    }
     snapshot = { ...next, ...supply, deliveryCargo: cargo.items || cargo.cargo || [] };
     if (!preserveDrawer) { drawerMode = ''; drawerData = null; }
     renderStore();
@@ -622,9 +646,13 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     try {
       const next = await loadBusinessSnapshot(businessId(activeObject));
       let supply = {};
-      supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId);
+      if (isGroceryBusiness(activeObject)) {
+        supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId);
+      }
       let cargo = {};
-      try { cargo = await loadDeliveryCargo(); } catch (error) { console.warn('[business] delivery cargo unavailable:', error); }
+      if (isGroceryBusiness(activeObject)) {
+        try { cargo = await loadDeliveryCargo(); } catch (error) { console.warn('[business] delivery cargo unavailable:', error); }
+      }
       snapshot = { ...next, ...supply, deliveryCargo: cargo.items || cargo.cargo || [] };
       drawerMode = '';
       drawerData = null;
@@ -1211,4 +1239,3 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     offerModal?.remove();
   };
 }
-
