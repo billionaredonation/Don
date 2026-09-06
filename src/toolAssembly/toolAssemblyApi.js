@@ -12,7 +12,7 @@ export function getToolAssemblyError(error) {
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.', TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела. Перезапустите игру.',
     SERVER_NOT_CONFIGURED: 'Сервер сборки инструментов не настроен.', TOOL_ASSEMBLY_DATABASE_MIGRATION_REQUIRED: 'Примените SQL-миграцию завода инструментов.',
     TOOL_FACTORY_NOT_FOUND: 'Завод по сборке инструментов не найден.', TOOL_FACTORY_ALREADY_OWNED: 'У этого завода уже есть владелец.',
-    TOOL_FACTORY_DESTINATION_NOT_FOUND: 'В этом городе пока нет купленного завода по сборке инструментов.', TOOL_OWNER_REQUIRED: 'Действие доступно только владельцу завода.',
+    TOOL_FACTORY_DESTINATION_NOT_FOUND: 'В этом городе пока нет купленного завода по сборке инструментов.', CONSTRUCTION_STORE_DESTINATION_NOT_FOUND: 'В этом городе пока нет купленного магазина стройматериалов.', TOOL_OWNER_REQUIRED: 'Действие доступно только владельцу завода.',
     TOOL_RECIPE_INVALID: 'Такая технологическая карта не найдена.', TOOL_INPUT_NOT_ENOUGH: 'На складе недостаточно деталей для сборки.',
     TOOL_PRODUCT_INVALID: 'Такого инструмента на складе нет.', TOOL_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовых инструментов.',
     TOOL_DESTINATION_INVALID: 'Этот инструмент нельзя отправить в выбранное место.', TOOL_CASH_NOT_ENOUGH: 'На балансе завода недостаточно денег.',
