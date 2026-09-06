@@ -138,6 +138,7 @@ export function getEntityMetaText(object) {
     if (type === 'fruit_factory') return 'Завод питания · переработка всего сырья фермы, упаковка и логистика';
     if (type === 'metallurgy_factory') return 'Металлургический завод · переработка сырья шахты в промышленные компоненты';
     if (type === 'wood_processing_factory') return 'Деревоперерабатывающий завод · производство деталей для инструментов';
+    if (type === 'tool_assembly_factory') return 'Завод по сборке инструментов · готовые инструменты для стройматериалов';
     return 'Рабочая точка';
   }
 
@@ -212,6 +213,8 @@ export function dispatchEntityAction(object) {
       ? 'mn:metallurgy-object-action'
       : cleanType === 'wood_processing_factory'
       ? 'mn:wood-processing-object-action'
+      : cleanType === 'tool_assembly_factory'
+      ? 'mn:tool-assembly-object-action'
       : cleanType.startsWith('mine_')
       ? 'mn:mine-object-action'
       : cleanType.startsWith('lumber_')
