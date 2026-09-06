@@ -395,6 +395,18 @@ export const MAP_OBJECT_TYPES = {
     defaultHeight: 2.5,
   },
 
+  wood_processing_factory: {
+    type: 'wood_processing_factory',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Деревоперерабатывающий завод · предприятие',
+    icon: '🪵',
+    defaultScale: 1.1,
+    defaultRotation: 0,
+    defaultAsset: 'job_factory_01',
+    defaultWidth: 3.2,
+    defaultHeight: 2.5,
+  },
+
   logistics_hub: { type:'logistics_hub', category:MAP_OBJECT_CATEGORIES.BUSINESS, label:'Логистический центр', icon:'🚚', defaultPrice:1400000, defaultScale:1.18, defaultRotation:0, defaultAsset:'business_warehouse_01' },
 
   spawn: {
@@ -630,6 +642,21 @@ export function createMapObjectDraft({
     basePayload.metallurgyFactory = true;
     basePayload.metallurgyFactoryId = objectId;
     basePayload.metallurgy_factory_id = objectId;
+    basePayload.legalForm = 'tov';
+    basePayload.legalFormLabel = 'ТОВ';
+    basePayload.price = 3_500_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
+  if (config.type === 'wood_processing_factory') {
+    basePayload.woodProcessingFactory = true;
+    basePayload.woodProcessingFactoryId = objectId;
+    basePayload.wood_processing_factory_id = objectId;
     basePayload.legalForm = 'tov';
     basePayload.legalFormLabel = 'ТОВ';
     basePayload.price = 3_500_000;
