@@ -68,3 +68,4 @@ export const withdrawMetallurgyCash = (factoryId, cityId, amount) => invokeMetal
 export const dispatchMetallurgyProduct = (factoryId, cityId, productType, quantity, destination) => invokeMetallurgyAction('dispatch', { factoryId, cityId, productType, quantity, destination });
 export const loadMetallurgyRawMarket = () => invokeMetallurgyAction('raw_market_snapshot');
 export const sellMineRawToMetallurgy = (factoryId, cityId, itemType, quantity) => invokeMetallurgyAction('raw_market_sell', { factoryId, cityId, itemType, quantity });
+
