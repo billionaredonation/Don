@@ -343,7 +343,10 @@ export function enableAdminPanel({
     </div>
   `;
 
-  root.appendChild(panel);
+  // Keep the modal outside the blurred game root. In Telegram/WebView a
+  // backdrop-filter on the root can otherwise composite the panel underneath
+  // the blur even when the panel has the larger z-index.
+  document.body.appendChild(panel);
 
   const btnClose = panel.querySelector('.admin-close');
   const btnTeleport = panel.querySelector('.admin-toggle-teleport');
