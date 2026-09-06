@@ -16,6 +16,8 @@ export function getToolAssemblyError(error) {
     TOOL_RECIPE_INVALID: 'Такая технологическая карта не найдена.', TOOL_INPUT_NOT_ENOUGH: 'На складе недостаточно деталей для сборки.',
     TOOL_PRODUCT_INVALID: 'Такого инструмента на складе нет.', TOOL_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовых инструментов.',
     TOOL_DESTINATION_INVALID: 'Этот инструмент нельзя отправить в выбранное место.', TOOL_CASH_NOT_ENOUGH: 'На балансе завода недостаточно денег.',
+    TOOL_DELIVERY_CARGO_NOT_ENOUGH: 'В машине недостаточно выбранных инструментов.', TOOL_DELIVERY_CITY_INVALID: 'Этот груз предназначен для другого города.',
+    TOOL_DELIVERY_STORE_INVALID: 'Инструменты можно разгрузить только в магазине стройматериалов.', BUSINESS_TOO_FAR: 'Подойдите ближе к магазину стройматериалов.',
     TOOL_AMOUNT_INVALID: 'Введите корректное количество.', PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.', PLAYER_NOT_FOUND: 'Игрок не найден.',
   };
   const code = Object.keys(messages).find((key) => raw.includes(key)); return code ? messages[code] : raw;
@@ -31,4 +33,6 @@ export const produceToolAssemblyBatch = (factoryId, cityId, recipeId, batches = 
 export const depositToolAssemblyCash = (factoryId, cityId, amount) => invokeToolAssemblyAction('deposit', { factoryId, cityId, amount });
 export const withdrawToolAssemblyCash = (factoryId, cityId, amount) => invokeToolAssemblyAction('withdraw', { factoryId, cityId, amount });
 export const dispatchToolAssemblyProduct = (factoryId, cityId, productType, quantity, destination) => invokeToolAssemblyAction('dispatch', { factoryId, cityId, productType, quantity, destination });
-
+export const loadToolAssemblyProductToVehicle = (factoryId, cityId, productType, quantity) => invokeToolAssemblyAction('vehicle_load', { factoryId, cityId, productType, quantity });
+export const loadToolAssemblyDeliveryCargo = () => invokeToolAssemblyAction('delivery_cargo');
+export const unloadToolAssemblyVehicleToStore = (businessId, cityId, productType, quantity) => invokeToolAssemblyAction('vehicle_unload', { businessId, cityId, productType, quantity });
