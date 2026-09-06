@@ -14,6 +14,10 @@ export const PRODUCTION_CHAINS = {
     id: 'metallurgy', factoryType: 'metallurgy_factory', factoryLabel: 'Металлургический завод', factoryIcon: '🔥',
     storeType: '', storeLabel: '', rawOnly: true, products: Object.freeze([]),
   }),
+  wood_processing: Object.freeze({
+    id: 'wood_processing', factoryType: 'wood_processing_factory', factoryLabel: 'Деревоперерабатывающий завод', factoryIcon: '🪵',
+    storeType: '', storeLabel: '', rawOnly: true, products: Object.freeze([]),
+  }),
 };
 
 export function productionChain(id) { return PRODUCTION_CHAINS[String(id || '').trim()] || PRODUCTION_CHAINS.fruit; }
@@ -38,4 +42,3 @@ export function canonicalProductionChainForProduct(productId, fallbackChainId = 
   const product = String(productId || '').trim();
   return PRODUCT_CHAIN_OVERRIDES[product] || String(fallbackChainId || '').trim();
 }
-
