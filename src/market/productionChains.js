@@ -42,3 +42,4 @@ export function canonicalProductionChainForProduct(productId, fallbackChainId = 
   const product = String(productId || '').trim();
   return PRODUCT_CHAIN_OVERRIDES[product] || String(fallbackChainId || '').trim();
 }
+
