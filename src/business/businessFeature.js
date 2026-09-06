@@ -40,6 +40,7 @@ import {
 import './business.css';
 import { loadFactorySuppliers, createStoreRequest as createFactoryStoreRequest, orderFactorySupply, receiveFactorySupply, loadDeliveryCargo, unloadVehicleToStore, getFactoryError } from '../factory/factoryApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
+import { getToolAssemblyError, loadToolAssemblyDeliveryCargo, unloadToolAssemblyVehicleToStore } from '../toolAssembly/toolAssemblyApi.js';
 
 // Realtime delivers normal offers immediately. The slow fallback only repairs
 // a missed broadcast and avoids another permanent 2-second request per player.
@@ -81,6 +82,25 @@ function isGroceryBusiness(value) {
 
 function isConstructionBusiness(value) {
   return businessTypeOf(value) === 'construction_store';
+}
+
+async function loadStoreDeliveryCargo(value) {
+  const cargo = [];
+  const targetCityId = String(value?.cityId || '');
+  const forCurrentCity = (row) => !targetCityId || !row?.cityId || String(row.cityId) === targetCityId;
+  if (isGroceryBusiness(value)) {
+    try {
+      const result = await loadDeliveryCargo();
+      cargo.push(...(result.items || result.cargo || []).filter(forCurrentCity).map((row) => ({ ...row, cargoSource: 'food_factory' })));
+    } catch (error) { console.warn('[business] food delivery cargo unavailable:', error); }
+  }
+  if (isConstructionBusiness(value)) {
+    try {
+      const result = await loadToolAssemblyDeliveryCargo();
+      cargo.push(...(result.items || result.cargo || []).filter(forCurrentCity).map((row) => ({ ...row, cargoSource: 'tool_assembly' })));
+    } catch (error) { console.warn('[business] tool delivery cargo unavailable:', error); }
+  }
+  return cargo;
 }
 
 function businessPrice(object) {
@@ -623,11 +643,8 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       try { supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId); } catch (error) { console.warn('[business] factory supply unavailable:', error); }
     }
     if (destroyed) return;
-    let cargo = {};
-    if (isGroceryBusiness(activeObject)) {
-      try { cargo = await loadDeliveryCargo(); } catch (error) { console.warn('[business] delivery cargo unavailable:', error); }
-    }
-    snapshot = { ...next, ...supply, deliveryCargo: cargo.items || cargo.cargo || [] };
+    const cargo = await loadStoreDeliveryCargo(activeObject);
+    snapshot = { ...next, ...supply, deliveryCargo: cargo };
     if (!preserveDrawer) { drawerMode = ''; drawerData = null; }
     renderStore();
   }
@@ -649,11 +666,8 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       if (isGroceryBusiness(activeObject)) {
         supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId);
       }
-      let cargo = {};
-      if (isGroceryBusiness(activeObject)) {
-        try { cargo = await loadDeliveryCargo(); } catch (error) { console.warn('[business] delivery cargo unavailable:', error); }
-      }
-      snapshot = { ...next, ...supply, deliveryCargo: cargo.items || cargo.cargo || [] };
+      const cargo = await loadStoreDeliveryCargo(activeObject);
+      snapshot = { ...next, ...supply, deliveryCargo: cargo };
       drawerMode = '';
       drawerData = null;
       closeDetails();
@@ -933,7 +947,9 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       try {
         const game = await playCargoTransferMiniGame({ direction: 'vehicle_to_store', productType, quantity });
         if (!game.success) return;
-        const result = await unloadVehicleToStore(targetBusinessId, targetCityId, productType, quantity);
+        const result = cargoRow?.cargoSource === 'tool_assembly'
+          ? await unloadToolAssemblyVehicleToStore(targetBusinessId, targetCityId, productType, quantity)
+          : await unloadVehicleToStore(targetBusinessId, targetCityId, productType, quantity);
         const payment = Number(result.courierPayment || 0);
         const balance = Number(result.playerBalance);
         if (Number.isFinite(balance)) {
@@ -943,7 +959,8 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
         }
         window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message: payment > 0 ? `Доставка завершена · +${formatBusinessMoney(payment)}.` : `На склад принято ${quantity} ед. товара.`, type: 'success' } }));
       } catch (error) {
-        window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message: getFactoryError(error), type: 'error' } }));
+        const message = cargoRow?.cargoSource === 'tool_assembly' ? getToolAssemblyError(error) : getFactoryError(error);
+        window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message, type: 'error' } }));
       } finally {
         cargoTransferRunning = false;
         busy = false;
@@ -1239,4 +1256,3 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     offerModal?.remove();
   };
 }
-
