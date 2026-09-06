@@ -5,8 +5,11 @@ import { loadFarmInventory } from '../farm/farmApi.js';
 import { loadMineInventory } from '../mine/mineApi.js';
 import { loadLumberInventory } from '../lumber/lumberApi.js';
 import { loadBusinessInventory, useBusinessInventoryItem } from '../business/businessApi.js';
+import { loadIndustryInventory } from './industryInventoryApi.js';
 import { getBusinessProduct } from '../business/businessConfig.js';
 import { getMineBaseGradePrice, parseMineGradeItemType } from '../mine/mineConfig.js';
+import { METALLURGY_RAW_ITEMS, METALLURGY_RECIPES } from '../metallurgy/metallurgyConfig.js';
+import { WOOD_PROCESSING_RECIPES } from '../woodProcessing/woodProcessingConfig.js';
 import { getPlayerVitalsConfig } from '../player/playerStatsConfig.js';
 import { applyPlayerPositionVitalRestore } from '../player/playerPosition.js';
 import {
@@ -29,6 +32,18 @@ const CRITICAL_VITAL_THRESHOLD = 20;
 const FARM_RAKE_ASSET_URL = `${String(import.meta.env.BASE_URL || '/')}grabl.png`;
 const LUMBER_CHAINSAW_ASSET_URL = `${String(import.meta.env.BASE_URL || '/')}benzopila.png`;
 const LUMBER_BEAM_ASSET_URL = `${String(import.meta.env.BASE_URL || '/')}brus.png`;
+const INDUSTRY_ITEM_META = Object.freeze(Object.fromEntries([
+  ...METALLURGY_RAW_ITEMS,
+  ...Object.values(METALLURGY_RECIPES),
+  ...Object.values(WOOD_PROCESSING_RECIPES),
+  { itemType: 'mine_stone', label: 'Камень', icon: '🪨' },
+  { itemType: 'mine_coal', label: 'Уголь', icon: '⚫' },
+  { itemType: 'mine_metal', label: 'Металл', icon: '⚙️' },
+  { itemType: 'mine_copper', label: 'Медь', icon: '🟠' },
+  { itemType: 'mine_stone_common', label: 'Обычный камень', icon: '🪨' },
+  { itemType: 'mine_stone_dense', label: 'Плотный камень', icon: '🗿' },
+  { itemType: 'industrial_plastic', label: 'Технический пластик', icon: '🧩' },
+].map((item) => [String(item.itemType || item.id), { label: item.label, icon: item.icon }])));
 const ITEM_META = Object.freeze({
   food: { label: 'Обед', icon: '🍔' },
   water_bottle: { label: 'Бутылка воды', icon: '🧴' },
@@ -61,6 +76,7 @@ const ITEM_META = Object.freeze({
   grocery_universal_fruit_salad: { label: 'Салат универсальный фруктовый', icon: '🥙' },
   grocery_multifruit_juice: { label: 'Сок мультифрукт', icon: '🧃' },
   food_wheat_flour:{label:'Пшеничная мука',icon:'🥣'},food_corn_flour:{label:'Кукурузная мука',icon:'🟡'},wood_dry_board:{label:'Сухая доска',icon:'🪵'},wood_furniture_panel:{label:'Мебельный щит',icon:'🟫'},construction_cement:{label:'Цемент',icon:'⚪'},construction_concrete:{label:'Бетонная смесь',icon:'🧱'},metal_steel:{label:'Стальной прокат',icon:'🔩'},metal_copper:{label:'Медная катанка',icon:'🟠'},electric_copper_wire:{label:'Медный провод',icon:'🧵'},electric_power_cable:{label:'Силовой кабель',icon:'🔌'},
+  ...INDUSTRY_ITEM_META,
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
@@ -1093,12 +1109,13 @@ export function enableInventoryFeature() {
   }
 
   async function refreshMedicalInventory() {
-    const [medicalResult, farmResult, mineResult, lumberResult, businessResult] = await Promise.allSettled([
+    const [medicalResult, farmResult, mineResult, lumberResult, businessResult, industryResult] = await Promise.allSettled([
       loadMyMedicalInventory(),
       loadFarmInventory(),
       loadMineInventory(),
       loadLumberInventory(),
       loadBusinessInventory(),
+      loadIndustryInventory(),
     ]);
 
     const medical = medicalResult.status === 'fulfilled' && Array.isArray(medicalResult.value?.items)
@@ -1116,6 +1133,9 @@ export function enableInventoryFeature() {
     const business = businessResult.status === 'fulfilled' && Array.isArray(businessResult.value?.items)
       ? businessResult.value.items
       : (Array.isArray(window.__MN_BUSINESS_INVENTORY_ITEMS__) ? window.__MN_BUSINESS_INVENTORY_ITEMS__ : []);
+    const industry = industryResult.status === 'fulfilled' && Array.isArray(industryResult.value?.items)
+      ? industryResult.value.items
+      : (Array.isArray(window.__MN_INDUSTRY_INVENTORY_ITEMS__) ? window.__MN_INDUSTRY_INVENTORY_ITEMS__ : []);
 
     if (medicalResult.status === 'rejected' && !String(medicalResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] medical inventory load failed:', medicalResult.reason);
@@ -1132,9 +1152,13 @@ export function enableInventoryFeature() {
     if (businessResult.status === 'rejected' && !String(businessResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] business inventory load failed:', businessResult.reason);
     }
+    if (industryResult.status === 'rejected' && !String(industryResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+      console.warn('[inventory] industry inventory load failed:', industryResult.reason);
+    }
 
     window.__MN_BUSINESS_INVENTORY_ITEMS__ = business;
-    medicalItems = [...medical, ...farm, ...mine, ...lumber, ...business];
+    window.__MN_INDUSTRY_INVENTORY_ITEMS__ = industry;
+    medicalItems = [...medical, ...farm, ...mine, ...lumber, ...business, ...industry];
     publishInventorySnapshot(medicalItems);
     renderMedicalInventory();
   }
