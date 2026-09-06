@@ -124,6 +124,17 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'business_shop_01',
   },
 
+  construction_store: {
+    type: 'construction_store',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Магазин стройматериалов',
+    icon: '🧰',
+    defaultPrice: 1_000_000,
+    defaultScale: 1.14,
+    defaultRotation: 0,
+    defaultAsset: 'business_shop_01',
+  },
+
   cafe: {
     type: 'cafe',
     category: MAP_OBJECT_CATEGORIES.BUSINESS,
