@@ -31,6 +31,7 @@ export function getWoodProcessingError(error) {
     WOOD_PRODUCT_INVALID: 'Такой детали на складе нет.',
     WOOD_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовых деталей.',
     WOOD_DESTINATION_INVALID: 'Эту деталь нельзя отправить в выбранное место.',
+    TOOL_FACTORY_DESTINATION_NOT_FOUND: 'В этом городе пока нет купленного завода по сборке инструментов.',
     WOOD_CASH_NOT_ENOUGH: 'На балансе завода недостаточно денег.',
     WOOD_RAW_WAREHOUSE_FULL: 'Сырьевой склад завода не вместит эту партию.',
     WOOD_LUMBER_ITEM_NOT_ENOUGH: 'В инвентаре недостаточно выбранной древесины.',
