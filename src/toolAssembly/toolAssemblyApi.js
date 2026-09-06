@@ -31,3 +31,4 @@ export const produceToolAssemblyBatch = (factoryId, cityId, recipeId, batches = 
 export const depositToolAssemblyCash = (factoryId, cityId, amount) => invokeToolAssemblyAction('deposit', { factoryId, cityId, amount });
 export const withdrawToolAssemblyCash = (factoryId, cityId, amount) => invokeToolAssemblyAction('withdraw', { factoryId, cityId, amount });
 export const dispatchToolAssemblyProduct = (factoryId, cityId, productType, quantity, destination) => invokeToolAssemblyAction('dispatch', { factoryId, cityId, productType, quantity, destination });
+
