@@ -12,6 +12,7 @@ const BUSINESS_ENTITY_TYPES = new Set([
   'office',
   'market',
   'logistics_hub',
+  'construction_store',
 ]);
 
 export function getEntityKind(object) {
