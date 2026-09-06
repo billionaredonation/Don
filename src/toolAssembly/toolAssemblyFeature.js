@@ -9,13 +9,14 @@ import {
 } from './toolAssemblyConfig.js';
 import {
   depositToolAssemblyCash,
-  dispatchToolAssemblyProduct,
   getToolAssemblyError,
   loadToolAssemblySnapshot,
+  loadToolAssemblyProductToVehicle,
   produceToolAssemblyBatch,
   purchaseToolAssemblyFactory,
   withdrawToolAssemblyCash,
 } from './toolAssemblyApi.js';
+import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
 
 const esc = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 const objectType = (object) => String(object?.type || object?.payload?.jobType || object?.payload?.type || '');
@@ -115,7 +116,13 @@ export function enableToolAssemblyFeature({ root, cityId } = {}) {
     const quantity = Math.max(1, Math.min(available, Math.floor(Number(q('[data-tool-transfer-quantity]').value) || 1)));
     const destination = q('[data-tool-transfer-destination]').value;
     closeTransfer();
-    run(() => dispatchToolAssemblyProduct(currentFactoryId, cityId, productId, quantity, destination), 'Инструменты сняты со склада и отправлены в магазин стройматериалов.');
+    run(async () => {
+      if (destination !== 'construction_store') throw new Error('TOOL_DESTINATION_INVALID');
+      const game = await playCargoTransferMiniGame({ direction: 'factory_to_vehicle', productType: productId, quantity });
+      if (!game.success) return;
+      await loadToolAssemblyProductToVehicle(currentFactoryId, cityId, productId, quantity);
+      toast(`Партия ${quantity} ед. загружена в машину. Доставьте её в магазин стройматериалов.`, 'success');
+    });
   };
   q('[data-tool-purchase]').onclick = () => run(() => purchaseToolAssemblyFactory(currentFactoryId, cityId), 'Завод по сборке инструментов куплен.');
   q('[data-tool-deposit]').onclick = () => run(() => depositToolAssemblyCash(currentFactoryId, cityId, Number(q('[data-tool-amount]').value)), 'Баланс завода пополнен.');
