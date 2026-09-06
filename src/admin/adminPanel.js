@@ -27,7 +27,7 @@ import {
 
 import { createAdminObjectMover } from './adminObjectMover.js';
 import { saveAdminObject } from './adminObjectEditor.js';
-import { grantAdminInventoryItem, getAdminInventoryCatalog, resolveAdminInventoryItem } from './adminInventoryApi.js';
+import { getAdminInventoryErrorMessage, grantAdminInventoryItem, getAdminInventoryCatalog, resolveAdminInventoryItem } from './adminInventoryApi.js';
 import {
   BUSINESS_LEGAL_FORMS,
   getBusinessLegalForm,
@@ -453,7 +453,7 @@ export function enableAdminPanel({
       window.dispatchEvent(new CustomEvent('mn:business-inventory-changed'));
       showAdminNotice(`Выдано ${itemLabel} × ${quantity}`);
     } catch (error) {
-      const message = String(error?.message || error || 'ADMIN_GRANT_FAILED');
+      const message = getAdminInventoryErrorMessage(error);
       if (grantStatus) grantStatus.textContent = `Ошибка: ${message}`;
       showAdminNotice(`Выдача не прошла: ${message}`);
     } finally {
