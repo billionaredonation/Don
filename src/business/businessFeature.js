@@ -353,9 +353,10 @@ function warehouseDrawer(snapshot) {
       <div class="mn-business-warehouse-list">
         ${warehouseItems.map((item) => `<article${item.quantity > 0 ? '' : ' class="is-empty"'}><i>${escapeHtml(item.icon)}</i><span><strong>${escapeHtml(item.label)}</strong><small>${item.quantity > 0 ? 'Можно разместить на полке' : 'Нет на складе'}</small></span><b>${item.quantity} шт.</b></article>`).join('')}
       </div>
-      ${isConstructionBusiness(snapshot)
-        ? '<p class="mn-business-drawer-note">Опорные балки и арматура поступают с металлургического завода. Готовые инструменты поступают с завода по сборке инструментов. После приёмки товар можно выставить на полки.</p>'
-        : `<button type="button" class="is-primary" data-business-warehouse-replenish${Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length ? '' : ' disabled'}>🚚 Пополнить склад</button><p class="mn-business-drawer-note">Сначала выгрузите привезённую продукцию. После приёмки владелец или товаровед сможет выставить её на полки. Стороннему доставщику магазин начислит оплату за разгрузку.</p>`}
+      <button type="button" class="is-primary" data-business-warehouse-replenish${Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length ? '' : ' disabled'}>🚚 Пополнить склад</button>
+      <p class="mn-business-drawer-note">${isConstructionBusiness(snapshot)
+        ? 'Опорные балки и арматура поступают с металлургического завода, готовые инструменты — с завода по сборке инструментов. Сначала разгрузите машину, после чего товар появится на складе и его можно будет выставить на полки.'
+        : 'Сначала выгрузите привезённую продукцию. После приёмки владелец или товаровед сможет выставить её на полки. Стороннему доставщику магазин начислит оплату за разгрузку.'}</p>
     </aside>`;
 }
 
