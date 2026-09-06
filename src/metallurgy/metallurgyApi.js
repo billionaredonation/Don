@@ -33,6 +33,7 @@ export function getMetallurgyError(error) {
     METALLURGY_PRODUCT_INVALID: 'Такого компонента на складе нет.',
     METALLURGY_DESTINATION_INVALID: 'Этот компонент нельзя отправить в выбранное место.',
     TOOL_FACTORY_DESTINATION_NOT_FOUND: 'В этом городе пока нет купленного завода по сборке инструментов.',
+    CONSTRUCTION_STORE_DESTINATION_NOT_FOUND: 'В этом городе пока нет купленного магазина стройматериалов.',
     METALLURGY_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовых компонентов.',
     METALLURGY_MINE_ITEM_NOT_ENOUGH: 'В инвентаре недостаточно выбранного шахтного сырья.',
     METALLURGY_RAW_WAREHOUSE_FULL: 'Сырьевой склад завода не вместит эту партию.',
