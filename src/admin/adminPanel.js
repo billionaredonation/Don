@@ -448,12 +448,9 @@ export function enableAdminPanel({
       const result = await grantAdminInventoryItem({ itemType, quantity, storage });
       const resolvedStorage = String(result?.storage || storage || 'auto');
       if (grantStatus) grantStatus.textContent = `Выдано: ${itemLabel} × ${quantity}. Инвентарь: ${resolvedStorage}. Всего: ${Number(result?.quantity || quantity)}.`;
-      window.dispatchEvent(new CustomEvent('mn:inventory-refresh-request'));
-      window.dispatchEvent(new CustomEvent('mn:medical-inventory-changed'));
-      window.dispatchEvent(new CustomEvent('mn:farm-inventory-changed'));
-      window.dispatchEvent(new CustomEvent('mn:mine-inventory-changed'));
-      window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed'));
-      window.dispatchEvent(new CustomEvent('mn:business-inventory-changed'));
+      window.dispatchEvent(new CustomEvent('mn:player-inventory-changed', {
+        detail: { source: 'admin_grant', storage: resolvedStorage, itemType, quantity },
+      }));
       showAdminNotice(`Выдано ${itemLabel} × ${quantity}`);
     } catch (error) {
       const message = getAdminInventoryErrorMessage(error);
