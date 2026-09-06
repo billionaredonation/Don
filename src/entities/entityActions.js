@@ -137,6 +137,7 @@ export function getEntityMetaText(object) {
     if (type === 'lumber_pine_tree') return 'Лесоруб · сосна';
     if (type === 'fruit_factory') return 'Завод питания · переработка всего сырья фермы, упаковка и логистика';
     if (type === 'metallurgy_factory') return 'Металлургический завод · переработка сырья шахты в промышленные компоненты';
+    if (type === 'wood_processing_factory') return 'Деревоперерабатывающий завод · производство деталей для инструментов';
     return 'Рабочая точка';
   }
 
@@ -209,6 +210,8 @@ export function dispatchEntityAction(object) {
       ? 'mn:factory-object-action'
       : cleanType === 'metallurgy_factory'
       ? 'mn:metallurgy-object-action'
+      : cleanType === 'wood_processing_factory'
+      ? 'mn:wood-processing-object-action'
       : cleanType.startsWith('mine_')
       ? 'mn:mine-object-action'
       : cleanType.startsWith('lumber_')
