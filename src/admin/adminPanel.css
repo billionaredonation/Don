@@ -1113,6 +1113,14 @@ body.admin-mode .admin-panel,
   isolation: isolate !important;
 }
 
+/* The panel is mounted directly under body so the game backdrop cannot blur it. */
+body.admin-mode > .admin-panel {
+  z-index: 2147483640 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+}
+
 /* Responsive modal pass: admin tools should never be clipped by HUD/mobile chrome. */
 @media (max-width: 900px), (max-height: 760px) {
   .admin-panel {
@@ -1203,7 +1211,48 @@ body.admin-mode .admin-panel,
   .admin-object-sections { grid-template-columns: 1fr 1fr; }
   .admin-object-sections button { min-height: 38px; }
 }
-\n\n/* === Global map objects launcher ===\n   Keep the map-object editor visible as a real labeled control instead of the\n   old status-only avatar dot. This is intentionally shared by desktop/mobile. */\n.admin-status-dot.admin-objects-toggle {\n  width: auto !important;\n  min-width: 108px !important;\n  height: 42px !important;\n  padding: 0 14px !important;\n  display: inline-flex !important;\n  align-items: center !important;\n  justify-content: center !important;\n  gap: 8px !important;\n  border-radius: 13px !important;\n  font-size: 12px !important;\n  font-weight: 850 !important;\n  line-height: 1 !important;\n  white-space: nowrap !important;\n}\n\n.admin-status-dot.admin-objects-toggle::after {\n  display: none !important;\n}\n\n.admin-objects-toggle-icon {\n  display: inline-grid;\n  place-items: center;\n  width: 18px;\n  height: 18px;\n  font-size: 16px;\n  line-height: 1;\n}\n\n@media (max-width: 800px) {\n  .admin-status-dot.admin-objects-toggle {\n    min-width: 104px !important;\n    height: 40px !important;\n    right: 14px !important;\n    bottom: 18px !important;\n    padding: 0 12px !important;\n  }\n}\n
+
+/* === Global map objects launcher ===
+   Keep the map-object editor visible as a real labeled control instead of the
+   old status-only avatar dot. This is intentionally shared by desktop/mobile. */
+.admin-status-dot.admin-objects-toggle {
+  width: auto !important;
+  min-width: 108px !important;
+  height: 42px !important;
+  padding: 0 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border-radius: 13px !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.admin-status-dot.admin-objects-toggle::after {
+  display: none !important;
+}
+
+.admin-objects-toggle-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+@media (max-width: 800px) {
+  .admin-status-dot.admin-objects-toggle {
+    min-width: 104px !important;
+    height: 40px !important;
+    right: 14px !important;
+    bottom: 18px !important;
+    padding: 0 12px !important;
+  }
+}
 /* Re-enable the labeled map editor control on touch devices. Legacy mobile
    styles intentionally hid .admin-status-dot because it used to be PC-only. */
 @media (hover: none), (pointer: coarse), (max-width: 900px) {
@@ -1310,4 +1359,3 @@ body.admin-mode .admin-panel,
 }
 .admin-inventory-grant .admin-grant-submit:disabled { opacity: .55; cursor: wait; }
 .admin-inventory-grant .admin-grant-status { min-height: 27px; }
-
