@@ -2,15 +2,16 @@ import './productionMarket.css';
 import { state, save } from '../state.js';
 import { loadRawMarket, sellToFactory, loadProductionExchange, createFactoryOffer, createStoreRequest, acceptStoreRequest, buyFactoryOffer, getFactoryError } from '../factory/factoryApi.js';
 import { getMetallurgyError, loadMetallurgyRawMarket, sellMineRawToMetallurgy } from '../metallurgy/metallurgyApi.js';
+import { getWoodProcessingError, loadWoodProcessingRawMarket, sellLumberToWoodProcessing } from '../woodProcessing/woodProcessingApi.js';
 import { PRODUCTION_CHAINS, productionChain, productionProduct } from './productionChains.js';
 
-const RAW_ITEMS={farm_apple:{icon:'🍎',label:'Яблоки',chainId:'fruit',groupId:'farm'},farm_orange:{icon:'🍊',label:'Апельсины',chainId:'fruit',groupId:'farm'},farm_wheat:{icon:'🌾',label:'Пшеница',chainId:'fruit',groupId:'farm'},farm_corn:{icon:'🌽',label:'Кукуруза',chainId:'fruit',groupId:'farm'},mine_coal_common:{icon:'⚫',label:'Обыкновенный уголь',chainId:'metallurgy',groupId:'mine'},mine_coal_technical:{icon:'🧱',label:'Технический уголь',chainId:'metallurgy',groupId:'mine'},mine_metal_raw:{icon:'🔩',label:'Сырой металл',chainId:'metallurgy',groupId:'mine'},mine_metal_technical:{icon:'⛓️',label:'Технический металл',chainId:'metallurgy',groupId:'mine'},mine_copper_raw:{icon:'🟤',label:'Медная руда',chainId:'metallurgy',groupId:'mine'},mine_copper_conductive:{icon:'🟠',label:'Богатая медная руда',chainId:'metallurgy',groupId:'mine'}};
+const RAW_ITEMS={farm_apple:{icon:'🍎',label:'Яблоки',chainId:'fruit',groupId:'farm'},farm_orange:{icon:'🍊',label:'Апельсины',chainId:'fruit',groupId:'farm'},farm_wheat:{icon:'🌾',label:'Пшеница',chainId:'fruit',groupId:'farm'},farm_corn:{icon:'🌽',label:'Кукуруза',chainId:'fruit',groupId:'farm'},mine_coal_common:{icon:'⚫',label:'Обыкновенный уголь',chainId:'metallurgy',groupId:'mine'},mine_coal_technical:{icon:'🧱',label:'Технический уголь',chainId:'metallurgy',groupId:'mine'},mine_metal_raw:{icon:'🔩',label:'Сырой металл',chainId:'metallurgy',groupId:'mine'},mine_metal_technical:{icon:'⛓️',label:'Технический металл',chainId:'metallurgy',groupId:'mine'},mine_copper_raw:{icon:'🟤',label:'Медная руда',chainId:'metallurgy',groupId:'mine'},mine_copper_conductive:{icon:'🟠',label:'Богатая медная руда',chainId:'metallurgy',groupId:'mine'},lumber_log:{icon:'🪵',label:'Бревно',chainId:'wood_processing',groupId:'lumber'},lumber_beam:{icon:'▰',label:'Брус',chainId:'wood_processing',groupId:'lumber'}};
 
 const STORE_FOR_PRODUCT=Object.freeze({
  grocery_bread:'grocery',grocery_pasta:'grocery',grocery_diet_fruit_salad:'grocery',grocery_universal_fruit_salad:'grocery',grocery_multifruit_juice:'grocery',
 });
 
-const RAW_GROUPS={farm:{icon:'🌾',label:'Сырьё с фермы',chainId:'fruit'},mine:{icon:'⛏️',label:'Сырьё с шахты',chainId:'metallurgy'}};
+const RAW_GROUPS={farm:{icon:'🌾',label:'Сырьё с фермы',chainId:'fruit'},mine:{icon:'⛏️',label:'Сырьё с шахты',chainId:'metallurgy'},lumber:{icon:'🌲',label:'Сырьё лесоруба',chainId:'wood_processing'}};
 const esc=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const money=(v)=>`${Math.max(0,Math.round(Number(v)||0)).toLocaleString('ru-RU')} ₴`;
 const quantity=(v)=>Math.max(0,Math.floor(Number(v)||0));
@@ -21,13 +22,15 @@ const entityName=(entry,fallback)=>{const value=String(entry?.name||entry?.facto
 function shell(){return `<div class="mn-production-shortcuts"><button data-raw-market-open><b>O</b><span>Продать сырьё</span></button><button data-exchange-open><b>M</b><span>Биржа продукции</span></button></div><div class="mn-production-market" data-production-market hidden><button class="mn-production-backdrop" data-market-close></button><section><header><div><small data-market-eyebrow>РЫНОК</small><h2 data-market-title>Производственная экономика</h2></div><button data-market-close>×</button></header><main data-market-content></main></section></div>`;}
 
 async function loadUniversalRaw(){
-  const [fruitResult,metallurgyResult]=await Promise.allSettled([loadRawMarket(),loadMetallurgyRawMarket()]);
-  if(fruitResult.status==='rejected'&&metallurgyResult.status==='rejected')throw fruitResult.reason;
+  const [fruitResult,metallurgyResult,woodResult]=await Promise.allSettled([loadRawMarket(),loadMetallurgyRawMarket(),loadWoodProcessingRawMarket()]);
+  if(fruitResult.status==='rejected'&&metallurgyResult.status==='rejected'&&woodResult.status==='rejected')throw fruitResult.reason;
   const fruitSource=fruitResult.status==='fulfilled'?fruitResult.value:{};
   const metallurgySource=metallurgyResult.status==='fulfilled'?metallurgyResult.value:{};
+  const woodSource=woodResult.status==='fulfilled'?woodResult.value:{};
   const merged=[
     ...(fruitSource?.offers||[]).map(item=>({...item,chainId:'fruit',rawProvider:'fruit'})),
     ...(metallurgySource?.offers||[]).map(item=>({...item,chainId:'metallurgy',rawProvider:'metallurgy'})),
+    ...(woodSource?.offers||[]).map(item=>({...item,chainId:'wood_processing',rawProvider:'wood_processing'})),
   ].filter(item=>RAW_ITEMS[item.itemType]);
 
   const seen=new Set();
@@ -138,11 +141,13 @@ content.addEventListener('click',async e=>{const t=e.target;if(busy)return;const
     task=()=>sellMineRawToMetallurgy(sell.dataset.rawSell,sell.dataset.city,sell.dataset.item,quantity);
     errorMessage=getMetallurgyError;
     refreshMineInventory=true;
+  }else if(sell.dataset.provider==='wood_processing'){
+    task=()=>sellLumberToWoodProcessing(sell.dataset.rawSell,sell.dataset.city,sell.dataset.item,quantity);
+    errorMessage=getWoodProcessingError;
   }else{
     task=()=>sellToFactory(sell.dataset.rawSell,sell.dataset.city,sell.dataset.item,quantity);
   }
 
   msg='Сырьё продано производству.';
-}const buy=t.closest('[data-offer-buy]');if(buy){const dest=content.querySelector(`[data-offer-destination="${buy.dataset.offerBuy}"]`).value;const businessId=dest.replace(/^store:/,'');task=()=>buyExchangeOffer('fruit',buy.dataset.offerBuy,businessId);msg='Товар закуплен на склад продуктового магазина.';}const accept=t.closest('[data-request-accept]');if(accept){const select=content.querySelector(`[data-request-factory="${accept.dataset.requestAccept}"]`),opt=select.selectedOptions[0];task=()=>takeExchangeRequest('fruit',accept.dataset.requestAccept,select.value,opt.dataset.city);msg='Продуктовый завод принял заказ.';}if(t.closest('[data-create-factory-offer]')){const s=content.querySelector('[data-create-factory]'),opt=s.selectedOptions[0],payload={factoryId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-factory-product]').value,quantity:Number(content.querySelector('[data-create-factory-qty]').value),unitPrice:Number(content.querySelector('[data-create-factory-price]').value)};task=()=>publishFactoryOffer('fruit',payload);msg='Предложение опубликовано.';}if(t.closest('[data-create-store-request]')){const s=content.querySelector('[data-create-store]'),opt=s.selectedOptions[0],payload={businessId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-store-product]').value,quantity:Number(content.querySelector('[data-create-store-qty]').value),unitPrice:Number(content.querySelector('[data-create-store-price]').value)};task=()=>publishStoreRequest('fruit',payload);msg='Заявка продуктового магазина опубликована.';}if(!task)return;busy=true;try{const result=await task(),balance=Number(result?.playerBalance);if(Number.isFinite(balance)){state.player={...(state.player||{}),balance};save();window.dispatchEvent(new CustomEvent('mn:player-balance-changed',{detail:{balance,source:'production_market'}}));}if(refreshMineInventory)window.dispatchEvent(new CustomEvent('mn:mine-inventory-changed'));toast(msg,'success');busy=false;await open(mode);}catch(err){toast(errorMessage(err),'error');}finally{busy=false;}});
+}const buy=t.closest('[data-offer-buy]');if(buy){const dest=content.querySelector(`[data-offer-destination="${buy.dataset.offerBuy}"]`).value;const businessId=dest.replace(/^store:/,'');task=()=>buyExchangeOffer('fruit',buy.dataset.offerBuy,businessId);msg='Товар закуплен на склад продуктового магазина.';}const accept=t.closest('[data-request-accept]');if(accept){const select=content.querySelector(`[data-request-factory="${accept.dataset.requestAccept}"]`),opt=select.selectedOptions[0];task=()=>takeExchangeRequest('fruit',accept.dataset.requestAccept,select.value,opt.dataset.city);msg='Продуктовый завод принял заказ.';}if(t.closest('[data-create-factory-offer]')){const s=content.querySelector('[data-create-factory]'),opt=s.selectedOptions[0],payload={factoryId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-factory-product]').value,quantity:Number(content.querySelector('[data-create-factory-qty]').value),unitPrice:Number(content.querySelector('[data-create-factory-price]').value)};task=()=>publishFactoryOffer('fruit',payload);msg='Предложение опубликовано.';}if(t.closest('[data-create-store-request]')){const s=content.querySelector('[data-create-store]'),opt=s.selectedOptions[0],payload={businessId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-store-product]').value,quantity:Number(content.querySelector('[data-create-store-qty]').value),unitPrice:Number(content.querySelector('[data-create-store-price]').value)};task=()=>publishStoreRequest('fruit',payload);msg='Заявка продуктового магазина опубликована.';}if(!task)return;busy=true;try{const result=await task(),balance=Number(result?.playerBalance);if(Number.isFinite(balance)){state.player={...(state.player||{}),balance};save();window.dispatchEvent(new CustomEvent('mn:player-balance-changed',{detail:{balance,source:'production_market'}}));}if(refreshMineInventory)window.dispatchEvent(new CustomEvent('mn:mine-inventory-changed'));if(sell?.dataset.provider==='wood_processing')window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed'));toast(msg,'success');busy=false;await open(mode);}catch(err){toast(errorMessage(err),'error');}finally{busy=false;}});
 return()=>{window.removeEventListener('keydown',key,true);modal.remove();root.querySelector('.mn-production-shortcuts')?.remove();};}
-
