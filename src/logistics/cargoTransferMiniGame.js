@@ -6,6 +6,12 @@ const labels = {
   diet_fruit_salad: ['🥗', 'Салат диетический'],
   universal_fruit_salad: ['🥙', 'Салат универсальный фруктовый'],
   multifruit_juice: ['🧃', 'Сок мультифрукт'],
+  farm_rake: ['Г', 'Готовые грабли'],
+  mine_tool_pickaxe: ['⛏️', 'Готовая кирка'],
+  farm_scissors: ['✂️', 'Готовые ножницы'],
+  construction_hand_saw: ['🪚', 'Готовая ручная пила'],
+  lumber_tool_axe: ['🪓', 'Готовый топор'],
+  lumber_tool_chainsaw: ['⚙️', 'Готовая бензопила'],
 };
 
 let activeCargoGame = null;
