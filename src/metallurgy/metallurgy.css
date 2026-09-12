@@ -11,5 +11,9 @@
 [data-textile-page="warehouse"] .mn-metallurgy-stock article>i{display:grid;place-items:center}
 [data-textile-page="warehouse"] .mn-metallurgy-stock article>div{display:grid;grid-template-columns:repeat(2,minmax(90px,1fr));gap:6px;min-width:0}
 [data-textile-page="warehouse"] .mn-metallurgy-stock article>div>button{grid-column:1/-1;min-height:34px;border:1px solid #e8a44855;border-radius:9px;background:#e8a44818;color:#ffd28e;font-weight:900}
+[data-textile-page="warehouse"] .mn-metallurgy-stock .mn-textile-raw-controls{grid-template-columns:minmax(130px,1fr) auto}
+[data-textile-page="warehouse"] .mn-metallurgy-stock .mn-textile-raw-controls label{display:grid;gap:4px;min-width:0}
+[data-textile-page="warehouse"] .mn-metallurgy-stock .mn-textile-raw-controls label small{white-space:nowrap}
+[data-textile-page="warehouse"] .mn-metallurgy-stock .mn-textile-raw-controls>button{grid-column:auto;align-self:end;padding:0 10px}
 @media(max-width:900px){[data-textile-page="warehouse"] .mn-metallurgy-stock{grid-template-columns:1fr}[data-textile-page="warehouse"] .mn-metallurgy-stock article{grid-template-columns:42px minmax(0,1fr)}[data-textile-page="warehouse"] .mn-metallurgy-stock article>div{grid-column:1/-1}}
 @media(max-width:720px){.mn-metallurgy-panel{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}.mn-metallurgy-panel>header{padding:14px}.mn-metallurgy-panel h2{font-size:20px}.mn-metallurgy-panel>main{padding:11px}.mn-metallurgy-status{grid-template-columns:1fr 1fr}.mn-metallurgy-status span:last-child{grid-column:1/-1}.mn-metallurgy-recipes,.mn-metallurgy-stock{grid-template-columns:1fr}.mn-metallurgy-recipe{grid-template-columns:auto 1fr}.mn-metallurgy-recipe>div{grid-column:1/-1;grid-template-columns:65px 1fr}.mn-metallurgy-buy{align-items:stretch;flex-direction:column}}
