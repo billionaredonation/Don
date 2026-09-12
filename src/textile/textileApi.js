@@ -20,6 +20,7 @@ export function getTextileError(error) {
     INDUSTRY_FACTORY_NOT_FOUND: 'Швейный завод не найден.', INDUSTRY_OWNER_REQUIRED: 'Действие доступно владельцу завода.',
     INDUSTRY_RECIPE_INVALID: 'Такая рецептура не зарегистрирована.', INDUSTRY_RAW_NOT_ENOUGH: 'На складе не хватает льна или хлопка.',
     INDUSTRY_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовой одежды.', PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
+    INDUSTRY_ALREADY_OWNED: 'У этого швейного завода уже есть владелец.',
     TEXTILE_ITEM_NOT_OWNED: 'Сначала купите эту вещь в магазине одежды и аксессуаров.',
   };
   const code = Object.keys(messages).find((key) => raw.includes(key));
