@@ -28,6 +28,8 @@ const FARM_PLANT_OBJECT_TYPES = new Set([
   'farm_apple_plant',
   'farm_orange_plant',
   'farm_corn_plant',
+  'farm_flax_plant',
+  'farm_cotton_plant',
 ]);
 
 const FARM_PLANT_HINT_META = Object.freeze({
@@ -35,6 +37,8 @@ const FARM_PLANT_HINT_META = Object.freeze({
   farm_apple_plant: Object.freeze({ name: 'яблоню', icon: '🍎' }),
   farm_orange_plant: Object.freeze({ name: 'апельсиновое дерево', icon: '🍊' }),
   farm_corn_plant: Object.freeze({ name: 'кукурузу', icon: '🌽' }),
+  farm_flax_plant: Object.freeze({ name: 'лён', icon: '🪻' }),
+  farm_cotton_plant: Object.freeze({ name: 'хлопок', icon: '☁️' }),
 });
 
 const MINE_NODE_OBJECT_TYPES = new Set([
@@ -102,6 +106,7 @@ function isWorkObject(object) {
     isLumberStationObject(object) ||
     isLumberTreeType(type) ||
     type === 'fruit_factory' ||
+    type === 'textile_factory' ||
     type === 'metallurgy_factory' ||
     type === 'wood_processing_factory' ||
     type === 'tool_assembly_factory'
