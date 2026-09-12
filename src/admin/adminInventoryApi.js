@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient.js';
+import { TEXTILE_PRODUCTS } from '../textile/textileConfig.js';
 
 const ADMIN_INVENTORY_FUNCTION = 'admin-inventory';
 
@@ -38,6 +39,8 @@ const ADMIN_ITEMS = Object.freeze([
   { id: 'farm_orange', label: '🍊 Апельсин', category: 'Ферма · урожай' },
   { id: 'farm_wheat', label: '🌾 Пшеница', category: 'Ферма · урожай' },
   { id: 'farm_corn', label: '🌽 Кукуруза', category: 'Ферма · урожай' },
+  { id: 'farm_flax', label: '🪻 Лён', category: 'Ферма · текстильное сырьё' },
+  { id: 'farm_cotton', label: '☁️ Хлопок', category: 'Ферма · текстильное сырьё' },
 
   // Ферма — legacy, всё ещё существует в RPC/БД
   { id: 'farm_hoe', label: '⌁ Тяпка · legacy', category: 'Ферма · старые предметы' },
@@ -141,6 +144,8 @@ const ADMIN_ITEMS = Object.freeze([
   { id: 'grocery_diet_fruit_salad', label: '🥗 Салат диетический', category: 'Завод питания' },
   { id: 'grocery_universal_fruit_salad', label: '🥙 Салат универсальный фруктовый', category: 'Завод питания' },
   { id: 'grocery_multifruit_juice', label: '🧃 Сок мультифрукт', category: 'Завод питания' },
+
+  ...TEXTILE_PRODUCTS.map((item) => ({ id: item.itemType, label: `${item.icon} ${item.label}`, category: 'Одежда и обувь', storage: 'business' })),
 
 ]);
 
