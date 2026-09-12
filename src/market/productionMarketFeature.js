@@ -4,15 +4,27 @@ import { loadRawMarket, sellToFactory, loadProductionExchange, createFactoryOffe
 import { getMetallurgyError, loadMetallurgyRawMarket, sellMineRawToMetallurgy } from '../metallurgy/metallurgyApi.js';
 import { getWoodProcessingError, loadWoodProcessingRawMarket, sellLumberToWoodProcessing } from '../woodProcessing/woodProcessingApi.js';
 import { acceptTextileStoreRequest, buyTextileOffer, createTextileStoreRequest, getTextileError, loadTextileExchange, loadTextileRawMarket, publishTextileOffer, sellFarmRawToTextile } from '../textile/textileApi.js';
+import { FACTORY_RAW_ITEMS } from '../factory/factoryConfig.js';
+import { METALLURGY_RAW_ITEMS } from '../metallurgy/metallurgyConfig.js';
+import { WOOD_PROCESSING_RAW_ITEMS } from '../woodProcessing/woodProcessingConfig.js';
+import { TEXTILE_RAW_ITEMS } from '../textile/textileConfig.js';
+import { TOOL_ASSEMBLY_INPUT_ITEMS } from '../toolAssembly/toolAssemblyConfig.js';
 import { PRODUCTION_CHAINS, productionChain, productionProduct } from './productionChains.js';
 
-const RAW_ITEMS={farm_apple:{icon:'🍎',label:'Яблоки',chainId:'fruit',groupId:'farm'},farm_orange:{icon:'🍊',label:'Апельсины',chainId:'fruit',groupId:'farm'},farm_wheat:{icon:'🌾',label:'Пшеница',chainId:'fruit',groupId:'farm'},farm_corn:{icon:'🌽',label:'Кукуруза',chainId:'fruit',groupId:'farm'},farm_flax:{icon:'🪻',label:'Лён',chainId:'textile',groupId:'textile_farm'},farm_cotton:{icon:'☁️',label:'Хлопок',chainId:'textile',groupId:'textile_farm'},mine_coal_common:{icon:'⚫',label:'Обыкновенный уголь',chainId:'metallurgy',groupId:'mine'},mine_coal_technical:{icon:'🧱',label:'Технический уголь',chainId:'metallurgy',groupId:'mine'},mine_metal_raw:{icon:'🔩',label:'Сырой металл',chainId:'metallurgy',groupId:'mine'},mine_metal_technical:{icon:'⛓️',label:'Технический металл',chainId:'metallurgy',groupId:'mine'},mine_copper_raw:{icon:'🟤',label:'Медная руда',chainId:'metallurgy',groupId:'mine'},mine_copper_conductive:{icon:'🟠',label:'Богатая медная руда',chainId:'metallurgy',groupId:'mine'},lumber_log:{icon:'🪵',label:'Бревно',chainId:'wood_processing',groupId:'lumber'},lumber_beam:{icon:'▰',label:'Брус',chainId:'wood_processing',groupId:'lumber'}};
+const rawCatalogEntries=(items,chainId,groupId)=>items.map((item)=>[item.itemType,{...item,chainId,groupId}]);
+const RAW_ITEMS=Object.fromEntries([
+  ...rawCatalogEntries(FACTORY_RAW_ITEMS,'fruit','farm'),
+  ...rawCatalogEntries(METALLURGY_RAW_ITEMS,'metallurgy','mine'),
+  ...rawCatalogEntries(WOOD_PROCESSING_RAW_ITEMS,'wood_processing','lumber'),
+  ...rawCatalogEntries(TEXTILE_RAW_ITEMS,'textile','textile_farm'),
+  ...rawCatalogEntries(TOOL_ASSEMBLY_INPUT_ITEMS,'tool_assembly','components'),
+]);
 
 const STORE_FOR_PRODUCT=Object.freeze({
  grocery_bread:'grocery',grocery_pasta:'grocery',grocery_diet_fruit_salad:'grocery',grocery_universal_fruit_salad:'grocery',grocery_multifruit_juice:'grocery',
 });
 
-const RAW_GROUPS={farm:{icon:'🌾',label:'Пищевое сырьё с фермы',chainId:'fruit'},textile_farm:{icon:'🧵',label:'Текстильное сырьё с фермы',chainId:'textile'},mine:{icon:'⛏️',label:'Сырьё с шахты',chainId:'metallurgy'},lumber:{icon:'🌲',label:'Сырьё лесоруба',chainId:'wood_processing'}};
+const RAW_GROUPS={farm:{icon:'🌾',label:'Пищевое сырьё с фермы',chainId:'fruit'},textile_farm:{icon:'🧵',label:'Текстильное сырьё с фермы',chainId:'textile'},mine:{icon:'⛏️',label:'Сырьё с шахты',chainId:'metallurgy'},lumber:{icon:'🌲',label:'Сырьё лесоруба',chainId:'wood_processing'},components:{icon:'⚙️',label:'Производственные комплектующие',chainId:'tool_assembly'}};
 const esc=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const money=(v)=>`${Math.max(0,Math.round(Number(v)||0)).toLocaleString('ru-RU')} ₴`;
 const quantity=(v)=>Math.max(0,Math.floor(Number(v)||0));
@@ -20,19 +32,47 @@ const dealTotal=(entry)=>money(quantity(entry?.quantity)*Math.max(0,Number(entry
 const toast=(message,type='info')=>window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message,type}}));
 const entityName=(entry,fallback)=>{const value=String(entry?.name||entry?.factoryName||entry?.storeName||entry?.businessName||'').trim();return !value||/[0-9a-f]{8}-[0-9a-f-]{27,}/i.test(value)||value==='Завод'||value==='Магазин'?`${fallback}${entry?.cityName||entry?.cityId?` · ${entry.cityName||entry.cityId}`:''}`:value;};
 const sourceOffers=(source)=>{
-  const candidates=Array.isArray(source)?source:(source?.offers||source?.rawOffers||source?.raw_offers||source?.items||source?.data?.offers||source?.result?.offers||[]);
-  return Array.isArray(candidates)?candidates:[];
+  if(Array.isArray(source))return source;
+  const direct=source?.offers||source?.rawOffers||source?.raw_offers||source?.items||source?.data?.offers||source?.result?.offers;
+  if(Array.isArray(direct))return direct;
+  const containers=source?.factories||source?.industries||source?.businesses||[];
+  if(!Array.isArray(containers))return [];
+  return containers.flatMap((container)=>{
+    const items=container?.offers||container?.rawItems||container?.raw_items||container?.acceptedItems||container?.accepted_items||[];
+    return Array.isArray(items)?items.map((item)=>typeof item==='string'?{...container,itemType:item}:{...container,...item}):[];
+  });
 };
 const normalizeRawOffer=(item)=>({
   ...item,
-  factoryId:item?.factoryId||item?.factory_id||item?.industryId||item?.industry_id||item?.id||'',
+  factoryId:item?.factoryId||item?.factory_id||item?.businessId||item?.business_id||item?.mapObjectId||item?.map_object_id||item?.objectId||item?.object_id||item?.id||'',
   cityId:item?.cityId||item?.city_id||'',
   cityName:item?.cityName||item?.city_name||'',
-  itemType:item?.itemType||item?.item_type||item?.rawItemType||item?.raw_item_type||'',
+  itemType:item?.itemType||item?.item_type||item?.rawItemType||item?.raw_item_type||item?.resourceType||item?.resource_type||item?.productType||item?.product_type||'',
+  itemLabel:item?.itemLabel||item?.item_label||item?.resourceLabel||item?.resource_label||item?.label||'',
+  itemIcon:item?.itemIcon||item?.item_icon||item?.resourceIcon||item?.resource_icon||item?.icon||'',
+  industryId:item?.industryId||item?.industry_id||item?.chainId||item?.chain_id||'',
   unitPrice:item?.unitPrice??item?.unit_price??item?.buyPrice??item?.buy_price??0,
   capacityLeft:item?.capacityLeft??item?.capacity_left??item?.availableCapacity??item?.available_capacity??0,
   factoryName:item?.factoryName||item?.factory_name||item?.industryName||item?.industry_name||'',
 });
+const INDUSTRY_CHAIN_ALIASES={food:'fruit',fruit_factory:'fruit',fruit:'fruit',metallurgy_factory:'metallurgy',metallurgy:'metallurgy',wood_factory:'wood_processing',wood_processing_factory:'wood_processing',wood_processing:'wood_processing',textile_factory:'textile',textile:'textile',tool_factory:'tool_assembly',tool_assembly_factory:'tool_assembly',tool_assembly:'tool_assembly'};
+const readableItemType=(itemType)=>String(itemType||'').replace(/^(farm|mine|lumber|textile|industry)_/,'').split('_').filter(Boolean).map((part)=>part[0]?.toUpperCase()+part.slice(1)).join(' ')||'Ресурс';
+const chainForRawOffer=(offer,fallback='')=>INDUSTRY_CHAIN_ALIASES[String(offer?.industryId||'').toLowerCase()]||RAW_ITEMS[offer?.itemType]?.chainId||fallback||'fruit';
+const registerRawOffer=(offer)=>{
+  const itemType=String(offer?.itemType||'').trim();
+  if(!itemType)return;
+  const chainId=offer.chainId||chainForRawOffer(offer);
+  const groupId=RAW_ITEMS[itemType]?.groupId||({fruit:'farm',textile:'textile_farm',metallurgy:'mine',wood_processing:'lumber',tool_assembly:'components'}[chainId]||chainId);
+  RAW_ITEMS[itemType]={
+    ...(RAW_ITEMS[itemType]||{}),
+    itemType,
+    label:RAW_ITEMS[itemType]?.label||offer.itemLabel||readableItemType(itemType),
+    icon:RAW_ITEMS[itemType]?.icon||offer.itemIcon||'📦',
+    chainId,
+    groupId,
+  };
+  if(!RAW_GROUPS[groupId])RAW_GROUPS[groupId]={icon:'📦',label:productionChain(chainId).factoryLabel,chainId};
+};
 
 function shell(){return `<div class="mn-production-shortcuts"><button data-raw-market-open><b>O</b><span>Продать сырьё</span></button><button data-exchange-open><b>M</b><span>Биржа продукции</span></button></div><div class="mn-production-market" data-production-market hidden><button class="mn-production-backdrop" data-market-close></button><section><header><div><small data-market-eyebrow>РЫНОК</small><h2 data-market-title>Производственная экономика</h2></div><button data-market-close>×</button></header><main data-market-content></main></section></div>`;}
 
@@ -47,8 +87,10 @@ async function loadUniversalRaw(){
     ...sourceOffers(fruitSource).map(item=>({...normalizeRawOffer(item),chainId:'fruit',rawProvider:'fruit'})),
     ...sourceOffers(metallurgySource).map(item=>({...normalizeRawOffer(item),chainId:'metallurgy',rawProvider:'metallurgy'})),
     ...sourceOffers(woodSource).map(item=>({...normalizeRawOffer(item),chainId:'wood_processing',rawProvider:'wood_processing'})),
-    ...sourceOffers(textileSource).map(normalizeRawOffer).filter(item=>['farm_flax','farm_cotton'].includes(item.itemType)).map(item=>({...item,chainId:'textile',rawProvider:'textile'})),
-  ].filter(item=>RAW_ITEMS[item.itemType]);
+    ...sourceOffers(textileSource).map(normalizeRawOffer).map(item=>({...item,chainId:chainForRawOffer(item,'textile'),rawProvider:'industry'})),
+  ].filter(item=>item.itemType&&item.factoryId);
+
+  merged.forEach(registerRawOffer);
 
   const seen=new Set();
   const offers=[];
@@ -168,7 +210,7 @@ content.addEventListener('click',async e=>{const t=e.target;if(busy)return;const
   }else if(sell.dataset.provider==='wood_processing'){
     task=()=>sellLumberToWoodProcessing(sell.dataset.rawSell,sell.dataset.city,sell.dataset.item,quantity);
     errorMessage=getWoodProcessingError;
-  }else if(sell.dataset.provider==='textile'){
+  }else if(sell.dataset.provider==='industry'||sell.dataset.provider==='textile'){
     task=()=>sellFarmRawToTextile(sell.dataset.rawSell,sell.dataset.city,sell.dataset.item,quantity);
     errorMessage=getTextileError;
   }else{
@@ -176,5 +218,5 @@ content.addEventListener('click',async e=>{const t=e.target;if(busy)return;const
   }
 
   msg='Сырьё продано производству.';
-}const buy=t.closest('[data-offer-buy]');if(buy){const chain=buy.dataset.chain||'fruit',dest=content.querySelector(`[data-offer-destination="${buy.dataset.offerBuy}"]`).value,businessId=dest.replace(/^store:/,'');task=()=>buyExchangeOffer(chain,buy.dataset.offerBuy,businessId);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Товар закуплен на склад магазина.';}const accept=t.closest('[data-request-accept]');if(accept){const chain=accept.dataset.chain||'fruit',select=content.querySelector(`[data-request-factory="${accept.dataset.requestAccept}"]`),opt=select.selectedOptions[0];task=()=>takeExchangeRequest(chain,accept.dataset.requestAccept,select.value,opt.dataset.city);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Завод принял заказ магазина.';}if(t.closest('[data-create-factory-offer]')){const s=content.querySelector('[data-create-factory]'),opt=s.selectedOptions[0],chain=opt.dataset.chain||'fruit',payload={factoryId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-factory-product]').value,quantity:Number(content.querySelector('[data-create-factory-qty]').value),unitPrice:Number(content.querySelector('[data-create-factory-price]').value)};task=()=>publishFactoryOffer(chain,payload);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Предложение опубликовано.';}if(t.closest('[data-create-store-request]')){const s=content.querySelector('[data-create-store]'),opt=s.selectedOptions[0],chain=opt.dataset.chain||'fruit',payload={businessId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-store-product]').value,quantity:Number(content.querySelector('[data-create-store-qty]').value),unitPrice:Number(content.querySelector('[data-create-store-price]').value)};task=()=>publishStoreRequest(chain,payload);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Заявка магазина опубликована.';}if(!task)return;busy=true;try{const result=await task(),balance=Number(result?.playerBalance);if(Number.isFinite(balance)){state.player={...(state.player||{}),balance};save();window.dispatchEvent(new CustomEvent('mn:player-balance-changed',{detail:{balance,source:'production_market'}}));}if(refreshMineInventory)window.dispatchEvent(new CustomEvent('mn:mine-inventory-changed'));if(sell?.dataset.provider==='wood_processing')window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed'));if(sell?.dataset.provider==='textile')window.dispatchEvent(new CustomEvent('mn:farm-inventory-changed'));toast(msg,'success');busy=false;await open(mode);}catch(err){toast(errorMessage(err),'error');}finally{busy=false;}});
+}const buy=t.closest('[data-offer-buy]');if(buy){const chain=buy.dataset.chain||'fruit',dest=content.querySelector(`[data-offer-destination="${buy.dataset.offerBuy}"]`).value,businessId=dest.replace(/^store:/,'');task=()=>buyExchangeOffer(chain,buy.dataset.offerBuy,businessId);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Товар закуплен на склад магазина.';}const accept=t.closest('[data-request-accept]');if(accept){const chain=accept.dataset.chain||'fruit',select=content.querySelector(`[data-request-factory="${accept.dataset.requestAccept}"]`),opt=select.selectedOptions[0];task=()=>takeExchangeRequest(chain,accept.dataset.requestAccept,select.value,opt.dataset.city);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Завод принял заказ магазина.';}if(t.closest('[data-create-factory-offer]')){const s=content.querySelector('[data-create-factory]'),opt=s.selectedOptions[0],chain=opt.dataset.chain||'fruit',payload={factoryId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-factory-product]').value,quantity:Number(content.querySelector('[data-create-factory-qty]').value),unitPrice:Number(content.querySelector('[data-create-factory-price]').value)};task=()=>publishFactoryOffer(chain,payload);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Предложение опубликовано.';}if(t.closest('[data-create-store-request]')){const s=content.querySelector('[data-create-store]'),opt=s.selectedOptions[0],chain=opt.dataset.chain||'fruit',payload={businessId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-store-product]').value,quantity:Number(content.querySelector('[data-create-store-qty]').value),unitPrice:Number(content.querySelector('[data-create-store-price]').value)};task=()=>publishStoreRequest(chain,payload);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Заявка магазина опубликована.';}if(!task)return;busy=true;try{const result=await task(),balance=Number(result?.playerBalance);if(Number.isFinite(balance)){state.player={...(state.player||{}),balance};save();window.dispatchEvent(new CustomEvent('mn:player-balance-changed',{detail:{balance,source:'production_market'}}));}if(refreshMineInventory)window.dispatchEvent(new CustomEvent('mn:mine-inventory-changed'));if(sell?.dataset.provider==='wood_processing')window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed'));if(['industry','textile'].includes(sell?.dataset.provider)){window.dispatchEvent(new CustomEvent('mn:farm-inventory-changed'));window.dispatchEvent(new CustomEvent('mn:player-inventory-changed'));}toast(msg,'success');busy=false;await open(mode);}catch(err){toast(errorMessage(err),'error');}finally{busy=false;}});
 return()=>{window.removeEventListener('keydown',key,true);modal.remove();root.querySelector('.mn-production-shortcuts')?.remove();};}
