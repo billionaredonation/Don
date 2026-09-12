@@ -17,6 +17,7 @@ const RAW_ITEMS=Object.fromEntries([
   ...rawCatalogEntries(METALLURGY_RAW_ITEMS,'metallurgy','mine'),
   ...rawCatalogEntries(WOOD_PROCESSING_RAW_ITEMS,'wood_processing','lumber'),
 ]);
+const TEXTILE_RAW_TYPES=new Set(TEXTILE_RAW_ITEMS.map(item=>item.itemType));
 
 const STORE_FOR_PRODUCT=Object.freeze({
  grocery_bread:'grocery',grocery_pasta:'grocery',grocery_diet_fruit_salad:'grocery',grocery_universal_fruit_salad:'grocery',grocery_multifruit_juice:'grocery',
@@ -74,7 +75,7 @@ async function loadUniversalRaw(){
     ...sourceOffers(fruitSource).map(item=>({...normalizeRawOffer(item),chainId:'fruit',rawProvider:'fruit'})),
     ...sourceOffers(metallurgySource).map(item=>({...normalizeRawOffer(item),chainId:'metallurgy',rawProvider:'metallurgy'})),
     ...sourceOffers(woodSource).map(item=>({...normalizeRawOffer(item),chainId:'wood_processing',rawProvider:'wood_processing'})),
-    ...sourceOffers(textileSource).map(normalizeRawOffer).map(item=>({...item,chainId:chainForRawOffer(item,'textile'),rawProvider:'industry'})),
+    ...sourceOffers(textileSource).map(normalizeRawOffer).filter(item=>TEXTILE_RAW_TYPES.has(item.itemType)).map(item=>({...item,chainId:chainForRawOffer(item,'textile'),rawProvider:'industry'})),
   ].filter(item=>RAW_ITEMS[item.itemType]&&item.factoryId);
 
   const seen=new Set();
