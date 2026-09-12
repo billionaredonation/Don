@@ -13,6 +13,7 @@ const BUSINESS_ENTITY_TYPES = new Set([
   'market',
   'logistics_hub',
   'construction_store',
+  'accessory_store',
 ]);
 
 export function getEntityKind(object) {
@@ -128,6 +129,8 @@ export function getEntityMetaText(object) {
     if (type === 'farm_apple_plant') return 'Ферма · яблоня';
     if (type === 'farm_orange_plant') return 'Ферма · апельсиновое дерево';
     if (type === 'farm_corn_plant') return 'Ферма · кукуруза';
+    if (type === 'farm_flax_plant') return 'Ферма · лён';
+    if (type === 'farm_cotton_plant') return 'Ферма · хлопок';
     if (type === 'mine_station') return 'Шахта · кирка и продажа сырья';
     if (type === 'mine_stone_node') return 'Шахта · месторождение камня';
     if (type === 'mine_coal_node') return 'Шахта · месторождение угля';
@@ -140,6 +143,7 @@ export function getEntityMetaText(object) {
     if (type === 'metallurgy_factory') return 'Металлургический завод · переработка сырья шахты в промышленные компоненты';
     if (type === 'wood_processing_factory') return 'Деревоперерабатывающий завод · производство деталей для инструментов';
     if (type === 'tool_assembly_factory') return 'Завод по сборке инструментов · готовые инструменты для стройматериалов';
+    if (type === 'textile_factory') return 'Швейный завод · лён и хлопок → одежда и обувь → магазин аксессуаров';
     return 'Рабочая точка';
   }
 
@@ -216,6 +220,8 @@ export function dispatchEntityAction(object) {
       ? 'mn:wood-processing-object-action'
       : cleanType === 'tool_assembly_factory'
       ? 'mn:tool-assembly-object-action'
+      : cleanType === 'textile_factory'
+      ? 'mn:textile-object-action'
       : cleanType.startsWith('mine_')
       ? 'mn:mine-object-action'
       : cleanType.startsWith('lumber_')
@@ -234,4 +240,3 @@ export function dispatchEntityAction(object) {
     },
   }));
 }
-
