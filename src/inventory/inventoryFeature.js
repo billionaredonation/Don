@@ -7,6 +7,8 @@ import { loadLumberInventory } from '../lumber/lumberApi.js';
 import { loadBusinessInventory, useBusinessInventoryItem } from '../business/businessApi.js';
 import { loadIndustryInventory } from './industryInventoryApi.js';
 import { getBusinessProduct } from '../business/businessConfig.js';
+import { TEXTILE_PRODUCT_BY_TYPE, isTextileProduct } from '../textile/textileConfig.js';
+import { getTextileError, loadTextileWardrobe, setTextileWardrobeItem } from '../textile/textileApi.js';
 import { getMineBaseGradePrice, parseMineGradeItemType } from '../mine/mineConfig.js';
 import { METALLURGY_RAW_ITEMS, METALLURGY_RECIPES } from '../metallurgy/metallurgyConfig.js';
 import { WOOD_PROCESSING_RECIPES } from '../woodProcessing/woodProcessingConfig.js';
@@ -57,6 +59,8 @@ const ITEM_META = Object.freeze({
   farm_wheat: { label: 'Пшеница', icon: '🌾' },
   farm_orange: { label: 'Апельсин', icon: '🍊' },
   farm_corn: { label: 'Кукуруза', icon: '🌽' },
+  farm_flax: { label: 'Лён', icon: '🪻' },
+  farm_cotton: { label: 'Хлопок', icon: '☁️' },
   mine_tool_pickaxe: { label: 'Шахтёрская кирка', icon: '⛏️' },
   lumber_tool_axe: { label: 'Топор лесоруба', icon: '🪓' },
   lumber_tool_chainsaw: { label: 'Бензопила', icon: '🪚' },
@@ -77,6 +81,7 @@ const ITEM_META = Object.freeze({
   grocery_multifruit_juice: { label: 'Сок мультифрукт', icon: '🧃' },
   food_wheat_flour:{label:'Пшеничная мука',icon:'🥣'},food_corn_flour:{label:'Кукурузная мука',icon:'🟡'},wood_dry_board:{label:'Сухая доска',icon:'🪵'},wood_furniture_panel:{label:'Мебельный щит',icon:'🟫'},construction_cement:{label:'Цемент',icon:'⚪'},construction_concrete:{label:'Бетонная смесь',icon:'🧱'},metal_steel:{label:'Стальной прокат',icon:'🔩'},metal_copper:{label:'Медная катанка',icon:'🟠'},electric_copper_wire:{label:'Медный провод',icon:'🧵'},electric_power_cable:{label:'Силовой кабель',icon:'🔌'},
   ...INDUSTRY_ITEM_META,
+  ...Object.fromEntries(Object.entries(TEXTILE_PRODUCT_BY_TYPE).map(([id, item]) => [id, { label: item.label, icon: item.icon }])),
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
@@ -408,6 +413,8 @@ function renderMedicalItems(slotItems = []) {
       itemType.startsWith('mine_') ? 'mn-inventory-item-mine' : '',
       itemType.startsWith('lumber_') ? 'mn-inventory-item-lumber' : '',
       itemType.startsWith('grocery_') ? 'mn-inventory-item-food' : '',
+      itemType.startsWith('textile_') ? 'mn-inventory-item-textile' : '',
+      item.equipped ? 'is-equipped' : '',
     ].filter(Boolean).join(' ');
 
     return `
@@ -425,6 +432,7 @@ function renderMedicalItems(slotItems = []) {
         data-inventory-item-type="${safeItemType}"
         data-inventory-item-source="${escapeHtml(source)}"
         data-inventory-item-hospital-id="${safeHospitalId}"
+        ${itemType.startsWith('textile_') ? `style="--mn-textile-color:${escapeHtml(item.color || '#374151')}"` : ''}
       >
         <span>${getItemIconMarkup(itemType, meta.icon)}</span>
         <b>${quantity}</b>
@@ -461,6 +469,9 @@ function characterMarkup(vitals) {
           />
           <path class="mn-character-detail" d="M61 106 H99 M80 82 V154" />
         </svg>
+        <span class="mn-character-garment is-upper" data-character-garment="upper" hidden></span>
+        <span class="mn-character-garment is-lower" data-character-garment="lower" hidden></span>
+        <span class="mn-character-garment is-shoes" data-character-garment="shoes" hidden></span>
 
         <span class="mn-inventory-character-state" data-character-state>Состояние</span>
       </div>
@@ -563,6 +574,7 @@ function inventoryMarkup(initialVitals) {
             <small data-inventory-item-menu-quantity>0 шт.</small>
           </header>
           <div class="mn-inventory-item-menu-actions">
+            <label data-inventory-item-color-wrap hidden>Цвет <input type="color" value="#374151" data-inventory-item-color></label>
             <button type="button" class="is-primary" data-inventory-item-apply>Применить</button>
             <button type="button" data-inventory-item-info-button>Информация</button>
             <button type="button" data-inventory-item-menu-close>Закрыть</button>
@@ -615,6 +627,8 @@ export function enableInventoryFeature() {
   const itemMenuQuantity = itemMenu?.querySelector('[data-inventory-item-menu-quantity]');
   const itemMenuInfo = itemMenu?.querySelector('[data-inventory-item-info]');
   const itemMenuApply = itemMenu?.querySelector('[data-inventory-item-apply]');
+  const itemMenuColorWrap = itemMenu?.querySelector('[data-inventory-item-color-wrap]');
+  const itemMenuColor = itemMenu?.querySelector('[data-inventory-item-color]');
   const itemMenuInfoButton = itemMenu?.querySelector('[data-inventory-item-info-button]');
   const itemMenuClose = itemMenu?.querySelector('[data-inventory-item-menu-close]');
 
@@ -780,6 +794,16 @@ export function enableInventoryFeature() {
     const occupied = medicalItems.filter((item) => Number(item.quantity || 0) > 0).length;
     inventorySlotItems = arrangeInventoryItems(medicalItems);
     inventoryGrid.innerHTML = renderMedicalItems(inventorySlotItems);
+    const equippedBySlot = new Map(medicalItems.filter((item) => item.equipped && isTextileProduct(item.itemType)).map((item) => [TEXTILE_PRODUCT_BY_TYPE[item.itemType]?.slot, item]));
+    overlay.querySelectorAll('[data-character-garment]').forEach((element) => {
+      const item = equippedBySlot.get(element.dataset.characterGarment);
+      element.hidden = !item;
+      if (item) {
+        element.textContent = TEXTILE_PRODUCT_BY_TYPE[item.itemType]?.icon || '●';
+        element.style.setProperty('--mn-garment-color', item.color || '#374151');
+        element.title = TEXTILE_PRODUCT_BY_TYPE[item.itemType]?.label || item.itemType;
+      }
+    });
     if (capacity) capacity.textContent = String(occupied);
     inventoryGrid.dataset.busy = inventoryBusy ? 'true' : 'false';
   }
@@ -818,6 +842,12 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nВосстанавливает 20 единиц воды. Хорошая гидратация ускоряет восстановление стамины до 3 минут.`;
     }
 
+    if (isTextileProduct(itemType)) {
+      const product = TEXTILE_PRODUCT_BY_TYPE[itemType] || {};
+      const slot = product.slot === 'upper' ? 'верхняя одежда' : product.slot === 'lower' ? 'нижняя одежда' : 'обувь';
+      return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nСлот: ${slot}. Цвет: ${item.color || '#374151'}. ${item.equipped ? 'Сейчас надето.' : 'Сейчас не надето.'} Пока предмет не даёт характеристик.`;
+    }
+
     if (itemType.startsWith('grocery_')) {
       const product = getBusinessProduct(itemType) || {};
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nКуплено в продуктовом магазине. Восстанавливает ${Number(product.foodRestore) || 0} еды и ${Number(product.waterRestore) || 0} воды.`;
@@ -836,7 +866,7 @@ export function enableInventoryFeature() {
       return `${getItemLabel(item)} · ${quantity} бут.\n${sourceLabel}.\nТехническая вода из водонапорной башни: пить нельзя, только для полива.\nОсталось поливов: ${uses}. Один набранный литр даёт 2 полива.`;
     }
 
-    if (['farm_apple', 'farm_wheat', 'farm_orange', 'farm_corn'].includes(itemType)) {
+    if (['farm_apple', 'farm_wheat', 'farm_orange', 'farm_corn', 'farm_flax', 'farm_cotton'].includes(itemType)) {
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nМожно продать фермерскому предприятию или другому игроку. Выплата скупщика идёт с баланса конкретной фермы.`;
     }
 
@@ -953,11 +983,14 @@ export function enableInventoryFeature() {
       const farmNonUsable = itemType.startsWith('farm_');
       const mineNonUsable = itemType.startsWith('mine_');
       const lumberNonUsable = itemType.startsWith('lumber_') || itemType.startsWith('construction_');
-      const hidden = medicineOnly || farmNonUsable || mineNonUsable || lumberNonUsable;
+      const clothing = isTextileProduct(itemType);
+      const hidden = !clothing && (medicineOnly || farmNonUsable || mineNonUsable || lumberNonUsable);
       itemMenuApply.hidden = hidden;
       itemMenuApply.disabled = hidden;
       itemMenuApply.style.display = hidden ? 'none' : '';
-      itemMenuApply.textContent = 'Применить';
+      itemMenuApply.textContent = clothing ? (item.equipped ? 'Снять' : 'Надеть') : 'Применить';
+      if (itemMenuColorWrap) itemMenuColorWrap.hidden = !clothing;
+      if (itemMenuColor) itemMenuColor.value = /^#[0-9a-f]{6}$/i.test(String(item.color || '')) ? item.color : '#374151';
     }
     setItemMenuNotice('');
     positionItemMenu(anchor, event);
@@ -1109,13 +1142,14 @@ export function enableInventoryFeature() {
   }
 
   async function refreshMedicalInventory() {
-    const [medicalResult, farmResult, mineResult, lumberResult, businessResult, industryResult] = await Promise.allSettled([
+    const [medicalResult, farmResult, mineResult, lumberResult, businessResult, industryResult, wardrobeResult] = await Promise.allSettled([
       loadMyMedicalInventory(),
       loadFarmInventory(),
       loadMineInventory(),
       loadLumberInventory(),
       loadBusinessInventory(),
       loadIndustryInventory(),
+      loadTextileWardrobe(),
     ]);
 
     const medical = medicalResult.status === 'fulfilled' && Array.isArray(medicalResult.value?.items)
@@ -1130,9 +1164,16 @@ export function enableInventoryFeature() {
     const lumber = lumberResult.status === 'fulfilled' && Array.isArray(lumberResult.value?.items)
       ? lumberResult.value.items
       : (Array.isArray(window.__MN_LUMBER_INVENTORY_ITEMS__) ? window.__MN_LUMBER_INVENTORY_ITEMS__ : []);
-    const business = businessResult.status === 'fulfilled' && Array.isArray(businessResult.value?.items)
+    let business = businessResult.status === 'fulfilled' && Array.isArray(businessResult.value?.items)
       ? businessResult.value.items
       : (Array.isArray(window.__MN_BUSINESS_INVENTORY_ITEMS__) ? window.__MN_BUSINESS_INVENTORY_ITEMS__ : []);
+    const wardrobe = wardrobeResult.status === 'fulfilled' && Array.isArray(wardrobeResult.value?.items)
+      ? wardrobeResult.value.items : [];
+    const wardrobeByType = new Map(wardrobe.map((item) => [String(item.itemType || item.item_type || ''), item]));
+    business = business.map((item) => {
+      const profile = wardrobeByType.get(String(item.itemType || item.item_type || ''));
+      return profile ? { ...item, color: profile.color, equipped: Boolean(profile.equipped), wardrobeSlot: profile.slot } : item;
+    });
     const industry = industryResult.status === 'fulfilled' && Array.isArray(industryResult.value?.items)
       ? industryResult.value.items
       : (Array.isArray(window.__MN_INDUSTRY_INVENTORY_ITEMS__) ? window.__MN_INDUSTRY_INVENTORY_ITEMS__ : []);
@@ -1155,6 +1196,9 @@ export function enableInventoryFeature() {
     if (industryResult.status === 'rejected' && !String(industryResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] industry inventory load failed:', industryResult.reason);
     }
+    if (wardrobeResult.status === 'rejected' && !String(wardrobeResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
+      console.warn('[inventory] wardrobe load failed:', wardrobeResult.reason);
+    }
 
     window.__MN_BUSINESS_INVENTORY_ITEMS__ = business;
     window.__MN_INDUSTRY_INVENTORY_ITEMS__ = industry;
@@ -1168,6 +1212,21 @@ export function enableInventoryFeature() {
     const itemType = String(item?.itemType || '');
     const consumptionEffect = getConsumptionEffectType(itemType);
     if (!itemType || inventoryBusy) return;
+    if (isTextileProduct(itemType)) {
+      inventoryBusy = true;
+      try {
+        const result = await setTextileWardrobeItem(itemType, itemMenuColor?.value || item.color || '#374151', !item.equipped);
+        setItemMenuNotice(result?.equipped ? 'Вещь надета.' : 'Вещь снята.', 'success');
+        await refreshMedicalInventory();
+        closeItemMenu();
+      } catch (error) {
+        setItemMenuNotice(getTextileError(error), 'error');
+      } finally {
+        inventoryBusy = false;
+        renderMedicalInventory();
+      }
+      return;
+    }
     if (itemType.startsWith('medicine_')) {
       const message = 'Самолечение таблетками отключено. Используйте препарат на другом игроке через подсистему врача.';
       setItemMenuNotice(message, 'error');
@@ -1626,4 +1685,3 @@ export function enableInventoryFeature() {
     overlay.remove();
   };
 }
-
