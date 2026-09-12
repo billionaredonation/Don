@@ -1,5 +1,8 @@
+import { TEXTILE_PRODUCTS } from '../textile/textileConfig.js';
+
 export const BUSINESS_TYPE_GROCERY = 'grocery';
 export const BUSINESS_TYPE_CONSTRUCTION = 'construction_store';
+export const BUSINESS_TYPE_ACCESSORY = 'accessory_store';
 
 export const BUSINESS_LEGAL_FORMS = Object.freeze({
   fop: Object.freeze({
@@ -122,10 +125,11 @@ export const BUSINESS_PRODUCTS_BY_TYPE = Object.freeze({
   [BUSINESS_TYPE_GROCERY]: BUSINESS_PRODUCTS,
   shop: BUSINESS_PRODUCTS,
   [BUSINESS_TYPE_CONSTRUCTION]: CONSTRUCTION_STORE_PRODUCTS,
+  [BUSINESS_TYPE_ACCESSORY]: TEXTILE_PRODUCTS,
 });
 
 export const BUSINESS_PRODUCT_BY_TYPE = Object.freeze(
-  Object.fromEntries([...BUSINESS_PRODUCTS, ...CONSTRUCTION_STORE_PRODUCTS].map((product) => [product.itemType, product])),
+  Object.fromEntries([...BUSINESS_PRODUCTS, ...CONSTRUCTION_STORE_PRODUCTS, ...TEXTILE_PRODUCTS].map((product) => [product.itemType, product])),
 );
 
 export function getBusinessProducts(businessType = BUSINESS_TYPE_GROCERY) {
@@ -183,4 +187,3 @@ export function getWeeklyTaxPreview(group, turnover = 0) {
     group: taxGroup,
   };
 }
-
