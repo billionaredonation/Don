@@ -18,6 +18,24 @@ export const PRODUCTION_CHAINS = {
     id: 'wood_processing', factoryType: 'wood_processing_factory', factoryLabel: 'Деревоперерабатывающий завод', factoryIcon: '🪵',
     storeType: '', storeLabel: '', rawOnly: true, products: Object.freeze([]),
   }),
+  textile: Object.freeze({
+    id: 'textile', factoryType: 'textile_factory', factoryLabel: 'Швейный завод', factoryIcon: '🧵',
+    storeType: 'accessory_store', storeLabel: 'Магазин одежды и аксессуаров',
+    products: Object.freeze([
+      { id: 'textile_jacket_spring', label: 'Куртка · весенняя', icon: '🧥' },
+      { id: 'textile_jacket_summer', label: 'Куртка · летняя', icon: '🧥' },
+      { id: 'textile_jacket_autumn', label: 'Куртка · осенняя', icon: '🧥' },
+      { id: 'textile_jacket_winter', label: 'Куртка · зимняя', icon: '🧥' },
+      { id: 'textile_tshirt', label: 'Футболка', icon: '👕' },
+      { id: 'textile_pants_spring', label: 'Штаны · весенние', icon: '👖' },
+      { id: 'textile_pants_summer', label: 'Штаны · летние', icon: '👖' },
+      { id: 'textile_pants_autumn', label: 'Штаны · осенние', icon: '👖' },
+      { id: 'textile_pants_winter', label: 'Штаны · зимние', icon: '👖' },
+      { id: 'textile_shorts', label: 'Шорты', icon: '🩳' },
+      { id: 'textile_sneakers', label: 'Кроссовки', icon: '👟' },
+      { id: 'textile_dress_shoes', label: 'Туфли', icon: '👞' },
+    ]),
+  }),
 };
 
 export function productionChain(id) { return PRODUCTION_CHAINS[String(id || '').trim()] || PRODUCTION_CHAINS.fruit; }
@@ -36,10 +54,12 @@ const PRODUCT_CHAIN_OVERRIDES = Object.freeze({
   grocery_diet_fruit_salad: 'fruit',
   grocery_universal_fruit_salad: 'fruit',
   grocery_multifruit_juice: 'fruit',
+  textile_jacket_spring: 'textile', textile_jacket_summer: 'textile', textile_jacket_autumn: 'textile', textile_jacket_winter: 'textile',
+  textile_tshirt: 'textile', textile_pants_spring: 'textile', textile_pants_summer: 'textile', textile_pants_autumn: 'textile', textile_pants_winter: 'textile',
+  textile_shorts: 'textile', textile_sneakers: 'textile', textile_dress_shoes: 'textile',
 });
 
 export function canonicalProductionChainForProduct(productId, fallbackChainId = '') {
   const product = String(productId || '').trim();
   return PRODUCT_CHAIN_OVERRIDES[product] || String(fallbackChainId || '').trim();
 }
-
