@@ -225,6 +225,18 @@ function farmModalMarkup() {
                   <div class="mn-farm4-crop-stats"><span><small>У вас</small><b><em data-farm-sale-count="farm_corn">0</em> шт.</b></span><span><small>Цена</small><b><mark data-farm-sale-price="farm_corn">—</mark> ₴</b></span><span><small>Лимит</small><b><mark data-farm-sale-limit="farm_corn">—</mark></b></span></div>
                   <div class="mn-farm4-crop-actions"><button type="button" data-farm-sell="farm_corn" data-quantity="1">Продать 1</button><button type="button" data-farm-sell="farm_corn" data-quantity="0">Продать всё</button></div>
                 </article>
+
+                <article class="mn-farm4-crop-card" data-farm-sale-row="farm_flax">
+                  <div class="mn-farm4-crop-main"><i aria-hidden="true">🪻</i><span><b>Лён</b><small data-farm-sale-level="farm_flax">ур. 1</small></span></div>
+                  <div class="mn-farm4-crop-stats"><span><small>У вас</small><b><em data-farm-sale-count="farm_flax">0</em> шт.</b></span><span><small>Цена</small><b><mark data-farm-sale-price="farm_flax">—</mark> ₴</b></span><span><small>Лимит</small><b><mark data-farm-sale-limit="farm_flax">—</mark></b></span></div>
+                  <div class="mn-farm4-crop-actions"><button type="button" data-farm-sell="farm_flax" data-quantity="1">Продать 1</button><button type="button" data-farm-sell="farm_flax" data-quantity="0">Продать всё</button></div>
+                </article>
+
+                <article class="mn-farm4-crop-card" data-farm-sale-row="farm_cotton">
+                  <div class="mn-farm4-crop-main"><i aria-hidden="true">☁️</i><span><b>Хлопок</b><small data-farm-sale-level="farm_cotton">ур. 1</small></span></div>
+                  <div class="mn-farm4-crop-stats"><span><small>У вас</small><b><em data-farm-sale-count="farm_cotton">0</em> шт.</b></span><span><small>Цена</small><b><mark data-farm-sale-price="farm_cotton">—</mark> ₴</b></span><span><small>Лимит</small><b><mark data-farm-sale-limit="farm_cotton">—</mark></b></span></div>
+                  <div class="mn-farm4-crop-actions"><button type="button" data-farm-sell="farm_cotton" data-quantity="1">Продать 1</button><button type="button" data-farm-sell="farm_cotton" data-quantity="0">Продать всё</button></div>
+                </article>
               </div>
             </section>
 
@@ -280,9 +292,11 @@ function farmModalMarkup() {
                       <span><i>🍊</i><small>Апельсин</small><b data-farm-warehouse-item="farm_orange">0</b></span>
                       <span><i>🌾</i><small>Пшеница</small><b data-farm-warehouse-item="farm_wheat">0</b></span>
                       <span><i>🌽</i><small>Кукуруза</small><b data-farm-warehouse-item="farm_corn">0</b></span>
+                      <span><i>🪻</i><small>Лён</small><b data-farm-warehouse-item="farm_flax">0</b></span>
+                      <span><i>☁️</i><small>Хлопок</small><b data-farm-warehouse-item="farm_cotton">0</b></span>
                     </div>
                     <div class="mn-farm4-warehouse-withdraw" data-farm-owner-only>
-                      <label><span>Что снимаем</span><select data-farm-crop-withdraw-type><option value="farm_apple">🍎 Яблоки</option><option value="farm_orange">🍊 Апельсины</option><option value="farm_wheat">🌾 Пшеница</option><option value="farm_corn">🌽 Кукуруза</option></select></label>
+                      <label><span>Что снимаем</span><select data-farm-crop-withdraw-type><option value="farm_apple">🍎 Яблоки</option><option value="farm_orange">🍊 Апельсины</option><option value="farm_wheat">🌾 Пшеница</option><option value="farm_corn">🌽 Кукуруза</option><option value="farm_flax">🪻 Лён</option><option value="farm_cotton">☁️ Хлопок</option></select></label>
                       <label><span>Количество</span><input type="number" min="1" max="100" step="1" inputmode="numeric" value="1" data-farm-crop-withdraw-quantity></label>
                       <button type="button" data-farm-crop-withdraw>Снять урожай</button>
                     </div>
@@ -506,7 +520,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     modal.querySelectorAll('[data-farm-warehouse-meter]').forEach((element) => {
       element.style.setProperty('--mn-farm-meter-value', `${warehousePercent}%`);
     });
-    ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn'].forEach((itemType) => {
+    ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn', 'farm_flax', 'farm_cotton'].forEach((itemType) => {
       modal.querySelectorAll(`[data-farm-warehouse-item="${itemType}"]`).forEach((element) => { element.textContent = String(Number(warehouse?.items?.[itemType]?.quantity || 0)); });
     });
     const plotIncomeEl = modal.querySelector('[data-farm-plot-income]');
@@ -625,7 +639,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
   function publishMarket(result) {
     marketState = result && typeof result === 'object' ? result : { items: [] };
-    ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn'].forEach((itemType) => {
+    ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn', 'farm_flax', 'farm_cotton'].forEach((itemType) => {
       const item = marketItem(itemType);
       const row = modal?.querySelector(`[data-farm-sale-row="${itemType}"]`);
       row?.classList.toggle('is-market-locked', item?.unlocked === false);
@@ -648,7 +662,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   }
 
   function renderInventory() {
-    ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn'].forEach((itemType) => {
+    ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn', 'farm_flax', 'farm_cotton'].forEach((itemType) => {
       modal?.querySelectorAll(`[data-farm-sale-count="${itemType}"]`).forEach((element) => {
         element.textContent = String(itemQuantity(itemType));
       });
@@ -1372,4 +1386,3 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
-
