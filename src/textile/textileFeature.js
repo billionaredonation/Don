@@ -1,0 +1,53 @@
+import '../metallurgy/metallurgy.css';
+import { TEXTILE_CONFIG, TEXTILE_RAW_ITEMS, TEXTILE_RECIPES, formatTextileInputs, formatTextileMoney } from './textileConfig.js';
+import { createTextileBatch, depositTextileCash, finishTextileBatch, getTextileError, loadTextileSnapshot, publishTextileOffer, purchaseTextileFactory, transferTextileRaw, withdrawTextileCash } from './textileApi.js';
+
+const esc = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+const objectType = (object) => String(object?.type || object?.payload?.jobType || object?.payload?.type || '');
+const objectId = (object) => String(object?.payload?.textileFactoryId || object?.payload?.factoryId || object?.id || '').trim();
+const toast = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
+
+function markup() {
+  const raw = TEXTILE_RAW_ITEMS.map((item) => `<article><i>${item.icon}</i><span><small>${item.label}</small><strong data-textile-raw="${item.itemType}">0</strong></span><div><input type="number" min="1" value="10" data-textile-raw-qty="${item.itemType}"><button data-textile-raw-transfer="${item.itemType}">Передать</button></div></article>`).join('');
+  const recipes = Object.values(TEXTILE_RECIPES).map((item) => `<article class="mn-metallurgy-recipe"><i>${item.icon}</i><span><strong>${esc(item.label)}</strong><small>${esc(formatTextileInputs(item.inputs))}</small><em>Слот: ${item.slot === 'upper' ? 'верх' : item.slot === 'lower' ? 'низ' : 'обувь'} · цвет выбирается в инвентаре</em></span><button data-textile-produce="${item.id}">Запустить</button></article>`).join('');
+  const products = Object.values(TEXTILE_RECIPES).map((item) => `<article><i>${item.icon}</i><span><small>${esc(item.label)}</small><strong data-textile-product="${item.id}">0</strong></span><div><input type="number" min="1" value="1" data-textile-offer-qty="${item.id}"><input type="number" min="1" value="300" data-textile-offer-price="${item.id}"><button data-textile-offer="${item.id}">На биржу</button></div></article>`).join('');
+  return `<div class="mn-metallurgy-backdrop" data-textile-modal hidden><section class="mn-metallurgy-panel"><header><div><small>ТЕКСТИЛЬНОЕ ПРОИЗВОДСТВО</small><h2>🧵 Швейный завод</h2><p>Лён и хлопок → одежда и обувь → магазин одежды и аксессуаров</p></div><button data-textile-close>×</button></header><nav><button class="is-active" data-textile-tab="production">Рецептура</button><button data-textile-tab="warehouse">Склады</button><button data-textile-tab="management">Управление</button></nav><main>
+    <section data-textile-page="production"><div class="mn-metallurgy-status"><span><small>Статус</small><strong data-textile-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-textile-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-textile-cash>Скрыто</strong></span></div><div class="mn-metallurgy-recipes">${recipes}</div><article class="mn-metallurgy-note" data-textile-batch hidden><strong data-textile-batch-title>Партия</strong><button data-textile-finish>Завершить и отправить на склад</button></article></section>
+    <section data-textile-page="warehouse" hidden><h3>Сырьевой склад</h3><div class="mn-metallurgy-stock">${raw}</div><h3>Готовая одежда</h3><p class="mn-metallurgy-note">Количество и цена → «На биржу». Магазин аксессуаров закупает партию через производственную биржу.</p><div class="mn-metallurgy-stock">${products}</div></section>
+    <section data-textile-page="management" hidden><div class="mn-metallurgy-buy" data-textile-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatTextileMoney(TEXTILE_CONFIG.purchasePrice)}</strong></span><button data-textile-purchase>Купить завод</button></div><div data-textile-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-textile-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span></div><article class="mn-metallurgy-money"><input type="number" min="1" placeholder="Сумма" data-textile-amount><div><button data-textile-deposit>Пополнить</button><button data-textile-withdraw>Снять</button></div></article></div></section>
+  </main></section></div>`;
+}
+
+export function enableTextileFeature({ root, cityId } = {}) {
+  if (!root) return () => {};
+  root.insertAdjacentHTML('beforeend', markup());
+  const modal = root.querySelector('[data-textile-modal]');
+  const q = (selector) => modal.querySelector(selector), qa = (selector) => [...modal.querySelectorAll(selector)];
+  let factoryId = '', snapshot = null, busy = false;
+  function render() {
+    const business = snapshot?.business || snapshot?.factory || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
+    q('[data-textile-state]').textContent = business.ownerId ? (snapshot?.activeBatch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
+    q('[data-textile-role]').textContent = snapshot?.isOwner ? 'Владелец' : (snapshot?.roleLabel || 'Посетитель');
+    q('[data-textile-cash]').textContent = snapshot?.isOwner ? formatTextileMoney(business.cash) : 'Скрыто';
+    q('[data-textile-buy]').hidden = Boolean(business.ownerId); q('[data-textile-owned]').hidden = !business.ownerId; q('[data-textile-owner]').textContent = business.ownerName || 'Государство';
+    TEXTILE_RAW_ITEMS.forEach((item) => { q(`[data-textile-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
+    Object.keys(TEXTILE_RECIPES).forEach((id) => { q(`[data-textile-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
+    const batch = snapshot?.activeBatch || snapshot?.batch || null; q('[data-textile-batch]').hidden = !batch; q('[data-textile-finish]').dataset.batchId = batch?.id || ''; q('[data-textile-batch-title]').textContent = TEXTILE_RECIPES[batch?.recipeId]?.label || 'Активная партия';
+    qa('[data-textile-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Boolean(batch); });
+    qa('[data-textile-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.textileOffer] || 0) < 1; });
+  }
+  async function refresh() { snapshot = await loadTextileSnapshot(factoryId, cityId); render(); }
+  async function run(task, success = '') { if (busy) return; busy = true; modal.classList.add('is-busy'); try { await task(); await refresh(); if (success) toast(success, 'success'); } catch (error) { toast(getTextileError(error), 'error'); } finally { busy = false; modal.classList.remove('is-busy'); render(); } }
+  function tab(name) { qa('[data-textile-tab]').forEach((button) => button.classList.toggle('is-active', button.dataset.textileTab === name)); qa('[data-textile-page]').forEach((page) => { page.hidden = page.dataset.textilePage !== name; }); }
+  q('[data-textile-close]').onclick = () => { modal.hidden = true; }; qa('[data-textile-tab]').forEach((button) => { button.onclick = () => tab(button.dataset.textileTab); });
+  qa('[data-textile-produce]').forEach((button) => { button.onclick = () => run(() => createTextileBatch(factoryId, cityId, button.dataset.textileProduce), 'Партия запущена.'); });
+  q('[data-textile-finish]').onclick = () => run(() => finishTextileBatch(factoryId, cityId, q('[data-textile-finish]').dataset.batchId), 'Одежда передана на склад завода.');
+  qa('[data-textile-raw-transfer]').forEach((button) => { button.onclick = () => run(() => transferTextileRaw(factoryId, cityId, button.dataset.textileRawTransfer, Number(q(`[data-textile-raw-qty="${button.dataset.textileRawTransfer}"]`).value)), 'Сырьё передано на завод.'); });
+  qa('[data-textile-offer]').forEach((button) => { button.onclick = () => { const id = button.dataset.textileOffer; run(() => publishTextileOffer(factoryId, cityId, id, Number(q(`[data-textile-offer-qty="${id}"]`).value), Number(q(`[data-textile-offer-price="${id}"]`).value)), 'Партия выставлена на биржу.'); }; });
+  q('[data-textile-purchase]').onclick = () => run(() => purchaseTextileFactory(factoryId, cityId), 'Швейный завод куплен.');
+  q('[data-textile-deposit]').onclick = () => run(() => depositTextileCash(factoryId, cityId, Number(q('[data-textile-amount]').value)), 'Баланс пополнен.');
+  q('[data-textile-withdraw]').onclick = () => run(() => withdrawTextileCash(factoryId, cityId, Number(q('[data-textile-amount]').value)), 'Средства выведены.');
+  const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== TEXTILE_CONFIG.type) return; factoryId = objectId(object); modal.hidden = false; tab('production'); refresh().catch((error) => toast(getTextileError(error), 'error')); };
+  window.addEventListener('mn:textile-object-action', onAction);
+  return () => { window.removeEventListener('mn:textile-object-action', onAction); modal.remove(); };
+}
