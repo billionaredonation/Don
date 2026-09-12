@@ -426,6 +426,13 @@ export function enableAdminPanel({
       .join('');
   }
 
+  grantItemInput?.addEventListener('change', () => {
+    const selectedItem = resolveAdminInventoryItem(grantItemInput.value);
+    if (String(selectedItem?.id || '').startsWith('textile_') && grantStorageSelect) {
+      grantStorageSelect.value = 'business';
+    }
+  });
+
   grantSubmitButton?.addEventListener('click', async () => {
     const selectedItem = resolveAdminInventoryItem(grantItemInput?.value);
     const itemType = String(selectedItem?.id || '').trim();
