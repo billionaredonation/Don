@@ -291,25 +291,11 @@ export function enableAdminPanel({
         <input class="admin-input admin-grant-item" list="admin-item-catalog" placeholder="Начните писать: цемент, уголь, яблоко..." autocomplete="off" />
         <datalist id="admin-item-catalog"></datalist>
       </label>
-      <small class="admin-help">Выбирайте предмет по обычному названию. Внутренний item_type подставляется автоматически. При необходимости можно вручную ввести новый item_type.</small>
-      <div class="admin-size-grid">
-        <label class="admin-label">
-          Количество
-          <input class="admin-input admin-grant-quantity" type="number" min="1" max="1000000000" step="1" value="1" inputmode="numeric" />
-        </label>
-        <label class="admin-label">
-          Инвентарь
-          <select class="admin-select admin-grant-storage">
-            <option value="auto">Авто</option>
-            <option value="farm">Ферма</option>
-            <option value="mine">Шахта</option>
-            <option value="lumber">Лесоруб</option>
-            <option value="business">Обычный / магазин</option>
-            <option value="medical">Медицина</option>
-            <option value="industry">Промышленный</option>
-          </select>
-        </label>
-      </div>
+      <small class="admin-help">В каталоге только действующие предметы. Всё выдаётся в единый личный инвентарь игрока.</small>
+      <label class="admin-label">
+        Количество
+        <input class="admin-input admin-grant-quantity" type="number" min="1" max="1000000000" step="1" value="1" inputmode="numeric" />
+      </label>
       <button class="admin-btn admin-grant-submit" type="button">Выдать себе</button>
       <small class="admin-help admin-grant-status">Можно ввести любой item_type вручную. «Авто» сам выбирает нужный инвентарь.</small>
     </div>
@@ -360,7 +346,6 @@ export function enableAdminPanel({
   const btnCopy = panel.querySelector('.admin-copy-coords');
   const grantItemInput = panel.querySelector('.admin-grant-item');
   const grantQuantityInput = panel.querySelector('.admin-grant-quantity');
-  const grantStorageSelect = panel.querySelector('.admin-grant-storage');
   const grantSubmitButton = panel.querySelector('.admin-grant-submit');
   const grantStatus = panel.querySelector('.admin-grant-status');
   const grantCatalog = panel.querySelector('#admin-item-catalog');
@@ -426,19 +411,11 @@ export function enableAdminPanel({
       .join('');
   }
 
-  grantItemInput?.addEventListener('change', () => {
-    const selectedItem = resolveAdminInventoryItem(grantItemInput.value);
-    if (String(selectedItem?.id || '').startsWith('textile_') && grantStorageSelect) {
-      grantStorageSelect.value = 'business';
-    }
-  });
-
   grantSubmitButton?.addEventListener('click', async () => {
     const selectedItem = resolveAdminInventoryItem(grantItemInput?.value);
     const itemType = String(selectedItem?.id || '').trim();
     const itemLabel = String(selectedItem?.label || itemType);
     const quantity = Math.floor(Number(grantQuantityInput?.value || 0));
-    const storage = String(grantStorageSelect?.value || 'auto');
 
     if (!itemType) {
       if (grantStatus) grantStatus.textContent = 'Выберите предмет или введите item_type.';
@@ -452,11 +429,10 @@ export function enableAdminPanel({
     grantSubmitButton.disabled = true;
     if (grantStatus) grantStatus.textContent = 'Выдаю предмет…';
     try {
-      const result = await grantAdminInventoryItem({ itemType, quantity, storage });
-      const resolvedStorage = String(result?.storage || storage || 'auto');
-      if (grantStatus) grantStatus.textContent = `Выдано: ${itemLabel} × ${quantity}. Инвентарь: ${resolvedStorage}. Всего: ${Number(result?.quantity || quantity)}.`;
+      const result = await grantAdminInventoryItem({ itemType, quantity });
+      if (grantStatus) grantStatus.textContent = `Выдано: ${itemLabel} × ${quantity}. Всего: ${Number(result?.quantity || quantity)}.`;
       window.dispatchEvent(new CustomEvent('mn:player-inventory-changed', {
-        detail: { source: 'admin_grant', storage: resolvedStorage, itemType, quantity },
+        detail: { source: 'admin_grant', storage: 'business', itemType, quantity },
       }));
       showAdminNotice(`Выдано ${itemLabel} × ${quantity}`);
     } catch (error) {
