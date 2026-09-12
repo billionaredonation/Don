@@ -36,10 +36,6 @@ export const PRODUCTION_CHAINS = {
       { id: 'textile_dress_shoes', label: 'Туфли', icon: '👞' },
     ]),
   }),
-  tool_assembly: Object.freeze({
-    id: 'tool_assembly', factoryType: 'tool_assembly_factory', factoryLabel: 'Завод по сборке инструментов', factoryIcon: '🛠️',
-    storeType: '', storeLabel: '', rawOnly: true, products: Object.freeze([]),
-  }),
 };
 
 export function productionChain(id) { return PRODUCTION_CHAINS[String(id || '').trim()] || PRODUCTION_CHAINS.fruit; }
