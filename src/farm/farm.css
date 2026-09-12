@@ -205,6 +205,24 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   display: none !important;
 }
 
+/* Текстильные культуры используют тот же компактный интерактивный маркер. */
+.map-object-type-farm_flax_plant,
+.map-object-type-farm_cotton_plant { --mn-interaction-ring-size: 28px; cursor: pointer !important; }
+.map-object-type-farm_flax_plant .map-object-icon,
+.map-object-type-farm_cotton_plant .map-object-icon {
+  position: absolute; left: 50%; top: 50%; display: inline-flex;
+  width: 28px; height: 28px; align-items: center; justify-content: center;
+  border: 1.5px solid transparent; border-radius: 50%; background: transparent;
+  font-size: 18px; transform: translate(-50%, -50%);
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.55));
+}
+.map-object-type-farm_flax_plant.map-object-nearby .map-object-icon,
+.map-object-type-farm_cotton_plant.map-object-nearby .map-object-icon {
+  border-color: #fff !important; box-shadow: 0 0 10px rgba(255,255,255,.9) !important;
+}
+.map-object-type-farm_flax_plant.is-farm-plant-cooldown .map-object-icon,
+.map-object-type-farm_cotton_plant.is-farm-plant-cooldown .map-object-icon { opacity: .42; filter: grayscale(.65) brightness(.78); }
+
 .entity-interaction-hint[data-farm-timer-active='true'] {
   border-color: rgba(144, 204, 126, .42) !important;
   background: linear-gradient(135deg, rgba(8, 22, 15, .96), rgba(13, 34, 22, .94)) !important;
