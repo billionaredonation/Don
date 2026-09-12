@@ -16,6 +16,14 @@ const BUSINESS_ENTITY_TYPES = new Set([
   'accessory_store',
 ]);
 
+const FACTORY_ENTITY_TYPES = new Set([
+  'fruit_factory',
+  'metallurgy_factory',
+  'wood_processing_factory',
+  'tool_assembly_factory',
+  'textile_factory',
+]);
+
 export function getEntityKind(object) {
   const payload = object?.payload || {};
   const outerCategory = String(object?.category || '').trim();
@@ -26,6 +34,11 @@ export function getEntityKind(object) {
   const type = getEntityType(object);
 
   if (rawKind === 'hospital' || type === 'hospital') return 'service';
+
+  // Factory objects created by older admin builds can retain `business` or
+  // `marker` in category. Their semantic type is authoritative: otherwise
+  // the business modal consumes the action before the factory feature sees it.
+  if (FACTORY_ENTITY_TYPES.has(type)) return 'job';
 
   // Some older/admin-created rows are stored as a technical `marker`, while
   // their payload contains the real entity kind. Prefer the semantic payload
