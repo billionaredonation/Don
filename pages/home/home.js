@@ -45,6 +45,7 @@ import { enableFactoryFeature } from '../../src/factory/factoryFeature.js';
 import { enableMetallurgyFeature } from '../../src/metallurgy/metallurgyFeature.js';
 import { enableWoodProcessingFeature } from '../../src/woodProcessing/woodProcessingFeature.js';
 import { enableToolAssemblyFeature } from '../../src/toolAssembly/toolAssemblyFeature.js';
+import { enableTextileFeature } from '../../src/textile/textileFeature.js';
 import { enableProductionMarketFeature } from '../../src/market/productionMarketFeature.js';
 import { enableHospitalManagementFeature } from '../../src/hospital/hospitalManagementFeature.js';
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
@@ -1584,6 +1585,7 @@ register('home', async (root) => {
   let cleanupMetallurgyFeature = null;
   let cleanupWoodProcessingFeature = null;
   let cleanupToolAssemblyFeature = null;
+  let cleanupTextileFeature = null;
   let cleanupProductionMarket = null;
   let cleanupGameRealtime = null;
   let cleanupMobileSelfMarker = null;
@@ -2232,6 +2234,7 @@ register('home', async (root) => {
   cleanupMetallurgyFeature = enableMetallurgyFeature({ root, cityId });
   cleanupWoodProcessingFeature = enableWoodProcessingFeature({ root, cityId });
   cleanupToolAssemblyFeature = enableToolAssemblyFeature({ root, cityId });
+  cleanupTextileFeature = enableTextileFeature({ root, cityId });
   cleanupProductionMarket = enableProductionMarketFeature({ root });
 
   cleanupEntityInteraction = enableEntityInteraction({
@@ -2452,6 +2455,7 @@ register('home', async (root) => {
     cleanupMetallurgyFeature?.();
     cleanupWoodProcessingFeature?.();
     cleanupToolAssemblyFeature?.();
+    cleanupTextileFeature?.();
     cleanupProductionMarket?.();
     cleanupInteriorExitReturn?.();
     cleanupHouseSpawnPicker?.();
