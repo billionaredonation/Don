@@ -5,7 +5,6 @@ import { loadFarmInventory } from '../farm/farmApi.js';
 import { loadMineInventory } from '../mine/mineApi.js';
 import { loadLumberInventory } from '../lumber/lumberApi.js';
 import { loadBusinessInventory, useBusinessInventoryItem } from '../business/businessApi.js';
-import { loadIndustryInventory } from './industryInventoryApi.js';
 import { getBusinessProduct } from '../business/businessConfig.js';
 import { TEXTILE_PRODUCT_BY_TYPE, isTextileProduct } from '../textile/textileConfig.js';
 import { getTextileError, loadTextileWardrobe, setTextileWardrobeItem } from '../textile/textileApi.js';
@@ -156,6 +155,19 @@ function publishInventorySnapshot(items = []) {
   window.dispatchEvent(new CustomEvent('mn:player-inventory-snapshot', {
     detail: { items: snapshot },
   }));
+}
+
+function mergeVisibleInventoryItems(...groups) {
+  const merged = new Map();
+  groups.flat().filter(Boolean).forEach((item) => {
+    const itemType = String(item.itemType || item.item_type || '').trim();
+    if (!itemType) return;
+    const previous = merged.get(itemType);
+    const isMainInventory = String(item.source || '').toLowerCase() === 'personal'
+      || item.businessItem === true;
+    if (!previous || isMainInventory) merged.set(itemType, item);
+  });
+  return [...merged.values()];
 }
 
 function getConsumptionEffectType(itemType) {
@@ -1142,13 +1154,12 @@ export function enableInventoryFeature() {
   }
 
   async function refreshMedicalInventory() {
-    const [medicalResult, farmResult, mineResult, lumberResult, businessResult, industryResult, wardrobeResult] = await Promise.allSettled([
+    const [medicalResult, farmResult, mineResult, lumberResult, businessResult, wardrobeResult] = await Promise.allSettled([
       loadMyMedicalInventory(),
       loadFarmInventory(),
       loadMineInventory(),
       loadLumberInventory(),
       loadBusinessInventory(),
-      loadIndustryInventory(),
       loadTextileWardrobe(),
     ]);
 
@@ -1174,9 +1185,6 @@ export function enableInventoryFeature() {
       const profile = wardrobeByType.get(String(item.itemType || item.item_type || ''));
       return profile ? { ...item, color: profile.color, equipped: Boolean(profile.equipped), wardrobeSlot: profile.slot } : item;
     });
-    const industry = industryResult.status === 'fulfilled' && Array.isArray(industryResult.value?.items)
-      ? industryResult.value.items
-      : (Array.isArray(window.__MN_INDUSTRY_INVENTORY_ITEMS__) ? window.__MN_INDUSTRY_INVENTORY_ITEMS__ : []);
 
     if (medicalResult.status === 'rejected' && !String(medicalResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] medical inventory load failed:', medicalResult.reason);
@@ -1193,16 +1201,12 @@ export function enableInventoryFeature() {
     if (businessResult.status === 'rejected' && !String(businessResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] business inventory load failed:', businessResult.reason);
     }
-    if (industryResult.status === 'rejected' && !String(industryResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
-      console.warn('[inventory] industry inventory load failed:', industryResult.reason);
-    }
     if (wardrobeResult.status === 'rejected' && !String(wardrobeResult.reason?.message || '').includes('TELEGRAM_SESSION')) {
       console.warn('[inventory] wardrobe load failed:', wardrobeResult.reason);
     }
 
     window.__MN_BUSINESS_INVENTORY_ITEMS__ = business;
-    window.__MN_INDUSTRY_INVENTORY_ITEMS__ = industry;
-    medicalItems = [...medical, ...farm, ...mine, ...lumber, ...business, ...industry];
+    medicalItems = mergeVisibleInventoryItems(medical, farm, mine, lumber, business);
     publishInventorySnapshot(medicalItems);
     renderMedicalInventory();
   }
