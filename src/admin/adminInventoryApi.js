@@ -145,7 +145,7 @@ const ADMIN_ITEMS = Object.freeze([
   { id: 'grocery_universal_fruit_salad', label: '🥙 Салат универсальный фруктовый', category: 'Завод питания' },
   { id: 'grocery_multifruit_juice', label: '🧃 Сок мультифрукт', category: 'Завод питания' },
 
-  ...TEXTILE_PRODUCTS.map((item) => ({ id: item.itemType, label: `${item.icon} ${item.label}`, category: 'Одежда и обувь', storage: 'business' })),
+  ...TEXTILE_PRODUCTS.filter(Boolean).map((item) => ({ id: item.itemType, label: `${item.icon} ${item.label}`, category: 'Одежда и обувь', storage: 'business' })),
 
 ]);
 
@@ -159,15 +159,26 @@ export function getAdminInventoryCatalog() {
   ));
 }
 
+function normalizeAdminItemSearch(value) {
+  return String(value || '')
+    .toLocaleLowerCase('ru')
+    .replace(/[^\p{L}\p{N}_]+/gu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
 export function resolveAdminInventoryItem(value) {
   const raw = String(value || '').trim();
   if (!raw) return null;
 
   const lower = raw.toLocaleLowerCase('ru');
+  const normalized = normalizeAdminItemSearch(raw);
   const found = getAdminInventoryCatalog().find((item) =>
     item.id.toLocaleLowerCase('ru') === lower ||
     item.label.toLocaleLowerCase('ru') === lower ||
-    `${item.label} — ${item.id}`.toLocaleLowerCase('ru') === lower
+    `${item.label} — ${item.id}`.toLocaleLowerCase('ru') === lower ||
+    normalizeAdminItemSearch(item.label) === normalized ||
+    normalizeAdminItemSearch(`${item.label} ${item.id}`) === normalized
   );
   return found || { id: raw, label: raw, category: 'Ручной item_type', storage: 'auto' };
 }
@@ -207,9 +218,16 @@ export async function grantAdminInventoryItem({ itemType, quantity, storage = 'a
   if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
 
   const resolved = resolveAdminInventoryItem(itemType);
-  const resolvedStorage = storage === 'auto' && resolved?.storage ? resolved.storage : storage;
+  const isTextileItem = String(resolved?.id || '').startsWith('textile_');
+  const resolvedStorage = isTextileItem
+    ? 'business'
+    : storage === 'auto' && resolved?.storage ? resolved.storage : storage;
 
-  const { data, error } = await supabase.functions.invoke(ADMIN_INVENTORY_FUNCTION, {
+  const functionName = isTextileItem
+    ? 'admin-textile-inventory'
+    : ADMIN_INVENTORY_FUNCTION;
+
+  const { data, error } = await supabase.functions.invoke(functionName, {
     body: {
       initData,
       action: 'grant_self',
