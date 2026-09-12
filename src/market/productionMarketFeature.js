@@ -8,7 +8,6 @@ import { FACTORY_RAW_ITEMS } from '../factory/factoryConfig.js';
 import { METALLURGY_RAW_ITEMS } from '../metallurgy/metallurgyConfig.js';
 import { WOOD_PROCESSING_RAW_ITEMS } from '../woodProcessing/woodProcessingConfig.js';
 import { TEXTILE_RAW_ITEMS } from '../textile/textileConfig.js';
-import { TOOL_ASSEMBLY_INPUT_ITEMS } from '../toolAssembly/toolAssemblyConfig.js';
 import { PRODUCTION_CHAINS, productionChain, productionProduct } from './productionChains.js';
 
 const rawCatalogEntries=(items,chainId,groupId)=>items.map((item)=>[item.itemType,{...item,chainId,groupId}]);
@@ -17,14 +16,13 @@ const RAW_ITEMS=Object.fromEntries([
   ...rawCatalogEntries(METALLURGY_RAW_ITEMS,'metallurgy','mine'),
   ...rawCatalogEntries(WOOD_PROCESSING_RAW_ITEMS,'wood_processing','lumber'),
   ...rawCatalogEntries(TEXTILE_RAW_ITEMS,'textile','textile_farm'),
-  ...rawCatalogEntries(TOOL_ASSEMBLY_INPUT_ITEMS,'tool_assembly','components'),
 ]);
 
 const STORE_FOR_PRODUCT=Object.freeze({
  grocery_bread:'grocery',grocery_pasta:'grocery',grocery_diet_fruit_salad:'grocery',grocery_universal_fruit_salad:'grocery',grocery_multifruit_juice:'grocery',
 });
 
-const RAW_GROUPS={farm:{icon:'🌾',label:'Пищевое сырьё с фермы',chainId:'fruit'},textile_farm:{icon:'🧵',label:'Текстильное сырьё с фермы',chainId:'textile'},mine:{icon:'⛏️',label:'Сырьё с шахты',chainId:'metallurgy'},lumber:{icon:'🌲',label:'Сырьё лесоруба',chainId:'wood_processing'},components:{icon:'⚙️',label:'Производственные комплектующие',chainId:'tool_assembly'}};
+const RAW_GROUPS={farm:{icon:'🌾',label:'Пищевое сырьё с фермы',chainId:'fruit'},textile_farm:{icon:'🧵',label:'Текстильное сырьё с фермы',chainId:'textile'},mine:{icon:'⛏️',label:'Сырьё с шахты',chainId:'metallurgy'},lumber:{icon:'🌲',label:'Сырьё лесоруба',chainId:'wood_processing'}};
 const esc=(v)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const money=(v)=>`${Math.max(0,Math.round(Number(v)||0)).toLocaleString('ru-RU')} ₴`;
 const quantity=(v)=>Math.max(0,Math.floor(Number(v)||0));
@@ -42,12 +40,17 @@ const sourceOffers=(source)=>{
     return Array.isArray(items)?items.map((item)=>typeof item==='string'?{...container,itemType:item}:{...container,...item}):[];
   });
 };
+const RAW_ITEM_ALIASES={apple:'farm_apple',orange:'farm_orange',wheat:'farm_wheat',corn:'farm_corn',flax:'farm_flax',cotton:'farm_cotton',log:'lumber_log',beam:'lumber_beam'};
+const canonicalRawItemType=(value)=>{
+  const itemType=String(value||'').trim().toLowerCase();
+  return RAW_ITEM_ALIASES[itemType]||itemType;
+};
 const normalizeRawOffer=(item)=>({
   ...item,
   factoryId:item?.factoryId||item?.factory_id||item?.businessId||item?.business_id||item?.mapObjectId||item?.map_object_id||item?.objectId||item?.object_id||item?.id||'',
   cityId:item?.cityId||item?.city_id||'',
   cityName:item?.cityName||item?.city_name||'',
-  itemType:item?.itemType||item?.item_type||item?.rawItemType||item?.raw_item_type||item?.resourceType||item?.resource_type||item?.productType||item?.product_type||'',
+  itemType:canonicalRawItemType(item?.itemType||item?.item_type||item?.rawItemType||item?.raw_item_type||item?.resourceType||item?.resource_type||item?.productType||item?.product_type||''),
   itemLabel:item?.itemLabel||item?.item_label||item?.resourceLabel||item?.resource_label||item?.label||'',
   itemIcon:item?.itemIcon||item?.item_icon||item?.resourceIcon||item?.resource_icon||item?.icon||'',
   industryId:item?.industryId||item?.industry_id||item?.chainId||item?.chain_id||'',
@@ -55,24 +58,8 @@ const normalizeRawOffer=(item)=>({
   capacityLeft:item?.capacityLeft??item?.capacity_left??item?.availableCapacity??item?.available_capacity??0,
   factoryName:item?.factoryName||item?.factory_name||item?.industryName||item?.industry_name||'',
 });
-const INDUSTRY_CHAIN_ALIASES={food:'fruit',fruit_factory:'fruit',fruit:'fruit',metallurgy_factory:'metallurgy',metallurgy:'metallurgy',wood_factory:'wood_processing',wood_processing_factory:'wood_processing',wood_processing:'wood_processing',textile_factory:'textile',textile:'textile',tool_factory:'tool_assembly',tool_assembly_factory:'tool_assembly',tool_assembly:'tool_assembly'};
-const readableItemType=(itemType)=>String(itemType||'').replace(/^(farm|mine|lumber|textile|industry)_/,'').split('_').filter(Boolean).map((part)=>part[0]?.toUpperCase()+part.slice(1)).join(' ')||'Ресурс';
+const INDUSTRY_CHAIN_ALIASES={food:'fruit',fruit_factory:'fruit',fruit:'fruit',metallurgy_factory:'metallurgy',metallurgy:'metallurgy',wood_factory:'wood_processing',wood_processing_factory:'wood_processing',wood_processing:'wood_processing',textile_factory:'textile',textile:'textile'};
 const chainForRawOffer=(offer,fallback='')=>INDUSTRY_CHAIN_ALIASES[String(offer?.industryId||'').toLowerCase()]||RAW_ITEMS[offer?.itemType]?.chainId||fallback||'fruit';
-const registerRawOffer=(offer)=>{
-  const itemType=String(offer?.itemType||'').trim();
-  if(!itemType)return;
-  const chainId=offer.chainId||chainForRawOffer(offer);
-  const groupId=RAW_ITEMS[itemType]?.groupId||({fruit:'farm',textile:'textile_farm',metallurgy:'mine',wood_processing:'lumber',tool_assembly:'components'}[chainId]||chainId);
-  RAW_ITEMS[itemType]={
-    ...(RAW_ITEMS[itemType]||{}),
-    itemType,
-    label:RAW_ITEMS[itemType]?.label||offer.itemLabel||readableItemType(itemType),
-    icon:RAW_ITEMS[itemType]?.icon||offer.itemIcon||'📦',
-    chainId,
-    groupId,
-  };
-  if(!RAW_GROUPS[groupId])RAW_GROUPS[groupId]={icon:'📦',label:productionChain(chainId).factoryLabel,chainId};
-};
 
 function shell(){return `<div class="mn-production-shortcuts"><button data-raw-market-open><b>O</b><span>Продать сырьё</span></button><button data-exchange-open><b>M</b><span>Биржа продукции</span></button></div><div class="mn-production-market" data-production-market hidden><button class="mn-production-backdrop" data-market-close></button><section><header><div><small data-market-eyebrow>РЫНОК</small><h2 data-market-title>Производственная экономика</h2></div><button data-market-close>×</button></header><main data-market-content></main></section></div>`;}
 
@@ -88,9 +75,7 @@ async function loadUniversalRaw(){
     ...sourceOffers(metallurgySource).map(item=>({...normalizeRawOffer(item),chainId:'metallurgy',rawProvider:'metallurgy'})),
     ...sourceOffers(woodSource).map(item=>({...normalizeRawOffer(item),chainId:'wood_processing',rawProvider:'wood_processing'})),
     ...sourceOffers(textileSource).map(normalizeRawOffer).map(item=>({...item,chainId:chainForRawOffer(item,'textile'),rawProvider:'industry'})),
-  ].filter(item=>item.itemType&&item.factoryId);
-
-  merged.forEach(registerRawOffer);
+  ].filter(item=>RAW_ITEMS[item.itemType]&&item.factoryId);
 
   const seen=new Set();
   const offers=[];
@@ -220,4 +205,3 @@ content.addEventListener('click',async e=>{const t=e.target;if(busy)return;const
   msg='Сырьё продано производству.';
 }const buy=t.closest('[data-offer-buy]');if(buy){const chain=buy.dataset.chain||'fruit',dest=content.querySelector(`[data-offer-destination="${buy.dataset.offerBuy}"]`).value,businessId=dest.replace(/^store:/,'');task=()=>buyExchangeOffer(chain,buy.dataset.offerBuy,businessId);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Товар закуплен на склад магазина.';}const accept=t.closest('[data-request-accept]');if(accept){const chain=accept.dataset.chain||'fruit',select=content.querySelector(`[data-request-factory="${accept.dataset.requestAccept}"]`),opt=select.selectedOptions[0];task=()=>takeExchangeRequest(chain,accept.dataset.requestAccept,select.value,opt.dataset.city);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Завод принял заказ магазина.';}if(t.closest('[data-create-factory-offer]')){const s=content.querySelector('[data-create-factory]'),opt=s.selectedOptions[0],chain=opt.dataset.chain||'fruit',payload={factoryId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-factory-product]').value,quantity:Number(content.querySelector('[data-create-factory-qty]').value),unitPrice:Number(content.querySelector('[data-create-factory-price]').value)};task=()=>publishFactoryOffer(chain,payload);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Предложение опубликовано.';}if(t.closest('[data-create-store-request]')){const s=content.querySelector('[data-create-store]'),opt=s.selectedOptions[0],chain=opt.dataset.chain||'fruit',payload={businessId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-store-product]').value,quantity:Number(content.querySelector('[data-create-store-qty]').value),unitPrice:Number(content.querySelector('[data-create-store-price]').value)};task=()=>publishStoreRequest(chain,payload);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Заявка магазина опубликована.';}if(!task)return;busy=true;try{const result=await task(),balance=Number(result?.playerBalance);if(Number.isFinite(balance)){state.player={...(state.player||{}),balance};save();window.dispatchEvent(new CustomEvent('mn:player-balance-changed',{detail:{balance,source:'production_market'}}));}if(refreshMineInventory)window.dispatchEvent(new CustomEvent('mn:mine-inventory-changed'));if(sell?.dataset.provider==='wood_processing')window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed'));if(['industry','textile'].includes(sell?.dataset.provider)){window.dispatchEvent(new CustomEvent('mn:farm-inventory-changed'));window.dispatchEvent(new CustomEvent('mn:player-inventory-changed'));}toast(msg,'success');busy=false;await open(mode);}catch(err){toast(errorMessage(err),'error');}finally{busy=false;}});
 return()=>{window.removeEventListener('keydown',key,true);modal.remove();root.querySelector('.mn-production-shortcuts')?.remove();};}
-
