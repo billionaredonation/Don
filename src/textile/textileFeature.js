@@ -6,6 +6,32 @@ const esc = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('
 const objectType = (object) => String(object?.type || object?.payload?.jobType || object?.payload?.type || '');
 const objectId = (object) => String(object?.payload?.textileFactoryId || object?.payload?.factoryId || object?.id || '').trim();
 const toast = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
+const firstValue = (...values) => values.find((value) => value !== undefined && value !== null && String(value).trim() !== '');
+
+function textileOwnership(snapshot, business) {
+  const ownerId = firstValue(
+    business?.ownerId,
+    business?.owner_id,
+    business?.ownerTgId,
+    business?.owner_tg_id,
+    snapshot?.ownerId,
+    snapshot?.owner_id,
+    snapshot?.ownerTgId,
+    snapshot?.owner_tg_id,
+  );
+  const ownerName = String(firstValue(
+    business?.ownerName,
+    business?.owner_name,
+    business?.ownerNickname,
+    business?.owner_nickname,
+    snapshot?.ownerName,
+    snapshot?.owner_name,
+  ) || '').trim();
+  const normalizedName = ownerName.toLocaleLowerCase('ru-RU');
+  const stateOwner = !ownerName || ['государство', 'государственный', 'state'].includes(normalizedName);
+  const owned = Boolean(ownerId || snapshot?.isOwner || business?.owned === true || !stateOwner);
+  return { ownerName: owned ? (ownerName || String(ownerId || 'Владелец')) : 'Государство', owned };
+}
 
 function markup() {
   const raw = TEXTILE_RAW_ITEMS.map((item) => `<article><i>${item.icon}</i><span><small>${item.label}</small><strong data-textile-raw="${item.itemType}">0</strong></span><div><input type="number" min="1" value="10" data-textile-raw-qty="${item.itemType}"><button data-textile-raw-transfer="${item.itemType}">Передать</button></div></article>`).join('');
@@ -26,10 +52,14 @@ export function enableTextileFeature({ root, cityId } = {}) {
   let factoryId = '', snapshot = null, busy = false;
   function render() {
     const business = snapshot?.business || snapshot?.factory || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
-    q('[data-textile-state]').textContent = business.ownerId ? (snapshot?.activeBatch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
+    const ownership = textileOwnership(snapshot, business);
+    q('[data-textile-state]').textContent = ownership.owned ? (snapshot?.activeBatch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
     q('[data-textile-role]').textContent = snapshot?.isOwner ? 'Владелец' : (snapshot?.roleLabel || 'Посетитель');
     q('[data-textile-cash]').textContent = snapshot?.isOwner ? formatTextileMoney(business.cash) : 'Скрыто';
-    q('[data-textile-buy]').hidden = Boolean(business.ownerId); q('[data-textile-owned]').hidden = !business.ownerId; q('[data-textile-owner]').textContent = business.ownerName || 'Государство';
+    q('[data-textile-buy]').hidden = ownership.owned;
+    q('[data-textile-owned]').hidden = !ownership.owned;
+    q('[data-textile-owner]').textContent = ownership.ownerName;
+    q('[data-textile-purchase]').disabled = busy || ownership.owned;
     TEXTILE_RAW_ITEMS.forEach((item) => { q(`[data-textile-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
     Object.keys(TEXTILE_RECIPES).forEach((id) => { q(`[data-textile-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
     const batch = snapshot?.activeBatch || snapshot?.batch || null; q('[data-textile-batch]').hidden = !batch; q('[data-textile-finish]').dataset.batchId = batch?.id || ''; q('[data-textile-batch-title]').textContent = TEXTILE_RECIPES[batch?.recipeId]?.label || 'Активная партия';
