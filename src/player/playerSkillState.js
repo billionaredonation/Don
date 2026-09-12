@@ -7,6 +7,8 @@ const CROP_META = Object.freeze({
   orange: Object.freeze({ label: 'Апельсин', icon: '🍊', unlockLevel: 2 }),
   wheat: Object.freeze({ label: 'Пшеница', icon: '🌾', unlockLevel: 3 }),
   corn: Object.freeze({ label: 'Кукуруза', icon: '🌽', unlockLevel: 4 }),
+  flax: Object.freeze({ label: 'Лён', icon: '🪻', unlockLevel: 4 }),
+  cotton: Object.freeze({ label: 'Хлопок', icon: '☁️', unlockLevel: 5 }),
 });
 
 function normalizeLevel(value, maxLevel = 5) {
