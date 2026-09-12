@@ -17,6 +17,7 @@ export const FACTORY_RAW_ITEMS = Object.freeze([
   { itemType: 'farm_apple', label: 'Яблоки', icon: '🍎' },
   { itemType: 'farm_orange', label: 'Апельсины', icon: '🍊' },
   { itemType: 'farm_wheat', label: 'Пшеница', icon: '🌾' },
+  { itemType: 'farm_corn', label: 'Кукуруза', icon: '🌽' },
 ]);
 
 export const FACTORY_ROLES = Object.freeze([
