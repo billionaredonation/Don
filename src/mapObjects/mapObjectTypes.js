@@ -298,6 +298,26 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'job_farm_corn_plant_01',
   },
 
+  farm_flax_plant: {
+    type: 'farm_flax_plant',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Ферма · лён',
+    icon: '🪻',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_farm_wheat_plant_01',
+  },
+
+  farm_cotton_plant: {
+    type: 'farm_cotton_plant',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Ферма · хлопок',
+    icon: '☁️',
+    defaultScale: 1,
+    defaultRotation: 0,
+    defaultAsset: 'job_farm_wheat_plant_01',
+  },
+
   mine_station: {
     type: 'mine_station',
     category: MAP_OBJECT_CATEGORIES.JOB,
@@ -428,6 +448,29 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'job_factory_01',
     defaultWidth: 3.2,
     defaultHeight: 2.5,
+  },
+
+  textile_factory: {
+    type: 'textile_factory',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Швейный завод · предприятие',
+    icon: '🧵',
+    defaultScale: 1.1,
+    defaultRotation: 0,
+    defaultAsset: 'job_factory_01',
+    defaultWidth: 3.2,
+    defaultHeight: 2.5,
+  },
+
+  accessory_store: {
+    type: 'accessory_store',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Магазин одежды и аксессуаров',
+    icon: '👕',
+    defaultPrice: 1_200_000,
+    defaultScale: 1.14,
+    defaultRotation: 0,
+    defaultAsset: 'business_shop_01',
   },
 
   logistics_hub: { type:'logistics_hub', category:MAP_OBJECT_CATEGORIES.BUSINESS, label:'Логистический центр', icon:'🚚', defaultPrice:1400000, defaultScale:1.18, defaultRotation:0, defaultAsset:'business_warehouse_01' },
@@ -706,6 +749,23 @@ export function createMapObjectDraft({
     basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
   }
 
+  if (config.type === 'textile_factory') {
+    basePayload.textileFactory = true;
+    basePayload.textileFactoryId = objectId;
+    basePayload.textile_factory_id = objectId;
+    basePayload.industryId = 'textile';
+    basePayload.industry_id = 'textile';
+    basePayload.legalForm = 'tov';
+    basePayload.legalFormLabel = 'ТОВ';
+    basePayload.price = 3_500_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
   if (config.type === 'farm_water_tower') {
     basePayload.towerCapacityLiters = 500;
     basePayload.tower_capacity_liters = 500;
@@ -736,4 +796,3 @@ export function createMapObjectDraft({
     updatedAt: new Date().toISOString(),
   };
 }
-
