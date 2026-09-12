@@ -646,7 +646,8 @@ export function enableKeyboardPlayerMovement(
 
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
-    const key = event.key.toLowerCase();
+    const key = String(event?.key || '').toLowerCase();
+    if (!key) return;
 
     const allowedKeys = [
       'w', 'a', 's', 'd',
@@ -671,7 +672,9 @@ export function enableKeyboardPlayerMovement(
       keys.clear();
       return;
     }
-    keys.delete(event.key.toLowerCase());
+    const key = String(event?.key || '').toLowerCase();
+    if (!key) return;
+    keys.delete(key);
 
     if (keys.size === 0) {
       broadcastMove(true);
