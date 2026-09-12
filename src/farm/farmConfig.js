@@ -31,6 +31,22 @@ export const FARM_PLANT_TYPES = Object.freeze({
     harvestItemType: 'farm_corn',
     respawnSeconds: 180,
   }),
+  farm_flax_plant: Object.freeze({
+    objectType: 'farm_flax_plant',
+    cropType: 'flax',
+    label: 'Лён',
+    icon: '🪻',
+    harvestItemType: 'farm_flax',
+    respawnSeconds: 180,
+  }),
+  farm_cotton_plant: Object.freeze({
+    objectType: 'farm_cotton_plant',
+    cropType: 'cotton',
+    label: 'Хлопок',
+    icon: '☁️',
+    harvestItemType: 'farm_cotton',
+    respawnSeconds: 180,
+  }),
 });
 
 export const FARM_ITEMS = Object.freeze({
@@ -42,6 +58,8 @@ export const FARM_ITEMS = Object.freeze({
   farm_wheat: Object.freeze({ itemType: 'farm_wheat', label: 'Пшеница', icon: '🌾', sellPrice: 35, kind: 'harvest' }),
   farm_orange: Object.freeze({ itemType: 'farm_orange', label: 'Апельсин', icon: '🍊', sellPrice: 15, kind: 'harvest' }),
   farm_corn: Object.freeze({ itemType: 'farm_corn', label: 'Кукуруза', icon: '🌽', sellPrice: 30, kind: 'harvest' }),
+  farm_flax: Object.freeze({ itemType: 'farm_flax', label: 'Лён', icon: '🪻', sellPrice: 28, kind: 'harvest' }),
+  farm_cotton: Object.freeze({ itemType: 'farm_cotton', label: 'Хлопок', icon: '☁️', sellPrice: 32, kind: 'harvest' }),
 });
 
 export function getFarmItem(itemType) {
