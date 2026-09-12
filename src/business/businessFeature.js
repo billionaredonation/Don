@@ -68,6 +68,7 @@ function businessPresentation(value) {
   const type = businessTypeOf(value);
   if (type === 'grocery' || type === 'shop') return { icon: '🛒', format: 'Продуктовый магазин', adjective: 'продуктовый магазин', fallbackName: 'Продуктовый магазин' };
   if (type === 'construction_store') return { icon: '🧰', format: 'Стройматериалы и инструменты', adjective: 'магазин стройматериалов', fallbackName: 'Магазин стройматериалов' };
+  if (type === 'accessory_store') return { icon: '👕', format: 'Одежда и аксессуары', adjective: 'магазин одежды и аксессуаров', fallbackName: 'Магазин одежды и аксессуаров' };
   if (type === 'logistics_hub') return { icon: '🚚', format: 'Логистический центр', adjective: 'логистический центр', fallbackName: 'Логистический центр' };
   return { icon: '🏢', format: 'Коммерческий', adjective: 'бизнес', fallbackName: 'Коммерческое предприятие' };
 }
