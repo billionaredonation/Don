@@ -19,6 +19,20 @@ const quantity=(v)=>Math.max(0,Math.floor(Number(v)||0));
 const dealTotal=(entry)=>money(quantity(entry?.quantity)*Math.max(0,Number(entry?.unitPrice)||0));
 const toast=(message,type='info')=>window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message,type}}));
 const entityName=(entry,fallback)=>{const value=String(entry?.name||entry?.factoryName||entry?.storeName||entry?.businessName||'').trim();return !value||/[0-9a-f]{8}-[0-9a-f-]{27,}/i.test(value)||value==='Завод'||value==='Магазин'?`${fallback}${entry?.cityName||entry?.cityId?` · ${entry.cityName||entry.cityId}`:''}`:value;};
+const sourceOffers=(source)=>{
+  const candidates=Array.isArray(source)?source:(source?.offers||source?.rawOffers||source?.raw_offers||source?.items||source?.data?.offers||source?.result?.offers||[]);
+  return Array.isArray(candidates)?candidates:[];
+};
+const normalizeRawOffer=(item)=>({
+  ...item,
+  factoryId:item?.factoryId||item?.factory_id||item?.industryId||item?.industry_id||item?.id||'',
+  cityId:item?.cityId||item?.city_id||'',
+  cityName:item?.cityName||item?.city_name||'',
+  itemType:item?.itemType||item?.item_type||item?.rawItemType||item?.raw_item_type||'',
+  unitPrice:item?.unitPrice??item?.unit_price??item?.buyPrice??item?.buy_price??0,
+  capacityLeft:item?.capacityLeft??item?.capacity_left??item?.availableCapacity??item?.available_capacity??0,
+  factoryName:item?.factoryName||item?.factory_name||item?.industryName||item?.industry_name||'',
+});
 
 function shell(){return `<div class="mn-production-shortcuts"><button data-raw-market-open><b>O</b><span>Продать сырьё</span></button><button data-exchange-open><b>M</b><span>Биржа продукции</span></button></div><div class="mn-production-market" data-production-market hidden><button class="mn-production-backdrop" data-market-close></button><section><header><div><small data-market-eyebrow>РЫНОК</small><h2 data-market-title>Производственная экономика</h2></div><button data-market-close>×</button></header><main data-market-content></main></section></div>`;}
 
@@ -30,10 +44,10 @@ async function loadUniversalRaw(){
   const woodSource=woodResult.status==='fulfilled'?woodResult.value:{};
   const textileSource=textileResult.status==='fulfilled'?textileResult.value:{};
   const merged=[
-    ...(fruitSource?.offers||[]).map(item=>({...item,chainId:'fruit',rawProvider:'fruit'})),
-    ...(metallurgySource?.offers||[]).map(item=>({...item,chainId:'metallurgy',rawProvider:'metallurgy'})),
-    ...(woodSource?.offers||[]).map(item=>({...item,chainId:'wood_processing',rawProvider:'wood_processing'})),
-    ...(textileSource?.offers||[]).filter(item=>['farm_flax','farm_cotton'].includes(item.itemType)).map(item=>({...item,chainId:'textile',rawProvider:'textile'})),
+    ...sourceOffers(fruitSource).map(item=>({...normalizeRawOffer(item),chainId:'fruit',rawProvider:'fruit'})),
+    ...sourceOffers(metallurgySource).map(item=>({...normalizeRawOffer(item),chainId:'metallurgy',rawProvider:'metallurgy'})),
+    ...sourceOffers(woodSource).map(item=>({...normalizeRawOffer(item),chainId:'wood_processing',rawProvider:'wood_processing'})),
+    ...sourceOffers(textileSource).map(normalizeRawOffer).filter(item=>['farm_flax','farm_cotton'].includes(item.itemType)).map(item=>({...item,chainId:'textile',rawProvider:'textile'})),
   ].filter(item=>RAW_ITEMS[item.itemType]);
 
   const seen=new Set();
