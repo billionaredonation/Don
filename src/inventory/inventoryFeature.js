@@ -45,7 +45,7 @@ const INDUSTRY_ITEM_META = Object.freeze(Object.fromEntries([
   { itemType: 'mine_stone_common', label: 'Обычный камень', icon: '🪨' },
   { itemType: 'mine_stone_dense', label: 'Плотный камень', icon: '🗿' },
   { itemType: 'industrial_plastic', label: 'Технический пластик', icon: '🧩' },
-].map((item) => [String(item.itemType || item.id), { label: item.label, icon: item.icon }])));
+].filter(Boolean).map((item) => [String(item.itemType || item.id), { label: item.label, icon: item.icon }])));
 const ITEM_META = Object.freeze({
   food: { label: 'Обед', icon: '🍔' },
   water_bottle: { label: 'Бутылка воды', icon: '🧴' },
@@ -81,7 +81,7 @@ const ITEM_META = Object.freeze({
   grocery_multifruit_juice: { label: 'Сок мультифрукт', icon: '🧃' },
   food_wheat_flour:{label:'Пшеничная мука',icon:'🥣'},food_corn_flour:{label:'Кукурузная мука',icon:'🟡'},wood_dry_board:{label:'Сухая доска',icon:'🪵'},wood_furniture_panel:{label:'Мебельный щит',icon:'🟫'},construction_cement:{label:'Цемент',icon:'⚪'},construction_concrete:{label:'Бетонная смесь',icon:'🧱'},metal_steel:{label:'Стальной прокат',icon:'🔩'},metal_copper:{label:'Медная катанка',icon:'🟠'},electric_copper_wire:{label:'Медный провод',icon:'🧵'},electric_power_cable:{label:'Силовой кабель',icon:'🔌'},
   ...INDUSTRY_ITEM_META,
-  ...Object.fromEntries(Object.entries(TEXTILE_PRODUCT_BY_TYPE).map(([id, item]) => [id, { label: item.label, icon: item.icon }])),
+  ...Object.fromEntries(Object.entries(TEXTILE_PRODUCT_BY_TYPE).filter(([, item]) => Boolean(item)).map(([id, item]) => [id, { label: item.label, icon: item.icon }])),
 });
 const VITAL_ALIASES = Object.freeze({
   health: ['health', 'hp', 'healthPoints', 'health_points'],
