@@ -487,7 +487,7 @@ export function enableAdminPanel({
   }
 
   function isFarmBusinessLinkType(type = selectedType) {
-    return type === 'farm_station' || type === 'farm_water_tower' || type === 'farm_water_barrel' || /^farm_(wheat|apple|orange|corn)_plant$/.test(String(type || ''));
+    return type === 'farm_station' || type === 'farm_water_tower' || type === 'farm_water_barrel' || /^farm_(wheat|apple|orange|corn|flax|cotton)_plant$/.test(String(type || ''));
   }
 
   function getFarmBusinessLink(object = {}) {
@@ -1324,4 +1324,3 @@ function setEnabled(next) {
     document.querySelector('.mn-admin-toast')?.remove();
   };
 }
-
