@@ -20,6 +20,7 @@ export function getTextileError(error) {
     INDUSTRY_FACTORY_NOT_FOUND: 'Швейный завод не найден.', INDUSTRY_OWNER_REQUIRED: 'Действие доступно владельцу завода.',
     INDUSTRY_RECIPE_INVALID: 'Такая рецептура не зарегистрирована.', INDUSTRY_RAW_NOT_ENOUGH: 'На складе не хватает льна или хлопка.',
     INDUSTRY_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовой одежды.', PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
+    INDUSTRY_PRICE_INVALID: 'Укажите корректную цену закупки.', INDUSTRY_AMOUNT_INVALID: 'Укажите корректное количество или сумму.',
     INDUSTRY_ALREADY_OWNED: 'У этого швейного завода уже есть владелец.',
     TEXTILE_ITEM_NOT_OWNED: 'Сначала купите эту вещь в магазине одежды и аксессуаров.',
   };
@@ -41,6 +42,7 @@ export const purchaseTextileFactory = (factoryId, cityId) => invokeTextileAction
 export const depositTextileCash = (factoryId, cityId, amount) => invokeTextileAction('deposit', { factoryId, cityId, amount });
 export const withdrawTextileCash = (factoryId, cityId, amount) => invokeTextileAction('withdraw', { factoryId, cityId, amount });
 export const transferTextileRaw = (factoryId, cityId, itemType, quantity) => invokeTextileAction('raw_transfer', { factoryId, cityId, itemType, quantity });
+export const setTextileRawBuyPrice = (factoryId, cityId, itemType, unitPrice) => invokeTextileAction('buy_price_set', { factoryId, cityId, itemType, unitPrice });
 export const createTextileBatch = (factoryId, cityId, recipeId) => invokeTextileAction('batch_start', { factoryId, cityId, recipeId });
 export const finishTextileBatch = (factoryId, cityId, batchId) => invokeTextileAction('batch_finish', { factoryId, cityId, batchId });
 export const publishTextileOffer = (factoryId, cityId, productType, quantity, unitPrice) => invokeTextileAction('exchange_offer_create', { factoryId, cityId, productType, quantity, unitPrice });
