@@ -18,6 +18,7 @@ import {
 } from './woodProcessingApi.js';
 import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
 import { getProcurementError, loadProcurementSnapshot, setProcurementBudget, setProcurementItem } from '../procurement/procurementApi.js';
+import { getPublicBusinessId } from '../business/publicBusinessId.js';
 
 const esc = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 const objectType = (object) => String(object?.type || object?.payload?.jobType || object?.payload?.type || '');
@@ -36,7 +37,7 @@ function markup() {
   return `<div class="mn-metallurgy-backdrop" data-wood-modal hidden><section class="mn-metallurgy-panel"><header><div><small>ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ</small><h2>${WOOD_PROCESSING_CONFIG.icon} ${WOOD_PROCESSING_CONFIG.label}</h2><p>Древесина лесоруба → деревянные детали → завод инструментов</p></div><button type="button" data-wood-close aria-label="Закрыть">×</button></header><nav><button type="button" class="is-active" data-wood-tab="production">Рецептура</button><button type="button" data-wood-tab="warehouse">Склады</button><button type="button" data-wood-tab="management">Управление</button></nav><main>
     <section data-wood-page="production"><div class="mn-metallurgy-status"><span><small>Статус</small><strong data-wood-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-wood-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-wood-cash>Скрыто</strong></span></div><div class="mn-metallurgy-recipes">${recipes}</div></section>
     <section data-wood-page="warehouse" hidden><h3>Сырьевой склад</h3><p class="mn-metallurgy-note">Брёвна и брус поступают от лесорубов через рынок сырья.</p><div class="mn-metallurgy-stock">${raw}</div><h3>Склад готовых деталей</h3><div class="mn-metallurgy-stock">${products}</div></section>
-    <section data-wood-page="management" hidden><div class="mn-metallurgy-buy" data-wood-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatWoodMoney(WOOD_PROCESSING_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет бюджетом, сырьём и выпуском деталей.</p></span><button type="button" data-wood-purchase>Купить завод</button></div><div data-wood-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-wood-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span></div>${procurementControlsMarkup('wood', WOOD_PROCESSING_RAW_ITEMS)}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-wood-amount><div><button type="button" data-wood-deposit>Пополнить</button><button type="button" data-wood-withdraw>Снять</button></div></article></div></section>
+    <section data-wood-page="management" hidden><div class="mn-metallurgy-buy" data-wood-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatWoodMoney(WOOD_PROCESSING_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет бюджетом, сырьём и выпуском деталей.</p></span><button type="button" data-wood-purchase>Купить завод</button></div><div data-wood-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-wood-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span><span><small>Публичный ID</small><strong data-wood-public-id>—</strong></span></div>${procurementControlsMarkup('wood', WOOD_PROCESSING_RAW_ITEMS)}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-wood-amount><div><button type="button" data-wood-deposit>Пополнить</button><button type="button" data-wood-withdraw>Снять</button></div></article></div></section>
   </main><div class="mn-metallurgy-transfer" data-wood-transfer hidden><section><header><span><small>ОТПРАВКА СО СКЛАДА</small><h3 data-wood-transfer-title>Деталь</h3></span><button type="button" data-wood-transfer-close>×</button></header><label>Количество<input type="number" min="1" value="1" inputmode="numeric" data-wood-transfer-quantity></label><label>Куда отправляем<select data-wood-transfer-destination></select></label><footer><button type="button" class="is-ghost" data-wood-transfer-cancel>Отмена</button><button type="button" data-wood-transfer-send>Отправить</button></footer></section></div></section></div>`;
 }
 
@@ -47,6 +48,7 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
   const q = (selector) => modal.querySelector(selector);
   const qa = (selector) => [...modal.querySelectorAll(selector)];
   let currentFactoryId = '';
+  let currentPublicId = '—';
   let snapshot = null;
   let procurement = null;
   let busy = false;
@@ -60,6 +62,7 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
     q('[data-wood-buy]').hidden = Boolean(business.ownerId);
     q('[data-wood-owned]').hidden = !business.ownerId;
     q('[data-wood-owner]').textContent = business.ownerName || 'Государство';
+    q('[data-wood-public-id]').textContent = currentPublicId;
     WOOD_PROCESSING_RAW_ITEMS.forEach((item) => { q(`[data-wood-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
     Object.keys(WOOD_PROCESSING_RECIPES).forEach((id) => { q(`[data-wood-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
     qa('[data-wood-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
@@ -85,6 +88,7 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
     const object = event.detail?.object;
     if (objectType(object) !== WOOD_PROCESSING_CONFIG.type) return;
     currentFactoryId = objectId(object); modal.hidden = false; setTab('production');
+    currentPublicId = getPublicBusinessId(object);
     refresh().catch((error) => toast(getWoodProcessingError(error), 'error'));
   }
 
