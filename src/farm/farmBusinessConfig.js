@@ -27,3 +27,4 @@ export function isFarmBusinessLinkedObject(object = {}) {
   const type = String(object?.type || object?.payload?.jobType || object?.payload?.type || '');
   return type === 'farm_station' || type === 'farm_water_tower' || type === 'farm_water_barrel' || type.startsWith('farm_') && type.endsWith('_plant');
 }
+
