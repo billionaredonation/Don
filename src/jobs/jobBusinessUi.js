@@ -1,4 +1,5 @@
 import { formatJobBusinessMoney } from './jobBusinessConfig.js';
+import { procurementControlsMarkup } from '../procurement/procurementControls.js';
 
 function esc(value) {
   return String(value ?? '')
@@ -48,6 +49,7 @@ export function jobBusinessPageMarkup({ prefix, config, items = [] }) {
         </div>
 
         <div class="mn-jobbiz-management" data-${p}-business-management hidden>
+          ${procurementControlsMarkup(p, [], { factory: false })}
           <section class="mn-jobbiz-card" data-${p}-business-owner-only>
             <header><i>💳</i><span><h4>Пополнить бюджет</h4><small>Средства переходят с личного баланса владельца на баланс предприятия.</small></span></header>
             <div class="mn-jobbiz-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-${p}-business-deposit-amount><button type="button" data-${p}-business-deposit>Пополнить</button></div>
