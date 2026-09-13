@@ -15,7 +15,7 @@ async function invoke(action, payload = {}) {
 }
 
 export const loadFactorySnapshot = (factoryId, cityId) => invoke('snapshot', { factoryId, cityId });
-export const purchaseFactory = (factoryId, cityId, legalForm) => invoke('purchase', { factoryId, cityId, legalForm });
+export const purchaseFactory = (factoryId, cityId) => invoke('purchase', { factoryId, cityId });
 export const transferFarmRawToFactory = (factoryId, cityId, itemType, quantity) => invoke('deliver', { factoryId, cityId, itemType, quantity });
 export const transferFruitToFactory = transferFarmRawToFactory;
 export const startFactoryBatch = (factoryId, cityId, recipeId, ingredientType = '') => invoke('start_batch', { factoryId, cityId, recipeId, ingredientType });
@@ -70,4 +70,3 @@ export function getFactoryError(error) {
   const key = Object.keys(messages).find((code) => raw.includes(code));
   return key ? messages[key] : raw;
 }
-
