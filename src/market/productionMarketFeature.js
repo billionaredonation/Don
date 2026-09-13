@@ -89,14 +89,26 @@ function rawMarkup(data){const offers=data.offers||[],availableItems=Object.entr
 
 function normalizeExchange(source,chainId){const chain=productionChain(chainId),data=source||{};return {factories:(data.myFactories||[]).map(item=>({...item,chainId,name:entityName(item,chain.factoryLabel)})),stores:(data.myStores||[]).filter(item=>!item.businessType||item.businessType===chain.storeType).map(item=>({...item,chainId,name:entityName(item,chain.storeLabel)})),offers:(data.offers||[]).map(item=>({...item,chainId})),requests:(data.requests||[]).map(item=>({...item,chainId}))};}
 async function loadUniversalExchange(){
-  const result=normalizeExchange(await loadProductionExchange(),'fruit');
+  const result={factories:[],stores:[],offers:[],requests:[]};
+  let loadedSources=0,lastError=null;
+  try {
+    const production=normalizeExchange(await loadProductionExchange(),'fruit');
+    result.factories.push(...production.factories);
+    result.stores.push(...production.stores);
+    result.offers.push(...production.offers);
+    result.requests.push(...production.requests);
+    loadedSources+=1;
+  } catch (error) { lastError=error; console.warn('[market] production exchange unavailable:',error); }
   try {
     const textile=normalizeExchange(await loadTextileExchange(),'textile');
     result.factories.push(...textile.factories.filter(item=>!item.industryId||item.industryId==='textile'));
     result.stores.push(...textile.stores);
     result.offers.push(...textile.offers.filter(item=>String(item.productType||'').startsWith('textile_')));
     result.requests.push(...textile.requests.filter(item=>String(item.productType||'').startsWith('textile_')));
-  } catch (error) { console.warn('[market] textile exchange unavailable:', error); }
+    loadedSources+=1;
+  } catch (error) { lastError=error; console.warn('[market] textile exchange unavailable:', error); }
+
+  if(!loadedSources)throw lastError||new Error('EXCHANGE_UNAVAILABLE');
 
   const dedupe=(items,keyFn)=>{
     const seen=new Set();
@@ -176,7 +188,7 @@ export function enableProductionMarketFeature({root}){root.insertAdjacentHTML('b
 const applyMarketAccess=(data)=>{marketAccess=Boolean(data?.factories?.length||data?.stores?.length);exchangeButton.hidden=!marketAccess;return marketAccess;};
 const primeMarketAccess=async()=>{try{exchangeCache=await loadUniversalExchange();applyMarketAccess(exchangeCache);}catch(error){marketAccess=false;exchangeButton.hidden=true;console.warn('[market] access check failed:',error);}};
 void primeMarketAccess();
-const open=async(next)=>{if(busy)return;if(next==='exchange'&&!marketAccess){toast('Биржа доступна владельцам и управляющим предприятий.','error');return;}busy=true;mode=next;modal.hidden=false;content.innerHTML='<div class="mn-market-loading">Загружаем предложения…</div>';try{const data=next==='raw'?await loadUniversalRaw():(exchangeCache||await loadUniversalExchange());if(next==='exchange'){exchangeCache=null;applyMarketAccess(data);}content.innerHTML=next==='raw'?rawMarkup(data):exchangeMarkup(data);modal.querySelector('[data-market-title]').textContent=next==='raw'?'Продать сырьё':'Биржа готовой продукции';modal.querySelector('[data-market-eyebrow]').textContent=next==='raw'?'КЛАВИША O':'КЛАВИША M';}catch(e){content.innerHTML=`<div class="mn-market-error">${esc(next==='raw'?getProcurementError(e):getFactoryError(e))}</div>`;}finally{busy=false;}};
+const open=async(next)=>{if(busy)return;if(next==='exchange'&&!marketAccess){try{exchangeCache=await loadUniversalExchange();applyMarketAccess(exchangeCache);}catch(error){console.warn('[market] access retry failed:',error);}if(!marketAccess){toast('Биржа доступна владельцам и управляющим предприятий.','error');return;}}busy=true;mode=next;modal.hidden=false;content.innerHTML='<div class="mn-market-loading">Загружаем предложения…</div>';try{const data=next==='raw'?await loadUniversalRaw():(exchangeCache||await loadUniversalExchange());if(next==='exchange'){exchangeCache=null;applyMarketAccess(data);}content.innerHTML=next==='raw'?rawMarkup(data):exchangeMarkup(data);modal.querySelector('[data-market-title]').textContent=next==='raw'?'Продать сырьё':'Биржа готовой продукции';modal.querySelector('[data-market-eyebrow]').textContent=next==='raw'?'КЛАВИША O':'КЛАВИША M';}catch(e){content.innerHTML=`<div class="mn-market-error">${esc(next==='raw'?getProcurementError(e):getFactoryError(e))}</div>`;}finally{busy=false;}};
 const close=()=>{modal.hidden=true;};root.querySelector('[data-raw-market-open]').onclick=()=>open('raw');exchangeButton.onclick=()=>open('exchange');modal.querySelectorAll('[data-market-close]').forEach(b=>b.onclick=close);
 const key=e=>{if(e.repeat||/INPUT|TEXTAREA|SELECT/.test(e.target?.tagName||''))return;if(e.code==='KeyO'){e.preventDefault();void open('raw');}if(e.code==='KeyM'&&marketAccess){e.preventDefault();void open('exchange');}if(e.key==='Escape'&&!modal.hidden)close();};window.addEventListener('keydown',key,true);
 content.addEventListener('change',e=>{if(e.target.matches('[data-raw-item]')){const articles=[...content.querySelectorAll('[data-raw-offers] article')],selected=e.target.value;articles.forEach(a=>a.hidden=a.dataset.item!==selected);const empty=content.querySelector('[data-raw-empty]');if(empty)empty.hidden=articles.some(a=>a.dataset.item===selected);}if(e.target.matches('[data-create-factory]'))content.querySelector('[data-create-factory-product]').innerHTML=productOptions(e.target.selectedOptions[0]?.dataset.chain||'fruit');if(e.target.matches('[data-create-store]')){const option=e.target.selectedOptions[0];content.querySelector('[data-create-store-product]').innerHTML=storeProductOptions(option?.dataset.businessType||'',option?.dataset.chain||'fruit');}});
