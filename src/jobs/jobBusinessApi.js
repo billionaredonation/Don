@@ -68,3 +68,4 @@ export const setJobBusinessAssistant = ({ businessId, cityId, jobType, target })
 export const reserveJobBusinessPayout = ({ businessId, cityId, jobType, itemType, quantity, amount }) => invokeJobBusinessAction('reserve_payout', { businessId, cityId, jobType, itemType, quantity, amount });
 export const commitJobBusinessPayout = ({ businessId, cityId, jobType, reservationId, quantity, amount }) => invokeJobBusinessAction('commit_payout', { businessId, cityId, jobType, reservationId, quantity, amount });
 export const refundJobBusinessPayout = ({ businessId, cityId, jobType, reservationId }) => invokeJobBusinessAction('refund_payout', { businessId, cityId, jobType, reservationId });
+
