@@ -40,6 +40,7 @@ import { cancelFarmMiniGame, playFarmMiniGame } from './farmMiniGame.js';
 import { getCropSkillStatus, publishPlayerSkills } from '../player/playerSkillState.js';
 import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
 import { setProcurementBudget } from '../procurement/procurementApi.js';
+import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import './farm.css';
 
 const FARM_STATE_REFRESH_MS = 5000;
@@ -248,7 +249,7 @@ function farmModalMarkup() {
               </div>
 
               <div class="mn-farm4-business-summary">
-                <article><i aria-hidden="true">🏢</i><span><small>Форма</small><strong>ООО</strong><em>Фермерское предприятие</em></span></article>
+                <article><i aria-hidden="true">🏢</i><span><small>Форма</small><strong>ООО</strong><em>ID: <b data-farm-business-public-id>—</b></em></span></article>
                 <article><i aria-hidden="true">👤</i><span><small>Владелец</small><strong data-farm-owner>Государство</strong><em data-farm-assistant>Помощник: нет</em></span></article>
                 <article data-farm-private><i aria-hidden="true">₴</i><span><small>Баланс бизнеса</small><strong data-farm-cash>0 ₴</strong><em>Оплата урожая и поставок</em></span></article>
                 <article data-farm-private><i aria-hidden="true">💧</i><span><small>Водоснабжение</small><strong><span data-farm-tower-water>0</span> / ${FARM_TOWER_CAPACITY_LITERS} л</strong><em>Бочка: <b data-farm-barrel-present>нет</b> · ведра: <b data-farm-bucket-stock>0</b></em><span class="mn-farm4-progress is-water"><i data-farm-water-meter></i></span></span></article>
@@ -358,6 +359,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let businessState = null;
   let activeFarmObject = null;
   let activeBuyerObjectId = '';
+  let activeBusinessPublicId = '—';
   let plantStates = new Map();
   let plantStatesReady = false;
   let plantStatesLoadPromise = null;
@@ -471,6 +473,9 @@ export function enableFarmFeature({ root, cityId } = {}) {
     const isStaff = isOwner || role === 'assistant';
     const isAdmin = Boolean(business?.isAdmin);
     const roleLabel = role === 'owner' ? 'Владелец' : role === 'assistant' ? 'Помощник' : isAdmin ? 'Администратор' : 'Работник';
+
+    const publicIdEl = modal.querySelector('[data-farm-business-public-id]');
+    if (publicIdEl) publicIdEl.textContent = activeBusinessPublicId;
 
     const roleEl = modal.querySelector('[data-farm-business-role]');
     if (roleEl) {
@@ -842,6 +847,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     startFarmStreamLoading();
     activeFarmObject = object || null;
     activeBuyerObjectId = String(object?.id || '');
+    activeBusinessPublicId = getPublicBusinessId(object);
     marketState = { items: [] };
     businessState = null;
     publishMarket(marketState);
@@ -861,6 +867,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mn-farm-modal-open');
     activeFarmObject = null;
+    activeBusinessPublicId = '—';
     setStatus('');
   }
 
