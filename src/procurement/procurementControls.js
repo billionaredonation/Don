@@ -3,14 +3,17 @@ import './procurementControls.css';
 const esc = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const money = value => `${Math.max(0, Math.floor(Number(value) || 0)).toLocaleString('ru-RU')} ₴`;
 
-export function procurementControlsMarkup(prefix, items = [], { factory = true } = {}) {
+export function procurementControlsMarkup(prefix, items = [], { factory = true, priceFields = true } = {}) {
   const id = esc(prefix);
   const rows = factory ? items.map(item => `
-    <label class="mn-procurement-item">
-      <input type="checkbox" data-${id}-procurement-item="${esc(item.itemType)}">
-      <i>${item.icon || '📦'}</i>
-      <span><b>${esc(item.label || item.itemType)}</b><small>Используется в рецептах завода</small></span>
-    </label>`).join('') : '';
+    <article class="mn-procurement-item">
+      <label class="mn-procurement-toggle">
+        <input type="checkbox" data-${id}-procurement-item="${esc(item.itemType)}">
+        <i>${item.icon || '📦'}</i>
+        <span><b>${esc(item.label || item.itemType)}</b><small>Используется в рецептах завода</small></span>
+      </label>
+      ${priceFields ? `<label class="mn-procurement-price"><small>Цена за 1 ед.</small><input type="number" min="1" step="1" value="0" inputmode="numeric" data-${id}-procurement-price="${esc(item.itemType)}"></label><button type="button" data-${id}-procurement-item-save="${esc(item.itemType)}">Сохранить</button>` : ''}
+    </article>`).join('') : '';
   return `<section class="mn-procurement-card" data-${id}-procurement-controls>
     <header><i>🧾</i><span><h3>Бюджет скупа</h3><small>${factory ? 'Выберите нужное сырьё и оставьте деньги на закупку.' : 'Определяет, сколько предприятие может выплатить игрокам за сырьё.'}</small></span></header>
     <div class="mn-procurement-budget">
@@ -28,10 +31,13 @@ export function renderProcurementControls(root, prefix, snapshot, items = [], { 
   if (currentElement) currentElement.textContent = money(current);
   const budgetInput = root.querySelector(`[data-${prefix}-procurement-budget]`);
   if (budgetInput && document.activeElement !== budgetInput) budgetInput.value = String(current);
-  const enabled = new Map((snapshot?.items || []).map(item => [String(item.itemType || item.item_type), Boolean(item.enabled)]));
+  const savedItems = new Map((snapshot?.items || []).map(item => [String(item.itemType || item.item_type), item]));
   items.forEach(item => {
     const input = root.querySelector(`[data-${prefix}-procurement-item="${item.itemType}"]`);
-    if (input && document.activeElement !== input) input.checked = enabled.get(item.itemType) === true;
+    const saved = savedItems.get(item.itemType);
+    if (input && document.activeElement !== input) input.checked = saved?.enabled === true;
+    const priceInput = root.querySelector(`[data-${prefix}-procurement-price="${item.itemType}"]`);
+    if (priceInput && document.activeElement !== priceInput) priceInput.value = String(Math.max(0, Math.floor(Number(saved?.unitPrice ?? saved?.unit_price) || 0)));
   });
   root.querySelectorAll(`[data-${prefix}-procurement-controls] input,[data-${prefix}-procurement-controls] button`).forEach(element => {
     element.disabled = busy || !canManage;
