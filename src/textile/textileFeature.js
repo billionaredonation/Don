@@ -4,6 +4,7 @@ import { createTextileBatch, depositTextileCash, finishTextileBatch, getTextileE
 import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
 import { getProcurementError, loadProcurementSnapshot, setProcurementBudget, setProcurementItem } from '../procurement/procurementApi.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
+import { getBusinessLegalPayload } from '../business/businessConfig.js';
 
 const esc = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 const objectType = (object) => String(object?.type || object?.payload?.jobType || object?.payload?.type || '');
@@ -53,7 +54,7 @@ function markup() {
   return `<div class="mn-metallurgy-backdrop" data-textile-modal hidden><section class="mn-metallurgy-panel"><header><div><small>ТЕКСТИЛЬНОЕ ПРОИЗВОДСТВО</small><h2>🧵 Швейный завод</h2><p>Лён и хлопок → одежда и обувь → магазин одежды и аксессуаров</p></div><button data-textile-close>×</button></header><nav><button class="is-active" data-textile-tab="production">Рецептура</button><button data-textile-tab="warehouse">Склады</button><button data-textile-tab="management">Управление</button></nav><main>
     <section data-textile-page="production"><div class="mn-metallurgy-status"><span><small>Статус</small><strong data-textile-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-textile-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-textile-cash>Скрыто</strong></span></div><div class="mn-metallurgy-recipes">${recipes}</div><article class="mn-metallurgy-note" data-textile-batch hidden><strong data-textile-batch-title>Партия</strong><button data-textile-finish>Завершить и отправить на склад</button></article></section>
     <section data-textile-page="warehouse" hidden><h3>Сырьевой склад</h3><div class="mn-metallurgy-stock">${raw}</div><h3>Готовая одежда</h3><p class="mn-metallurgy-note">Количество и цена → «На биржу». Магазин аксессуаров закупает партию через производственную биржу.</p><div class="mn-metallurgy-stock">${products}</div></section>
-    <section data-textile-page="management" hidden><div class="mn-metallurgy-buy" data-textile-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatTextileMoney(TEXTILE_CONFIG.purchasePrice)}</strong></span><button data-textile-purchase>Купить завод</button></div><div data-textile-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-textile-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span><span><small>Публичный ID</small><strong data-textile-public-id>—</strong></span></div>${procurementControlsMarkup('textile', TEXTILE_RAW_ITEMS, { priceFields:false })}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" placeholder="Сумма" data-textile-amount><div><button data-textile-deposit>Пополнить</button><button data-textile-withdraw>Снять</button></div></article></div></section>
+    <section data-textile-page="management" hidden><div class="mn-metallurgy-buy" data-textile-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatTextileMoney(TEXTILE_CONFIG.purchasePrice)}</strong><p>Форма и налог заданы администратором: <b data-textile-purchase-legal>—</b></p></span><button data-textile-purchase>Купить завод</button></div><div data-textile-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-textile-owner>—</strong></span><span><small>Форма</small><strong data-textile-legal-view>—</strong></span><span><small>Публичный ID</small><strong data-textile-public-id>—</strong></span></div>${procurementControlsMarkup('textile', TEXTILE_RAW_ITEMS, { priceFields:false })}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" placeholder="Сумма" data-textile-amount><div><button data-textile-deposit>Пополнить</button><button data-textile-withdraw>Снять</button></div></article></div></section>
   </main></section></div>`;
 }
 
@@ -62,7 +63,7 @@ export function enableTextileFeature({ root, cityId } = {}) {
   root.insertAdjacentHTML('beforeend', markup());
   const modal = root.querySelector('[data-textile-modal]');
   const q = (selector) => modal.querySelector(selector), qa = (selector) => [...modal.querySelectorAll(selector)];
-  let factoryId = '', currentPublicId = '—', snapshot = null, procurement = null, busy = false;
+  let factoryId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, busy = false;
   function render() {
     const business = snapshot?.business || snapshot?.factory || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
     const ownership = textileOwnership(snapshot, business);
@@ -73,6 +74,8 @@ export function enableTextileFeature({ root, cityId } = {}) {
     q('[data-textile-owned]').hidden = !ownership.owned;
     q('[data-textile-owner]').textContent = ownership.ownerName;
     q('[data-textile-public-id]').textContent = currentPublicId;
+    q('[data-textile-purchase-legal]').textContent = `${currentLegal.legalFormLabel} · ${currentLegal.taxGroupLabel}`;
+    q('[data-textile-legal-view]').textContent = currentLegal.legalFormLabel;
     q('[data-textile-purchase]').disabled = busy || ownership.owned;
     TEXTILE_RAW_ITEMS.forEach((item) => {
       q(`[data-textile-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`;
@@ -112,8 +115,7 @@ export function enableTextileFeature({ root, cityId } = {}) {
     const unitPrice=Number(q(`[data-textile-buy-price="${itemType}"]`)?.value);
     run(() => setProcurementItem({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile', itemType, enabled, unitPrice }), enabled ? 'Сырьё добавлено в скуп.' : 'Закупка сырья отключена.');
   }; });
-  const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== TEXTILE_CONFIG.type) return; factoryId = objectId(object); currentPublicId = getPublicBusinessId(object); modal.hidden = false; tab('production'); refresh().catch((error) => toast(getTextileError(error), 'error')); };
+  const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== TEXTILE_CONFIG.type) return; factoryId = objectId(object); currentPublicId = getPublicBusinessId(object); currentLegal = getBusinessLegalPayload({ legalForm:'tov', ...(object?.payload || {}) }); modal.hidden = false; tab('production'); refresh().catch((error) => toast(getTextileError(error), 'error')); };
   window.addEventListener('mn:textile-object-action', onAction);
   return () => { window.removeEventListener('mn:textile-object-action', onAction); modal.remove(); };
 }
-
