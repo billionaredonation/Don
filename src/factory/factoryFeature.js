@@ -1,8 +1,10 @@
 import './factory.css';
 import './factoryRedesign.css';
-import { FACTORY_CONFIG, FACTORY_RAW_ITEMS, FACTORY_RECIPES, FACTORY_ROLES, formatFactoryMoney } from './factoryConfig.js';
+import { FACTORY_CONFIG, FACTORY_PROCUREMENT_ITEMS, FACTORY_RAW_ITEMS, FACTORY_RECIPES, FACTORY_ROLES, formatFactoryMoney } from './factoryConfig.js';
 import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, cookFactoryBatch, finishFactoryBatch, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, loadFactoryProductToVehicle, getFactoryError } from './factoryApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
+import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
+import { getProcurementError, loadProcurementSnapshot, setProcurementBudget, setProcurementItem } from '../procurement/procurementApi.js';
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const objectType = (o) => String(o?.type || o?.payload?.jobType || '');
@@ -29,7 +31,7 @@ function markup() {
     <main>
       <section data-factory-page="production"><div class="mn-factory-status"><span><small>Статус</small><strong data-factory-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-factory-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-factory-cash>—</strong></span></div><div class="mn-factory-workflow">${FACTORY_ROLES.map((role, index) => `<span><i>${role.icon}</i><b>${index + 1}. ${role.label}</b></span>`).join('<em>→</em>')}<em>→</em><span><i>🏬</i><b>Склад</b></span><em>→</em><span><i>🚚</i><b>Логистика</b></span></div><div class="mn-factory-line" data-factory-line><i>⚙️</i><span><strong>Линия свободна</strong><small>Выберите рецепт и запустите смену</small></span><button data-factory-cook hidden>Повар: готовить</button><button data-factory-finish hidden>Упаковать на склад</button></div><h3>Технологические карты</h3><div class="mn-factory-recipes">${recipes}</div></section>
       <section data-factory-page="warehouse" hidden><h3>Сырьевой склад</h3><div class="mn-factory-warehouse">${raw}</div><h3>Готовая продукция</h3><div class="mn-factory-products">${Object.values(FACTORY_RECIPES).map((r) => `<article><i>${r.icon}</i><span><small>${r.label}</small><strong data-factory-product="${r.id}">0</strong></span><div><input type="number" min="1" value="1" data-factory-load-qty="${r.id}" aria-label="Количество"><button data-factory-load="${r.id}">Забрать</button></div></article>`).join('')}</div></section>
-      <section data-factory-page="management" hidden><div class="mn-factory-buy" data-factory-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatFactoryMoney(FACTORY_CONFIG.purchasePrice)}</strong><p>Выберите юридическую форму предприятия перед покупкой.</p></span><select data-factory-legal>${legal}</select><button data-factory-purchase>Купить завод</button></div><div data-factory-owned hidden><div class="mn-factory-owner"><span><small>Владелец</small><strong data-factory-owner>—</strong></span><span><small>Юр. форма</small><strong data-factory-legal-view>—</strong></span></div><div class="mn-factory-manage-grid"><article><h3>Бюджет</h3><input type="number" min="1" placeholder="Сумма" data-factory-money><div><button data-factory-deposit>Пополнить</button><button data-factory-withdraw>Снять</button></div></article><article><h3>Персонал</h3><input placeholder="Ник игрока" data-factory-staff-target><select data-factory-staff-role>${FACTORY_ROLES.map((role) => `<option value="${role.id}">${role.label}</option>`).join('')}</select><div><button data-factory-staff-save>Назначить</button><button data-factory-staff-remove>Снять</button></div></article><article class="is-wide"><h3>Оптовые цены для магазинов</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="1" value="${Math.max(1, Math.round(r.wage / r.outputQty * 1.8))}" data-factory-wholesale-price="${r.id}"><button data-factory-wholesale-save="${r.id}">Сохранить</button></label>`).join('')}</div></article><article class="is-wide"><h3>Оплата за изготовление партии</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="0" value="${r.wage}" data-factory-production-wage="${r.id}"><button data-factory-wage-save="${r.id}">Сохранить</button></label>`).join('')}</div></article></div></div></section>
+      <section data-factory-page="management" hidden><div class="mn-factory-buy" data-factory-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatFactoryMoney(FACTORY_CONFIG.purchasePrice)}</strong><p>Выберите юридическую форму предприятия перед покупкой.</p></span><select data-factory-legal>${legal}</select><button data-factory-purchase>Купить завод</button></div><div data-factory-owned hidden><div class="mn-factory-owner"><span><small>Владелец</small><strong data-factory-owner>—</strong></span><span><small>Юр. форма</small><strong data-factory-legal-view>—</strong></span></div>${procurementControlsMarkup('factory', FACTORY_PROCUREMENT_ITEMS)}<div class="mn-factory-manage-grid"><article><h3>Баланс предприятия</h3><input type="number" min="1" placeholder="Сумма" data-factory-money><div><button data-factory-deposit>Пополнить</button><button data-factory-withdraw>Снять</button></div></article><article><h3>Персонал</h3><input placeholder="Ник игрока" data-factory-staff-target><select data-factory-staff-role>${FACTORY_ROLES.map((role) => `<option value="${role.id}">${role.label}</option>`).join('')}</select><div><button data-factory-staff-save>Назначить</button><button data-factory-staff-remove>Снять</button></div></article><article class="is-wide"><h3>Оптовые цены для магазинов</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="1" value="${Math.max(1, Math.round(r.wage / r.outputQty * 1.8))}" data-factory-wholesale-price="${r.id}"><button data-factory-wholesale-save="${r.id}">Сохранить</button></label>`).join('')}</div></article><article class="is-wide"><h3>Оплата за изготовление партии</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="0" value="${r.wage}" data-factory-production-wage="${r.id}"><button data-factory-wage-save="${r.id}">Сохранить</button></label>`).join('')}</div></article></div></div></section>
     </main></section></div>`;
 }
 
@@ -46,11 +48,15 @@ function contractsMarkup(contracts = [], actorId = '') {
 export function enableFactoryFeature({ root, cityId }) {
   root.insertAdjacentHTML('beforeend', markup());
   const modal = root.querySelector('[data-factory-modal]');
-  let currentId = '', snapshot = null, timer = 0, busy = false;
+  let currentId = '', snapshot = null, procurement = null, timer = 0, busy = false;
   const q = (s) => modal.querySelector(s);
   const qa = (s) => [...modal.querySelectorAll(s)];
-  const run = async (task) => { if (busy) return; busy = true; modal.classList.add('is-busy'); try { await task(); await refresh(); } catch (e) { notify(getFactoryError(e), 'error'); } finally { busy = false; modal.classList.remove('is-busy'); } };
-  const refresh = async () => { snapshot = await loadFactorySnapshot(currentId, cityId); render(); };
+  const run = async (task) => { if (busy) return; busy = true; modal.classList.add('is-busy'); try { await task(); await refresh(); } catch (e) { const raw=String(e?.message||e||''); notify(raw.includes('PROCUREMENT_')?getProcurementError(e):getFactoryError(e), 'error'); } finally { busy = false; modal.classList.remove('is-busy'); } };
+  const refresh = async () => {
+    snapshot = await loadFactorySnapshot(currentId, cityId);
+    procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food' }) : null;
+    render();
+  };
   function render() {
     const s = snapshot || {}, business = s.factory || {}, raw = s.raw || {}, products = s.products || {}, prices = s.wholesalePrices || {}, wages = s.productionWages || {}, batch = s.activeBatch || null;
     q('[data-factory-state]').textContent = business.ownerName ? (batch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
@@ -64,6 +70,7 @@ export function enableFactoryFeature({ root, cityId }) {
     Object.keys(FACTORY_RECIPES).forEach((id) => { const input = q(`[data-factory-production-wage="${id}"]`); if (input && wages[id] !== undefined) input.value = String(wages[id]); });
     qa('[data-factory-start]').forEach((b) => b.disabled = !business.ownerId || Boolean(batch));
     qa('[data-factory-deliver]').forEach((b) => b.disabled = !s.isOwner);
+    renderProcurementControls(modal, 'factory', procurement, FACTORY_PROCUREMENT_ITEMS, { canManage:s.isOwner, busy });
     const line = q('[data-factory-line]'), cook = q('[data-factory-cook]'), finish = q('[data-factory-finish]');
     cook.hidden = true; finish.hidden = true;
     if (!batch) { line.querySelector('strong').textContent = 'Линия свободна'; line.querySelector('small').textContent = 'Грузчик может подать сырьё по выбранному рецепту'; }
@@ -115,6 +122,14 @@ export function enableFactoryFeature({ root, cityId }) {
   action('[data-factory-staff-remove]', () => removeFactoryStaff(currentId, cityId, q('[data-factory-staff-target]').value));
   qa('[data-factory-wholesale-save]').forEach((b) => b.onclick = () => run(() => setFactoryWholesalePrice(currentId, cityId, b.dataset.factoryWholesaleSave, Number(q(`[data-factory-wholesale-price="${b.dataset.factoryWholesaleSave}"]`).value))));
   qa('[data-factory-wage-save]').forEach((b) => b.onclick = () => run(() => setFactoryProductionWage(currentId, cityId, b.dataset.factoryWageSave, Number(q(`[data-factory-production-wage="${b.dataset.factoryWageSave}"]`).value))));
+  q('[data-factory-procurement-budget-save]').onclick = () => run(async () => {
+    await setProcurementBudget({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food', budget:Number(q('[data-factory-procurement-budget]').value) });
+    notify('Бюджет скупа обновлён.', 'success');
+  });
+  qa('[data-factory-procurement-item]').forEach((input) => { input.onchange = () => run(async () => {
+    await setProcurementItem({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food', itemType:input.dataset.factoryProcurementItem, enabled:input.checked });
+    notify(input.checked ? 'Сырьё добавлено в скуп.' : 'Закупка сырья отключена.', 'success');
+  }); });
   const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== 'fruit_factory') return; currentId = objectId(object); modal.hidden = false; tab('production'); run(async () => { snapshot = await loadFactorySnapshot(currentId, cityId); render(); }); };
   window.addEventListener('mn:factory-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
