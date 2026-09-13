@@ -126,14 +126,15 @@ export function enableFactoryFeature({ root, cityId }) {
     await setProcurementBudget({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food', budget:Number(q('[data-factory-procurement-budget]').value) });
     notify('Бюджет скупа обновлён.', 'success');
   });
-  qa('[data-factory-procurement-item]').forEach((input) => { input.onchange = () => {
-    const itemType = input.dataset.factoryProcurementItem;
-    const enabled = input.checked;
+  const saveProcurementItem = (itemType) => {
+    const enabled = q(`[data-factory-procurement-item="${itemType}"]`)?.checked === true;
+    const unitPrice = Number(q(`[data-factory-procurement-price="${itemType}"]`)?.value);
     run(async () => {
-      await setProcurementItem({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food', itemType, enabled });
-      notify(enabled ? 'Сырьё добавлено в скуп.' : 'Закупка сырья отключена.', 'success');
+      await setProcurementItem({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food', itemType, enabled, unitPrice });
+      notify(enabled ? 'Сырьё и цена скупа сохранены.' : 'Закупка сырья отключена.', 'success');
     });
-  }; });
+  };
+  qa('[data-factory-procurement-item-save]').forEach((button) => { button.onclick = () => saveProcurementItem(button.dataset.factoryProcurementItemSave); });
   const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== 'fruit_factory') return; currentId = objectId(object); modal.hidden = false; tab('production'); run(async () => { snapshot = await loadFactorySnapshot(currentId, cityId); render(); }); };
   window.addEventListener('mn:factory-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
