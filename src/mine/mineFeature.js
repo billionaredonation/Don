@@ -32,6 +32,7 @@ import {
 import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
 import { renderProcurementControls } from '../procurement/procurementControls.js';
 import { setProcurementBudget } from '../procurement/procurementApi.js';
+import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import '../jobs/jobBusiness.css';
 import './mine.css';
 
@@ -158,6 +159,7 @@ export function enableMineFeature({ root, cityId } = {}) {
   let businessState = null;
   let businessRefreshPromise = null;
   let activeBuyerObjectId = '';
+  let activeBusinessPublicId = '—';
   let marketLoading = false;
   let marketLoadFailed = false;
   let marketRequestVersion = 0;
@@ -301,6 +303,9 @@ export function enableMineFeature({ root, cityId } = {}) {
     const canInspect = isStaff || Boolean(business?.isAdmin);
     const roleLabel = isOwner ? 'Владелец' : role === 'assistant' ? 'Помощник' : business?.isAdmin ? 'Администратор' : 'Работник';
 
+    const publicId = modal?.querySelector('[data-mine-business-public-id]');
+    if (publicId) publicId.textContent = activeBusinessPublicId;
+
     const owner = modal?.querySelector('[data-mine-business-owner]');
     if (owner) owner.textContent = owned ? (business?.ownerNickname || business?.ownerTgId || 'Владелец') : 'Государство';
     const assistant = modal?.querySelector('[data-mine-business-assistant]');
@@ -310,7 +315,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     const stateOutput = modal?.querySelector('[data-mine-business-state]');
     if (stateOutput) stateOutput.textContent = owned ? 'Частное предприятие' : 'Государственная точка';
     const publicState = modal?.querySelector('[data-mine-business-public-state]');
-    if (publicState) publicState.textContent = owned ? 'Частное' : 'Государственное';
+    if (publicState) publicState.textContent = `${activeBusinessPublicId} · ${owned ? 'Частное' : 'Государственное'}`;
     const businessTab = modal?.querySelector('[data-mine-tab="business"]');
     if (businessTab) {
       businessTab.hidden = owned && !canInspect;
@@ -568,6 +573,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     startMineStreamLoading();
     marketRequestVersion += 1;
     activeBuyerObjectId = String(object?.id || '');
+    activeBusinessPublicId = getPublicBusinessId(object);
     businessState = null;
     marketLoading = false;
     marketLoadFailed = false;
