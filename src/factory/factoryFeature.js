@@ -122,10 +122,13 @@ export function enableFactoryFeature({ root, cityId }) {
   action('[data-factory-staff-remove]', () => removeFactoryStaff(currentId, cityId, q('[data-factory-staff-target]').value));
   qa('[data-factory-wholesale-save]').forEach((b) => b.onclick = () => run(() => setFactoryWholesalePrice(currentId, cityId, b.dataset.factoryWholesaleSave, Number(q(`[data-factory-wholesale-price="${b.dataset.factoryWholesaleSave}"]`).value))));
   qa('[data-factory-wage-save]').forEach((b) => b.onclick = () => run(() => setFactoryProductionWage(currentId, cityId, b.dataset.factoryWageSave, Number(q(`[data-factory-production-wage="${b.dataset.factoryWageSave}"]`).value))));
-  q('[data-factory-procurement-budget-save]').onclick = () => run(async () => {
-    await setProcurementBudget({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food', budget:Number(q('[data-factory-procurement-budget]').value) });
-    notify('Бюджет скупа обновлён.', 'success');
-  });
+  q('[data-factory-procurement-budget-save]').onclick = () => {
+    const budget = Number(q('[data-factory-procurement-budget]').value);
+    run(async () => {
+      await setProcurementBudget({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food', budget });
+      notify('Бюджет скупа обновлён.', 'success');
+    });
+  };
   const saveProcurementItem = (itemType) => {
     const enabled = q(`[data-factory-procurement-item="${itemType}"]`)?.checked === true;
     const unitPrice = Number(q(`[data-factory-procurement-price="${itemType}"]`)?.value);
