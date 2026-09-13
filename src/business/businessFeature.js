@@ -37,6 +37,7 @@ import {
   isBusinessObject,
   normalizeBusinessForUi,
 } from './businessRepository.js';
+import { getPublicBusinessId } from './publicBusinessId.js';
 import './business.css';
 import { loadFactorySuppliers, createStoreRequest as createFactoryStoreRequest, orderFactorySupply, receiveFactorySupply, loadDeliveryCargo, unloadVehicleToStore, getFactoryError } from '../factory/factoryApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
@@ -158,6 +159,7 @@ function modalMarkup() {
           <article><small>Город</small><strong data-business-details-city>—</strong></article>
           <article><small>Владелец</small><strong data-business-details-owner>Государство</strong></article>
           <article><small>Формат</small><strong>Продуктовый</strong></article>
+          <article><small>Публичный ID</small><strong data-business-details-public-id>—</strong></article>
         </div>
         <p data-business-details-copy>После покупки вы сможете вручную расставлять товар, назначать цены и нанимать сотрудников.</p>
         <div class="mn-business-legal-fixed" data-business-purchase-tax>
@@ -602,6 +604,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     detailsModal.querySelector('[data-business-details-status]').textContent = owned ? (isOwner(activeObject) ? 'Ваш бизнес' : 'Магазин открыт') : 'Продаётся государством';
     detailsModal.querySelector('[data-business-details-city]').textContent = cityName(activeObject.cityId || activeObject.city_id || activeObject.payload?.cityId || activeCityId);
     detailsModal.querySelector('[data-business-details-owner]').textContent = owned ? String(ownerName || ownerId) : 'Государство';
+    detailsModal.querySelector('[data-business-details-public-id]').textContent = getPublicBusinessId(activeObject);
     detailsModal.querySelector('[data-business-details-legal-form]').textContent = legal.legalFormLabel;
     detailsModal.querySelector('[data-business-details-tax-group]').textContent = legal.taxGroupLabel;
     const logistics = businessTypeOf(activeObject) === 'logistics_hub';
