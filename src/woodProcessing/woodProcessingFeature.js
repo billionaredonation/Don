@@ -129,3 +129,4 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
   window.addEventListener('mn:wood-processing-object-action', onObjectAction);
   return () => { window.removeEventListener('mn:wood-processing-object-action', onObjectAction); modal.remove(); };
 }
+
