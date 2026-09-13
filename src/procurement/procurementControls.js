@@ -31,7 +31,7 @@ export function renderProcurementControls(root, prefix, snapshot, items = [], { 
   const enabled = new Map((snapshot?.items || []).map(item => [String(item.itemType || item.item_type), Boolean(item.enabled)]));
   items.forEach(item => {
     const input = root.querySelector(`[data-${prefix}-procurement-item="${item.itemType}"]`);
-    if (input) input.checked = enabled.get(item.itemType) === true;
+    if (input && document.activeElement !== input) input.checked = enabled.get(item.itemType) === true;
   });
   root.querySelectorAll(`[data-${prefix}-procurement-controls] input,[data-${prefix}-procurement-controls] button`).forEach(element => {
     element.disabled = busy || !canManage;
