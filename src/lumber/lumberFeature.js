@@ -27,6 +27,7 @@ import {
 import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
 import { renderProcurementControls } from '../procurement/procurementControls.js';
 import { setProcurementBudget } from '../procurement/procurementApi.js';
+import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import '../jobs/jobBusiness.css';
 import './lumber.css';
 
@@ -141,6 +142,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
   let destroyed = false;
   let busy = false;
   let activeStationObjectId = '';
+  let activeBusinessPublicId = '—';
   let inventoryState = { items: [] };
   let businessState = null;
   let businessRefreshPromise = null;
@@ -178,6 +180,9 @@ export function enableLumberFeature({ root, cityId } = {}) {
     const canInspect = isStaff || Boolean(business?.isAdmin);
     const roleLabel = isOwner ? 'Владелец' : role === 'assistant' ? 'Помощник' : business?.isAdmin ? 'Администратор' : 'Работник';
 
+    const publicId = modal?.querySelector('[data-lumber-business-public-id]');
+    if (publicId) publicId.textContent = activeBusinessPublicId;
+
     const owner = modal?.querySelector('[data-lumber-business-owner]');
     if (owner) owner.textContent = owned ? (business?.ownerNickname || business?.ownerTgId || 'Владелец') : 'Государство';
     const assistant = modal?.querySelector('[data-lumber-business-assistant]');
@@ -187,7 +192,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     const stateOutput = modal?.querySelector('[data-lumber-business-state]');
     if (stateOutput) stateOutput.textContent = owned ? 'Частное предприятие' : 'Государственная точка';
     const publicState = modal?.querySelector('[data-lumber-business-public-state]');
-    if (publicState) publicState.textContent = owned ? 'Частное' : 'Государственное';
+    if (publicState) publicState.textContent = `${activeBusinessPublicId} · ${owned ? 'Частное' : 'Государственное'}`;
     const businessTab = modal?.querySelector('[data-lumber-tab="business"]');
     if (businessTab) {
       businessTab.hidden = owned && !canInspect;
@@ -414,6 +419,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     if (!modal || busy) return;
     startLumberStreamLoading();
     activeStationObjectId = String(object?.id || '');
+    activeBusinessPublicId = getPublicBusinessId(object);
     businessState = null;
     setStatus('');
     modal.hidden = false;
