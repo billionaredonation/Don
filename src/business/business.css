@@ -50,7 +50,7 @@
 .mn-business-details-hero > span { display: grid; gap: 4px; }
 .mn-business-details-hero strong { font-size: 20px; }
 .mn-business-details-hero small { color: #a6b596; font-weight: 750; }
-.mn-business-details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 19px; }
+.mn-business-details-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0 19px; }
 .mn-business-details-grid article { display: grid; gap: 5px; min-width: 0; padding: 11px; border: 1px solid rgba(255, 255, 255, .065); border-radius: 14px; background: rgba(255, 255, 255, .025); }
 .mn-business-details-grid small { color: #7e8b75; font-size: 9px; }
 .mn-business-details-grid strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
@@ -1219,4 +1219,3 @@ body.mn-mobile-game-enabled .mn-business-procurement-preview > span {
     touch-action: manipulation;
   }
 }
-
