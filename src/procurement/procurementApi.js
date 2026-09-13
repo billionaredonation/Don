@@ -30,6 +30,7 @@ export function getProcurementError(error) {
     PROCUREMENT_ITEM_NOT_IN_RECIPES: 'Этот ресурс не используется в рецептах данного завода.',
     PROCUREMENT_ITEM_DISABLED: 'Завод отключил закупку этого сырья.',
     PROCUREMENT_OFFER_NOT_FOUND: 'Предложение уже недоступно. Обновите рынок.',
+    INDUSTRY_INPUT_NOT_ENOUGH: 'В основном инвентаре недостаточно выбранного сырья.',
   };
   const code = Object.keys(messages).find(key => raw.includes(key));
   return code ? messages[code] : raw;
