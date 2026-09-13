@@ -43,6 +43,7 @@ export function getMetallurgyError(error) {
     METALLURGY_RAW_NOT_ENOUGH: 'На сырьевом складе недостаточно ресурсов для этой партии.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег для покупки завода.',
     METALLURGY_CASH_NOT_ENOUGH: 'На балансе завода недостаточно денег.',
+    PROCUREMENT_BUDGET_RESERVED: 'Эта сумма оставлена на закупку сырья. Сначала уменьшите бюджет скупа.',
     METALLURGY_AMOUNT_INVALID: 'Введите корректную сумму.',
   };
   const code = Object.keys(messages).find((key) => raw.includes(key));
@@ -68,4 +69,3 @@ export const withdrawMetallurgyCash = (factoryId, cityId, amount) => invokeMetal
 export const dispatchMetallurgyProduct = (factoryId, cityId, productType, quantity, destination) => invokeMetallurgyAction('dispatch', { factoryId, cityId, productType, quantity, destination });
 export const loadMetallurgyRawMarket = () => invokeMetallurgyAction('raw_market_snapshot');
 export const sellMineRawToMetallurgy = (factoryId, cityId, itemType, quantity) => invokeMetallurgyAction('raw_market_sell', { factoryId, cityId, itemType, quantity });
-
