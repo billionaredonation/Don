@@ -124,7 +124,10 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
   q('[data-wood-purchase]').onclick = () => run(() => purchaseWoodProcessingFactory(currentFactoryId, cityId), 'Деревоперерабатывающий завод куплен.');
   q('[data-wood-deposit]').onclick = () => run(() => depositWoodProcessingCash(currentFactoryId, cityId, Number(q('[data-wood-amount]').value)), 'Баланс завода пополнен.');
   q('[data-wood-withdraw]').onclick = () => run(() => withdrawWoodProcessingCash(currentFactoryId, cityId, Number(q('[data-wood-amount]').value)), 'Средства выведены.');
-  q('[data-wood-procurement-budget-save]').onclick = () => run(() => setProcurementBudget({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'wood_processing', budget:Number(q('[data-wood-procurement-budget]').value) }), 'Бюджет скупа обновлён.');
+  q('[data-wood-procurement-budget-save]').onclick = () => {
+    const budget = Number(q('[data-wood-procurement-budget]').value);
+    run(() => setProcurementBudget({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'wood_processing', budget }), 'Бюджет скупа обновлён.');
+  };
   const saveProcurementItem = (itemType) => {
     const enabled = q(`[data-wood-procurement-item="${itemType}"]`)?.checked === true;
     const unitPrice = Number(q(`[data-wood-procurement-price="${itemType}"]`)?.value);
