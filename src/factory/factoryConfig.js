@@ -2,7 +2,6 @@ export const FACTORY_CONFIG = Object.freeze({
   purchasePrice: 3_500_000,
   rawCapacity: 2_000,
   productCapacity: 1_500,
-  legalForms: Object.freeze(['ТОВ', 'АТ', 'Кооператив']),
 });
 
 export const FACTORY_RECIPES = Object.freeze({
