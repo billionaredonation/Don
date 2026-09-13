@@ -1,6 +1,7 @@
 import '../metallurgy/metallurgy.css';
 import {
   WOOD_PROCESSING_CONFIG,
+  WOOD_PROCESSING_DESTINATIONS,
   WOOD_PROCESSING_RAW_ITEMS,
   WOOD_PROCESSING_RECIPES,
   formatWoodInputs,
@@ -128,4 +129,3 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
   window.addEventListener('mn:wood-processing-object-action', onObjectAction);
   return () => { window.removeEventListener('mn:wood-processing-object-action', onObjectAction); modal.remove(); };
 }
-
