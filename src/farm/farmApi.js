@@ -76,6 +76,8 @@ export function getFarmUserErrorMessage(error) {
     FARM_BUCKET_EMPTY: 'В ведрах нет воды. Наполните их у бесконечной бочки.',
     FARM_BUCKET_CARGO_FULL: 'Все ваши ведра уже заполнены водой.',
     FARM_BUCKET_STOCK_EMPTY: 'На складе фермы нет свободных ведер.',
+    FARM_BUCKET_ALREADY_OWNED: 'У вас уже есть ведро. Одному игроку разрешено только одно.',
+    FARM_BUCKET_STOCK_LIMIT: 'На одной ферме может храниться максимум 10 ведер.',
     FARM_BUCKET_QUANTITY_INVALID: 'Некорректное количество ведер.',
     FARM_BUCKET_STATE_UNAVAILABLE: 'Не удалось загрузить состояние ведер.',
     FARM_ADMIN_REQUIRED: 'Эта тестовая функция доступна только администратору.',
@@ -86,6 +88,7 @@ export function getFarmUserErrorMessage(error) {
     FARM_BUSINESS_ALREADY_OWNED: 'Эта ферма уже принадлежит игроку.',
     FARM_BUSINESS_NOT_OWNED: 'Ферма ещё не куплена.',
     FARM_BUSINESS_OWNER_REQUIRED: 'Это действие доступно только владельцу фермы.',
+    FARM_BUSINESS_MANAGER_REQUIRED: 'Пополнять баланс и закупать ведра может владелец, а на государственной ферме — администратор.',
     FARM_BUSINESS_STAFF_REQUIRED: 'Ведра и водоснабжение фермы доступны только владельцу или помощнику.',
     FARM_BUSINESS_CASH_NOT_ENOUGH: 'На балансе фермы недостаточно денег.',
     PROCUREMENT_BUDGET_RESERVED: 'Эта сумма оставлена на выкуп урожая. Сначала уменьшите бюджет скупа.',
@@ -272,8 +275,9 @@ export const withdrawFarmBusiness = ({ businessId, cityId, amount }) => invokeFa
 export const withdrawFarmBusinessCrop = ({ businessId, cityId, itemType, quantity }) => invokeFarmAction('business_crop_withdraw', { businessId, cityId, itemType, quantity });
 export const setFarmBusinessAssistant = ({ businessId, cityId, target }) => invokeFarmBusinessAction('assistant_set', { businessId, cityId, target });
 export const setFarmBusinessToolPrice = ({ businessId, cityId, itemType, price }) => invokeFarmBusinessAction('tool_price', { businessId, cityId, itemType, price });
-export const adminSeedFarmBusinessBuckets = ({ businessId, cityId, quantity = 10 }) => invokeFarmBusinessAction('admin_seed_buckets', { businessId, cityId, quantity });
-export const takeFarmBusinessBucket = ({ businessId, cityId, quantity = 1 }) => invokeFarmBusinessAction('take_bucket', { businessId, cityId, quantity });
+export const buyFarmBusinessBuckets = ({ businessId, cityId, quantity = 1 }) => invokeFarmBusinessAction('buy_buckets', { businessId, cityId, quantity });
+export const takeFarmBusinessBucket = ({ businessId, cityId }) => invokeFarmBusinessAction('take_bucket', { businessId, cityId });
+export const checkFarmWaterReady = ({ businessId, cityId }) => invokeFarmBusinessAction('water_ready', { businessId, cityId });
 export const fillFarmBucketFromBarrel = ({ businessId, cityId, barrelObjectId }) => invokeFarmBusinessAction('fill_bucket', { businessId, cityId, barrelObjectId });
 export const interactFarmWaterTower = ({ businessId, cityId, towerObjectId }) => invokeFarmBusinessAction('tower_interact', { businessId, cityId, towerObjectId });
 export const orderFarmBusinessSupply = ({ businessId, cityId, supplyType, quantity }) => invokeFarmBusinessAction('order_supply', { businessId, cityId, supplyType, quantity });
@@ -281,4 +285,3 @@ export const fillFarmWaterTower = ({ businessId, cityId, liters }) => invokeFarm
 export const buyFarmBusinessTool = ({ businessId, cityId, itemType }) => invokeFarmBusinessAction('buy_tool', { businessId, cityId, itemType });
 export const refreshFarmBusinessTool = ({ businessId, cityId, itemType }) => invokeFarmBusinessAction('refresh_tool', { businessId, cityId, itemType });
 export const takeFarmWaterFromTower = ({ businessId, cityId, towerObjectId }) => invokeFarmBusinessAction('take_water', { businessId, cityId, towerObjectId });
-
