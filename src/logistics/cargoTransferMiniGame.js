@@ -24,11 +24,14 @@ export function playCargoTransferMiniGame({ direction = 'factory_to_vehicle', pr
   const boxCount = Math.min(8, Math.max(1, Math.ceil(amount / 5)));
   const [icon, label] = labels[productType] || ['📦', 'Готовая продукция'];
   const loading = direction === 'factory_to_vehicle';
+  const directDelivery = direction === 'factory_to_store';
+  const routeLabel = directDelivery ? 'Завод → предприятие' : (loading ? 'Завод → машина' : 'Машина → магазин');
+  const targetLabel = directDelivery ? 'склад получателя' : (loading ? 'грузовой отсек' : 'зону приёмки');
 
   activeCargoGame = new Promise((resolve) => {
     const root = document.createElement('div');
     root.className = 'mn-cargo-game';
-    root.innerHTML = `<section><header><span><small>ПОГРУЗКА · ${amount} ЕД.</small><strong>${loading ? 'Завод → машина' : 'Машина → магазин'}</strong><em>Перетащите все коробки в ${loading ? 'грузовой отсек' : 'зону приёмки'}</em></span><button data-cargo-cancel>×</button></header><div class="mn-cargo-yard"><div class="mn-cargo-zone is-source"><b>${loading ? '🏭' : '🚚'}</b><span>${loading ? 'Склад завода' : 'Грузовой отсек'}</span><div data-cargo-boxes>${Array.from({ length: boxCount }, (_, i) => `<button class="mn-cargo-box" data-box="${i}" aria-label="Коробка ${i + 1}"><i>📦</i><small>${icon}</small></button>`).join('')}</div></div><div class="mn-cargo-road"><i>➜</i><span><b data-cargo-done>0</b> / ${boxCount}</span></div><div class="mn-cargo-zone is-target" data-cargo-target><b>${loading ? '🚚' : '🏪'}</b><span>${loading ? 'Грузовой отсек' : 'Приёмка магазина'}</span><em>${label}</em></div></div><footer>Зажмите коробку и перенесите её в подсвеченную область.</footer></section>`;
+    root.innerHTML = `<section><header><span><small>ЛОГИСТИКА · ${amount} ЕД.</small><strong>${routeLabel}</strong><em>Перетащите все коробки на ${targetLabel}</em></span><button data-cargo-cancel>×</button></header><div class="mn-cargo-yard"><div class="mn-cargo-zone is-source"><b>${loading || directDelivery ? '🏭' : '🚚'}</b><span>${loading || directDelivery ? 'Склад завода' : 'Грузовой отсек'}</span><div data-cargo-boxes>${Array.from({ length: boxCount }, (_, i) => `<button class="mn-cargo-box" data-box="${i}" aria-label="Коробка ${i + 1}"><i>📦</i><small>${icon}</small></button>`).join('')}</div></div><div class="mn-cargo-road"><i>➜</i><span><b data-cargo-done>0</b> / ${boxCount}</span></div><div class="mn-cargo-zone is-target" data-cargo-target><b>${loading ? '🚚' : '🏪'}</b><span>${directDelivery ? 'Склад получателя' : (loading ? 'Грузовой отсек' : 'Приёмка магазина')}</span><em>${label}</em></div></div><footer>Зажмите коробку и перенесите её в подсвеченную область.</footer></section>`;
     document.body.append(root);
     document.body.classList.add('mn-cargo-game-open');
     let done = 0;
