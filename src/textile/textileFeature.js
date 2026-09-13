@@ -96,8 +96,20 @@ export function enableTextileFeature({ root, cityId } = {}) {
   q('[data-textile-purchase]').onclick = () => run(() => purchaseTextileFactory(factoryId, cityId), 'Швейный завод куплен.');
   q('[data-textile-deposit]').onclick = () => run(() => depositTextileCash(factoryId, cityId, Number(q('[data-textile-amount]').value)), 'Баланс пополнен.');
   q('[data-textile-withdraw]').onclick = () => run(() => withdrawTextileCash(factoryId, cityId, Number(q('[data-textile-amount]').value)), 'Средства выведены.');
-  q('[data-textile-procurement-budget-save]').onclick = () => run(async () => { await setProcurementBudget({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile', budget:Number(q('[data-textile-procurement-budget]').value) }); for(const input of qa('[data-textile-procurement-item]')){const itemType=input.dataset.textileProcurementItem;await setProcurementItem({buyerKind:'factory',buyerId:factoryId,cityId,buyerType:'textile',itemType,enabled:input.checked,unitPrice:Number(q(`[data-textile-buy-price="${itemType}"]`)?.value)});} }, 'Бюджет и цены скупа обновлены.');
-  qa('[data-textile-procurement-item]').forEach((input) => { input.onchange = () => { const itemType=input.dataset.textileProcurementItem; run(() => setProcurementItem({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile', itemType, enabled:input.checked, unitPrice:Number(q(`[data-textile-buy-price="${itemType}"]`)?.value) }), input.checked ? 'Сырьё добавлено в скуп.' : 'Закупка сырья отключена.'); }; });
+  q('[data-textile-procurement-budget-save]').onclick = () => {
+    const budget = Number(q('[data-textile-procurement-budget]').value);
+    const settings = qa('[data-textile-procurement-item]').map((input) => {
+      const itemType = input.dataset.textileProcurementItem;
+      return { itemType, enabled:input.checked, unitPrice:Number(q(`[data-textile-buy-price="${itemType}"]`)?.value) };
+    });
+    run(async () => { await setProcurementBudget({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile', budget }); for(const setting of settings){await setProcurementItem({buyerKind:'factory',buyerId:factoryId,cityId,buyerType:'textile',...setting});} }, 'Бюджет и цены скупа обновлены.');
+  };
+  qa('[data-textile-procurement-item]').forEach((input) => { input.onchange = () => {
+    const itemType=input.dataset.textileProcurementItem;
+    const enabled=input.checked;
+    const unitPrice=Number(q(`[data-textile-buy-price="${itemType}"]`)?.value);
+    run(() => setProcurementItem({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile', itemType, enabled, unitPrice }), enabled ? 'Сырьё добавлено в скуп.' : 'Закупка сырья отключена.');
+  }; });
   const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== TEXTILE_CONFIG.type) return; factoryId = objectId(object); modal.hidden = false; tab('production'); refresh().catch((error) => toast(getTextileError(error), 'error')); };
   window.addEventListener('mn:textile-object-action', onAction);
   return () => { window.removeEventListener('mn:textile-object-action', onAction); modal.remove(); };
