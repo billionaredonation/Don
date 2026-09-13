@@ -3,6 +3,7 @@ import {
   getMapObjectType,
   getHouseClassesList,
   createMapObjectDraft,
+  isBusinessLegalMapObjectType,
 } from '../mapObjects/mapObjectTypes.js';
 
 import {
@@ -531,7 +532,7 @@ export function enableAdminPanel({
 
   function syncBusinessLegalEditor(object = null) {
     const config = getMapObjectType(selectedType);
-    const isBusiness = config.category === 'business';
+    const isBusiness = isBusinessLegalMapObjectType(config.type);
     if (businessLegalWrap) businessLegalWrap.hidden = !isBusiness;
     if (!isBusiness) return;
 
@@ -828,7 +829,7 @@ function setEnabled(next) {
       draftPayload.renderWidth = normalizeJobDimension(jobWidthInput?.value, selectedConfig.defaultWidth || 2.6);
       draftPayload.renderHeight = normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2);
     }
-    if (selectedConfig.category === 'business') Object.assign(draftPayload, getSelectedBusinessLegalPayload());
+    if (isBusinessLegalMapObjectType(selectedConfig.type)) Object.assign(draftPayload, getSelectedBusinessLegalPayload());
     if (isFarmBusinessLinkType(selectedType) && selectedType !== 'farm_station') {
       const farmBusinessId = String(farmBusinessIdInput?.value || '').trim();
       const farmLinkError = validateFarmBusinessLink(selectedType, farmBusinessId);
@@ -874,7 +875,7 @@ function setEnabled(next) {
       editorPayload.renderHeight = normalizeJobDimension(jobHeightInput?.value, selectedConfig.defaultHeight || 2.2);
       hasEditorPayload = true;
     }
-    if (selectedConfig.category === 'business') {
+    if (isBusinessLegalMapObjectType(selectedConfig.type)) {
       Object.assign(editorPayload, getSelectedBusinessLegalPayload());
       hasEditorPayload = true;
     }
@@ -1307,5 +1308,3 @@ function setEnabled(next) {
     document.querySelector('.mn-admin-toast')?.remove();
   };
 }
-
-
