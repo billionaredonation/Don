@@ -18,7 +18,8 @@ export function getTextileError(error) {
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.', TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела.',
     TEXTILE_DATABASE_MIGRATION_REQUIRED: 'Примените SQL-миграцию текстильной цепочки.',
     INDUSTRY_FACTORY_NOT_FOUND: 'Швейный завод не найден.', INDUSTRY_OWNER_REQUIRED: 'Действие доступно владельцу завода.',
-    INDUSTRY_RECIPE_INVALID: 'Такая рецептура не зарегистрирована.', INDUSTRY_RAW_NOT_ENOUGH: 'На складе не хватает льна или хлопка.',
+    INDUSTRY_RECIPE_INVALID: 'Такая рецептура не зарегистрирована.', INDUSTRY_RECIPE_NOT_FOUND: 'Такая рецептура не зарегистрирована.', INDUSTRY_RAW_NOT_ENOUGH: 'На складе не хватает льна или хлопка.',
+    TEXTILE_BATCH_NOT_READY: 'Партия ещё изготавливается.', TEXTILE_BATCH_NOT_FOUND: 'Активная партия не найдена.',
     INDUSTRY_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовой одежды.', PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
     INDUSTRY_PRICE_INVALID: 'Укажите корректную цену закупки.', INDUSTRY_AMOUNT_INVALID: 'Укажите корректное количество или сумму.',
     INDUSTRY_ALREADY_OWNED: 'У этого швейного завода уже есть владелец.',
@@ -39,7 +40,7 @@ export async function invokeTextileAction(action, payload = {}) {
 }
 
 export const loadTextileSnapshot = (factoryId, cityId) => invokeTextileAction('snapshot', { factoryId, cityId });
-export const purchaseTextileFactory = (factoryId, cityId) => invokeTextileAction('purchase', { factoryId, cityId, legalForm: 'tov' });
+export const purchaseTextileFactory = (factoryId, cityId) => invokeTextileAction('purchase', { factoryId, cityId });
 export const depositTextileCash = (factoryId, cityId, amount) => invokeTextileAction('deposit', { factoryId, cityId, amount });
 export const withdrawTextileCash = (factoryId, cityId, amount) => invokeTextileAction('withdraw', { factoryId, cityId, amount });
 export const transferTextileRaw = (factoryId, cityId, itemType, quantity) => invokeTextileAction('raw_transfer', { factoryId, cityId, itemType, quantity });
@@ -55,4 +56,3 @@ export const acceptTextileStoreRequest = (requestId, factoryId, cityId) => invok
 export const buyTextileOffer = (offerId, businessId) => invokeTextileAction('exchange_offer_buy', { offerId, businessId });
 export const loadTextileWardrobe = () => invokeTextileAction('wardrobe_snapshot');
 export const setTextileWardrobeItem = (itemType, color, equipped) => invokeTextileAction('wardrobe_set', { itemType, color, equipped });
-
