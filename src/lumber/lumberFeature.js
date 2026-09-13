@@ -25,6 +25,8 @@ import {
   withdrawJobBusiness,
 } from '../jobs/jobBusinessApi.js';
 import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
+import { renderProcurementControls } from '../procurement/procurementControls.js';
+import { setProcurementBudget } from '../procurement/procurementApi.js';
 import '../jobs/jobBusiness.css';
 import './lumber.css';
 
@@ -221,6 +223,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     });
     modal?.querySelectorAll('[data-lumber-business-purchase], [data-lumber-business-deposit], [data-lumber-business-withdraw], [data-lumber-business-withdraw-all], [data-lumber-business-assistant-save], [data-lumber-business-assistant-clear]')
       .forEach((button) => { button.disabled = busy; });
+    renderProcurementControls(modal, 'lumber', business?.procurement, [], { canManage:isOwner, busy });
   }
 
   function publishBusiness(result) {
@@ -582,6 +585,14 @@ export function enableLumberFeature({ root, cityId } = {}) {
   async function handleBusinessControls(event) {
     if (event.target?.closest?.('[data-lumber-business-purchase]')) {
       await runBusinessAction('Оформляем покупку лесозаготовительного предприятия…', () => purchaseJobBusiness({ businessId: activeStationObjectId, cityId, jobType: 'lumber' }));
+      return;
+    }
+    if (event.target?.closest?.('[data-lumber-procurement-budget-save]')) {
+      const budget = Math.max(0, Math.floor(Number(modal?.querySelector('[data-lumber-procurement-budget]')?.value) || 0));
+      await runBusinessAction('Сохраняем бюджет скупа…', async () => {
+        await setProcurementBudget({ buyerKind:'enterprise', buyerId:activeStationObjectId, cityId, buyerType:'lumber', budget });
+        return loadJobBusinessSnapshot({ businessId:activeStationObjectId, cityId, jobType:'lumber' });
+      });
       return;
     }
     const deposit = event.target?.closest?.('[data-lumber-business-deposit]');
