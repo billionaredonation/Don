@@ -33,11 +33,14 @@ export function normalizeBusinessForUi(object = {}) {
   const id = String(object.id || payload.mapObjectId || payload.objectId || '').trim();
   const ownerId = getBusinessOwnerId(object);
   const cityId = String(object.city_id || object.cityId || payload.cityId || payload.city_id || '').trim();
+  const publicBusinessId = String(object.publicBusinessId || object.public_business_id || payload.publicBusinessId || payload.public_business_id || '').trim();
   return {
     ...object,
     id,
     mapObjectId: id,
     cityId,
+    publicBusinessId,
+    public_business_id: publicBusinessId,
     ownerId,
     ownerName: object.ownerName || object.owner_name || payload.ownerName || payload.owner_name || null,
     price: Number(object.price ?? payload.price ?? 0) || 0,
@@ -50,6 +53,8 @@ export function normalizeBusinessForUi(object = {}) {
       objectId: id,
       cityId,
       city_id: cityId,
+      publicBusinessId,
+      public_business_id: publicBusinessId,
       kind: 'business',
       category: 'business',
       ownerId,
@@ -100,4 +105,3 @@ export function applyBusinessOwner(object, owner = {}) {
   };
   return object;
 }
-
