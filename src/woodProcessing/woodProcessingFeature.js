@@ -125,11 +125,12 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
   q('[data-wood-deposit]').onclick = () => run(() => depositWoodProcessingCash(currentFactoryId, cityId, Number(q('[data-wood-amount]').value)), 'Баланс завода пополнен.');
   q('[data-wood-withdraw]').onclick = () => run(() => withdrawWoodProcessingCash(currentFactoryId, cityId, Number(q('[data-wood-amount]').value)), 'Средства выведены.');
   q('[data-wood-procurement-budget-save]').onclick = () => run(() => setProcurementBudget({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'wood_processing', budget:Number(q('[data-wood-procurement-budget]').value) }), 'Бюджет скупа обновлён.');
-  qa('[data-wood-procurement-item]').forEach((input) => { input.onchange = () => {
-    const itemType = input.dataset.woodProcurementItem;
-    const enabled = input.checked;
-    run(() => setProcurementItem({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'wood_processing', itemType, enabled }), enabled ? 'Сырьё добавлено в скуп.' : 'Закупка сырья отключена.');
-  }; });
+  const saveProcurementItem = (itemType) => {
+    const enabled = q(`[data-wood-procurement-item="${itemType}"]`)?.checked === true;
+    const unitPrice = Number(q(`[data-wood-procurement-price="${itemType}"]`)?.value);
+    run(() => setProcurementItem({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'wood_processing', itemType, enabled, unitPrice }), enabled ? 'Сырьё и цена скупа сохранены.' : 'Закупка сырья отключена.');
+  };
+  qa('[data-wood-procurement-item-save]').forEach((button) => { button.onclick = () => saveProcurementItem(button.dataset.woodProcurementItemSave); });
   window.addEventListener('mn:wood-processing-object-action', onObjectAction);
   return () => { window.removeEventListener('mn:wood-processing-object-action', onObjectAction); modal.remove(); };
 }
