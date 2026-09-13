@@ -22,6 +22,7 @@ export function getTextileError(error) {
     INDUSTRY_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовой одежды.', PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
     INDUSTRY_PRICE_INVALID: 'Укажите корректную цену закупки.', INDUSTRY_AMOUNT_INVALID: 'Укажите корректное количество или сумму.',
     INDUSTRY_ALREADY_OWNED: 'У этого швейного завода уже есть владелец.',
+    PROCUREMENT_BUDGET_RESERVED: 'Эта сумма оставлена на закупку льна и хлопка. Сначала уменьшите бюджет скупа.',
     TEXTILE_ITEM_NOT_OWNED: 'Сначала купите эту вещь в магазине одежды и аксессуаров.',
   };
   const code = Object.keys(messages).find((key) => raw.includes(key));
