@@ -1,8 +1,9 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import {
-  adminSeedFarmBusinessBuckets,
+  buyFarmBusinessBuckets,
   buyFarmBusinessTool,
+  checkFarmWaterReady,
   refreshFarmBusinessTool,
   depositFarmBusiness,
   fillFarmBucketFromBarrel,
@@ -27,6 +28,8 @@ import {
 import { FARM_ITEMS, getFarmPlantType } from './farmConfig.js';
 import {
   FARM_BUCKET_CAPACITY_LITERS,
+  FARM_BUCKET_PURCHASE_PRICE,
+  FARM_BUCKET_STOCK_LIMIT,
   FARM_BUSINESS_PRICE,
   FARM_PLOT_INCOME,
   FARM_TOOL_DURABILITY_COST,
@@ -194,7 +197,13 @@ function farmModalMarkup() {
 
               <section class="mn-farm4-info-card is-water-info">
                 <i aria-hidden="true">💧</i>
-                <span><b>Полив идёт через водоснабжение фермы</b><small>Владелец или помощник берёт ведро со склада, набирает воду у бесконечной бочки и переносит её в башню. Работник набирает воду для полива уже из башни.</small></span>
+                <span><b>Полив идёт через водоснабжение фермы</b><small>Ведро со склада может взять каждый работник, но не больше одного на игрока. Владелец, помощник или админ пополняют башню, а работник набирает из неё воду для полива.</small></span>
+              </section>
+
+              <section class="mn-farm4-manage-card is-water">
+                <header><i aria-hidden="true">🪣</i><span><b>Ведро для работы</b><small>Доступно каждому работнику</small></span></header>
+                <div class="mn-farm4-water-stats"><span><small>На складе</small><b><span data-farm-bucket-stock>0</span> / ${FARM_BUCKET_STOCK_LIMIT}</b></span><span><small>У вас</small><b><span data-farm-player-buckets>0</span> вед.</b></span><span><small>В ведре</small><b><span data-farm-player-water>0</span> / <span data-farm-player-water-capacity>0</span> л</b></span></div>
+                <div class="mn-farm4-inline"><button type="button" data-farm-take-bucket>Взять ведро</button></div>
               </section>
             </section>
 
@@ -256,7 +265,7 @@ function farmModalMarkup() {
               </div>
 
               <section class="mn-farm4-buy-business" data-farm-business-buy>
-                <div><i aria-hidden="true">🌾</i><span><small>Государственная продажа</small><strong>Купить фермерское ООО</strong><p>После покупки выкуп урожая, доход участков, инструменты и вода работают через баланс предприятия.</p></span></div>
+                <div><i aria-hidden="true">🌾</i><span><small>Государственная продажа</small><strong>Купить фермерское ООО</strong><p>Пока ферма принадлежит государству, её баланс и склад ведер обслуживают администраторы. Налоги и доход владельца не начисляются.</p></span></div>
                 <button type="button" data-farm-business-purchase>Купить за ${FARM_BUSINESS_PRICE.toLocaleString('ru-RU')} ₴</button>
               </section>
 
@@ -270,7 +279,7 @@ function farmModalMarkup() {
 
                 <div class="mn-farm4-management" data-farm-business-management hidden>
                   ${procurementControlsMarkup('farm', [], { factory: false })}
-                  <section class="mn-farm4-manage-card is-finance" data-farm-owner-only>
+                  <section class="mn-farm4-manage-card is-finance" data-farm-funding-manager>
                     <header><i aria-hidden="true">＋</i><span><b>Пополнить баланс</b><small>Оборотные средства предприятия</small></span></header>
                     <div class="mn-farm4-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-deposit-amount><button type="button" data-farm-deposit>Внести</button></div>
                     <p>Используются для выкупа урожая и закупки инструментов.</p>
@@ -309,8 +318,8 @@ function farmModalMarkup() {
                   <section class="mn-farm4-manage-card is-water">
                     <header><i aria-hidden="true">💧</i><span><b>Вода и ведра</b><small>Хозяйственная система полива</small></span></header>
                     <div class="mn-farm4-water-stats"><span><small>На складе</small><b><span data-farm-bucket-stock>0</span> вед.</b></span><span><small>У вас</small><b><span data-farm-player-buckets>0</span> вед.</b></span><span><small>В ведрах</small><b><span data-farm-player-water>0</span> / <span data-farm-player-water-capacity>0</span> л</b></span></div>
-                    <div class="mn-farm4-inline"><button type="button" data-farm-take-bucket>Взять ведро</button><button type="button" class="is-ghost" data-farm-admin-seed-buckets data-farm-admin-only hidden>Админ: +10 ведер</button></div>
-                    <p>Наполните ведро у бесконечной бочки ♾️, затем перенесите воду к башне 🚰.</p>
+                    <div class="mn-farm4-inline" data-farm-funding-manager><input type="number" min="1" max="10" step="1" inputmode="numeric" value="1" data-farm-bucket-buy-quantity><button type="button" data-farm-buy-buckets>Закупить</button></div>
+                    <p data-farm-funding-manager>Фиксированная цена: ${FARM_BUCKET_PURCHASE_PRICE} ₴/шт. На ферме может быть не больше ${FARM_BUCKET_STOCK_LIMIT} ведер.</p>
                   </section>
 
                   <section class="mn-farm4-manage-card is-order" data-farm-owner-only>
@@ -472,6 +481,8 @@ export function enableFarmFeature({ root, cityId } = {}) {
     const isOwner = role === 'owner';
     const isStaff = isOwner || role === 'assistant';
     const isAdmin = Boolean(business?.isAdmin);
+    const isStateManager = isAdmin && !owned;
+    const canFund = isOwner || isStateManager;
     const roleLabel = role === 'owner' ? 'Владелец' : role === 'assistant' ? 'Помощник' : isAdmin ? 'Администратор' : 'Работник';
 
     const publicIdEl = modal.querySelector('[data-farm-business-public-id]');
@@ -482,7 +493,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
       roleEl.textContent = roleLabel;
       roleEl.dataset.role = role;
     }
-    const canManage = isStaff || isAdmin;
+    const canManage = isStaff || isStateManager;
     const businessTab = modal.querySelector('[data-farm-tab="business"]');
     if (businessTab) {
       businessTab.hidden = owned && !canManage;
@@ -543,12 +554,18 @@ export function enableFarmFeature({ root, cityId } = {}) {
     const ownedBlock = modal.querySelector('[data-farm-business-owned]');
     if (ownedBlock) ownedBlock.hidden = !owned && !isAdmin;
     const management = modal.querySelector('[data-farm-business-management]');
-    if (management) management.hidden = (!owned && !isAdmin) || (!isStaff && !isAdmin);
+    if (management) management.hidden = !canManage;
     modal.querySelectorAll('[data-farm-owner-only]').forEach((element) => { element.hidden = !isOwner; });
-    modal.querySelectorAll('[data-farm-admin-only]').forEach((element) => { element.hidden = !isAdmin; });
+    modal.querySelectorAll('[data-farm-funding-manager]').forEach((element) => { element.hidden = !canFund; });
     renderProcurementControls(modal, 'farm', business?.procurement, [], { canManage: isOwner, busy });
-    const takeBucketButton = modal.querySelector('[data-farm-take-bucket]');
-    if (takeBucketButton) takeBucketButton.disabled = busy || Number(business?.bucketStock || 0) <= 0;
+    modal.querySelectorAll('[data-farm-take-bucket]').forEach((button) => {
+      button.disabled = busy || Number(business?.bucketStock || 0) <= 0 || Number(cargo.bucketCount || 0) >= 1;
+    });
+    modal.querySelectorAll('[data-farm-buy-buckets]').forEach((button) => {
+      button.disabled = busy || !canFund || Number(business?.bucketStock || 0) >= FARM_BUCKET_STOCK_LIMIT;
+    });
+    const bucketBuyInput = modal.querySelector('[data-farm-bucket-buy-quantity]');
+    if (bucketBuyInput) bucketBuyInput.max = String(Math.max(1, FARM_BUCKET_STOCK_LIMIT - Number(business?.bucketStock || 0)));
 
     ['farm_rake', 'farm_scissors'].forEach((itemType) => {
       const tool = business?.tools?.[itemType] || {};
@@ -1047,11 +1064,14 @@ export function enableFarmFeature({ root, cityId } = {}) {
       return;
     }
     if (next.action === 'water') {
-      // Не делаем отдельную проверку water_status перед мини-игрой.
-      // Источник истины — серверная farm_water_plot: именно она проверяет и
-      // расходует техническую воду, которую игрок набрал из башни.
-      // Старый water_status мог видеть устаревший/неполный снимок inventory и
-      // ложно блокировал полив сразу после успешного набора воды.
+      try {
+        await checkFarmWaterReady({ businessId, cityId });
+      } catch (error) {
+        emitToast(getFarmUserErrorMessage(error), 'error');
+        void refreshBusiness({ silent: true, force: true });
+        void refreshInventory({ silent: true });
+        return;
+      }
       const result = await runMiniGameAction(
         'water',
         (miniGameScore) => waterFarmPlant({ ...request, miniGameScore }),
@@ -1325,13 +1345,14 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
     const takeBucket = event.target?.closest?.('[data-farm-take-bucket]');
     if (takeBucket) {
-      await runBusinessAction('Берём ведро со склада…', () => takeFarmBusinessBucket({ businessId: activeBuyerObjectId, cityId, quantity: 1 }));
+      await runBusinessAction('Берём ведро со склада…', () => takeFarmBusinessBucket({ businessId: activeBuyerObjectId, cityId }));
       return;
     }
 
-    const adminSeedBuckets = event.target?.closest?.('[data-farm-admin-seed-buckets]');
-    if (adminSeedBuckets) {
-      await runBusinessAction('Добавляем тестовые ведра на склад…', () => adminSeedFarmBusinessBuckets({ businessId: activeBuyerObjectId, cityId, quantity: 10 }));
+    const buyBuckets = event.target?.closest?.('[data-farm-buy-buckets]');
+    if (buyBuckets) {
+      const quantity = Math.max(0, Math.floor(Number(modal?.querySelector('[data-farm-bucket-buy-quantity]')?.value) || 0));
+      await runBusinessAction('Закупаем ведра за счёт фермы…', () => buyFarmBusinessBuckets({ businessId: activeBuyerObjectId, cityId, quantity }));
       return;
     }
 
