@@ -167,8 +167,10 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     run(() => setProcurementBudget({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'metallurgy', budget }), 'Бюджет скупа обновлён.');
   };
   const saveProcurementItem = (itemType) => {
-    const enabled = q(`[data-metallurgy-procurement-item="${itemType}"]`)?.checked === true;
-    const unitPrice = Number(q(`[data-metallurgy-procurement-price="${itemType}"]`)?.value);
+    const unitPrice = Math.max(0, Math.floor(Number(q(`[data-metallurgy-procurement-price="${itemType}"]`)?.value) || 0));
+    const enabled = unitPrice > 0;
+    const toggle = q(`[data-metallurgy-procurement-item="${itemType}"]`);
+    if (toggle) toggle.checked = enabled;
     run(() => setProcurementItem({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'metallurgy', itemType, enabled, unitPrice }), enabled ? 'Сырьё и цена скупа сохранены.' : 'Закупка сырья отключена.');
   };
   qa('[data-metallurgy-procurement-item-save]').forEach((button) => { button.onclick = () => saveProcurementItem(button.dataset.metallurgyProcurementItemSave); });
