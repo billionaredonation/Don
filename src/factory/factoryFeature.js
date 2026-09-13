@@ -130,8 +130,10 @@ export function enableFactoryFeature({ root, cityId }) {
     });
   };
   const saveProcurementItem = (itemType) => {
-    const enabled = q(`[data-factory-procurement-item="${itemType}"]`)?.checked === true;
-    const unitPrice = Number(q(`[data-factory-procurement-price="${itemType}"]`)?.value);
+    const unitPrice = Math.max(0, Math.floor(Number(q(`[data-factory-procurement-price="${itemType}"]`)?.value) || 0));
+    const enabled = unitPrice > 0;
+    const toggle = q(`[data-factory-procurement-item="${itemType}"]`);
+    if (toggle) toggle.checked = enabled;
     run(async () => {
       await setProcurementItem({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food', itemType, enabled, unitPrice });
       notify(enabled ? 'Сырьё и цена скупа сохранены.' : 'Закупка сырья отключена.', 'success');
