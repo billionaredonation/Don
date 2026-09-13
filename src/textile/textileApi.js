@@ -55,3 +55,4 @@ export const acceptTextileStoreRequest = (requestId, factoryId, cityId) => invok
 export const buyTextileOffer = (offerId, businessId) => invokeTextileAction('exchange_offer_buy', { offerId, businessId });
 export const loadTextileWardrobe = () => invokeTextileAction('wardrobe_snapshot');
 export const setTextileWardrobeItem = (itemType, color, equipped) => invokeTextileAction('wardrobe_set', { itemType, color, equipped });
+
