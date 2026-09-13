@@ -26,6 +26,7 @@ export function getProcurementError(error) {
     PROCUREMENT_BUDGET_ABOVE_CASH: 'Нельзя выделить на скуп больше денег, чем есть на счёте бизнеса.',
     PROCUREMENT_BUDGET_NOT_ENOUGH: 'У покупателя закончился выделенный бюджет скупа.',
     PROCUREMENT_BUDGET_RESERVED: 'Эта сумма оставлена на закупку сырья. Сначала уменьшите бюджет скупа.',
+    PROCUREMENT_PRICE_INVALID: 'Укажите цену закупки больше 0 ₴.',
     PROCUREMENT_ITEM_NOT_IN_RECIPES: 'Этот ресурс не используется в рецептах данного завода.',
     PROCUREMENT_ITEM_DISABLED: 'Завод отключил закупку этого сырья.',
     PROCUREMENT_OFFER_NOT_FOUND: 'Предложение уже недоступно. Обновите рынок.',
