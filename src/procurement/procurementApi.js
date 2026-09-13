@@ -2,6 +2,20 @@ import { supabase } from '../supabaseClient.js';
 
 const FUNCTION_NAME = 'procurement-market';
 const initData = () => String(window.Telegram?.WebApp?.initData || '').trim();
+const RETRYABLE_ACTIONS = new Set(['snapshot', 'market', 'set_budget', 'set_item']);
+
+function isTransientRequestError(error) {
+  const raw = [
+    error?.message,
+    error?.details,
+    error?.context?.message,
+    error?.name,
+  ].filter(Boolean).join(' ').toLowerCase();
+  return raw.includes('failed to fetch')
+    || raw.includes('networkerror')
+    || raw.includes('network request failed')
+    || raw.includes('load failed');
+}
 
 async function normalizeError(error) {
   const source = error?.context || error;
@@ -33,13 +47,22 @@ export function getProcurementError(error) {
     INDUSTRY_INPUT_NOT_ENOUGH: 'В основном инвентаре недостаточно выбранного сырья.',
   };
   const code = Object.keys(messages).find(key => raw.includes(key));
-  return code ? messages[code] : raw;
+  if (code) return messages[code];
+  if (isTransientRequestError(error)) return 'Не удалось связаться с сервером. Проверьте интернет и повторите попытку.';
+  return raw;
 }
 
 async function invoke(action, payload = {}) {
   const telegramData = initData();
   if (!telegramData) throw new Error('TELEGRAM_SESSION_REQUIRED');
-  const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, { body: { initData: telegramData, action, ...payload } });
+  const request = () => supabase.functions.invoke(FUNCTION_NAME, {
+    body: { initData: telegramData, action, ...payload },
+  });
+  let { data, error } = await request();
+  if (error && RETRYABLE_ACTIONS.has(action) && isTransientRequestError(error)) {
+    await new Promise(resolve => window.setTimeout(resolve, 350));
+    ({ data, error } = await request());
+  }
   if (error) throw await normalizeError(error);
   if (!data?.ok) throw new Error(data?.error || 'PROCUREMENT_REQUEST_FAILED');
   return data.result;
