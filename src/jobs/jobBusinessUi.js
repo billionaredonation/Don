@@ -27,7 +27,7 @@ export function jobBusinessPageMarkup({ prefix, config, items = [] }) {
       </div>
       <div class="mn-jobbiz-summary" data-${p}-business-private hidden>
         <article><i>👤</i><span><small>Владелец</small><strong data-${p}-business-owner>Государство</strong><em data-${p}-business-assistant>Помощник: нет</em></span></article>
-        <article><i>🏢</i><span><small>Предприятие</small><strong>${esc(config.shortLabel)}</strong><em>Производственный бизнес</em></span></article>
+        <article><i>🏢</i><span><small>Предприятие</small><strong>${esc(config.shortLabel)}</strong><em>ID: <b data-${p}-business-public-id>—</b></em></span></article>
         <article><i>💼</i><span><small>Ваша роль</small><strong data-${p}-business-role>Работник</strong><em data-${p}-business-state>Государственная точка</em></span></article>
         <article><i>📦</i><span><small>Склад</small><strong><em data-${p}-business-warehouse-used>0</em> / ${Number(config.warehouseCapacity).toLocaleString('ru-RU')}</strong><em>${esc(config.unitLabel)} сырья</em></span></article>
       </div>
