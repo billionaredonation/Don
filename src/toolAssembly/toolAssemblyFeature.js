@@ -1,6 +1,7 @@
 import '../metallurgy/metallurgy.css';
 import {
   TOOL_ASSEMBLY_CONFIG,
+  TOOL_ASSEMBLY_DESTINATIONS,
   TOOL_ASSEMBLY_INPUT_ITEMS,
   TOOL_ASSEMBLY_RECIPES,
   formatToolInputs,
