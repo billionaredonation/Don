@@ -1,6 +1,7 @@
 import './metallurgy.css';
 import {
   METALLURGY_CONFIG,
+  METALLURGY_DESTINATIONS,
   METALLURGY_RAW_ITEMS,
   METALLURGY_RECIPES,
   formatMetallurgyInputs,
