@@ -134,3 +134,4 @@ export function enableToolAssemblyFeature({ root, cityId } = {}) {
   window.addEventListener('mn:tool-assembly-object-action', onObjectAction);
   return () => { window.removeEventListener('mn:tool-assembly-object-action', onObjectAction); modal.remove(); };
 }
+
