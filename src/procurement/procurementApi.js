@@ -45,6 +45,9 @@ export function getProcurementError(error) {
     PROCUREMENT_ITEM_DISABLED: 'Завод отключил закупку этого сырья.',
     PROCUREMENT_OFFER_NOT_FOUND: 'Предложение уже недоступно. Обновите рынок.',
     INDUSTRY_INPUT_NOT_ENOUGH: 'В основном инвентаре недостаточно выбранного сырья.',
+    WOOD_LUMBER_ITEM_NOT_ENOUGH: 'У вас недостаточно выбранной древесины для этой продажи.',
+    WOOD_RAW_WAREHOUSE_FULL: 'Сырьевой склад деревообрабатывающего завода заполнен.',
+    WOOD_CASH_NOT_ENOUGH: 'На балансе деревообрабатывающего завода недостаточно денег.',
   };
   const code = Object.keys(messages).find(key => raw.includes(key));
   if (code) return messages[code];
