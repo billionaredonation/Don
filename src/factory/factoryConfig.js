@@ -20,6 +20,13 @@ export const FACTORY_RAW_ITEMS = Object.freeze([
   { itemType: 'farm_corn', label: 'Кукуруза', icon: '🌽' },
 ]);
 
+const factoryRecipeInputTypes = new Set(Object.values(FACTORY_RECIPES).flatMap(recipe => [
+  ...(recipe.input ? [recipe.input] : []),
+  ...Object.keys(recipe.inputs || {}),
+  ...(recipe.anyFruit ? ['farm_apple', 'farm_orange'] : []),
+]));
+export const FACTORY_PROCUREMENT_ITEMS = Object.freeze(FACTORY_RAW_ITEMS.filter(item => factoryRecipeInputTypes.has(item.itemType)));
+
 export const FACTORY_ROLES = Object.freeze([
   { id: 'loader', label: 'Грузчик', icon: '📦' },
   { id: 'cook', label: 'Повар', icon: '👨‍🍳' },
@@ -28,4 +35,3 @@ export const FACTORY_ROLES = Object.freeze([
 
 export function getFactoryRecipe(id) { return FACTORY_RECIPES[String(id || '').trim()] || null; }
 export function formatFactoryMoney(value) { return `${Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ru-RU')} ₴`; }
-
