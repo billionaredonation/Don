@@ -30,6 +30,8 @@ import {
   withdrawJobBusiness,
 } from '../jobs/jobBusinessApi.js';
 import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
+import { renderProcurementControls } from '../procurement/procurementControls.js';
+import { setProcurementBudget } from '../procurement/procurementApi.js';
 import '../jobs/jobBusiness.css';
 import './mine.css';
 
@@ -344,6 +346,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     });
     modal?.querySelectorAll('[data-mine-business-purchase], [data-mine-business-deposit], [data-mine-business-withdraw], [data-mine-business-withdraw-all], [data-mine-business-assistant-save], [data-mine-business-assistant-clear]')
       .forEach((button) => { button.disabled = busy; });
+    renderProcurementControls(modal, 'mine', business?.procurement, [], { canManage:isOwner, busy });
   }
 
   function publishBusiness(result) {
@@ -777,6 +780,15 @@ export function enableMineFeature({ root, cityId } = {}) {
   async function handleBusinessControls(event) {
     if (event.target?.closest?.('[data-mine-business-purchase]')) {
       await runBusinessAction('Оформляем покупку горнодобывающего предприятия…', () => purchaseJobBusiness({ businessId: activeBuyerObjectId, cityId, jobType: 'mine' }));
+      return;
+    }
+
+    if (event.target?.closest?.('[data-mine-procurement-budget-save]')) {
+      const budget = Math.max(0, Math.floor(Number(modal?.querySelector('[data-mine-procurement-budget]')?.value) || 0));
+      await runBusinessAction('Сохраняем бюджет скупа…', async () => {
+        await setProcurementBudget({ buyerKind:'enterprise', buyerId:activeBuyerObjectId, cityId, buyerType:'mine', budget });
+        return loadJobBusinessSnapshot({ businessId:activeBuyerObjectId, cityId, jobType:'mine' });
+      });
       return;
     }
 
