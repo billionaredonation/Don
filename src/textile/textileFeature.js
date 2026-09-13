@@ -1,6 +1,8 @@
 import '../metallurgy/metallurgy.css';
 import { TEXTILE_CONFIG, TEXTILE_RAW_ITEMS, TEXTILE_RECIPES, formatTextileInputs, formatTextileMoney } from './textileConfig.js';
 import { createTextileBatch, depositTextileCash, finishTextileBatch, getTextileError, loadTextileSnapshot, publishTextileOffer, purchaseTextileFactory, setTextileRawBuyPrice, transferTextileRaw, withdrawTextileCash } from './textileApi.js';
+import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
+import { getProcurementError, loadProcurementSnapshot, setProcurementBudget, setProcurementItem } from '../procurement/procurementApi.js';
 
 const esc = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 const objectType = (object) => String(object?.type || object?.payload?.jobType || object?.payload?.type || '');
@@ -50,7 +52,7 @@ function markup() {
   return `<div class="mn-metallurgy-backdrop" data-textile-modal hidden><section class="mn-metallurgy-panel"><header><div><small>ТЕКСТИЛЬНОЕ ПРОИЗВОДСТВО</small><h2>🧵 Швейный завод</h2><p>Лён и хлопок → одежда и обувь → магазин одежды и аксессуаров</p></div><button data-textile-close>×</button></header><nav><button class="is-active" data-textile-tab="production">Рецептура</button><button data-textile-tab="warehouse">Склады</button><button data-textile-tab="management">Управление</button></nav><main>
     <section data-textile-page="production"><div class="mn-metallurgy-status"><span><small>Статус</small><strong data-textile-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-textile-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-textile-cash>Скрыто</strong></span></div><div class="mn-metallurgy-recipes">${recipes}</div><article class="mn-metallurgy-note" data-textile-batch hidden><strong data-textile-batch-title>Партия</strong><button data-textile-finish>Завершить и отправить на склад</button></article></section>
     <section data-textile-page="warehouse" hidden><h3>Сырьевой склад</h3><div class="mn-metallurgy-stock">${raw}</div><h3>Готовая одежда</h3><p class="mn-metallurgy-note">Количество и цена → «На биржу». Магазин аксессуаров закупает партию через производственную биржу.</p><div class="mn-metallurgy-stock">${products}</div></section>
-    <section data-textile-page="management" hidden><div class="mn-metallurgy-buy" data-textile-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatTextileMoney(TEXTILE_CONFIG.purchasePrice)}</strong></span><button data-textile-purchase>Купить завод</button></div><div data-textile-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-textile-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span></div><article class="mn-metallurgy-money"><input type="number" min="1" placeholder="Сумма" data-textile-amount><div><button data-textile-deposit>Пополнить</button><button data-textile-withdraw>Снять</button></div></article></div></section>
+    <section data-textile-page="management" hidden><div class="mn-metallurgy-buy" data-textile-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatTextileMoney(TEXTILE_CONFIG.purchasePrice)}</strong></span><button data-textile-purchase>Купить завод</button></div><div data-textile-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-textile-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span></div>${procurementControlsMarkup('textile', TEXTILE_RAW_ITEMS)}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" placeholder="Сумма" data-textile-amount><div><button data-textile-deposit>Пополнить</button><button data-textile-withdraw>Снять</button></div></article></div></section>
   </main></section></div>`;
 }
 
@@ -59,7 +61,7 @@ export function enableTextileFeature({ root, cityId } = {}) {
   root.insertAdjacentHTML('beforeend', markup());
   const modal = root.querySelector('[data-textile-modal]');
   const q = (selector) => modal.querySelector(selector), qa = (selector) => [...modal.querySelectorAll(selector)];
-  let factoryId = '', snapshot = null, busy = false;
+  let factoryId = '', snapshot = null, procurement = null, busy = false;
   function render() {
     const business = snapshot?.business || snapshot?.factory || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
     const ownership = textileOwnership(snapshot, business);
@@ -80,9 +82,10 @@ export function enableTextileFeature({ root, cityId } = {}) {
     qa('[data-textile-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Boolean(batch); });
     qa('[data-textile-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.textileOffer] || 0) < 1; });
     qa('[data-textile-buy-price-save],[data-textile-raw-transfer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
+    renderProcurementControls(modal, 'textile', procurement, TEXTILE_RAW_ITEMS, { canManage:snapshot?.isOwner, busy });
   }
-  async function refresh() { snapshot = await loadTextileSnapshot(factoryId, cityId); render(); }
-  async function run(task, success = '') { if (busy) return; busy = true; modal.classList.add('is-busy'); try { await task(); await refresh(); if (success) toast(success, 'success'); } catch (error) { toast(getTextileError(error), 'error'); } finally { busy = false; modal.classList.remove('is-busy'); render(); } }
+  async function refresh() { snapshot = await loadTextileSnapshot(factoryId, cityId); procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile' }) : null; render(); }
+  async function run(task, success = '') { if (busy) return; busy = true; modal.classList.add('is-busy'); try { await task(); await refresh(); if (success) toast(success, 'success'); } catch (error) { toast(String(error?.message || error || '').includes('PROCUREMENT_') ? getProcurementError(error) : getTextileError(error), 'error'); } finally { busy = false; modal.classList.remove('is-busy'); render(); } }
   function tab(name) { qa('[data-textile-tab]').forEach((button) => button.classList.toggle('is-active', button.dataset.textileTab === name)); qa('[data-textile-page]').forEach((page) => { page.hidden = page.dataset.textilePage !== name; }); }
   q('[data-textile-close]').onclick = () => { modal.hidden = true; }; qa('[data-textile-tab]').forEach((button) => { button.onclick = () => tab(button.dataset.textileTab); });
   qa('[data-textile-produce]').forEach((button) => { button.onclick = () => run(() => createTextileBatch(factoryId, cityId, button.dataset.textileProduce), 'Партия запущена.'); });
@@ -93,6 +96,8 @@ export function enableTextileFeature({ root, cityId } = {}) {
   q('[data-textile-purchase]').onclick = () => run(() => purchaseTextileFactory(factoryId, cityId), 'Швейный завод куплен.');
   q('[data-textile-deposit]').onclick = () => run(() => depositTextileCash(factoryId, cityId, Number(q('[data-textile-amount]').value)), 'Баланс пополнен.');
   q('[data-textile-withdraw]').onclick = () => run(() => withdrawTextileCash(factoryId, cityId, Number(q('[data-textile-amount]').value)), 'Средства выведены.');
+  q('[data-textile-procurement-budget-save]').onclick = () => run(() => setProcurementBudget({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile', budget:Number(q('[data-textile-procurement-budget]').value) }), 'Бюджет скупа обновлён.');
+  qa('[data-textile-procurement-item]').forEach((input) => { input.onchange = () => run(() => setProcurementItem({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile', itemType:input.dataset.textileProcurementItem, enabled:input.checked }), input.checked ? 'Сырьё добавлено в скуп.' : 'Закупка сырья отключена.'); });
   const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== TEXTILE_CONFIG.type) return; factoryId = objectId(object); modal.hidden = false; tab('production'); refresh().catch((error) => toast(getTextileError(error), 'error')); };
   window.addEventListener('mn:textile-object-action', onAction);
   return () => { window.removeEventListener('mn:textile-object-action', onAction); modal.remove(); };
