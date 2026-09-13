@@ -18,6 +18,7 @@ import {
 } from './metallurgyApi.js';
 import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
 import { getProcurementError, loadProcurementSnapshot, setProcurementBudget, setProcurementItem } from '../procurement/procurementApi.js';
+import { getPublicBusinessId } from '../business/publicBusinessId.js';
 
 const esc = (value) => String(value ?? '')
   .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -45,7 +46,7 @@ function markup() {
     <main>
       <section data-metallurgy-page="production"><div class="mn-metallurgy-status"><span><small>Статус</small><strong data-metallurgy-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-metallurgy-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-metallurgy-cash>Скрыто</strong></span></div><div class="mn-metallurgy-recipes">${recipes}</div></section>
       <section data-metallurgy-page="warehouse" hidden><h3>Сырьевой склад</h3><p class="mn-metallurgy-note">Сюда поступают подтверждённые партии со склада шахты через логистику. Сырьё не создаётся кнопкой в интерфейсе.</p><div class="mn-metallurgy-stock">${raw}</div><h3>Склад готовых компонентов</h3><div class="mn-metallurgy-stock">${products}</div></section>
-      <section data-metallurgy-page="management" hidden><div class="mn-metallurgy-buy" data-metallurgy-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatMetallurgyMoney(METALLURGY_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет производством, бюджетом и складами.</p></span><button type="button" data-metallurgy-purchase>Купить завод</button></div><div data-metallurgy-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-metallurgy-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span></div>${procurementControlsMarkup('metallurgy', METALLURGY_RAW_ITEMS)}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-metallurgy-amount><div><button type="button" data-metallurgy-deposit>Пополнить</button><button type="button" data-metallurgy-withdraw>Снять</button></div></article></div></section>
+      <section data-metallurgy-page="management" hidden><div class="mn-metallurgy-buy" data-metallurgy-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatMetallurgyMoney(METALLURGY_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет производством, бюджетом и складами.</p></span><button type="button" data-metallurgy-purchase>Купить завод</button></div><div data-metallurgy-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-metallurgy-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span><span><small>Публичный ID</small><strong data-metallurgy-public-id>—</strong></span></div>${procurementControlsMarkup('metallurgy', METALLURGY_RAW_ITEMS)}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-metallurgy-amount><div><button type="button" data-metallurgy-deposit>Пополнить</button><button type="button" data-metallurgy-withdraw>Снять</button></div></article></div></section>
     </main>
     <div class="mn-metallurgy-transfer" data-metallurgy-transfer hidden><section><header><span><small>ОТПРАВКА СО СКЛАДА</small><h3 data-metallurgy-transfer-title>Компонент</h3></span><button type="button" data-metallurgy-transfer-close>×</button></header><label>Количество<input type="number" min="1" value="1" inputmode="numeric" data-metallurgy-transfer-quantity></label><label>Куда отправляем<select data-metallurgy-transfer-destination></select></label><footer><button type="button" class="is-ghost" data-metallurgy-transfer-cancel>Отмена</button><button type="button" data-metallurgy-transfer-send>Отправить</button></footer></section></div>
     </section></div>`;
@@ -58,6 +59,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
   const q = (selector) => modal.querySelector(selector);
   const qa = (selector) => [...modal.querySelectorAll(selector)];
   let currentFactoryId = '';
+  let currentPublicId = '—';
   let snapshot = null;
   let procurement = null;
   let busy = false;
@@ -73,6 +75,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     q('[data-metallurgy-buy]').hidden = Boolean(business.ownerId);
     q('[data-metallurgy-owned]').hidden = !business.ownerId;
     q('[data-metallurgy-owner]').textContent = business.ownerName || 'Государство';
+    q('[data-metallurgy-public-id]').textContent = currentPublicId;
     METALLURGY_RAW_ITEMS.forEach((item) => { q(`[data-metallurgy-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
     Object.keys(METALLURGY_RECIPES).forEach((id) => { q(`[data-metallurgy-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
     qa('[data-metallurgy-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
@@ -110,6 +113,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     const object = event.detail?.object;
     if (objectType(object) !== METALLURGY_CONFIG.type) return;
     currentFactoryId = objectId(object);
+    currentPublicId = getPublicBusinessId(object);
     modal.hidden = false;
     setTab('production');
     refresh().catch((error) => toast(getMetallurgyError(error), 'error'));
