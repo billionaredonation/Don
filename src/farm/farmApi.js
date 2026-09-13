@@ -281,3 +281,4 @@ export const fillFarmWaterTower = ({ businessId, cityId, liters }) => invokeFarm
 export const buyFarmBusinessTool = ({ businessId, cityId, itemType }) => invokeFarmBusinessAction('buy_tool', { businessId, cityId, itemType });
 export const refreshFarmBusinessTool = ({ businessId, cityId, itemType }) => invokeFarmBusinessAction('refresh_tool', { businessId, cityId, itemType });
 export const takeFarmWaterFromTower = ({ businessId, cityId, towerObjectId }) => invokeFarmBusinessAction('take_water', { businessId, cityId, towerObjectId });
+
