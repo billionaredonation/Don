@@ -163,11 +163,12 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
   q('[data-metallurgy-deposit]').onclick = () => run(() => depositMetallurgyCash(currentFactoryId, cityId, Number(q('[data-metallurgy-amount]').value)), 'Баланс завода пополнен.');
   q('[data-metallurgy-withdraw]').onclick = () => run(() => withdrawMetallurgyCash(currentFactoryId, cityId, Number(q('[data-metallurgy-amount]').value)), 'Средства выведены.');
   q('[data-metallurgy-procurement-budget-save]').onclick = () => run(() => setProcurementBudget({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'metallurgy', budget:Number(q('[data-metallurgy-procurement-budget]').value) }), 'Бюджет скупа обновлён.');
-  qa('[data-metallurgy-procurement-item]').forEach((input) => { input.onchange = () => {
-    const itemType = input.dataset.metallurgyProcurementItem;
-    const enabled = input.checked;
-    run(() => setProcurementItem({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'metallurgy', itemType, enabled }), enabled ? 'Сырьё добавлено в скуп.' : 'Закупка сырья отключена.');
-  }; });
+  const saveProcurementItem = (itemType) => {
+    const enabled = q(`[data-metallurgy-procurement-item="${itemType}"]`)?.checked === true;
+    const unitPrice = Number(q(`[data-metallurgy-procurement-price="${itemType}"]`)?.value);
+    run(() => setProcurementItem({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'metallurgy', itemType, enabled, unitPrice }), enabled ? 'Сырьё и цена скупа сохранены.' : 'Закупка сырья отключена.');
+  };
+  qa('[data-metallurgy-procurement-item-save]').forEach((button) => { button.onclick = () => saveProcurementItem(button.dataset.metallurgyProcurementItemSave); });
   window.addEventListener('mn:metallurgy-object-action', onObjectAction);
   return () => {
     window.removeEventListener('mn:metallurgy-object-action', onObjectAction);
