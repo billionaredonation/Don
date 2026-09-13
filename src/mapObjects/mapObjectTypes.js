@@ -10,6 +10,17 @@ export const MAP_OBJECT_CATEGORIES = {
   JOB: 'job',
 };
 
+const LEGAL_BUSINESS_OBJECT_TYPES = new Set([
+  'farm_station', 'lumber_station', 'mine_station', 'fruit_factory',
+  'metallurgy_factory', 'wood_processing_factory',
+  'tool_assembly_factory', 'textile_factory',
+]);
+
+export function isBusinessLegalMapObjectType(type) {
+  const config = getMapObjectType(type);
+  return config.category === MAP_OBJECT_CATEGORIES.BUSINESS || LEGAL_BUSINESS_OBJECT_TYPES.has(config.type);
+}
+
 export const HOUSE_CLASSES = {
   standard: {
     value: 'standard',
@@ -660,8 +671,7 @@ export function createMapObjectDraft({
     basePayload.farmBusiness = true;
     basePayload.farmBusinessId = objectId;
     basePayload.farm_business_id = objectId;
-    basePayload.legalForm = 'ooo';
-    basePayload.legalFormLabel = 'ООО';
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'ooo', ...basePayload }));
     basePayload.price = 1_000_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
@@ -678,8 +688,7 @@ export function createMapObjectDraft({
     basePayload.job_business_id = objectId;
     basePayload.jobBusinessType = jobBusinessType;
     basePayload.job_business_type = jobBusinessType;
-    basePayload.legalForm = 'ooo';
-    basePayload.legalFormLabel = 'ООО';
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'ooo', ...basePayload }));
     basePayload.price = 1_000_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
@@ -693,8 +702,7 @@ export function createMapObjectDraft({
     basePayload.factoryBusiness = true;
     basePayload.factoryId = objectId;
     basePayload.factory_id = objectId;
-    basePayload.legalForm = 'tov';
-    basePayload.legalFormLabel = 'ТОВ';
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'tov', ...basePayload }));
     basePayload.price = 3_500_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
@@ -708,8 +716,7 @@ export function createMapObjectDraft({
     basePayload.metallurgyFactory = true;
     basePayload.metallurgyFactoryId = objectId;
     basePayload.metallurgy_factory_id = objectId;
-    basePayload.legalForm = 'tov';
-    basePayload.legalFormLabel = 'ТОВ';
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'tov', ...basePayload }));
     basePayload.price = 3_500_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
@@ -723,8 +730,7 @@ export function createMapObjectDraft({
     basePayload.woodProcessingFactory = true;
     basePayload.woodProcessingFactoryId = objectId;
     basePayload.wood_processing_factory_id = objectId;
-    basePayload.legalForm = 'tov';
-    basePayload.legalFormLabel = 'ТОВ';
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'tov', ...basePayload }));
     basePayload.price = 3_500_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
@@ -738,8 +744,7 @@ export function createMapObjectDraft({
     basePayload.toolAssemblyFactory = true;
     basePayload.toolAssemblyFactoryId = objectId;
     basePayload.tool_assembly_factory_id = objectId;
-    basePayload.legalForm = 'tov';
-    basePayload.legalFormLabel = 'ТОВ';
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'tov', ...basePayload }));
     basePayload.price = 3_500_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
@@ -755,8 +760,7 @@ export function createMapObjectDraft({
     basePayload.textile_factory_id = objectId;
     basePayload.industryId = 'textile';
     basePayload.industry_id = 'textile';
-    basePayload.legalForm = 'tov';
-    basePayload.legalFormLabel = 'ТОВ';
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'tov', ...basePayload }));
     basePayload.price = 3_500_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
