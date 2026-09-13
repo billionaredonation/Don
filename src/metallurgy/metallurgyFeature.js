@@ -1,7 +1,6 @@
 import './metallurgy.css';
 import {
   METALLURGY_CONFIG,
-  METALLURGY_DESTINATIONS,
   METALLURGY_RAW_ITEMS,
   METALLURGY_RECIPES,
   formatMetallurgyInputs,
@@ -14,11 +13,11 @@ import {
   produceMetallurgyBatch,
   purchaseMetallurgyFactory,
   withdrawMetallurgyCash,
-  dispatchMetallurgyProduct,
 } from './metallurgyApi.js';
 import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
 import { getProcurementError, loadProcurementSnapshot, setProcurementBudget, setProcurementItem } from '../procurement/procurementApi.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
+import { getProductionExchangeError, publishProductionOffer } from '../market/productionExchangeApi.js';
 
 const esc = (value) => String(value ?? '')
   .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -38,7 +37,7 @@ function recipeMarkup(recipe) {
 
 function markup() {
   const raw = METALLURGY_RAW_ITEMS.map((item) => `<article><i>${item.icon}</i><span><small>${esc(item.label)}</small><strong data-metallurgy-raw="${item.itemType}">0</strong></span></article>`).join('');
-  const products = Object.values(METALLURGY_RECIPES).map((item) => `<article><i>${item.icon}</i><span><small>${esc(item.label)}</small><strong data-metallurgy-product="${item.id}">0</strong></span><button type="button" data-metallurgy-withdraw-product="${item.id}">Снять</button></article>`).join('');
+  const products = Object.values(METALLURGY_RECIPES).map((item) => `<article><i>${item.icon}</i><span><small>${esc(item.label)}</small><strong data-metallurgy-product="${item.id}">0</strong></span><div><input type="number" min="1" value="1" inputmode="numeric" aria-label="Количество" data-metallurgy-offer-qty="${item.id}"><input type="number" min="1" value="100" inputmode="numeric" aria-label="Цена" data-metallurgy-offer-price="${item.id}"><button type="button" data-metallurgy-offer="${item.id}">На биржу</button></div></article>`).join('');
   const recipes = Object.values(METALLURGY_RECIPES).map(recipeMarkup).join('');
   return `<div class="mn-metallurgy-backdrop" data-metallurgy-modal hidden><section class="mn-metallurgy-panel">
     <header><div><small>ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ</small><h2>${METALLURGY_CONFIG.icon} ${METALLURGY_CONFIG.label}</h2><p>Сырьё шахты → металлургическая деталь → заводы и магазин стройматериалов</p></div><button type="button" data-metallurgy-close aria-label="Закрыть">×</button></header>
@@ -47,9 +46,7 @@ function markup() {
       <section data-metallurgy-page="production"><div class="mn-metallurgy-status"><span><small>Статус</small><strong data-metallurgy-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-metallurgy-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-metallurgy-cash>Скрыто</strong></span></div><div class="mn-metallurgy-recipes">${recipes}</div></section>
       <section data-metallurgy-page="warehouse" hidden><h3>Сырьевой склад</h3><p class="mn-metallurgy-note">Сюда поступают подтверждённые партии со склада шахты через логистику. Сырьё не создаётся кнопкой в интерфейсе.</p><div class="mn-metallurgy-stock">${raw}</div><h3>Склад готовых компонентов</h3><div class="mn-metallurgy-stock">${products}</div></section>
       <section data-metallurgy-page="management" hidden><div class="mn-metallurgy-buy" data-metallurgy-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatMetallurgyMoney(METALLURGY_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет производством, бюджетом и складами.</p></span><button type="button" data-metallurgy-purchase>Купить завод</button></div><div data-metallurgy-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-metallurgy-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span><span><small>Публичный ID</small><strong data-metallurgy-public-id>—</strong></span></div>${procurementControlsMarkup('metallurgy', METALLURGY_RAW_ITEMS)}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-metallurgy-amount><div><button type="button" data-metallurgy-deposit>Пополнить</button><button type="button" data-metallurgy-withdraw>Снять</button></div></article></div></section>
-    </main>
-    <div class="mn-metallurgy-transfer" data-metallurgy-transfer hidden><section><header><span><small>ОТПРАВКА СО СКЛАДА</small><h3 data-metallurgy-transfer-title>Компонент</h3></span><button type="button" data-metallurgy-transfer-close>×</button></header><label>Количество<input type="number" min="1" value="1" inputmode="numeric" data-metallurgy-transfer-quantity></label><label>Куда отправляем<select data-metallurgy-transfer-destination></select></label><footer><button type="button" class="is-ghost" data-metallurgy-transfer-cancel>Отмена</button><button type="button" data-metallurgy-transfer-send>Отправить</button></footer></section></div>
-    </section></div>`;
+    </main></section></div>`;
 }
 
 export function enableMetallurgyFeature({ root, cityId } = {}) {
@@ -63,7 +60,6 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
   let snapshot = null;
   let procurement = null;
   let busy = false;
-  let transferProductId = '';
 
   function render() {
     const business = snapshot?.business || {};
@@ -79,7 +75,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     METALLURGY_RAW_ITEMS.forEach((item) => { q(`[data-metallurgy-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
     Object.keys(METALLURGY_RECIPES).forEach((id) => { q(`[data-metallurgy-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
     qa('[data-metallurgy-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
-    qa('[data-metallurgy-withdraw-product]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.metallurgyWithdrawProduct] || 0) < 1; });
+    qa('[data-metallurgy-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.metallurgyOffer] || 0) < 1; });
     qa('[data-metallurgy-deposit],[data-metallurgy-withdraw]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     renderProcurementControls(modal, 'metallurgy', procurement, METALLURGY_RAW_ITEMS, { canManage:snapshot?.isOwner, busy });
   }
@@ -90,7 +86,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     render();
   }
 
-  async function run(task, success = '') {
+  async function run(task, success = '', errorFormatter = getMetallurgyError) {
     if (busy) return;
     busy = true; modal.classList.add('is-busy'); render();
     try {
@@ -98,7 +94,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
       await refresh();
       if (success) toast(success, 'success');
     } catch (error) {
-      toast(String(error?.message || error || '').includes('PROCUREMENT_') ? getProcurementError(error) : getMetallurgyError(error), 'error');
+      toast(String(error?.message || error || '').includes('PROCUREMENT_') ? getProcurementError(error) : errorFormatter(error), 'error');
     } finally {
       busy = false; modal.classList.remove('is-busy'); render();
     }
@@ -121,34 +117,13 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
 
   q('[data-metallurgy-close]').onclick = () => { modal.hidden = true; };
   qa('[data-metallurgy-tab]').forEach((button) => { button.onclick = () => setTab(button.dataset.metallurgyTab); });
-  function closeTransfer() {
-    q('[data-metallurgy-transfer]').hidden = true;
-    transferProductId = '';
-  }
-
-  qa('[data-metallurgy-withdraw-product]').forEach((button) => { button.onclick = () => {
-    const productId = button.dataset.metallurgyWithdrawProduct;
-    const recipe = METALLURGY_RECIPES[productId];
+  qa('[data-metallurgy-offer]').forEach((button) => { button.onclick = () => {
+    const productId = button.dataset.metallurgyOffer;
     const available = Number(snapshot?.products?.[productId] || 0);
-    if (!recipe || available < 1) return;
-    transferProductId = productId;
-    q('[data-metallurgy-transfer-title]').textContent = `${recipe.icon} ${recipe.label} · доступно ${available}`;
-    const quantity = q('[data-metallurgy-transfer-quantity]');
-    quantity.max = String(available);
-    quantity.value = '1';
-    q('[data-metallurgy-transfer-destination]').innerHTML = recipe.destinations.map((id) => `<option value="${esc(id)}">${esc(METALLURGY_DESTINATIONS[id] || id)}</option>`).join('');
-    q('[data-metallurgy-transfer]').hidden = false;
+    const quantity = Math.max(1, Math.min(available, Math.floor(Number(q(`[data-metallurgy-offer-qty="${productId}"]`).value) || 1)));
+    const unitPrice = Math.max(1, Math.floor(Number(q(`[data-metallurgy-offer-price="${productId}"]`).value) || 1));
+    run(() => publishProductionOffer({ industryId:'metallurgy', factoryId:currentFactoryId, cityId, productType:productId, quantity, unitPrice }), 'Партия выставлена на биржу.', getProductionExchangeError);
   }; });
-  q('[data-metallurgy-transfer-close]').onclick = closeTransfer;
-  q('[data-metallurgy-transfer-cancel]').onclick = closeTransfer;
-  q('[data-metallurgy-transfer-send]').onclick = () => {
-    const productId = transferProductId;
-    const available = Number(snapshot?.products?.[productId] || 0);
-    const quantity = Math.max(1, Math.min(available, Math.floor(Number(q('[data-metallurgy-transfer-quantity]').value) || 1)));
-    const destination = q('[data-metallurgy-transfer-destination]').value;
-    closeTransfer();
-    run(() => dispatchMetallurgyProduct(currentFactoryId, cityId, productId, quantity, destination), 'Компоненты сняты со склада и отправлены по назначению.');
-  };
   qa('[data-metallurgy-produce]').forEach((button) => { button.onclick = () => {
     const recipeId = button.dataset.metallurgyProduce;
     const batches = Math.max(1, Math.min(100, Math.floor(Number(q(`[data-metallurgy-batches="${recipeId}"]`).value) || 1)));
