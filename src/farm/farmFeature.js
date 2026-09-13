@@ -38,6 +38,8 @@ import {
 } from './farmBusinessConfig.js';
 import { cancelFarmMiniGame, playFarmMiniGame } from './farmMiniGame.js';
 import { getCropSkillStatus, publishPlayerSkills } from '../player/playerSkillState.js';
+import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
+import { setProcurementBudget } from '../procurement/procurementApi.js';
 import './farm.css';
 
 const FARM_STATE_REFRESH_MS = 5000;
@@ -266,6 +268,7 @@ function farmModalMarkup() {
                 </div>
 
                 <div class="mn-farm4-management" data-farm-business-management hidden>
+                  ${procurementControlsMarkup('farm', [], { factory: false })}
                   <section class="mn-farm4-manage-card is-finance" data-farm-owner-only>
                     <header><i aria-hidden="true">＋</i><span><b>Пополнить баланс</b><small>Оборотные средства предприятия</small></span></header>
                     <div class="mn-farm4-inline"><input type="number" min="1" step="1" inputmode="numeric" placeholder="Сумма" data-farm-deposit-amount><button type="button" data-farm-deposit>Внести</button></div>
@@ -538,6 +541,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     if (management) management.hidden = (!owned && !isAdmin) || (!isStaff && !isAdmin);
     modal.querySelectorAll('[data-farm-owner-only]').forEach((element) => { element.hidden = !isOwner; });
     modal.querySelectorAll('[data-farm-admin-only]').forEach((element) => { element.hidden = !isAdmin; });
+    renderProcurementControls(modal, 'farm', business?.procurement, [], { canManage: isOwner, busy });
     const takeBucketButton = modal.querySelector('[data-farm-take-bucket]');
     if (takeBucketButton) takeBucketButton.disabled = busy || Number(business?.bucketStock || 0) <= 0;
 
@@ -1243,6 +1247,22 @@ export function enableFarmFeature({ root, cityId } = {}) {
     const purchase = event.target?.closest?.('[data-farm-business-purchase]');
     if (purchase) {
       await runBusinessAction('Оформляем покупку фермерского ООО…', () => purchaseFarmBusiness({ businessId: activeBuyerObjectId, cityId }));
+      return;
+    }
+
+    const procurementSave = event.target?.closest?.('[data-farm-procurement-budget-save]');
+    if (procurementSave) {
+      const budget = Math.max(0, Math.floor(Number(modal?.querySelector('[data-farm-procurement-budget]')?.value) || 0));
+      await runBusinessAction('Сохраняем бюджет скупа…', async () => {
+        await setProcurementBudget({
+          buyerKind: 'enterprise',
+          buyerId: activeBuyerObjectId,
+          cityId,
+          buyerType: 'farm',
+          budget,
+        });
+        return loadFarmBusinessSnapshot({ businessId: activeBuyerObjectId, cityId });
+      });
       return;
     }
 
