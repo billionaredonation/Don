@@ -2230,13 +2230,8 @@ register('home', async (root) => {
     playerPosition,
   });
 
-  cleanupFactoryFeature = enableFactoryFeature({ root, cityId });
-  cleanupMetallurgyFeature = enableMetallurgyFeature({ root, cityId });
-  cleanupWoodProcessingFeature = enableWoodProcessingFeature({ root, cityId });
-  cleanupToolAssemblyFeature = enableToolAssemblyFeature({ root, cityId });
-  cleanupTextileFeature = enableTextileFeature({ root, cityId });
-  cleanupProductionMarket = enableProductionMarketFeature({ root });
-
+  // Map objects and their click handlers are core gameplay. Start them before
+  // optional production windows so one broken factory UI cannot blank the city.
   cleanupEntityInteraction = enableEntityInteraction({
     root,
     viewport,
@@ -2245,6 +2240,28 @@ register('home', async (root) => {
     playerMarker,
     playerPosition,
   });
+
+  const enableOptionalProductionModule = (name, setup) => {
+    try {
+      return setup() || null;
+    } catch (error) {
+      console.error(`[home] ${name} initialization failed:`, error);
+      window.dispatchEvent(new CustomEvent('mn:toast', {
+        detail: {
+          type: 'error',
+          message: `Модуль «${name}» временно отключён. Карта и остальные предприятия продолжают работать.`,
+        },
+      }));
+      return null;
+    }
+  };
+
+  cleanupFactoryFeature = enableOptionalProductionModule('Пищевой завод', () => enableFactoryFeature({ root, cityId }));
+  cleanupMetallurgyFeature = enableOptionalProductionModule('Металлургический завод', () => enableMetallurgyFeature({ root, cityId }));
+  cleanupWoodProcessingFeature = enableOptionalProductionModule('Деревоперерабатывающий завод', () => enableWoodProcessingFeature({ root, cityId }));
+  cleanupToolAssemblyFeature = enableOptionalProductionModule('Завод инструментов', () => enableToolAssemblyFeature({ root, cityId }));
+  cleanupTextileFeature = enableOptionalProductionModule('Швейный завод', () => enableTextileFeature({ root, cityId }));
+  cleanupProductionMarket = enableOptionalProductionModule('Биржа продукции', () => enableProductionMarketFeature({ root }));
 
   cleanupHouseSpawnPicker = setupHouseSpawnPicker({
     root,
