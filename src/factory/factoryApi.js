@@ -57,6 +57,7 @@ export function getFactoryError(error) {
     FACTORY_PACKER_REQUIRED: 'Этот этап выполняет упаковщик.', FACTORY_BATCH_STAGE_INVALID: 'Для партии сейчас требуется другой этап работы.',
     FACTORY_FRUIT_REQUIRED: 'Выберите фрукт или ягоду для рецепта.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.', FACTORY_CASH_NOT_ENOUGH: 'В бюджете завода недостаточно денег на зарплату.',
+    PROCUREMENT_BUDGET_RESERVED: 'Эта сумма оставлена на закупку сырья. Сначала уменьшите бюджет скупа.',
     FACTORY_INVENTORY_NOT_ENOUGH: 'В инвентаре недостаточно сырья с фермы.', FACTORY_AMOUNT_INVALID: 'Введите корректное количество.',
     FACTORY_PRICE_TOO_LOW: 'Завод отклонил цену: предложение ниже его оптовой цены.', FACTORY_PRODUCT_NOT_ENOUGH: 'На заводе недостаточно готового товара.',
     FACTORY_STORE_OWNER_REQUIRED: 'Закупку может оформить только владелец магазина.', FACTORY_DELIVERY_NOT_READY: 'Машина ещё в пути.',
