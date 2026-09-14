@@ -212,7 +212,26 @@ function compatibleDestinations(actors,chainId,productType){
   return [...stores,...factories];
 }
 function destinationPickerMarkup(){return `<div class="mn-destination-picker" data-destination-picker hidden><button type="button" class="mn-destination-picker-backdrop" data-destination-picker-cancel aria-label="Закрыть"></button><section role="dialog" aria-modal="true" aria-labelledby="mn-destination-picker-title"><header><span><small>ВАШИ СОВМЕСТИМЫЕ ПРЕДПРИЯТИЯ</small><h3 id="mn-destination-picker-title">Куда оформить поставку</h3></span><button type="button" data-destination-picker-cancel>×</button></header><div class="mn-destination-picker-product" data-destination-picker-product></div><div class="mn-destination-picker-list" data-destination-picker-list></div><footer><button type="button" data-destination-picker-cancel>Отмена</button><button type="button" class="is-primary" data-destination-picker-confirm>Оплатить и создать доставку</button></footer></section></div>`;}
-function destinationPickerRows(destinations){return destinations.map((entry,index)=>{const id=entry.id||entry.businessId||entry.factoryId,type=entry.entityKind==='factory'?(entry.factoryType||entry.businessType):entry.businessType;return `<label class="mn-destination-option"><input type="radio" name="mn-destination-store" value="${esc(id)}" data-kind="${esc(entry.entityKind)}" data-city="${esc(entry.cityId||'')}" data-type="${esc(type||'')}"${index===0?' checked':''}><i>${entry.entityKind==='factory'?'🏭':'🏪'}</i><span><strong>${esc(entityName(entry,entry.entityKind==='factory'?'Производственное предприятие':'Магазин'))}</strong><small>${esc(entry.cityName||entry.cityId||'Город не указан')}${entry.publicBusinessId?` · ID ${esc(entry.publicBusinessId)}`:''}</small></span><b>Выбрать</b></label>`;}).join('');}
+const DESTINATION_PRESENTATION=Object.freeze({
+  grocery:{label:'Продуктовый магазин',icon:'🛒'},
+  accessory_store:{label:'Магазин одежды и аксессуаров',icon:'👕'},
+  construction_store:{label:'Магазин стройматериалов',icon:'🏪'},
+  fruit_factory:{label:'Завод по производству питания',icon:'🏭'},
+  textile_factory:{label:'Швейный завод',icon:'🧵'},
+  metallurgy_factory:{label:'Металлургический завод',icon:'🔥'},
+  wood_processing_factory:{label:'Деревоперерабатывающий завод',icon:'🪵'},
+  tool_assembly_factory:{label:'Завод по сборке инструментов',icon:'🛠️'},
+  accessory_factory:{label:'Завод аксессуаров',icon:'🏭'},
+  car_factory:{label:'Автозавод',icon:'🏭'},
+});
+function destinationPresentation(entry){
+  const rawType=entry?.entityKind==='factory'?(entry?.factoryType||entry?.businessType):entry?.businessType;
+  const type=String(rawType==='shop'?'grocery':rawType||'').trim();
+  const known=DESTINATION_PRESENTATION[type];
+  if(known)return {...known,type};
+  return {type,label:entityName(entry,entry?.entityKind==='factory'?'Производственное предприятие':'Магазин'),icon:entry?.entityKind==='factory'?'🏭':'🏪'};
+}
+function destinationPickerRows(destinations){return destinations.map((entry,index)=>{const id=entry.id||entry.businessId||entry.factoryId,presentation=destinationPresentation(entry),type=presentation.type||entry.businessType||entry.factoryType||'';return `<label class="mn-destination-option"><input type="radio" name="mn-destination-store" value="${esc(id)}" data-kind="${esc(entry.entityKind)}" data-city="${esc(entry.cityId||'')}" data-type="${esc(type)}"${index===0?' checked':''}><i>${presentation.icon}</i><span><strong>${esc(presentation.label)}</strong><small>${esc(entry.cityName||entry.cityId||'Город не указан')}${entry.publicBusinessId?` · ID ${esc(entry.publicBusinessId)}`:''}</small></span><b>Выбрать</b></label>`;}).join('');}
 function dealCard(entry,type,actors){const chainId=routedChainId(entry.chainId||'fruit',entry.productType),isRequest=type==='request',chain=productionChain(chainId),product=productionProduct(chainId,entry.productType),compatibleFactories=actors.factories.filter(f=>routedChainId(f.chainId,'')===chainId),compatible=isRequest?compatibleFactories:compatibleDestinations(actors,chainId,entry.productType),id=esc(entry.id),actor=entityName(entry,isRequest?chain.storeLabel:chain.factoryLabel);return `<article class="mn-deal-card ${isRequest?'is-request':'is-offer'}" data-chain="${esc(chainId)}">
   <div class="mn-deal-product"><i>${product?.icon||'📦'}</i><span><em>${isRequest?'МАГАЗИН ПОКУПАЕТ':'ЗАВОД ПРОДАЁТ'}</em><strong>${esc(product?.label||entry.productType)}</strong><small>${esc(actor)} · ${esc(entry.cityName||entry.cityId||'город не указан')}</small></span></div>
   <div class="mn-deal-numbers"><span><small>Количество</small><b>${quantity(entry.quantity)} ед.</b></span><span><small>Цена за единицу</small><b>${money(entry.unitPrice)}</b></span><span class="is-total"><small>${isRequest?'Магазин заплатит':'Стоимость партии'}</small><b>${dealTotal(entry)}</b></span></div>
