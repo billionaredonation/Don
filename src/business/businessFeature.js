@@ -86,6 +86,14 @@ function isConstructionBusiness(value) {
   return businessTypeOf(value) === 'construction_store';
 }
 
+function productionExchangeScopeForBusiness(value) {
+  const type = businessTypeOf(value) === 'shop' ? 'grocery' : businessTypeOf(value);
+  if (type === 'grocery') return { businessType: 'grocery', chainIds: ['fruit'] };
+  if (type === 'construction_store') return { businessType: 'construction_store', chainIds: ['metallurgy', 'tool_assembly'] };
+  if (type === 'accessory_store') return { businessType: 'accessory_store', chainIds: ['textile'] };
+  return null;
+}
+
 async function loadStoreDeliveryCargo(value) {
   const cargo = [];
   const targetCityId = String(value?.cityId || '');
@@ -356,14 +364,16 @@ function warehouseDrawer(snapshot) {
       <div class="mn-business-warehouse-list">
         ${warehouseItems.map((item) => `<article${item.quantity > 0 ? '' : ' class="is-empty"'}><i>${escapeHtml(item.icon)}</i><span><strong>${escapeHtml(item.label)}</strong><small>${item.quantity > 0 ? 'Можно разместить на полке' : 'Нет на складе'}</small></span><b>${item.quantity} шт.</b></article>`).join('')}
       </div>
-      ${isGroceryBusiness(snapshot)
-        ? '<button type="button" class="is-primary" data-business-open-production-exchange>🏭 Открыть биржу поставщиков</button>'
+      ${productionExchangeScopeForBusiness(snapshot)
+        ? '<button type="button" class="is-primary" data-business-open-production-exchange>🚚 Пополнить склад</button>'
         : `<button type="button" class="is-primary" data-business-warehouse-replenish${Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length ? '' : ' disabled'}>🚚 Пополнить склад</button>`}
       <p class="mn-business-drawer-note">${isConstructionBusiness(snapshot)
-        ? 'Опорные балки и арматура поступают с металлургического завода, готовые инструменты — с завода по сборке инструментов. Сначала разгрузите машину, после чего товар появится на складе и его можно будет выставить на полки.'
+        ? 'Пополнение идёт через биржу: опорные балки и арматура — от металлургических заводов, готовые инструменты — от заводов сборки. После оплаты создаётся доставка, и только после разгрузки товар появляется на складе магазина.'
         : isGroceryBusiness(snapshot)
-          ? 'Продуктовый магазин больше не забирает еду напрямую с завода. Откройте биржу, выберите конкретную партию конкретного пищевого завода, оплатите её и выполните доставку. Только после разгрузки товар попадёт на склад магазина.'
-          : 'Сначала выгрузите привезённую продукцию. После приёмки владелец или товаровед сможет выставить её на полки. Стороннему доставщику магазин начислит оплату за разгрузку.'}</p>
+          ? 'Пополнение идёт через биржу пищевых производств. Выберите конкретную партию и поставщика, оплатите её и выполните доставку. Только после разгрузки товар попадёт на склад магазина.'
+          : businessTypeOf(snapshot) === 'accessory_store'
+            ? 'Пополнение идёт через биржу швейных производств. Выберите нужную одежду или обувь, оплатите партию и выполните доставку. Только после разгрузки товар появится на складе магазина.'
+            : 'Сначала выгрузите привезённую продукцию. После приёмки владелец или товаровед сможет выставить её на полки. Стороннему доставщику магазин начислит оплату за разгрузку.'}</p>
     </aside>`;
 }
 
@@ -896,8 +906,15 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       return;
     }
     if (target.closest('[data-business-open-production-exchange]')) {
-      if (!tryCloseStore()) return;
-      window.dispatchEvent(new CustomEvent('mn:production-exchange-open', { detail: { chainId: 'fruit' } }));
+      const exchangeScope = productionExchangeScopeForBusiness(snapshot);
+      if (!exchangeScope || !tryCloseStore()) return;
+      window.dispatchEvent(new CustomEvent('mn:production-exchange-open', {
+        detail: {
+          ...exchangeScope,
+          businessId: snapshot.businessId,
+          cityId: activeObject.cityId || activeCityId,
+        },
+      }));
       return;
     }
     if (target.closest('[data-business-factory-order]')) {
