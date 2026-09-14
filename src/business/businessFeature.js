@@ -356,10 +356,14 @@ function warehouseDrawer(snapshot) {
       <div class="mn-business-warehouse-list">
         ${warehouseItems.map((item) => `<article${item.quantity > 0 ? '' : ' class="is-empty"'}><i>${escapeHtml(item.icon)}</i><span><strong>${escapeHtml(item.label)}</strong><small>${item.quantity > 0 ? 'Можно разместить на полке' : 'Нет на складе'}</small></span><b>${item.quantity} шт.</b></article>`).join('')}
       </div>
-      <button type="button" class="is-primary" data-business-warehouse-replenish${Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length ? '' : ' disabled'}>🚚 Пополнить склад</button>
+      ${isGroceryBusiness(snapshot)
+        ? '<button type="button" class="is-primary" data-business-open-production-exchange>🏭 Открыть биржу поставщиков</button>'
+        : `<button type="button" class="is-primary" data-business-warehouse-replenish${Array.isArray(snapshot.deliveryCargo) && snapshot.deliveryCargo.length ? '' : ' disabled'}>🚚 Пополнить склад</button>`}
       <p class="mn-business-drawer-note">${isConstructionBusiness(snapshot)
         ? 'Опорные балки и арматура поступают с металлургического завода, готовые инструменты — с завода по сборке инструментов. Сначала разгрузите машину, после чего товар появится на складе и его можно будет выставить на полки.'
-        : 'Сначала выгрузите привезённую продукцию. После приёмки владелец или товаровед сможет выставить её на полки. Стороннему доставщику магазин начислит оплату за разгрузку.'}</p>
+        : isGroceryBusiness(snapshot)
+          ? 'Продуктовый магазин больше не забирает еду напрямую с завода. Откройте биржу, выберите конкретную партию конкретного пищевого завода, оплатите её и выполните доставку. Только после разгрузки товар попадёт на склад магазина.'
+          : 'Сначала выгрузите привезённую продукцию. После приёмки владелец или товаровед сможет выставить её на полки. Стороннему доставщику магазин начислит оплату за разгрузку.'}</p>
     </aside>`;
 }
 
@@ -389,18 +393,13 @@ function procurementDrawer(snapshot, selectedProductType = '') {
   if (isGroceryBusiness(snapshot)) {
     return `
       <aside class="mn-business-drawer is-procurement" data-business-drawer>
-        <header><span><small>Только для владельца</small><strong>Заявка на закупку</strong></span><button type="button" data-business-drawer-close>×</button></header>
-        <label><span>Какой товар закупаем</span><select data-business-procurement-product>${productOptions(snapshot, productType)}</select></label>
-        <div class="mn-business-drawer-grid">
-          <label><span>Количество</span><input type="number" min="1" max="1000000" inputmode="numeric" value="${targetQuantity}" data-business-procurement-quantity></label>
-          <label><span>Предлагаемая цена за единицу</span><input type="number" min="1" max="1000000" inputmode="numeric" value="${unitPrice}" data-business-procurement-price></label>
+        <header><span><small>Закупка у производств</small><strong>Биржа поставщиков</strong></span><button type="button" data-business-drawer-close>×</button></header>
+        <div class="mn-business-procurement-preview">
+          <span><small>Схема закупки</small><strong>Завод → биржа → магазин</strong></span>
+          <span><small>Получение товара</small><strong>Только после доставки</strong></span>
         </div>
-        <div class="mn-business-procurement-preview" data-business-procurement-preview>
-          <span><small>Максимальная стоимость партии</small><strong data-business-procurement-required>${formatBusinessMoney(requiredBudget)}</strong></span>
-          <span><small>Статус</small><strong>Ожидает завод</strong></span>
-        </div>
-        <button type="button" class="is-primary mn-business-procurement-save" data-business-procurement-publish>Разместить заявку на бирже</button>
-        <p class="mn-business-drawer-note">Выбирать завод не нужно. Заявка появится на бирже готовой продукции, и владелец подходящего завода сможет принять её после производства товара. Деньги спишутся только после принятия заявки.</p>
+        <button type="button" class="is-primary mn-business-procurement-save" data-business-open-production-exchange>Открыть готовые партии на бирже</button>
+        <p class="mn-business-drawer-note">Пищевые заводы сами выставляют произведённые партии и назначают цену. Владелец продуктового магазина выбирает нужный товар и конкретного поставщика, оплачивает партию, после чего создаётся доставка. Прямого переноса со склада завода на склад магазина больше нет.</p>
         ${deliveryCargoMarkup(snapshot)}
       </aside>`;
   }
@@ -643,13 +642,9 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
   async function refreshStore({ preserveDrawer = true } = {}) {
     if (!activeObject) return;
     const next = await loadBusinessSnapshot(businessId(activeObject));
-    let supply = {};
-    if (isGroceryBusiness(activeObject)) {
-      try { supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId); } catch (error) { console.warn('[business] factory supply unavailable:', error); }
-    }
     if (destroyed) return;
     const cargo = await loadStoreDeliveryCargo(activeObject);
-    snapshot = { ...next, ...supply, deliveryCargo: cargo };
+    snapshot = { ...next, deliveryCargo: cargo };
     if (!preserveDrawer) { drawerMode = ''; drawerData = null; }
     renderStore();
   }
@@ -667,12 +662,8 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     setDetailsMessage('Загружаем магазин…');
     try {
       const next = await loadBusinessSnapshot(businessId(activeObject));
-      let supply = {};
-      if (isGroceryBusiness(activeObject)) {
-        supply = await loadFactorySuppliers(businessId(activeObject), activeObject.cityId || activeCityId);
-      }
       const cargo = await loadStoreDeliveryCargo(activeObject);
-      snapshot = { ...next, ...supply, deliveryCargo: cargo };
+      snapshot = { ...next, deliveryCargo: cargo };
       drawerMode = '';
       drawerData = null;
       closeDetails();
@@ -902,6 +893,11 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
         drawerData = result.procurementPlans?.[0]?.productType || productsFor(snapshot)[0]?.itemType || '';
         renderStore();
       }
+      return;
+    }
+    if (target.closest('[data-business-open-production-exchange]')) {
+      if (!tryCloseStore()) return;
+      window.dispatchEvent(new CustomEvent('mn:production-exchange-open', { detail: { chainId: 'fruit' } }));
       return;
     }
     if (target.closest('[data-business-factory-order]')) {
