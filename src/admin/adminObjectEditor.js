@@ -277,6 +277,19 @@ export async function saveAdminObject({
       });
     }
 
+    if (selectedType === 'hydro_power_plant') {
+      const ownerId = nextPatch.payload.ownerId || nextPatch.payload.owner_id || null;
+      const ownerName = nextPatch.payload.ownerName || nextPatch.payload.owner_name || null;
+      Object.assign(nextPatch.payload, {
+        hydroPowerPlant: true,
+        hydroPlantId: String(object.id),
+        hydro_plant_id: String(object.id),
+        legalForm: 'tov', legalFormLabel: 'ТОВ', price: 25_000_000,
+        buyable: true, transferable: true, serverOwned: false,
+        ownerId, owner_id: ownerId, ownerName, owner_name: ownerName, owned: Boolean(ownerId),
+      });
+    }
+
     if (selectedType === 'farm_water_tower') {
       nextPatch.payload.towerCapacityLiters = 500;
       nextPatch.payload.tower_capacity_liters = 500;
