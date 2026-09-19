@@ -111,6 +111,7 @@ function isWorkObject(object) {
     type === 'wood_processing_factory' ||
     type === 'tool_assembly_factory'
     || type === 'hydro_power_plant'
+    || type === 'nuclear_power_plant'
   );
 }
 
@@ -1846,6 +1847,8 @@ export function enableEntityInteraction({
         ? 'Деревоперерабатывающий завод · производство деталей'
       : objectType === 'tool_assembly_factory'
         ? 'Завод по сборке инструментов · производство'
+      : objectType === 'nuclear_power_plant'
+        ? 'АЭС · управление только для администрации'
       : farmPlant
         ? farmHint.text
         : mineNode
