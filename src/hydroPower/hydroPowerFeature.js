@@ -27,6 +27,7 @@ function markup() {
 }
 
 export function enableHydroPowerFeature({ root, cityId } = {}) {
+  if (!root) return () => {};
   root.insertAdjacentHTML('beforeend', markup());
   const modal = root.querySelector('[data-hydro-modal]'); let currentId = '', snapshot = null, busy = false;
   const q = (s) => modal.querySelector(s), qa = (s) => [...modal.querySelectorAll(s)];
@@ -45,10 +46,25 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
     qa('[data-hydro-equipment]').forEach(b => { const done=Boolean(installed[b.dataset.hydroEquipment]); b.disabled=!s.isOwner||done; b.textContent=done?'Куплено':'Купить'; });
     q('[data-hydro-contract-list]').innerHTML=(s.contracts||[]).length ? (s.contracts||[]).map(c=>`<article class="mn-hydro-contract-row"><b>${esc(c.targetId)}</b><span>${Number(c.unitPrice||0)} ₴/кВт·ч · лимит ${formatBusinessMoney(c.contractAmount||0)}</span><small>Ожидает появления подстанции</small></article>`).join('') : '<p class="mn-hydro-note">Контрактов пока нет.</p>';
   }
-  q('[data-hydro-close]').onclick=()=>{modal.hidden=true;}; qa('[data-hydro-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.hydroTab));
+  const close = () => { modal.hidden = true; };
+  q('[data-hydro-close]').onclick = close;
+  modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
+  const onKeyDown = (event) => { if (event.key === 'Escape' && !modal.hidden) close(); };
+  window.addEventListener('keydown', onKeyDown);
+  qa('[data-hydro-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.hydroTab));
   q('[data-hydro-purchase]').onclick=()=>run(()=>purchaseHydroPlant(currentId, cityId)); q('[data-hydro-start]').onclick=()=>run(()=>startHydroPlant(currentId, cityId)); q('[data-hydro-stop]').onclick=()=>run(()=>stopHydroPlant(currentId, cityId)); q('[data-hydro-repair]').onclick=()=>run(()=>repairHydroPlant(currentId, cityId));
   qa('[data-hydro-equipment]').forEach(b=>b.onclick=()=>run(()=>purchaseHydroEquipment(currentId, cityId, b.dataset.hydroEquipment)));
   q('[data-hydro-contract-create]').onclick=()=>run(()=>createHydroContract(currentId, cityId,{ targetId:q('[data-hydro-target]').value, unitPrice:Number(q('[data-hydro-price]').value), contractAmount:Number(q('[data-hydro-amount]').value) }));
-  const onAction=(event)=>{const object=event.detail?.object; if(String(object?.type||object?.payload?.jobType||'')!=='hydro_power_plant')return; currentId=plantIdOf(object); modal.hidden=false; tab('overview'); run(async()=>{snapshot=await loadHydroSnapshot(currentId,cityId);render();});};
-  window.addEventListener('mn:hydro-power-object-action',onAction); return ()=>{window.removeEventListener('mn:hydro-power-object-action',onAction);modal.remove();};
+  const onAction=(event)=>{
+    const object=event.detail?.object;
+    // This event is emitted only by dispatchEntityAction after the player presses E/У
+    // (or taps the nearby object on mobile). Merely loading/syncing a map object never opens this UI.
+    if(String(object?.type||object?.payload?.jobType||'')!=='hydro_power_plant')return;
+    currentId=plantIdOf(object);
+    if (!currentId) return;
+    modal.hidden=false; tab('overview');
+    refresh().catch((error) => notify(getHydroError(error), 'error'));
+  };
+  window.addEventListener('mn:hydro-power-object-action',onAction);
+  return ()=>{window.removeEventListener('keydown',onKeyDown);window.removeEventListener('mn:hydro-power-object-action',onAction);modal.remove();};
 }
