@@ -110,6 +110,7 @@ function isWorkObject(object) {
     type === 'metallurgy_factory' ||
     type === 'wood_processing_factory' ||
     type === 'tool_assembly_factory'
+    || type === 'hydro_power_plant'
   );
 }
 
