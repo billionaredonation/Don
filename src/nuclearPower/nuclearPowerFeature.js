@@ -1,5 +1,4 @@
 import './nuclearPower.css';
-import { isCurrentPlayerAdmin } from '../admin/adminAccess.js';
 import { formatBusinessMoney } from '../business/businessConfig.js';
 import { loadNuclearSnapshot, setNuclearRunning, discardNuclearEnergy, createNuclearContract, getNuclearError } from './nuclearPowerApi.js';
 
@@ -25,7 +24,7 @@ export function enableNuclearPowerFeature({root,cityId}={}) {
   root.insertAdjacentHTML('beforeend',markup());
   const modal=root.querySelector('[data-nuclear-modal]');
   const q=(s)=>modal.querySelector(s),qa=(s)=>[...modal.querySelectorAll(s)];
-  let currentId='',snapshot=null,snapshotAt=Date.now(),busy=false,liveTimer=0,resyncTimer=0;
+  let currentId='',snapshot=null,snapshotAt=Date.now(),busy=false,accessChecking=false,liveTimer=0,resyncTimer=0;
   const setTab=(name)=>{qa('[data-nuclear-tab]').forEach(b=>b.classList.toggle('is-active',b.dataset.nuclearTab===name));qa('[data-nuclear-page]').forEach(p=>{p.hidden=p.dataset.nuclearPage!==name;});};
   const refresh=async()=>{snapshot=await loadNuclearSnapshot(currentId,cityId);snapshotAt=Date.now();render();};
   const run=async(task,success='')=>{if(busy)return;busy=true;modal.classList.add('is-busy');try{await task();await refresh();if(success)toast(success,'success');}catch(e){toast(getNuclearError(e),'error');}finally{busy=false;modal.classList.remove('is-busy');}};
@@ -52,7 +51,27 @@ export function enableNuclearPowerFeature({root,cityId}={}) {
   q('[data-nuclear-stop]').onclick=()=>run(()=>setNuclearRunning(currentId,cityId,false),'Генерация АЭС остановлена.');
   q('[data-nuclear-discard]').onclick=()=>{if(window.confirm('Полностью утилизировать всю накопленную электроэнергию АЭС?'))run(()=>discardNuclearEnergy(currentId,cityId),'Накопленная энергия утилизирована.');};
   q('[data-nuclear-contract-create]').onclick=()=>run(()=>createNuclearContract(currentId,cityId,{targetId:q('[data-nuclear-target]').value,unitPrice:Number(q('[data-nuclear-price]').value),contractAmount:Number(q('[data-nuclear-amount]').value)}),'Договор сохранён.');
-  const onAction=async(event)=>{const object=event.detail?.object;if(String(object?.type||object?.payload?.jobType||'')!=='nuclear_power_plant')return;if(!await isCurrentPlayerAdmin()){toast('АЭС является государственным объектом. Доступ разрешён только администрации.','error');return;}currentId=plantIdOf(object);if(!currentId)return;modal.hidden=false;setTab('station');startLive();refresh().catch(e=>toast(getNuclearError(e),'error'));};
+  const onAction=async(event)=>{
+    const object=event.detail?.object;
+    if(String(object?.type||object?.payload?.jobType||'')!=='nuclear_power_plant'||accessChecking)return;
+    currentId=plantIdOf(object);
+    if(!currentId)return;
+    accessChecking=true;
+    try{
+      // Серверная RPC-проверка является окончательной: панель показывается
+      // только после успешного admin-only snapshot.
+      snapshot=await loadNuclearSnapshot(currentId,cityId);
+      snapshotAt=Date.now();
+      setTab('station');
+      render();
+      modal.hidden=false;
+      startLive();
+    }catch(error){
+      close();
+      const message=getNuclearError(error);
+      toast(message.includes('администрац')?'У вас нет доступа к управлению государственным объектом':message,'error');
+    }finally{accessChecking=false;}
+  };
   window.addEventListener('mn:nuclear-power-object-action',onAction);
   return()=>{stopLive();window.removeEventListener('keydown',onKey);window.removeEventListener('mn:nuclear-power-object-action',onAction);modal.remove();};
 }
