@@ -27,7 +27,7 @@ export function getNuclearError(error) {
   const messages = {
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.',
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела. Перезапустите мини-приложение.',
-    NUCLEAR_ADMIN_REQUIRED: 'Управление АЭС доступно только администрации.',
+    NUCLEAR_ADMIN_REQUIRED: 'У вас нет доступа к управлению государственным объектом',
     NUCLEAR_NOT_FOUND: 'АЭС не найдена на карте.',
     NUCLEAR_CONTRACT_INVALID: 'Проверьте ID подстанции, цену кВт·ч и сумму контракта.',
     NUCLEAR_DATABASE_MIGRATION_REQUIRED: 'Примените SQL АЭС и задеплойте Edge Function nuclear-power.',
