@@ -290,6 +290,24 @@ export async function saveAdminObject({
       });
     }
 
+    if (selectedType === 'nuclear_power_plant') {
+      Object.assign(nextPatch.payload, {
+        nuclearPowerPlant: true,
+        nuclearPlantId: String(object.id),
+        nuclear_plant_id: String(object.id),
+        price: 0,
+        buyable: false,
+        transferable: false,
+        serverOwned: true,
+        ownerId: null,
+        owner_id: null,
+        ownerName: 'Государство',
+        owner_name: 'Государство',
+        owned: false,
+        adminOnly: true,
+      });
+    }
+
     if (selectedType === 'farm_water_tower') {
       nextPatch.payload.towerCapacityLiters = 500;
       nextPatch.payload.tower_capacity_liters = 500;
