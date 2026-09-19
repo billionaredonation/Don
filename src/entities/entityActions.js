@@ -22,6 +22,7 @@ const FACTORY_ENTITY_TYPES = new Set([
   'wood_processing_factory',
   'tool_assembly_factory',
   'textile_factory',
+  'hydro_power_plant',
 ]);
 
 export function getEntityKind(object) {
@@ -157,6 +158,7 @@ export function getEntityMetaText(object) {
     if (type === 'wood_processing_factory') return 'Деревоперерабатывающий завод · производство деталей для инструментов';
     if (type === 'tool_assembly_factory') return 'Завод по сборке инструментов · готовые инструменты для стройматериалов';
     if (type === 'textile_factory') return 'Швейный завод · лён и хлопок → одежда и обувь → магазин аксессуаров';
+    if (type === 'hydro_power_plant') return 'ГЭС · генерация энергии, накопитель и будущие контракты с подстанциями';
     return 'Рабочая точка';
   }
 
@@ -235,6 +237,8 @@ export function dispatchEntityAction(object) {
       ? 'mn:tool-assembly-object-action'
       : cleanType === 'textile_factory'
       ? 'mn:textile-object-action'
+      : cleanType === 'hydro_power_plant'
+      ? 'mn:hydro-power-object-action'
       : cleanType.startsWith('mine_')
       ? 'mn:mine-object-action'
       : cleanType.startsWith('lumber_')
@@ -253,4 +257,3 @@ export function dispatchEntityAction(object) {
     },
   }));
 }
-
