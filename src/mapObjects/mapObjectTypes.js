@@ -14,6 +14,7 @@ const LEGAL_BUSINESS_OBJECT_TYPES = new Set([
   'farm_station', 'lumber_station', 'mine_station', 'fruit_factory',
   'metallurgy_factory', 'wood_processing_factory',
   'tool_assembly_factory', 'textile_factory',
+  'hydro_power_plant',
 ]);
 
 export function isBusinessLegalMapObjectType(type) {
@@ -473,6 +474,18 @@ export const MAP_OBJECT_TYPES = {
     defaultHeight: 2.5,
   },
 
+  hydro_power_plant: {
+    type: 'hydro_power_plant',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'ГЭС · энергетическое предприятие',
+    icon: '⚡',
+    defaultScale: 1.1,
+    defaultRotation: 0,
+    defaultAsset: 'job_factory_01',
+    defaultWidth: 3.2,
+    defaultHeight: 2.5,
+  },
+
   accessory_store: {
     type: 'accessory_store',
     category: MAP_OBJECT_CATEGORIES.BUSINESS,
@@ -762,6 +775,20 @@ export function createMapObjectDraft({
     basePayload.industry_id = 'textile';
     Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'tov', ...basePayload }));
     basePayload.price = 3_500_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
+  if (config.type === 'hydro_power_plant') {
+    basePayload.hydroPowerPlant = true;
+    basePayload.hydroPlantId = objectId;
+    basePayload.hydro_plant_id = objectId;
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'tov', ...basePayload }));
+    basePayload.price = 25_000_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
     basePayload.serverOwned = false;
