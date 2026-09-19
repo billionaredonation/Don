@@ -4,7 +4,7 @@ import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import { loadHydroSnapshot, purchaseHydroPlant, purchaseHydroEquipment, startHydroPlant, stopHydroPlant, repairHydroPlant, createHydroContract, getHydroError } from './hydroPowerApi.js';
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message, type } }));
+const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 const plantIdOf = (o) => String(o?.payload?.hydroPlantId || o?.payload?.hydro_plant_id || o?.id || '').trim();
 const equipment = [
   ['storage', '🔋', 'Промышленный накопитель', 10_000_000, 'Ёмкость: до 10 000 кВт·ч'],
