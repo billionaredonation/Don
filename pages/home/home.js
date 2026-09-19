@@ -46,6 +46,7 @@ import { enableMetallurgyFeature } from '../../src/metallurgy/metallurgyFeature.
 import { enableWoodProcessingFeature } from '../../src/woodProcessing/woodProcessingFeature.js';
 import { enableToolAssemblyFeature } from '../../src/toolAssembly/toolAssemblyFeature.js';
 import { enableTextileFeature } from '../../src/textile/textileFeature.js';
+import { enableHydroPowerFeature } from '../../src/hydroPower/hydroPowerFeature.js';
 import { enableProductionMarketFeature } from '../../src/market/productionMarketFeature.js';
 import { enableHospitalManagementFeature } from '../../src/hospital/hospitalManagementFeature.js';
 import { enablePlayerInteractionFeature } from '../../src/player/playerInteractionFeature.js';
@@ -1582,6 +1583,7 @@ register('home', async (root) => {
   let cleanupMineFeature = null;
   let cleanupLumberFeature = null;
   let cleanupFactoryFeature = null;
+  let cleanupHydroPowerFeature = null;
   let cleanupMetallurgyFeature = null;
   let cleanupWoodProcessingFeature = null;
   let cleanupToolAssemblyFeature = null;
@@ -2261,6 +2263,7 @@ register('home', async (root) => {
   cleanupWoodProcessingFeature = enableOptionalProductionModule('Деревоперерабатывающий завод', () => enableWoodProcessingFeature({ root, cityId }));
   cleanupToolAssemblyFeature = enableOptionalProductionModule('Завод инструментов', () => enableToolAssemblyFeature({ root, cityId }));
   cleanupTextileFeature = enableOptionalProductionModule('Швейный завод', () => enableTextileFeature({ root, cityId }));
+  cleanupHydroPowerFeature = enableOptionalProductionModule('ГЭС', () => enableHydroPowerFeature({ root, cityId }));
   cleanupProductionMarket = enableOptionalProductionModule('Биржа продукции', () => enableProductionMarketFeature({ root }));
 
   cleanupHouseSpawnPicker = setupHouseSpawnPicker({
@@ -2469,6 +2472,7 @@ register('home', async (root) => {
     cleanupMineFeature?.();
     cleanupLumberFeature?.();
     cleanupFactoryFeature?.();
+    cleanupHydroPowerFeature?.();
     cleanupMetallurgyFeature?.();
     cleanupWoodProcessingFeature?.();
     cleanupToolAssemblyFeature?.();
