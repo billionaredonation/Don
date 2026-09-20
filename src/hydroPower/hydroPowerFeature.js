@@ -1,7 +1,7 @@
 import './hydroPower.css';
 import { formatBusinessMoney, getBusinessLegalPayload } from '../business/businessConfig.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
-import { loadHydroSnapshot, purchaseHydroPlant, purchaseHydroEquipment, startHydroPlant, stopHydroPlant, repairHydroPlant, createHydroContract, getHydroError } from './hydroPowerApi.js';
+import { loadHydroSnapshot, purchaseHydroPlant, purchaseHydroEquipment, startHydroPlant, stopHydroPlant, repairHydroPlant, addHydroBudget, withdrawHydroMoney, createHydroContract, getHydroError } from './hydroPowerApi.js';
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
@@ -22,6 +22,8 @@ function markup() {
       <section data-hydro-page="overview"><div class="mn-hydro-stats"><article><small>Статус</small><strong data-hydro-status>Загрузка…</strong></article><article><small>Энергия</small><strong data-hydro-energy>—</strong></article><article><small>Состояние</small><strong data-hydro-condition>—</strong></article><article><small>Выработка</small><strong>1 кВт·ч / сек.</strong></article></div>
       <div class="mn-hydro-flow"><span class="mn-hydro-water"><i>🌊</i> Вода</span><b>→</b><span class="mn-hydro-turbine"><i>⚙️</i> Турбины</span><b>→</b><span class="mn-hydro-battery"><i>🔋</i> Накопитель</span><b>→</b><span class="mn-hydro-grid"><i>⚡</i> Подстанции</span></div>
       <div class="mn-hydro-actions"><button data-hydro-start>Запустить ГЭС</button><button data-hydro-stop>Остановить</button><button data-hydro-repair>Ремонт · 1 000 ₴</button></div>
+      <div class="mn-hydro-contract" data-hydro-finance hidden><input data-hydro-budget type="number" min="1" value="10000" placeholder="Пополнить счёт"><button data-hydro-add-budget>Пополнить предприятие</button><input data-hydro-withdraw type="number" min="1" value="1000" placeholder="Снять прибыль"><button data-hydro-withdraw-btn>Снять прибыль</button></div>
+      <p class="mn-hydro-note" data-hydro-cash>Счёт предприятия: —</p>
       <p class="mn-hydro-note" data-hydro-note>Сервер считает энергию по реальному прошедшему времени только при открытии или действии — постоянного тика и нагрузки на ОЗУ нет.</p></section>
       <section data-hydro-page="infrastructure" hidden><div class="mn-hydro-buy" data-hydro-buy><span><small>ГОСУДАРСТВЕННАЯ ГЭС</small><strong>25 000 000 ₴</strong><p>Юридическая форма задаётся администрацией: <b data-hydro-legal>—</b></p></span><button data-hydro-purchase>Купить предприятие</button></div><div data-hydro-owned hidden><h3>Обязательное оборудование запуска</h3><div class="mn-hydro-equipment">${equipment.map(([id, icon, title, price, description]) => `<article><i>${icon}</i><span><strong>${title}</strong><small>${description}</small><b>${formatBusinessMoney(price)}</b></span><button data-hydro-equipment="${id}">Купить</button></article>`).join('')}</div><p class="mn-hydro-note">Без всех трёх узлов запуск заблокирован. Это не декор: накопитель определяет лимит, ЛЭП — возможность будущих поставок, а предохранители — защиту сети.</p><div class="mn-hydro-owner"><span>Владелец: <b data-hydro-owner>—</b></span><span>Публичный ID: <b data-hydro-public-id>—</b></span></div></div></section>
       <section data-hydro-page="contracts" hidden><h3>Договоры с подстанциями</h3><p class="mn-hydro-note">Укажите ID подстанции, цену, лимит и дату окончания. После принятия поставка действует сразу и завершится в 00:00 выбранной даты.</p><div class="mn-hydro-contract"><input data-hydro-target placeholder="Публичный ID подстанции" maxlength="80"><input data-hydro-price type="number" min="1" value="2" placeholder="Цена за кВт·ч"><input data-hydro-amount type="number" min="20000" max="2000000" value="20000" placeholder="Сумма контракта"><input data-hydro-end type="date"><button data-hydro-contract-create>Предложить контракт</button></div><div data-hydro-contract-list></div></section>
@@ -52,7 +54,10 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
     q('[data-hydro-condition]').textContent = `${condition.toLocaleString('ru-RU')} / ${maxCondition.toLocaleString('ru-RU')}`;
     q('[data-hydro-buy]').hidden=Boolean(plant.ownerId); q('[data-hydro-owned]').hidden=!plant.ownerId;
     q('[data-hydro-owner]').textContent=plant.ownerName||'Государство'; q('[data-hydro-public-id]').textContent=s.publicId||'—';
-    q('[data-hydro-start]').disabled=!s.isOwner || Boolean(s.running); q('[data-hydro-stop]').disabled=!s.isOwner || !s.running; q('[data-hydro-repair]').disabled=!s.isOwner;
+    q('[data-hydro-start]').disabled=!s.isOwner || Boolean(s.running); q('[data-hydro-stop]').disabled=!s.isOwner || !s.running; q('[data-hydro-repair]').disabled=!s.isOwner || condition>=maxCondition || Number(s.cashBalance||0)<Number(s.repairCost||1000);
+    q('[data-hydro-repair]').textContent=`Ремонт · ${formatBusinessMoney(s.repairCost||1000)}`;
+    q('[data-hydro-finance]').hidden=!s.isOwner; q('[data-hydro-cash]').hidden=!plant.ownerId;
+    q('[data-hydro-cash]').textContent=`Счёт предприятия: ${formatBusinessMoney(s.cashBalance||0)} · получено от поставок: ${formatBusinessMoney(s.revenue||0)}. На личный баланс деньги поступят только после снятия.`;
     q('[data-hydro-note]').textContent = generating ? 'ГЭС генерирует 1 кВт·ч/сек. Каждый произведённый кВт·ч списывает 0,2 состояния: 720 в час.' : energy >= capacity ? 'Накопитель заполнен. Выработка продолжится после передачи или утилизации энергии.' : 'Для запуска купите три обязательных узла инфраструктуры. Энергия не пропадает: лимит задаёт накопитель.';
     qa('[data-hydro-equipment]').forEach(b => { const done=Boolean(installed[b.dataset.hydroEquipment]); b.disabled=!s.isOwner||done; b.textContent=done?'Куплено':'Купить'; });
     q('[data-hydro-contract-list]').innerHTML=(s.contracts||[]).length ? (s.contracts||[]).map(c=>`<article class="mn-hydro-contract-row"><b>${esc(c.targetId)}</b><span>${Number(c.unitPrice||0)} ₴/кВт·ч · лимит ${formatBusinessMoney(c.contractAmount||0)}</span><small>${c.status==='expired'?'Завершён':c.status==='active'?'Действует':'Ожидает решения'} · до ${contractDate(c.endsAt)}</small></article>`).join('') : '<p class="mn-hydro-note">Контрактов пока нет.</p>';
@@ -70,6 +75,8 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
   window.addEventListener('keydown', onKeyDown);
   qa('[data-hydro-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.hydroTab));
   q('[data-hydro-purchase]').onclick=()=>run(()=>purchaseHydroPlant(currentId, cityId)); q('[data-hydro-start]').onclick=()=>run(()=>startHydroPlant(currentId, cityId)); q('[data-hydro-stop]').onclick=()=>run(()=>stopHydroPlant(currentId, cityId)); q('[data-hydro-repair]').onclick=()=>run(()=>repairHydroPlant(currentId, cityId));
+  q('[data-hydro-add-budget]').onclick=()=>run(()=>addHydroBudget(currentId,cityId,Number(q('[data-hydro-budget]').value)));
+  q('[data-hydro-withdraw-btn]').onclick=()=>run(()=>withdrawHydroMoney(currentId,cityId,Number(q('[data-hydro-withdraw]').value)));
   qa('[data-hydro-equipment]').forEach(b=>b.onclick=()=>run(()=>purchaseHydroEquipment(currentId, cityId, b.dataset.hydroEquipment)));
   const hydroEnd=q('[data-hydro-end]'); if(hydroEnd){hydroEnd.min=new Date(Date.now()+86400000).toISOString().slice(0,10);hydroEnd.value=defaultEndDate();}
   q('[data-hydro-contract-create]').onclick=()=>run(()=>createHydroContract(currentId, cityId,{ targetId:q('[data-hydro-target]').value, unitPrice:Number(q('[data-hydro-price]').value), contractAmount:Number(q('[data-hydro-amount]').value), endDate:q('[data-hydro-end]').value }));
