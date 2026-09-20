@@ -2,3 +2,6 @@
 .mn-substation-warnings{display:grid;gap:8px;margin-top:14px}.mn-substation-warnings article{padding:12px 14px;border:1px solid #ffb34755;border-radius:12px;background:#4a2b143d;color:#ffd39a}
 .mn-substation-storage{display:grid;gap:10px;margin-top:14px;padding:16px;border:1px solid #61d9ff3b;border-radius:16px;background:#071d2c}.mn-substation-storage>div{display:flex;align-items:end;justify-content:space-between;gap:14px}.mn-substation-storage span{display:grid;gap:5px}.mn-substation-storage small,.mn-substation-storage em,.mn-substation-storage p{color:#9eb6c8;font-style:normal}.mn-substation-storage progress{width:100%;height:11px;accent-color:#2bbcff}.mn-substation-storage p{margin:0}
 .mn-substation-tabs[hidden]{display:none!important}
+.mn-substation-consumer-form{grid-template-columns:minmax(190px,1.4fr) minmax(190px,1fr) minmax(110px,.65fr) minmax(130px,.75fr) auto}
+.mn-substation-house-hints{display:flex;align-items:center;gap:7px;margin-top:9px;overflow-x:auto;padding-bottom:3px}.mn-substation-house-hints small{flex:0 0 auto;color:#9eb6c8}.mn-substation-house-hints button{flex:0 0 auto;padding:7px 10px;font-size:12px;background:#12334a}
+@media(max-width:900px){.mn-substation-consumer-form{grid-template-columns:1fr 1fr}.mn-substation-consumer-form button{grid-column:1/-1}}
