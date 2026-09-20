@@ -122,3 +122,4 @@ export function enableCoalPowerFeature({ root, cityId } = {}) {
   window.addEventListener('mn:coal-power-object-action', onAction);
   return () => { stopLive(); window.removeEventListener('keydown', onKey); window.removeEventListener('mn:coal-power-object-action', onAction); modal.remove(); };
 }
+
