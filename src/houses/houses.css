@@ -1330,6 +1330,27 @@ body.mn-houses-modal-open .admin-status-dot {
   background: rgba(255, 70, 70, 0.16);
 }
 
+.house-power-contract {
+  margin-top: 12px;
+  padding: 13px;
+  border: 1px solid rgba(89, 211, 255, 0.30);
+  border-radius: 17px;
+  background: linear-gradient(135deg, rgba(25, 126, 177, 0.18), rgba(23, 73, 112, 0.10));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+.house-power-contract[hidden] { display: none !important; }
+.house-power-contract-head span { display: block; color: #69d8ff; font-size: 10px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+.house-power-contract-head strong { display: block; margin-top: 4px; font-size: 15px; }
+.house-power-contract-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+.house-power-contract-grid article { min-width: 0; padding: 9px 10px; border-radius: 12px; background: rgba(0,0,0,.20); }
+.house-power-contract-grid small { display: block; color: rgba(255,255,255,.54); font-size: 9px; font-weight: 800; }
+.house-power-contract-grid b { display: block; margin-top: 3px; font-size: 12px; overflow-wrap: anywhere; }
+.house-power-contract-note { display: block; margin-top: 8px; color: rgba(225,244,255,.66); font-size: 10px; line-height: 1.35; }
+.house-power-contract-actions { display: grid; grid-template-columns: .85fr 1.15fr; gap: 8px; margin-top: 10px; }
+.house-power-contract-actions button { min-height: 39px; border: 0; border-radius: 13px; color: #fff; background: rgba(255,255,255,.10); font-weight: 950; }
+.house-power-contract-actions button.is-accept { color: #03131d; background: linear-gradient(135deg,#65dcff,#2bbcff); }
+.house-power-contract-actions button:disabled { opacity: .5; }
+
 .house-details-actions {
   display: grid;
   grid-template-columns: 1fr 1.2fr;
