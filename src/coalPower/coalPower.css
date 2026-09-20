@@ -42,11 +42,21 @@
 .mn-coal-equipment article > i { font-size: 28px; font-style: normal; }
 .mn-coal-equipment article span { display: flex; flex-direction: column; }
 .mn-coal-equipment small { color: #aeb7c2; }
-.mn-coal-fuel { display: grid; grid-template-columns: 1fr 140px auto; gap: 10px; align-items: center; padding: 16px; border: 1px solid #e8893c33; border-radius: 15px; background: #0b0f14; }
-.mn-coal-fuel span { display: flex; flex-direction: column; gap: 4px; }
-.mn-coal-fuel small { color: #aeb7c2; }
-.mn-coal-fuel em { color: #f3b06f; font-style: normal; }
-.mn-coal-fuel input, .mn-coal-contract input { min-width: 0; border: 1px solid #ffffff22; border-radius: 10px; padding: 10px; background: #ffffff0d; color: #fff; }
+.mn-coal-warehouse-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+.mn-coal-warehouse-stats article { padding: 14px; border: 1px solid #ffffff12; border-radius: 14px; background: #ffffff0b; }
+.mn-coal-warehouse-stats small { display: block; color: #9fa9b5; }
+.mn-coal-warehouse-stats strong { display: block; margin-top: 5px; }
+.mn-coal-offer { display: grid; grid-template-columns: 1fr 140px auto; gap: 10px; align-items: center; padding: 16px; border: 1px solid #e8893c33; border-radius: 15px; background: #0b0f14; }
+.mn-coal-offer span { display: flex; flex-direction: column; gap: 4px; }
+.mn-coal-offer small { color: #aeb7c2; }
+.mn-coal-offer em { color: #f3b06f; font-style: normal; }
+.mn-coal-owner-controls { margin-top: 16px; padding: 16px; border: 1px solid #ffffff12; border-radius: 15px; background: #ffffff08; }
+.mn-coal-owner-controls > div { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; margin-top: 10px; }
+.mn-coal-owner-controls .mn-coal-procurement-switch { align-items: center; padding: 12px; border-radius: 12px; background: #e8893c12; }
+.mn-coal-procurement-switch span { display: flex; flex-direction: column; }
+.mn-coal-procurement-switch small { color: #aeb7c2; }
+.mn-coal-owner-controls label { display: flex; flex-direction: column; gap: 5px; color: #aeb7c2; }
+.mn-coal-offer input, .mn-coal-owner-controls input, .mn-coal-contract input { min-width: 0; border: 1px solid #ffffff22; border-radius: 10px; padding: 10px; background: #ffffff0d; color: #fff; }
 .mn-coal-owner { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; color: #aeb7c2; }
 .mn-coal-contract { display: grid; grid-template-columns: 1fr 130px 170px auto; gap: 8px; margin: 14px 0; }
 [data-coal-power-contract-list] article { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; margin-top: 8px; padding: 13px; border: 1px solid #ffffff12; border-radius: 13px; background: #ffffff0a; }
@@ -54,4 +64,4 @@
 [data-coal-power-contract-list] em { color: #f3b06f; font-style: normal; }
 @keyframes mnCoalSmoke { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 35% { opacity: .55; } 100% { opacity: 0; transform: translate(20px, -70px) scale(2.5); } }
 @media (prefers-reduced-motion: reduce) { .is-generating .mn-coal-smoke i { animation: none; } }
-@media (max-width: 680px) { .mn-coal-panel header, .mn-coal-panel main { padding-left: 15px; padding-right: 15px; } .mn-coal-stats { grid-template-columns: repeat(2, 1fr); } .mn-coal-flow { font-size: 11px; } .mn-coal-actions .is-danger { margin-left: 0; } .mn-coal-fuel, .mn-coal-contract { grid-template-columns: 1fr 1fr; } .mn-coal-fuel span, .mn-coal-contract button { grid-column: 1 / -1; } .mn-coal-equipment article { grid-template-columns: 36px 1fr; } .mn-coal-equipment article button { grid-column: 1 / -1; } [data-coal-power-contract-list] article { grid-template-columns: 1fr; } }
+@media (max-width: 680px) { .mn-coal-panel header, .mn-coal-panel main { padding-left: 15px; padding-right: 15px; } .mn-coal-stats { grid-template-columns: repeat(2, 1fr); } .mn-coal-warehouse-stats { grid-template-columns: 1fr; } .mn-coal-flow { font-size: 11px; } .mn-coal-actions .is-danger { margin-left: 0; } .mn-coal-offer, .mn-coal-contract { grid-template-columns: 1fr 1fr; } .mn-coal-offer span, .mn-coal-contract button { grid-column: 1 / -1; } .mn-coal-owner-controls > div { grid-template-columns: 1fr; } .mn-coal-equipment article { grid-template-columns: 36px 1fr; } .mn-coal-equipment article button { grid-column: 1 / -1; } [data-coal-power-contract-list] article { grid-template-columns: 1fr; } }
