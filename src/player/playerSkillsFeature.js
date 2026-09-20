@@ -156,6 +156,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   let utilitySnapshot = { bills: [], totalDue: 0 };
   let utilityLoading = false;
   let utilityTimer = 0;
+  const MIN_UTILITY_PAYMENT = 10;
 
   function utilityMoney(value) {
     return `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₴`;
@@ -169,14 +170,20 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         <span><small>ОБЩАЯ ЗАДОЛЖЕННОСТЬ</small><strong>${utilityMoney(utilitySnapshot.totalDue)}</strong></span>
         <i>⚡</i>
       </section>
-      <p class="mn-profile-utility-note">Автоматических списаний нет. Электричество потребляется, сумма накапливается здесь и оплачивается только после вашего нажатия.</p>
+      <p class="mn-profile-utility-note">Автоматических списаний нет. Электричество потребляется, сумма накапливается здесь и оплачивается только после вашего нажатия. Оплата доступна, когда начислено минимум ${utilityMoney(MIN_UTILITY_PAYMENT)}.</p>
       <div class="mn-profile-utility-list">
         ${bills.length ? bills.map((bill) => {
-          const due = Math.max(0, Number(bill.amountDue) || 0);
+          const due = Math.round(Math.max(0, Number(bill.amountDue) || 0) * 100) / 100;
+          const canPay = due >= MIN_UTILITY_PAYMENT;
+          const paymentLabel = due < 0.01
+            ? 'Задолженности нет'
+            : canPay
+              ? `Оплатить ${utilityMoney(due)}`
+              : `Оплата от ${utilityMoney(MIN_UTILITY_PAYMENT)} · накоплено ${utilityMoney(due)}`;
           return `<article>
             <header><span><small>${escapeHtml(bill.houseName || 'Дом')}</small><strong>${escapeHtml(bill.substationName || 'Подстанция')}</strong></span><b>${bill.powerActive ? '⚡ Свет поступает' : '⛔ Свет не поступает'}</b></header>
             <div><span><small>Потреблено</small><b>${Math.max(0, Number(bill.totalKwh) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} кВт·ч</b></span><span><small>Тариф</small><b>${utilityMoney(bill.retailPrice)} / кВт·ч</b></span><span><small>Уже оплачено</small><b>${utilityMoney(bill.totalPaid)}</b></span><span><small>К оплате</small><b>${utilityMoney(due)}</b></span></div>
-            <button type="button" data-profile-utility-pay="${escapeHtml(bill.id)}" ${due < 0.01 ? 'disabled' : ''}>${due < 0.01 ? 'Задолженности нет' : `Оплатить ${utilityMoney(due)}`}</button>
+            <button type="button" data-profile-utility-pay="${escapeHtml(bill.id)}" ${canPay ? '' : 'disabled'}>${paymentLabel}</button>
           </article>`;
         }).join('') : '<div class="mn-profile-property-empty"><i>⚡</i><span><strong>Коммунальных счетов пока нет</strong><small>Они появятся после подключения дома к подстанции.</small></span></div>'}
       </div>`;
@@ -202,9 +209,13 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     const contractId = String(button.dataset.profileUtilityPay || '');
     const billBeforePayment = (utilitySnapshot.bills || []).find((bill) => String(bill.id) === contractId);
     const displayedAmount = Math.round(Math.max(0, Number(billBeforePayment?.amountDue) || 0) * 100) / 100;
+    if (displayedAmount < MIN_UTILITY_PAYMENT) {
+      window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: `Оплата станет доступна после накопления ${utilityMoney(MIN_UTILITY_PAYMENT)}.`, type: 'error' } }));
+      return;
+    }
     utilityLoading = true;
     button.disabled = true;
-    window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { durationMs: 45000 } }));
+    window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { durationMs: 8000 } }));
     try {
       utilitySnapshot = await payElectricityBill(contractId, displayedAmount);
       const balance = Number(utilitySnapshot?.playerBalance);
