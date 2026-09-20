@@ -24,6 +24,7 @@ const FACTORY_ENTITY_TYPES = new Set([
   'textile_factory',
   'hydro_power_plant',
   'nuclear_power_plant',
+  'coal_power_plant',
 ]);
 
 export function getEntityKind(object) {
@@ -120,6 +121,7 @@ export function getEntityPrimaryActionLabel(object) {
   if (kind === 'decor') return 'Осмотреть';
   if (kind === 'marker') return 'Выбрать';
   if (kind === 'job' && type === 'nuclear_power_plant') return 'Управление АЭС';
+  if (kind === 'job' && type === 'coal_power_plant') return 'Открыть УЭС';
   if (kind === 'job') return 'Работать';
 
   return 'Выбрать';
@@ -162,6 +164,7 @@ export function getEntityMetaText(object) {
     if (type === 'textile_factory') return 'Швейный завод · лён и хлопок → одежда и обувь → магазин аксессуаров';
     if (type === 'hydro_power_plant') return 'ГЭС · генерация энергии, накопитель и будущие контракты с подстанциями';
     if (type === 'nuclear_power_plant') return 'АЭС · государственный энергетический объект · доступ администрации';
+    if (type === 'coal_power_plant') return 'УЭС · уголь → генерация → накопитель → подстанции';
     return 'Рабочая точка';
   }
 
@@ -244,6 +247,8 @@ export function dispatchEntityAction(object) {
       ? 'mn:hydro-power-object-action'
       : cleanType === 'nuclear_power_plant'
       ? 'mn:nuclear-power-object-action'
+      : cleanType === 'coal_power_plant'
+      ? 'mn:coal-power-object-action'
       : cleanType.startsWith('mine_')
       ? 'mn:mine-object-action'
       : cleanType.startsWith('lumber_')
