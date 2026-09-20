@@ -16,6 +16,7 @@ const LEGAL_BUSINESS_OBJECT_TYPES = new Set([
   'tool_assembly_factory', 'textile_factory',
   'hydro_power_plant',
   'nuclear_power_plant',
+  'coal_power_plant',
 ]);
 
 export function isBusinessLegalMapObjectType(type) {
@@ -499,6 +500,18 @@ export const MAP_OBJECT_TYPES = {
     defaultHeight: 2.7,
   },
 
+  coal_power_plant: {
+    type: 'coal_power_plant',
+    category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'УЭС · угольная электростанция',
+    icon: '🏭',
+    defaultScale: 1.1,
+    defaultRotation: 0,
+    defaultAsset: 'job_factory_01',
+    defaultWidth: 3.3,
+    defaultHeight: 2.6,
+  },
+
   accessory_store: {
     type: 'accessory_store',
     category: MAP_OBJECT_CATEGORIES.BUSINESS,
@@ -824,6 +837,20 @@ export function createMapObjectDraft({
     basePayload.owner_name = 'Государство';
     basePayload.owned = false;
     basePayload.adminOnly = true;
+  }
+
+  if (config.type === 'coal_power_plant') {
+    basePayload.coalPowerPlant = true;
+    basePayload.coalPlantId = objectId;
+    basePayload.coal_plant_id = objectId;
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'tov', ...basePayload }));
+    basePayload.price = 20_000_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
   }
 
   if (config.type === 'farm_water_tower') {
