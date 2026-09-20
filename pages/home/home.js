@@ -1790,7 +1790,16 @@ register('home', async (root) => {
     } else if (
       now < balanceDebitReconcileUntil &&
       Number.isFinite(balanceDebitReconcileTarget) &&
-      !hasExplicitDelta &&
+      Math.abs(nextBalance - balanceDebitReconcileTarget) < 1
+    ) {
+      // Fractional database/realtime snapshots can arrive in a different
+      // order around a payment. The payment response is the only authority
+      // for sub-hryvnia feedback; otherwise the HUD flashes phantom
+      // -0.10/+0.10 corrections even though no second transaction happened.
+      return;
+    } else if (
+      now < balanceDebitReconcileUntil &&
+      Number.isFinite(balanceDebitReconcileTarget) &&
       nextBalance > balanceDebitReconcileTarget + 0.005
     ) {
       return;
