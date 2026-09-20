@@ -94,6 +94,9 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-profile-property-button { margin-top: 10px; border-color: rgba(227, 194, 89, .22); background: linear-gradient(90deg, rgba(154, 117, 34, .16), rgba(255, 255, 255, .035)); }
 .mn-profile-property-button i { color: #f4d986; background: rgba(220, 180, 68, .13); }
 .mn-profile-property-button > strong { color: #eed477; }
+.mn-profile-utility-button { margin-top: 10px; border-color: rgba(67, 191, 255, .25); background: linear-gradient(90deg, rgba(30, 137, 190, .16), rgba(255, 255, 255, .035)); }
+.mn-profile-utility-button i { color: #83dcff; background: rgba(52, 179, 239, .13); }
+.mn-profile-utility-button > strong { color: #72d7ff; }
 
 .mn-profile-property-content { display: grid; gap: 13px; }
 .mn-profile-property-section { overflow: hidden; border: 1px solid rgba(255, 255, 255, .07); border-radius: 18px; background: rgba(255, 255, 255, .025); }
@@ -114,6 +117,26 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-profile-property-empty { color: #78877f; border-style: dashed; }
 
 .mn-profile-back { padding: 0 0 15px; border: 0; color: #8cecad; background: transparent; font-weight: 850; cursor: pointer; }
+.mn-profile-utility-content { display: grid; gap: 12px; }
+.mn-profile-utility-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px; border: 1px solid rgba(70, 198, 255, .24); border-radius: 17px; background: linear-gradient(135deg, rgba(20, 111, 153, .17), rgba(255, 255, 255, .025)); }
+.mn-profile-utility-summary span { display: grid; gap: 4px; }
+.mn-profile-utility-summary small { color: #78a8bb; font-size: 8px; font-weight: 900; letter-spacing: .1em; }
+.mn-profile-utility-summary strong { font-size: 22px; color: #8ce2ff; }
+.mn-profile-utility-summary i { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: rgba(54, 185, 242, .13); font-size: 22px; font-style: normal; }
+.mn-profile-utility-note { margin: 0; padding: 11px 13px; border-radius: 13px; background: rgba(255, 255, 255, .035); color: #81918a; font-size: 10px; line-height: 1.45; }
+.mn-profile-utility-list { display: grid; gap: 9px; }
+.mn-profile-utility-list > article { padding: 13px; border: 1px solid rgba(255, 255, 255, .07); border-radius: 16px; background: rgba(4, 12, 8, .58); }
+.mn-profile-utility-list > article > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mn-profile-utility-list > article > header span { display: grid; gap: 3px; min-width: 0; }
+.mn-profile-utility-list > article > header small { color: #788a82; font-size: 9px; }
+.mn-profile-utility-list > article > header strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.mn-profile-utility-list > article > header > b { color: #79e5a0; font-size: 9px; white-space: nowrap; }
+.mn-profile-utility-list > article > div { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 11px 0; }
+.mn-profile-utility-list > article > div span { display: grid; gap: 3px; padding: 9px; border-radius: 11px; background: rgba(255, 255, 255, .035); }
+.mn-profile-utility-list > article > div small { color: #77877f; font-size: 8px; }
+.mn-profile-utility-list > article > div b { font-size: 11px; }
+.mn-profile-utility-list > article > button { width: 100%; border: 0; border-radius: 11px; padding: 10px; background: #45d582; color: #06120a; font-weight: 900; cursor: pointer; }
+.mn-profile-utility-list > article > button:disabled { color: #718079; background: rgba(255, 255, 255, .055); cursor: default; }
 .mn-skills-content { display: grid; gap: 16px; }
 .mn-skills-loading { padding: 35px; color: #87968f; text-align: center; font-weight: 800; }
 .mn-skills-loading.is-error { color: #ff9a9a; }
@@ -258,6 +281,7 @@ body.mn-player-profile-open .mn-hospital-management-hint {
   .mn-profile-level-note { margin: 8px 2px 10px; }
   .mn-profile-skills-button { padding: 11px; }
   .mn-profile-property-button { margin-top: 6px; }
+  .mn-profile-utility-button { margin-top: 6px; }
   .mn-profile-property-section > header { padding: 8px 10px; }
   .mn-profile-property-section > div { padding: 5px; }
   .mn-profile-property-card, .mn-profile-property-empty { padding: 6px; }
