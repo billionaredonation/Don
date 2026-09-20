@@ -1,0 +1,57 @@
+.mn-coal-backdrop { position: fixed; inset: 0; z-index: 10030; display: grid; place-items: center; padding: 14px; background: #07090ddd; }
+.mn-coal-backdrop[hidden] { display: none !important; }
+.mn-coal-panel { width: min(900px, 100%); max-height: 92vh; overflow: auto; border: 1px solid #dc8b4766; border-radius: 22px; background: linear-gradient(145deg, #121820, #171a1e); color: #f5f7fa; box-shadow: 0 24px 80px #000; }
+.mn-coal-panel header { display: flex; justify-content: space-between; gap: 16px; padding: 22px 24px 14px; }
+.mn-coal-panel header small { color: #f0a35e; font-weight: 900; letter-spacing: .08em; }
+.mn-coal-panel h2, .mn-coal-panel h3, .mn-coal-panel p { margin: 0; }
+.mn-coal-panel header p, .mn-coal-note { margin-top: 7px; color: #aeb7c2; line-height: 1.45; }
+.mn-coal-panel header button { border: 0; background: transparent; color: #fff; font-size: 30px; }
+.mn-coal-panel nav { display: flex; gap: 8px; padding: 0 24px; border-bottom: 1px solid #ffffff14; }
+.mn-coal-panel button { border: 0; border-radius: 11px; padding: 11px 14px; background: #ffffff12; color: #f7f8ff; font-weight: 850; }
+.mn-coal-panel nav .is-active, .mn-coal-actions button:first-child, .mn-coal-buy button, .mn-coal-fuel button, .mn-coal-contract button { background: #e8893c; color: #1e1209; }
+.mn-coal-panel main { padding: 20px 24px 26px; }
+.mn-coal-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.mn-coal-stats article { padding: 14px; border: 1px solid #ffffff12; border-radius: 14px; background: #ffffff0b; }
+.mn-coal-stats small { display: block; color: #9fa9b5; }
+.mn-coal-stats strong { display: block; margin-top: 5px; }
+.mn-coal-core { position: relative; overflow: hidden; margin: 20px 0; padding: 18px; border: 1px solid #e8893c30; border-radius: 18px; background: radial-gradient(circle at 12% 50%, #e8893c20, transparent 40%), #090d12; }
+.mn-coal-machine { display: flex; align-items: center; gap: 13px; }
+.mn-coal-machine > b { font-size: 38px; }
+.mn-coal-machine span { display: flex; flex-direction: column; }
+.mn-coal-machine small { color: #aeb7c2; }
+.mn-coal-flow { display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; color: #dce4ee; }
+.mn-coal-smoke { position: absolute; right: 34px; bottom: 20px; display: flex; gap: 9px; }
+.mn-coal-smoke i { width: 11px; height: 11px; border-radius: 50%; background: #aeb3ba; opacity: 0; }
+.is-generating .mn-coal-smoke i { animation: mnCoalSmoke 2.4s ease-out infinite; }
+.is-generating .mn-coal-smoke i:nth-child(2) { animation-delay: .7s; }
+.is-generating .mn-coal-smoke i:nth-child(3) { animation-delay: 1.4s; }
+.is-generating [data-coal-power-status] { color: #7dffac; text-shadow: 0 0 14px #42ff8977; }
+.is-generating [data-coal-power-energy] { color: #f3b06f; }
+.mn-coal-storage { margin: 0 0 18px; padding: 14px; border: 1px solid #ffffff12; border-radius: 14px; background: #ffffff08; }
+.mn-coal-storage > div { display: flex; justify-content: space-between; gap: 12px; }
+.mn-coal-storage span, .mn-coal-storage small { color: #aeb7c2; }
+.mn-coal-storage progress { width: 100%; height: 13px; margin: 10px 0 4px; accent-color: #e8893c; }
+.mn-coal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.mn-coal-actions .is-danger { margin-left: auto; background: #8f2936; color: #fff; }
+.mn-coal-actions button:disabled, .mn-coal-panel button:disabled { opacity: .42; }
+.mn-coal-buy { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px; border-radius: 17px; background: #e8893c16; }
+.mn-coal-buy span { display: flex; flex-direction: column; gap: 5px; }
+.mn-coal-buy span > strong { font-size: 26px; }
+.mn-coal-equipment { display: grid; gap: 10px; margin: 14px 0; }
+.mn-coal-equipment article { display: grid; grid-template-columns: 42px 1fr auto; gap: 12px; align-items: center; padding: 13px; border: 1px solid #ffffff12; border-radius: 14px; background: #ffffff09; }
+.mn-coal-equipment article > i { font-size: 28px; font-style: normal; }
+.mn-coal-equipment article span { display: flex; flex-direction: column; }
+.mn-coal-equipment small { color: #aeb7c2; }
+.mn-coal-fuel { display: grid; grid-template-columns: 1fr 140px auto; gap: 10px; align-items: center; padding: 16px; border: 1px solid #e8893c33; border-radius: 15px; background: #0b0f14; }
+.mn-coal-fuel span { display: flex; flex-direction: column; gap: 4px; }
+.mn-coal-fuel small { color: #aeb7c2; }
+.mn-coal-fuel em { color: #f3b06f; font-style: normal; }
+.mn-coal-fuel input, .mn-coal-contract input { min-width: 0; border: 1px solid #ffffff22; border-radius: 10px; padding: 10px; background: #ffffff0d; color: #fff; }
+.mn-coal-owner { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; color: #aeb7c2; }
+.mn-coal-contract { display: grid; grid-template-columns: 1fr 130px 170px auto; gap: 8px; margin: 14px 0; }
+[data-coal-power-contract-list] article { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; margin-top: 8px; padding: 13px; border: 1px solid #ffffff12; border-radius: 13px; background: #ffffff0a; }
+[data-coal-power-contract-list] small { display: block; color: #9fa9b5; }
+[data-coal-power-contract-list] em { color: #f3b06f; font-style: normal; }
+@keyframes mnCoalSmoke { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 35% { opacity: .55; } 100% { opacity: 0; transform: translate(20px, -70px) scale(2.5); } }
+@media (prefers-reduced-motion: reduce) { .is-generating .mn-coal-smoke i { animation: none; } }
+@media (max-width: 680px) { .mn-coal-panel header, .mn-coal-panel main { padding-left: 15px; padding-right: 15px; } .mn-coal-stats { grid-template-columns: repeat(2, 1fr); } .mn-coal-flow { font-size: 11px; } .mn-coal-actions .is-danger { margin-left: 0; } .mn-coal-fuel, .mn-coal-contract { grid-template-columns: 1fr 1fr; } .mn-coal-fuel span, .mn-coal-contract button { grid-column: 1 / -1; } .mn-coal-equipment article { grid-template-columns: 36px 1fr; } .mn-coal-equipment article button { grid-column: 1 / -1; } [data-coal-power-contract-list] article { grid-template-columns: 1fr; } }
