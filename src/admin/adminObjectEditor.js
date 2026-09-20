@@ -329,6 +329,24 @@ export async function saveAdminObject({
       });
     }
 
+    if (selectedType === 'energy_substation') {
+      const ownerId = nextPatch.payload.ownerId || nextPatch.payload.owner_id || null;
+      const ownerName = nextPatch.payload.ownerName || nextPatch.payload.owner_name || null;
+      Object.assign(nextPatch.payload, {
+        energySubstation: true, substationId: String(object.id), substation_id: String(object.id),
+        legalForm: nextPatch.payload.legalForm || nextPatch.payload.legal_form || 'tov',
+        price: 1_000_000, buyable: true, transferable: true, serverOwned: false,
+        ownerId, owner_id: ownerId, ownerName, owner_name: ownerName, owned: Boolean(ownerId),
+      });
+    }
+
+    if (selectedType === 'power_transformer') {
+      Object.assign(nextPatch.payload, {
+        powerTransformer: true, transformerId: String(object.id), transformer_id: String(object.id),
+        price: 3_000_000, buyable: true, capacityKw: 300, maxConsumers: 6,
+      });
+    }
+
     if (selectedType === 'farm_water_tower') {
       nextPatch.payload.towerCapacityLiters = 500;
       nextPatch.payload.tower_capacity_liters = 500;
