@@ -1641,6 +1641,8 @@ register('home', async (root) => {
   let playerStatsSyncTimer = null;
   let balanceSyncInFlight = false;
   let balanceSyncTransport = 'direct';
+  let balanceDebitReconcileTarget = null;
+  let balanceDebitReconcileUntil = 0;
   let healthHitTimer = null;
   const vitalFeedbackTimers = new Map();
 
@@ -1775,11 +1777,37 @@ register('home', async (root) => {
 
     if (!Number.isFinite(nextBalance)) return;
 
+    const explicitDelta = Number(options.delta);
+    const hasExplicitDelta = Number.isFinite(explicitDelta) && Math.abs(explicitDelta) >= 0.005;
+    const now = Date.now();
+
+    if (options.source === 'electricity_bill_payment') {
+      // A balance poll may already be in flight with the value from before the
+      // payment. Keep the confirmed server result authoritative long enough
+      // for those stale responses to drain.
+      balanceDebitReconcileTarget = nextBalance;
+      balanceDebitReconcileUntil = now + 5000;
+    } else if (
+      now < balanceDebitReconcileUntil &&
+      Number.isFinite(balanceDebitReconcileTarget) &&
+      !hasExplicitDelta &&
+      nextBalance > balanceDebitReconcileTarget + 0.005
+    ) {
+      return;
+    }
+
+    if (
+      now < balanceDebitReconcileUntil &&
+      Number.isFinite(balanceDebitReconcileTarget) &&
+      nextBalance < balanceDebitReconcileTarget - 0.005
+    ) {
+      balanceDebitReconcileTarget = nextBalance;
+    }
+
     const previousBalance = currentBalance;
     const visualStartBalance = Number.isFinite(renderedBalance) ? renderedBalance : previousBalance;
     const balanceAlreadyApplied = Math.abs(nextBalance - previousBalance) < 0.005;
-    const explicitDelta = Number(options.delta);
-    const rawDelta = !balanceAlreadyApplied && Number.isFinite(explicitDelta) && Math.abs(explicitDelta) >= 0.005
+    const rawDelta = !balanceAlreadyApplied && hasExplicitDelta
       ? explicitDelta
       : nextBalance - previousBalance;
     const delta = Math.abs(rawDelta) >= 0.005 ? rawDelta : 0;
@@ -1937,6 +1965,17 @@ register('home', async (root) => {
     if (!vitalsChanged) {
       schedulePlayerStatsDatabaseSync();
     }
+  }
+
+  function handleBalanceSyncLock(event) {
+    if (event?.detail?.cancel === true) {
+      balanceDebitReconcileTarget = null;
+      balanceDebitReconcileUntil = 0;
+      return;
+    }
+
+    balanceDebitReconcileTarget = currentBalance;
+    balanceDebitReconcileUntil = Date.now() + Math.max(1000, Number(event?.detail?.durationMs) || 8000);
   }
 
   function handleHealthChanged(event) {
@@ -2311,6 +2350,7 @@ register('home', async (root) => {
   };
 
   window.addEventListener('mn:session-blocked', handleSessionBlocked);
+  window.addEventListener('mn:balance-sync-lock', handleBalanceSyncLock);
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
@@ -2451,6 +2491,7 @@ register('home', async (root) => {
     window.__MN_GAMEPLAY_ENTERED__ = false;
 
     window.removeEventListener('mn:session-blocked', handleSessionBlocked);
+    window.removeEventListener('mn:balance-sync-lock', handleBalanceSyncLock);
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
     window.removeEventListener('mn:player-health-changed', handleHealthChanged);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
@@ -2528,4 +2569,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
