@@ -80,6 +80,15 @@ const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 const BALANCE_COUNT_DURATION_MS = 1650;
 const BALANCE_FEEDBACK_DURATION_MS = 1900;
 const BALANCE_PULSE_DURATION_MS = 1250;
+const ELECTRICITY_PAYMENT_RECONCILE_MS = 45000;
+const PASSIVE_BALANCE_SYNC_SOURCES = new Set([
+  'realtime',
+  'realtime_postgres',
+  'realtime_broadcast',
+  'db_sync',
+  'db_poll',
+  'energy_substation',
+]);
 const PLAYER_VITALS_CONFIG = getPlayerVitalsConfig();
 const PLAYER_HEALTH_LOW_CLASS = 'is-player-health-low';
 const PLAYER_HEALTH_HIT_CLASS = 'is-player-health-hit';
@@ -1781,23 +1790,29 @@ register('home', async (root) => {
     const hasExplicitDelta = Number.isFinite(explicitDelta) && Math.abs(explicitDelta) >= 0.005;
     const now = Date.now();
 
-    if (options.source === 'electricity_bill_payment') {
-      // A balance poll may already be in flight with the value from before the
-      // payment. Keep the confirmed server result authoritative long enough
-      // for those stale responses to drain.
+    const source = String(options.source || '');
+    const passiveBalanceSync = PASSIVE_BALANCE_SYNC_SOURCES.has(source);
+
+    if (source === 'electricity_bill_payment') {
+      // energy_consumer_pay returns the authoritative post-payment balance.
+      // Older fractional snapshots may surface much later (observed around
+      // 20 seconds after payment), briefly producing a fake -0.xx/+0.xx pair.
+      // Keep the confirmed payment balance authoritative long enough for those
+      // delayed snapshots to drain instead of animating them as transactions.
       balanceDebitReconcileTarget = nextBalance;
-      balanceDebitReconcileUntil = now + 5000;
+      balanceDebitReconcileUntil = Math.max(
+        balanceDebitReconcileUntil,
+        now + ELECTRICITY_PAYMENT_RECONCILE_MS
+      );
     } else if (
+      passiveBalanceSync &&
       now < balanceDebitReconcileUntil &&
       Number.isFinite(balanceDebitReconcileTarget) &&
       Math.abs(nextBalance - balanceDebitReconcileTarget) < 1
     ) {
-      // Fractional database/realtime snapshots can arrive in a different
-      // order around a payment. The payment response is the only authority
-      // for sub-hryvnia feedback; otherwise the HUD flashes phantom
-      // -0.10/+0.10 corrections even though no second transaction happened.
       return;
     } else if (
+      passiveBalanceSync &&
       now < balanceDebitReconcileUntil &&
       Number.isFinite(balanceDebitReconcileTarget) &&
       nextBalance > balanceDebitReconcileTarget + 0.005
@@ -1806,6 +1821,7 @@ register('home', async (root) => {
     }
 
     if (
+      passiveBalanceSync &&
       now < balanceDebitReconcileUntil &&
       Number.isFinite(balanceDebitReconcileTarget) &&
       nextBalance < balanceDebitReconcileTarget - 0.005
