@@ -12,6 +12,7 @@ import { PRODUCTION_CHAINS, canonicalProductionChainForProduct, productionChain,
 import { getProcurementError, loadProcurementMarket, sellToProcurementBuyer } from '../procurement/procurementApi.js';
 import { acceptProductionRequest, buyProductionOffer, completeProductionDelivery, getProductionExchangeError, loadProductionExchangeV2, publishProductionOffer } from './productionExchangeApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
+import { getCoalPowerError, loadCoalPowerMarket, sellCoalToPowerPlant } from '../coalPower/coalPowerApi.js';
 
 const rawCatalogEntries=(items,chainId,groupId)=>items.map((item)=>[item.itemType,{...item,chainId,groupId}]);
 const RAW_ITEMS=Object.fromEntries([
@@ -68,8 +69,17 @@ const chainForRawOffer=(offer,fallback='')=>INDUSTRY_CHAIN_ALIASES[String(offer?
 function shell(){return `<div class="mn-production-shortcuts"><button data-raw-market-open><b>O</b><span>Продать сырьё</span></button><button data-exchange-open hidden><b>M</b><span>Биржа продукции</span></button></div><div class="mn-production-market" data-production-market hidden><button class="mn-production-backdrop" data-market-close></button><section><header><div><small data-market-eyebrow>РЫНОК</small><h2 data-market-title>Производственная экономика</h2></div><button data-market-close>×</button></header><main data-market-content></main></section></div>`;}
 
 async function loadUniversalRaw(){
-  const source=await loadProcurementMarket();
-  const merged=sourceOffers(source).map(normalizeRawOffer).map(item=>({...item,chainId:chainForRawOffer(item),rawProvider:'procurement'})).filter(item=>RAW_ITEMS[item.itemType]&&item.factoryId);
+  const [procurementResult,coalPowerResult]=await Promise.allSettled([loadProcurementMarket(),loadCoalPowerMarket()]);
+  if(procurementResult.status==='rejected'&&coalPowerResult.status==='rejected')throw procurementResult.reason;
+  if(procurementResult.status==='rejected')console.warn('[market] procurement buyers unavailable:',procurementResult.reason);
+  if(coalPowerResult.status==='rejected')console.warn('[market] coal power buyers unavailable:',coalPowerResult.reason);
+  const procurementOffers=procurementResult.status==='fulfilled'
+    ? sourceOffers(procurementResult.value).map(normalizeRawOffer).map(item=>({...item,chainId:chainForRawOffer(item),rawProvider:'procurement'}))
+    : [];
+  const coalPowerOffers=coalPowerResult.status==='fulfilled'
+    ? sourceOffers(coalPowerResult.value).map(normalizeRawOffer).map(item=>({...item,chainId:'metallurgy',rawProvider:'coal_power'}))
+    : [];
+  const merged=[...procurementOffers,...coalPowerOffers].filter(item=>RAW_ITEMS[item.itemType]&&item.factoryId);
 
   const seen=new Set();
   const offers=[];
@@ -267,6 +277,10 @@ content.addEventListener('click',async e=>{const t=e.target;if(busy)return;const
     task=()=>sellToProcurementBuyer({buyerKind:'factory',buyerId:sell.dataset.rawSell,cityId:sell.dataset.city,buyerType:sell.dataset.chain,itemType:sell.dataset.item,quantity});
     errorMessage=getProcurementError;
     refreshMineInventory=sell.dataset.chain==='metallurgy';
+  }else if(sell.dataset.provider==='coal_power'){
+    task=()=>sellCoalToPowerPlant(sell.dataset.rawSell,sell.dataset.city,quantity);
+    errorMessage=getCoalPowerError;
+    refreshMineInventory=true;
   }else if(sell.dataset.provider==='metallurgy'){
     task=()=>sellMineRawToMetallurgy(sell.dataset.rawSell,sell.dataset.city,sell.dataset.item,quantity);
     errorMessage=getMetallurgyError;
@@ -281,6 +295,6 @@ content.addEventListener('click',async e=>{const t=e.target;if(busy)return;const
     task=()=>sellToFactory(sell.dataset.rawSell,sell.dataset.city,sell.dataset.item,quantity);
   }
 
-  msg='Сырьё продано производству.';
+  msg=sell.dataset.provider==='coal_power'?'Уголь продан УЭС.':'Сырьё продано производству.';
 }const openDestination=t.closest('[data-offer-destination-open]');if(openDestination){const declaredChain=openDestination.dataset.chain||'fruit',offer=(currentExchangeData?.offers||[]).find(item=>String(item.id)===String(openDestination.dataset.offerDestinationOpen)),chain=routedChainId(offer?.chainId||declaredChain,offer?.productType),destinations=compatibleDestinations({factories:currentExchangeData?.factories||[],stores:currentExchangeData?.stores||[]},chain,offer?.productType),picker=content.querySelector('[data-destination-picker]');if(!destinations.length||!picker){toast('У вас нет подходящего предприятия для этой продукции.','error');return;}const product=productionProduct(chain,offer?.productType);picker.dataset.offerId=openDestination.dataset.offerDestinationOpen;picker.dataset.chain=chain;picker.querySelector('[data-destination-picker-product]').innerHTML=`<i>${product?.icon||'📦'}</i><span><small>ПАРТИЯ С БИРЖИ</small><strong>${esc(product?.label||offer?.productType||'Готовая продукция')}</strong><em>${quantity(offer?.quantity)} ед. · ${dealTotal(offer)}</em></span>`;picker.querySelector('[data-destination-picker-list]').innerHTML=destinationPickerRows(destinations);picker.hidden=false;return;}if(t.closest('[data-destination-picker-cancel]')){const picker=content.querySelector('[data-destination-picker]');if(picker)picker.hidden=true;return;}const confirmDestination=t.closest('[data-destination-picker-confirm]');if(confirmDestination){const picker=content.querySelector('[data-destination-picker]'),selected=picker?.querySelector('input[name="mn-destination-store"]:checked'),offerId=picker?.dataset.offerId;if(!selected||!offerId)return;picker.hidden=true;task=()=>buyProductionOffer({offerId,targetKind:selected.dataset.kind,targetId:selected.value,targetCityId:selected.dataset.city,targetType:selected.dataset.type});errorMessage=getProductionExchangeError;msg='Партия оплачена. Доставка создана — товар ещё не поступил на склад.';}const deliveryButton=t.closest('[data-delivery-complete]');if(deliveryButton){const delivery=(currentExchangeData?.deliveries||[]).find(item=>String(item.id)===String(deliveryButton.dataset.deliveryComplete));if(!delivery)return;const game=await playCargoTransferMiniGame({direction:'factory_to_store',productType:delivery.productType,quantity:delivery.quantity});if(!game.success)return;task=()=>completeProductionDelivery(delivery.id);errorMessage=getProductionExchangeError;msg='Доставка завершена. Товар принят на склад предприятия.';}const accept=t.closest('[data-request-accept]');if(accept){const chain=accept.dataset.chain||'fruit',select=content.querySelector(`[data-request-factory="${accept.dataset.requestAccept}"]`),opt=select.selectedOptions[0];if(!opt||!window.confirm(`Принять заказ и создать доставку от:\n${opt.textContent.trim()}?`))return;task=()=>takeExchangeRequest(chain,accept.dataset.requestAccept,select.value,opt.dataset.city);errorMessage=getProductionExchangeError;msg='Заказ принят. Товар зарезервирован, поставка ожидает доставки.';}if(t.closest('[data-create-factory-offer]')){const s=content.querySelector('[data-create-factory]'),opt=s.selectedOptions[0],chain=opt.dataset.chain||'fruit',payload={factoryId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-factory-product]').value,quantity:Number(content.querySelector('[data-create-factory-qty]').value),unitPrice:Number(content.querySelector('[data-create-factory-price]').value)};task=()=>publishFactoryOffer(chain,payload);errorMessage=getProductionExchangeError;msg='Предложение опубликовано.';}if(t.closest('[data-create-store-request]')){const s=content.querySelector('[data-create-store]'),opt=s.selectedOptions[0],chain=opt.dataset.chain||'fruit',payload={businessId:s.value,cityId:opt.dataset.city,productType:content.querySelector('[data-create-store-product]').value,quantity:Number(content.querySelector('[data-create-store-qty]').value),unitPrice:Number(content.querySelector('[data-create-store-price]').value)};if(!opt||!window.confirm(`Создать заказ для:\n${opt.textContent.trim()}?`))return;task=()=>publishStoreRequest(chain,payload);errorMessage=chain==='textile'?getTextileError:getFactoryError;msg='Заявка выбранного магазина опубликована.';}if(!task)return;busy=true;try{const result=await task(),balance=Number(result?.playerBalance);if(Number.isFinite(balance)){state.player={...(state.player||{}),balance};save();window.dispatchEvent(new CustomEvent('mn:player-balance-changed',{detail:{balance,source:'production_market'}}));}if(refreshMineInventory)window.dispatchEvent(new CustomEvent('mn:mine-inventory-changed'));if(sell?.dataset.chain==='wood_processing')window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed'));if(['fruit','textile'].includes(sell?.dataset.chain)){window.dispatchEvent(new CustomEvent('mn:farm-inventory-changed'));window.dispatchEvent(new CustomEvent('mn:player-inventory-changed'));}if(deliveryButton){window.dispatchEvent(new CustomEvent('mn:business-stock-changed'));window.dispatchEvent(new CustomEvent('mn:tool-assembly-stock-changed'));}toast(msg,'success');busy=false;await open(mode);}catch(err){toast(errorMessage(err),'error');}finally{busy=false;}});
 return()=>{window.removeEventListener('keydown',key,true);window.removeEventListener('mn:production-exchange-open',onExternalExchangeOpen);modal.remove();root.querySelector('.mn-production-shortcuts')?.remove();};}
