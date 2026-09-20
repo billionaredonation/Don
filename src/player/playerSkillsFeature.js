@@ -5,6 +5,7 @@ import { loadLumberSkills } from '../lumber/lumberApi.js';
 import { fetchPlayerOwnedHouses } from '../houses/housesRepository.js';
 import { fetchPlayerOwnedBusinesses } from '../business/businessRepository.js';
 import { getCityConfig } from '../cities/index.js';
+import { getSubstationError, loadElectricityBills, payElectricityBill } from '../energySubstation/energySubstationApi.js';
 import { getPlayerSkillsSnapshot, publishPlayerSkills } from './playerSkillState.js';
 import './playerSkills.css';
 
@@ -86,6 +87,9 @@ function profileMarkup() {
           <button class="mn-profile-skills-button mn-profile-property-button" type="button" data-profile-open-property>
             <span><i>⌂</i><b>Дома и бизнесы</b><small>Вся собственность, включая другие города</small></span><strong>Открыть ›</strong>
           </button>
+          <button class="mn-profile-skills-button mn-profile-utility-button" type="button" data-profile-open-utility>
+            <span><i>⚡</i><b>Коммунальные услуги</b><small>Потребление, задолженность и ручная оплата</small></span><strong>Открыть ›</strong>
+          </button>
         </div>
 
         <div class="mn-profile-page" data-profile-page="skills" hidden>
@@ -99,6 +103,13 @@ function profileMarkup() {
           <button class="mn-profile-back" type="button" data-profile-back>‹ Назад в профиль</button>
           <div class="mn-profile-property-content" data-profile-property-content>
             <div class="mn-skills-loading">Загружаем собственность…</div>
+          </div>
+        </div>
+
+        <div class="mn-profile-page" data-profile-page="utility" hidden>
+          <button class="mn-profile-back" type="button" data-profile-back>‹ Назад в профиль</button>
+          <div class="mn-profile-utility-content" data-profile-utility-content>
+            <div class="mn-skills-loading">Загружаем коммунальные счета…</div>
           </div>
         </div>
       </section>
@@ -132,6 +143,8 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   const skillsPage = modal?.querySelector('[data-profile-page="skills"]');
   const propertyPage = modal?.querySelector('[data-profile-page="property"]');
   const propertyContent = modal?.querySelector('[data-profile-property-content]');
+  const utilityPage = modal?.querySelector('[data-profile-page="utility"]');
+  const utilityContent = modal?.querySelector('[data-profile-utility-content]');
   let destroyed = false;
   let loadPromise = null;
   let runningXpPending = 0;
@@ -140,6 +153,67 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   let skillsTouch = null;
   let propertyLoadPromise = null;
   let propertySnapshot = { houses: [], businesses: [] };
+  let utilitySnapshot = { bills: [], totalDue: 0 };
+  let utilityLoading = false;
+  let utilityTimer = 0;
+
+  function utilityMoney(value) {
+    return `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₴`;
+  }
+
+  function renderUtility() {
+    if (!utilityContent) return;
+    const bills = Array.isArray(utilitySnapshot.bills) ? utilitySnapshot.bills : [];
+    utilityContent.innerHTML = `
+      <section class="mn-profile-utility-summary">
+        <span><small>ОБЩАЯ ЗАДОЛЖЕННОСТЬ</small><strong>${utilityMoney(utilitySnapshot.totalDue)}</strong></span>
+        <i>⚡</i>
+      </section>
+      <p class="mn-profile-utility-note">Автоматических списаний нет. Электричество потребляется, сумма накапливается здесь и оплачивается только после вашего нажатия.</p>
+      <div class="mn-profile-utility-list">
+        ${bills.length ? bills.map((bill) => {
+          const due = Math.max(0, Number(bill.amountDue) || 0);
+          return `<article>
+            <header><span><small>${escapeHtml(bill.houseName || 'Дом')}</small><strong>${escapeHtml(bill.substationName || 'Подстанция')}</strong></span><b>${bill.powerActive ? '⚡ Свет поступает' : '⛔ Свет не поступает'}</b></header>
+            <div><span><small>Потреблено</small><b>${Math.max(0, Number(bill.totalKwh) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} кВт·ч</b></span><span><small>Тариф</small><b>${utilityMoney(bill.retailPrice)} / кВт·ч</b></span><span><small>Уже оплачено</small><b>${utilityMoney(bill.totalPaid)}</b></span><span><small>К оплате</small><b>${utilityMoney(due)}</b></span></div>
+            <button type="button" data-profile-utility-pay="${escapeHtml(bill.id)}" ${due < 0.01 ? 'disabled' : ''}>${due < 0.01 ? 'Задолженности нет' : `Оплатить ${utilityMoney(due)}`}</button>
+          </article>`;
+        }).join('') : '<div class="mn-profile-property-empty"><i>⚡</i><span><strong>Коммунальных счетов пока нет</strong><small>Они появятся после подключения дома к подстанции.</small></span></div>'}
+      </div>`;
+  }
+
+  async function refreshUtility() {
+    if (utilityLoading || destroyed || utilityPage?.hidden !== false) return;
+    utilityLoading = true;
+    try {
+      utilitySnapshot = await loadElectricityBills();
+      if (!destroyed) renderUtility();
+    } catch (error) {
+      if (utilityContent) utilityContent.innerHTML = `<div class="mn-skills-loading is-error">${escapeHtml(getSubstationError(error))}</div>`;
+    } finally {
+      utilityLoading = false;
+    }
+  }
+
+  async function handleUtilityClick(event) {
+    const button = event.target?.closest?.('[data-profile-utility-pay]');
+    if (!button || utilityLoading) return;
+    event.preventDefault();
+    utilityLoading = true;
+    button.disabled = true;
+    try {
+      utilitySnapshot = await payElectricityBill(button.dataset.profileUtilityPay);
+      const balance = Number(utilitySnapshot?.playerBalance);
+      if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'electricity_bill_payment' } }));
+      renderUtility();
+      window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: 'Коммунальный счёт оплачен.', type: 'success' } }));
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: getSubstationError(error), type: 'error' } }));
+    } finally {
+      utilityLoading = false;
+      void refreshUtility();
+    }
+  }
 
   function propertyCityName(item = {}) {
     const payload = item.payload || {};
@@ -398,11 +472,13 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   }
 
   function setPage(page) {
+    window.clearInterval(utilityTimer);
+    utilityTimer = 0;
     modal?.querySelectorAll('[data-profile-page]').forEach((element) => {
       element.hidden = element.dataset.profilePage !== page;
     });
     const title = modal?.querySelector('[data-profile-title]');
-    if (title) title.textContent = page === 'skills' ? 'Навыки' : page === 'property' ? 'Дома и бизнесы' : 'Профиль';
+    if (title) title.textContent = page === 'skills' ? 'Навыки' : page === 'property' ? 'Дома и бизнесы' : page === 'utility' ? 'Коммунальные услуги' : 'Профиль';
     if (page === 'skills') {
       renderSkills();
       if (skillsPage) skillsPage.scrollTop = 0;
@@ -411,6 +487,12 @@ export function enablePlayerSkillsFeature({ root } = {}) {
       if (propertyPage) propertyPage.scrollTop = 0;
       if (propertyContent) propertyContent.innerHTML = '<div class="mn-skills-loading">Загружаем собственность…</div>';
       void refreshProperty();
+    }
+    if (page === 'utility') {
+      if (utilityPage) utilityPage.scrollTop = 0;
+      if (utilityContent) utilityContent.innerHTML = '<div class="mn-skills-loading">Загружаем коммунальные счета…</div>';
+      void refreshUtility();
+      utilityTimer = window.setInterval(refreshUtility, 5000);
     }
   }
 
@@ -498,6 +580,8 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mn-player-profile-open');
+    window.clearInterval(utilityTimer);
+    utilityTimer = 0;
   }
 
   function handleSkillsChanged() {
@@ -528,6 +612,8 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   modal?.querySelectorAll('[data-profile-close]').forEach((button) => button.addEventListener('click', closeProfile));
   modal?.querySelector('[data-profile-open-skills]')?.addEventListener('click', () => setPage('skills'));
   modal?.querySelector('[data-profile-open-property]')?.addEventListener('click', () => setPage('property'));
+  modal?.querySelector('[data-profile-open-utility]')?.addEventListener('click', () => setPage('utility'));
+  utilityContent?.addEventListener('click', handleUtilityClick);
   modal?.querySelectorAll('[data-profile-back]').forEach((button) => button.addEventListener('click', () => setPage('overview')));
   skillsPage?.addEventListener('touchstart', handleSkillsTouchStart, { passive: true });
   skillsPage?.addEventListener('touchmove', handleSkillsTouchMove, { passive: false });
@@ -547,11 +633,13 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     if (runningXpPending >= 1) void flushRunningXp();
     destroyed = true;
     window.clearTimeout(flushTimer);
+    window.clearInterval(utilityTimer);
     profileButton?.removeEventListener('click', openProfile);
     skillsPage?.removeEventListener('touchstart', handleSkillsTouchStart);
     skillsPage?.removeEventListener('touchmove', handleSkillsTouchMove);
     skillsPage?.removeEventListener('touchend', handleSkillsTouchEnd);
     skillsPage?.removeEventListener('touchcancel', handleSkillsTouchEnd);
+    utilityContent?.removeEventListener('click', handleUtilityClick);
     window.removeEventListener('keydown', handleKeyDown);
     window.removeEventListener('mn:player-skills-changed', handleSkillsChanged);
     window.removeEventListener('mn:player-skill-level-up', handleLevelUp);
