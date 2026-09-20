@@ -25,6 +25,8 @@ const FACTORY_ENTITY_TYPES = new Set([
   'hydro_power_plant',
   'nuclear_power_plant',
   'coal_power_plant',
+  'energy_substation',
+  'power_transformer',
 ]);
 
 export function getEntityKind(object) {
@@ -122,6 +124,8 @@ export function getEntityPrimaryActionLabel(object) {
   if (kind === 'marker') return 'Выбрать';
   if (kind === 'job' && type === 'nuclear_power_plant') return 'Управление АЭС';
   if (kind === 'job' && type === 'coal_power_plant') return 'Открыть УЭС';
+  if (kind === 'job' && type === 'energy_substation') return 'Открыть подстанцию';
+  if (kind === 'job' && type === 'power_transformer') return 'Осмотреть трансформатор';
   if (kind === 'job') return 'Работать';
 
   return 'Выбрать';
@@ -165,6 +169,8 @@ export function getEntityMetaText(object) {
     if (type === 'hydro_power_plant') return 'ГЭС · генерация энергии, накопитель и будущие контракты с подстанциями';
     if (type === 'nuclear_power_plant') return 'АЭС · государственный энергетический объект · доступ администрации';
     if (type === 'coal_power_plant') return 'УЭС · уголь → генерация → накопитель → подстанции';
+    if (type === 'energy_substation') return 'Подстанция · контракты → трансформаторы → дома и бизнесы';
+    if (type === 'power_transformer') return 'Трансформатор · 300 кВт · до 6 потребителей';
     return 'Рабочая точка';
   }
 
@@ -249,6 +255,8 @@ export function dispatchEntityAction(object) {
       ? 'mn:nuclear-power-object-action'
       : cleanType === 'coal_power_plant'
       ? 'mn:coal-power-object-action'
+      : cleanType === 'energy_substation' || cleanType === 'power_transformer'
+      ? 'mn:energy-substation-object-action'
       : cleanType.startsWith('mine_')
       ? 'mn:mine-object-action'
       : cleanType.startsWith('lumber_')
