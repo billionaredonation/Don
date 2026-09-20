@@ -113,6 +113,8 @@ function isWorkObject(object) {
     || type === 'hydro_power_plant'
     || type === 'nuclear_power_plant'
     || type === 'coal_power_plant'
+    || type === 'energy_substation'
+    || type === 'power_transformer'
   );
 }
 
@@ -1852,6 +1854,10 @@ export function enableEntityInteraction({
         ? 'АЭС · управление только для администрации'
       : objectType === 'coal_power_plant'
         ? 'УЭС · угольная электростанция'
+      : objectType === 'energy_substation'
+        ? 'Электрическая подстанция · предприятие'
+      : objectType === 'power_transformer'
+        ? 'Силовой трансформатор · 300 кВт'
       : farmPlant
         ? farmHint.text
         : mineNode
