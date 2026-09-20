@@ -200,13 +200,12 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     if (!button || utilityLoading) return;
     event.preventDefault();
     const contractId = String(button.dataset.profileUtilityPay || '');
-    const billBeforePayment = (utilitySnapshot.bills || []).find((bill) => String(bill.id) === contractId);
-    const paidAmount = Math.round(Math.max(0, Number(billBeforePayment?.amountDue) || 0) * 100) / 100;
     utilityLoading = true;
     button.disabled = true;
     try {
       utilitySnapshot = await payElectricityBill(contractId);
       const balance = Number(utilitySnapshot?.playerBalance);
+      const paidAmount = Math.round(Math.max(0, Number(utilitySnapshot?.paidAmount) || 0) * 100) / 100;
       if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, delta: paidAmount > 0 ? -paidAmount : undefined, source: 'electricity_bill_payment' } }));
       renderUtility();
       window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: 'Коммунальный счёт оплачен.', type: 'success' } }));
