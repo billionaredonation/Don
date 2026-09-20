@@ -65,3 +65,5 @@
 @keyframes mnCoalSmoke { 0% { opacity: 0; transform: translate(0, 0) scale(.6); } 35% { opacity: .55; } 100% { opacity: 0; transform: translate(20px, -70px) scale(2.5); } }
 @media (prefers-reduced-motion: reduce) { .is-generating .mn-coal-smoke i { animation: none; } }
 @media (max-width: 680px) { .mn-coal-panel header, .mn-coal-panel main { padding-left: 15px; padding-right: 15px; } .mn-coal-stats { grid-template-columns: repeat(2, 1fr); } .mn-coal-warehouse-stats { grid-template-columns: 1fr; } .mn-coal-flow { font-size: 11px; } .mn-coal-actions .is-danger { margin-left: 0; } .mn-coal-offer, .mn-coal-contract { grid-template-columns: 1fr 1fr; } .mn-coal-offer span, .mn-coal-contract button { grid-column: 1 / -1; } .mn-coal-owner-controls > div { grid-template-columns: 1fr; } .mn-coal-equipment article { grid-template-columns: 36px 1fr; } .mn-coal-equipment article button { grid-column: 1 / -1; } [data-coal-power-contract-list] article { grid-template-columns: 1fr; } }
+.mn-coal-contract{grid-template-columns:1fr 110px 145px 145px auto}
+@media(max-width:680px){.mn-coal-contract{grid-template-columns:1fr 1fr}.mn-coal-contract button{grid-column:1/-1}}
