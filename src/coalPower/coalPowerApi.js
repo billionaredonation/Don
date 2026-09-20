@@ -20,6 +20,7 @@ async function invoke(action, payload = {}) {
 }
 
 export const loadCoalPowerSnapshot = (plantId, cityId) => invoke('snapshot', { plantId, cityId });
+export const loadCoalPowerMarket = () => invoke('market');
 export const purchaseCoalPowerPlant = (plantId, cityId) => invoke('purchase', { plantId, cityId });
 export const purchaseCoalPowerEquipment = (plantId, cityId, equipment) => invoke('purchase_equipment', { plantId, cityId, equipment });
 export const loadCoalPowerFuel = (plantId, cityId, quantity) => invoke('load_coal', { plantId, cityId, quantity });
