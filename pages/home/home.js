@@ -1671,12 +1671,14 @@ register('home', async (root) => {
   }
 
   function showBalanceChange(delta, source = 'realtime') {
-    if (!balanceCard || !balanceChangeEl || !Number.isFinite(delta) || delta === 0) {
+    const roundedDelta = Math.round(Number(delta) * 100) / 100;
+
+    if (!balanceCard || !balanceChangeEl || !Number.isFinite(roundedDelta) || Math.abs(roundedDelta) < 0.01) {
       return;
     }
 
-    const isPlus = delta > 0;
-    const absDelta = Math.abs(Math.round(delta));
+    const isPlus = roundedDelta > 0;
+    const absDelta = Math.abs(roundedDelta);
 
     balanceCard.classList.remove(
       'is-balance-plus',
@@ -1701,7 +1703,7 @@ register('home', async (root) => {
       'is-balance-pulse'
     );
 
-    balanceChangeEl.textContent = `${isPlus ? '+' : '−'} ${absDelta.toLocaleString('ru-RU')} ₴`;
+    balanceChangeEl.textContent = `${isPlus ? '+' : '−'} ${absDelta.toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(absDelta) ? 0 : 2, maximumFractionDigits: 2 })} ₴`;
     balanceChangeEl.dataset.type = isPlus ? 'plus' : 'minus';
     balanceChangeEl.hidden = false;
 
@@ -1776,9 +1778,10 @@ register('home', async (root) => {
     const previousBalance = currentBalance;
     const visualStartBalance = Number.isFinite(renderedBalance) ? renderedBalance : previousBalance;
     const explicitDelta = Number(options.delta);
-    const delta = Number.isFinite(explicitDelta) && explicitDelta !== 0
+    const rawDelta = Number.isFinite(explicitDelta) && Math.abs(explicitDelta) >= 0.005
       ? explicitDelta
       : nextBalance - previousBalance;
+    const delta = Math.abs(rawDelta) >= 0.005 ? rawDelta : 0;
 
     currentBalance = nextBalance;
 
