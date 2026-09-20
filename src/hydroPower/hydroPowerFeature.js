@@ -5,6 +5,8 @@ import { loadHydroSnapshot, purchaseHydroPlant, purchaseHydroEquipment, startHyd
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
+const contractDate = (value) => value ? new Intl.DateTimeFormat('ru-RU', { dateStyle: 'medium', timeZone: 'Europe/Kyiv' }).format(new Date(value)) : '—';
+const defaultEndDate = () => { const date = new Date(); date.setUTCDate(date.getUTCDate() + 7); return date.toISOString().slice(0, 10); };
 const plantIdOf = (o) => String(o?.payload?.hydroPlantId || o?.payload?.hydro_plant_id || o?.id || '').trim();
 const equipment = [
   ['storage', '🔋', 'Промышленный накопитель', 10_000_000, 'Ёмкость: до 10 000 кВт·ч'],
@@ -22,7 +24,7 @@ function markup() {
       <div class="mn-hydro-actions"><button data-hydro-start>Запустить ГЭС</button><button data-hydro-stop>Остановить</button><button data-hydro-repair>Ремонт · 1 000 ₴</button></div>
       <p class="mn-hydro-note" data-hydro-note>Сервер считает энергию по реальному прошедшему времени только при открытии или действии — постоянного тика и нагрузки на ОЗУ нет.</p></section>
       <section data-hydro-page="infrastructure" hidden><div class="mn-hydro-buy" data-hydro-buy><span><small>ГОСУДАРСТВЕННАЯ ГЭС</small><strong>25 000 000 ₴</strong><p>Юридическая форма задаётся администрацией: <b data-hydro-legal>—</b></p></span><button data-hydro-purchase>Купить предприятие</button></div><div data-hydro-owned hidden><h3>Обязательное оборудование запуска</h3><div class="mn-hydro-equipment">${equipment.map(([id, icon, title, price, description]) => `<article><i>${icon}</i><span><strong>${title}</strong><small>${description}</small><b>${formatBusinessMoney(price)}</b></span><button data-hydro-equipment="${id}">Купить</button></article>`).join('')}</div><p class="mn-hydro-note">Без всех трёх узлов запуск заблокирован. Это не декор: накопитель определяет лимит, ЛЭП — возможность будущих поставок, а предохранители — защиту сети.</p><div class="mn-hydro-owner"><span>Владелец: <b data-hydro-owner>—</b></span><span>Публичный ID: <b data-hydro-public-id>—</b></span></div></div></section>
-      <section data-hydro-page="contracts" hidden><h3>Договоры с подстанциями</h3><p class="mn-hydro-note">Укажите публичный ID подстанции, цену 1 кВт·ч и лимит договора от 20 000 до 2 000 000 ₴. Подстанция должна принять предложение.</p><div class="mn-hydro-contract"><input data-hydro-target placeholder="Публичный ID подстанции" maxlength="80"><input data-hydro-price type="number" min="1" value="2" placeholder="Цена за кВт·ч"><input data-hydro-amount type="number" min="20000" max="2000000" value="20000" placeholder="Сумма контракта"><button data-hydro-contract-create>Предложить контракт</button></div><div data-hydro-contract-list></div></section>
+      <section data-hydro-page="contracts" hidden><h3>Договоры с подстанциями</h3><p class="mn-hydro-note">Укажите ID подстанции, цену, лимит и дату окончания. После принятия поставка действует сразу и завершится в 00:00 выбранной даты.</p><div class="mn-hydro-contract"><input data-hydro-target placeholder="Публичный ID подстанции" maxlength="80"><input data-hydro-price type="number" min="1" value="2" placeholder="Цена за кВт·ч"><input data-hydro-amount type="number" min="20000" max="2000000" value="20000" placeholder="Сумма контракта"><input data-hydro-end type="date"><button data-hydro-contract-create>Предложить контракт</button></div><div data-hydro-contract-list></div></section>
     </main></section></div>`;
 }
 
@@ -53,7 +55,7 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
     q('[data-hydro-start]').disabled=!s.isOwner || Boolean(s.running); q('[data-hydro-stop]').disabled=!s.isOwner || !s.running; q('[data-hydro-repair]').disabled=!s.isOwner;
     q('[data-hydro-note]').textContent = generating ? 'ГЭС генерирует 1 кВт·ч/сек. Каждый произведённый кВт·ч списывает 0,2 состояния: 720 в час.' : energy >= capacity ? 'Накопитель заполнен. Выработка продолжится после передачи или утилизации энергии.' : 'Для запуска купите три обязательных узла инфраструктуры. Энергия не пропадает: лимит задаёт накопитель.';
     qa('[data-hydro-equipment]').forEach(b => { const done=Boolean(installed[b.dataset.hydroEquipment]); b.disabled=!s.isOwner||done; b.textContent=done?'Куплено':'Купить'; });
-    q('[data-hydro-contract-list]').innerHTML=(s.contracts||[]).length ? (s.contracts||[]).map(c=>`<article class="mn-hydro-contract-row"><b>${esc(c.targetId)}</b><span>${Number(c.unitPrice||0)} ₴/кВт·ч · лимит ${formatBusinessMoney(c.contractAmount||0)}</span><small>${c.status==='active'?'Контракт принят подстанцией':'Ожидает решения подстанции'}</small></article>`).join('') : '<p class="mn-hydro-note">Контрактов пока нет.</p>';
+    q('[data-hydro-contract-list]').innerHTML=(s.contracts||[]).length ? (s.contracts||[]).map(c=>`<article class="mn-hydro-contract-row"><b>${esc(c.targetId)}</b><span>${Number(c.unitPrice||0)} ₴/кВт·ч · лимит ${formatBusinessMoney(c.contractAmount||0)}</span><small>${c.status==='expired'?'Завершён':c.status==='active'?'Действует':'Ожидает решения'} · до ${contractDate(c.endsAt)}</small></article>`).join('') : '<p class="mn-hydro-note">Контрактов пока нет.</p>';
   }
   const stopLiveUpdates = () => { window.clearInterval(liveTimer); window.clearInterval(resyncTimer); liveTimer=0; resyncTimer=0; modal.classList.remove('is-generating'); };
   const startLiveUpdates = () => {
@@ -69,7 +71,8 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
   qa('[data-hydro-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.hydroTab));
   q('[data-hydro-purchase]').onclick=()=>run(()=>purchaseHydroPlant(currentId, cityId)); q('[data-hydro-start]').onclick=()=>run(()=>startHydroPlant(currentId, cityId)); q('[data-hydro-stop]').onclick=()=>run(()=>stopHydroPlant(currentId, cityId)); q('[data-hydro-repair]').onclick=()=>run(()=>repairHydroPlant(currentId, cityId));
   qa('[data-hydro-equipment]').forEach(b=>b.onclick=()=>run(()=>purchaseHydroEquipment(currentId, cityId, b.dataset.hydroEquipment)));
-  q('[data-hydro-contract-create]').onclick=()=>run(()=>createHydroContract(currentId, cityId,{ targetId:q('[data-hydro-target]').value, unitPrice:Number(q('[data-hydro-price]').value), contractAmount:Number(q('[data-hydro-amount]').value) }));
+  const hydroEnd=q('[data-hydro-end]'); if(hydroEnd){hydroEnd.min=new Date(Date.now()+86400000).toISOString().slice(0,10);hydroEnd.value=defaultEndDate();}
+  q('[data-hydro-contract-create]').onclick=()=>run(()=>createHydroContract(currentId, cityId,{ targetId:q('[data-hydro-target]').value, unitPrice:Number(q('[data-hydro-price]').value), contractAmount:Number(q('[data-hydro-amount]').value), endDate:q('[data-hydro-end]').value }));
   const onAction=(event)=>{
     const object=event.detail?.object;
     // This event is emitted only by dispatchEntityAction after the player presses E/У
