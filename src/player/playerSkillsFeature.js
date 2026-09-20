@@ -204,7 +204,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     const displayedAmount = Math.round(Math.max(0, Number(billBeforePayment?.amountDue) || 0) * 100) / 100;
     utilityLoading = true;
     button.disabled = true;
-    window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { durationMs: 8000 } }));
+    window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { durationMs: 45000 } }));
     try {
       utilitySnapshot = await payElectricityBill(contractId, displayedAmount);
       const balance = Number(utilitySnapshot?.playerBalance);
