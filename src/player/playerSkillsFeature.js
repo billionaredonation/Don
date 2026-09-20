@@ -202,6 +202,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     const contractId = String(button.dataset.profileUtilityPay || '');
     utilityLoading = true;
     button.disabled = true;
+    window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { durationMs: 8000 } }));
     try {
       utilitySnapshot = await payElectricityBill(contractId);
       const balance = Number(utilitySnapshot?.playerBalance);
@@ -210,6 +211,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
       renderUtility();
       window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: 'Коммунальный счёт оплачен.', type: 'success' } }));
     } catch (error) {
+      window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { cancel: true } }));
       window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: getSubstationError(error), type: 'error' } }));
     } finally {
       utilityLoading = false;
