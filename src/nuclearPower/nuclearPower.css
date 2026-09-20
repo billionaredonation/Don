@@ -51,3 +51,5 @@
   .mn-nuclear-contract button { grid-column: 1 / -1; }
   [data-nuclear-contract-list] article { grid-template-columns: 1fr; }
 }
+.mn-nuclear-contract{grid-template-columns:1fr 110px 145px 145px auto}
+@media(max-width:680px){.mn-nuclear-contract{grid-template-columns:1fr 1fr}.mn-nuclear-contract button{grid-column:1/-1}}
