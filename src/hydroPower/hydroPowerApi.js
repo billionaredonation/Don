@@ -33,6 +33,7 @@ export function getHydroError(error) {
     HYDRO_LAUNCH_REQUIREMENTS: 'Для запуска нужны накопитель, ЛЭП и предохранители.', HYDRO_ALREADY_RUNNING: 'ГЭС уже запущена.',
     HYDRO_NOT_RUNNING: 'ГЭС ещё не запущена.', HYDRO_CONDITION_LOW: 'Станция остановлена: требуется ремонт.',
     HYDRO_CONTRACT_AMOUNT_INVALID: 'Сумма контракта должна быть от 20 000 до 2 000 000 грн.', HYDRO_SUBSTATION_FUTURE_ONLY: 'Подстанции ещё не добавлены: контракт пока можно только подготовить.',
+    ENERGY_CONTRACT_END_DATE_INVALID: 'Выберите дату окончания не раньше завтрашнего дня.',
   };
   return Object.entries(messages).find(([code]) => raw.includes(code))?.[1] || raw;
 }
