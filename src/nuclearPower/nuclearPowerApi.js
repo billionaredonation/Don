@@ -30,6 +30,7 @@ export function getNuclearError(error) {
     NUCLEAR_ADMIN_REQUIRED: 'У вас нет доступа к управлению государственным объектом',
     NUCLEAR_NOT_FOUND: 'АЭС не найдена на карте.',
     NUCLEAR_CONTRACT_INVALID: 'Проверьте ID подстанции, цену кВт·ч и сумму контракта.',
+    ENERGY_CONTRACT_END_DATE_INVALID: 'Выберите дату окончания не раньше завтрашнего дня.',
     NUCLEAR_DATABASE_MIGRATION_REQUIRED: 'Примените SQL АЭС и задеплойте Edge Function nuclear-power.',
   };
   return Object.entries(messages).find(([code]) => raw.includes(code))?.[1] || raw;
