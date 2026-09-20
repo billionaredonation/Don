@@ -58,6 +58,7 @@ export function getCoalPowerError(error) {
     COAL_POWER_ALREADY_RUNNING: 'УЭС уже запущена.',
     COAL_POWER_NOT_RUNNING: 'УЭС уже остановлена.',
     COAL_POWER_CONTRACT_INVALID: 'Проверьте ID подстанции, цену и сумму договора.',
+    ENERGY_CONTRACT_END_DATE_INVALID: 'Выберите дату окончания не раньше завтрашнего дня.',
   };
   return Object.entries(messages).find(([code]) => raw.includes(code))?.[1] || raw;
 }
