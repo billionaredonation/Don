@@ -4,6 +4,8 @@ import { loadNuclearSnapshot, setNuclearRunning, discardNuclearEnergy, createNuc
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const toast = (message, type='info') => window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message,type}}));
+const contractDate = (value) => value ? new Intl.DateTimeFormat('ru-RU',{dateStyle:'medium',timeZone:'Europe/Kyiv'}).format(new Date(value)) : '—';
+const defaultEndDate = () => { const date=new Date(); date.setUTCDate(date.getUTCDate()+7); return date.toISOString().slice(0,10); };
 const plantIdOf = (o) => String(o?.payload?.nuclearPlantId || o?.payload?.nuclear_plant_id || o?.id || '').trim();
 
 function markup() {
@@ -15,7 +17,7 @@ function markup() {
       <div class="mn-nuclear-core"><div class="mn-nuclear-reactor"><i>☢️</i><span><strong>Реакторный блок</strong><small data-nuclear-core-label>Стабильный режим</small></span></div><div class="mn-nuclear-pulse"></div><div class="mn-nuclear-chain"><span>⚛️ Реактор</span><b>→</b><span>⚙️ Генератор</span><b>→</b><span>🔋 100 000 кВт·ч</span><b>→</b><span>⚡ Подстанции</span></div></div>
       <div class="mn-nuclear-storage"><div><strong>Государственный накопитель</strong><span data-nuclear-storage-text>0 / 100 000 кВт·ч</span></div><progress data-nuclear-storage-progress max="100" value="0"></progress><small data-nuclear-free>Свободно: 100 000 кВт·ч</small></div>
       <div class="mn-nuclear-actions"><button type="button" data-nuclear-start>▶ Запустить</button><button type="button" data-nuclear-stop>■ Остановить</button><button type="button" class="is-danger" data-nuclear-discard>Утилизировать накопленное</button></div><p class="mn-nuclear-note">При заполнении накопителя АЭС автоматически остановится. Утилизация полностью очищает накопитель и доступна только администрации.</p></section>
-      <section data-nuclear-page="contracts" hidden><h3>Государственные договоры поставки</h3><p class="mn-nuclear-note">Администрация назначает стоимость кВт·ч и отправляет предложение на публичный ID подстанции.</p><div class="mn-nuclear-contract"><input data-nuclear-target maxlength="80" placeholder="Публичный ID подстанции"><input data-nuclear-price type="number" min="0.01" step="0.01" value="2" placeholder="Цена за кВт·ч"><input data-nuclear-amount type="number" min="20000" max="2000000" value="20000" placeholder="Сумма договора"><button type="button" data-nuclear-contract-create>Предложить договор</button></div><div data-nuclear-contract-list></div></section>
+      <section data-nuclear-page="contracts" hidden><h3>Государственные договоры поставки</h3><p class="mn-nuclear-note">Администрация назначает стоимость, сумму и дату окончания. В 00:00 выбранной даты поставка автоматически прекращается.</p><div class="mn-nuclear-contract"><input data-nuclear-target maxlength="80" placeholder="Публичный ID подстанции"><input data-nuclear-price type="number" min="0.01" step="0.01" value="2" placeholder="Цена за кВт·ч"><input data-nuclear-amount type="number" min="20000" max="2000000" value="20000" placeholder="Сумма договора"><input data-nuclear-end type="date"><button type="button" data-nuclear-contract-create>Предложить договор</button></div><div data-nuclear-contract-list></div></section>
     </main></section></div>`;
 }
 
@@ -39,7 +41,7 @@ export function enableNuclearPowerFeature({root,cityId}={}) {
     q('[data-nuclear-rate]').textContent=`${rate.toLocaleString('ru-RU')} кВт·ч / сек.`;
     q('[data-nuclear-core-label]').textContent=generating?'Стабильная генерация':energy>=capacity?'Ожидание разгрузки сети':'Генерация остановлена';
     q('[data-nuclear-start]').disabled=busy||Boolean(s.running)||energy>=capacity;q('[data-nuclear-stop]').disabled=busy||!s.running;q('[data-nuclear-discard]').disabled=busy||energy<=0;
-    q('[data-nuclear-contract-list]').innerHTML=(s.contracts||[]).length?(s.contracts||[]).map(c=>`<article><span><strong>${esc(c.targetId)}</strong><small>${c.status==='active'?'Принят подстанцией':'Ожидает решения'}</small></span><b>${Number(c.unitPrice||0).toLocaleString('ru-RU')} ₴/кВт·ч</b><em>${formatBusinessMoney(c.contractAmount||0)}</em></article>`).join(''):'<p class="mn-nuclear-note">Договоров пока нет.</p>';
+    q('[data-nuclear-contract-list]').innerHTML=(s.contracts||[]).length?(s.contracts||[]).map(c=>`<article><span><strong>${esc(c.targetId)}</strong><small>${c.status==='expired'?'Завершён':c.status==='active'?'Действует':'Ожидает решения'} · до ${contractDate(c.endsAt)}</small></span><b>${Number(c.unitPrice||0).toLocaleString('ru-RU')} ₴/кВт·ч</b><em>${formatBusinessMoney(c.contractAmount||0)}</em></article>`).join(''):'<p class="mn-nuclear-note">Договоров пока нет.</p>';
   }
   const stopLive=()=>{clearInterval(liveTimer);clearInterval(resyncTimer);liveTimer=0;resyncTimer=0;modal.classList.remove('is-generating');};
   const startLive=()=>{stopLive();liveTimer=setInterval(()=>{if(!modal.hidden&&snapshot)render();},250);resyncTimer=setInterval(()=>{if(!modal.hidden&&!busy&&currentId)refresh().catch(()=>{});},15000);};
@@ -50,7 +52,8 @@ export function enableNuclearPowerFeature({root,cityId}={}) {
   q('[data-nuclear-start]').onclick=()=>run(()=>setNuclearRunning(currentId,cityId,true),'Генерация АЭС запущена.');
   q('[data-nuclear-stop]').onclick=()=>run(()=>setNuclearRunning(currentId,cityId,false),'Генерация АЭС остановлена.');
   q('[data-nuclear-discard]').onclick=()=>{if(window.confirm('Полностью утилизировать всю накопленную электроэнергию АЭС?'))run(()=>discardNuclearEnergy(currentId,cityId),'Накопленная энергия утилизирована.');};
-  q('[data-nuclear-contract-create]').onclick=()=>run(()=>createNuclearContract(currentId,cityId,{targetId:q('[data-nuclear-target]').value,unitPrice:Number(q('[data-nuclear-price]').value),contractAmount:Number(q('[data-nuclear-amount]').value)}),'Договор сохранён.');
+  const nuclearEnd=q('[data-nuclear-end]');if(nuclearEnd){nuclearEnd.min=new Date(Date.now()+86400000).toISOString().slice(0,10);nuclearEnd.value=defaultEndDate();}
+  q('[data-nuclear-contract-create]').onclick=()=>run(()=>createNuclearContract(currentId,cityId,{targetId:q('[data-nuclear-target]').value,unitPrice:Number(q('[data-nuclear-price]').value),contractAmount:Number(q('[data-nuclear-amount]').value),endDate:q('[data-nuclear-end]').value}),'Договор сохранён.');
   const onAction=async(event)=>{
     const object=event.detail?.object;
     if(String(object?.type||object?.payload?.jobType||'')!=='nuclear_power_plant'||accessChecking)return;
