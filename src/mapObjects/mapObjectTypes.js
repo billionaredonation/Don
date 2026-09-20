@@ -17,6 +17,7 @@ const LEGAL_BUSINESS_OBJECT_TYPES = new Set([
   'hydro_power_plant',
   'nuclear_power_plant',
   'coal_power_plant',
+  'energy_substation',
 ]);
 
 export function isBusinessLegalMapObjectType(type) {
@@ -512,6 +513,20 @@ export const MAP_OBJECT_TYPES = {
     defaultHeight: 2.6,
   },
 
+  energy_substation: {
+    type: 'energy_substation', category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Электрическая подстанция · предприятие', icon: '⚡',
+    defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01',
+    defaultWidth: 3.1, defaultHeight: 2.4,
+  },
+
+  power_transformer: {
+    type: 'power_transformer', category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Силовой трансформатор · 300 кВт', icon: '🔌',
+    defaultScale: .9, defaultRotation: 0, defaultAsset: 'job_factory_01',
+    defaultWidth: 1.8, defaultHeight: 1.8,
+  },
+
   accessory_store: {
     type: 'accessory_store',
     category: MAP_OBJECT_CATEGORIES.BUSINESS,
@@ -851,6 +866,30 @@ export function createMapObjectDraft({
     basePayload.ownerId = basePayload.ownerId || null;
     basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
     basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
+  if (config.type === 'energy_substation') {
+    basePayload.energySubstation = true;
+    basePayload.substationId = objectId;
+    basePayload.substation_id = objectId;
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: basePayload.legalForm || 'tov', ...basePayload }));
+    basePayload.price = 1_000_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
+  if (config.type === 'power_transformer') {
+    basePayload.powerTransformer = true;
+    basePayload.transformerId = objectId;
+    basePayload.transformer_id = objectId;
+    basePayload.price = 3_000_000;
+    basePayload.buyable = true;
+    basePayload.capacityKw = 300;
+    basePayload.maxConsumers = 6;
   }
 
   if (config.type === 'farm_water_tower') {
