@@ -5,3 +5,4 @@
 .mn-substation-consumer-form{grid-template-columns:minmax(190px,1.4fr) minmax(190px,1fr) minmax(110px,.65fr) minmax(130px,.75fr) auto}
 .mn-substation-house-hints{display:flex;align-items:center;gap:7px;margin-top:9px;overflow-x:auto;padding-bottom:3px}.mn-substation-house-hints small{flex:0 0 auto;color:#9eb6c8}.mn-substation-house-hints button{flex:0 0 auto;padding:7px 10px;font-size:12px;background:#12334a}
 @media(max-width:900px){.mn-substation-consumer-form{grid-template-columns:1fr 1fr}.mn-substation-consumer-form button{grid-column:1/-1}}
+
