@@ -37,3 +37,4 @@ export function enableEnergySubstationFeature({root,cityId}={}){
   const key=e=>{if(e.key==='Escape'&&!modal.hidden)close();};window.addEventListener('keydown',key);void refreshInbox();timer=window.setInterval(refreshInbox,30000);
   return()=>{window.clearInterval(timer);window.clearInterval(liveTimer);window.removeEventListener('keydown',key);window.removeEventListener('mn:energy-substation-object-action',onAction);modal.remove();inboxButton?.remove();};
 }
+
