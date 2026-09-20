@@ -112,6 +112,7 @@ function isWorkObject(object) {
     type === 'tool_assembly_factory'
     || type === 'hydro_power_plant'
     || type === 'nuclear_power_plant'
+    || type === 'coal_power_plant'
   );
 }
 
@@ -1849,6 +1850,8 @@ export function enableEntityInteraction({
         ? 'Завод по сборке инструментов · производство'
       : objectType === 'nuclear_power_plant'
         ? 'АЭС · управление только для администрации'
+      : objectType === 'coal_power_plant'
+        ? 'УЭС · угольная электростанция'
       : farmPlant
         ? farmHint.text
         : mineNode
