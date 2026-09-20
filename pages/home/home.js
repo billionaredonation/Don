@@ -1777,8 +1777,9 @@ register('home', async (root) => {
 
     const previousBalance = currentBalance;
     const visualStartBalance = Number.isFinite(renderedBalance) ? renderedBalance : previousBalance;
+    const balanceAlreadyApplied = Math.abs(nextBalance - previousBalance) < 0.005;
     const explicitDelta = Number(options.delta);
-    const rawDelta = Number.isFinite(explicitDelta) && Math.abs(explicitDelta) >= 0.005
+    const rawDelta = !balanceAlreadyApplied && Number.isFinite(explicitDelta) && Math.abs(explicitDelta) >= 0.005
       ? explicitDelta
       : nextBalance - previousBalance;
     const delta = Math.abs(rawDelta) >= 0.005 ? rawDelta : 0;
@@ -2527,4 +2528,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
