@@ -2,19 +2,6 @@ import {
   createHouseDetailsController,
   renderHouseDetailsModal,
 } from './houseDetailsView.js';
-import {
-  getSubstationError,
-  loadElectricityBills,
-  payElectricityBill,
-} from '../energySubstation/energySubstationApi.js';
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
 
 function formatMoney(value) {
   const number = Number(value || 0);
@@ -234,16 +221,6 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
             inflation,
             registeredPlayers,
           })}
-          <section class="houses-utility-card" data-houses-utility>
-            <div class="houses-utility-heading">
-              <span><small>КОММУНАЛЬНЫЕ УСЛУГИ</small><strong>⚡ Электричество</strong></span>
-              <b data-houses-utility-total>Загрузка…</b>
-            </div>
-            <div class="houses-utility-list" data-houses-utility-list>
-              <p>Загрузка счетов…</p>
-            </div>
-            <small class="houses-utility-note">Деньги не списываются автоматически. Потребление накапливается в задолженности, а оплату выполняете вы.</small>
-          </section>
         </div>
 
         <div class="houses-section-content" data-houses-section-content="houses" hidden>
@@ -298,8 +275,6 @@ export function enableHousesStatsModal(root, {
   const openButton = root.querySelector('.player-city-button');
   const sectionTabs = Array.from(modal?.querySelectorAll('[data-houses-section-tab]') || []);
   const sectionContents = Array.from(modal?.querySelectorAll('[data-houses-section-content]') || []);
-  const utilityTotal = modal?.querySelector('[data-houses-utility-total]');
-  const utilityList = modal?.querySelector('[data-houses-utility-list]');
 
   const detailsController = createHouseDetailsController(modal || root, {
     onBuy: onBuyHouse,
@@ -310,57 +285,6 @@ export function enableHousesStatsModal(root, {
   });
 
   let activeSection = 'city';
-  let utilityTimer = 0;
-  let utilityLoading = false;
-
-  function utilityMoney(value) {
-    return `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₴`;
-  }
-
-  function renderUtilityBilling(result = {}) {
-    const bills = Array.isArray(result.bills) ? result.bills : [];
-    if (utilityTotal) utilityTotal.textContent = `К оплате: ${utilityMoney(result.totalDue)}`;
-    if (!utilityList) return;
-    utilityList.innerHTML = bills.length ? bills.map((bill) => {
-      const due = Math.max(0, Number(bill.amountDue) || 0);
-      return `<article>
-        <span><small>${escapeHtml(bill.houseName || 'Дом')} · ${escapeHtml(bill.substationName || 'Подстанция')}</small><strong>${utilityMoney(due)}</strong><em>Потреблено ${Number(bill.totalKwh || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} кВт·ч · тариф ${utilityMoney(bill.retailPrice)}/кВт·ч</em></span>
-        <button type="button" data-houses-utility-pay="${escapeHtml(bill.id)}" ${due < 0.01 ? 'disabled' : ''}>Оплатить</button>
-      </article>`;
-    }).join('') : '<p>Активных договоров на электричество пока нет.</p>';
-  }
-
-  async function refreshUtilityBilling() {
-    if (utilityLoading || modal?.hidden || activeSection !== 'city') return;
-    utilityLoading = true;
-    try {
-      renderUtilityBilling(await loadElectricityBills());
-    } catch (error) {
-      if (utilityList) utilityList.innerHTML = `<p class="is-error">${escapeHtml(getSubstationError(error))}</p>`;
-    } finally {
-      utilityLoading = false;
-    }
-  }
-
-  async function handleUtilityPayment(event) {
-    const button = event.target?.closest?.('[data-houses-utility-pay]');
-    if (!button || !modal?.contains(button) || utilityLoading) return;
-    event.preventDefault();
-    utilityLoading = true;
-    button.disabled = true;
-    try {
-      const result = await payElectricityBill(button.dataset.housesUtilityPay);
-      renderUtilityBilling(result);
-      const balance = Number(result?.playerBalance);
-      if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'electricity_bill_payment' } }));
-      window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: 'Коммунальный счёт за электричество оплачен.', type: 'success' } }));
-    } catch (error) {
-      window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: getSubstationError(error), type: 'error' } }));
-    } finally {
-      utilityLoading = false;
-      void refreshUtilityBilling();
-    }
-  }
 
   function setActiveSection(sectionId = 'city') {
     activeSection = sectionId;
@@ -376,7 +300,6 @@ export function enableHousesStatsModal(root, {
       content.hidden = !isActive;
       content.classList.toggle('is-active', isActive);
     });
-    if (sectionId === 'city' && !modal?.hidden) void refreshUtilityBilling();
   }
 
   function open(event) {
@@ -396,8 +319,6 @@ export function enableHousesStatsModal(root, {
     document.body.classList.remove('mn-house-details-open');
 
     setActiveSection(activeSection || 'city');
-    window.clearInterval(utilityTimer);
-    utilityTimer = window.setInterval(refreshUtilityBilling, 5000);
 
     window.dispatchEvent(new CustomEvent('mn:houses-list-opened'));
   }
@@ -417,8 +338,6 @@ export function enableHousesStatsModal(root, {
 
     document.body.classList.remove('mn-houses-modal-open');
     document.body.classList.remove('mn-house-details-open');
-    window.clearInterval(utilityTimer);
-    utilityTimer = 0;
 
     window.dispatchEvent(new CustomEvent('mn:houses-list-closed'));
   }
@@ -456,8 +375,6 @@ export function enableHousesStatsModal(root, {
 
     document.body.classList.remove('mn-houses-modal-open');
     document.body.classList.add('mn-house-details-open');
-    window.clearInterval(utilityTimer);
-    utilityTimer = 0;
 
     detailsController.open(house);
   }
@@ -484,7 +401,6 @@ export function enableHousesStatsModal(root, {
   openButton?.addEventListener('pointerup', handleOpenButton);
 
   modal?.addEventListener('click', handleSectionClick);
-  modal?.addEventListener('click', handleUtilityPayment);
 
   document.addEventListener('click', handleDocumentClose, true);
   document.addEventListener('pointerup', handleDocumentClose, true);
@@ -502,8 +418,6 @@ export function enableHousesStatsModal(root, {
     openButton?.removeEventListener('pointerup', handleOpenButton);
 
     modal?.removeEventListener('click', handleSectionClick);
-    modal?.removeEventListener('click', handleUtilityPayment);
-    window.clearInterval(utilityTimer);
 
     document.removeEventListener('click', handleDocumentClose, true);
     document.removeEventListener('pointerup', handleDocumentClose, true);
