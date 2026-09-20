@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { loadPowerInbox, answerPowerOffer, getSubstationError } from '../energySubstation/energySubstationApi.js';
 
 function formatMoney(value) {
   const number = Number(value || 0);
@@ -355,6 +356,24 @@ export function renderHouseDetailsModal() {
 
         <div class="house-details-message" hidden data-house-details-message></div>
 
+        <section class="house-power-contract" hidden data-house-power-contract>
+          <div class="house-power-contract-head">
+            <span>⚡ Электроснабжение</span>
+            <strong>Подстанция предлагает договор</strong>
+          </div>
+          <div class="house-power-contract-grid">
+            <article><small>Владелец подстанции</small><b data-house-power-owner>—</b></article>
+            <article><small>Тариф</small><b data-house-power-tariff>—</b></article>
+            <article><small>Подключение</small><b data-house-power-fee>—</b></article>
+            <article><small>Потребление дома</small><b data-house-power-consumption>5 кВт·ч/час</b></article>
+          </div>
+          <small class="house-power-contract-note" data-house-power-note></small>
+          <div class="house-power-contract-actions">
+            <button type="button" data-house-power-reject>Отказаться</button>
+            <button type="button" class="is-accept" data-house-power-accept>Принять договор</button>
+          </div>
+        </section>
+
         <section class="house-state-sale-confirm" hidden data-house-state-sale-confirm>
           <span>Продажа государству</span>
           <strong>Ты уверен, что хочешь продать этот дом?</strong>
@@ -453,6 +472,14 @@ export function createHouseDetailsController(root, {
   const tradeSendButton = modal?.querySelector('[data-house-trade-send]');
   const tradeKeyboard = modal?.querySelector('[data-house-trade-keyboard]');
   const message = modal?.querySelector('[data-house-details-message]');
+  const powerContract = modal?.querySelector('[data-house-power-contract]');
+  const powerOwner = modal?.querySelector('[data-house-power-owner]');
+  const powerTariff = modal?.querySelector('[data-house-power-tariff]');
+  const powerFee = modal?.querySelector('[data-house-power-fee]');
+  const powerConsumption = modal?.querySelector('[data-house-power-consumption]');
+  const powerNote = modal?.querySelector('[data-house-power-note]');
+  const powerAcceptButton = modal?.querySelector('[data-house-power-accept]');
+  const powerRejectButton = modal?.querySelector('[data-house-power-reject]');
 
   const title = modal?.querySelector('[data-house-details-title]');
   const icon = modal?.querySelector('[data-house-details-icon]');
@@ -466,6 +493,8 @@ export function createHouseDetailsController(root, {
   let selectedTradePlayer = null;
   let tradeKeyboardTarget = null;
   let tradeKeyboardLanguage = 'EN';
+  let activePowerOffer = null;
+  let powerRequestId = 0;
 
   const isTouchTradeKeyboard = Boolean(
     navigator.maxTouchPoints > 0 &&
@@ -571,6 +600,78 @@ export function createHouseDetailsController(root, {
     message.textContent = text || '';
     message.dataset.type = type;
   }
+
+  function formatPowerMoney(value) {
+    const amount = Math.max(0, Number(value) || 0);
+    return `${amount.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₴`;
+  }
+
+  function normalizedHouseKey(value) {
+    return String(value || '').trim().replaceAll('-', '').toUpperCase();
+  }
+
+  function offerMatchesHouse(offer, house) {
+    const offerKey = normalizedHouseKey(offer?.houseId);
+    if (!offerKey) return false;
+    const keys = [getHouseId(house), getRealMapObjectId(house), house?.payload?.houseId, house?.payload?.house_id]
+      .map(normalizedHouseKey)
+      .filter(Boolean);
+    return keys.some(key => key === offerKey || key.slice(-6) === offerKey.slice(-6));
+  }
+
+  function renderPowerOffer() {
+    if (!powerContract) return;
+    const offer = activePowerOffer;
+    powerContract.hidden = !offer;
+    if (!offer) return;
+    if (powerOwner) powerOwner.textContent = String(offer.substationName || 'Государство');
+    if (powerTariff) powerTariff.textContent = `${formatPowerMoney(offer.retailPrice)} / кВт·ч`;
+    if (powerFee) powerFee.textContent = formatPowerMoney(offer.connectionFee);
+    if (powerConsumption) powerConsumption.textContent = `${Number(offer.consumptionKwhPerHour) || 5} кВт·ч/час`;
+    if (powerNote) powerNote.textContent = `Подстанция ${offer.substationId || '—'} начнёт подавать электричество сразу после принятия договора.`;
+  }
+
+  async function refreshPowerOffer() {
+    const requestId = ++powerRequestId;
+    activePowerOffer = null;
+    renderPowerOffer();
+    if (!activeHouse || !isCurrentPlayerHouseOwner(activeHouse)) return;
+    const houseAtRequest = activeHouse;
+    try {
+      const result = await loadPowerInbox();
+      if (requestId !== powerRequestId || activeHouse !== houseAtRequest || modal?.hidden) return;
+      activePowerOffer = (result?.offers || []).find(offer => offerMatchesHouse(offer, activeHouse)) || null;
+      renderPowerOffer();
+    } catch (error) {
+      console.warn('[houses] power offer load failed:', error);
+    }
+  }
+
+  async function answerHousePowerOffer(accept, event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (!activePowerOffer) return;
+    const offer = activePowerOffer;
+    try {
+      if (powerAcceptButton) powerAcceptButton.disabled = true;
+      if (powerRejectButton) powerRejectButton.disabled = true;
+      const result = await answerPowerOffer(offer.id, accept);
+      const balance = Number(result?.playerBalance);
+      if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'house_power_contract' } }));
+      activePowerOffer = null;
+      renderPowerOffer();
+      setMessage(accept ? 'Договор принят. Электроснабжение дома подключено.' : 'Предложение электроснабжения отклонено.', accept ? 'success' : 'info');
+      window.dispatchEvent(new CustomEvent('mn:house-power-contract-changed', { detail: { house: activeHouse, offer, accepted: accept } }));
+    } catch (error) {
+      setMessage(getSubstationError(error), 'error');
+    } finally {
+      if (powerAcceptButton) powerAcceptButton.disabled = false;
+      if (powerRejectButton) powerRejectButton.disabled = false;
+    }
+  }
+
+  const handlePowerAccept = event => { void answerHousePowerOffer(true, event); };
+  const handlePowerReject = event => { void answerHousePowerOffer(false, event); };
 
   function renderActiveHouse() {
     if (!modal || !activeHouse) return;
@@ -694,6 +795,7 @@ export function createHouseDetailsController(root, {
         house: activeHouse,
       },
     }));
+    void refreshPowerOffer();
   }
 
   function close(event) {
@@ -706,6 +808,9 @@ export function createHouseDetailsController(root, {
     modal.setAttribute('aria-hidden', 'true');
 
     activeHouse = null;
+    activePowerOffer = null;
+    powerRequestId += 1;
+    renderPowerOffer();
     setMessage('');
     hideSaleConfirmation();
 
@@ -986,6 +1091,8 @@ export function createHouseDetailsController(root, {
   tradeKeyboard?.addEventListener('click', handleTradeKeyboardClick);
   saleCancelButton?.addEventListener('click', handleSellStateCancel);
   saleConfirmButton?.addEventListener('click', handleSellStateConfirm);
+  powerAcceptButton?.addEventListener('click', handlePowerAccept);
+  powerRejectButton?.addEventListener('click', handlePowerReject);
 
   window.addEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
   window.addEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
@@ -1014,6 +1121,8 @@ export function createHouseDetailsController(root, {
       tradeKeyboard?.removeEventListener('click', handleTradeKeyboardClick);
       saleCancelButton?.removeEventListener('click', handleSellStateCancel);
       saleConfirmButton?.removeEventListener('click', handleSellStateConfirm);
+      powerAcceptButton?.removeEventListener('click', handlePowerAccept);
+      powerRejectButton?.removeEventListener('click', handlePowerReject);
 
       window.removeEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
       window.removeEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
