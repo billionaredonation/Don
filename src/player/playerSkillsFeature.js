@@ -200,11 +200,13 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     if (!button || utilityLoading) return;
     event.preventDefault();
     const contractId = String(button.dataset.profileUtilityPay || '');
+    const billBeforePayment = (utilitySnapshot.bills || []).find((bill) => String(bill.id) === contractId);
+    const displayedAmount = Math.round(Math.max(0, Number(billBeforePayment?.amountDue) || 0) * 100) / 100;
     utilityLoading = true;
     button.disabled = true;
     window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { durationMs: 8000 } }));
     try {
-      utilitySnapshot = await payElectricityBill(contractId);
+      utilitySnapshot = await payElectricityBill(contractId, displayedAmount);
       const balance = Number(utilitySnapshot?.playerBalance);
       const paidAmount = Math.round(Math.max(0, Number(utilitySnapshot?.paidAmount) || 0) * 100) / 100;
       if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, delta: paidAmount > 0 ? -paidAmount : undefined, source: 'electricity_bill_payment' } }));
