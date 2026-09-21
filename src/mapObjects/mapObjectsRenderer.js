@@ -1085,3 +1085,5 @@ export function getMapObjectIdFromEvent(event) {
 
   return element?.dataset?.mapObjectId || null;
 }
+
+
