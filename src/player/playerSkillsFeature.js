@@ -768,3 +768,5 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     document.querySelectorAll('.mn-skill-level-toast').forEach((element) => element.remove());
   };
 }
+
+
