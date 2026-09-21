@@ -6,11 +6,13 @@ import { fetchPlayerOwnedHouses } from '../houses/housesRepository.js';
 import { fetchPlayerOwnedBusinesses } from '../business/businessRepository.js';
 import { getCityConfig } from '../cities/index.js';
 import { getSubstationError, loadElectricityBills, payElectricityBill } from '../energySubstation/energySubstationApi.js';
+import { answerWaterOffer, getWaterError, loadWaterUtility, payWaterBill } from '../waterTreatment/waterTreatmentApi.js';
 import { getPlayerSkillsSnapshot, publishPlayerSkills } from './playerSkillState.js';
 import './playerSkills.css';
 
 const RUNNING_XP_BATCH = 10;
 const RUNNING_XP_FLUSH_MS = 8000;
+const MIN_UTILITY_PAYMENT = 10;
 
 function money(value) {
   return `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU')} ₴`;
@@ -88,7 +90,7 @@ function profileMarkup() {
             <span><i>⌂</i><b>Дома и бизнесы</b><small>Вся собственность, включая другие города</small></span><strong>Открыть ›</strong>
           </button>
           <button class="mn-profile-skills-button mn-profile-utility-button" type="button" data-profile-open-utility>
-            <span><i>⚡</i><b>Коммунальные услуги</b><small>Потребление, задолженность и ручная оплата</small></span><strong>Открыть ›</strong>
+            <span><i>⚡💧</i><b>Коммунальные услуги</b><small>Электричество, вода, договоры и ручная оплата</small></span><strong>Открыть ›</strong>
           </button>
         </div>
 
@@ -153,10 +155,13 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   let skillsTouch = null;
   let propertyLoadPromise = null;
   let propertySnapshot = { houses: [], businesses: [] };
-  let utilitySnapshot = { bills: [], totalDue: 0 };
+  let utilitySnapshot = {
+    electricity: { bills: [], totalDue: 0 },
+    water: { offers: [], bills: [], totalDue: 0 },
+    waterError: '',
+  };
   let utilityLoading = false;
   let utilityTimer = 0;
-  const MIN_UTILITY_PAYMENT = 10;
 
   function utilityMoney(value) {
     return `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₴`;
@@ -164,36 +169,70 @@ export function enablePlayerSkillsFeature({ root } = {}) {
 
   function renderUtility() {
     if (!utilityContent) return;
-    const bills = Array.isArray(utilitySnapshot.bills) ? utilitySnapshot.bills : [];
+    const electricity = utilitySnapshot.electricity || { bills: [], totalDue: 0 };
+    const water = utilitySnapshot.water || { offers: [], bills: [], totalDue: 0 };
+    const electricityBills = Array.isArray(electricity.bills) ? electricity.bills : [];
+    const waterOffers = Array.isArray(water.offers) ? water.offers : [];
+    const waterBills = Array.isArray(water.bills) ? water.bills : [];
+    const totalDue = Math.max(0, Number(electricity.totalDue) || 0) + Math.max(0, Number(water.totalDue) || 0);
     utilityContent.innerHTML = `
       <section class="mn-profile-utility-summary">
-        <span><small>ОБЩАЯ ЗАДОЛЖЕННОСТЬ</small><strong>${utilityMoney(utilitySnapshot.totalDue)}</strong></span>
-        <i>⚡</i>
+        <span><small>ОБЩАЯ ЗАДОЛЖЕННОСТЬ</small><strong>${utilityMoney(totalDue)}</strong></span>
+        <i>⚡💧</i>
       </section>
-      <p class="mn-profile-utility-note">Автоматических списаний нет. Электричество потребляется, сумма накапливается здесь и оплачивается только после вашего нажатия. Оплата доступна, когда начислено минимум ${utilityMoney(MIN_UTILITY_PAYMENT)}.</p>
+      <p class="mn-profile-utility-note">Автоматических списаний нет. Электричество и вода оплачиваются только после вашего нажатия. Минимальная сумма каждого счёта — ${utilityMoney(MIN_UTILITY_PAYMENT)}.</p>
+      ${waterOffers.length ? `<section class="mn-profile-utility-section mn-profile-water-offers">
+        <header><span><small>НОВЫЕ ДОГОВОРЫ</small><strong>Предложения водоснабжения</strong></span><b>${waterOffers.length}</b></header>
+        <div class="mn-profile-utility-list">${waterOffers.map((offer) => `<article class="mn-profile-water-offer">
+          <header><span><small>${escapeHtml(offer.houseName || 'Дом')}</small><strong>${escapeHtml(offer.plantName || 'Водоочистное сооружение')}</strong></span><b>💧 Оферта</b></header>
+          <div><span><small>Подключение</small><b>${utilityMoney(offer.connectionFee)}</b></span><span><small>Тариф владельца</small><b>${utilityMoney(offer.unitPrice)} / л</b></span></div>
+          <footer><button type="button" data-profile-water-answer="${escapeHtml(offer.id)}" data-accept="false">Отклонить</button><button type="button" data-profile-water-answer="${escapeHtml(offer.id)}" data-accept="true">Принять за ${utilityMoney(offer.connectionFee)}</button></footer>
+        </article>`).join('')}</div>
+      </section>` : ''}
+      <section class="mn-profile-utility-section">
+        <header><span><small>ЭЛЕКТРИЧЕСТВО</small><strong>Счета домов</strong></span><b>⚡</b></header>
       <div class="mn-profile-utility-list">
-        ${bills.length ? bills.map((bill) => {
-          const due = Math.round(Math.max(0, Number(bill.amountDue) || 0) * 100) / 100;
-          const canPay = due >= MIN_UTILITY_PAYMENT;
-          const paymentLabel = due < 0.01
-            ? 'Задолженности нет'
-            : canPay
-              ? `Оплатить ${utilityMoney(due)}`
-              : `Оплата от ${utilityMoney(MIN_UTILITY_PAYMENT)} · накоплено ${utilityMoney(due)}`;
+        ${electricityBills.length ? electricityBills.map((bill) => {
+          const due = Math.max(0, Number(bill.amountDue) || 0);
+          const canPay = Math.round(due * 100) >= MIN_UTILITY_PAYMENT * 100;
           return `<article>
             <header><span><small>${escapeHtml(bill.houseName || 'Дом')}</small><strong>${escapeHtml(bill.substationName || 'Подстанция')}</strong></span><b>${bill.powerActive ? '⚡ Свет поступает' : '⛔ Свет не поступает'}</b></header>
             <div><span><small>Потреблено</small><b>${Math.max(0, Number(bill.totalKwh) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} кВт·ч</b></span><span><small>Тариф</small><b>${utilityMoney(bill.retailPrice)} / кВт·ч</b></span><span><small>Уже оплачено</small><b>${utilityMoney(bill.totalPaid)}</b></span><span><small>К оплате</small><b>${utilityMoney(due)}</b></span></div>
-            <button type="button" data-profile-utility-pay="${escapeHtml(bill.id)}" ${canPay ? '' : 'disabled'}>${paymentLabel}</button>
+            <button type="button" data-profile-utility-pay="${escapeHtml(bill.id)}" ${canPay ? '' : 'disabled'}>${due < 0.01 ? 'Задолженности нет' : canPay ? `Оплатить ${utilityMoney(due)}` : `Оплата доступна от ${utilityMoney(MIN_UTILITY_PAYMENT)}`}</button>
           </article>`;
-        }).join('') : '<div class="mn-profile-property-empty"><i>⚡</i><span><strong>Коммунальных счетов пока нет</strong><small>Они появятся после подключения дома к подстанции.</small></span></div>'}
-      </div>`;
+        }).join('') : '<div class="mn-profile-property-empty"><i>⚡</i><span><strong>Счетов за электричество пока нет</strong><small>Они появятся после подключения дома к подстанции.</small></span></div>'}
+      </div></section>
+      <section class="mn-profile-utility-section">
+        <header><span><small>ВОДОСНАБЖЕНИЕ</small><strong>Счета домов</strong></span><b>💧</b></header>
+        ${utilitySnapshot.waterError ? `<p class="mn-profile-utility-service-error">${escapeHtml(utilitySnapshot.waterError)}</p>` : ''}
+        <div class="mn-profile-utility-list">
+          ${waterBills.length ? waterBills.map((bill) => {
+            const due = Math.max(0, Number(bill.amountDue) || 0);
+            const canPay = Math.round(due * 100) >= MIN_UTILITY_PAYMENT * 100;
+            return `<article class="mn-profile-water-bill">
+              <header><span><small>${escapeHtml(bill.houseName || 'Дом')}</small><strong>${escapeHtml(bill.plantName || 'Водоочистное сооружение')}</strong></span><b>${bill.waterActive ? '💧 Вода поступает' : '⛔ Подача остановлена'}</b></header>
+              <div><span><small>Израсходовано</small><b>${Math.max(0, Number(bill.totalLiters) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} л</b></span><span><small>Расход дома</small><b>${Math.max(0, Number(bill.dailyLiters) || 0).toLocaleString('ru-RU')} л/сутки</b></span><span><small>Тариф</small><b>${utilityMoney(bill.unitPrice)} / л</b></span><span><small>К оплате</small><b>${utilityMoney(due)}</b></span></div>
+              <button type="button" data-profile-water-pay="${escapeHtml(bill.id)}" ${canPay ? '' : 'disabled'}>${due < 0.01 ? 'Задолженности нет' : canPay ? `Оплатить ${utilityMoney(due)}` : `Оплата доступна от ${utilityMoney(MIN_UTILITY_PAYMENT)}`}</button>
+            </article>`;
+          }).join('') : '<div class="mn-profile-property-empty"><i>💧</i><span><strong>Счетов за воду пока нет</strong><small>Примите предложение предприятия, чтобы подключить дом.</small></span></div>'}
+        </div>
+      </section>`;
   }
 
   async function refreshUtility() {
     if (utilityLoading || destroyed || utilityPage?.hidden !== false) return;
     utilityLoading = true;
     try {
-      utilitySnapshot = await loadElectricityBills();
+      const [electricityResult, waterResult] = await Promise.allSettled([
+        loadElectricityBills(),
+        loadWaterUtility(),
+      ]);
+      if (electricityResult.status === 'rejected' && waterResult.status === 'rejected') throw electricityResult.reason;
+      utilitySnapshot = {
+        electricity: electricityResult.status === 'fulfilled' ? electricityResult.value : { bills: [], totalDue: 0 },
+        water: waterResult.status === 'fulfilled' ? waterResult.value : { offers: [], bills: [], totalDue: 0 },
+        waterError: waterResult.status === 'rejected' ? getWaterError(waterResult.reason) : '',
+      };
       if (!destroyed) renderUtility();
     } catch (error) {
       if (utilityContent) utilityContent.innerHTML = `<div class="mn-skills-loading is-error">${escapeHtml(getSubstationError(error))}</div>`;
@@ -203,23 +242,82 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   }
 
   async function handleUtilityClick(event) {
-    const button = event.target?.closest?.('[data-profile-utility-pay]');
+    const waterAnswerButton = event.target?.closest?.('[data-profile-water-answer]');
+    const waterPayButton = event.target?.closest?.('[data-profile-water-pay]');
+    const button = waterAnswerButton || waterPayButton || event.target?.closest?.('[data-profile-utility-pay]');
     if (!button || utilityLoading) return;
     event.preventDefault();
+
+    if (waterAnswerButton) {
+      const contractId = String(button.dataset.profileWaterAnswer || '');
+      const accepted = button.dataset.accept === 'true';
+      utilityLoading = true;
+      button.disabled = true;
+      if (accepted) window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { durationMs: 8000 } }));
+      try {
+        const result = await answerWaterOffer(contractId, accepted);
+        const balance = Number(result?.playerBalance);
+        utilitySnapshot.water = result;
+        utilitySnapshot.waterError = '';
+        if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, delta: accepted ? -1000 : undefined, source: 'water_connection' } }));
+        renderUtility();
+        window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: accepted ? 'Водоснабжение подключено. Списано 1 000 ₴.' : 'Предложение водоснабжения отклонено.', type: 'success' } }));
+      } catch (error) {
+        window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { cancel: true } }));
+        window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: getWaterError(error), type: 'error' } }));
+      } finally {
+        utilityLoading = false;
+        void refreshUtility();
+      }
+      return;
+    }
+
+    if (waterPayButton) {
+      const contractId = String(button.dataset.profileWaterPay || '');
+      const bill = (utilitySnapshot.water?.bills || []).find((item) => String(item.id) === contractId);
+      const displayedAmount = Math.round(Math.max(0, Number(bill?.amountDue) || 0) * 100) / 100;
+      if (displayedAmount < MIN_UTILITY_PAYMENT) {
+        window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: `Оплатить счёт за воду можно после накопления ${utilityMoney(MIN_UTILITY_PAYMENT)}.`, type: 'error' } }));
+        renderUtility();
+        return;
+      }
+      utilityLoading = true;
+      button.disabled = true;
+      window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { durationMs: 8000 } }));
+      try {
+        const result = await payWaterBill(contractId, displayedAmount);
+        const balance = Number(result?.playerBalance);
+        const paidAmount = Math.round(Math.max(0, Number(result?.paidAmount) || 0) * 100) / 100;
+        utilitySnapshot.water = result;
+        if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, delta: paidAmount > 0 ? -paidAmount : undefined, source: 'water_bill_payment' } }));
+        renderUtility();
+        window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: 'Счёт за воду оплачен.', type: 'success' } }));
+      } catch (error) {
+        window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { cancel: true } }));
+        window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: getWaterError(error), type: 'error' } }));
+      } finally {
+        utilityLoading = false;
+        void refreshUtility();
+      }
+      return;
+    }
+
     const contractId = String(button.dataset.profileUtilityPay || '');
-    const billBeforePayment = (utilitySnapshot.bills || []).find((bill) => String(bill.id) === contractId);
+    const billBeforePayment = (utilitySnapshot.electricity?.bills || []).find((bill) => String(bill.id) === contractId);
     const displayedAmount = Math.round(Math.max(0, Number(billBeforePayment?.amountDue) || 0) * 100) / 100;
     if (displayedAmount < MIN_UTILITY_PAYMENT) {
-      window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: `Оплата станет доступна после накопления ${utilityMoney(MIN_UTILITY_PAYMENT)}.`, type: 'error' } }));
+      window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: `Оплатить коммунальный счёт можно после накопления ${utilityMoney(MIN_UTILITY_PAYMENT)}.`, type: 'error' } }));
+      renderUtility();
       return;
     }
     utilityLoading = true;
     button.disabled = true;
     window.dispatchEvent(new CustomEvent('mn:balance-sync-lock', { detail: { durationMs: 8000 } }));
     try {
-      utilitySnapshot = await payElectricityBill(contractId, displayedAmount);
-      const balance = Number(utilitySnapshot?.playerBalance);
-      const paidAmount = Math.round(Math.max(0, Number(utilitySnapshot?.paidAmount) || 0) * 100) / 100;
+      const result = await payElectricityBill(contractId, displayedAmount);
+      utilitySnapshot.electricity = result;
+      const balance = Number(result?.playerBalance);
+      const paidAmount = Math.round(Math.max(0, Number(result?.paidAmount) || 0) * 100) / 100;
       if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, delta: paidAmount > 0 ? -paidAmount : undefined, source: 'electricity_bill_payment' } }));
       renderUtility();
       window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: 'Коммунальный счёт оплачен.', type: 'success' } }));
