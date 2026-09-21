@@ -124,6 +124,14 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-profile-utility-summary strong { font-size: 22px; color: #8ce2ff; }
 .mn-profile-utility-summary i { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; background: rgba(54, 185, 242, .13); font-size: 22px; font-style: normal; }
 .mn-profile-utility-note { margin: 0; padding: 11px 13px; border-radius: 13px; background: rgba(255, 255, 255, .035); color: #81918a; font-size: 10px; line-height: 1.45; }
+.mn-profile-utility-section { display: grid; gap: 9px; }
+.mn-profile-utility-section > header { display: flex; align-items: end; justify-content: space-between; gap: 10px; padding: 2px 3px; }
+.mn-profile-utility-section > header span { display: grid; gap: 2px; }
+.mn-profile-utility-section > header small { color: #6f938a; font-size: 8px; font-weight: 900; letter-spacing: .11em; }
+.mn-profile-utility-section > header strong { font-size: 13px; }
+.mn-profile-utility-section > header > b { color: #79dcff; font-size: 15px; }
+.mn-profile-water-offers { padding: 11px; border: 1px solid rgba(72, 200, 230, .2); border-radius: 16px; background: rgba(24, 118, 145, .08); }
+.mn-profile-utility-service-error { margin: 0; padding: 9px 11px; border-radius: 10px; color: #ffaaaa; background: rgba(180, 52, 52, .1); font-size: 9px; }
 .mn-profile-utility-list { display: grid; gap: 9px; }
 .mn-profile-utility-list > article { padding: 13px; border: 1px solid rgba(255, 255, 255, .07); border-radius: 16px; background: rgba(4, 12, 8, .58); }
 .mn-profile-utility-list > article > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -137,6 +145,9 @@ body.mn-player-profile-open .mn-hospital-management-hint {
 .mn-profile-utility-list > article > div b { font-size: 11px; }
 .mn-profile-utility-list > article > button { width: 100%; border: 0; border-radius: 11px; padding: 10px; background: #45d582; color: #06120a; font-weight: 900; cursor: pointer; }
 .mn-profile-utility-list > article > button:disabled { color: #718079; background: rgba(255, 255, 255, .055); cursor: default; }
+.mn-profile-utility-list > article > footer { display: grid; grid-template-columns: .8fr 1.2fr; gap: 7px; }
+.mn-profile-utility-list > article > footer button { border: 0; border-radius: 11px; padding: 10px 7px; color: #c6d1cc; background: rgba(255, 255, 255, .075); font-size: 9px; font-weight: 900; cursor: pointer; }
+.mn-profile-utility-list > article > footer button:last-child { color: #061318; background: #64d9f1; }
 .mn-skills-content { display: grid; gap: 16px; }
 .mn-skills-loading { padding: 35px; color: #87968f; text-align: center; font-weight: 800; }
 .mn-skills-loading.is-error { color: #ff9a9a; }
