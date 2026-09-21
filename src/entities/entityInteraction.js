@@ -114,6 +114,7 @@ function isWorkObject(object) {
     || type === 'nuclear_power_plant'
     || type === 'coal_power_plant'
     || type === 'energy_substation'
+    || type === 'water_treatment_plant'
     || type === 'power_transformer'
   );
 }
@@ -1856,6 +1857,8 @@ export function enableEntityInteraction({
         ? 'УЭС · угольная электростанция'
       : objectType === 'energy_substation'
         ? 'Электрическая подстанция · предприятие'
+      : objectType === 'water_treatment_plant'
+        ? 'Водоочистное сооружение · предприятие'
       : objectType === 'power_transformer'
         ? 'Силовой трансформатор · 300 кВт'
       : farmPlant
