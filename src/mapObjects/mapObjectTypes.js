@@ -18,6 +18,7 @@ const LEGAL_BUSINESS_OBJECT_TYPES = new Set([
   'nuclear_power_plant',
   'coal_power_plant',
   'energy_substation',
+  'water_treatment_plant',
 ]);
 
 export function isBusinessLegalMapObjectType(type) {
@@ -520,6 +521,13 @@ export const MAP_OBJECT_TYPES = {
     defaultWidth: 3.1, defaultHeight: 2.4,
   },
 
+  water_treatment_plant: {
+    type: 'water_treatment_plant', category: MAP_OBJECT_CATEGORIES.JOB,
+    label: 'Водоочистное сооружение · предприятие', icon: '💧',
+    defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01',
+    defaultWidth: 3.3, defaultHeight: 2.6,
+  },
+
   power_transformer: {
     type: 'power_transformer', category: MAP_OBJECT_CATEGORIES.JOB,
     label: 'Силовой трансформатор · 300 кВт', icon: '🔌',
@@ -874,6 +882,20 @@ export function createMapObjectDraft({
     basePayload.substation_id = objectId;
     Object.assign(basePayload, getBusinessLegalPayload({ legalForm: basePayload.legalForm || 'tov', ...basePayload }));
     basePayload.price = 1_000_000;
+    basePayload.buyable = true;
+    basePayload.transferable = true;
+    basePayload.serverOwned = false;
+    basePayload.ownerId = basePayload.ownerId || null;
+    basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
+    basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+
+  if (config.type === 'water_treatment_plant') {
+    basePayload.waterTreatmentPlant = true;
+    basePayload.waterTreatmentPlantId = objectId;
+    basePayload.water_treatment_plant_id = objectId;
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: basePayload.legalForm || 'tov', ...basePayload }));
+    basePayload.price = 10_000_000;
     basePayload.buyable = true;
     basePayload.transferable = true;
     basePayload.serverOwned = false;
