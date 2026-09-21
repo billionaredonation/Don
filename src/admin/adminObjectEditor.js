@@ -340,6 +340,26 @@ export async function saveAdminObject({
       });
     }
 
+    if (selectedType === 'water_treatment_plant') {
+      const ownerId = nextPatch.payload.ownerId || nextPatch.payload.owner_id || null;
+      const ownerName = nextPatch.payload.ownerName || nextPatch.payload.owner_name || null;
+      Object.assign(nextPatch.payload, {
+        waterTreatmentPlant: true,
+        waterTreatmentPlantId: String(object.id),
+        water_treatment_plant_id: String(object.id),
+        legalForm: nextPatch.payload.legalForm || nextPatch.payload.legal_form || 'tov',
+        price: 10_000_000,
+        buyable: true,
+        transferable: true,
+        serverOwned: false,
+        ownerId,
+        owner_id: ownerId,
+        ownerName,
+        owner_name: ownerName,
+        owned: Boolean(ownerId),
+      });
+    }
+
     if (selectedType === 'power_transformer') {
       Object.assign(nextPatch.payload, {
         powerTransformer: true, transformerId: String(object.id), transformer_id: String(object.id),
