@@ -13,6 +13,7 @@ import {
 const esc = (value) => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const money = (value) => `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₴`;
 const liters = (value) => `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} л`;
+const litersLive = (value) => `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 3 })} л`;
 const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 const plantIdOf = (object) => String(object?.payload?.waterTreatmentPlantId || object?.payload?.water_treatment_plant_id || object?.id || '').trim();
 
@@ -43,11 +44,7 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
   let liveTimer = 0;
   let lastBalance = null;
   const consumerDraft = { houseId: '', unitPrice: '10' };
-
-  const isEditingField = () => {
-    const active = document.activeElement;
-    return Boolean(active && modal.contains(active) && active.matches?.('input, textarea, select, [contenteditable="true"]'));
-  };
+  let withdrawDraft = '1000';
 
   const syncBalance = (result) => {
     const balance = Number(result?.playerBalance);
@@ -100,8 +97,8 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     return `<section class="mn-water-page">
       <div class="mn-water-stats"><article><small>Статус</small><strong>${esc(status)}</strong></article><article><small>Сырая вода</small><strong>${liters(s.rawWaterLiters)}</strong></article><article><small>Питьевая вода</small><strong>${liters(clean)} / ${liters(capacity)}</strong></article><article><small>Абоненты</small><strong>${Number(s.subscriberCount || 0)} / 10</strong></article></div>
       <div class="mn-water-flow"><span><i>🌊</i> Водоём</span><b>→</b><span><i>⚙️</i> Водозабор</span><b>→</b><span><i>🧪</i> Очистка</span><b>→</b><span><i>💧</i> Резервуар</span><b>→</b><span><i>🏠</i> Дома</span></div>
-      <div class="mn-water-ledger"><article><small>Собрано всего</small><b>${liters(s.totalCollectedLiters)}</b></article><article><small>Очищено</small><b>${liters(s.totalCleanedLiters)}</b></article><article><small>Поставлено домам</small><b>${liters(s.totalDeliveredLiters)}</b></article><article><small>Счёт предприятия</small><b>${money(s.cashBalance)}</b></article></div>
-      <div class="mn-water-actions"><button data-water-start ${!s.isOwner || running || !ready ? 'disabled' : ''}>Запустить</button><button data-water-stop ${!s.isOwner || !running ? 'disabled' : ''}>Остановить</button><input data-water-withdraw type="number" min="1" value="1000" placeholder="Сумма"><button data-water-withdraw-button ${s.isOwner ? '' : 'disabled'}>Снять прибыль</button></div>
+      <div class="mn-water-ledger"><article><small>Собрано всего</small><b>${liters(s.totalCollectedLiters)}</b></article><article><small>Очищено</small><b>${liters(s.totalCleanedLiters)}</b></article><article><small>Поставлено домам</small><b>${litersLive(s.totalDeliveredLiters)}</b></article><article><small>Счёт предприятия</small><b>${money(s.cashBalance)}</b></article></div>
+      <div class="mn-water-actions"><button data-water-start ${!s.isOwner || running || !ready ? 'disabled' : ''}>Запустить</button><button data-water-stop ${!s.isOwner || !running ? 'disabled' : ''}>Остановить</button><input data-water-withdraw type="number" min="1" value="${esc(withdrawDraft)}" placeholder="Сумма"><button data-water-withdraw-button ${s.isOwner ? '' : 'disabled'}>Снять прибыль</button></div>
       <div class="mn-water-public-id"><span><small>Публичный ID предприятия</small><code>${esc(s.publicId || plant.id || '—')}</code></span><button data-water-copy>Копировать</button></div>
       <p class="mn-water-note">Сбор: ${liters(s.collectionLitersPerHour || 150)}/ч · очистка: ${liters(s.purificationLitersPerHour || 100)}/ч. Расчёт выполняется по реально прошедшему времени без постоянного серверного тика.</p>
     </section>`;
@@ -131,13 +128,15 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
   function bind() {
     const houseField = content.querySelector('[data-water-house]');
     const priceField = content.querySelector('[data-water-price]');
+    const withdrawField = content.querySelector('[data-water-withdraw]');
     houseField?.addEventListener('input', () => { consumerDraft.houseId = houseField.value; });
     priceField?.addEventListener('input', () => { consumerDraft.unitPrice = priceField.value; });
+    withdrawField?.addEventListener('input', () => { withdrawDraft = withdrawField.value; });
     content.querySelector('[data-water-purchase]')?.addEventListener('click', () => run(() => buyWaterTreatment(currentId, cityId), 'Водоочистное сооружение приобретено.'));
     content.querySelectorAll('[data-water-equipment]').forEach((button) => button.addEventListener('click', () => run(() => buyWaterEquipment(currentId, cityId, button.dataset.waterEquipment), 'Система установлена.')));
     content.querySelector('[data-water-start]')?.addEventListener('click', () => run(() => startWaterTreatment(currentId, cityId), 'Сбор и очистка воды запущены.'));
     content.querySelector('[data-water-stop]')?.addEventListener('click', () => run(() => stopWaterTreatment(currentId, cityId), 'Предприятие остановлено.'));
-    content.querySelector('[data-water-withdraw-button]')?.addEventListener('click', () => run(() => withdrawWaterTreatment(currentId, cityId, Number(content.querySelector('[data-water-withdraw]')?.value)), 'Прибыль выведена.'));
+    content.querySelector('[data-water-withdraw-button]')?.addEventListener('click', () => run(() => withdrawWaterTreatment(currentId, cityId, Number(withdrawField?.value)), 'Прибыль выведена.'));
     content.querySelector('[data-water-copy]')?.addEventListener('click', async () => {
       const id = String(snapshot?.publicId || snapshot?.plant?.id || '');
       try { await navigator.clipboard.writeText(id); notify('Публичный ID скопирован.', 'success'); } catch { window.prompt('Скопируйте ID:', id); }
@@ -152,9 +151,31 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
   }
 
   function render() {
+    const active = document.activeElement;
+    const focusState = active && content.contains(active) && active.matches?.('[data-water-house], [data-water-price], [data-water-withdraw]')
+      ? {
+          selector: active.hasAttribute('data-water-house')
+            ? '[data-water-house]'
+            : active.hasAttribute('data-water-price')
+              ? '[data-water-price]'
+              : '[data-water-withdraw]',
+          start: active.selectionStart,
+          end: active.selectionEnd,
+          direction: active.selectionDirection,
+        }
+      : null;
     modal.classList.toggle('is-running', Boolean(snapshot?.running));
     content.innerHTML = activeTab === 'equipment' ? equipmentView() : activeTab === 'consumers' ? consumersView() : overview();
     bind();
+    if (focusState) {
+      const next = content.querySelector(focusState.selector);
+      next?.focus({ preventScroll: true });
+      try {
+        if (focusState.start !== null && focusState.end !== null) {
+          next?.setSelectionRange(focusState.start, focusState.end, focusState.direction || 'none');
+        }
+      } catch {}
+    }
   }
 
   const close = () => { modal.hidden = true; window.clearInterval(liveTimer); liveTimer = 0; };
@@ -181,6 +202,7 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     if (nextId !== currentId) {
       consumerDraft.houseId = '';
       consumerDraft.unitPrice = '10';
+      withdrawDraft = '1000';
     }
     currentId = nextId;
     if (!currentId) return;
@@ -192,7 +214,7 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
       await refresh();
       window.clearInterval(liveTimer);
       liveTimer = window.setInterval(() => {
-        if (!modal.hidden && !busy && !isEditingField()) refresh().catch(() => {});
+        if (!modal.hidden && !busy) refresh().catch(() => {});
       }, 5000);
     } catch (error) {
       modal.hidden = true;
