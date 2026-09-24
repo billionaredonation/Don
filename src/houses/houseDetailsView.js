@@ -1,5 +1,6 @@
 import { state } from '../state.js';
 import { loadPowerInbox, answerPowerOffer, getSubstationError } from '../energySubstation/energySubstationApi.js';
+import { loadWaterUtility, answerWaterOffer, getWaterError } from '../waterTreatment/waterTreatmentApi.js';
 
 function formatMoney(value) {
   const number = Number(value || 0);
@@ -374,6 +375,24 @@ export function renderHouseDetailsModal() {
           </div>
         </section>
 
+        <section class="house-power-contract house-water-contract" hidden data-house-water-contract>
+          <div class="house-power-contract-head">
+            <span>💧 Водоснабжение</span>
+            <strong>Водоочистное сооружение предлагает договор</strong>
+          </div>
+          <div class="house-power-contract-grid">
+            <article><small>Поставщик воды</small><b data-house-water-owner>—</b></article>
+            <article><small>Тариф</small><b data-house-water-tariff>—</b></article>
+            <article><small>Подключение</small><b data-house-water-fee>—</b></article>
+            <article><small>Расход дома</small><b data-house-water-consumption>50–100 л/сутки</b></article>
+          </div>
+          <small class="house-power-contract-note" data-house-water-note></small>
+          <div class="house-power-contract-actions">
+            <button type="button" data-house-water-reject>Отказаться</button>
+            <button type="button" class="is-accept" data-house-water-accept>Принять договор</button>
+          </div>
+        </section>
+
         <section class="house-state-sale-confirm" hidden data-house-state-sale-confirm>
           <span>Продажа государству</span>
           <strong>Ты уверен, что хочешь продать этот дом?</strong>
@@ -480,6 +499,14 @@ export function createHouseDetailsController(root, {
   const powerNote = modal?.querySelector('[data-house-power-note]');
   const powerAcceptButton = modal?.querySelector('[data-house-power-accept]');
   const powerRejectButton = modal?.querySelector('[data-house-power-reject]');
+  const waterContract = modal?.querySelector('[data-house-water-contract]');
+  const waterOwner = modal?.querySelector('[data-house-water-owner]');
+  const waterTariff = modal?.querySelector('[data-house-water-tariff]');
+  const waterFee = modal?.querySelector('[data-house-water-fee]');
+  const waterConsumption = modal?.querySelector('[data-house-water-consumption]');
+  const waterNote = modal?.querySelector('[data-house-water-note]');
+  const waterAcceptButton = modal?.querySelector('[data-house-water-accept]');
+  const waterRejectButton = modal?.querySelector('[data-house-water-reject]');
 
   const title = modal?.querySelector('[data-house-details-title]');
   const icon = modal?.querySelector('[data-house-details-icon]');
@@ -495,6 +522,8 @@ export function createHouseDetailsController(root, {
   let tradeKeyboardLanguage = 'EN';
   let activePowerOffer = null;
   let powerRequestId = 0;
+  let activeWaterOffer = null;
+  let waterRequestId = 0;
 
   const isTouchTradeKeyboard = Boolean(
     navigator.maxTouchPoints > 0 &&
@@ -673,6 +702,60 @@ export function createHouseDetailsController(root, {
   const handlePowerAccept = event => { void answerHousePowerOffer(true, event); };
   const handlePowerReject = event => { void answerHousePowerOffer(false, event); };
 
+  function renderWaterOffer() {
+    if (!waterContract) return;
+    const offer = activeWaterOffer;
+    waterContract.hidden = !offer;
+    if (!offer) return;
+    if (waterOwner) waterOwner.textContent = String(offer.plantName || 'Водоочистное сооружение');
+    if (waterTariff) waterTariff.textContent = `${formatPowerMoney(offer.unitPrice)} / л`;
+    if (waterFee) waterFee.textContent = formatPowerMoney(offer.connectionFee);
+    if (waterConsumption) waterConsumption.textContent = '50–100 л/сутки';
+    if (waterNote) waterNote.textContent = `Предприятие ${offer.plantId || '—'} начнёт поставлять питьевую воду сразу после принятия договора.`;
+  }
+
+  async function refreshWaterOffer() {
+    const requestId = ++waterRequestId;
+    activeWaterOffer = null;
+    renderWaterOffer();
+    if (!activeHouse || !isCurrentPlayerHouseOwner(activeHouse)) return;
+    const houseAtRequest = activeHouse;
+    try {
+      const result = await loadWaterUtility();
+      if (requestId !== waterRequestId || activeHouse !== houseAtRequest || modal?.hidden) return;
+      activeWaterOffer = (result?.offers || []).find(offer => offerMatchesHouse(offer, activeHouse)) || null;
+      renderWaterOffer();
+    } catch (error) {
+      console.warn('[houses] water offer load failed:', error);
+    }
+  }
+
+  async function answerHouseWaterOffer(accept, event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (!activeWaterOffer) return;
+    const offer = activeWaterOffer;
+    try {
+      if (waterAcceptButton) waterAcceptButton.disabled = true;
+      if (waterRejectButton) waterRejectButton.disabled = true;
+      const result = await answerWaterOffer(offer.id, accept);
+      const balance = Number(result?.playerBalance);
+      if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'house_water_contract' } }));
+      activeWaterOffer = null;
+      renderWaterOffer();
+      setMessage(accept ? 'Договор принят. Водоснабжение дома подключено.' : 'Предложение водоснабжения отклонено.', accept ? 'success' : 'info');
+      window.dispatchEvent(new CustomEvent('mn:house-water-contract-changed', { detail: { house: activeHouse, offer, accepted: accept } }));
+    } catch (error) {
+      setMessage(getWaterError(error), 'error');
+    } finally {
+      if (waterAcceptButton) waterAcceptButton.disabled = false;
+      if (waterRejectButton) waterRejectButton.disabled = false;
+    }
+  }
+
+  const handleWaterAccept = event => { void answerHouseWaterOffer(true, event); };
+  const handleWaterReject = event => { void answerHouseWaterOffer(false, event); };
+
   function renderActiveHouse() {
     if (!modal || !activeHouse) return;
 
@@ -796,6 +879,7 @@ export function createHouseDetailsController(root, {
       },
     }));
     void refreshPowerOffer();
+    void refreshWaterOffer();
   }
 
   function close(event) {
@@ -811,6 +895,9 @@ export function createHouseDetailsController(root, {
     activePowerOffer = null;
     powerRequestId += 1;
     renderPowerOffer();
+    activeWaterOffer = null;
+    waterRequestId += 1;
+    renderWaterOffer();
     setMessage('');
     hideSaleConfirmation();
 
@@ -1093,6 +1180,8 @@ export function createHouseDetailsController(root, {
   saleConfirmButton?.addEventListener('click', handleSellStateConfirm);
   powerAcceptButton?.addEventListener('click', handlePowerAccept);
   powerRejectButton?.addEventListener('click', handlePowerReject);
+  waterAcceptButton?.addEventListener('click', handleWaterAccept);
+  waterRejectButton?.addEventListener('click', handleWaterReject);
 
   window.addEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
   window.addEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
@@ -1123,6 +1212,8 @@ export function createHouseDetailsController(root, {
       saleConfirmButton?.removeEventListener('click', handleSellStateConfirm);
       powerAcceptButton?.removeEventListener('click', handlePowerAccept);
       powerRejectButton?.removeEventListener('click', handlePowerReject);
+      waterAcceptButton?.removeEventListener('click', handleWaterAccept);
+      waterRejectButton?.removeEventListener('click', handleWaterReject);
 
       window.removeEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
       window.removeEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
