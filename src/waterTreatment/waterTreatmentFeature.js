@@ -42,6 +42,12 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
   let busy = false;
   let liveTimer = 0;
   let lastBalance = null;
+  const consumerDraft = { houseId: '', unitPrice: '10' };
+
+  const isEditingField = () => {
+    const active = document.activeElement;
+    return Boolean(active && modal.contains(active) && active.matches?.('input, textarea, select, [contenteditable="true"]'));
+  };
 
   const syncBalance = (result) => {
     const balance = Number(result?.playerBalance);
@@ -117,12 +123,16 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     const openCount = consumers.filter((item) => item.status === 'active' || item.status === 'offered').length;
     const ready = Boolean(s.equipment?.collection && s.equipment?.purification && s.equipment?.transport);
     return `<section class="mn-water-page"><div class="mn-water-consumer-heading"><div><h3>Водоснабжение домов</h3><p>Подключение стоит фиксированные 1 000 ₴. Тариф задаёт владелец, но не ниже 10 ₴ за литр.</p></div><span>${openCount}/10 мест</span></div>
-      ${s.isOwner ? `<div class="mn-water-offer"><input data-water-house maxlength="120" placeholder="Публичный ID дома"><input data-water-price type="number" min="10" step="0.01" value="10" placeholder="₴ за литр"><button data-water-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
+      ${s.isOwner ? `<div class="mn-water-offer"><input data-water-house maxlength="120" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома"><input data-water-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за литр"><button data-water-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
       <div class="mn-water-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>Дом ${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.waterActive ? '💧 Вода поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / л</b></span><span><small>Расход дома</small><b>${item.status === 'active' ? `${liters(item.dailyLiters)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-water-empty">Абонентов пока нет.</div>'}</div>
     </section>`;
   }
 
   function bind() {
+    const houseField = content.querySelector('[data-water-house]');
+    const priceField = content.querySelector('[data-water-price]');
+    houseField?.addEventListener('input', () => { consumerDraft.houseId = houseField.value; });
+    priceField?.addEventListener('input', () => { consumerDraft.unitPrice = priceField.value; });
     content.querySelector('[data-water-purchase]')?.addEventListener('click', () => run(() => buyWaterTreatment(currentId, cityId), 'Водоочистное сооружение приобретено.'));
     content.querySelectorAll('[data-water-equipment]').forEach((button) => button.addEventListener('click', () => run(() => buyWaterEquipment(currentId, cityId, button.dataset.waterEquipment), 'Система установлена.')));
     content.querySelector('[data-water-start]')?.addEventListener('click', () => run(() => startWaterTreatment(currentId, cityId), 'Сбор и очистка воды запущены.'));
@@ -133,8 +143,8 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
       try { await navigator.clipboard.writeText(id); notify('Публичный ID скопирован.', 'success'); } catch { window.prompt('Скопируйте ID:', id); }
     });
     content.querySelector('[data-water-offer]')?.addEventListener('click', () => {
-      const houseId = String(content.querySelector('[data-water-house]')?.value || '').trim();
-      const unitPrice = Number(content.querySelector('[data-water-price]')?.value);
+      const houseId = String(houseField?.value || '').trim();
+      const unitPrice = Number(priceField?.value);
       if (!houseId) { notify('Введите публичный ID дома.', 'error'); return; }
       if (!Number.isFinite(unitPrice) || unitPrice < 10) { notify('Цена воды должна быть не меньше 10 ₴ за литр.', 'error'); return; }
       run(() => offerHouseWater(currentId, cityId, houseId, unitPrice), 'Предложение отправлено владельцу дома.');
@@ -151,6 +161,14 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
   modal.querySelector('[data-water-close]').addEventListener('click', close);
   modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
   modal.querySelectorAll('[data-water-tab]').forEach((button) => button.addEventListener('click', () => setTab(button.dataset.waterTab)));
+  const stopGameKeysWhileTyping = (event) => {
+    if (!event.target?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+    if (/^(KeyW|KeyA|KeyS|KeyD|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|ShiftLeft|ShiftRight)$/.test(event.code)) {
+      event.stopPropagation();
+    }
+  };
+  content.addEventListener('keydown', stopGameKeysWhileTyping);
+  content.addEventListener('keyup', stopGameKeysWhileTyping);
   const onKey = (event) => { if (event.key === 'Escape' && !modal.hidden) close(); };
   window.addEventListener('keydown', onKey);
 
@@ -159,7 +177,12 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     const rawType = String(object?.type || '');
     const type = rawType === 'marker' ? String(object?.payload?.jobType || object?.payload?.type || rawType) : rawType;
     if (type !== 'water_treatment_plant') return;
-    currentId = plantIdOf(object);
+    const nextId = plantIdOf(object);
+    if (nextId !== currentId) {
+      consumerDraft.houseId = '';
+      consumerDraft.unitPrice = '10';
+    }
+    currentId = nextId;
     if (!currentId) return;
     activeTab = 'overview';
     modal.querySelectorAll('[data-water-tab]').forEach((button) => button.classList.toggle('is-active', button.dataset.waterTab === activeTab));
@@ -168,7 +191,9 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     try {
       await refresh();
       window.clearInterval(liveTimer);
-      liveTimer = window.setInterval(() => { if (!modal.hidden && !busy) refresh().catch(() => {}); }, 5000);
+      liveTimer = window.setInterval(() => {
+        if (!modal.hidden && !busy && !isEditingField()) refresh().catch(() => {});
+      }, 5000);
     } catch (error) {
       modal.hidden = true;
       notify(getWaterError(error), 'error');
@@ -178,6 +203,8 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
   window.addEventListener('mn:water-treatment-object-action', onAction);
   return () => {
     window.clearInterval(liveTimer);
+    content.removeEventListener('keydown', stopGameKeysWhileTyping);
+    content.removeEventListener('keyup', stopGameKeysWhileTyping);
     window.removeEventListener('keydown', onKey);
     window.removeEventListener('mn:water-treatment-object-action', onAction);
     modal.remove();
