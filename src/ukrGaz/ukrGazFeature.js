@@ -1,6 +1,7 @@
 import './ukrGaz.css';
 import {
   loadUkrGaz,
+  payGasMaintenance,
   buyUkrGaz,
   buyGasEquipment,
   startUkrGaz,
@@ -61,7 +62,6 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
 
   const refresh = async () => {
     snapshot = await loadUkrGaz(currentId, cityId);
-    syncBalance(snapshot);
     render();
   };
 
@@ -127,6 +127,7 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
   }
 
   function bind() {
+    content.querySelector('[data-gas-maintenance]')?.addEventListener('click', () => run(() => payGasMaintenance(currentId, cityId), 'Обслуживание оплачено со счёта предприятия. Матрицу можно запустить.'));
     content.querySelectorAll('[data-gas-draft]').forEach(el=>el.addEventListener('input',()=>{drafts[el.dataset.gasDraft]=el.value;}));
     content.querySelectorAll('[data-gas-warehouse]').forEach(el=>el.addEventListener('click',()=>{const a=el.dataset.gasWarehouse;const value=el.dataset.value??drafts[a==='set_coal_price'?'price':a==='add_budget'?'budget':'quantity'];run(()=>ukrGazWarehouseAction(currentId,cityId,a,Number(value)),'Готово.');}));
     const houseField = content.querySelector('[data-gas-house]');
@@ -169,6 +170,9 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
       : null;
     modal.classList.toggle('is-running', Boolean(snapshot?.running));
     content.innerHTML = activeTab === 'warehouse' ? warehouseView() : activeTab === 'equipment' ? equipmentView() : activeTab === 'consumers' ? consumersView() : overview();
+    if (snapshot?.isOwner && ['overview', 'equipment'].includes(activeTab)) {
+      content.insertAdjacentHTML('beforeend', `<section class="mn-gas-page"><h3>Обслуживание матрицы</h3><p>Наработка: ${Number(snapshot.maintenanceHours || 0).toFixed(2)} / ${Number(snapshot.maintenanceIntervalHours || 24)} ч. Стоимость: ${money(snapshot.maintenancePrice ?? 400)}.</p><p>Оплата вручную со счёта предприятия. Автоматического списания нет. После выработки ресурса матрица останавливается; накопленный газ остаётся доступен для поставки.</p>${snapshot.maintenanceRequired ? `<button data-gas-maintenance>Оплатить обслуживание · ${money(snapshot.maintenanceDue)}</button>` : '<p>Обслуживание пока не требуется.</p>'}</section>`);
+    }
     bind();
     if (focusState) {
       const next = content.querySelector(focusState.selector);
