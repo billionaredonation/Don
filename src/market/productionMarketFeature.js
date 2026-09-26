@@ -1,3 +1,4 @@
+import {loadUkrGazMarket,ukrGazWarehouseAction,getGasError} from '../ukrGaz/ukrGazApi.js';
 import './productionMarket.css';
 import { state, save } from '../state.js';
 import { sellToFactory, loadProductionExchange, createStoreRequest, getFactoryError } from '../factory/factoryApi.js';
@@ -69,8 +70,8 @@ const chainForRawOffer=(offer,fallback='')=>INDUSTRY_CHAIN_ALIASES[String(offer?
 function shell(){return `<div class="mn-production-shortcuts"><button data-raw-market-open><b>O</b><span>Продать сырьё</span></button><button data-exchange-open hidden><b>M</b><span>Биржа продукции</span></button></div><div class="mn-production-market" data-production-market hidden><button class="mn-production-backdrop" data-market-close></button><section><header><div><small data-market-eyebrow>РЫНОК</small><h2 data-market-title>Производственная экономика</h2></div><button data-market-close>×</button></header><main data-market-content></main></section></div>`;}
 
 async function loadUniversalRaw(){
-  const [procurementResult,coalPowerResult]=await Promise.allSettled([loadProcurementMarket(),loadCoalPowerMarket()]);
-  if(procurementResult.status==='rejected'&&coalPowerResult.status==='rejected')throw procurementResult.reason;
+  const [procurementResult,coalPowerResult,gasResult]=await Promise.allSettled([loadProcurementMarket(),loadCoalPowerMarket(),loadUkrGazMarket()]);
+  if(procurementResult.status==='rejected'&&coalPowerResult.status==='rejected'&&gasResult.status==='rejected')throw procurementResult.reason;
   if(procurementResult.status==='rejected')console.warn('[market] procurement buyers unavailable:',procurementResult.reason);
   if(coalPowerResult.status==='rejected')console.warn('[market] coal power buyers unavailable:',coalPowerResult.reason);
   const procurementOffers=procurementResult.status==='fulfilled'
@@ -79,7 +80,8 @@ async function loadUniversalRaw(){
   const coalPowerOffers=coalPowerResult.status==='fulfilled'
     ? sourceOffers(coalPowerResult.value).map(normalizeRawOffer).map(item=>({...item,chainId:'metallurgy',rawProvider:'coal_power'}))
     : [];
-  const merged=[...procurementOffers,...coalPowerOffers].filter(item=>RAW_ITEMS[item.itemType]&&item.factoryId);
+  const gasOffers=gasResult.status==='fulfilled'?sourceOffers(gasResult.value).map(normalizeRawOffer).map(item=>({...item,chainId:'metallurgy',rawProvider:'ukrgaz'})):[];
+  const merged=[...procurementOffers,...coalPowerOffers,...gasOffers].filter(item=>RAW_ITEMS[item.itemType]&&item.factoryId);
 
   const seen=new Set();
   const offers=[];
@@ -277,6 +279,9 @@ content.addEventListener('click',async e=>{const t=e.target;if(busy)return;const
     task=()=>sellToProcurementBuyer({buyerKind:'factory',buyerId:sell.dataset.rawSell,cityId:sell.dataset.city,buyerType:sell.dataset.chain,itemType:sell.dataset.item,quantity});
     errorMessage=getProcurementError;
     refreshMineInventory=sell.dataset.chain==='metallurgy';
+  }else if(sell.dataset.provider==='ukrgaz'){
+    task=()=>ukrGazWarehouseAction(sell.dataset.rawSell,sell.dataset.city,'sell_coal',quantity);
+    errorMessage=getGasError;refreshMineInventory=true;
   }else if(sell.dataset.provider==='coal_power'){
     task=()=>sellCoalToPowerPlant(sell.dataset.rawSell,sell.dataset.city,quantity);
     errorMessage=getCoalPowerError;
