@@ -30,10 +30,13 @@ export const offerHouseGas = (plantId, cityId, houseId, unitPrice) => invoke('co
 export const loadGasUtility = () => invoke('consumer_portal');
 export const answerGasOffer = (contractId, accept) => invoke('consumer_answer', { contractId, accept });
 export const payGasBill = (contractId, amount) => invoke('consumer_pay', { contractId, amount });
+export const payGasMaintenance = (plantId, cityId) => invoke('maintenance_pay', { plantId, cityId });
 
 export function getGasError(error) {
   const raw = String(error?.message || error || 'GAS_REQUEST_FAILED');
   const messages = {
+    GAS_MAINTENANCE_REQUIRED: 'Матрица требует обслуживания. Оплатите его в разделе «Системы».',
+    GAS_MAINTENANCE_NOT_DUE: 'Обслуживание пока не требуется или уже оплачено.',
     GAS_COAL_REQUIRED: 'Загрузите уголь на склад.',
     GAS_WAREHOUSE_FULL: 'Склад угля заполнен.',
     GAS_PROCUREMENT_DISABLED: 'Скупка угля остановлена.',
