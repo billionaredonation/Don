@@ -33,7 +33,7 @@ export const payWaterBill = (contractId, amount) => invoke('consumer_pay', { con
 
 export function getWaterError(error) {
   const raw = String(error?.message || error || 'WATER_REQUEST_FAILED');
-  const messages = {
+  const messages = {UTILITY_CONSUMER_AMBIGUOUS:'Найдено несколько объектов. Укажите полный ID.',UTILITY_CONSUMER_NOT_FOUND:'Дом или предприятие не найдены в этом городе.',UTILITY_OWNER_CHANGED:'Владелец объекта изменился. Нужен новый договор.',TRANSFORMER_CAPACITY_EXCEEDED:'Недостаточно мощности трансформатора. Дом: 5 кВт, магазин: 20 кВт, завод: 30 кВт.',
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.',
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела.',
     WATER_PLANT_NOT_FOUND: 'Водоочистное сооружение не найдено.',
