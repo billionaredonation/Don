@@ -214,6 +214,13 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
   const interiors = enableInteriorsFeature();
   let refreshTimer = null;
   let destroyed = false;
+  let refreshPending = false;
+  let mountRequestId = 0;
+
+  function isHouseModalOpen() {
+    return Array.from(document.querySelectorAll('.houses-modal, .house-details-modal'))
+      .some((modal) => !modal.hidden);
+  }
 
   async function assertHouseSlotAvailable(playerId) {
     const ownedCount = await countPlayerOwnedHouses(playerId);
@@ -417,6 +424,30 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
 
   async function mountModal() {
     if (destroyed) return;
+    if (isHouseModalOpen()) {
+      refreshPending = true;
+      return;
+    }
+
+    const requestId = ++mountRequestId;
+    let houses, cityStats;
+    try {
+      [houses, cityStats] = await Promise.all([
+        loadHousesFeature(cityId),
+        loadCitySummary(cityId),
+      ]);
+    } catch (error) {
+      console.warn('[houses] modal refresh failed:', error);
+      return;
+    }
+    if (destroyed || requestId !== mountRequestId) return;
+    // The player may open a house while the request is in flight.
+    // Keep its controller, contract buttons and pending actions alive.
+    if (isHouseModalOpen()) {
+      refreshPending = true;
+      return;
+    }
+    refreshPending = false;
 
     cleanupModal?.();
     cleanupModal = null;
@@ -437,13 +468,6 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     document.body?.classList.remove('mn-houses-modal-open');
     document.body?.classList.remove('mn-house-details-open');
 
-    const [houses, cityStats] = await Promise.all([
-      loadHousesFeature(cityId),
-      loadCitySummary(cityId),
-    ]);
-
-    if (destroyed) return;
-
     root.insertAdjacentHTML('beforeend', renderHousesFeatureHtml({
       city: city || { name: cityId || 'Город' },
       houses,
@@ -462,16 +486,17 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
   }
 
   function scheduleRefresh() {
-    /*
-      ВАЖНО:
-      Больше НЕ переоткрываем модалку автоматически после refresh.
-      Именно из-за авто-reopen окно могло всплывать само.
-    */
+    if (destroyed) return;
+    refreshPending = true;
     clearTimeout(refreshTimer);
 
     refreshTimer = setTimeout(() => {
-      mountModal();
+      void mountModal();
     }, 250);
+  }
+
+  function handleModalClosed() {
+    if (refreshPending) scheduleRefresh();
   }
 
   function handleRealtimeRefresh(event) {
@@ -505,6 +530,8 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
   window.addEventListener('mn:house-spawn-enter-request', handleHouseSpawnEnterRequest);
   window.addEventListener('mn:map-objects-changed', handleRealtimeRefresh);
   window.addEventListener('mn:houses-realtime-changed', handleRealtimeRefresh);
+  window.addEventListener('mn:house-details-closed', handleModalClosed);
+  window.addEventListener('mn:houses-list-closed', handleModalClosed);
 
   return () => {
     destroyed = true;
@@ -513,6 +540,8 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     window.removeEventListener('mn:house-spawn-enter-request', handleHouseSpawnEnterRequest);
     window.removeEventListener('mn:map-objects-changed', handleRealtimeRefresh);
     window.removeEventListener('mn:houses-realtime-changed', handleRealtimeRefresh);
+    window.removeEventListener('mn:house-details-closed', handleModalClosed);
+    window.removeEventListener('mn:houses-list-closed', handleModalClosed);
 
     cleanupModal?.();
     cleanupTrade?.();
