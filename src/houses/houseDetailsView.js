@@ -1,6 +1,7 @@
 import { state } from '../state.js';
 import { loadPowerInbox, answerPowerOffer, getSubstationError } from '../energySubstation/energySubstationApi.js';
 import { loadWaterUtility, answerWaterOffer, getWaterError } from '../waterTreatment/waterTreatmentApi.js';
+import { loadGasUtility, answerGasOffer, getGasError } from '../ukrGaz/ukrGazApi.js';
 
 function formatMoney(value) {
   const number = Number(value || 0);
@@ -384,12 +385,29 @@ export function renderHouseDetailsModal() {
             <article><small>Поставщик воды</small><b data-house-water-owner>—</b></article>
             <article><small>Тариф</small><b data-house-water-tariff>—</b></article>
             <article><small>Подключение</small><b data-house-water-fee>—</b></article>
-            <article><small>Расход дома</small><b data-house-water-consumption>50–100 л/сутки</b></article>
+            <article><small>Расход дома</small><b data-house-water-consumption>75 л/сутки</b></article>
           </div>
           <small class="house-power-contract-note" data-house-water-note></small>
           <div class="house-power-contract-actions">
             <button type="button" data-house-water-reject>Отказаться</button>
             <button type="button" class="is-accept" data-house-water-accept>Принять договор</button>
+          </div>
+        </section>
+        <section class="house-power-contract house-gas-contract" hidden data-house-gas-contract>
+          <div class="house-power-contract-head">
+            <span>🔥 Газоснабжение</span>
+            <strong>УкрГаз предлагает договор</strong>
+          </div>
+          <div class="house-power-contract-grid">
+            <article><small>Поставщик газа</small><b data-house-gas-owner>—</b></article>
+            <article><small>Тариф</small><b data-house-gas-tariff>—</b></article>
+            <article><small>Подключение</small><b data-house-gas-fee>—</b></article>
+            <article><small>Расход дома</small><b data-house-gas-consumption>75 ед./сутки</b></article>
+          </div>
+          <small class="house-power-contract-note" data-house-gas-note></small>
+          <div class="house-power-contract-actions">
+            <button type="button" data-house-gas-reject>Отказаться</button>
+            <button type="button" class="is-accept" data-house-gas-accept>Принять договор</button>
           </div>
         </section>
 
@@ -500,13 +518,21 @@ export function createHouseDetailsController(root, {
   const powerAcceptButton = modal?.querySelector('[data-house-power-accept]');
   const powerRejectButton = modal?.querySelector('[data-house-power-reject]');
   const waterContract = modal?.querySelector('[data-house-water-contract]');
+  const gasContract = modal?.querySelector('[data-house-gas-contract]');
   const waterOwner = modal?.querySelector('[data-house-water-owner]');
+  const gasOwner = modal?.querySelector('[data-house-gas-owner]');
   const waterTariff = modal?.querySelector('[data-house-water-tariff]');
+  const gasTariff = modal?.querySelector('[data-house-gas-tariff]');
   const waterFee = modal?.querySelector('[data-house-water-fee]');
+  const gasFee = modal?.querySelector('[data-house-gas-fee]');
   const waterConsumption = modal?.querySelector('[data-house-water-consumption]');
+  const gasConsumption = modal?.querySelector('[data-house-gas-consumption]');
   const waterNote = modal?.querySelector('[data-house-water-note]');
+  const gasNote = modal?.querySelector('[data-house-gas-note]');
   const waterAcceptButton = modal?.querySelector('[data-house-water-accept]');
+  const gasAcceptButton = modal?.querySelector('[data-house-gas-accept]');
   const waterRejectButton = modal?.querySelector('[data-house-water-reject]');
+  const gasRejectButton = modal?.querySelector('[data-house-gas-reject]');
 
   const title = modal?.querySelector('[data-house-details-title]');
   const icon = modal?.querySelector('[data-house-details-icon]');
@@ -523,7 +549,9 @@ export function createHouseDetailsController(root, {
   let activePowerOffer = null;
   let powerRequestId = 0;
   let activeWaterOffer = null;
+  let activeGasOffer = null;
   let waterRequestId = 0;
+  let gasRequestId = 0;
 
   const isTouchTradeKeyboard = Boolean(
     navigator.maxTouchPoints > 0 &&
@@ -710,7 +738,7 @@ export function createHouseDetailsController(root, {
     if (waterOwner) waterOwner.textContent = String(offer.plantName || 'Водоочистное сооружение');
     if (waterTariff) waterTariff.textContent = `${formatPowerMoney(offer.unitPrice)} / л`;
     if (waterFee) waterFee.textContent = formatPowerMoney(offer.connectionFee);
-    if (waterConsumption) waterConsumption.textContent = '50–100 л/сутки';
+    if (waterConsumption) waterConsumption.textContent = '75 л/сутки';
     if (waterNote) waterNote.textContent = `Предприятие ${offer.plantId || '—'} начнёт поставлять питьевую воду сразу после принятия договора.`;
   }
 
@@ -755,6 +783,60 @@ export function createHouseDetailsController(root, {
 
   const handleWaterAccept = event => { void answerHouseWaterOffer(true, event); };
   const handleWaterReject = event => { void answerHouseWaterOffer(false, event); };
+
+  function renderGasOffer() {
+    if (!gasContract) return;
+    const offer = activeGasOffer;
+    gasContract.hidden = !offer;
+    if (!offer) return;
+    if (gasOwner) gasOwner.textContent = String(offer.plantName || 'УкрГаз');
+    if (gasTariff) gasTariff.textContent = `${formatPowerMoney(offer.unitPrice)} / ед.`;
+    if (gasFee) gasFee.textContent = formatPowerMoney(offer.connectionFee);
+    if (gasConsumption) gasConsumption.textContent = '75 ед./сутки';
+    if (gasNote) gasNote.textContent = `Предприятие ${offer.plantId || '—'} начнёт поставлять газ для отопления сразу после принятия договора.`;
+  }
+
+  async function refreshGasOffer() {
+    const requestId = ++gasRequestId;
+    activeGasOffer = null;
+    renderGasOffer();
+    if (!activeHouse || !isCurrentPlayerHouseOwner(activeHouse)) return;
+    const houseAtRequest = activeHouse;
+    try {
+      const result = await loadGasUtility();
+      if (requestId !== gasRequestId || activeHouse !== houseAtRequest || modal?.hidden) return;
+      activeGasOffer = (result?.offers || []).find(offer => offerMatchesHouse(offer, activeHouse)) || null;
+      renderGasOffer();
+    } catch (error) {
+      console.warn('[houses] gas offer load failed:', error);
+    }
+  }
+
+  async function answerHouseGasOffer(accept, event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    if (!activeGasOffer) return;
+    const offer = activeGasOffer;
+    try {
+      if (gasAcceptButton) gasAcceptButton.disabled = true;
+      if (gasRejectButton) gasRejectButton.disabled = true;
+      const result = await answerGasOffer(offer.id, accept);
+      const balance = Number(result?.playerBalance);
+      if (Number.isFinite(balance)) window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'house_gas_contract' } }));
+      activeGasOffer = null;
+      renderGasOffer();
+      setMessage(accept ? 'Договор принят. Газоснабжение дома подключено.' : 'Предложение газоснабжения отклонено.', accept ? 'success' : 'info');
+      window.dispatchEvent(new CustomEvent('mn:house-gas-contract-changed', { detail: { house: activeHouse, offer, accepted: accept } }));
+    } catch (error) {
+      setMessage(getGasError(error), 'error');
+    } finally {
+      if (gasAcceptButton) gasAcceptButton.disabled = false;
+      if (gasRejectButton) gasRejectButton.disabled = false;
+    }
+  }
+
+  const handleGasAccept = event => { void answerHouseGasOffer(true, event); };
+  const handleGasReject = event => { void answerHouseGasOffer(false, event); };
 
   function renderActiveHouse() {
     if (!modal || !activeHouse) return;
@@ -880,6 +962,7 @@ export function createHouseDetailsController(root, {
     }));
     void refreshPowerOffer();
     void refreshWaterOffer();
+    void refreshGasOffer();
   }
 
   function close(event) {
@@ -896,8 +979,11 @@ export function createHouseDetailsController(root, {
     powerRequestId += 1;
     renderPowerOffer();
     activeWaterOffer = null;
+    activeGasOffer = null;
     waterRequestId += 1;
+    gasRequestId += 1;
     renderWaterOffer();
+    renderGasOffer();
     setMessage('');
     hideSaleConfirmation();
 
@@ -1181,7 +1267,9 @@ export function createHouseDetailsController(root, {
   powerAcceptButton?.addEventListener('click', handlePowerAccept);
   powerRejectButton?.addEventListener('click', handlePowerReject);
   waterAcceptButton?.addEventListener('click', handleWaterAccept);
+  gasAcceptButton?.addEventListener('click', handleGasAccept);
   waterRejectButton?.addEventListener('click', handleWaterReject);
+  gasRejectButton?.addEventListener('click', handleGasReject);
 
   window.addEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
   window.addEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
@@ -1213,7 +1301,9 @@ export function createHouseDetailsController(root, {
       powerAcceptButton?.removeEventListener('click', handlePowerAccept);
       powerRejectButton?.removeEventListener('click', handlePowerReject);
       waterAcceptButton?.removeEventListener('click', handleWaterAccept);
+      gasAcceptButton?.removeEventListener('click', handleGasAccept);
       waterRejectButton?.removeEventListener('click', handleWaterReject);
+      gasRejectButton?.removeEventListener('click', handleGasReject);
 
       window.removeEventListener('mn:houses-realtime-changed', handleRealtimeHouseChanged);
       window.removeEventListener('mn:map-objects-changed', handleRealtimeHouseChanged);
