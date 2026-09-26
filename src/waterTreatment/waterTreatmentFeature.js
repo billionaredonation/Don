@@ -119,9 +119,9 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     const consumers = Array.isArray(s.consumers) ? s.consumers : [];
     const openCount = consumers.filter((item) => item.status === 'active' || item.status === 'offered').length;
     const ready = Boolean(s.equipment?.collection && s.equipment?.purification && s.equipment?.transport);
-    return `<section class="mn-water-page"><div class="mn-water-consumer-heading"><div><h3>Водоснабжение домов</h3><p>Подключение стоит фиксированные 1 000 ₴. Тариф задаёт владелец, но не ниже 10 ₴ за литр.</p></div><span>${openCount}/10 мест</span></div>
-      ${s.isOwner ? `<div class="mn-water-offer"><input data-water-house maxlength="120" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома"><input data-water-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за литр"><button data-water-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
-      <div class="mn-water-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>Дом ${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.waterActive ? '💧 Вода поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / л</b></span><span><small>Расход дома</small><b>${item.status === 'active' ? `${liters(item.dailyLiters)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-water-empty">Абонентов пока нет.</div>'}</div>
+    return `<section class="mn-water-page"><div class="mn-water-consumer-heading"><div><h3>Водоснабжение домов и предприятий</h3><p>Норма: дом — 75 л/сутки, магазин — 300, завод — 450. Подключение стоит 1 000 ₴. Тариф задаёт владелец, но не ниже 10 ₴ за литр.</p></div><span>${openCount}/10 мест</span></div>
+      ${s.isOwner ? `<div class="mn-water-offer"><input data-water-house maxlength="120" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома / предприятия"><input data-water-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за литр"><button data-water-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
+      <div class="mn-water-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>Дом ${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.waterActive ? '💧 Вода поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / л</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyLiters)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-water-empty">Абонентов пока нет.</div>'}</div>
     </section>`;
   }
 
@@ -144,9 +144,9 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     content.querySelector('[data-water-offer]')?.addEventListener('click', () => {
       const houseId = String(houseField?.value || '').trim();
       const unitPrice = Number(priceField?.value);
-      if (!houseId) { notify('Введите публичный ID дома.', 'error'); return; }
+      if (!houseId) { notify('Введите публичный ID объекта.', 'error'); return; }
       if (!Number.isFinite(unitPrice) || unitPrice < 10) { notify('Цена воды должна быть не меньше 10 ₴ за литр.', 'error'); return; }
-      run(() => offerHouseWater(currentId, cityId, houseId, unitPrice), 'Предложение отправлено владельцу дома.');
+      run(() => offerHouseWater(currentId, cityId, houseId, unitPrice), 'Предложение отправлено владельцу объекта.');
     });
   }
 
