@@ -1,3 +1,4 @@
+import { loadGasUtility, answerGasOffer, payGasBill, getGasError } from '../ukrGaz/ukrGazApi.js';
 import { state } from '../state.js';
 import { addRunningSkillXp, loadPlayerSkills } from '../farm/farmApi.js';
 import { loadMineSkills } from '../mine/mineApi.js';
@@ -5,7 +6,7 @@ import { loadLumberSkills } from '../lumber/lumberApi.js';
 import { fetchPlayerOwnedHouses } from '../houses/housesRepository.js';
 import { fetchPlayerOwnedBusinesses } from '../business/businessRepository.js';
 import { getCityConfig } from '../cities/index.js';
-import { getSubstationError, loadElectricityBills, payElectricityBill } from '../energySubstation/energySubstationApi.js';
+import { getSubstationError, loadElectricityBills, payElectricityBill, loadPowerInbox, answerPowerOffer } from '../energySubstation/energySubstationApi.js';
 import { answerWaterOffer, getWaterError, loadWaterUtility, payWaterBill } from '../waterTreatment/waterTreatmentApi.js';
 import { getPlayerSkillsSnapshot, publishPlayerSkills } from './playerSkillState.js';
 import './playerSkills.css';
@@ -90,7 +91,7 @@ function profileMarkup() {
             <span><i>⌂</i><b>Дома и бизнесы</b><small>Вся собственность, включая другие города</small></span><strong>Открыть ›</strong>
           </button>
           <button class="mn-profile-skills-button mn-profile-utility-button" type="button" data-profile-open-utility>
-            <span><i>⚡💧</i><b>Коммунальные услуги</b><small>Электричество, вода, договоры и ручная оплата</small></span><strong>Открыть ›</strong>
+            <span><i>⚡💧🔥</i><b>Коммунальные услуги</b><small>Электричество, вода, договоры и ручная оплата</small></span><strong>Открыть ›</strong>
           </button>
         </div>
 
@@ -160,6 +161,10 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     water: { offers: [], bills: [], totalDue: 0 },
     waterError: '',
   };
+  let gasUtility={offers:[],bills:[],totalDue:0};
+  let gasUtilityError='';
+  let powerUtilityOffers=[];
+  let gasBusy=false;
   let utilityLoading = false;
   let utilityTimer = 0;
 
@@ -174,13 +179,13 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     const electricityBills = Array.isArray(electricity.bills) ? electricity.bills : [];
     const waterOffers = Array.isArray(water.offers) ? water.offers : [];
     const waterBills = Array.isArray(water.bills) ? water.bills : [];
-    const totalDue = Math.max(0, Number(electricity.totalDue) || 0) + Math.max(0, Number(water.totalDue) || 0);
+    const totalDue = Math.max(0,Number(gasUtility.totalDue)||0) + Math.max(0, Number(electricity.totalDue) || 0) + Math.max(0, Number(water.totalDue) || 0);
     utilityContent.innerHTML = `
       <section class="mn-profile-utility-summary">
         <span><small>ОБЩАЯ ЗАДОЛЖЕННОСТЬ</small><strong>${utilityMoney(totalDue)}</strong></span>
         <i>⚡💧</i>
       </section>
-      <p class="mn-profile-utility-note">Автоматических списаний нет. Электричество и вода оплачиваются только после вашего нажатия. Минимальная сумма каждого счёта — ${utilityMoney(MIN_UTILITY_PAYMENT)}.</p>
+      <p class="mn-profile-utility-note">Автоматических списаний нет. Электричество, вода и газ оплачиваются только после вашего нажатия. Минимальная сумма каждого счёта — ${utilityMoney(MIN_UTILITY_PAYMENT)}.</p>
       ${waterOffers.length ? `<section class="mn-profile-utility-section mn-profile-water-offers">
         <header><span><small>НОВЫЕ ДОГОВОРЫ</small><strong>Предложения водоснабжения</strong></span><b>${waterOffers.length}</b></header>
         <div class="mn-profile-utility-list">${waterOffers.map((offer) => `<article class="mn-profile-water-offer">
@@ -190,7 +195,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         </article>`).join('')}</div>
       </section>` : ''}
       <section class="mn-profile-utility-section">
-        <header><span><small>ЭЛЕКТРИЧЕСТВО</small><strong>Счета домов</strong></span><b>⚡</b></header>
+        <header><span><small>ЭЛЕКТРИЧЕСТВО</small><strong>Счета домов и предприятий</strong></span><b>⚡</b></header>
       <div class="mn-profile-utility-list">
         ${electricityBills.length ? electricityBills.map((bill) => {
           const due = Math.max(0, Number(bill.amountDue) || 0);
@@ -203,7 +208,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         }).join('') : '<div class="mn-profile-property-empty"><i>⚡</i><span><strong>Счетов за электричество пока нет</strong><small>Они появятся после подключения дома к подстанции.</small></span></div>'}
       </div></section>
       <section class="mn-profile-utility-section">
-        <header><span><small>ВОДОСНАБЖЕНИЕ</small><strong>Счета домов</strong></span><b>💧</b></header>
+        <header><span><small>ВОДОСНАБЖЕНИЕ</small><strong>Счета домов и предприятий</strong></span><b>💧</b></header>
         ${utilitySnapshot.waterError ? `<p class="mn-profile-utility-service-error">${escapeHtml(utilitySnapshot.waterError)}</p>` : ''}
         <div class="mn-profile-utility-list">
           ${waterBills.length ? waterBills.map((bill) => {
@@ -211,23 +216,45 @@ export function enablePlayerSkillsFeature({ root } = {}) {
             const canPay = Math.round(due * 100) >= MIN_UTILITY_PAYMENT * 100;
             return `<article class="mn-profile-water-bill">
               <header><span><small>${escapeHtml(bill.houseName || 'Дом')}</small><strong>${escapeHtml(bill.plantName || 'Водоочистное сооружение')}</strong></span><b>${bill.waterActive ? '💧 Вода поступает' : '⛔ Подача остановлена'}</b></header>
-              <div><span><small>Израсходовано</small><b>${Math.max(0, Number(bill.totalLiters) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} л</b></span><span><small>Расход дома</small><b>${Math.max(0, Number(bill.dailyLiters) || 0).toLocaleString('ru-RU')} л/сутки</b></span><span><small>Тариф</small><b>${utilityMoney(bill.unitPrice)} / л</b></span><span><small>К оплате</small><b>${utilityMoney(due)}</b></span></div>
+              <div><span><small>Израсходовано</small><b>${Math.max(0, Number(bill.totalLiters) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} л</b></span><span><small>Расход объекта</small><b>${Math.max(0, Number(bill.dailyLiters) || 0).toLocaleString('ru-RU')} л/сутки</b></span><span><small>Тариф</small><b>${utilityMoney(bill.unitPrice)} / л</b></span><span><small>К оплате</small><b>${utilityMoney(due)}</b></span></div>
               <button type="button" data-profile-water-pay="${escapeHtml(bill.id)}" ${canPay ? '' : 'disabled'}>${due < 0.01 ? 'Задолженности нет' : canPay ? `Оплатить ${utilityMoney(due)}` : `Оплата доступна от ${utilityMoney(MIN_UTILITY_PAYMENT)}`}</button>
             </article>`;
           }).join('') : '<div class="mn-profile-property-empty"><i>💧</i><span><strong>Счетов за воду пока нет</strong><small>Примите предложение предприятия, чтобы подключить дом.</small></span></div>'}
         </div>
       </section>`;
+    renderGasUtility();
   }
 
+  function renderGasUtility(){
+    if(!utilityContent)return;
+    const offers=gasUtility.offers||[],bills=gasUtility.bills||[];
+    utilityContent.insertAdjacentHTML('beforeend',`<section class="mn-profile-utility-section"><header><strong>🔥 УкрГаз · отопление домов и предприятий</strong></header>${gasUtilityError?`<p>${escapeHtml(gasUtilityError)}</p>`:''}<div class="mn-profile-utility-list">${offers.map(o=>`<article><header><strong>${escapeHtml(o.houseName||o.houseId)}</strong><span>${escapeHtml(o.plantName||'УкрГаз')}</span></header><p>Тариф: ${utilityMoney(o.unitPrice)} / ед. · подключение: ${utilityMoney(o.connectionFee)}</p><button data-gas-answer="${escapeHtml(o.id)}" data-accept="true">Принять</button><button data-gas-answer="${escapeHtml(o.id)}" data-accept="false">Отказаться</button></article>`).join('')}${bills.map(b=>`<article><header><strong>${escapeHtml(b.houseName||b.houseId)}</strong><span>${b.gasActive?'Газ поступает':'Поставка остановлена'}</span></header><p>${Number(b.dailyUnits||0)} ед./сутки · поставлено ${Number(b.totalUnits||0).toFixed(2)} ед. · ${utilityMoney(b.unitPrice)} / ед.</p><button data-gas-pay="${escapeHtml(b.id)}" ${Number(b.amountDue)<10?'disabled':''}>Оплатить ${utilityMoney(b.amountDue)}</button></article>`).join('')}${!offers.length&&!bills.length?'<p>Договоров на газ пока нет.</p>':''}</div></section>`);
+    if(powerUtilityOffers.length)utilityContent.insertAdjacentHTML('beforeend',`<section class="mn-profile-utility-section"><header><strong>⚡ Предложения подключения</strong></header><div class="mn-profile-utility-list">${powerUtilityOffers.map(o=>`<article><strong>${escapeHtml(o.houseName||o.houseId)}</strong><p>${Number(o.consumptionKwhPerHour||5)} кВт · тариф ${utilityMoney(o.retailPrice)} / кВт·ч · подключение ${utilityMoney(o.connectionFee)}</p><button data-gas-power-answer="${escapeHtml(o.id)}" data-accept="true">Принять</button><button data-gas-power-answer="${escapeHtml(o.id)}" data-accept="false">Отказаться</button></article>`).join('')}</div></section>`);
+  }
+  utilityContent?.addEventListener('click',async event=>{
+    const b=event.target.closest('[data-gas-answer],[data-gas-pay],[data-gas-power-answer]');if(!b||gasBusy)return;
+    gasBusy=true;b.disabled=true;
+    try{let result;
+      if(b.dataset.gasAnswer)result=await answerGasOffer(b.dataset.gasAnswer,b.dataset.accept==='true');
+      else if(b.dataset.gasPowerAnswer)result=await answerPowerOffer(b.dataset.gasPowerAnswer,b.dataset.accept==='true');
+      else {const bill=gasUtility.bills.find(x=>x.id===b.dataset.gasPay);if(!bill)return;result=await payGasBill(bill.id,Number(bill.amountDue));}
+      if(Number.isFinite(Number(result?.playerBalance)))window.dispatchEvent(new CustomEvent('mn:player-balance-changed',{detail:{balance:Number(result.playerBalance),source:'utility_payment'}}));
+      await refreshUtility();
+    }catch(e){window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message:b.dataset.gasPowerAnswer?getSubstationError(e):getGasError(e),type:'error'}}));}
+    finally{gasBusy=false;b.disabled=false;}
+  });
   async function refreshUtility() {
     if (utilityLoading || destroyed || utilityPage?.hidden !== false) return;
     utilityLoading = true;
     try {
-      const [electricityResult, waterResult] = await Promise.allSettled([
+      const [electricityResult, waterResult, gasResult, powerOffersResult] = await Promise.allSettled([
         loadElectricityBills(),
-        loadWaterUtility(),
+        loadWaterUtility(), loadGasUtility(), loadPowerInbox(),
       ]);
-      if (electricityResult.status === 'rejected' && waterResult.status === 'rejected') throw electricityResult.reason;
+      if (electricityResult.status === 'rejected' && waterResult.status === 'rejected' && gasResult.status === 'rejected') throw electricityResult.reason;
+      gasUtility=gasResult.status==='fulfilled'?gasResult.value:{offers:[],bills:[],totalDue:0};
+      gasUtilityError=gasResult.status==='rejected'?getGasError(gasResult.reason):'';
+      powerUtilityOffers=powerOffersResult.status==='fulfilled'?(powerOffersResult.value.offers||[]):[];
       utilitySnapshot = {
         electricity: electricityResult.status === 'fulfilled' ? electricityResult.value : { bills: [], totalDue: 0 },
         water: waterResult.status === 'fulfilled' ? waterResult.value : { offers: [], bills: [], totalDue: 0 },
@@ -768,5 +795,4 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     document.querySelectorAll('.mn-skill-level-toast').forEach((element) => element.remove());
   };
 }
-
 
