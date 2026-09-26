@@ -359,6 +359,25 @@ export async function saveAdminObject({
         owned: Boolean(ownerId),
       });
     }
+    if (selectedType === 'ukrgaz_plant') {
+      const ownerId = nextPatch.payload.ownerId || nextPatch.payload.owner_id || null;
+      const ownerName = nextPatch.payload.ownerName || nextPatch.payload.owner_name || null;
+      Object.assign(nextPatch.payload, {
+        ukrGazPlant: true,
+        ukrGazPlantId: String(object.id),
+        ukrgaz_plant_id: String(object.id),
+        legalForm: nextPatch.payload.legalForm || nextPatch.payload.legal_form || 'tov',
+        price: 3_000_000,
+        buyable: true,
+        transferable: true,
+        serverOwned: false,
+        ownerId,
+        owner_id: ownerId,
+        ownerName,
+        owner_name: ownerName,
+        owned: Boolean(ownerId),
+      });
+    }
 
     if (selectedType === 'power_transformer') {
       Object.assign(nextPatch.payload, {
