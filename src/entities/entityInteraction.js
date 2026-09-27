@@ -115,6 +115,7 @@ function isWorkObject(object) {
     || type === 'coal_power_plant'
     || type === 'energy_substation'
     || type === 'water_treatment_plant'
+    || ['oil_well','oil_refinery','fuel_station'].includes(type)
     || type === 'ukrgaz_plant'
     || type === 'power_transformer'
   );
@@ -1858,6 +1859,9 @@ export function enableEntityInteraction({
         ? 'УЭС · угольная электростанция'
       : objectType === 'energy_substation'
         ? 'Электрическая подстанция · предприятие'
+      : objectType === 'oil_well' ? 'Нефтескважина · добыча нефти'
+      : objectType === 'oil_refinery' ? 'НПЗ · переработка нефти'
+      : objectType === 'fuel_station' ? 'АЗС · продажа топлива'
       : objectType === 'ukrgaz_plant' ? 'УкрГаз · отопление домов и предприятий'
       : objectType === 'water_treatment_plant'
         ? 'Водоочистное сооружение · предприятие'
