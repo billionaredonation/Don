@@ -359,6 +359,10 @@ export async function saveAdminObject({
         owned: Boolean(ownerId),
       });
     }
+    if (['oil_well','oil_refinery','fuel_station'].includes(selectedType)) {
+      Object.assign(nextPatch.payload, { oilIndustry: true, jobType: selectedType, transferable: false,
+        price: { oil_well: 5000000, oil_refinery: 8000000, fuel_station: 2000000 }[selectedType] });
+    }
     if (selectedType === 'ukrgaz_plant') {
       const ownerId = nextPatch.payload.ownerId || nextPatch.payload.owner_id || null;
       const ownerName = nextPatch.payload.ownerName || nextPatch.payload.owner_name || null;
