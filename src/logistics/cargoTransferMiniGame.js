@@ -1,6 +1,9 @@
 import './cargoTransferMiniGame.css';
 
 const labels = {
+  oil_crude: ['🛢️', 'Нефть (л)'],
+  oil_petrol: ['⛽', 'Бензин А-95 (л)'],
+  oil_diesel: ['⛽', 'Дизель (л)'],
   bread: ['🍞', 'Хлеб'],
   pasta: ['🍝', 'Макароны (1 кг)'],
   diet_fruit_salad: ['🥗', 'Салат диетический'],
