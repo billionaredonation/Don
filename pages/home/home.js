@@ -1627,6 +1627,8 @@ register('home', async (root) => {
   const waterValueEl = root.querySelector('[data-player-water-value]');
 
   let currentBalance = Number(playerBalance || 0);
+  let balanceRevision = 0;
+  let lastBalanceEventAt = 0;
   let renderedBalance = currentBalance;
   const vitalElements = {
     health: { el: healthEl, valueEl: healthValueEl },
@@ -1785,7 +1787,7 @@ register('home', async (root) => {
     const hasExplicitDelta = Number.isFinite(explicitDelta) && Math.abs(explicitDelta) >= 0.005;
     const now = Date.now();
 
-    if (options.source === 'electricity_bill_payment') {
+    if (['electricity_bill_payment', 'water_bill_payment', 'utility_payment'].includes(options.source)) {
       // A balance poll may already be in flight with the value from before the
       // payment. Keep the confirmed server result authoritative long enough
       // for those stale responses to drain.
@@ -1825,6 +1827,7 @@ register('home', async (root) => {
       : nextBalance - previousBalance;
     const delta = Math.abs(rawDelta) >= 0.005 ? rawDelta : 0;
 
+    if (!balanceAlreadyApplied) balanceRevision += 1;
     currentBalance = nextBalance;
 
     state.player = {
@@ -1963,6 +1966,12 @@ register('home', async (root) => {
       event?.detail?.player?.balance;
 
     if (nextBalance === undefined || nextBalance === null) return;
+
+    const eventTime = Date.parse(event?.detail?.player?.updated_at || event?.detail?.player?.updatedAt || '');
+    if (Number.isFinite(eventTime)) {
+      if (eventTime < lastBalanceEventAt) return;
+      lastBalanceEventAt = eventTime;
+    }
 
     const statsSnapshot = getPlayerStatsSnapshotFromEvent(event);
     const vitalsChanged = updatePlayerVitalsFromSnapshot(statsSnapshot, {
@@ -2114,6 +2123,7 @@ register('home', async (root) => {
     if (balanceSyncInFlight || !telegramId) return;
 
     balanceSyncInFlight = true;
+    const requestedBalanceRevision = balanceRevision;
 
     try {
       const playerSnapshot = await loadBalanceSnapshot();
@@ -2145,7 +2155,7 @@ register('home', async (root) => {
 
       const nextBalance = Number(playerSnapshot.balance || 0);
 
-      if (Number.isFinite(nextBalance) && nextBalance !== currentBalance) {
+      if (requestedBalanceRevision === balanceRevision && Number.isFinite(nextBalance) && nextBalance !== currentBalance) {
         updateBalance(nextBalance, {
           source: silent ? 'db_sync' : 'db_poll',
           durationMs: BALANCE_COUNT_DURATION_MS,
