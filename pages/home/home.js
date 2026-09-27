@@ -1,3 +1,4 @@
+import { enableBalanceDiagnostics } from '../../src/diagnostics/balanceDiagnostics.js';
 import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
 import { supabase } from '../../src/supabaseClient.js';
@@ -1635,6 +1636,7 @@ register('home', async (root) => {
     balanceTrace.push({ at: new Date().toISOString(), ...entry });
     if (balanceTrace.length > 150) balanceTrace.shift();
   };
+  const cleanupBalanceDiagnostics = enableBalanceDiagnostics({ root, getTrace: () => balanceTrace.slice() });
   let renderedBalance = currentBalance;
   const vitalElements = {
     health: { el: healthEl, valueEl: healthValueEl },
@@ -2474,6 +2476,7 @@ register('home', async (root) => {
   });
 
   root._cleanupHome = () => {
+    cleanupBalanceDiagnostics();
     root.dataset.destroyed = 'true';
     window.__MN_GAMEPLAY_ENTERED__ = false;
 
