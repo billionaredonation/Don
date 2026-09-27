@@ -2340,6 +2340,8 @@ register('home', async (root) => {
 
   window.addEventListener('mn:session-blocked', handleSessionBlocked);
   window.addEventListener('mn:balance-sync-lock', handleBalanceSyncLock);
+  const handleBalanceRefresh = () => { balanceRevision += 1; schedulePlayerStatsDatabaseSync(); };
+  window.addEventListener('mn:player-balance-refresh', handleBalanceRefresh);
   window.addEventListener('mn:player-balance-changed', handleBalanceChanged);
   window.addEventListener('mn:player-health-changed', handleHealthChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
@@ -2482,6 +2484,7 @@ register('home', async (root) => {
 
     window.removeEventListener('mn:session-blocked', handleSessionBlocked);
     window.removeEventListener('mn:balance-sync-lock', handleBalanceSyncLock);
+    window.removeEventListener('mn:player-balance-refresh', handleBalanceRefresh);
     window.removeEventListener('mn:player-balance-changed', handleBalanceChanged);
     window.removeEventListener('mn:player-health-changed', handleHealthChanged);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
