@@ -22,6 +22,7 @@ function markup() {
       <section data-hydro-page="overview"><div class="mn-hydro-stats"><article><small>Статус</small><strong data-hydro-status>Загрузка…</strong></article><article><small>Энергия</small><strong data-hydro-energy>—</strong></article><article><small>Состояние</small><strong data-hydro-condition>—</strong></article><article><small>Выработка</small><strong>1 кВт·ч / сек.</strong></article></div>
       <div class="mn-hydro-flow"><span class="mn-hydro-water"><i>🌊</i> Вода</span><b>→</b><span class="mn-hydro-turbine"><i>⚙️</i> Турбины</span><b>→</b><span class="mn-hydro-battery"><i>🔋</i> Накопитель</span><b>→</b><span class="mn-hydro-grid"><i>⚡</i> Подстанции</span></div>
       <div class="mn-hydro-actions"><button data-hydro-start>Запустить ГЭС</button><button data-hydro-stop>Остановить</button><button data-hydro-repair>Ремонт · 1 000 ₴</button></div>
+      <p class="mn-hydro-note" data-hydro-repair-message role="status" aria-live="polite" hidden></p>
       <div class="mn-hydro-contract" data-hydro-finance hidden><input data-hydro-budget type="number" min="1" value="10000" placeholder="Пополнить счёт"><button data-hydro-add-budget>Пополнить предприятие</button><input data-hydro-withdraw type="number" min="1" value="1000" placeholder="Снять прибыль"><button data-hydro-withdraw-btn>Снять прибыль</button></div>
       <p class="mn-hydro-note" data-hydro-cash>Счёт предприятия: —</p>
       <p class="mn-hydro-note" data-hydro-note>Сервер считает энергию по реальному прошедшему времени только при открытии или действии — постоянного тика и нагрузки на ОЗУ нет.</p></section>
@@ -34,7 +35,7 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
   if (!root) return () => {};
   root.insertAdjacentHTML('beforeend', markup());
   const modal = root.querySelector('[data-hydro-modal]');
-  let currentId = '', snapshot = null, busy = false, snapshotAt = Date.now(), liveTimer = 0, resyncTimer = 0;
+  let currentId = '', snapshot = null, busy = false, snapshotAt = Date.now(), liveTimer = 0, resyncTimer = 0, repairing = false, repairMessage = '';
   const q = (s) => modal.querySelector(s), qa = (s) => [...modal.querySelectorAll(s)];
   const tab = (name) => { qa('[data-hydro-tab]').forEach(b => b.classList.toggle('is-active', b.dataset.hydroTab === name)); qa('[data-hydro-page]').forEach(p => p.hidden = p.dataset.hydroPage !== name); };
   const refresh = async () => { snapshot = await loadHydroSnapshot(currentId, cityId); snapshotAt = Date.now(); render(); };
@@ -54,8 +55,12 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
     q('[data-hydro-condition]').textContent = `${condition.toLocaleString('ru-RU')} / ${maxCondition.toLocaleString('ru-RU')}`;
     q('[data-hydro-buy]').hidden=Boolean(plant.ownerId); q('[data-hydro-owned]').hidden=!plant.ownerId;
     q('[data-hydro-owner]').textContent=plant.ownerName||'Государство'; q('[data-hydro-public-id]').textContent=s.publicId||'—';
-    q('[data-hydro-start]').disabled=!s.isOwner || Boolean(s.running); q('[data-hydro-stop]').disabled=!s.isOwner || !s.running; q('[data-hydro-repair]').disabled=!s.isOwner || condition>=maxCondition || Number(s.cashBalance||0)<Number(s.repairCost||1000);
-    q('[data-hydro-repair]').textContent=`Ремонт · ${formatBusinessMoney(s.repairCost||1000)}`;
+    q('[data-hydro-start]').disabled=!s.isOwner || Boolean(s.running); q('[data-hydro-stop]').disabled=!s.isOwner || !s.running; q('[data-hydro-repair]').disabled=busy || !s.isOwner || condition>=maxCondition || Number(s.cashBalance||0)<Number(s.repairCost||1000);
+    q('[data-hydro-repair]').textContent=repairing ? 'Ремонтируем…' : `Ремонт · ${formatBusinessMoney(s.repairCost||1000)}`;
+    const repairReason = !s.isOwner ? 'Ремонт доступен только владельцу.' : condition>=maxCondition ? 'Ремонт не требуется: оборудование полностью исправно.' : Number(s.cashBalance||0)<Number(s.repairCost||1000) ? `Для ремонта пополните счёт предприятия: нужно ${formatBusinessMoney(s.repairCost||1000)}.` : '';
+    const repairNote=q('[data-hydro-repair-message]');
+    repairNote.textContent=repairing ? 'Выполняется ремонт. Ожидаем ответ сервера…' : repairMessage || repairReason;
+    repairNote.hidden=!repairNote.textContent;
     q('[data-hydro-finance]').hidden=!s.isOwner; q('[data-hydro-cash]').hidden=!plant.ownerId;
     q('[data-hydro-cash]').textContent=`Счёт предприятия: ${formatBusinessMoney(s.cashBalance||0)} · получено от поставок: ${formatBusinessMoney(s.revenue||0)}. На личный баланс деньги поступят только после снятия.`;
     q('[data-hydro-note]').textContent = generating ? 'ГЭС генерирует 1 кВт·ч/сек. Каждый произведённый кВт·ч списывает 0,2 состояния: 720 в час.' : energy >= capacity ? 'Накопитель заполнен. Выработка продолжится после передачи или утилизации энергии.' : 'Для запуска купите три обязательных узла инфраструктуры. Энергия не пропадает: лимит задаёт накопитель.';
@@ -74,7 +79,25 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
   const onKeyDown = (event) => { if (event.key === 'Escape' && !modal.hidden) close(); };
   window.addEventListener('keydown', onKeyDown);
   qa('[data-hydro-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.hydroTab));
-  q('[data-hydro-purchase]').onclick=()=>run(()=>purchaseHydroPlant(currentId, cityId)); q('[data-hydro-start]').onclick=()=>run(()=>startHydroPlant(currentId, cityId)); q('[data-hydro-stop]').onclick=()=>run(()=>stopHydroPlant(currentId, cityId)); q('[data-hydro-repair]').onclick=()=>run(()=>repairHydroPlant(currentId, cityId));
+  q('[data-hydro-purchase]').onclick=()=>run(()=>purchaseHydroPlant(currentId, cityId)); q('[data-hydro-start]').onclick=()=>run(()=>startHydroPlant(currentId, cityId)); q('[data-hydro-stop]').onclick=()=>run(()=>stopHydroPlant(currentId, cityId)); q('[data-hydro-repair]').onclick=async()=>{
+    if(busy)return;
+    const repairPlantId=currentId;
+    busy=true; repairing=true; repairMessage=''; modal.classList.add('is-busy'); render();
+    try {
+      await repairHydroPlant(repairPlantId, cityId);
+      if(currentId!==repairPlantId)return;
+      repairMessage='✓ Ремонт завершён. Работающая ГЭС после ремонта снова расходует состояние.';
+      notify('Ремонт ГЭС завершён.', 'success');
+      try { await refresh(); } catch {
+        repairMessage+=' Не удалось обновить показатели — откройте станцию повторно.';
+      }
+    } catch(error) {
+      if(currentId===repairPlantId)repairMessage=`Ремонт не подтверждён: ${getHydroError(error)}`;
+      notify(getHydroError(error), 'error');
+    } finally {
+      busy=false; repairing=false; modal.classList.remove('is-busy'); render();
+    }
+  };
   q('[data-hydro-add-budget]').onclick=()=>run(()=>addHydroBudget(currentId,cityId,Number(q('[data-hydro-budget]').value)));
   q('[data-hydro-withdraw-btn]').onclick=()=>run(()=>withdrawHydroMoney(currentId,cityId,Number(q('[data-hydro-withdraw]').value)));
   qa('[data-hydro-equipment]').forEach(b=>b.onclick=()=>run(()=>purchaseHydroEquipment(currentId, cityId, b.dataset.hydroEquipment)));
@@ -85,6 +108,7 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
     // This event is emitted only by dispatchEntityAction after the player presses E/У
     // (or taps the nearby object on mobile). Merely loading/syncing a map object never opens this UI.
     if(String(object?.type||object?.payload?.jobType||'')!=='hydro_power_plant')return;
+    repairMessage='';
     currentId=plantIdOf(object);
     if (!currentId) return;
     modal.hidden=false; tab('overview');
