@@ -1628,7 +1628,13 @@ register('home', async (root) => {
 
   let currentBalance = Number(playerBalance || 0);
   let balanceRevision = 0;
-  let lastBalanceEventAt = 0;
+  // Diagnostic ring buffer: values and sources only; no Telegram auth or payloads.
+  const balanceTrace = [];
+  window.__MN_BALANCE_TRACE__ = balanceTrace;
+  const traceBalance = (entry) => {
+    balanceTrace.push({ at: new Date().toISOString(), ...entry });
+    if (balanceTrace.length > 150) balanceTrace.shift();
+  };
   let renderedBalance = currentBalance;
   const vitalElements = {
     health: { el: healthEl, valueEl: healthValueEl },
@@ -1783,51 +1789,13 @@ register('home', async (root) => {
 
     if (!Number.isFinite(nextBalance)) return;
 
-    const explicitDelta = Number(options.delta);
-    const hasExplicitDelta = Number.isFinite(explicitDelta) && Math.abs(explicitDelta) >= 0.005;
-    const now = Date.now();
-
-    if (['electricity_bill_payment', 'water_bill_payment', 'utility_payment'].includes(options.source)) {
-      // A balance poll may already be in flight with the value from before the
-      // payment. Keep the confirmed server result authoritative long enough
-      // for those stale responses to drain.
-      balanceDebitReconcileTarget = nextBalance;
-      balanceDebitReconcileUntil = now + 5000;
-    } else if (
-      now < balanceDebitReconcileUntil &&
-      Number.isFinite(balanceDebitReconcileTarget) &&
-      Math.abs(nextBalance - balanceDebitReconcileTarget) < 1
-    ) {
-      // Fractional database/realtime snapshots can arrive in a different
-      // order around a payment. The payment response is the only authority
-      // for sub-hryvnia feedback; otherwise the HUD flashes phantom
-      // -0.10/+0.10 corrections even though no second transaction happened.
-      return;
-    } else if (
-      now < balanceDebitReconcileUntil &&
-      Number.isFinite(balanceDebitReconcileTarget) &&
-      nextBalance > balanceDebitReconcileTarget + 0.005
-    ) {
-      return;
-    }
-
-    if (
-      now < balanceDebitReconcileUntil &&
-      Number.isFinite(balanceDebitReconcileTarget) &&
-      nextBalance < balanceDebitReconcileTarget - 0.005
-    ) {
-      balanceDebitReconcileTarget = nextBalance;
-    }
-
     const previousBalance = currentBalance;
     const visualStartBalance = Number.isFinite(renderedBalance) ? renderedBalance : previousBalance;
     const balanceAlreadyApplied = Math.abs(nextBalance - previousBalance) < 0.005;
-    const rawDelta = !balanceAlreadyApplied && hasExplicitDelta
-      ? explicitDelta
-      : nextBalance - previousBalance;
+    const rawDelta = nextBalance - previousBalance;
     const delta = Math.abs(rawDelta) >= 0.005 ? rawDelta : 0;
 
-    if (!balanceAlreadyApplied) balanceRevision += 1;
+    traceBalance({ kind: 'applied', source: options.source, previous: previousBalance, balance: nextBalance });
     currentBalance = nextBalance;
 
     state.player = {
@@ -1967,32 +1935,22 @@ register('home', async (root) => {
 
     if (nextBalance === undefined || nextBalance === null) return;
 
-    const eventTime = Date.parse(event?.detail?.player?.updated_at || event?.detail?.player?.updatedAt || '');
-    if (Number.isFinite(eventTime)) {
-      if (eventTime < lastBalanceEventAt) return;
-      lastBalanceEventAt = eventTime;
-    }
-
+    if (!Number.isFinite(Number(nextBalance))) return;
+    traceBalance({ kind: 'signal', source: event?.detail?.source || 'unknown', balance: Number(nextBalance), current: currentBalance });
+    // Feature and realtime payloads may be old. They invalidate a read;
+    // only a fresh player query is allowed to set the HUD balance.
+    if (Math.abs(Number(nextBalance) - currentBalance) >= 0.005) balanceRevision += 1;
     const statsSnapshot = getPlayerStatsSnapshotFromEvent(event);
-    const vitalsChanged = updatePlayerVitalsFromSnapshot(statsSnapshot, {
-      animateDamage: true,
-    });
-
-    updateBalance(nextBalance, {
-      delta: event?.detail?.delta,
-      source: event?.detail?.source,
-      durationMs: BALANCE_COUNT_DURATION_MS,
-    });
-
-    if (!vitalsChanged) {
-      schedulePlayerStatsDatabaseSync();
-    }
+    updatePlayerVitalsFromSnapshot(statsSnapshot, { animateDamage: true });
+    schedulePlayerStatsDatabaseSync();
   }
 
   function handleBalanceSyncLock(event) {
+    balanceRevision += 1;
     if (event?.detail?.cancel === true) {
       balanceDebitReconcileTarget = null;
       balanceDebitReconcileUntil = 0;
+      schedulePlayerStatsDatabaseSync();
       return;
     }
 
@@ -2120,10 +2078,11 @@ register('home', async (root) => {
   }
 
   async function syncBalanceFromDatabase({ silent = false } = {}) {
-    if (balanceSyncInFlight || !telegramId) return;
+    if (balanceSyncInFlight || !telegramId || Date.now() < balanceDebitReconcileUntil) return;
 
     balanceSyncInFlight = true;
     const requestedBalanceRevision = balanceRevision;
+    let retryBalanceSync = false;
 
     try {
       const playerSnapshot = await loadBalanceSnapshot();
@@ -2153,7 +2112,9 @@ register('home', async (root) => {
         save();
       }
 
-      const nextBalance = Number(playerSnapshot.balance || 0);
+      const nextBalance = playerSnapshot.balance == null ? NaN : Number(playerSnapshot.balance);
+      retryBalanceSync = requestedBalanceRevision !== balanceRevision;
+      traceBalance({ kind: retryBalanceSync ? 'discarded_read' : 'db_read', source: balanceSyncTransport, balance: Number.isFinite(nextBalance) ? nextBalance : null, current: currentBalance });
 
       if (requestedBalanceRevision === balanceRevision && Number.isFinite(nextBalance) && nextBalance !== currentBalance) {
         updateBalance(nextBalance, {
@@ -2169,6 +2130,7 @@ register('home', async (root) => {
       console.warn('[home] player stats db sync failed:', error);
     } finally {
       balanceSyncInFlight = false;
+      if (retryBalanceSync) schedulePlayerStatsDatabaseSync();
     }
   }
 
