@@ -61,7 +61,6 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
 
   const refresh = async () => {
     snapshot = await loadWaterTreatment(currentId, cityId);
-    syncBalance(snapshot);
     render();
   };
 
