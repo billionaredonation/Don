@@ -270,11 +270,9 @@ export function enableLumberFeature({ root, cityId } = {}) {
     window.dispatchEvent(new CustomEvent('mn:lumber-inventory-changed', {
       detail: { inventory: inventoryState, items: window.__MN_LUMBER_INVENTORY_ITEMS__ },
     }));
-    const balance = Number(inventoryState.balance);
-    if (Number.isFinite(balance)) {
-      state.player = { ...(state.player || {}), balance };
-      window.dispatchEvent(new CustomEvent('mn:player-balance-changed', { detail: { balance, source: 'lumber_job' } }));
-    }
+    // lumber-work inventory can return a whole-hryvnia balance. Never publish
+    // that value as money: ask the central player reader for the exact balance.
+    window.dispatchEvent(new CustomEvent('mn:player-balance-refresh'));
     if (payload?.skills) publishPlayerSkills(payload.skills, { levelUps: payload.levelUps });
     renderInventory();
     return inventoryState;
