@@ -1,4 +1,5 @@
 import { loadGasUtility, answerGasOffer, payGasBill, getGasError } from '../ukrGaz/ukrGazApi.js';
+import { utilitySupplyReason } from './utilitySupplyReason.js';
 import { state } from '../state.js';
 import { addRunningSkillXp, loadPlayerSkills } from '../farm/farmApi.js';
 import { loadMineSkills } from '../mine/mineApi.js';
@@ -202,6 +203,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
           const canPay = Math.round(due * 100) >= MIN_UTILITY_PAYMENT * 100;
           return `<article>
             <header><span><small>${escapeHtml(bill.houseName || 'Дом')}</small><strong>${escapeHtml(bill.substationName || 'Подстанция')}</strong></span><b>${bill.powerActive ? '⚡ Свет поступает' : '⛔ Свет не поступает'}</b></header>
+            ${!bill.powerActive ? `<p class="mn-profile-utility-note">Причина: ${escapeHtml(utilitySupplyReason(bill, 'electricity'))}</p>` : ''}
             <div><span><small>Потреблено</small><b>${Math.max(0, Number(bill.totalKwh) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} кВт·ч</b></span><span><small>Тариф</small><b>${utilityMoney(bill.retailPrice)} / кВт·ч</b></span><span><small>Уже оплачено</small><b>${utilityMoney(bill.totalPaid)}</b></span><span><small>К оплате</small><b>${utilityMoney(due)}</b></span></div>
             <button type="button" data-profile-utility-pay="${escapeHtml(bill.id)}" ${canPay ? '' : 'disabled'}>${due < 0.01 ? 'Задолженности нет' : canPay ? `Оплатить ${utilityMoney(due)}` : `Оплата доступна от ${utilityMoney(MIN_UTILITY_PAYMENT)}`}</button>
           </article>`;
@@ -216,6 +218,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
             const canPay = Math.round(due * 100) >= MIN_UTILITY_PAYMENT * 100;
             return `<article class="mn-profile-water-bill">
               <header><span><small>${escapeHtml(bill.houseName || 'Дом')}</small><strong>${escapeHtml(bill.plantName || 'Водоочистное сооружение')}</strong></span><b>${bill.waterActive ? '💧 Вода поступает' : '⛔ Подача остановлена'}</b></header>
+              ${!bill.waterActive ? `<p class="mn-profile-utility-note">Причина: ${escapeHtml(utilitySupplyReason(bill, 'water'))}</p>` : ''}
               <div><span><small>Израсходовано</small><b>${Math.max(0, Number(bill.totalLiters) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} л</b></span><span><small>Расход объекта</small><b>${Math.max(0, Number(bill.dailyLiters) || 0).toLocaleString('ru-RU')} л/сутки</b></span><span><small>Тариф</small><b>${utilityMoney(bill.unitPrice)} / л</b></span><span><small>К оплате</small><b>${utilityMoney(due)}</b></span></div>
               <button type="button" data-profile-water-pay="${escapeHtml(bill.id)}" ${canPay ? '' : 'disabled'}>${due < 0.01 ? 'Задолженности нет' : canPay ? `Оплатить ${utilityMoney(due)}` : `Оплата доступна от ${utilityMoney(MIN_UTILITY_PAYMENT)}`}</button>
             </article>`;
@@ -228,7 +231,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   function renderGasUtility(){
     if(!utilityContent)return;
     const offers=gasUtility.offers||[],bills=gasUtility.bills||[];
-    utilityContent.insertAdjacentHTML('beforeend',`<section class="mn-profile-utility-section"><header><strong>🔥 УкрГаз · отопление домов и предприятий</strong></header>${gasUtilityError?`<p>${escapeHtml(gasUtilityError)}</p>`:''}<div class="mn-profile-utility-list">${offers.map(o=>`<article><header><strong>${escapeHtml(o.houseName||o.houseId)}</strong><span>${escapeHtml(o.plantName||'УкрГаз')}</span></header><p>Тариф: ${utilityMoney(o.unitPrice)} / ед. · подключение: ${utilityMoney(o.connectionFee)}</p><button data-gas-answer="${escapeHtml(o.id)}" data-accept="true">Принять</button><button data-gas-answer="${escapeHtml(o.id)}" data-accept="false">Отказаться</button></article>`).join('')}${bills.map(b=>`<article><header><strong>${escapeHtml(b.houseName||b.houseId)}</strong><span>${b.gasActive?'Газ поступает':'Поставка остановлена'}</span></header><p>${Number(b.dailyUnits||0)} ед./сутки · поставлено ${Number(b.totalUnits||0).toFixed(2)} ед. · ${utilityMoney(b.unitPrice)} / ед.</p><button data-gas-pay="${escapeHtml(b.id)}" ${Number(b.amountDue)<10?'disabled':''}>Оплатить ${utilityMoney(b.amountDue)}</button></article>`).join('')}${!offers.length&&!bills.length?'<p>Договоров на газ пока нет.</p>':''}</div></section>`);
+    utilityContent.insertAdjacentHTML('beforeend',`<section class="mn-profile-utility-section"><header><strong>🔥 УкрГаз · отопление домов и предприятий</strong></header>${gasUtilityError?`<p>${escapeHtml(gasUtilityError)}</p>`:''}<div class="mn-profile-utility-list">${offers.map(o=>`<article><header><strong>${escapeHtml(o.houseName||o.houseId)}</strong><span>${escapeHtml(o.plantName||'УкрГаз')}</span></header><p>Тариф: ${utilityMoney(o.unitPrice)} / ед. · подключение: ${utilityMoney(o.connectionFee)}</p><button data-gas-answer="${escapeHtml(o.id)}" data-accept="true">Принять</button><button data-gas-answer="${escapeHtml(o.id)}" data-accept="false">Отказаться</button></article>`).join('')}${bills.map(b=>`<article><header><strong>${escapeHtml(b.houseName||b.houseId)}</strong><span>${b.gasActive?'Газ поступает':'Поставка остановлена'}</span></header>${!b.gasActive?`<p class="mn-profile-utility-note">Причина: ${escapeHtml(utilitySupplyReason(b,'gas'))}</p>`:''}<p>${Number(b.dailyUnits||0)} ед./сутки · поставлено ${Number(b.totalUnits||0).toFixed(2)} ед. · ${utilityMoney(b.unitPrice)} / ед.</p><button data-gas-pay="${escapeHtml(b.id)}" ${Number(b.amountDue)<10?'disabled':''}>Оплатить ${utilityMoney(b.amountDue)}</button></article>`).join('')}${!offers.length&&!bills.length?'<p>Договоров на газ пока нет.</p>':''}</div></section>`);
     if(powerUtilityOffers.length)utilityContent.insertAdjacentHTML('beforeend',`<section class="mn-profile-utility-section"><header><strong>⚡ Предложения подключения</strong></header><div class="mn-profile-utility-list">${powerUtilityOffers.map(o=>`<article><strong>${escapeHtml(o.houseName||o.houseId)}</strong><p>${Number(o.consumptionKwhPerHour||5)} кВт · тариф ${utilityMoney(o.retailPrice)} / кВт·ч · подключение ${utilityMoney(o.connectionFee)}</p><button data-gas-power-answer="${escapeHtml(o.id)}" data-accept="true">Принять</button><button data-gas-power-answer="${escapeHtml(o.id)}" data-accept="false">Отказаться</button></article>`).join('')}</div></section>`);
   }
   utilityContent?.addEventListener('click',async event=>{
@@ -795,4 +798,3 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     document.querySelectorAll('.mn-skill-level-toast').forEach((element) => element.remove());
   };
 }
-
