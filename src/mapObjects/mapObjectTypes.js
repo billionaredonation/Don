@@ -19,7 +19,7 @@ const LEGAL_BUSINESS_OBJECT_TYPES = new Set([
   'coal_power_plant',
   'energy_substation',
   'water_treatment_plant',
-  'ukrgaz_plant',
+  'ukrgaz_plant', 'oil_well', 'oil_refinery', 'fuel_station',
 ]);
 
 export function isBusinessLegalMapObjectType(type) {
@@ -528,6 +528,9 @@ export const MAP_OBJECT_TYPES = {
     defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01',
     defaultWidth: 3.3, defaultHeight: 2.6,
   },
+  oil_well: { type: 'oil_well', category: MAP_OBJECT_CATEGORIES.JOB, label: 'Нефтескважина · предприятие', icon: '🛢️', defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01', defaultWidth: 3.3, defaultHeight: 2.6 },
+  oil_refinery: { type: 'oil_refinery', category: MAP_OBJECT_CATEGORIES.JOB, label: 'Нефтеперерабатывающий завод · предприятие', icon: '🏭', defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01', defaultWidth: 3.3, defaultHeight: 2.6 },
+  fuel_station: { type: 'fuel_station', category: MAP_OBJECT_CATEGORIES.JOB, label: 'АЗС · предприятие', icon: '⛽', defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01', defaultWidth: 3.3, defaultHeight: 2.6 },
   ukrgaz_plant: {
     type: 'ukrgaz_plant', category: MAP_OBJECT_CATEGORIES.JOB,
     label: 'УкрГаз · предприятие', icon: '🔥',
@@ -909,6 +912,12 @@ export function createMapObjectDraft({
     basePayload.ownerId = basePayload.ownerId || null;
     basePayload.owner_id = basePayload.owner_id || basePayload.ownerId || null;
     basePayload.owned = Boolean(basePayload.ownerId || basePayload.owner_id);
+  }
+  if (['oil_well','oil_refinery','fuel_station'].includes(config.type)) {
+    Object.assign(basePayload, getBusinessLegalPayload({ legalForm: 'tov', ...basePayload }));
+    Object.assign(basePayload, { oilIndustry: true, jobType: config.type,
+      price: { oil_well: 5000000, oil_refinery: 8000000, fuel_station: 2000000 }[config.type],
+      buyable: true, transferable: false, serverOwned: false, ownerId: null, owner_id: null, owned: false });
   }
   if (config.type === 'ukrgaz_plant') {
     basePayload.ukrGazPlant = true;
