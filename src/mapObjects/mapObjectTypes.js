@@ -19,7 +19,7 @@ const LEGAL_BUSINESS_OBJECT_TYPES = new Set([
   'coal_power_plant',
   'energy_substation',
   'water_treatment_plant',
-  'ukrgaz_plant', 'oil_well', 'oil_refinery', 'fuel_station',
+  'car_factory', 'car_dealer', 'auto_service', 'ukrgaz_plant', 'oil_well', 'oil_refinery', 'fuel_station',
 ]);
 
 export function isBusinessLegalMapObjectType(type) {
@@ -528,6 +528,9 @@ export const MAP_OBJECT_TYPES = {
     defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01',
     defaultWidth: 3.3, defaultHeight: 2.6,
   },
+  car_factory: { type: 'car_factory', category: MAP_OBJECT_CATEGORIES.JOB, label: 'Автомобильный завод', icon: '🏭', defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01', defaultWidth: 3.3, defaultHeight: 2.6 },
+  car_dealer: { type: 'car_dealer', category: MAP_OBJECT_CATEGORIES.JOB, label: 'Автосалон', icon: '🚘', defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01', defaultWidth: 3.3, defaultHeight: 2.6 },
+  auto_service: { type: 'auto_service', category: MAP_OBJECT_CATEGORIES.JOB, label: 'СТО', icon: '🔧', defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01', defaultWidth: 3.3, defaultHeight: 2.6 },
   oil_well: { type: 'oil_well', category: MAP_OBJECT_CATEGORIES.JOB, label: 'Нефтескважина · предприятие', icon: '🛢️', defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01', defaultWidth: 3.3, defaultHeight: 2.6 },
   oil_refinery: { type: 'oil_refinery', category: MAP_OBJECT_CATEGORIES.JOB, label: 'Нефтеперерабатывающий завод · предприятие', icon: '🏭', defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01', defaultWidth: 3.3, defaultHeight: 2.6 },
   fuel_station: { type: 'fuel_station', category: MAP_OBJECT_CATEGORIES.JOB, label: 'АЗС · предприятие', icon: '⛽', defaultScale: 1.1, defaultRotation: 0, defaultAsset: 'job_factory_01', defaultWidth: 3.3, defaultHeight: 2.6 },
