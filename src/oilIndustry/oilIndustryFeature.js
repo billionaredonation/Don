@@ -125,3 +125,4 @@ export function enableOilIndustryFeature({ root, cityId }) {
   window.addEventListener('mn:oil-industry-object-action',onOpen);
   return ()=>{destroyed=true;generation++;clearInterval(timer);window.removeEventListener('mn:oil-industry-object-action',onOpen);dialog.remove();};
 }
+
