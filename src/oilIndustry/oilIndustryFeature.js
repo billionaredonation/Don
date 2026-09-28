@@ -2,7 +2,7 @@ import './oilIndustry.css';
 import { oilRequest, oilError } from './oilIndustryApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
 export const OIL_TYPES = { oil_well: ['🛢️', 'Нефтескважина', 'Буровая установка и резервуар'], oil_refinery: ['🏭', 'Нефтеперерабатывающий завод', 'Линия перегонки и резервуары'], fuel_station: ['⛽', 'АЗС', 'Топливные колонки и резервуары'] };
-const names = { crude: 'Нефть', petrol: 'Бензин А-95', diesel: 'Дизель' };
+const names = { crude: 'Нефть', petrol: 'Бензин А-95', petrol92: 'Бензин А-92', diesel: 'Дизель' };
 const esc = v => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const num = v => Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 });
 const money = v => `${num(v)} ₴`;
@@ -12,31 +12,43 @@ export function enableOilIndustryFeature({ root, cityId }) {
   const input = key => dialog.querySelector(`[data-input="${CSS.escape(key)}"]`);
   const field = (key, value, min=1, max=1000000000, step=1) => `<input data-input="${esc(key)}" aria-label="${esc(key)}" type="number" min="${min}" max="${max}" step="${step}" value="${value}">`;
   const actionButton = (action, label, disabled=false, data='') => `<button type="button" data-action="${action}" ${data} ${disabled||busy?'disabled':''}>${label}</button>`;
+  const products = () => s.kind==='oil_well'?['crude']:s.kind==='fuel_station'?['petrol','petrol92','diesel']:Object.keys(names);
+  const saleProducts = () => s.kind==='oil_well'?['crude']:['petrol','petrol92','diesel'];
+  const equipmentShortfall = () => Math.max(0, Math.round((Number(s.equipmentPrice)-Number(s.cash))*100)/100);
+  function setupHelp() {
+    if(!s.isOwner)return '';
+    const steps = s.kind==='oil_well'
+      ? 'Купите оборудование → запустите добычу → откройте продажи в «Управлении». НПЗ сможет закупать накопленную нефть.'
+      : s.kind==='oil_refinery'
+      ? 'Купите оборудование → закупите нефть у работающей скважины → примите партию в «Доставках» → переработайте 20 л → откройте продажи для АЗС.'
+      : 'Купите оборудование → закупите топливо у НПЗ → примите партию в «Доставках» → откройте продажи игрокам.';
+    return `<article><h3>Как запустить цепочку</h3><p>${steps}</p><p>Все предприятия цепочки должны находиться в одном городе. Закупки и оборудование оплачиваются со счёта покупающего предприятия.</p>${!s.equipment?`<p><b>Запуск недоступен: оборудование ещё не куплено.</b></p><button type="button" data-tab="management">Перейти к оборудованию</button>`:''}${s.kind==='oil_refinery'&&s.equipment&&Number(s.crude)<20?'<p>Для запуска партии нужно минимум 20 л нефти на складе. Оплаченную закупку сначала нужно доставить.</p>':''}</article>`;
+  }
   function overview() {
-    const total=Number(s.crude)+Number(s.petrol)+Number(s.diesel);
-    return `<p>ID для подключения коммунальных услуг: <code>${esc(s.id)}</code></p><div class="mn-oil-grid"><article><small>Владелец</small><strong>${esc(s.ownerName||'Государство')}</strong></article><article><small>Заполнено / ёмкость</small><strong>${num(total)} / ${num(s.capacity)} л</strong></article><article><small>В пути на склад</small><strong>${num(s.reservedIncoming)} л</strong></article></div>
-    <div class="mn-oil-grid">${Object.keys(names).map(p=>`<article><small>${names[p]}</small><strong>${num(s[p])} л</strong></article>`).join('')}</div>
+    const total=Number(s.crude)+Number(s.petrol)+Number(s.petrol92||0)+Number(s.diesel);
+    return `${setupHelp()}<p>ID для подключения коммунальных услуг: <code>${esc(s.id)}</code></p><div class="mn-oil-grid"><article><small>Владелец</small><strong>${esc(s.ownerName||'Государство')}</strong></article><article><small>Заполнено / ёмкость</small><strong>${num(total)} / ${num(s.capacity)} л</strong></article><article><small>В пути на склад</small><strong>${num(s.reservedIncoming)} л</strong></article></div>
+    <div class="mn-oil-grid">${products().map(p=>`<article><small>${names[p]}</small><strong>${num(s[p])} л</strong></article>`).join('')}</div>
     ${!s.ownerId?`<p>Покупка предприятия: <b>${money(s.purchasePrice)}</b>. Оборудование приобретается отдельно за ${money(s.equipmentPrice)} со счёта предприятия.</p>${actionButton('purchase','Купить предприятие')}`:''}
-    ${s.kind==='oil_well'?`<p>Добыча: 100 л/час. ${s.maintenanceRequired?'🛠 Требуется обслуживание':s.running?(Number(s.crude)>=Number(s.capacity)?'Резервуар заполнен, добыча приостановлена.':'🟢 Добыча работает.'):'⏸ Добыча остановлена.'}</p>${s.isOwner?actionButton('start','Запустить добычу',s.running||!s.equipment||s.maintenanceRequired)+actionButton('stop','Остановить',!s.running):''}`:''}
-    ${s.kind==='oil_refinery'?`<p>Партия: <b>100 л нефти → 60 л А-95 + 30 л дизеля</b>. Технологические потери: 10 л. Перегонка занимает 60 секунд.</p><p>${s.batchReadyAt?`⏳ Партия готовится: осталось ${Math.max(0,Math.ceil((Date.parse(s.batchReadyAt)-Date.now())/1000))} сек. · ${num(s.batchPetrol)} л бензина и ${num(s.batchDiesel)} л дизеля`:'Линия свободна.'}</p>${s.isOwner?actionButton('refine','Переработать 100 л',!s.equipment||s.maintenanceRequired||!!s.batchReadyAt||Number(s.crude)<100):''}`:''}
-    ${s.kind==='fuel_station'?`<p>${s.selling&&s.equipment&&!s.maintenanceRequired?'🟢 АЗС открыта':'⛔ АЗС закрыта или требует обслуживания'}</p><p>Ваш запас: А-95 — ${num(s.playerFuel.petrol)} л, дизель — ${num(s.playerFuel.diesel)} л. Общая ёмкость — 200 л. Топливо хранится отдельно; привязка к автомобилям появится с автомобильной системой.</p>${['petrol','diesel'].map(p=>`<article class="mn-oil-row"><b>${names[p]} · ${money(s[p+'Price'])}/л</b>${field('retail-'+p,10,1,Math.max(1,Math.min(200,Math.floor((86400-Number(s.workSeconds))/60))))}${actionButton('retail_buy','Купить топливо',!s.selling||!s.equipment||s.maintenanceRequired,`data-product="${p}"`)}</article>`).join('')}`:''}`;
+    ${s.kind==='oil_well'?`<p>Добыча: 1 л за 2 секунды (1 800 л/час). ${s.maintenanceRequired?'🛠 Требуется обслуживание':s.running?(Number(s.crude)>=Number(s.capacity)?'Резервуар заполнен, добыча приостановлена.':'🟢 Добыча работает.'):'⏸ Добыча остановлена.'}</p>${s.isOwner?actionButton('start','Запустить добычу',s.running||!s.equipment||s.maintenanceRequired)+actionButton('stop','Остановить',!s.running):''}`:''}
+    ${s.kind==='oil_refinery'?`<p>Партия: <b>20 л нефти → 18 л выбранного топлива</b>. Технологические потери: 2 л. Перегонка занимает 60 секунд.</p><p>${s.batchReadyAt?`⏳ Партия готовится: осталось ${Math.max(0,Math.ceil((Date.parse(s.batchReadyAt)-Date.now())/1000))} сек. · ${num(s.batchPetrol)} л А-95 · ${num(s.batchPetrol92)} л А-92 · ${num(s.batchDiesel)} л дизеля`:'Линия свободна.'}</p>${s.isOwner?['petrol','petrol92','diesel'].map(p=>actionButton('refine',`20 л нефти → 18 л ${names[p]}`,!s.equipment||s.maintenanceRequired||!!s.batchReadyAt||Number(s.crude)<20,`data-product="${p}"`)).join(''):''}`:''}
+    ${s.kind==='fuel_station'?`<p>${s.selling&&s.equipment&&!s.maintenanceRequired?'🟢 АЗС открыта':'⛔ АЗС закрыта или требует обслуживания'}</p><p>Ваш запас: А-95 — ${num(s.playerFuel.petrol)} л, А-92 — ${num(s.playerFuel.petrol92)} л, дизель — ${num(s.playerFuel.diesel)} л. Общая ёмкость — 200 л. Топливо хранится отдельно; привязка к автомобилям появится с автомобильной системой.</p>${['petrol','petrol92','diesel'].map(p=>`<article class="mn-oil-row"><b>${names[p]} · ${money(s[p+'Price'])}/л</b>${field('retail-'+p,10,1,Math.max(1,Math.min(200,Math.floor((86400-Number(s.workSeconds))/60))))}${actionButton('retail_buy','Купить топливо',!s.selling||!s.equipment||s.maintenanceRequired,`data-product="${p}"`)}</article>`).join('')}`:''}`;
   }
   function management() {
     return `<div class="mn-oil-grid"><article><small>Счёт предприятия</small><strong>${money(s.cash)}</strong></article><article><small>Выручка</small><strong>${money(s.revenue)}</strong></article><article><small>Оплачено обслуживание</small><strong>${money(s.maintenancePaid)}</strong></article></div>
     <p>Пополнение — с личного баланса. Выручка остаётся на предприятии до ручного снятия.</p><div class="mn-oil-row">${field('amount',10000,1,1000000000,.01)}${actionButton('deposit','Пополнить')}${actionButton('withdraw','Снять прибыль')}</div>
-    <h3>${OIL_TYPES[s.kind][2]}</h3><p>${s.equipment?'✓ Оборудование установлено':`Стоимость: ${money(s.equipmentPrice)}`}</p>${!s.equipment?actionButton('equipment','Купить оборудование',Number(s.cash)<Number(s.equipmentPrice)):''}
+    <h3>${OIL_TYPES[s.kind][2]}</h3>${!s.equipment?`<p>Оплата со счёта предприятия, отдельно от личного баланса.</p>${equipmentShortfall()>0?`<p role="status">Для покупки не хватает <b>${money(equipmentShortfall())}</b>. Подставьте эту сумму и нажмите «Пополнить».</p><button type="button" data-fill-equipment ${busy?'disabled':''}>Подставить недостающие ${money(equipmentShortfall())}</button>`:'<p>Средств достаточно — можно купить оборудование.</p>'}`:''}<p>${s.equipment?'✓ Оборудование установлено':`Стоимость: ${money(s.equipmentPrice)}`}</p>${!s.equipment?actionButton('equipment','Купить оборудование',Number(s.cash)<Number(s.equipmentPrice)):''}
     <p>${s.kind==='fuel_station'?`Ресурс колонок: продано ${num(Number(s.workSeconds)/60)} / 1 440 л.`:`Наработка: ${num(Number(s.workSeconds)/3600)} / 24 часа.`} Обслуживание: ${money(s.maintenancePrice)}. Только вручную со счёта предприятия.</p>
     ${s.maintenanceRequired?actionButton('maintenance','Оплатить обслуживание',Number(s.cash)<Number(s.maintenancePrice)):'<p>Обслуживание пока не требуется.</p>'}
     <h3>Продажи ${s.kind==='fuel_station'?'игрокам':'предприятиям'}</h3><p>Поставщики и покупатели работают в одном городе. Деньги за товар поступают при закупке; доставка завершается вручную.</p>
-    ${Object.keys(names).map(p=>`<label>${names[p]} · ₴/л ${field('price-'+p,s[p+'Price'],.01,1000000,.01)}</label>`).join('')}
+    ${saleProducts().map(p=>`<label>${names[p]} · ₴/л ${field('price-'+p,s[p+'Price'],.01,1000000,.01)}</label>`).join('')}
     ${actionButton('set_prices','Сохранить цены')}${actionButton('selling',s.selling?'Закрыть продажи':'Открыть продажи',!s.equipment)}
-    <p>Для запуска или покупки оборудования сначала пополните счёт. При обслуживании и фоновых обновлениях личные деньги автоматически не списываются.</p>`;
+    <p>Для запуска или покупки оборудования сначала пополните счёт. Личные деньги списываются только при подтверждённом пополнении; обслуживание оплачивается со счёта предприятия вручную.</p>`;
   }
   function supply() {
-    return `<h3>Закупка ${s.kind==='oil_refinery'?'нефти':'топлива'}</h3><p>Цена фиксируется при покупке. Место на складе резервируется до доставки. Партия доступна к перевозке через 60 секунд.</p>${s.offers.length?s.offers.map(o=>`<article><h4>${esc(o.name)} · ${esc(o.ownerName)}</h4>${(s.kind==='oil_refinery'?['crude']:['petrol','diesel']).map(p=>`<div class="mn-oil-row"><span>${names[p]}: ${num(o[p])} л · ${money(o[p+'Price'])}/л</span>${field('buy-'+o.id+'-'+p,Math.min(100,Math.max(1,Math.floor(o[p]))),1,10000)}${actionButton('buy_supply','Закупить',!s.equipment,`data-seller="${esc(o.id)}" data-product="${p}" data-price="${o[p+'Price']}"`)}</div>`).join('')}</article>`).join(''):'<p>Нет открытых поставщиков. Купите и оборудуйте предыдущее звено цепочки, затем включите в нём продажи.</p>'}`;
+    return `<h3>Закупка ${s.kind==='oil_refinery'?'нефти':'топлива'}</h3><p>Нефть для НПЗ закупается от 20 л. Цена фиксируется при покупке. Место на складе резервируется до доставки. Партия доступна к перевозке через 60 секунд.</p>${s.offers.length?s.offers.map(o=>`<article><h4>${esc(o.name)} · ${esc(o.ownerName)}</h4>${(s.kind==='oil_refinery'?['crude']:['petrol','petrol92','diesel']).map(p=>`<div class="mn-oil-row"><span>${names[p]}: ${num(o[p])} л · ${money(o[p+'Price'])}/л</span>${field('buy-'+o.id+'-'+p,Math.min(100,Math.max(p==='crude'?20:1,Math.floor(o[p]))),p==='crude'?20:1,10000)}${actionButton('buy_supply','Закупить',!s.equipment||Number(o[p])<(p==='crude'?20:1),`data-seller="${esc(o.id)}" data-product="${p}" data-price="${o[p+'Price']}"`)}</div>`).join('')}</article>`).join(''):'<p>Нет открытых поставщиков. Купите и оборудуйте предыдущее звено цепочки, затем включите в нём продажи.</p>'}`;
   }
   function deliveries() {
-    return `<h3>Партии в пути и последние доставки</h3>${s.shipments.length?s.shipments.map(d=>`<article class="mn-oil-row"><span><b>${names[d.product]} · ${num(d.quantity)} л</b><small>От ${esc(d.seller_id)} · оплачено ${money(d.total)}</small><small>${d.status==='delivered'?'✓ Принято на склад':Date.parse(d.ready_at)>Date.now()?'⏳ Подготовка партии':'Готово к ручной доставке'}</small></span>${d.status==='pending'?actionButton('deliver','Доставить',Date.parse(d.ready_at)>Date.now(),`data-shipment="${d.id}"`):''}</article>`).join(''):'<p>Закупленных партий пока нет.</p>'}`;
+    return `<h3>Партии в пути и последние доставки</h3>${s.shipments.length?s.shipments.map(d=>`<article class="mn-oil-row"><span><b>${names[d.product]} · ${num(d.quantity)} л</b><small>От ${esc(d.seller_id)} · оплачено ${money(d.total)}</small><small>${d.status==='delivered'?'✓ Принято на склад':Date.parse(d.ready_at)>Date.now()?`⏳ Подготовка партии: ${Math.max(0,Math.ceil((Date.parse(d.ready_at)-Date.now())/1000))} сек.`:'Готово к ручной доставке'}</small></span>${d.status==='pending'?actionButton('deliver','Доставить',Date.parse(d.ready_at)>Date.now(),`data-shipment="${d.id}"`):''}</article>`).join(''):'<p>Закупленных партий пока нет.</p>'}`;
   }
   function render() {
     if(!s||destroyed)return;
@@ -75,10 +87,12 @@ export function enableOilIndustryFeature({ root, cityId }) {
     const b=e.target.closest('button');if(!b||busy)return;
     if(b.hasAttribute('data-close')){close();return;}
     if(b.dataset.tab){tab=b.dataset.tab;notice='';dialog.querySelector('main').innerHTML='';render();return;}
+    if(b.hasAttribute('data-fill-equipment')){const el=input('amount');el.value=equipmentShortfall().toFixed(2);el.focus();el.scrollIntoView?.({block:'center'});return;}
     if(b.hasAttribute('data-refresh')){await refresh().catch(err=>{notice=oilError(err);render();});return;}
     const a=b.dataset.action;if(!a)return;let data={};
     if(a==='deposit'||a==='withdraw')data={amount:Number(input('amount').value)};
-    if(a==='set_prices')data=Object.fromEntries(Object.keys(names).map(p=>[p,Number(input('price-'+p).value)]));
+    if(a==='set_prices')data=Object.fromEntries(saleProducts().map(p=>[p,Number(input('price-'+p).value)]));
+    if(a==='refine')data={product:b.dataset.product};
     if(a==='selling')data={enabled:!s.selling};
     if(a==='retail_buy')data={product:b.dataset.product,quantity:Number(input('retail-'+b.dataset.product).value),unitPrice:Number(s[b.dataset.product+'Price'])};
     if(a==='buy_supply')data={sellerId:b.dataset.seller,product:b.dataset.product,quantity:Number(input('buy-'+b.dataset.seller+'-'+b.dataset.product).value),unitPrice:Number(b.dataset.price)};
