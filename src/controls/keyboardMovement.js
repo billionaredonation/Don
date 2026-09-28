@@ -427,7 +427,7 @@ export function enableKeyboardPlayerMovement(
     if (
       window.__MN_INTERIOR_ACTIVE__ === true ||
       window.__MN_INVENTORY_OPEN__ === true ||
-      window.__MN_PLAYER_CONTROLS_LOCKED__ === true
+      (window.__MN_PLAYER_CONTROLS_LOCKED__ === true || !!document.querySelector('dialog[open]'))
     ) {
       keys.clear();
       inputX = 0; inputY = 0; velocityX = 0; velocityY = 0;
@@ -452,9 +452,10 @@ export function enableKeyboardPlayerMovement(
     if (!wantsMove && Math.abs(inputX) < 0.002) inputX = 0;
     if (!wantsMove && Math.abs(inputY) < 0.002) inputY = 0;
 
-    const isSprinting = updateSprintState(wantsMove, frameScale);
+    const vehicle = window.__MN_VEHICLE_RUNTIME__;
+    const isSprinting = vehicle ? false : updateSprintState(wantsMove, frameScale);
     setDesktopRuntimeSprinting(isSprinting);
-    const speed = isSprinting ? SPRINT_SPEED : WALK_SPEED;
+    const speed = vehicle ? (vehicle.canMove ? vehicle.speed : 0) : (isSprinting ? SPRINT_SPEED : WALK_SPEED);
 
     const targetVelocityX = inputX * speed;
     const targetVelocityY = inputY * speed;
@@ -488,7 +489,7 @@ export function enableKeyboardPlayerMovement(
 
       angle = getAngleFromMovement(velocityX || inputX || moveX, velocityY || inputY || moveY, angle);
 
-      if (!isSprinting && Math.hypot(x - previousX, y - previousY) > 0.000001) {
+      if (!vehicle && !isSprinting && Math.hypot(x - previousX, y - previousY) > 0.000001) {
         window.dispatchEvent(new CustomEvent('mn:player-walking', {
           detail: { source: 'keyboard', durationMs: delta },
         }));
@@ -580,7 +581,7 @@ export function enableKeyboardPlayerMovement(
   }
 
   function handlePlayerControlsLockChanged() {
-    if (window.__MN_PLAYER_CONTROLS_LOCKED__ === true) {
+    if ((window.__MN_PLAYER_CONTROLS_LOCKED__ === true || !!document.querySelector('dialog[open]'))) {
       keys.clear();
       inputX = 0;
       inputY = 0;
@@ -635,7 +636,7 @@ export function enableKeyboardPlayerMovement(
     if (
       window.__MN_INTERIOR_ACTIVE__ === true ||
       window.__MN_INVENTORY_OPEN__ === true ||
-      window.__MN_PLAYER_CONTROLS_LOCKED__ === true ||
+      (window.__MN_PLAYER_CONTROLS_LOCKED__ === true || !!document.querySelector('dialog[open]')) ||
       isHouseSpawnPickerActive()
     ) {
       pauseForHouseSpawnPicker();
@@ -646,7 +647,7 @@ export function enableKeyboardPlayerMovement(
 
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
-    const key = String(event?.key || '').toLowerCase();
+    const key = ({KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',ShiftLeft:'shift',ShiftRight:'shift'})[event.code] || String(event?.key || '').toLowerCase();
     if (!key) return;
 
     const allowedKeys = [
@@ -667,12 +668,12 @@ export function enableKeyboardPlayerMovement(
     if (
       window.__MN_INTERIOR_ACTIVE__ === true ||
       window.__MN_INVENTORY_OPEN__ === true ||
-      window.__MN_PLAYER_CONTROLS_LOCKED__ === true
+      (window.__MN_PLAYER_CONTROLS_LOCKED__ === true || !!document.querySelector('dialog[open]'))
     ) {
       keys.clear();
       return;
     }
-    const key = String(event?.key || '').toLowerCase();
+    const key = ({KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',ShiftLeft:'shift',ShiftRight:'shift'})[event.code] || String(event?.key || '').toLowerCase();
     if (!key) return;
     keys.delete(key);
 
