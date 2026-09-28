@@ -26,7 +26,7 @@ const FACTORY_ENTITY_TYPES = new Set([
   'nuclear_power_plant',
   'coal_power_plant',
   'energy_substation',
-  'water_treatment_plant', 'ukrgaz_plant', 'oil_well', 'oil_refinery', 'fuel_station',
+  'car_factory', 'car_dealer', 'auto_service', 'water_treatment_plant', 'ukrgaz_plant', 'oil_well', 'oil_refinery', 'fuel_station',
   'power_transformer',
 ]);
 
@@ -126,6 +126,7 @@ export function getEntityPrimaryActionLabel(object) {
   if (kind === 'job' && type === 'nuclear_power_plant') return 'Управление АЭС';
   if (kind === 'job' && type === 'coal_power_plant') return 'Открыть УЭС';
   if (kind === 'job' && type === 'energy_substation') return 'Открыть подстанцию';
+  if (kind === 'job' && ['car_factory','car_dealer','auto_service'].includes(type)) return 'Открыть предприятие';
   if (kind === 'job' && ['oil_well','oil_refinery','fuel_station'].includes(type)) return 'Открыть предприятие';
   if (kind === 'job' && type === 'ukrgaz_plant') return 'Открыть УкрГаз';
   if (kind === 'job' && type === 'water_treatment_plant') return 'Открыть водоочистное сооружение';
@@ -264,6 +265,7 @@ export function dispatchEntityAction(object) {
       ? 'mn:coal-power-object-action'
       : cleanType === 'energy_substation' || cleanType === 'power_transformer'
       ? 'mn:energy-substation-object-action'
+      : ['car_factory','car_dealer','auto_service'].includes(cleanType) ? 'mn:auto-object-action'
       : ['oil_well','oil_refinery','fuel_station'].includes(cleanType) ? 'mn:oil-industry-object-action'
       : cleanType === 'ukrgaz_plant' ? 'mn:ukrgaz-object-action'
       : cleanType === 'water_treatment_plant'
