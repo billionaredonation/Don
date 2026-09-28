@@ -3,3 +3,4 @@
 .mn-auto-driving>:not(.mn-auto-driving-view){visibility:hidden!important}.mn-auto-driving-view{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(var(--player-angle,0deg));pointer-events:none}.mn-auto-car svg{display:block;margin:auto}
 
 .mn-auto-assembly{padding:16px;margin:16px 0;border:1px solid #457867;border-radius:12px;background:#15352e}.mn-auto-assembly.is-active{border-color:#edc15a;background:#342d19}.mn-auto-assembly strong{font-size:1.15rem}.mn-auto-assembly p{margin:10px 0}.mn-auto-assembly progress{display:block;width:100%;height:18px;accent-color:#edc15a}.mn-auto-assembly [data-assembly-time]{font-size:1.25rem;font-variant-numeric:tabular-nums}
+
