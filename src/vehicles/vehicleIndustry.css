@@ -12,3 +12,5 @@
 .mn-auto-car.is-owned b{background:#123e30;border:1px solid #55dba3;color:#d7ffee}
 .mn-auto-car.is-stock b{background:#423419;border:1px solid #dbb562;color:#fff0ca}
 .mn-auto-car.is-stock svg{opacity:.65}
+
+.mn-auto-stop{padding:12px;border:1px solid #e4a34c;border-radius:8px;background:#463015;color:#ffe2b2}.mn-auto-status{max-width:min(650px,85vw);box-sizing:border-box}
