@@ -1,4 +1,5 @@
 import './oilIndustry.css';
+import {vehicleRequest} from '../vehicles/vehicleIndustryApi.js';
 import { oilRequest, oilError } from './oilIndustryApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
 export const OIL_TYPES = { oil_well: ['🛢️', 'Нефтескважина', 'Буровая установка и резервуар'], oil_refinery: ['🏭', 'Нефтеперерабатывающий завод', 'Линия перегонки и резервуары'], fuel_station: ['⛽', 'АЗС', 'Топливные колонки и резервуары'] };
@@ -8,7 +9,7 @@ const num = v => Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits:
 const money = v => `${num(v)} ₴`;
 export function enableOilIndustryFeature({ root, cityId }) {
   const dialog = document.createElement('dialog'); dialog.className = 'mn-oil-dialog'; root.append(dialog);
-  let id='', s=null, tab='overview', busy=false, timer=0, generation=0, destroyed=false, notice='', retry=null;
+  let carriers=[], id='', s=null, tab='overview', busy=false, timer=0, generation=0, destroyed=false, notice='', retry=null;
   const input = key => dialog.querySelector(`[data-input="${CSS.escape(key)}"]`);
   const field = (key, value, min=1, max=1000000000, step=1) => `<input data-input="${esc(key)}" aria-label="${esc(key)}" type="number" min="${min}" max="${max}" step="${step}" value="${value}">`;
   const actionButton = (action, label, disabled=false, data='') => `<button type="button" data-action="${action}" ${data} ${disabled||busy?'disabled':''}>${label}</button>`;
@@ -22,7 +23,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
       : s.kind==='oil_refinery'
       ? 'Купите оборудование → закупите нефть у работающей скважины → примите партию в «Доставках» → переработайте 20 л → откройте продажи для АЗС.'
       : 'Купите оборудование → закупите топливо у НПЗ → примите партию в «Доставках» → откройте продажи игрокам.';
-    return `<article><h3>Как запустить цепочку</h3><p>${steps}</p><p>Все предприятия цепочки должны находиться в одном городе. Закупки и оборудование оплачиваются со счёта покупающего предприятия.</p>${!s.equipment?`<p><b>Запуск недоступен: оборудование ещё не куплено.</b></p><button type="button" data-tab="management">Перейти к оборудованию</button>`:''}${s.kind==='oil_refinery'&&s.equipment&&Number(s.crude)<20?'<p>Для запуска партии нужно минимум 20 л нефти на складе. Оплаченную закупку сначала нужно доставить.</p>':''}</article>`;
+    return `<article><h3>Как запустить цепочку</h3><p>${steps}</p><p>Поставщик и перевозчик выбираются при закупке; доступны разные города. Закупки и оборудование оплачиваются со счёта покупающего предприятия.</p>${!s.equipment?`<p><b>Запуск недоступен: оборудование ещё не куплено.</b></p><button type="button" data-tab="management">Перейти к оборудованию</button>`:''}${s.kind==='oil_refinery'&&s.equipment&&Number(s.crude)<20?'<p>Для запуска партии нужно минимум 20 л нефти на складе. Оплаченную закупку сначала нужно доставить.</p>':''}</article>`;
   }
   function overview() {
     const total=Number(s.crude)+Number(s.petrol)+Number(s.petrol92||0)+Number(s.diesel);
@@ -39,16 +40,16 @@ export function enableOilIndustryFeature({ root, cityId }) {
     <h3>${OIL_TYPES[s.kind][2]}</h3>${!s.equipment?`<p>Оплата со счёта предприятия, отдельно от личного баланса.</p>${equipmentShortfall()>0?`<p role="status">Для покупки не хватает <b>${money(equipmentShortfall())}</b>. Подставьте эту сумму и нажмите «Пополнить».</p><button type="button" data-fill-equipment ${busy?'disabled':''}>Подставить недостающие ${money(equipmentShortfall())}</button>`:'<p>Средств достаточно — можно купить оборудование.</p>'}`:''}<p>${s.equipment?'✓ Оборудование установлено':`Стоимость: ${money(s.equipmentPrice)}`}</p>${!s.equipment?actionButton('equipment','Купить оборудование',Number(s.cash)<Number(s.equipmentPrice)):''}
     <p>${s.kind==='fuel_station'?`Ресурс колонок: продано ${num(Number(s.workSeconds)/60)} / 1 440 л.`:`Наработка: ${num(Number(s.workSeconds)/3600)} / 24 часа.`} Обслуживание: ${money(s.maintenancePrice)}. Только вручную со счёта предприятия.</p>
     ${s.maintenanceRequired?actionButton('maintenance','Оплатить обслуживание',Number(s.cash)<Number(s.maintenancePrice)):'<p>Обслуживание пока не требуется.</p>'}
-    <h3>Продажи ${s.kind==='fuel_station'?'игрокам':'предприятиям'}</h3><p>Поставщики и покупатели работают в одном городе. Деньги за товар поступают при закупке; доставка завершается вручную.</p>
+    <h3>Продажи ${s.kind==='fuel_station'?'игрокам':'предприятиям'}</h3><p>Выбирайте поставщика и транспортную компанию из доступных городов. Деньги за товар поступают при закупке; доставка завершается вручную.</p>
     ${saleProducts().map(p=>`<label>${names[p]} · ₴/л ${field('price-'+p,s[p+'Price'],.01,1000000,.01)}</label>`).join('')}
     ${actionButton('set_prices','Сохранить цены')}${actionButton('selling',s.selling?'Закрыть продажи':'Открыть продажи',!s.equipment)}
     <p>Для запуска или покупки оборудования сначала пополните счёт. Личные деньги списываются только при подтверждённом пополнении; обслуживание оплачивается со счёта предприятия вручную.</p>`;
   }
   function supply() {
-    return `<h3>Закупка ${s.kind==='oil_refinery'?'нефти':'топлива'}</h3><p>Нефть для НПЗ закупается от 20 л. Цена фиксируется при покупке. Место на складе резервируется до доставки. Партия доступна к перевозке через 60 секунд.</p>${s.offers.length?s.offers.map(o=>`<article><h4>${esc(o.name)} · ${esc(o.ownerName)}</h4>${(s.kind==='oil_refinery'?['crude']:['petrol','petrol92','diesel']).map(p=>`<div class="mn-oil-row"><span>${names[p]}: ${num(o[p])} л · ${money(o[p+'Price'])}/л</span>${field('buy-'+o.id+'-'+p,Math.min(100,Math.max(p==='crude'?20:1,Math.floor(o[p]))),p==='crude'?20:1,10000)}${actionButton('buy_supply','Закупить',!s.equipment||Number(o[p])<(p==='crude'?20:1),`data-seller="${esc(o.id)}" data-product="${p}" data-price="${o[p+'Price']}"`)}</div>`).join('')}</article>`).join(''):'<p>Нет открытых поставщиков. Купите и оборудуйте предыдущее звено цепочки, затем включите в нём продажи.</p>'}`;
+    return `<label>Транспортная компания <select data-input="carrier"><option value="">Выберите перевозчика</option>${carriers.map(h=>`<option value="${esc(h.id)}">${esc(h.name||h.id)} · ${esc(h.city)}</option>`).join('')}</select></label><label>Оплата водителю ${field('freight',250,10,1000000,.01)}</label><h3>Закупка ${s.kind==='oil_refinery'?'нефти':'топлива'}</h3><p>Нефть для НПЗ закупается от 20 л. Цена фиксируется при покупке. Место на складе резервируется до доставки. Партия доступна к перевозке через 60 секунд.</p>${s.offers.length?s.offers.map(o=>`<article><h4>${esc(o.name)} · ${esc(o.ownerName)} · ${esc(o.cityId)}</h4>${(s.kind==='oil_refinery'?['crude']:['petrol','petrol92','diesel']).map(p=>`<div class="mn-oil-row"><span>${names[p]}: ${num(o[p])} л · ${money(o[p+'Price'])}/л</span>${field('buy-'+o.id+'-'+p,Math.min(100,Math.max(p==='crude'?20:1,Math.floor(o[p]))),p==='crude'?20:1,10000)}${actionButton('buy_supply','Закупить',!s.equipment||Number(o[p])<(p==='crude'?20:1),`data-seller-city="${esc(o.cityId)}" data-seller="${esc(o.id)}" data-product="${p}" data-price="${o[p+'Price']}"`)}</div>`).join('')}</article>`).join(''):'<p>Нет открытых поставщиков. Купите и оборудуйте предыдущее звено цепочки, затем включите в нём продажи.</p>'}`;
   }
   function deliveries() {
-    return `<h3>Партии в пути и последние доставки</h3>${s.shipments.length?s.shipments.map(d=>`<article class="mn-oil-row"><span><b>${names[d.product]} · ${num(d.quantity)} л</b><small>От ${esc(d.seller_id)} · оплачено ${money(d.total)}</small><small>${d.status==='delivered'?'✓ Принято на склад':Date.parse(d.ready_at)>Date.now()?`⏳ Подготовка партии: ${Math.max(0,Math.ceil((Date.parse(d.ready_at)-Date.now())/1000))} сек.`:'Готово к ручной доставке'}</small></span>${d.status==='pending'?actionButton('deliver','Доставить',Date.parse(d.ready_at)>Date.now(),`data-shipment="${d.id}"`):''}</article>`).join(''):'<p>Закупленных партий пока нет.</p>'}`;
+    return `<h3>Партии в пути и последние доставки</h3><p>Для оплаченной партии выберите транспортную компанию и оплату водителю.</p><button type="button" data-auto-routes>Выбрать перевозчика</button>${s.shipments.length?s.shipments.map(d=>`<article class="mn-oil-row"><span><b>${names[d.product]} · ${num(d.quantity)} л</b><small>От ${esc(d.seller_id)} · оплачено ${money(d.total)}</small><small>${d.status==='delivered'?'✓ Принято на склад':Date.parse(d.ready_at)>Date.now()?`⏳ Подготовка партии: ${Math.max(0,Math.ceil((Date.parse(d.ready_at)-Date.now())/1000))} сек.`:'Готово к ручной доставке'}</small></span>${''}</article>`).join(''):'<p>Закупленных партий пока нет.</p>'}`;
   }
   function render() {
     if(!s||destroyed)return;
@@ -62,6 +63,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
   }
   async function refresh() {
     const g=generation, key=id, result=await oilRequest(key,cityId);
+    if(result.isOwner&&result.kind!=='oil_well'){const fleet=await vehicleRequest(cityId);carriers=fleet.hubs||[];}
     if(g!==generation||destroyed)return;
     s=result; if(!s.isOwner)tab='overview';render();
   }
@@ -75,7 +77,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
       retry=null;
       window.dispatchEvent(new CustomEvent('mn:player-balance-refresh'));
       if(g!==generation||destroyed)return;
-      s=result;notice=action==='buy_supply'?'✓ Закупка оплачена. Завершите доставку во вкладке «Доставки».':action==='deliver'?'✓ Товар принят на склад.':action==='refine'?'✓ Перегонка запущена.':'✓ Действие выполнено.';
+      s=result;notice=action==='buy_supply'?'✓ Закупка оплачена. Создан рейс выбранной транспортной компании.':action==='deliver'?'✓ Товар принят на склад.':action==='refine'?'✓ Перегонка запущена.':'✓ Действие выполнено.';
     } catch(e) { if(g===generation)notice=oilError(e); }
     finally {busy=false;if(g===generation)render();}
   }
@@ -85,6 +87,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
   dialog.addEventListener('keyup',e=>e.stopPropagation());
   dialog.addEventListener('click',async e=>{
     const b=e.target.closest('button');if(!b||busy)return;
+    if(b.hasAttribute('data-auto-routes')){close();window.dispatchEvent(new CustomEvent('mn:auto-routes-open'));return;}
     if(b.hasAttribute('data-close')){close();return;}
     if(b.dataset.tab){tab=b.dataset.tab;notice='';dialog.querySelector('main').innerHTML='';render();return;}
     if(b.hasAttribute('data-fill-equipment')){const el=input('amount');el.value=equipmentShortfall().toFixed(2);el.focus();el.scrollIntoView?.({block:'center'});return;}
@@ -95,7 +98,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
     if(a==='refine')data={product:b.dataset.product};
     if(a==='selling')data={enabled:!s.selling};
     if(a==='retail_buy')data={product:b.dataset.product,quantity:Number(input('retail-'+b.dataset.product).value),unitPrice:Number(s[b.dataset.product+'Price'])};
-    if(a==='buy_supply')data={sellerId:b.dataset.seller,product:b.dataset.product,quantity:Number(input('buy-'+b.dataset.seller+'-'+b.dataset.product).value),unitPrice:Number(b.dataset.price)};
+    if(a==='buy_supply')data={hub:input('carrier').value,reward:Number(input('freight').value),sellerCity:b.dataset.sellerCity,sellerId:b.dataset.seller,product:b.dataset.product,quantity:Number(input('buy-'+b.dataset.seller+'-'+b.dataset.product).value),unitPrice:Number(b.dataset.price)};
     if(a==='deliver'){
       const d=s.shipments.find(x=>x.id===b.dataset.shipment);if(!d)return;
       busy=true;render();const g=generation;let game;
@@ -125,4 +128,3 @@ export function enableOilIndustryFeature({ root, cityId }) {
   window.addEventListener('mn:oil-industry-object-action',onOpen);
   return ()=>{destroyed=true;generation++;clearInterval(timer);window.removeEventListener('mn:oil-industry-object-action',onOpen);dialog.remove();};
 }
-
