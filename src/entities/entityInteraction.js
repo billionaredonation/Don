@@ -115,6 +115,7 @@ function isWorkObject(object) {
     || type === 'coal_power_plant'
     || type === 'energy_substation'
     || type === 'water_treatment_plant'
+    || ['car_factory','car_dealer','auto_service'].includes(type)
     || ['oil_well','oil_refinery','fuel_station'].includes(type)
     || type === 'ukrgaz_plant'
     || type === 'power_transformer'
