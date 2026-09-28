@@ -99,8 +99,18 @@ export function enableOilIndustryFeature({ root, cityId }) {
     if(a==='deliver'){
       const d=s.shipments.find(x=>x.id===b.dataset.shipment);if(!d)return;
       busy=true;render();const g=generation;let game;
-      try{game=await playCargoTransferMiniGame({direction:'factory_to_store',productType:'oil_'+d.product,quantity:d.quantity});}finally{busy=false;render();}
-      if(!game?.success||g!==generation)return;data={shipmentId:d.id};
+      // Native modal dialogs sit above body overlays and make them inert.
+      // Release the modal top layer while the cargo game owns interaction.
+      dialog.close();
+      try {
+        game=await playCargoTransferMiniGame({direction:'factory_to_store',productType:'oil_'+d.product,quantity:d.quantity});
+        if(!game?.success)notice='Доставка отменена. Оплаченная партия остаётся в «Доставках».';
+      } catch(err) { notice=oilError(err); }
+      finally {
+        busy=false;
+        if(g===generation&&!destroyed){render();if(!dialog.open)dialog.showModal();}
+      }
+      if(!game?.success||g!==generation||destroyed)return;data={shipmentId:d.id};
     }
     await act(a,data);
   });
