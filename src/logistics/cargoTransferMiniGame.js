@@ -33,7 +33,7 @@ export function playCargoTransferMiniGame({ direction = 'factory_to_vehicle', pr
   const targetLabel = directDelivery ? 'склад получателя' : (loading ? 'грузовой отсек' : 'зону приёмки');
 
   activeCargoGame = new Promise((resolve) => {
-    const root = document.createElement('div');
+    const root = document.createElement('dialog');
     root.className = 'mn-cargo-game';
     root.innerHTML = `<section><header><span><small>ЛОГИСТИКА · ${amount} ЕД.</small><strong>${routeLabel}</strong><em>Перетащите все коробки на ${targetLabel}</em></span><button data-cargo-cancel>×</button></header><div class="mn-cargo-yard"><div class="mn-cargo-zone is-source"><b>${loading || directDelivery ? '🏭' : '🚚'}</b><span>${loading || directDelivery ? 'Склад завода' : 'Грузовой отсек'}</span><div data-cargo-boxes>${Array.from({ length: boxCount }, (_, i) => `<button class="mn-cargo-box" data-box="${i}" aria-label="Коробка ${i + 1}"><i>📦</i><small>${icon}</small></button>`).join('')}</div></div><div class="mn-cargo-road"><i>➜</i><span><b data-cargo-done>0</b> / ${boxCount}</span></div><div class="mn-cargo-zone is-target" data-cargo-target><b>${loading ? '🚚' : '🏪'}</b><span>${directDelivery ? 'Склад получателя' : (loading ? 'Грузовой отсек' : 'Приёмка магазина')}</span><em>${label}</em></div></div><footer>Зажмите коробку и перенесите её в подсвеченную область.</footer></section>`;
     document.body.append(root);
@@ -44,10 +44,15 @@ export function playCargoTransferMiniGame({ direction = 'factory_to_vehicle', pr
       if (finished) return;
       finished = true;
       document.body.classList.remove('mn-cargo-game-open');
+      root.close();
       root.remove();
       activeCargoGame = null;
       resolve({ success, quantity: success ? amount : 0 });
     };
+    root.addEventListener('cancel', event => { event.preventDefault(); finish(false); });
+    root.addEventListener('keydown', event => event.stopPropagation());
+    root.addEventListener('keyup', event => event.stopPropagation());
+    root.showModal();
     root.querySelector('[data-cargo-cancel]').onclick = () => finish(false);
     root.querySelectorAll('.mn-cargo-box').forEach((box) => {
       box.addEventListener('pointerdown', (event) => {
