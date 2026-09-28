@@ -52,6 +52,7 @@ import { enableNuclearPowerFeature } from '../../src/nuclearPower/nuclearPowerFe
 import { enableCoalPowerFeature } from '../../src/coalPower/coalPowerFeature.js';
 import { enableEnergySubstationFeature } from '../../src/energySubstation/energySubstationFeature.js';
 import { enableWaterTreatmentFeature } from '../../src/waterTreatment/waterTreatmentFeature.js';
+import { enableVehicleIndustry } from '../../src/vehicles/vehicleIndustryFeature.js';
 import { enableOilIndustryFeature } from '../../src/oilIndustry/oilIndustryFeature.js';
 import { enableUkrGazFeature } from '../../src/ukrGaz/ukrGazFeature.js';
 import { enableProductionMarketFeature } from '../../src/market/productionMarketFeature.js';
@@ -1597,6 +1598,7 @@ register('home', async (root) => {
   let cleanupWaterTreatmentFeature = null;
   let cleanupUkrGazFeature = null;
   let cleanupOilIndustryFeature = null;
+  let cleanupVehicleIndustry = null;
   let cleanupMetallurgyFeature = null;
   let cleanupWoodProcessingFeature = null;
   let cleanupToolAssemblyFeature = null;
@@ -2306,6 +2308,7 @@ register('home', async (root) => {
   cleanupCoalPowerFeature = enableOptionalProductionModule('УЭС', () => enableCoalPowerFeature({ root, cityId }));
   cleanupEnergySubstationFeature = enableOptionalProductionModule('Электрические подстанции', () => enableEnergySubstationFeature({ root, cityId }));
   cleanupWaterTreatmentFeature = enableOptionalProductionModule('Водоочистные сооружения', () => enableWaterTreatmentFeature({ root, cityId }));
+  cleanupVehicleIndustry = enableOptionalProductionModule('Автомобили', () => enableVehicleIndustry({root,cityId,playerPosition,playerMarker}));
   cleanupOilIndustryFeature = enableOptionalProductionModule('Нефтяная промышленность', () => enableOilIndustryFeature({ root, cityId }));
   cleanupUkrGazFeature = enableOptionalProductionModule('УкрГаз', () => enableUkrGazFeature({ root, cityId }));
   cleanupProductionMarket = enableOptionalProductionModule('Биржа продукции', () => enableProductionMarketFeature({ root }));
@@ -2529,6 +2532,7 @@ register('home', async (root) => {
     cleanupWaterTreatmentFeature?.();
     cleanupUkrGazFeature?.();
     cleanupOilIndustryFeature?.();
+    cleanupVehicleIndustry?.();
     cleanupMetallurgyFeature?.();
     cleanupWoodProcessingFeature?.();
     cleanupToolAssemblyFeature?.();
