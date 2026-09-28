@@ -453,6 +453,16 @@ export function enableKeyboardPlayerMovement(
     if (!wantsMove && Math.abs(inputY) < 0.002) inputY = 0;
 
     const vehicle = window.__MN_VEHICLE_RUNTIME__;
+    if (vehicle && !vehicle.canMove) {
+      inputX = 0; inputY = 0; velocityX = 0; velocityY = 0;
+      renderX = x; renderY = y;
+      keys.clear();
+      setDesktopRuntimeMoving(false);
+      setDesktopRuntimeSprinting(false);
+      paintPlayer(true);
+      return;
+    }
+
     const isSprinting = vehicle ? false : updateSprintState(wantsMove, frameScale);
     setDesktopRuntimeSprinting(isSprinting);
     const speed = vehicle ? (vehicle.canMove ? vehicle.speed : 0) : (isSprinting ? SPRINT_SPEED : WALK_SPEED);
