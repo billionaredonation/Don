@@ -12,6 +12,7 @@ export async function oilRequest(id, cityId, action = 'snapshot', data = {}, req
   return response.result;
 }
 const errors = {
+  AUTO_HUB: 'Выберите купленный логистический центр.', AUTO_INVALID: 'Выберите перевозчика и оплату водителю от 10 ₴.', AUTO_FUNDS: 'Не хватает денег на счёте для оплаты перевозки.', AUTO_DRIVER_DELIVERY_REQUIRED: 'Партия закреплена за перевозчиком. Её должен доставить водитель.',
   OIL_NOT_FOUND: 'Объект не найден. Проверьте его тип и город.', OIL_OWNER_REQUIRED: 'Действие доступно владельцу предприятия.',
   OIL_ALREADY_OWNED: 'Предприятие уже куплено.', PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег на личном балансе.',
   OIL_CASH_LOW: 'Недостаточно денег на счёте предприятия. Пополните его в разделе «Управление».',
