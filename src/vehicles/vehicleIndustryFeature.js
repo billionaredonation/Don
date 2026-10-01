@@ -1,3 +1,4 @@
+import {registerCanisterInventory,publishCanisters,planCanisterPour} from './canisterInventory.js';
 import './vehicleIndustry.css';
 import {state,save} from '../state.js';
 import {vehicleRequest,vehicleError} from './vehicleIndustryApi.js';
@@ -82,7 +83,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  if(focused)[...dialog.querySelectorAll('[data-field]')].find(el=>el.dataset.field===focused)?.focus({preventScroll:true});
  dialog.scrollTop=scrollTop;dialog.scrollLeft=scrollLeft;
  }
- function mapRender(){if(!s)return;const car=current();const m=car&&model(car);window.__MN_VEHICLE_RUNTIME__=car?{id:car.id,canMove:!car.transit_ready&&car.condition>m.stop_condition&&car.fuel>0,speed:.15}:null;
+ function mapRender(){if(!s)return;publishCanisters(s.canisters||[]);const car=current();const m=car&&model(car);window.__MN_VEHICLE_RUNTIME__=car?{id:car.id,canMove:!car.transit_ready&&car.condition>m.stop_condition&&car.fuel>0,speed:.15}:null;
  playerMarker?.classList.toggle('mn-auto-driving',!!car);let carView=playerMarker?.querySelector('.mn-auto-driving-view');if(car&&!carView){carView=document.createElement('span');carView.className='mn-auto-driving-view';playerMarker?.append(carView);}if(carView){if(car)carView.innerHTML=carSvg(car.color);else carView.remove();}hud.textContent=car?`${m.label} · ${Number(car.fuel).toFixed(1)} л · ${Math.floor(car.condition)}/${m.max_condition} · ${stopReason(car)||'Двигатель готов'} · F выйти · H АЗС`:'';
  layer.innerHTML=s.vehicles.filter(v=>v.owner_id&&v.city_id===cityId&&(!v.driving||v.owner_id!==actor)).map(v=>`<div class="mn-auto-car ${v.owner_id===actor?'is-owned':v.business_id?'is-stock':'is-other'}" data-car-id="${esc(v.id)}" style="left:${Number(v.x)}%;top:${Number(v.y)}%;color:${esc(v.color)}">${carSvg(v.color)}<b>${esc(model(v)?.label)}<small>${v.owner_id===actor?(v.route_id?'Ваш служебный автомобиль':'Ваш автомобиль · F'):v.business_id?'Склад предприятия · не личное авто':'Автомобиль другого игрока'}</small></b></div>`).join('');
  const r=s.routes.find(r=>r.driver===actor&&['pickup','unload'].includes(r.status));if(r){const pt=r.status==='pickup'?r.source:r.target;if(pt?.city===cityId)layer.innerHTML+=`<div class="mn-auto-marker" style="left:${Number(pt.x)}%;top:${Number(pt.y)}%">${r.status==='pickup'?'📦 Погрузка':'🏁 Выгрузка'}</div>`;else hud.textContent+=` · Цель: ${pt?.city||'другой город'}`;}
@@ -150,8 +151,25 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
   moving=true;
   moveTask=(async()=>{try{const result=await vehicleRequest(cityId,'','move',{vehicle:c.id,x:playerPosition.x,y:playerPosition.y});if(result.moved){Object.assign(c,result.moved);if(!busy)mapRender();}}catch(e){placePlayer(c);hud.textContent=vehicleError(e);}finally{moving=false;}})();
  },1500);
+ const unregisterCanisters=registerCanisterInventory({
+  load:async()=>{const snapshot=await vehicleRequest(cityId);return snapshot.canisters||[];},
+  use:async canisterId=>{
+   if(busy)throw Error('Дождитесь завершения текущего действия.');
+   busy=true;revision++;
+   try{
+    if(moveTask)await moveTask;
+    const snapshot=await vehicleRequest(cityId,id);
+    if(destroyed)throw Error('Карта сменилась. Откройте инвентарь заново.');
+    const data=planCanisterPour(snapshot,canisterId,actor,cityId,playerPosition);
+    s=await vehicleRequest(cityId,id,'canister_pour',data);
+    mapRender();
+    return {liters:data.liters,remaining:Number(s.canisters.find(c=>c.id===canisterId)?.liters||0)};
+   }catch(e){throw Error(vehicleError(e));}
+   finally{busy=false;if(!destroyed&&dialog.open)render();}
+  }
+ });
  const assemblyTimer=setInterval(()=>{if(dialog.open)tickAssembly();},1000);
  const poll=setInterval(()=>{if(!busy&&!moving&&dialog.open)refresh().catch(()=>{});},5000);
  refresh().then(()=>{const c=current();if(c?.city_id===cityId)window.dispatchEvent(new CustomEvent('mn:player-teleported',{detail:{x:c.x,y:c.y}}));}).catch(()=>{});
- return()=>{destroyed=true;clearInterval(timer);clearInterval(poll);clearInterval(assemblyTimer);window.__MN_VEHICLE_RUNTIME__=null;window.removeEventListener('keydown',key);window.removeEventListener('mn:auto-object-action',onOpen);window.removeEventListener('mn:auto-routes-open',onRoutes);window.removeEventListener('mn:auto-station-open',onStation);dialog.remove();launch.remove();hud.remove();layer.remove();playerMarker?.classList.remove('mn-auto-driving');};
+ return()=>{destroyed=true;unregisterCanisters();clearInterval(timer);clearInterval(poll);clearInterval(assemblyTimer);window.__MN_VEHICLE_RUNTIME__=null;window.removeEventListener('keydown',key);window.removeEventListener('mn:auto-object-action',onOpen);window.removeEventListener('mn:auto-routes-open',onRoutes);window.removeEventListener('mn:auto-station-open',onStation);dialog.remove();launch.remove();hud.remove();layer.remove();playerMarker?.classList.remove('mn-auto-driving');};
 }
