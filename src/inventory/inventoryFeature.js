@@ -1,3 +1,4 @@
+import {loadCanisterInventory,useInventoryCanister} from '../vehicles/canisterInventory.js';
 // Hospital batch refresh 2026-07-20: inventory medical items deploy marker.
 import './inventory.css';
 import { state } from '../state.js';
@@ -46,6 +47,7 @@ const INDUSTRY_ITEM_META = Object.freeze(Object.fromEntries([
   { itemType: 'industrial_plastic', label: 'Технический пластик', icon: '🧩' },
 ].filter(Boolean).map((item) => [String(item.itemType || item.id), { label: item.label, icon: item.icon }])));
 const ITEM_META = Object.freeze({
+  fuel_canister: { label: 'Канистра', icon: '⛽' },
   food: { label: 'Обед', icon: '🍔' },
   water_bottle: { label: 'Бутылка воды', icon: '🧴' },
   medicine_light: { label: 'Простые таблетки', icon: '💊' },
@@ -162,10 +164,11 @@ function mergeVisibleInventoryItems(...groups) {
   groups.flat().filter(Boolean).forEach((item) => {
     const itemType = String(item.itemType || item.item_type || '').trim();
     if (!itemType) return;
-    const previous = merged.get(itemType);
+    const mergeKey = itemType === 'fuel_canister' ? getInventoryItemLayoutKey(item) : itemType;
+    const previous = merged.get(mergeKey);
     const isMainInventory = String(item.source || '').toLowerCase() === 'personal'
       || item.businessItem === true;
-    if (!previous || isMainInventory) merged.set(itemType, item);
+    if (!previous || isMainInventory) merged.set(mergeKey, item);
   });
   return [...merged.values()];
 }
@@ -447,7 +450,7 @@ function renderMedicalItems(slotItems = []) {
         ${itemType.startsWith('textile_') ? `style="--mn-textile-color:${escapeHtml(item.color || '#374151')}"` : ''}
       >
         <span>${getItemIconMarkup(itemType, meta.icon)}</span>
-        <b>${quantity}</b>
+        <b>${itemType === 'fuel_canister' ? `${Number(item.liters)} л` : quantity}</b>
       </button>`;
   }).join('');
 }
@@ -846,6 +849,8 @@ export function enableInventoryFeature() {
     const quantity = Number(item.quantity || 0);
     const sourceLabel = getItemSourceLabel(item);
 
+    if (itemType === 'fuel_canister') return `${getItemLabel(item)}.\nПрименить рядом со своей машиной: топливо перельётся в бак. Остаток сохраняется, пустая канистра остаётся в инвентаре. Наполнение — на АЗС.`;
+
     if (itemType === 'food') {
       return `${getItemLabel(item)} · ${quantity} шт.\n${sourceLabel}.\nПрименение восстанавливает сытость и немного воды. Покупается в столовке.`;
     }
@@ -1154,13 +1159,14 @@ export function enableInventoryFeature() {
   }
 
   async function refreshMedicalInventory() {
-    const [medicalResult, farmResult, mineResult, lumberResult, businessResult, wardrobeResult] = await Promise.allSettled([
+    const [medicalResult, farmResult, mineResult, lumberResult, businessResult, wardrobeResult, canisterResult] = await Promise.allSettled([
       loadMyMedicalInventory(),
       loadFarmInventory(),
       loadMineInventory(),
       loadLumberInventory(),
       loadBusinessInventory(),
       loadTextileWardrobe(),
+      loadCanisterInventory(),
     ]);
 
     const medical = medicalResult.status === 'fulfilled' && Array.isArray(medicalResult.value?.items)
@@ -1206,7 +1212,8 @@ export function enableInventoryFeature() {
     }
 
     window.__MN_BUSINESS_INVENTORY_ITEMS__ = business;
-    medicalItems = mergeVisibleInventoryItems(medical, farm, mine, lumber, business);
+    const canisters = canisterResult.status === 'fulfilled' ? canisterResult.value : medicalItems.filter(item => item.itemType === 'fuel_canister');
+    medicalItems = mergeVisibleInventoryItems(medical, farm, mine, lumber, business, canisters);
     publishInventorySnapshot(medicalItems);
     renderMedicalInventory();
   }
@@ -1216,6 +1223,22 @@ export function enableInventoryFeature() {
     const itemType = String(item?.itemType || '');
     const consumptionEffect = getConsumptionEffectType(itemType);
     if (!itemType || inventoryBusy) return;
+    if (itemType === 'fuel_canister') {
+      inventoryBusy = true;
+      try {
+        const result = await useInventoryCanister(item.inventoryItemId);
+        const message = `В бак залито ${result.liters} л. В канистре: ${result.remaining} / 20 л. Канистра остаётся в инвентаре.`;
+        await refreshMedicalInventory();
+        closeItemMenu();
+        window.dispatchEvent(new CustomEvent('mn:toast', {detail:{type:'success',message}}));
+      } catch (error) {
+        setItemMenuNotice(error.message, 'error');
+      } finally {
+        inventoryBusy = false;
+        renderMedicalInventory();
+      }
+      return;
+    }
     if (isTextileProduct(itemType)) {
       inventoryBusy = true;
       try {
@@ -1403,6 +1426,12 @@ export function enableInventoryFeature() {
     });
 
     if (changed) renderVitals(nextVitals, { notify });
+  }
+
+  function handleCanisterInventoryChanged(event) {
+    medicalItems = [...medicalItems.filter(item => item.itemType !== 'fuel_canister'), ...(event.detail?.items || [])];
+    publishInventorySnapshot(medicalItems);
+    renderMedicalInventory();
   }
 
   function handleFarmInventoryChanged(event) {
@@ -1622,6 +1651,7 @@ export function enableInventoryFeature() {
   window.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('mn:player-balance-changed', handleVitalsChanged);
   window.addEventListener('mn:player-vitals-changed', handleVitalsChanged);
+  window.addEventListener('mn:canister-inventory-changed', handleCanisterInventoryChanged);
   window.addEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
   window.addEventListener('mn:mine-inventory-changed', handleMineInventoryChanged);
   window.addEventListener('mn:lumber-inventory-changed', handleLumberInventoryChanged);
@@ -1669,6 +1699,7 @@ export function enableInventoryFeature() {
     window.removeEventListener('keydown', handleKeyDown, true);
     window.removeEventListener('mn:player-balance-changed', handleVitalsChanged);
     window.removeEventListener('mn:player-vitals-changed', handleVitalsChanged);
+    window.removeEventListener('mn:canister-inventory-changed', handleCanisterInventoryChanged);
     window.removeEventListener('mn:farm-inventory-changed', handleFarmInventoryChanged);
     window.removeEventListener('mn:mine-inventory-changed', handleMineInventoryChanged);
     window.removeEventListener('mn:lumber-inventory-changed', handleLumberInventoryChanged);
