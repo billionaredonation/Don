@@ -42,6 +42,7 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
   let snapshot = null;
   let busy = false;
   let liveTimer = 0;
+  let typingLock = false;
   let lastBalance = null;
   const consumerDraft = { houseId: '', unitPrice: '10' };
   let withdrawDraft = '1000';
@@ -119,7 +120,7 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     const openCount = consumers.filter((item) => item.status === 'active' || item.status === 'offered').length;
     const ready = Boolean(s.equipment?.collection && s.equipment?.purification && s.equipment?.transport);
     return `<section class="mn-water-page"><div class="mn-water-consumer-heading"><div><h3>Водоснабжение домов и предприятий</h3><p>Норма: дом — 75 л/сутки, магазин — 300, завод — 450. Подключение стоит 1 000 ₴. Тариф задаёт владелец, но не ниже 10 ₴ за литр.</p></div><span>${openCount}/10 мест</span></div>
-      ${s.isOwner ? `<div class="mn-water-offer"><input data-water-house maxlength="120" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома / предприятия"><input data-water-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за литр"><button data-water-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
+      ${s.isOwner ? `<div class="mn-water-offer"><input data-water-house maxlength="120" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома / предприятия"><input data-water-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за литр"><button data-water-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
       <div class="mn-water-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>Дом ${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.waterActive ? '💧 Вода поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / л</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyLiters)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-water-empty">Абонентов пока нет.</div>'}</div>
     </section>`;
   }
@@ -181,15 +182,22 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
   modal.querySelector('[data-water-close]').addEventListener('click', close);
   modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
   modal.querySelectorAll('[data-water-tab]').forEach((button) => button.addEventListener('click', () => setTab(button.dataset.waterTab)));
+  const isTypingTarget = (event) => event.target?.matches?.('input, textarea, select, [contenteditable="true"]');
   const stopGameKeysWhileTyping = (event) => {
-    if (!event.target?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
-    if (/^(KeyW|KeyA|KeyS|KeyD|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|ShiftLeft|ShiftRight)$/.test(event.code)) {
-      event.stopPropagation();
-    }
+    if (!isTypingTarget(event)) return;
+    typingLock = true;
+    event.stopPropagation();
+  };
+  const onFocusIn = (event) => { if (isTypingTarget(event)) typingLock = true; };
+  const onFocusOut = (event) => {
+    if (!isTypingTarget(event)) return;
+    setTimeout(() => { typingLock = Boolean(content.contains(document.activeElement) && document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]')); }, 0);
   };
   content.addEventListener('keydown', stopGameKeysWhileTyping);
   content.addEventListener('keyup', stopGameKeysWhileTyping);
-  const onKey = (event) => { if (event.key === 'Escape' && !modal.hidden) close(); };
+  content.addEventListener('focusin', onFocusIn);
+  content.addEventListener('focusout', onFocusOut);
+  const onKey = (event) => { if (event.key === 'Escape' && !modal.hidden && !typingLock) close(); };
   window.addEventListener('keydown', onKey);
 
   const onAction = async (event) => {
@@ -213,7 +221,7 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
       await refresh();
       window.clearInterval(liveTimer);
       liveTimer = window.setInterval(() => {
-        if (!modal.hidden && !busy) refresh().catch(() => {});
+        if (!modal.hidden && !busy && !typingLock && !content.contains(document.activeElement)) refresh().catch(() => {});
       }, 5000);
     } catch (error) {
       modal.hidden = true;
@@ -226,6 +234,8 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     window.clearInterval(liveTimer);
     content.removeEventListener('keydown', stopGameKeysWhileTyping);
     content.removeEventListener('keyup', stopGameKeysWhileTyping);
+    content.removeEventListener('focusin', onFocusIn);
+    content.removeEventListener('focusout', onFocusOut);
     window.removeEventListener('keydown', onKey);
     window.removeEventListener('mn:water-treatment-object-action', onAction);
     modal.remove();
