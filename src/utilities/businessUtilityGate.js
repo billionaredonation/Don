@@ -1,12 +1,21 @@
-import { loadElectricityBills } from '../energySubstation/energySubstationApi.js';
-import { loadWaterUtility } from '../waterTreatment/waterTreatmentApi.js';
-import { loadGasUtility } from '../ukrGaz/ukrGazApi.js';
+import { loadElectricityBills, loadPowerInbox, answerPowerOffer, getSubstationError } from '../energySubstation/energySubstationApi.js';
+import { loadWaterUtility, answerWaterOffer, getWaterError } from '../waterTreatment/waterTreatmentApi.js';
+import { loadGasUtility, answerGasOffer, getGasError } from '../ukrGaz/ukrGazApi.js';
 import './businessUtilityGate.css';
 
 const CACHE_MS = 5000;
+const OFFER_POLL_MS = 5000;
 const cache = new Map();
+const offerTimers = new WeakMap();
 
 const norm = (value) => String(value ?? '').trim().toLowerCase().replace(/^mn-/, '');
+const esc = (value) => String(value ?? '')
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;');
+const money = (value) => `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₴`;
+
 const valuesOf = (row = {}) => [
   row.houseId, row.house_id, row.objectId, row.object_id,
   row.businessId, row.business_id, row.consumerId, row.consumer_id,
@@ -24,6 +33,16 @@ function rowsFrom(result) {
 function match(rows, ids) {
   const wanted = new Set(ids.map(norm).filter(Boolean));
   return rows.find((row) => valuesOf(row).some((value) => wanted.has(value))) || null;
+}
+
+function offersFrom(result) {
+  return Array.isArray(result?.offers) ? result.offers : [];
+}
+
+function matchingOffers(result, ids) {
+  const wanted = new Set(ids.map(norm).filter(Boolean));
+  if (!wanted.size) return [];
+  return offersFrom(result).filter((offer) => valuesOf(offer).some((value) => wanted.has(value)));
 }
 
 export async function loadBusinessUtilityStatus(objectIds = [], { force = false } = {}) {
@@ -48,32 +67,123 @@ export async function loadBusinessUtilityStatus(objectIds = [], { force = false 
     operational: electricity && waterActive && gasActive,
     missing: [!electricity && 'electricity', !waterActive && 'water', !gasActive && 'gas'].filter(Boolean),
     checked: power.status === 'fulfilled' || water.status === 'fulfilled' || gas.status === 'fulfilled',
+    objectIds: ids,
   };
   cache.set(key, { at: Date.now(), value });
   return value;
 }
 
-export function renderBusinessUtilityGate(container, status, { isOwner = false, objectId = '' } = {}) {
+async function loadIncomingOffers(ids) {
+  const [power, water, gas] = await Promise.allSettled([
+    loadPowerInbox(), loadWaterUtility(), loadGasUtility(),
+  ]);
+  return {
+    power: power.status === 'fulfilled' ? matchingOffers(power.value, ids) : [],
+    water: water.status === 'fulfilled' ? matchingOffers(water.value, ids) : [],
+    gas: gas.status === 'fulfilled' ? matchingOffers(gas.value, ids) : [],
+  };
+}
+
+function offerMarkup(kind, offer) {
+  if (kind === 'power') {
+    return `<article class="mn-business-utility-offer" data-utility-offer="power" data-contract-id="${esc(offer.id)}">
+      <div><b>⚡ Электроснабжение</b><span>Подстанция: ${esc(offer.substationName || offer.substationId || '—')}</span><small>${money(offer.retailPrice)} / кВт·ч · подключение ${money(offer.connectionFee)}</small></div>
+      <div class="mn-business-utility-offer__actions"><button type="button" data-utility-answer="accept">Принять</button><button type="button" class="is-reject" data-utility-answer="reject">Отказаться</button></div>
+    </article>`;
+  }
+  if (kind === 'water') {
+    return `<article class="mn-business-utility-offer" data-utility-offer="water" data-contract-id="${esc(offer.id)}">
+      <div><b>💧 Водоснабжение</b><span>Поставщик: ${esc(offer.plantName || offer.plantId || '—')}</span><small>${money(offer.unitPrice)} / л · подключение ${money(offer.connectionFee)}</small></div>
+      <div class="mn-business-utility-offer__actions"><button type="button" data-utility-answer="accept">Принять</button><button type="button" class="is-reject" data-utility-answer="reject">Отказаться</button></div>
+    </article>`;
+  }
+  return `<article class="mn-business-utility-offer" data-utility-offer="gas" data-contract-id="${esc(offer.id)}">
+    <div><b>🔥 Газоснабжение</b><span>Поставщик: ${esc(offer.plantName || offer.plantId || '—')}</span><small>${money(offer.unitPrice)} / ед. · подключение ${money(offer.connectionFee)}</small></div>
+    <div class="mn-business-utility-offer__actions"><button type="button" data-utility-answer="accept">Принять</button><button type="button" class="is-reject" data-utility-answer="reject">Отказаться</button></div>
+  </article>`;
+}
+
+async function refreshOfferBox(gate, ids, options) {
+  if (!gate?.isConnected) return;
+  const box = gate.querySelector('[data-business-utility-offers]');
+  if (!box) return;
+  try {
+    const offers = await loadIncomingOffers(ids);
+    if (!gate.isConnected) return;
+    const all = [
+      ...offers.power.map((offer) => ['power', offer]),
+      ...offers.water.map((offer) => ['water', offer]),
+      ...offers.gas.map((offer) => ['gas', offer]),
+    ];
+    box.hidden = !all.length;
+    box.innerHTML = all.length
+      ? `<div class="mn-business-utility-offers__title"><strong>Входящие коммунальные договоры</strong><small>Решение принимает владелец этого предприятия.</small></div>${all.map(([kind, offer]) => offerMarkup(kind, offer)).join('')}`
+      : '';
+
+    box.querySelectorAll('[data-utility-answer]').forEach((button) => {
+      button.onclick = async () => {
+        const row = button.closest('[data-utility-offer]');
+        const kind = row?.dataset.utilityOffer;
+        const contractId = row?.dataset.contractId;
+        const accept = button.dataset.utilityAnswer === 'accept';
+        if (!kind || !contractId) return;
+        row.querySelectorAll('button').forEach((el) => { el.disabled = true; });
+        try {
+          if (kind === 'power') await answerPowerOffer(contractId, accept);
+          else if (kind === 'water') await answerWaterOffer(contractId, accept);
+          else await answerGasOffer(contractId, accept);
+
+          cache.clear();
+          window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: accept ? 'Коммунальный договор принят.' : 'Коммунальный договор отклонён.', type: 'success' } }));
+          window.dispatchEvent(new CustomEvent('mn:business-utility-contract-changed', { detail: { kind, contractId, accepted: accept, objectIds: ids } }));
+
+          const fresh = await loadBusinessUtilityStatus(ids, { force: true });
+          renderBusinessUtilityGate(options.container, fresh, options.renderOptions);
+        } catch (error) {
+          const message = kind === 'power' ? getSubstationError(error) : kind === 'water' ? getWaterError(error) : getGasError(error);
+          window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type: 'error' } }));
+          row.querySelectorAll('button').forEach((el) => { el.disabled = false; });
+        }
+      };
+    });
+  } catch (error) {
+    console.warn('[businessUtilityGate] incoming offers refresh failed:', error);
+  }
+}
+
+export function renderBusinessUtilityGate(container, status, { isOwner = false, objectId = '', objectIds = null } = {}) {
   if (!container) return;
-  container.querySelectorAll('[data-business-utility-gate]').forEach((node) => node.remove());
+  container.querySelectorAll('[data-business-utility-gate]').forEach((node) => {
+    const timer = offerTimers.get(node);
+    if (timer) clearInterval(timer);
+    node.remove();
+  });
   if (!isOwner) return;
 
-  const state = status || { electricity:false, water:false, gas:false, operational:false, missing:['electricity','water','gas'] };
+  const state = status || { electricity:false, water:false, gas:false, operational:false, missing:['electricity','water','gas'], objectIds:[] };
+  const ids = [...new Set([...(Array.isArray(objectIds) ? objectIds : []), ...(Array.isArray(state.objectIds) ? state.objectIds : []), objectId].map((v) => String(v ?? '').trim()).filter(Boolean))];
   const gate = document.createElement('section');
   gate.dataset.businessUtilityGate = '1';
   gate.className = `mn-business-utility-gate ${state.operational ? 'is-online' : 'is-offline'}`;
   gate.innerHTML = `
     <div class="mn-business-utility-gate__head">
       <span><small>${state.operational ? 'КОММУНАЛЬНЫЕ СЕТИ ПОДКЛЮЧЕНЫ' : 'ПРЕДПРИЯТИЕ НЕ РАБОТАЕТ'}</small><strong>${state.operational ? 'Все обязательные подключения активны' : 'Подключите воду, газ и электричество, чтобы предприятие начало работать и функционировать.'}</strong></span>
-      ${objectId ? `<b>ID ${String(objectId).replaceAll('<','&lt;').replaceAll('>','&gt;')}</b>` : ''}
+      ${objectId ? `<b>ID ${esc(objectId)}</b>` : ''}
     </div>
     <div class="mn-business-utility-gate__services">
       <article class="${state.electricity ? 'is-active' : 'is-missing'}"><i>⚡</i><span><small>Электричество</small><strong>${state.electricity ? 'Подключено' : 'Не подключено'}</strong></span></article>
       <article class="${state.water ? 'is-active' : 'is-missing'}"><i>💧</i><span><small>Вода</small><strong>${state.water ? 'Подключена' : 'Не подключена'}</strong></span></article>
       <article class="${state.gas ? 'is-active' : 'is-missing'}"><i>🔥</i><span><small>Газ</small><strong>${state.gas ? 'Подключён' : 'Не подключён'}</strong></span></article>
     </div>
-    ${state.operational ? '' : '<p>Передайте публичный ID предприятия владельцам подстанции, водоснабжения и УкрГаза. Пока хотя бы одна услуга отсутствует, производство и рабочие операции заблокированы сервером.</p>'}
+    ${state.operational ? '' : '<p>Электричество конечному объекту предлагает только владелец подстанции. ГЭС/АЭС/УЭС поставляют энергию подстанциям и не могут подключать предприятие напрямую. Воду и газ предлагают соответствующие коммунальные предприятия.</p>'}
+    <div class="mn-business-utility-offers" data-business-utility-offers hidden></div>
   `;
   const anchor = container.querySelector('[data-business-utility-anchor]') || container.querySelector('main') || container.querySelector('section') || container.firstElementChild || container;
   anchor.prepend(gate);
+
+  const renderOptions = { isOwner, objectId, objectIds: ids };
+  const options = { container, renderOptions };
+  void refreshOfferBox(gate, ids, options);
+  const timer = setInterval(() => void refreshOfferBox(gate, ids, options), OFFER_POLL_MS);
+  offerTimers.set(gate, timer);
 }
