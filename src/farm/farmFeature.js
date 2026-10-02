@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import {
+import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
   buyFarmBusinessBuckets,
   buyFarmBusinessTool,
   checkFarmWaterReady,
@@ -366,6 +367,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let inventoryState = { items: [] };
   let marketState = { items: [] };
   let businessState = null;
+  let businessUtilityStatus = null;
   let activeFarmObject = null;
   let activeBuyerObjectId = '';
   let activeBusinessPublicId = '—';
@@ -487,6 +489,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
     const publicIdEl = modal.querySelector('[data-farm-business-public-id]');
     if (publicIdEl) publicIdEl.textContent = activeBusinessPublicId;
+    renderBusinessUtilityGate(modal, businessUtilityStatus, { isOwner, objectId:activeBusinessPublicId });
 
     const roleEl = modal.querySelector('[data-farm-business-role]');
     if (roleEl) {
@@ -608,6 +611,8 @@ export function enableFarmFeature({ root, cityId } = {}) {
         const result = await loadFarmBusinessSnapshot({ businessId: requestedId, cityId });
         if (requestedId === activeBuyerObjectId) {
           const published = publishBusiness(result);
+          businessUtilityStatus = String(published?.role || '') === 'owner' ? await loadBusinessUtilityStatus([requestedId, activeBusinessPublicId]) : null;
+          renderBusiness();
           return published;
         }
         return result;
