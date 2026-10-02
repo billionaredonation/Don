@@ -240,7 +240,24 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     try{let result;
       if(b.dataset.gasAnswer)result=await answerGasOffer(b.dataset.gasAnswer,b.dataset.accept==='true');
       else if(b.dataset.gasPowerAnswer)result=await answerPowerOffer(b.dataset.gasPowerAnswer,b.dataset.accept==='true');
-      else {const bill=gasUtility.bills.find(x=>x.id===b.dataset.gasPay);if(!bill)return;result=await payGasBill(bill.id,Number(bill.amountDue));}
+      else {
+        const contractId=String(b.dataset.gasPay||'');
+        if(!contractId)return;
+
+        // Счёт газа продолжает начисляться каждую секунду. Не оплачиваем сумму,
+        // которая была отрисована несколько секунд назад: сначала берём свежий
+        // consumer_portal и только затем отправляем актуальную сумму в RPC оплаты.
+        const freshGasUtility=await loadGasUtility();
+        gasUtility=freshGasUtility||{offers:[],bills:[],totalDue:0};
+
+        const bill=(gasUtility.bills||[]).find(x=>String(x.id)===contractId);
+        if(!bill)throw new Error('GAS_BILL_NOT_FOUND');
+
+        const freshAmount=Math.round(Math.max(0,Number(bill.amountDue)||0)*100)/100;
+        if(freshAmount<MIN_UTILITY_PAYMENT)throw new Error('GAS_BILL_MINIMUM_NOT_REACHED');
+
+        result=await payGasBill(contractId,freshAmount);
+      }
       if(Number.isFinite(Number(result?.playerBalance)))window.dispatchEvent(new CustomEvent('mn:player-balance-changed',{detail:{balance:Number(result.playerBalance),source:'utility_payment'}}));
       await refreshUtility();
     }catch(e){window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message:b.dataset.gasPowerAnswer?getSubstationError(e):getGasError(e),type:'error'}}));}
