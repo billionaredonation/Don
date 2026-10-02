@@ -39,6 +39,7 @@ import {
 } from './businessRepository.js';
 import { getPublicBusinessId } from './publicBusinessId.js';
 import './business.css';
+import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import { loadFactorySuppliers, createStoreRequest as createFactoryStoreRequest, orderFactorySupply, receiveFactorySupply, loadDeliveryCargo, unloadVehicleToStore, getFactoryError } from '../factory/factoryApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
 import { getToolAssemblyError, loadToolAssemblyDeliveryCargo, unloadToolAssemblyVehicleToStore } from '../toolAssembly/toolAssemblyApi.js';
@@ -569,6 +570,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
   const offerModal = document.querySelector('[data-business-transfer-offer]');
   let activeObject = null;
   let snapshot = null;
+  let utilityStatus = null;
   let drawerMode = '';
   let drawerData = null;
   let busy = false;
@@ -647,6 +649,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (!storeContent || !snapshot) return;
     storeModal.dataset.businessType = businessTypeOf(snapshot);
     storeContent.innerHTML = storeMarkup(snapshot, drawerMode, drawerData);
+    renderBusinessUtilityGate(storeContent, utilityStatus, { isOwner:snapshot.role === 'owner', objectId:getPublicBusinessId(activeObject) });
   }
 
   async function refreshStore({ preserveDrawer = true } = {}) {
@@ -655,6 +658,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (destroyed) return;
     const cargo = await loadStoreDeliveryCargo(activeObject);
     snapshot = { ...next, deliveryCargo: cargo };
+    utilityStatus = snapshot.role === 'owner' ? await loadBusinessUtilityStatus([businessId(activeObject), getPublicBusinessId(activeObject)]) : null;
     if (!preserveDrawer) { drawerMode = ''; drawerData = null; }
     renderStore();
   }
@@ -674,6 +678,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       const next = await loadBusinessSnapshot(businessId(activeObject));
       const cargo = await loadStoreDeliveryCargo(activeObject);
       snapshot = { ...next, deliveryCargo: cargo };
+      utilityStatus = snapshot.role === 'owner' ? await loadBusinessUtilityStatus([businessId(activeObject), getPublicBusinessId(activeObject)]) : null;
       drawerMode = '';
       drawerData = null;
       closeDetails();
