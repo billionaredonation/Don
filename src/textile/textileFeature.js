@@ -1,3 +1,4 @@
+import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import '../metallurgy/metallurgy.css';
 import { TEXTILE_CONFIG, TEXTILE_RAW_ITEMS, TEXTILE_RECIPES, formatTextileInputs, formatTextileMoney } from './textileConfig.js';
 import { createTextileBatch, depositTextileCash, finishTextileBatch, getTextileError, loadTextileSnapshot, publishTextileOffer, purchaseTextileFactory, setTextileRawBuyPrice, transferTextileRaw, withdrawTextileCash } from './textileApi.js';
@@ -63,11 +64,11 @@ export function enableTextileFeature({ root, cityId } = {}) {
   root.insertAdjacentHTML('beforeend', markup());
   const modal = root.querySelector('[data-textile-modal]');
   const q = (selector) => modal.querySelector(selector), qa = (selector) => [...modal.querySelectorAll(selector)];
-  let factoryId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, busy = false;
+  let factoryId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, utilityStatus = null, busy = false;
   function render() {
     const business = snapshot?.business || snapshot?.factory || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
     const ownership = textileOwnership(snapshot, business);
-    q('[data-textile-state]').textContent = ownership.owned ? (snapshot?.activeBatch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
+    q('[data-textile-state]').textContent = ownership.owned ? (utilityStatus && !utilityStatus.operational ? 'Остановлено · нет коммуналки' : (snapshot?.activeBatch ? 'Линия работает' : 'Готов к работе')) : 'Государственный';
     q('[data-textile-role]').textContent = snapshot?.isOwner ? 'Владелец' : (snapshot?.roleLabel || 'Посетитель');
     q('[data-textile-cash]').textContent = snapshot?.isOwner ? formatTextileMoney(business.cash) : 'Скрыто';
     q('[data-textile-buy]').hidden = ownership.owned;
@@ -84,12 +85,13 @@ export function enableTextileFeature({ root, cityId } = {}) {
     });
     Object.keys(TEXTILE_RECIPES).forEach((id) => { q(`[data-textile-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
     const batch = snapshot?.activeBatch || snapshot?.batch || null; q('[data-textile-batch]').hidden = !batch; q('[data-textile-finish]').dataset.batchId = batch?.id || ''; q('[data-textile-batch-title]').textContent = TEXTILE_RECIPES[batch?.recipeId]?.label || 'Активная партия';
-    qa('[data-textile-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Boolean(batch); });
+    qa('[data-textile-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Boolean(batch) || (utilityStatus && !utilityStatus.operational); });
     qa('[data-textile-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.textileOffer] || 0) < 1; });
     qa('[data-textile-buy-price-save],[data-textile-raw-transfer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     renderProcurementControls(modal, 'textile', procurement, TEXTILE_RAW_ITEMS, { canManage:snapshot?.isOwner, busy });
+    renderBusinessUtilityGate(modal, utilityStatus, { isOwner:snapshot?.isOwner, objectId:currentPublicId });
   }
-  async function refresh() { snapshot = await loadTextileSnapshot(factoryId, cityId); procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile' }) : null; render(); }
+  async function refresh() { snapshot = await loadTextileSnapshot(factoryId, cityId); procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile' }) : null; utilityStatus = snapshot?.isOwner ? await loadBusinessUtilityStatus([factoryId, currentPublicId]) : null; render(); }
   async function run(task, success = '') { if (busy) return; busy = true; modal.classList.add('is-busy'); try { await task(); await refresh(); if (success) toast(success, 'success'); } catch (error) { toast(String(error?.message || error || '').includes('PROCUREMENT_') ? getProcurementError(error) : getTextileError(error), 'error'); } finally { busy = false; modal.classList.remove('is-busy'); render(); } }
   function tab(name) { qa('[data-textile-tab]').forEach((button) => button.classList.toggle('is-active', button.dataset.textileTab === name)); qa('[data-textile-page]').forEach((page) => { page.hidden = page.dataset.textilePage !== name; }); }
   q('[data-textile-close]').onclick = () => { modal.hidden = true; }; qa('[data-textile-tab]').forEach((button) => { button.onclick = () => tab(button.dataset.textileTab); });
