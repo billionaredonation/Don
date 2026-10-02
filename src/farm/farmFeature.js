@@ -1,7 +1,7 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
-import {
 import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
+import {
   buyFarmBusinessBuckets,
   buyFarmBusinessTool,
   checkFarmWaterReady,
@@ -1439,4 +1439,3 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
-
