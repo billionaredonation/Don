@@ -4,6 +4,7 @@ import {state,save} from '../state.js';
 import {vehicleRequest,vehicleError} from './vehicleIndustryApi.js';
 import {playCargoTransferMiniGame} from '../logistics/cargoTransferMiniGame.js';
 import {getMapObjects} from '../mapObjects/mapObjectsRepository.js';
+import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 export const AUTO_TYPES=['car_factory','car_dealer','auto_service'];
 const labels={car_factory:'Автомобильный завод',car_dealer:'Автосалон',auto_service:'СТО',light:'Легковые',medium:'Средние',heavy:'Тягачи',petrol:'А-95',petrol92:'А-92',diesel:'Дизель',car_frame:'Каркас автомобиля',car_engine:'Двигатель автомобиля',car_body:'Кузов автомобиля',support_beam:'Опорная балка',screws:'Шурупы',rivets:'Заклёпки'};
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
@@ -15,7 +16,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  const launch=document.createElement('button');launch.className='mn-auto-launch';launch.textContent='🚘 Мои машины';root.append(launch);
  const hud=document.createElement('div');hud.className='mn-auto-status';root.append(hud);
  const layer=document.createElement('div');layer.className='mn-auto-map-layer';root.querySelector('.gta-map-entities')?.append(layer);
- let s=null,id='',type='',busy=false,destroyed=false,tab='garage',notice='',objects=[],moving=false,retry=null,moveTask=null,revision=0,routeHub='';
+ let s=null,id='',type='',utilityStatus=null,busy=false,destroyed=false,tab='garage',notice='',objects=[],moving=false,retry=null,moveTask=null,revision=0,routeHub='';
  const btn=(a,label,data='',disabled=false)=>`<button data-action="${a}" ${data} ${busy||disabled?'disabled':''}>${label}</button>`;
  const field=(name,val=1)=>`<input data-field="${name}" type="number" value="${val}" min="1">`;
  const val=k=>dialog.querySelector(`[data-field="${k}"]`)?.value;
@@ -59,7 +60,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  if(tab==='garage')html=`<p>F — сесть рядом с машиной / выйти. WASD — движение. H рядом с АЗС — заправка в бак. Клавиши работают по физическому расположению.</p><p>Аварийных ремкомплектов: ${s.kits}. Каждый +50 состояния, максимум 70% полной прочности; дальше нужен ремонт на СТО.</p>`+s.vehicles.filter(v=>v.owner_id===actor).map(v=>{const m=model(v);return `<article><h3>${esc(m.label)} ${v.used?'· б/у':''} ${v.route_id?'· служебный':''}</h3><p>${esc(v.city_id)} · координаты ${Number(v.x).toFixed(1)}, ${Number(v.y).toFixed(1)} · ${Number(v.condition).toFixed(1)} / ${m.max_condition} · глохнет при ≤ ${m.stop_condition}</p><p>${labels[m.fuel_type]} · ${Number(v.fuel).toFixed(2)} / ${m.tank} л · ${m.consumption} л/100 км</p>${stopReason(v)?`<p class="mn-auto-stop">⚠ ${esc(stopReason(v))}</p>`:''}${btn(v.driving?'exit':'enter',v.driving?'Выйти':'Сесть',`data-vehicle="${v.id}"`)}${btn('repair_kit','Использовать аварийный комплект',`data-vehicle="${v.id}"`)}<p>При пустом баке можно купить подходящее топливо пешком на АЗС и перелить из личного запаса.</p>${field('reserve-'+v.id,5)}${btn('reserve_refuel','Залить из личного запаса',`data-vehicle="${v.id}"`)}${pourCanister(v)}<input data-field="color-${v.id}" type="color" value="${esc(v.color)}">${btn('paint','Покрасить',`data-vehicle="${v.id}"`)}${v.driving?`<p>Межгород: подъедьте к краю карты. Условный участок — 50 км / 60 сек.</p><select data-field="city">${s.cities.filter(c=>c!==cityId).map(c=>`<option>${esc(c)}</option>`).join('')}</select>${v.transit_ready?`<p>В пути до ${new Date(v.transit_ready).toLocaleTimeString()}</p>${btn('arrive','Прибыть',`data-vehicle="${v.id}"`,Date.parse(v.transit_ready)>Date.now())}`:btn('travel','Выехать из города',`data-vehicle="${v.id}"`)}`:''}</article>`;}).join('');
  if(tab==='garage')html+=playerOffers()+`<h3>Мои канистры</h3>${(s.canisters||[]).map(c=>`<p>№ ${c.id.slice(0,8)} · ${labels[c.fuel_type]||'пустая'} · ${Number(c.liters)} / 20 л</p>`).join('')||'<p>Канистр пока нет.</p>'}`;
  if(tab==='business'){
- html=`<h3>${labels[type]||'Предприятие'}</h3><p>ID для коммунальных подключений: <code>${esc(id)}</code></p>`;
+ html=`<div data-business-utility-anchor></div><h3>${labels[type]||'Предприятие'}</h3><p>ID для коммунальных подключений: <code>${esc(id)}</code></p>`;
  if(!b?.owner_id)html+=`<p>Стоимость: ${money(type==='car_factory'?5000000:type==='car_dealer'?2000000:1000000)}</p>${btn('purchase','Купить предприятие')}`;
  if(own){html+=`<p>Счёт: ${money(b.cash)}</p>${field('amount',10000)}${btn('deposit','Пополнить')}${btn('withdraw','Снять')}<hr>`;
  if(type==='car_factory')html+=!b.equipment?`<p>Сборочная линия: 1 000 000 ₴</p>${btn('equipment','Установить линию','',Number(b.cash)<1000000)}`:`<p>Склад: ${s.stock.map(t=>`${labels[t.item]||esc(t.item)} × ${t.quantity}`).join(', ')||'пусто'}</p>${assemblyStatus()}${factorySupply()}<h3>Выбор модели для сборки</h3>${s.models.map(m=>`<article><b>${esc(m.label)} · опт ${money(m.wholesale)}</b><p>${Object.entries(m.recipe).map(([k,q])=>`${labels[k]||esc(k)} × ${q}`).join(' + ')}</p>${btn('assemble',b.batch_ready?(b.batch_model===m.id?'Собирается сейчас':'Линия занята'):'Собрать за 60 секунд',`data-model="${m.id}"`,!!b.batch_ready)}</article>`).join('')}${componentSupply()}`;
@@ -81,6 +82,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  if(componentsOpen&&dialog.querySelector('.mn-auto-components'))dialog.querySelector('.mn-auto-components').open=true;
  tickAssembly();
  if(focused)[...dialog.querySelectorAll('[data-field]')].find(el=>el.dataset.field===focused)?.focus({preventScroll:true});
+ if(tab==='business')renderBusinessUtilityGate(dialog, utilityStatus, { isOwner:own, objectId:id });
  dialog.scrollTop=scrollTop;dialog.scrollLeft=scrollLeft;
  }
  function mapRender(){if(!s)return;publishCanisters(s.canisters||[]);const car=current();const m=car&&model(car);window.__MN_VEHICLE_RUNTIME__=car?{id:car.id,canMove:!car.transit_ready&&car.condition>m.stop_condition&&car.fuel>0,speed:.15}:null;
@@ -88,7 +90,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  layer.innerHTML=s.vehicles.filter(v=>v.owner_id&&v.city_id===cityId&&(!v.driving||v.owner_id!==actor)).map(v=>`<div class="mn-auto-car ${v.owner_id===actor?'is-owned':v.business_id?'is-stock':'is-other'}" data-car-id="${esc(v.id)}" style="left:${Number(v.x)}%;top:${Number(v.y)}%;color:${esc(v.color)}">${carSvg(v.color)}<b>${esc(model(v)?.label)}<small>${v.owner_id===actor?(v.route_id?'Ваш служебный автомобиль':'Ваш автомобиль · F'):v.business_id?'Склад предприятия · не личное авто':'Автомобиль другого игрока'}</small></b></div>`).join('');
  const r=s.routes.find(r=>r.driver===actor&&['pickup','unload'].includes(r.status));if(r){const pt=r.status==='pickup'?r.source:r.target;if(pt?.city===cityId)layer.innerHTML+=`<div class="mn-auto-marker" style="left:${Number(pt.x)}%;top:${Number(pt.y)}%">${r.status==='pickup'?'📦 Погрузка':'🏁 Выгрузка'}</div>`;else hud.textContent+=` · Цель: ${pt?.city||'другой город'}`;}
  }
- async function refresh(){const requestedRevision=revision,requestedId=id,previous=s?.business;const next=await vehicleRequest(cityId,requestedId);if(destroyed||requestedId!==id||busy||requestedRevision!==revision)return;if(previous?.id===next.business?.id&&previous?.batch_ready&&!next.business.batch_ready&&next.vehicles.some(v=>v.business_id===requestedId&&v.model===previous.batch_model)){notice=`✓ ${s.models.find(m=>m.id===previous.batch_model)?.label||previous.batch_model}: сборка завершена. Машина на складе завода.`;}s=next;mapRender();if(dialog.open)render();}
+ async function refresh(){const requestedRevision=revision,requestedId=id,previous=s?.business;const next=await vehicleRequest(cityId,requestedId);if(destroyed||requestedId!==id||busy||requestedRevision!==revision)return;if(previous?.id===next.business?.id&&previous?.batch_ready&&!next.business.batch_ready&&next.vehicles.some(v=>v.business_id===requestedId&&v.model===previous.batch_model)){notice=`✓ ${s.models.find(m=>m.id===previous.batch_model)?.label||previous.batch_model}: сборка завершена. Машина на складе завода.`;}s=next;utilityStatus=s?.business?.owner_id===actor&&id?await loadBusinessUtilityStatus([id]):null;mapRender();if(dialog.open)render();}
  async function act(a,data={}){
   if(busy)return;
   if(a==='enter'){
