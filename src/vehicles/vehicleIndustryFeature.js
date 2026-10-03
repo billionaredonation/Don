@@ -4,26 +4,68 @@ import {state,save} from '../state.js';
 import {vehicleRequest,vehicleError} from './vehicleIndustryApi.js';
 import {playCargoTransferMiniGame} from '../logistics/cargoTransferMiniGame.js';
 import {getMapObjects} from '../mapObjects/mapObjectsRepository.js';
-import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 export const AUTO_TYPES=['car_factory','car_dealer','auto_service'];
 const labels={car_factory:'Автомобильный завод',car_dealer:'Автосалон',auto_service:'СТО',light:'Легковые',medium:'Средние',heavy:'Тягачи',petrol:'А-95',petrol92:'А-92',diesel:'Дизель',car_frame:'Каркас автомобиля',car_engine:'Двигатель автомобиля',car_body:'Кузов автомобиля',support_beam:'Опорная балка',screws:'Шурупы',rivets:'Заклёпки'};
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const carSvg=color=>`<svg viewBox="0 0 32 52" width="30" height="48"><rect x="2" y="9" width="28" height="9" rx="2" fill="#111"/><rect x="2" y="35" width="28" height="9" rx="2" fill="#111"/><rect x="5" y="2" width="22" height="48" rx="7" fill="${/^#[0-9a-f]{6}$/i.test(color)?color:'#ffffff'}" stroke="#182731"/><path d="M8 14h16v10H8zM8 35h16v8H8z" fill="#376278"/><path d="M8 6h5m6 0h5" stroke="#fff3a0" stroke-width="3"/></svg>`;
 const money=v=>Number(v||0).toLocaleString('ru-RU',{maximumFractionDigits:2})+' ₴';
+const fallbackDriveProfile=(vehicleClass='medium',loaded=false)=>{
+ const table={
+  light:{max:150,loadedMax:145,accel:38,loadedAccel:32},
+  medium:{max:100,loadedMax:82,accel:24,loadedAccel:18},
+  heavy:{max:90,loadedMax:72,accel:15,loadedAccel:11},
+ };
+ const p=table[vehicleClass]||table.medium;
+ return {maxKmh:loaded?p.loadedMax:p.max,accelerationKmhS:loaded?p.loadedAccel:p.accel,brakeKmhS:(loaded?p.loadedAccel:p.accel)*1.55};
+};
+
 export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker}) {
  const actor=String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id||'');
  const dialog=document.createElement('dialog');dialog.className='mn-auto-dialog';root.append(dialog);
  const launch=document.createElement('button');launch.className='mn-auto-launch';launch.textContent='🚘 Мои машины';root.append(launch);
  const hud=document.createElement('div');hud.className='mn-auto-status';root.append(hud);
+ const speedometer=document.createElement('div');speedometer.className='mn-auto-speedometer';speedometer.hidden=true;speedometer.innerHTML='<strong data-auto-speed>0</strong><span>км/ч</span><small data-auto-drive-state>Двигатель выключен</small>';root.append(speedometer);
+
  const layer=document.createElement('div');layer.className='mn-auto-map-layer';root.querySelector('.gta-map-entities')?.append(layer);
- let s=null,id='',type='',utilityStatus=null,busy=false,destroyed=false,tab='garage',notice='',objects=[],moving=false,retry=null,moveTask=null,revision=0,routeHub='';
+ let s=null,id='',type='',busy=false,destroyed=false,tab='garage',notice='',objects=[],moving=false,retry=null,moveTask=null,revision=0,routeHub='';
  const btn=(a,label,data='',disabled=false)=>`<button data-action="${a}" ${data} ${busy||disabled?'disabled':''}>${label}</button>`;
  const field=(name,val=1)=>`<input data-field="${name}" type="number" value="${val}" min="1">`;
  const val=k=>dialog.querySelector(`[data-field="${k}"]`)?.value;
- const placePlayer=c=>{playerPosition.x=Number(c.x);playerPosition.y=Number(c.y);window.dispatchEvent(new CustomEvent('mn:player-teleported',{detail:{x:Number(c.x),y:Number(c.y)}}));};
+ const placePlayer=c=>{playerPosition.x=Number(c.x);playerPosition.y=Number(c.y);setPlayerAngle(c.angle);window.dispatchEvent(new CustomEvent('mn:player-teleported',{detail:{x:Number(c.x),y:Number(c.y)}}));};
  const current=()=>s?.vehicles?.find(v=>v.owner_id===actor&&v.driving);
  const model=v=>s.models.find(m=>m.id===v.model);
  const stopReason=v=>v.transit_ready?'Междугородняя поездка ещё не завершена':Number(v.fuel)<=0?'Бак пуст. Купите и наполните канистру на АЗС, затем перелейте топливо в меню машины':Number(v.condition)<=Number(model(v)?.stop_condition)?'Двигатель заглох: требуется ремонт':'';
+ const routeFor=v=>(s?.routes||[]).find(r=>String(r.id)===String(v?.route_id||''));
+ const isVehicleLoaded=v=>routeFor(v)?.status==='unload';
+ const driveProfile=v=>{
+  const m=model(v)||{},loaded=isVehicleLoaded(v);
+  const fallback=fallbackDriveProfile(m.class,loaded);
+  return {
+   loaded,
+   maxKmh:Number(loaded?m.loaded_max_speed_kmh:m.max_speed_kmh)||fallback.maxKmh,
+   accelerationKmhS:Number(loaded?m.loaded_acceleration_kmh_s:m.acceleration_kmh_s)||fallback.accelerationKmhS,
+   brakeKmhS:fallback.brakeKmhS,
+  };
+ };
+ const readPlayerAngle=()=>{
+  const raw=String(playerMarker?.style?.getPropertyValue('--player-angle')||playerMarker?.dataset?.angle||'0').replace('deg','');
+  const n=Number(raw);return Number.isFinite(n)?((n%360)+360)%360:0;
+ };
+ const setPlayerAngle=value=>{
+  const n=Number(value);if(!Number.isFinite(n)||!playerMarker)return;
+  const a=((n%360)+360)%360;
+  playerMarker.style.setProperty('--player-angle',`${a}deg`);
+  playerMarker.dataset.angle=String(a);
+ };
+ const updateSpeedometer=(runtime=null)=>{
+  if(!runtime){speedometer.hidden=true;return;}
+  speedometer.hidden=false;
+  const speed=speedometer.querySelector('[data-auto-speed]');
+  const stateEl=speedometer.querySelector('[data-auto-drive-state]');
+  if(speed)speed.textContent=String(Math.max(0,Math.round(Number(runtime.currentKmh)||0)));
+  if(stateEl)stateEl.textContent=`${runtime.engineOn?'Двигатель запущен':'N — завести двигатель'} · ${runtime.loaded?'Загружен':'Пустой'} · max ${Math.round(runtime.maxKmh)} км/ч`;
+ };
+
  const hubs=()=>`<label>Перевозчик <select data-field="hub"><option value="">Выберите компанию</option>${(s.hubs||[]).map(h=>`<option value="${esc(h.id)}">${esc(h.name||h.id)} · ${esc(h.city)}</option>`).join('')}</select></label><label>Оплата водителю ${field('reward',250)}</label>`;
  function componentSupply(){
   if(!(s.offers||[]).length)return '<details class="mn-auto-components"><summary>Закупка комплектующих</summary><p>На бирже пока нет предложений комплектующих для сборки. Готовые автомобили отправляются выбранному автосалону напрямую, без перевозчика.</p></details>';
@@ -60,7 +102,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  if(tab==='garage')html=`<p>F — сесть рядом с машиной / выйти. WASD — движение. H рядом с АЗС — заправка в бак. Клавиши работают по физическому расположению.</p><p>Аварийных ремкомплектов: ${s.kits}. Каждый +50 состояния, максимум 70% полной прочности; дальше нужен ремонт на СТО.</p>`+s.vehicles.filter(v=>v.owner_id===actor).map(v=>{const m=model(v);return `<article><h3>${esc(m.label)} ${v.used?'· б/у':''} ${v.route_id?'· служебный':''}</h3><p>${esc(v.city_id)} · координаты ${Number(v.x).toFixed(1)}, ${Number(v.y).toFixed(1)} · ${Number(v.condition).toFixed(1)} / ${m.max_condition} · глохнет при ≤ ${m.stop_condition}</p><p>${labels[m.fuel_type]} · ${Number(v.fuel).toFixed(2)} / ${m.tank} л · ${m.consumption} л/100 км</p>${stopReason(v)?`<p class="mn-auto-stop">⚠ ${esc(stopReason(v))}</p>`:''}${btn(v.driving?'exit':'enter',v.driving?'Выйти':'Сесть',`data-vehicle="${v.id}"`)}${btn('repair_kit','Использовать аварийный комплект',`data-vehicle="${v.id}"`)}<p>При пустом баке можно купить подходящее топливо пешком на АЗС и перелить из личного запаса.</p>${field('reserve-'+v.id,5)}${btn('reserve_refuel','Залить из личного запаса',`data-vehicle="${v.id}"`)}${pourCanister(v)}<input data-field="color-${v.id}" type="color" value="${esc(v.color)}">${btn('paint','Покрасить',`data-vehicle="${v.id}"`)}${v.driving?`<p>Межгород: подъедьте к краю карты. Условный участок — 50 км / 60 сек.</p><select data-field="city">${s.cities.filter(c=>c!==cityId).map(c=>`<option>${esc(c)}</option>`).join('')}</select>${v.transit_ready?`<p>В пути до ${new Date(v.transit_ready).toLocaleTimeString()}</p>${btn('arrive','Прибыть',`data-vehicle="${v.id}"`,Date.parse(v.transit_ready)>Date.now())}`:btn('travel','Выехать из города',`data-vehicle="${v.id}"`)}`:''}</article>`;}).join('');
  if(tab==='garage')html+=playerOffers()+`<h3>Мои канистры</h3>${(s.canisters||[]).map(c=>`<p>№ ${c.id.slice(0,8)} · ${labels[c.fuel_type]||'пустая'} · ${Number(c.liters)} / 20 л</p>`).join('')||'<p>Канистр пока нет.</p>'}`;
  if(tab==='business'){
- html=`<div data-business-utility-anchor></div><h3>${labels[type]||'Предприятие'}</h3><p>ID для коммунальных подключений: <code>${esc(id)}</code></p>`;
+ html=`<h3>${labels[type]||'Предприятие'}</h3><p>ID для коммунальных подключений: <code>${esc(id)}</code></p>`;
  if(!b?.owner_id)html+=`<p>Стоимость: ${money(type==='car_factory'?5000000:type==='car_dealer'?2000000:1000000)}</p>${btn('purchase','Купить предприятие')}`;
  if(own){html+=`<p>Счёт: ${money(b.cash)}</p>${field('amount',10000)}${btn('deposit','Пополнить')}${btn('withdraw','Снять')}<hr>`;
  if(type==='car_factory')html+=!b.equipment?`<p>Сборочная линия: 1 000 000 ₴</p>${btn('equipment','Установить линию','',Number(b.cash)<1000000)}`:`<p>Склад: ${s.stock.map(t=>`${labels[t.item]||esc(t.item)} × ${t.quantity}`).join(', ')||'пусто'}</p>${assemblyStatus()}${factorySupply()}<h3>Выбор модели для сборки</h3>${s.models.map(m=>`<article><b>${esc(m.label)} · опт ${money(m.wholesale)}</b><p>${Object.entries(m.recipe).map(([k,q])=>`${labels[k]||esc(k)} × ${q}`).join(' + ')}</p>${btn('assemble',b.batch_ready?(b.batch_model===m.id?'Собирается сейчас':'Линия занята'):'Собрать за 60 секунд',`data-model="${m.id}"`,!!b.batch_ready)}</article>`).join('')}${componentSupply()}`;
@@ -82,15 +124,40 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  if(componentsOpen&&dialog.querySelector('.mn-auto-components'))dialog.querySelector('.mn-auto-components').open=true;
  tickAssembly();
  if(focused)[...dialog.querySelectorAll('[data-field]')].find(el=>el.dataset.field===focused)?.focus({preventScroll:true});
- if(tab==='business')renderBusinessUtilityGate(dialog, utilityStatus, { isOwner:own, objectId:id });
  dialog.scrollTop=scrollTop;dialog.scrollLeft=scrollLeft;
  }
- function mapRender(){if(!s)return;publishCanisters(s.canisters||[]);const car=current();const m=car&&model(car);window.__MN_VEHICLE_RUNTIME__=car?{id:car.id,canMove:!car.transit_ready&&car.condition>m.stop_condition&&car.fuel>0,speed:.15}:null;
- playerMarker?.classList.toggle('mn-auto-driving',!!car);let carView=playerMarker?.querySelector('.mn-auto-driving-view');if(car&&!carView){carView=document.createElement('span');carView.className='mn-auto-driving-view';playerMarker?.append(carView);}if(carView){if(car)carView.innerHTML=carSvg(car.color);else carView.remove();}hud.textContent=car?`${m.label} · ${Number(car.fuel).toFixed(1)} л · ${Math.floor(car.condition)}/${m.max_condition} · ${stopReason(car)||'Двигатель готов'} · F выйти · H АЗС`:'';
- layer.innerHTML=s.vehicles.filter(v=>v.owner_id&&v.city_id===cityId&&(!v.driving||v.owner_id!==actor)).map(v=>`<div class="mn-auto-car ${v.owner_id===actor?'is-owned':v.business_id?'is-stock':'is-other'}" data-car-id="${esc(v.id)}" style="left:${Number(v.x)}%;top:${Number(v.y)}%;color:${esc(v.color)}">${carSvg(v.color)}<b>${esc(model(v)?.label)}<small>${v.owner_id===actor?(v.route_id?'Ваш служебный автомобиль':'Ваш автомобиль · F'):v.business_id?'Склад предприятия · не личное авто':'Автомобиль другого игрока'}</small></b></div>`).join('');
- const r=s.routes.find(r=>r.driver===actor&&['pickup','unload'].includes(r.status));if(r){const pt=r.status==='pickup'?r.source:r.target;if(pt?.city===cityId)layer.innerHTML+=`<div class="mn-auto-marker" style="left:${Number(pt.x)}%;top:${Number(pt.y)}%">${r.status==='pickup'?'📦 Погрузка':'🏁 Выгрузка'}</div>`;else hud.textContent+=` · Цель: ${pt?.city||'другой город'}`;}
+ function mapRender(){if(!s)return;
+ publishCanisters(s.canisters||[]);
+ const car=current(),m=car&&model(car);
+ if(car&&m){
+  const profile=driveProfile(car);
+  const previous=window.__MN_VEHICLE_RUNTIME__;
+  const runtime=previous?.id===car.id?previous:{id:car.id,currentKmh:0};
+  runtime.engineOn=Boolean(car.engine_on);
+  runtime.canMove=!car.transit_ready&&Number(car.condition)>Number(m.stop_condition)&&Number(car.fuel)>0&&runtime.engineOn;
+  runtime.maxKmh=profile.maxKmh;
+  runtime.accelerationKmhS=profile.accelerationKmhS;
+  runtime.brakeKmhS=profile.brakeKmhS;
+  runtime.loaded=profile.loaded;
+  runtime.onSpeed=()=>updateSpeedometer(runtime);
+  if(!runtime.engineOn)runtime.currentKmh=0;
+  window.__MN_VEHICLE_RUNTIME__=runtime;
+  updateSpeedometer(runtime);
+ }else{
+  window.__MN_VEHICLE_RUNTIME__=null;
+  updateSpeedometer(null);
  }
- async function refresh(){const requestedRevision=revision,requestedId=id,previous=s?.business;const next=await vehicleRequest(cityId,requestedId);if(destroyed||requestedId!==id||busy||requestedRevision!==revision)return;if(previous?.id===next.business?.id&&previous?.batch_ready&&!next.business.batch_ready&&next.vehicles.some(v=>v.business_id===requestedId&&v.model===previous.batch_model)){notice=`✓ ${s.models.find(m=>m.id===previous.batch_model)?.label||previous.batch_model}: сборка завершена. Машина на складе завода.`;}s=next;utilityStatus=s?.business?.owner_id===actor&&id?await loadBusinessUtilityStatus([id]):null;mapRender();if(dialog.open)render();}
+ playerMarker?.classList.toggle('mn-auto-driving',!!car);
+ let carView=playerMarker?.querySelector('.mn-auto-driving-view');
+ if(car&&!carView){carView=document.createElement('span');carView.className='mn-auto-driving-view';playerMarker?.append(carView);}
+ if(carView){if(car)carView.innerHTML=carSvg(car.color);else carView.remove();}
+ if(car)setPlayerAngle(car.angle??readPlayerAngle());
+ hud.textContent=car?`${m.label} · ${Number(car.fuel).toFixed(1)} л · ${Math.floor(car.condition)}/${m.max_condition} · ${car.engine_on?'Двигатель запущен':'N — завести двигатель'} · F выйти · H АЗС`:'';
+ layer.innerHTML=s.vehicles.filter(v=>v.owner_id&&v.city_id===cityId&&(!v.driving||v.owner_id!==actor)).map(v=>`<div class="mn-auto-car ${v.owner_id===actor?'is-owned':v.business_id?'is-stock':'is-other'}" data-car-id="${esc(v.id)}" style="left:${Number(v.x)}%;top:${Number(v.y)}%;color:${esc(v.color)};--auto-angle:${Number(v.angle)||0}deg">${carSvg(v.color)}<b>${esc(model(v)?.label)}<small>${v.owner_id===actor?(v.route_id?'Ваш служебный автомобиль':'Ваш автомобиль · F'):v.business_id?'Склад предприятия · не личное авто':'Автомобиль другого игрока'}</small></b></div>`).join('');
+ const r=s.routes.find(r=>r.driver===actor&&['pickup','unload'].includes(r.status));
+ if(r){const pt=r.status==='pickup'?r.source:r.target;if(pt?.city===cityId)layer.innerHTML+=`<div class="mn-auto-marker" style="left:${Number(pt.x)}%;top:${Number(pt.y)}%">${r.status==='pickup'?'📦 Погрузка':'🏁 Выгрузка'}</div>`;else hud.textContent+=` · Цель: ${pt?.city||'другой город'}`;}
+ }
+ async function refresh(){const requestedRevision=revision,requestedId=id,previous=s?.business;const next=await vehicleRequest(cityId,requestedId);if(destroyed||requestedId!==id||busy||requestedRevision!==revision)return;if(previous?.id===next.business?.id&&previous?.batch_ready&&!next.business.batch_ready&&next.vehicles.some(v=>v.business_id===requestedId&&v.model===previous.batch_model)){notice=`✓ ${s.models.find(m=>m.id===previous.batch_model)?.label||previous.batch_model}: сборка завершена. Машина на складе завода.`;}s=next;mapRender();if(dialog.open)render();}
  async function act(a,data={}){
   if(busy)return;
   if(a==='enter'){
@@ -105,10 +172,13 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
     if(window.__MN_VEHICLE_RUNTIME__)window.__MN_VEHICLE_RUNTIME__.canMove=false;
     if(moveTask)await moveTask;
     const c=current();
-    if(c&&!c.transit_ready&&Math.hypot(Number(c.x)-Number(playerPosition.x),Number(c.y)-Number(playerPosition.y))>0.00001){const r=await vehicleRequest(cityId,'','move',{vehicle:c.id,x:Number(playerPosition.x),y:Number(playerPosition.y)});if(r.moved)Object.assign(c,r.moved);}
+    if(c&&!c.transit_ready&&c.engine_on){
+     const r=await vehicleRequest(cityId,'','move',{vehicle:c.id,x:Number(playerPosition.x),y:Number(playerPosition.y),angle:readPlayerAngle()});
+     if(r.moved)Object.assign(c,r.moved);
+    }
    }
    s=await vehicleRequest(cityId,id,a,data,request);retry=null;
-   notice=a==='assemble'?`✓ Сборка запущена: ${s.models.find(m=>m.id===data.model)?.label||data.model}. Комплектующие списаны.`:a==='enter'?'✓ Вы за рулём. WASD — движение, F — выйти.':a==='exit'?'✓ Вы вышли из машины.':'✓ Выполнено';
+   notice=a==='assemble'?`✓ Сборка запущена: ${s.models.find(m=>m.id===data.model)?.label||data.model}. Комплектующие списаны.`:a==='enter'?'✓ Вы за рулём. Нажмите N, чтобы завести двигатель.':a==='engine'?(s.vehicles.find(v=>v.id===data.vehicle)?.engine_on?'✓ Двигатель запущен.':'✓ Двигатель заглушен.'):a==='exit'?'✓ Вы вышли из машины.':'✓ Выполнено';
    if(['enter','exit'].includes(a)){const c=s.vehicles.find(v=>v.id===data.vehicle);if(c)placePlayer(c);if(dialog.open)dialog.close();}
    window.dispatchEvent(new CustomEvent('mn:player-balance-refresh'));mapRender();
    if(a==='exit')hud.textContent=notice;
@@ -144,14 +214,15 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  if(['route_load','route_unload'].includes(a)){const r=s.routes.find(r=>r.id===data.route);const pt=a==='route_load'?r.source:r.target;const c=current();if(!c||pt?.city!==cityId||Math.hypot(playerPosition.x-pt.x,playerPosition.y-pt.y)>2){notice='Подъедьте на служебной машине к метке.';render();return;}busy=true;dialog.close();let result;try{result=await playCargoTransferMiniGame({direction:a==='route_load'?'factory_to_vehicle':'vehicle_to_store',productType:['crude','petrol','petrol92','diesel'].includes(r.cargo)?'oil_'+r.cargo:r.cargo,quantity:r.quantity});}finally{busy=false;if(!destroyed)dialog.showModal();}if(!result?.success)return;}
  await act(a,data);};
  const honk=()=>{try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const ctx=new C(),gain=ctx.createGain();gain.gain.value=.06;gain.connect(ctx.destination);for(const frequency of [370,490]){const osc=ctx.createOscillator();osc.type='square';osc.frequency.value=frequency;osc.connect(gain);osc.start();osc.stop(ctx.currentTime+.18);}setTimeout(()=>ctx.close(),250);}catch{}};
- const key=async e=>{if(e.repeat||(dialog.open&&!(e.code==='KeyF'&&tab==='garage'))||[...document.querySelectorAll('dialog[open]')].some(d=>d!==dialog)||/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)||busy||!s)return;try{if(e.code==='KeyF'){e.preventDefault();const car=current()||s.vehicles.filter(v=>v.owner_id===actor&&v.city_id===cityId).sort((a,b)=>Math.hypot(a.x-playerPosition.x,a.y-playerPosition.y)-Math.hypot(b.x-playerPosition.x,b.y-playerPosition.y))[0]; if(car)await act(car.driving?'exit':'enter',{vehicle:car.id,x:playerPosition.x,y:playerPosition.y});else{notice='В этом городе нет вашей машины.';hud.textContent=notice;render();}}if(e.code==='KeyH'&&current()){e.preventDefault();honk();objects=await getMapObjects(cityId);const station=objects.filter(o=>(o.type==='fuel_station'||o.payload?.jobType==='fuel_station')&&Math.hypot(o.x-playerPosition.x,o.y-playerPosition.y)<=2).sort((a,b)=>Math.hypot(a.x-playerPosition.x,a.y-playerPosition.y)-Math.hypot(b.x-playerPosition.x,b.y-playerPosition.y))[0];if(station)await open(String(station.id),'','station');else hud.textContent='Подъедьте к выбранной АЗС.';}}catch(err){hud.textContent=vehicleError(err);}};
+ const key=async e=>{if(e.repeat||(dialog.open&&!(e.code==='KeyF'&&tab==='garage'))||[...document.querySelectorAll('dialog[open]')].some(d=>d!==dialog)||/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)||busy||!s)return;try{if(e.code==='KeyF'){e.preventDefault();const car=current()||s.vehicles.filter(v=>v.owner_id===actor&&v.city_id===cityId).sort((a,b)=>Math.hypot(a.x-playerPosition.x,a.y-playerPosition.y)-Math.hypot(b.x-playerPosition.x,b.y-playerPosition.y))[0]; if(car)await act(car.driving?'exit':'enter',{vehicle:car.id,x:playerPosition.x,y:playerPosition.y});else{notice='В этом городе нет вашей машины.';hud.textContent=notice;render();}}if(e.code==='KeyN'&&current()){e.preventDefault();await act('engine',{vehicle:current().id});}
+if(e.code==='KeyH'&&current()){e.preventDefault();honk();objects=await getMapObjects(cityId);const station=objects.filter(o=>(o.type==='fuel_station'||o.payload?.jobType==='fuel_station')&&Math.hypot(o.x-playerPosition.x,o.y-playerPosition.y)<=2).sort((a,b)=>Math.hypot(a.x-playerPosition.x,a.y-playerPosition.y)-Math.hypot(b.x-playerPosition.x,b.y-playerPosition.y))[0];if(station)await open(String(station.id),'','station');else hud.textContent='Подъедьте к выбранной АЗС.';}}catch(err){hud.textContent=vehicleError(err);}};
  window.addEventListener('keydown',key);
  const timer=setInterval(()=>{
   if(destroyed||busy||moving||!s)return;
   const c=current();if(!c||c.city_id!==cityId||c.transit_ready)return;
   if(Math.hypot(Number(c.x)-Number(playerPosition.x),Number(c.y)-Number(playerPosition.y))<0.00001)return;
   moving=true;
-  moveTask=(async()=>{try{const result=await vehicleRequest(cityId,'','move',{vehicle:c.id,x:playerPosition.x,y:playerPosition.y});if(result.moved){Object.assign(c,result.moved);if(!busy)mapRender();}}catch(e){placePlayer(c);hud.textContent=vehicleError(e);}finally{moving=false;}})();
+  moveTask=(async()=>{try{const result=await vehicleRequest(cityId,'','move',{vehicle:c.id,x:playerPosition.x,y:playerPosition.y,angle:readPlayerAngle()});if(result.moved){Object.assign(c,result.moved);if(!busy)mapRender();}}catch(e){placePlayer(c);hud.textContent=vehicleError(e);}finally{moving=false;}})();
  },1500);
  const unregisterCanisters=registerCanisterInventory({
   load:async()=>{const snapshot=await vehicleRequest(cityId);return snapshot.canisters||[];},
@@ -173,5 +244,5 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  const assemblyTimer=setInterval(()=>{if(dialog.open)tickAssembly();},1000);
  const poll=setInterval(()=>{if(!busy&&!moving&&dialog.open)refresh().catch(()=>{});},5000);
  refresh().then(()=>{const c=current();if(c?.city_id===cityId)window.dispatchEvent(new CustomEvent('mn:player-teleported',{detail:{x:c.x,y:c.y}}));}).catch(()=>{});
- return()=>{destroyed=true;unregisterCanisters();clearInterval(timer);clearInterval(poll);clearInterval(assemblyTimer);window.__MN_VEHICLE_RUNTIME__=null;window.removeEventListener('keydown',key);window.removeEventListener('mn:auto-object-action',onOpen);window.removeEventListener('mn:auto-routes-open',onRoutes);window.removeEventListener('mn:auto-station-open',onStation);dialog.remove();launch.remove();hud.remove();layer.remove();playerMarker?.classList.remove('mn-auto-driving');};
+ return()=>{destroyed=true;unregisterCanisters();clearInterval(timer);clearInterval(poll);clearInterval(assemblyTimer);window.__MN_VEHICLE_RUNTIME__=null;window.removeEventListener('keydown',key);window.removeEventListener('mn:auto-object-action',onOpen);window.removeEventListener('mn:auto-routes-open',onRoutes);window.removeEventListener('mn:auto-station-open',onStation);dialog.remove();launch.remove();hud.remove();speedometer.remove();layer.remove();playerMarker?.classList.remove('mn-auto-driving');};
 }
