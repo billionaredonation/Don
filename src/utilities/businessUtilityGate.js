@@ -1,6 +1,7 @@
-import { loadElectricityBills, loadPowerInbox, answerPowerOffer, getSubstationError } from '../energySubstation/energySubstationApi.js';
-import { loadWaterUtility, answerWaterOffer, getWaterError } from '../waterTreatment/waterTreatmentApi.js';
-import { loadGasUtility, answerGasOffer, getGasError } from '../ukrGaz/ukrGazApi.js';
+import { answerPowerOffer, getSubstationError } from '../energySubstation/energySubstationApi.js';
+import { answerWaterOffer, getWaterError } from '../waterTreatment/waterTreatmentApi.js';
+import { answerGasOffer, getGasError } from '../ukrGaz/ukrGazApi.js';
+import { loadBusinessUtilityPortal } from './businessUtilitiesApi.js';
 import './businessUtilityGate.css';
 
 const CACHE_MS = 5000;
@@ -17,115 +18,109 @@ const esc = (value) => String(value ?? '')
   .replaceAll('"', '&quot;');
 const money = (value) => `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₴`;
 
-const valuesOf = (row = {}) => [
-  row.houseId, row.house_id, row.objectId, row.object_id,
-  row.businessId, row.business_id, row.consumerId, row.consumer_id,
-  row.publicBusinessId, row.public_business_id,
-].map(norm).filter(Boolean);
+const portalCache = new Map();
+const portalInFlight = new Map();
 
-function rowsFrom(result) {
-  if (Array.isArray(result)) return result;
-  if (Array.isArray(result?.bills)) return result.bills;
-  if (Array.isArray(result?.contracts)) return result.contracts;
-  if (Array.isArray(result?.consumers)) return result.consumers;
-  return [];
+function idsKey(ids = []) {
+  return [...new Set(
+    ids
+      .map((value) => String(value ?? '').trim())
+      .filter(Boolean),
+  )]
+    .map(norm)
+    .sort()
+    .join('|');
 }
 
-function match(rows, ids) {
-  const wanted = new Set(ids.map(norm).filter(Boolean));
-  return rows.find((row) => valuesOf(row).some((value) => wanted.has(value))) || null;
-}
+async function loadPortal(objectIds = [], { force = false } = {}) {
+  const ids = [
+    ...new Set(
+      objectIds
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean),
+    ),
+  ];
 
-function offersFrom(result) {
-  return Array.isArray(result?.offers) ? result.offers : [];
-}
-
-function matchingOffers(result, ids) {
-  const wanted = new Set(ids.map(norm).filter(Boolean));
-  if (!wanted.size) return [];
-  return offersFrom(result).filter((offer) => valuesOf(offer).some((value) => wanted.has(value)));
-}
-
-export async function loadBusinessUtilityStatus(objectIds = [], { force = false } = {}) {
-  const ids = [...new Set(objectIds.map((value) => String(value ?? '').trim()).filter(Boolean))];
-  const key = ids.map(norm).sort().join('|');
-  const cached = cache.get(key);
+  const key = idsKey(ids);
+  const cached = portalCache.get(key);
 
   if (!force && cached && Date.now() - cached.at < CACHE_MS) {
     return cached.value;
   }
 
-  // Never run two identical utility status checks at the same time.
-  // Electricity/water/gas portal RPCs can perform settlement/billing writes,
-  // so overlapping calls may deadlock on the same contracts.
-  const existing = statusInFlight.get(key);
+  const existing = portalInFlight.get(key);
   if (existing) return existing;
 
   const request = (async () => {
-    const [power, water, gas] = await Promise.allSettled([
-      loadElectricityBills(),
-      loadWaterUtility(),
-      loadGasUtility(),
-    ]);
-
-    const powerBill = power.status === 'fulfilled' ? match(rowsFrom(power.value), ids) : null;
-    const waterBill = water.status === 'fulfilled' ? match(rowsFrom(water.value), ids) : null;
-    const gasBill = gas.status === 'fulfilled' ? match(rowsFrom(gas.value), ids) : null;
-
-    const electricityConnected = Boolean(powerBill);
-    const waterConnected = Boolean(waterBill);
-    const gasConnected = Boolean(gasBill);
-
-    const electricity = Boolean(powerBill && (powerBill.powerActive ?? powerBill.power_active));
-    const waterActive = Boolean(waterBill && (waterBill.waterActive ?? waterBill.water_active));
-    const gasActive = Boolean(gasBill && (gasBill.gasActive ?? gasBill.gas_active));
-
-    const value = {
-      electricity,
-      water: waterActive,
-      gas: gasActive,
-
-      // Contract exists, even if delivery is currently stopped.
-      electricityConnected,
-      waterConnected,
-      gasConnected,
-
-      operational: electricity && waterActive && gasActive,
-      missing: [
-        !electricity && 'electricity',
-        !waterActive && 'water',
-        !gasActive && 'gas',
-      ].filter(Boolean),
-      checked:
-        power.status === 'fulfilled' ||
-        water.status === 'fulfilled' ||
-        gas.status === 'fulfilled',
-      objectIds: ids,
-    };
-
-    cache.set(key, { at: Date.now(), value });
+    const value = await loadBusinessUtilityPortal(ids);
+    portalCache.set(key, { at: Date.now(), value });
     return value;
   })();
 
-  statusInFlight.set(key, request);
+  portalInFlight.set(key, request);
 
   try {
     return await request;
   } finally {
-    if (statusInFlight.get(key) === request) {
-      statusInFlight.delete(key);
+    if (portalInFlight.get(key) === request) {
+      portalInFlight.delete(key);
     }
   }
 }
 
-async function loadIncomingOffers(ids) {
-  const [power, water, gas] = await Promise.allSettled([
-    loadPowerInbox(), loadWaterUtility(), loadGasUtility(),
-  ]);
+export async function loadBusinessUtilityStatus(
+  objectIds = [],
+  { force = false } = {},
+) {
+  const ids = [
+    ...new Set(
+      objectIds
+        .map((value) => String(value ?? '').trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  const portal = await loadPortal(ids, { force });
+
+  const electricity = Boolean(portal?.electricity?.active);
+  const water = Boolean(portal?.water?.active);
+  const gas = Boolean(portal?.gas?.active);
+
   return {
-    power: power.status === 'fulfilled' ? matchingOffers(power.value, ids) : [],
-    water: water.status === 'fulfilled' ? matchingOffers(water.value, ids) : [],
-    gas: gas.status === 'fulfilled' ? matchingOffers(gas.value, ids) : [],
+    electricity,
+    water,
+    gas,
+
+    electricityConnected: Boolean(portal?.electricity?.connected),
+    waterConnected: Boolean(portal?.water?.connected),
+    gasConnected: Boolean(portal?.gas?.connected),
+
+    electricityStatus: String(portal?.electricity?.status || 'none'),
+    waterStatus: String(portal?.water?.status || 'none'),
+    gasStatus: String(portal?.gas?.status || 'none'),
+
+    operational: electricity && water && gas,
+    missing: [
+      !electricity && 'electricity',
+      !water && 'water',
+      !gas && 'gas',
+    ].filter(Boolean),
+
+    checked: true,
+    objectIds: Array.isArray(portal?.objectIds)
+      ? portal.objectIds
+      : ids,
+  };
+}
+
+async function loadIncomingOffers(ids, { force = false } = {}) {
+  const portal = await loadPortal(ids, { force });
+  const offers = portal?.offers || {};
+
+  return {
+    power: Array.isArray(offers.power) ? offers.power : [],
+    water: Array.isArray(offers.water) ? offers.water : [],
+    gas: Array.isArray(offers.gas) ? offers.gas : [],
   };
 }
 
@@ -226,8 +221,12 @@ async function refreshOfferBox(gate, ids, options) {
   const box = gate.querySelector('[data-business-utility-offers]');
   if (!box) return;
   try {
-    const offers = await loadIncomingOffers(ids);
+    const offers = await loadIncomingOffers(ids, { force: true });
     if (!gate.isConnected) return;
+
+    const liveStatus = await loadBusinessUtilityStatus(ids);
+    if (gate.isConnected) updateGateState(gate, liveStatus);
+
     const all = [
       ...offers.power.map((offer) => ['power', offer]),
       ...offers.water.map((offer) => ['water', offer]),
@@ -251,7 +250,7 @@ async function refreshOfferBox(gate, ids, options) {
           else if (kind === 'water') await answerWaterOffer(contractId, accept);
           else await answerGasOffer(contractId, accept);
 
-          cache.clear();
+          portalCache.clear();
           window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: accept ? 'Коммунальный договор принят.' : 'Коммунальный договор отклонён.', type: 'success' } }));
           window.dispatchEvent(new CustomEvent('mn:business-utility-contract-changed', { detail: { kind, contractId, accepted: accept, objectIds: ids } }));
 
@@ -290,9 +289,9 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
       ${objectId ? `<b>ID ${esc(objectId)}</b>` : ''}
     </div>
     <div class="mn-business-utility-gate__services">
-      <article class="${state.electricity ? 'is-active' : state.electricityConnected ? 'is-stopped' : 'is-missing'}"><i>⚡</i><span><small>Электричество</small><strong>${state.electricity ? 'Подключено' : 'Не подключено'}</strong></span></article>
-      <article class="${state.water ? 'is-active' : state.waterConnected ? 'is-stopped' : 'is-missing'}"><i>💧</i><span><small>Вода</small><strong>${state.water ? 'Подключена' : 'Не подключена'}</strong></span></article>
-      <article class="${state.gas ? 'is-active' : state.gasConnected ? 'is-stopped' : 'is-missing'}"><i>🔥</i><span><small>Газ</small><strong>${state.gas ? 'Подключён' : 'Не подключён'}</strong></span></article>
+      <article class="${state.electricity ? 'is-active' : state.electricityConnected ? 'is-stopped' : 'is-missing'}"><i>⚡</i><span><small>Электричество</small><strong>${state.electricity ? 'Подключено' : state.electricityConnected ? 'Подача остановлена' : 'Не подключено'}</strong></span></article>
+      <article class="${state.water ? 'is-active' : state.waterConnected ? 'is-stopped' : 'is-missing'}"><i>💧</i><span><small>Вода</small><strong>${state.water ? 'Подключена' : state.waterConnected ? 'Подача остановлена' : 'Не подключена'}</strong></span></article>
+      <article class="${state.gas ? 'is-active' : state.gasConnected ? 'is-stopped' : 'is-missing'}"><i>🔥</i><span><small>Газ</small><strong>${state.gas ? 'Подключён' : state.gasConnected ? 'Подача остановлена' : 'Не подключён'}</strong></span></article>
     </div>
     <p data-business-utility-info ${state.operational ? 'hidden' : ''}>Электричество конечному объекту предлагает только владелец подстанции. ГЭС/АЭС/УЭС поставляют энергию подстанциям и не могут подключать предприятие напрямую. Воду и газ предлагают соответствующие коммунальные предприятия.</p>
     <div class="mn-business-utility-offers" data-business-utility-offers hidden></div>
@@ -306,10 +305,6 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   const offerTimer = setInterval(() => void refreshOfferBox(gate, ids, options), OFFER_POLL_MS);
   offerTimers.set(gate, offerTimer);
 
-  // Do NOT poll utility status every second.
-  // These portal RPCs can settle bills and update contracts, so aggressive
-  // polling can cause PostgreSQL lock contention/deadlocks.
-  //
-  // Immediate UX is preserved: after Accept/Reject above we clear the cache,
-  // force one fresh status request and rerender the currently open business.
+  // One read-only business utility portal is refreshed by the existing
+  // 5-second offer timer. Accept/Reject forces an immediate refresh.
 }
