@@ -5,8 +5,10 @@ import './businessUtilityGate.css';
 
 const CACHE_MS = 5000;
 const OFFER_POLL_MS = 5000;
+const STATUS_POLL_MS = 1000;
 const cache = new Map();
 const offerTimers = new WeakMap();
+const statusTimers = new WeakMap();
 
 const norm = (value) => String(value ?? '').trim().toLowerCase().replace(/^mn-/, '');
 const esc = (value) => String(value ?? '')
@@ -84,6 +86,70 @@ async function loadIncomingOffers(ids) {
   };
 }
 
+
+function statusSignature(state = {}) {
+  return [Boolean(state.electricity), Boolean(state.water), Boolean(state.gas), Boolean(state.operational)].join('|');
+}
+
+function updateGateState(gate, state) {
+  if (!gate?.isConnected || !state) return;
+
+  const previous = gate.dataset.utilityStatusSignature || '';
+  const next = statusSignature(state);
+  gate.dataset.utilityStatusSignature = next;
+  gate.classList.toggle('is-online', Boolean(state.operational));
+  gate.classList.toggle('is-offline', !state.operational);
+
+  const head = gate.querySelector('.mn-business-utility-gate__head span');
+  if (head) {
+    const small = head.querySelector('small');
+    const strong = head.querySelector('strong');
+    if (small) small.textContent = state.operational ? 'КОММУНАЛЬНЫЕ СЕТИ ПОДКЛЮЧЕНЫ' : 'ПРЕДПРИЯТИЕ НЕ РАБОТАЕТ';
+    if (strong) strong.textContent = state.operational
+      ? 'Все обязательные подключения активны'
+      : 'Подключите воду, газ и электричество, чтобы предприятие начало работать и функционировать.';
+  }
+
+  const services = [
+    ['electricity', 'Электричество', 'Подключено', 'Не подключено'],
+    ['water', 'Вода', 'Подключена', 'Не подключена'],
+    ['gas', 'Газ', 'Подключён', 'Не подключён'],
+  ];
+
+  gate.querySelectorAll('.mn-business-utility-gate__services article').forEach((article, index) => {
+    const [key, , activeText, missingText] = services[index] || [];
+    if (!key) return;
+    const active = Boolean(state[key]);
+    article.classList.toggle('is-active', active);
+    article.classList.toggle('is-missing', !active);
+    const strong = article.querySelector('strong');
+    if (strong) strong.textContent = active ? activeText : missingText;
+  });
+
+  const info = gate.querySelector('[data-business-utility-info]');
+  if (info) info.hidden = Boolean(state.operational);
+
+  if (previous && previous !== next) {
+    window.dispatchEvent(new CustomEvent('mn:business-utility-status-changed', {
+      detail: {
+        status: state,
+        objectIds: Array.isArray(state.objectIds) ? state.objectIds : [],
+      },
+    }));
+  }
+}
+
+async function pollUtilityStatus(gate, ids) {
+  if (!gate?.isConnected) return;
+  try {
+    const fresh = await loadBusinessUtilityStatus(ids, { force: true });
+    if (!gate.isConnected) return;
+    updateGateState(gate, fresh);
+  } catch (error) {
+    console.warn('[businessUtilityGate] status refresh failed:', error);
+  }
+}
+
 function offerMarkup(kind, offer) {
   if (kind === 'power') {
     return `<article class="mn-business-utility-offer" data-utility-offer="power" data-contract-id="${esc(offer.id)}">
@@ -154,8 +220,10 @@ async function refreshOfferBox(gate, ids, options) {
 export function renderBusinessUtilityGate(container, status, { isOwner = false, objectId = '', objectIds = null } = {}) {
   if (!container) return;
   container.querySelectorAll('[data-business-utility-gate]').forEach((node) => {
-    const timer = offerTimers.get(node);
-    if (timer) clearInterval(timer);
+    const offerTimer = offerTimers.get(node);
+    const statusTimer = statusTimers.get(node);
+    if (offerTimer) clearInterval(offerTimer);
+    if (statusTimer) clearInterval(statusTimer);
     node.remove();
   });
   if (!isOwner) return;
@@ -165,6 +233,7 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   const gate = document.createElement('section');
   gate.dataset.businessUtilityGate = '1';
   gate.className = `mn-business-utility-gate ${state.operational ? 'is-online' : 'is-offline'}`;
+  gate.dataset.utilityStatusSignature = statusSignature(state);
   gate.innerHTML = `
     <div class="mn-business-utility-gate__head">
       <span><small>${state.operational ? 'КОММУНАЛЬНЫЕ СЕТИ ПОДКЛЮЧЕНЫ' : 'ПРЕДПРИЯТИЕ НЕ РАБОТАЕТ'}</small><strong>${state.operational ? 'Все обязательные подключения активны' : 'Подключите воду, газ и электричество, чтобы предприятие начало работать и функционировать.'}</strong></span>
@@ -175,7 +244,7 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
       <article class="${state.water ? 'is-active' : 'is-missing'}"><i>💧</i><span><small>Вода</small><strong>${state.water ? 'Подключена' : 'Не подключена'}</strong></span></article>
       <article class="${state.gas ? 'is-active' : 'is-missing'}"><i>🔥</i><span><small>Газ</small><strong>${state.gas ? 'Подключён' : 'Не подключён'}</strong></span></article>
     </div>
-    ${state.operational ? '' : '<p>Электричество конечному объекту предлагает только владелец подстанции. ГЭС/АЭС/УЭС поставляют энергию подстанциям и не могут подключать предприятие напрямую. Воду и газ предлагают соответствующие коммунальные предприятия.</p>'}
+    <p data-business-utility-info ${state.operational ? 'hidden' : ''}>Электричество конечному объекту предлагает только владелец подстанции. ГЭС/АЭС/УЭС поставляют энергию подстанциям и не могут подключать предприятие напрямую. Воду и газ предлагают соответствующие коммунальные предприятия.</p>
     <div class="mn-business-utility-offers" data-business-utility-offers hidden></div>
   `;
   const anchor = container.querySelector('[data-business-utility-anchor]') || container.querySelector('main') || container.querySelector('section') || container.firstElementChild || container;
@@ -184,6 +253,13 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   const renderOptions = { isOwner, objectId, objectIds: ids };
   const options = { container, renderOptions };
   void refreshOfferBox(gate, ids, options);
-  const timer = setInterval(() => void refreshOfferBox(gate, ids, options), OFFER_POLL_MS);
-  offerTimers.set(gate, timer);
+  const offerTimer = setInterval(() => void refreshOfferBox(gate, ids, options), OFFER_POLL_MS);
+  offerTimers.set(gate, offerTimer);
+
+  // Utility status is intentionally polled faster than offers.
+  // This bypasses the 5-second cache so an accepted/activated utility
+  // appears in an already opened business window almost immediately.
+  void pollUtilityStatus(gate, ids);
+  const statusTimer = setInterval(() => void pollUtilityStatus(gate, ids), STATUS_POLL_MS);
+  statusTimers.set(gate, statusTimer);
 }
