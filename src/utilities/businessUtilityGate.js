@@ -5,10 +5,9 @@ import './businessUtilityGate.css';
 
 const CACHE_MS = 5000;
 const OFFER_POLL_MS = 5000;
-const STATUS_POLL_MS = 1000;
 const cache = new Map();
+const statusInFlight = new Map();
 const offerTimers = new WeakMap();
-const statusTimers = new WeakMap();
 
 const norm = (value) => String(value ?? '').trim().toLowerCase().replace(/^mn-/, '');
 const esc = (value) => String(value ?? '')
@@ -51,28 +50,62 @@ export async function loadBusinessUtilityStatus(objectIds = [], { force = false 
   const ids = [...new Set(objectIds.map((value) => String(value ?? '').trim()).filter(Boolean))];
   const key = ids.map(norm).sort().join('|');
   const cached = cache.get(key);
-  if (!force && cached && Date.now() - cached.at < CACHE_MS) return cached.value;
 
-  const [power, water, gas] = await Promise.allSettled([
-    loadElectricityBills(), loadWaterUtility(), loadGasUtility(),
-  ]);
-  const powerBill = power.status === 'fulfilled' ? match(rowsFrom(power.value), ids) : null;
-  const waterBill = water.status === 'fulfilled' ? match(rowsFrom(water.value), ids) : null;
-  const gasBill = gas.status === 'fulfilled' ? match(rowsFrom(gas.value), ids) : null;
-  const electricity = Boolean(powerBill && (powerBill.powerActive ?? powerBill.power_active));
-  const waterActive = Boolean(waterBill && (waterBill.waterActive ?? waterBill.water_active));
-  const gasActive = Boolean(gasBill && (gasBill.gasActive ?? gasBill.gas_active));
-  const value = {
-    electricity,
-    water: waterActive,
-    gas: gasActive,
-    operational: electricity && waterActive && gasActive,
-    missing: [!electricity && 'electricity', !waterActive && 'water', !gasActive && 'gas'].filter(Boolean),
-    checked: power.status === 'fulfilled' || water.status === 'fulfilled' || gas.status === 'fulfilled',
-    objectIds: ids,
-  };
-  cache.set(key, { at: Date.now(), value });
-  return value;
+  if (!force && cached && Date.now() - cached.at < CACHE_MS) {
+    return cached.value;
+  }
+
+  // Never run two identical utility status checks at the same time.
+  // Electricity/water/gas portal RPCs can perform settlement/billing writes,
+  // so overlapping calls may deadlock on the same contracts.
+  const existing = statusInFlight.get(key);
+  if (existing) return existing;
+
+  const request = (async () => {
+    const [power, water, gas] = await Promise.allSettled([
+      loadElectricityBills(),
+      loadWaterUtility(),
+      loadGasUtility(),
+    ]);
+
+    const powerBill = power.status === 'fulfilled' ? match(rowsFrom(power.value), ids) : null;
+    const waterBill = water.status === 'fulfilled' ? match(rowsFrom(water.value), ids) : null;
+    const gasBill = gas.status === 'fulfilled' ? match(rowsFrom(gas.value), ids) : null;
+
+    const electricity = Boolean(powerBill && (powerBill.powerActive ?? powerBill.power_active));
+    const waterActive = Boolean(waterBill && (waterBill.waterActive ?? waterBill.water_active));
+    const gasActive = Boolean(gasBill && (gasBill.gasActive ?? gasBill.gas_active));
+
+    const value = {
+      electricity,
+      water: waterActive,
+      gas: gasActive,
+      operational: electricity && waterActive && gasActive,
+      missing: [
+        !electricity && 'electricity',
+        !waterActive && 'water',
+        !gasActive && 'gas',
+      ].filter(Boolean),
+      checked:
+        power.status === 'fulfilled' ||
+        water.status === 'fulfilled' ||
+        gas.status === 'fulfilled',
+      objectIds: ids,
+    };
+
+    cache.set(key, { at: Date.now(), value });
+    return value;
+  })();
+
+  statusInFlight.set(key, request);
+
+  try {
+    return await request;
+  } finally {
+    if (statusInFlight.get(key) === request) {
+      statusInFlight.delete(key);
+    }
+  }
 }
 
 async function loadIncomingOffers(ids) {
@@ -139,16 +172,6 @@ function updateGateState(gate, state) {
   }
 }
 
-async function pollUtilityStatus(gate, ids) {
-  if (!gate?.isConnected) return;
-  try {
-    const fresh = await loadBusinessUtilityStatus(ids, { force: true });
-    if (!gate.isConnected) return;
-    updateGateState(gate, fresh);
-  } catch (error) {
-    console.warn('[businessUtilityGate] status refresh failed:', error);
-  }
-}
 
 function offerMarkup(kind, offer) {
   if (kind === 'power') {
@@ -221,9 +244,7 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   if (!container) return;
   container.querySelectorAll('[data-business-utility-gate]').forEach((node) => {
     const offerTimer = offerTimers.get(node);
-    const statusTimer = statusTimers.get(node);
     if (offerTimer) clearInterval(offerTimer);
-    if (statusTimer) clearInterval(statusTimer);
     node.remove();
   });
   if (!isOwner) return;
@@ -256,10 +277,10 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   const offerTimer = setInterval(() => void refreshOfferBox(gate, ids, options), OFFER_POLL_MS);
   offerTimers.set(gate, offerTimer);
 
-  // Utility status is intentionally polled faster than offers.
-  // This bypasses the 5-second cache so an accepted/activated utility
-  // appears in an already opened business window almost immediately.
-  void pollUtilityStatus(gate, ids);
-  const statusTimer = setInterval(() => void pollUtilityStatus(gate, ids), STATUS_POLL_MS);
-  statusTimers.set(gate, statusTimer);
+  // Do NOT poll utility status every second.
+  // These portal RPCs can settle bills and update contracts, so aggressive
+  // polling can cause PostgreSQL lock contention/deadlocks.
+  //
+  // Immediate UX is preserved: after Accept/Reject above we clear the cache,
+  // force one fresh status request and rerender the currently open business.
 }
