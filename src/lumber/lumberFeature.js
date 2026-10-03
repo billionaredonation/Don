@@ -28,6 +28,7 @@ import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
 import { renderProcurementControls } from '../procurement/procurementControls.js';
 import { setProcurementBudget } from '../procurement/procurementApi.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
+import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import '../jobs/jobBusiness.css';
 import './lumber.css';
 
@@ -146,6 +147,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
   let inventoryState = { items: [] };
   let businessState = null;
   let businessRefreshPromise = null;
+  let utilityRefreshPromise = null;
   let treeStates = new Map();
   let treeStatesReady = false;
   let treeLoadPromise = null;
@@ -231,6 +233,51 @@ export function enableLumberFeature({ root, cityId } = {}) {
     renderProcurementControls(modal, 'lumber', business?.procurement, [], { canManage:isOwner, busy });
   }
 
+
+  async function refreshBusinessUtilities({ force = false } = {}) {
+    const businessPage = modal?.querySelector('[data-lumber-page="business"]');
+    if (!businessPage || !activeStationObjectId) return null;
+
+    const isOwner = String(businessState?.role || '') === 'owner';
+    if (!isOwner) {
+      renderBusinessUtilityGate(businessPage, null, { isOwner: false });
+      return null;
+    }
+
+    if (utilityRefreshPromise && !force) return utilityRefreshPromise;
+
+    const ids = [...new Set([
+      String(activeStationObjectId || '').trim(),
+      String(activeBusinessPublicId || '').trim(),
+    ].filter((value) => value && value !== '—'))];
+
+    utilityRefreshPromise = (async () => {
+      try {
+        const utilityStatus = await loadBusinessUtilityStatus(ids, { force });
+
+        if (
+          modal?.hidden === false &&
+          String(businessState?.role || '') === 'owner'
+        ) {
+          renderBusinessUtilityGate(businessPage, utilityStatus, {
+            isOwner: true,
+            objectId: String(activeBusinessPublicId || activeStationObjectId || ''),
+            objectIds: ids,
+          });
+        }
+
+        return utilityStatus;
+      } catch (error) {
+        console.warn('[lumber] utility status load failed:', error);
+        return null;
+      } finally {
+        utilityRefreshPromise = null;
+      }
+    })();
+
+    return utilityRefreshPromise;
+  }
+
   function publishBusiness(result) {
     const business = result?.business && typeof result.business === 'object' ? result.business : result;
     if (!business || typeof business !== 'object') return businessState;
@@ -242,6 +289,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     }
     window.__MN_LUMBER_BUSINESS_STATE__ = { ...businessState };
     renderBusiness();
+    void refreshBusinessUtilities();
     return businessState;
   }
 
@@ -419,6 +467,8 @@ export function enableLumberFeature({ root, cityId } = {}) {
     activeStationObjectId = String(object?.id || '');
     activeBusinessPublicId = getPublicBusinessId(object);
     businessState = null;
+    const businessPage = modal?.querySelector('[data-lumber-page="business"]');
+    if (businessPage) renderBusinessUtilityGate(businessPage, null, { isOwner: false });
     setStatus('');
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
@@ -433,6 +483,8 @@ export function enableLumberFeature({ root, cityId } = {}) {
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mn-lumber-modal-open');
+    const businessPage = modal?.querySelector('[data-lumber-page="business"]');
+    if (businessPage) renderBusinessUtilityGate(businessPage, null, { isOwner: false });
     setStatus('');
   }
 
