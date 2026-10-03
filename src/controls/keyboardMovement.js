@@ -410,6 +410,12 @@ export function enableKeyboardPlayerMovement(
   }
 
   function shouldSleepLoop(wantsMove, isMoving) {
+    const vehicle = window.__MN_VEHICLE_RUNTIME__;
+
+    if (vehicle && Number(vehicle.currentKmh || 0) > 0.01) {
+      return false;
+    }
+
     return (
       !wantsMove &&
       !isMoving &&
@@ -431,6 +437,11 @@ export function enableKeyboardPlayerMovement(
     ) {
       keys.clear();
       inputX = 0; inputY = 0; velocityX = 0; velocityY = 0;
+      const lockedVehicle = window.__MN_VEHICLE_RUNTIME__;
+      if (lockedVehicle) {
+        lockedVehicle.currentKmh = 0;
+        lockedVehicle.onSpeed?.();
+      }
       setDesktopRuntimeMoving(false);
       setDesktopRuntimeSprinting(false);
       animationId = null;
@@ -499,6 +510,14 @@ export function enableKeyboardPlayerMovement(
 
     if (!wantsMove && Math.abs(velocityX) < STOP_EPSILON) velocityX = 0;
     if (!wantsMove && Math.abs(velocityY) < STOP_EPSILON) velocityY = 0;
+
+    // v21: speedometer follows actual map movement.
+    // Once there is no throttle and both movement axes have stopped,
+    // the vehicle is standing still -> speed MUST be 0 km/h.
+    if (vehicle && !wantsMove && velocityX === 0 && velocityY === 0) {
+      vehicle.currentKmh = 0;
+      vehicle.onSpeed?.();
+    }
 
     const isMoving = wantsMove || !isMotionSettled();
     setDesktopRuntimeMoving(isMoving);
