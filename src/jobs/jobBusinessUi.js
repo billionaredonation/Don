@@ -25,6 +25,7 @@ export function jobBusinessPageMarkup({ prefix, config, items = [] }) {
         <span><small data-${p}-business-eyebrow>Рабочее предприятие</small><strong data-${p}-business-heading>${esc(config.shortLabel)}</strong><p data-${p}-business-description>Работа доступна всем игрокам. Владение влияет только на управление, склад и финансы.</p></span>
         <b data-${p}-business-public-state>Государственное</b>
       </div>
+      <div data-business-utility-anchor></div>
       <div class="mn-jobbiz-summary" data-${p}-business-private hidden>
         <article><i>👤</i><span><small>Владелец</small><strong data-${p}-business-owner>Государство</strong><em data-${p}-business-assistant>Помощник: нет</em></span></article>
         <article><i>🏢</i><span><small>Предприятие</small><strong>${esc(config.shortLabel)}</strong><em>ID: <b data-${p}-business-public-id>—</b></em></span></article>
