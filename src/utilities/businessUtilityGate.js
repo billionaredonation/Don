@@ -72,6 +72,10 @@ export async function loadBusinessUtilityStatus(objectIds = [], { force = false 
     const waterBill = water.status === 'fulfilled' ? match(rowsFrom(water.value), ids) : null;
     const gasBill = gas.status === 'fulfilled' ? match(rowsFrom(gas.value), ids) : null;
 
+    const electricityConnected = Boolean(powerBill);
+    const waterConnected = Boolean(waterBill);
+    const gasConnected = Boolean(gasBill);
+
     const electricity = Boolean(powerBill && (powerBill.powerActive ?? powerBill.power_active));
     const waterActive = Boolean(waterBill && (waterBill.waterActive ?? waterBill.water_active));
     const gasActive = Boolean(gasBill && (gasBill.gasActive ?? gasBill.gas_active));
@@ -80,6 +84,12 @@ export async function loadBusinessUtilityStatus(objectIds = [], { force = false 
       electricity,
       water: waterActive,
       gas: gasActive,
+
+      // Contract exists, even if delivery is currently stopped.
+      electricityConnected,
+      waterConnected,
+      gasConnected,
+
       operational: electricity && waterActive && gasActive,
       missing: [
         !electricity && 'electricity',
@@ -121,7 +131,15 @@ async function loadIncomingOffers(ids) {
 
 
 function statusSignature(state = {}) {
-  return [Boolean(state.electricity), Boolean(state.water), Boolean(state.gas), Boolean(state.operational)].join('|');
+  return [
+    Boolean(state.electricity),
+    Boolean(state.water),
+    Boolean(state.gas),
+    Boolean(state.electricityConnected),
+    Boolean(state.waterConnected),
+    Boolean(state.gasConnected),
+    Boolean(state.operational),
+  ].join('|');
 }
 
 function updateGateState(gate, state) {
@@ -144,19 +162,30 @@ function updateGateState(gate, state) {
   }
 
   const services = [
-    ['electricity', 'Электричество', 'Подключено', 'Не подключено'],
-    ['water', 'Вода', 'Подключена', 'Не подключена'],
-    ['gas', 'Газ', 'Подключён', 'Не подключён'],
+    ['electricity', 'electricityConnected', 'Подключено', 'Подача остановлена', 'Не подключено'],
+    ['water', 'waterConnected', 'Подключена', 'Подача остановлена', 'Не подключена'],
+    ['gas', 'gasConnected', 'Подключён', 'Подача остановлена', 'Не подключён'],
   ];
 
   gate.querySelectorAll('.mn-business-utility-gate__services article').forEach((article, index) => {
-    const [key, , activeText, missingText] = services[index] || [];
+    const [key, connectedKey, activeText, stoppedText, missingText] = services[index] || [];
     if (!key) return;
+
     const active = Boolean(state[key]);
+    const connected = Boolean(state[connectedKey]);
+
     article.classList.toggle('is-active', active);
-    article.classList.toggle('is-missing', !active);
+    article.classList.toggle('is-missing', !active && !connected);
+    article.classList.toggle('is-stopped', !active && connected);
+
     const strong = article.querySelector('strong');
-    if (strong) strong.textContent = active ? activeText : missingText;
+    if (strong) {
+      strong.textContent = active
+        ? activeText
+        : connected
+          ? stoppedText
+          : missingText;
+    }
   });
 
   const info = gate.querySelector('[data-business-utility-info]');
@@ -261,9 +290,9 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
       ${objectId ? `<b>ID ${esc(objectId)}</b>` : ''}
     </div>
     <div class="mn-business-utility-gate__services">
-      <article class="${state.electricity ? 'is-active' : 'is-missing'}"><i>⚡</i><span><small>Электричество</small><strong>${state.electricity ? 'Подключено' : 'Не подключено'}</strong></span></article>
-      <article class="${state.water ? 'is-active' : 'is-missing'}"><i>💧</i><span><small>Вода</small><strong>${state.water ? 'Подключена' : 'Не подключена'}</strong></span></article>
-      <article class="${state.gas ? 'is-active' : 'is-missing'}"><i>🔥</i><span><small>Газ</small><strong>${state.gas ? 'Подключён' : 'Не подключён'}</strong></span></article>
+      <article class="${state.electricity ? 'is-active' : state.electricityConnected ? 'is-stopped' : 'is-missing'}"><i>⚡</i><span><small>Электричество</small><strong>${state.electricity ? 'Подключено' : 'Не подключено'}</strong></span></article>
+      <article class="${state.water ? 'is-active' : state.waterConnected ? 'is-stopped' : 'is-missing'}"><i>💧</i><span><small>Вода</small><strong>${state.water ? 'Подключена' : 'Не подключена'}</strong></span></article>
+      <article class="${state.gas ? 'is-active' : state.gasConnected ? 'is-stopped' : 'is-missing'}"><i>🔥</i><span><small>Газ</small><strong>${state.gas ? 'Подключён' : 'Не подключён'}</strong></span></article>
     </div>
     <p data-business-utility-info ${state.operational ? 'hidden' : ''}>Электричество конечному объекту предлагает только владелец подстанции. ГЭС/АЭС/УЭС поставляют энергию подстанциям и не могут подключать предприятие напрямую. Воду и газ предлагают соответствующие коммунальные предприятия.</p>
     <div class="mn-business-utility-offers" data-business-utility-offers hidden></div>
