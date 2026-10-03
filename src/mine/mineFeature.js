@@ -33,6 +33,7 @@ import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
 import { renderProcurementControls } from '../procurement/procurementControls.js';
 import { setProcurementBudget } from '../procurement/procurementApi.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
+import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import '../jobs/jobBusiness.css';
 import './mine.css';
 
@@ -158,6 +159,7 @@ export function enableMineFeature({ root, cityId } = {}) {
   let marketState = { items: [] };
   let businessState = null;
   let businessRefreshPromise = null;
+  let utilityRefreshPromise = null;
   let activeBuyerObjectId = '';
   let activeBusinessPublicId = '—';
   let marketLoading = false;
@@ -354,6 +356,51 @@ export function enableMineFeature({ root, cityId } = {}) {
     renderProcurementControls(modal, 'mine', business?.procurement, [], { canManage:isOwner, busy });
   }
 
+
+  async function refreshBusinessUtilities({ force = false } = {}) {
+    const businessPage = modal?.querySelector('[data-mine-page="business"]');
+    if (!businessPage || !activeBuyerObjectId) return null;
+
+    const isOwner = String(businessState?.role || '') === 'owner';
+    if (!isOwner) {
+      renderBusinessUtilityGate(businessPage, null, { isOwner: false });
+      return null;
+    }
+
+    if (utilityRefreshPromise && !force) return utilityRefreshPromise;
+
+    const ids = [...new Set([
+      String(activeBuyerObjectId || '').trim(),
+      String(activeBusinessPublicId || '').trim(),
+    ].filter((value) => value && value !== '—'))];
+
+    utilityRefreshPromise = (async () => {
+      try {
+        const utilityStatus = await loadBusinessUtilityStatus(ids, { force });
+
+        if (
+          modal?.hidden === false &&
+          String(businessState?.role || '') === 'owner'
+        ) {
+          renderBusinessUtilityGate(businessPage, utilityStatus, {
+            isOwner: true,
+            objectId: String(activeBusinessPublicId || activeBuyerObjectId || ''),
+            objectIds: ids,
+          });
+        }
+
+        return utilityStatus;
+      } catch (error) {
+        console.warn('[mine] utility status load failed:', error);
+        return null;
+      } finally {
+        utilityRefreshPromise = null;
+      }
+    })();
+
+    return utilityRefreshPromise;
+  }
+
   function publishBusiness(result) {
     const business = result?.business && typeof result.business === 'object' ? result.business : result;
     if (!business || typeof business !== 'object') return businessState;
@@ -365,6 +412,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     }
     window.__MN_MINE_BUSINESS_STATE__ = { ...businessState };
     renderBusiness();
+    void refreshBusinessUtilities();
     return businessState;
   }
 
@@ -575,6 +623,8 @@ export function enableMineFeature({ root, cityId } = {}) {
     activeBuyerObjectId = String(object?.id || '');
     activeBusinessPublicId = getPublicBusinessId(object);
     businessState = null;
+    const businessPage = modal?.querySelector('[data-mine-page="business"]');
+    if (businessPage) renderBusinessUtilityGate(businessPage, null, { isOwner: false });
     marketLoading = false;
     marketLoadFailed = false;
     marketState = { items: [] };
@@ -594,6 +644,8 @@ export function enableMineFeature({ root, cityId } = {}) {
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mn-mine-modal-open');
+    const businessPage = modal?.querySelector('[data-mine-page="business"]');
+    if (businessPage) renderBusinessUtilityGate(businessPage, null, { isOwner: false });
     setStatus('');
   }
 
