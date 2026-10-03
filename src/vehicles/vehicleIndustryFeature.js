@@ -141,6 +141,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
   runtime.loaded=profile.loaded;
   runtime.onSpeed=()=>updateSpeedometer(runtime);
   if(!runtime.engineOn)runtime.currentKmh=0;
+  if(window.__MN_DESKTOP_PLAYER_MOVING__!==true)runtime.currentKmh=0;
   window.__MN_VEHICLE_RUNTIME__=runtime;
   updateSpeedometer(runtime);
  }else{
@@ -178,7 +179,19 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
     }
    }
    s=await vehicleRequest(cityId,id,a,data,request);retry=null;
-   notice=a==='assemble'?`✓ Сборка запущена: ${s.models.find(m=>m.id===data.model)?.label||data.model}. Комплектующие списаны.`:a==='enter'?'✓ Вы за рулём. Нажмите N, чтобы завести двигатель.':a==='engine'?(s.vehicles.find(v=>v.id===data.vehicle)?.engine_on?'✓ Двигатель запущен.':'✓ Двигатель заглушен.'):a==='exit'?'✓ Вы вышли из машины.':'✓ Выполнено';
+   notice=a==='assemble'
+    ?`✓ Сборка запущена: ${s.models.find(m=>m.id===data.model)?.label||data.model}. Комплектующие списаны.`
+    :a==='enter'
+      ?(s.vehicles.find(v=>v.id===data.vehicle)?.engine_on
+        ?'✓ Вы за рулём. Двигатель уже запущен.'
+        :'✓ Вы за рулём. Нажмите N, чтобы завести двигатель.')
+      :a==='engine'
+        ?(s.vehicles.find(v=>v.id===data.vehicle)?.engine_on
+          ?'✓ Двигатель запущен.'
+          :'✓ Двигатель заглушен.')
+        :a==='exit'
+          ?'✓ Вы вышли из машины. Состояние двигателя сохранено.'
+          :'✓ Выполнено';
    if(['enter','exit'].includes(a)){const c=s.vehicles.find(v=>v.id===data.vehicle);if(c)placePlayer(c);if(dialog.open)dialog.close();}
    window.dispatchEvent(new CustomEvent('mn:player-balance-refresh'));mapRender();
    if(a==='exit')hud.textContent=notice;
