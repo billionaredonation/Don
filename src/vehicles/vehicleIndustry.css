@@ -15,3 +15,72 @@
 
 .mn-auto-stop{padding:12px;border:1px solid #e4a34c;border-radius:8px;background:#463015;color:#ffe2b2}.mn-auto-status{max-width:min(650px,85vw);box-sizing:border-box}
 
+
+
+/* v20 · одинаковый размер и сохранённый угол машины */
+.mn-auto-car,
+.mn-auto-driving-view{
+  --mn-auto-car-width:30px;
+  --mn-auto-car-height:48px;
+}
+.mn-auto-car{
+  width:var(--mn-auto-car-width)!important;
+  height:var(--mn-auto-car-height)!important;
+}
+.mn-auto-car svg,
+.mn-auto-driving-view svg{
+  width:var(--mn-auto-car-width)!important;
+  height:var(--mn-auto-car-height)!important;
+  max-width:none!important;
+  max-height:none!important;
+  transform-origin:50% 50%;
+}
+.mn-auto-car svg{
+  transform:rotate(var(--auto-angle,0deg));
+}
+.mn-auto-driving-view{
+  width:var(--mn-auto-car-width);
+  height:var(--mn-auto-car-height);
+  display:block;
+}
+
+/* v20 · speedometer */
+.mn-auto-speedometer{
+  position:fixed;
+  left:190px;
+  bottom:96px;
+  z-index:2147481500;
+  min-width:132px;
+  padding:9px 12px;
+  border:1px solid #516575;
+  border-radius:12px;
+  background:#0b1b28e8;
+  color:#fff;
+  box-shadow:0 8px 26px #0007;
+  pointer-events:none;
+  line-height:1;
+}
+.mn-auto-speedometer[hidden]{display:none!important}
+.mn-auto-speedometer strong{
+  font:800 27px/1 system-ui,sans-serif;
+  font-variant-numeric:tabular-nums;
+}
+.mn-auto-speedometer>span{
+  margin-left:6px;
+  font:700 11px/1 system-ui,sans-serif;
+  opacity:.8;
+}
+.mn-auto-speedometer small{
+  display:block;
+  margin-top:6px;
+  max-width:210px;
+  font:600 10px/1.25 system-ui,sans-serif;
+  opacity:.85;
+}
+@media(max-width:700px){
+  .mn-auto-speedometer{
+    left:12px;
+    bottom:142px;
+    min-width:118px;
+  }
+}
