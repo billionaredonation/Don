@@ -4,6 +4,7 @@ import {state,save} from '../state.js';
 import {vehicleRequest,vehicleError} from './vehicleIndustryApi.js';
 import {playCargoTransferMiniGame} from '../logistics/cargoTransferMiniGame.js';
 import {getMapObjects} from '../mapObjects/mapObjectsRepository.js';
+import {renderBusinessUtilityGate} from '../utilities/businessUtilityGate.js';
 export const AUTO_TYPES=['car_factory','car_dealer','auto_service'];
 const labels={car_factory:'Автомобильный завод',car_dealer:'Автосалон',auto_service:'СТО',light:'Легковые',medium:'Средние',heavy:'Тягачи',petrol:'А-95',petrol92:'А-92',diesel:'Дизель',car_frame:'Каркас автомобиля',car_engine:'Двигатель автомобиля',car_body:'Кузов автомобиля',support_beam:'Опорная балка',screws:'Шурупы',rivets:'Заклёпки'};
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
@@ -27,10 +28,24 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  const speedometer=document.createElement('div');speedometer.className='mn-auto-speedometer';speedometer.hidden=true;speedometer.innerHTML='<strong data-auto-speed>0</strong><span>км/ч</span><small data-auto-drive-state>Двигатель выключен</small>';root.append(speedometer);
 
  const layer=document.createElement('div');layer.className='mn-auto-map-layer';root.querySelector('.gta-map-entities')?.append(layer);
- let s=null,id='',type='',busy=false,destroyed=false,tab='garage',notice='',objects=[],moving=false,retry=null,moveTask=null,revision=0,routeHub='';
+ let s=null,id='',type='',busy=false,destroyed=false,tab='garage',notice='',objects=[],moving=false,retry=null,moveTask=null,revision=0,routeHub='',utilityObjectAliases=[];
  const btn=(a,label,data='',disabled=false)=>`<button data-action="${a}" ${data} ${busy||disabled?'disabled':''}>${label}</button>`;
  const field=(name,val=1)=>`<input data-field="${name}" type="number" value="${val}" min="1">`;
  const val=k=>dialog.querySelector(`[data-field="${k}"]`)?.value;
+ const businessUtilityIds=()=>[...new Set([
+  id,
+  s?.business?.id,
+  s?.business?.public_id,
+  s?.business?.publicId,
+  s?.business?.public_business_id,
+  s?.business?.publicBusinessId,
+  ...utilityObjectAliases,
+ ].map(v=>String(v??'').trim()).filter(Boolean))];
+ const preferredUtilityId=()=>{
+  const ids=businessUtilityIds();
+  return ids.find(v=>/^MN-/i.test(v))||ids[0]||'';
+ };
+
  const placePlayer=c=>{playerPosition.x=Number(c.x);playerPosition.y=Number(c.y);setPlayerAngle(c.angle);window.dispatchEvent(new CustomEvent('mn:player-teleported',{detail:{x:Number(c.x),y:Number(c.y)}}));};
  const current=()=>s?.vehicles?.find(v=>v.owner_id===actor&&v.driving);
  const model=v=>s.models.find(m=>m.id===v.model);
@@ -102,6 +117,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  if(tab==='garage')html=`<p>F — сесть рядом с машиной / выйти. WASD — движение. H рядом с АЗС — заправка в бак. Клавиши работают по физическому расположению.</p><p>Аварийных ремкомплектов: ${s.kits}. Каждый +50 состояния, максимум 70% полной прочности; дальше нужен ремонт на СТО.</p>`+s.vehicles.filter(v=>v.owner_id===actor).map(v=>{const m=model(v);return `<article><h3>${esc(m.label)} ${v.used?'· б/у':''} ${v.route_id?'· служебный':''}</h3><p>${esc(v.city_id)} · координаты ${Number(v.x).toFixed(1)}, ${Number(v.y).toFixed(1)} · ${Number(v.condition).toFixed(1)} / ${m.max_condition} · глохнет при ≤ ${m.stop_condition}</p><p>${labels[m.fuel_type]} · ${Number(v.fuel).toFixed(2)} / ${m.tank} л · ${m.consumption} л/100 км</p>${stopReason(v)?`<p class="mn-auto-stop">⚠ ${esc(stopReason(v))}</p>`:''}${btn(v.driving?'exit':'enter',v.driving?'Выйти':'Сесть',`data-vehicle="${v.id}"`)}${btn('repair_kit','Использовать аварийный комплект',`data-vehicle="${v.id}"`)}<p>При пустом баке можно купить подходящее топливо пешком на АЗС и перелить из личного запаса.</p>${field('reserve-'+v.id,5)}${btn('reserve_refuel','Залить из личного запаса',`data-vehicle="${v.id}"`)}${pourCanister(v)}<input data-field="color-${v.id}" type="color" value="${esc(v.color)}">${btn('paint','Покрасить',`data-vehicle="${v.id}"`)}${v.driving?`<p>Межгород: подъедьте к краю карты. Условный участок — 50 км / 60 сек.</p><select data-field="city">${s.cities.filter(c=>c!==cityId).map(c=>`<option>${esc(c)}</option>`).join('')}</select>${v.transit_ready?`<p>В пути до ${new Date(v.transit_ready).toLocaleTimeString()}</p>${btn('arrive','Прибыть',`data-vehicle="${v.id}"`,Date.parse(v.transit_ready)>Date.now())}`:btn('travel','Выехать из города',`data-vehicle="${v.id}"`)}`:''}</article>`;}).join('');
  if(tab==='garage')html+=playerOffers()+`<h3>Мои канистры</h3>${(s.canisters||[]).map(c=>`<p>№ ${c.id.slice(0,8)} · ${labels[c.fuel_type]||'пустая'} · ${Number(c.liters)} / 20 л</p>`).join('')||'<p>Канистр пока нет.</p>'}`;
  if(tab==='business'){
+  html+='<div data-business-utility-anchor></div>';
  html=`<h3>${labels[type]||'Предприятие'}</h3><p>ID для коммунальных подключений: <code>${esc(id)}</code></p>`;
  if(!b?.owner_id)html+=`<p>Стоимость: ${money(type==='car_factory'?5000000:type==='car_dealer'?2000000:1000000)}</p>${btn('purchase','Купить предприятие')}`;
  if(own){html+=`<p>Счёт: ${money(b.cash)}</p>${field('amount',10000)}${btn('deposit','Пополнить')}${btn('withdraw','Снять')}<hr>`;
@@ -119,7 +135,18 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  if(tab==='station')html=`<h3>АЗС · ${esc(id)}</h3><p>Заправляется только подходящее модели топливо, прямо в бак.</p>${car?`<p>${labels[model(car).fuel_type]} · ${money(s.station?.[model(car).fuel_type])}/л · свободно ${(model(car).tank-car.fuel).toFixed(2)} л</p>${field('liters',10)}${btn('refuel','Заправить по тарифу АЗС',`data-vehicle="${car.id}"`)}`:'<p>Сначала сядьте в автомобиль.</p>'}${btn('buy_kit',`Аварийный ремкомплект · ${money(s.station?.kitPrice)}`)}${s.station?.owner===actor?`${field('kitPrice',s.station.kitPrice)}${btn('kit_price','Сохранить цену ремкомплекта')}`:''}`;
  if(tab==='station')html+=canisterShop();
  if(tab==='routes')html=`<h3>Заказать транспортную компанию</h3><p>Выберите перевозчика и вознаграждение. Для нефти оплата резервируется со счёта получателя, для партий общей биржи — с личного баланса заказчика.</p>${hubs()}${[...(s.pendingOil||[]).map(d=>({...d,kind:'oil',label:d.product,qty:d.quantity})),...(s.pendingProduction||[]).map(d=>({...d,kind:'production',label:d.product_type,qty:d.quantity}))].map(d=>`<article>${esc(d.label)} × ${d.qty} ${btn('route_create','Создать рейс',`data-kind="${d.kind}" data-delivery="${d.id}"`)}</article>`).join('')}<h3>Рейсы</h3>${s.routes.filter(r=>!routeHub||r.hub_id===routeHub).map(r=>`<article><b>${esc(r.cargo)} × ${r.quantity} · ${money(r.reward)}</b><p>${esc(r.hub?.name||r.hub_id)} · ${esc(r.hub?.city)}</p><p>${esc(r.source?.name||r.source_id)} (${esc(r.source_city)}) → ${esc(r.target?.name||r.target_id)} (${esc(r.target_city)})</p><p>${({open:'Ожидает водителя',pickup:'Ехать на погрузку',unload:'Ехать на выгрузку',done:'Доставлено'})[r.status]||r.status}</p>${r.status==='open'?btn('route_accept','Взять рейс',`data-route="${r.id}"`):r.driver===actor&&['pickup','unload'].includes(r.status)?btn(r.status==='pickup'?'route_load':'route_unload',r.status==='pickup'?'Погрузить на месте':'Разгрузить на месте',`data-route="${r.id}"`):''}</article>`).join('')}`;
+ renderBusinessUtilityGate(dialog,null,{isOwner:false});
  dialog.innerHTML=`<header><h2>${tab==='routes'?'Логистический центр':'Автомобили'}</h2><button data-close>×</button></header><nav>${['garage',...(tab==='routes'?['routes']:[]),...(type?['business']:[]),...(type==='car_dealer'&&own?['warehouse']:[])].map(t=>`<button data-tab="${t}" aria-pressed="${tab===t}">${{garage:'Мои машины',routes:'Логистика',business:type==='car_dealer'?'Автосалон':'Предприятие',warehouse:'Склад'}[t]}</button>`).join('')}</nav><p role="status">${esc(busy?'Выполняется…':notice)}</p>${html}`;
+
+ if(tab==='business'&&own&&AUTO_TYPES.includes(type)){
+  const utilityIds=businessUtilityIds();
+  renderBusinessUtilityGate(dialog,null,{
+   isOwner:true,
+   objectId:preferredUtilityId(),
+   objectIds:utilityIds,
+  });
+ }
+
  for(const el of dialog.querySelectorAll('[data-field]'))if(drafts.has(el.dataset.field))el.value=drafts.get(el.dataset.field);
  if(componentsOpen&&dialog.querySelector('.mn-auto-components'))dialog.querySelector('.mn-auto-components').open=true;
  tickAssembly();
@@ -200,9 +227,29 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
   finally{busy=false;if(!destroyed)render();}
  }
 
- async function open(nextId='',nextType='',nextTab='garage'){id=nextId;type=nextType;tab=nextTab;notice='';dialog.scrollTop=0;await refresh();if(!destroyed){render();if(!dialog.open)dialog.showModal();}}
+ async function open(nextId='',nextType='',nextTab='garage'){
+  if(!nextId)utilityObjectAliases=[];
+  id=nextId;type=nextType;tab=nextTab;notice='';dialog.scrollTop=0;
+  await refresh();
+  if(!destroyed){render();if(!dialog.open)dialog.showModal();}
+ }
  launch.onclick=()=>open().catch(e=>{hud.textContent=vehicleError(e);});
- const onOpen=e=>{const o=e.detail?.object;if(o)open(String(o.id),o.type==='marker'?o.payload?.jobType:o.type,'business').catch(e=>hud.textContent=vehicleError(e));};
+ const onOpen=e=>{
+  const o=e.detail?.object;
+  if(!o)return;
+  const p=o.payload||{};
+  utilityObjectAliases=[...new Set([
+   o.id,
+   p.publicBusinessId,
+   p.public_business_id,
+   p.publicId,
+   p.public_id,
+   p.businessId,
+   p.business_id,
+  ].map(v=>String(v??'').trim()).filter(Boolean))];
+  open(String(o.id),o.type==='marker'?o.payload?.jobType:o.type,'business')
+   .catch(e=>hud.textContent=vehicleError(e));
+ };
  const onRoutes=e=>{routeHub=String(e.detail?.hubId||'');return open('','','routes').catch(e=>hud.textContent=vehicleError(e));};
  const onStation=e=>open(String(e.detail?.id||''),'','station').catch(e=>hud.textContent=vehicleError(e));
  window.addEventListener('mn:auto-station-open',onStation);
@@ -257,5 +304,5 @@ if(e.code==='KeyH'&&current()){e.preventDefault();honk();objects=await getMapObj
  const assemblyTimer=setInterval(()=>{if(dialog.open)tickAssembly();},1000);
  const poll=setInterval(()=>{if(!busy&&!moving&&dialog.open)refresh().catch(()=>{});},5000);
  refresh().then(()=>{const c=current();if(c?.city_id===cityId)window.dispatchEvent(new CustomEvent('mn:player-teleported',{detail:{x:c.x,y:c.y}}));}).catch(()=>{});
- return()=>{destroyed=true;unregisterCanisters();clearInterval(timer);clearInterval(poll);clearInterval(assemblyTimer);window.__MN_VEHICLE_RUNTIME__=null;window.removeEventListener('keydown',key);window.removeEventListener('mn:auto-object-action',onOpen);window.removeEventListener('mn:auto-routes-open',onRoutes);window.removeEventListener('mn:auto-station-open',onStation);dialog.remove();launch.remove();hud.remove();speedometer.remove();layer.remove();playerMarker?.classList.remove('mn-auto-driving');};
+ return()=>{destroyed=true;renderBusinessUtilityGate(dialog,null,{isOwner:false});unregisterCanisters();clearInterval(timer);clearInterval(poll);clearInterval(assemblyTimer);window.__MN_VEHICLE_RUNTIME__=null;window.removeEventListener('keydown',key);window.removeEventListener('mn:auto-object-action',onOpen);window.removeEventListener('mn:auto-routes-open',onRoutes);window.removeEventListener('mn:auto-station-open',onStation);dialog.remove();launch.remove();hud.remove();speedometer.remove();layer.remove();playerMarker?.classList.remove('mn-auto-driving');};
 }
