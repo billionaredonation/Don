@@ -84,3 +84,26 @@
     min-width:118px;
   }
 }
+
+
+/* v21 · parked vehicle must visually match the car while driving.
+   The parked marker is rendered directly in the map layer and appears
+   larger than the same SVG inside the player marker, so it needs a
+   smaller map-layer footprint. */
+.mn-auto-car{
+  --mn-auto-parked-width:18px;
+  --mn-auto-parked-height:29px;
+  width:var(--mn-auto-parked-width)!important;
+  height:var(--mn-auto-parked-height)!important;
+}
+.mn-auto-car svg{
+  width:var(--mn-auto-parked-width)!important;
+  height:var(--mn-auto-parked-height)!important;
+}
+
+/* Keep the driven version unchanged. */
+.mn-auto-driving-view,
+.mn-auto-driving-view svg{
+  width:30px!important;
+  height:48px!important;
+}
