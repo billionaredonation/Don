@@ -76,3 +76,4 @@ export function getGasError(error) {
 export const ukrGazWarehouseAction=(plantId,cityId,action,value=0)=>invoke(action,{plantId,cityId,value});
 
 export const loadUkrGazMarket=()=>invoke('market_snapshot');
+
