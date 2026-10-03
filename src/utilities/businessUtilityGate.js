@@ -232,10 +232,10 @@ async function refreshOfferBox(gate, ids, options) {
       ...offers.water.map((offer) => ['water', offer]),
       ...offers.gas.map((offer) => ['gas', offer]),
     ];
-    box.hidden = !all.length;
+    box.hidden = false;
     box.innerHTML = all.length
       ? `<div class="mn-business-utility-offers__title"><strong>Входящие коммунальные договоры</strong><small>Решение принимает владелец этого предприятия.</small></div>${all.map(([kind, offer]) => offerMarkup(kind, offer)).join('')}`
-      : '';
+      : `<div class="mn-business-utility-offers__title"><strong>Входящие коммунальные договоры</strong><small>Сейчас новых предложений нет. Поставщик должен отправить договор на ID этого предприятия.</small></div>`;
 
     box.querySelectorAll('[data-utility-answer]').forEach((button) => {
       button.onclick = async () => {
@@ -293,7 +293,7 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
       <article class="${state.water ? 'is-active' : state.waterConnected ? 'is-stopped' : 'is-missing'}"><i>💧</i><span><small>Вода</small><strong>${state.water ? 'Подключена' : state.waterConnected ? 'Подача остановлена' : 'Не подключена'}</strong></span></article>
       <article class="${state.gas ? 'is-active' : state.gasConnected ? 'is-stopped' : 'is-missing'}"><i>🔥</i><span><small>Газ</small><strong>${state.gas ? 'Подключён' : state.gasConnected ? 'Подача остановлена' : 'Не подключён'}</strong></span></article>
     </div>
-    <p data-business-utility-info ${state.operational ? 'hidden' : ''}>Электричество конечному объекту предлагает только владелец подстанции. ГЭС/АЭС/УЭС поставляют энергию подстанциям и не могут подключать предприятие напрямую. Воду и газ предлагают соответствующие коммунальные предприятия.</p>
+    <p data-business-utility-info ${state.operational ? 'hidden' : ''}>Чтобы подключить предприятие: владелец подстанции отправляет предложение на электричество, водоканал — на воду, УкрГаз — на газ. После отправки договор появится ниже в разделе «Входящие коммунальные договоры», где владелец предприятия сможет его принять.</p>
     <div class="mn-business-utility-offers" data-business-utility-offers hidden></div>
   `;
   const anchor = container.querySelector('[data-business-utility-anchor]') || container.querySelector('main') || container.querySelector('section') || container.firstElementChild || container;
@@ -308,4 +308,3 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   // One read-only business utility portal is refreshed by the existing
   // 5-second offer timer. Accept/Reject forces an immediate refresh.
 }
-
