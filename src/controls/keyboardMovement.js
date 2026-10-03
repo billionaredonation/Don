@@ -454,6 +454,8 @@ export function enableKeyboardPlayerMovement(
 
     const vehicle = window.__MN_VEHICLE_RUNTIME__;
     if (vehicle && !vehicle.canMove) {
+      vehicle.currentKmh = 0;
+      vehicle.onSpeed?.();
       inputX = 0; inputY = 0; velocityX = 0; velocityY = 0;
       renderX = x; renderY = y;
       keys.clear();
@@ -465,7 +467,28 @@ export function enableKeyboardPlayerMovement(
 
     const isSprinting = vehicle ? false : updateSprintState(wantsMove, frameScale);
     setDesktopRuntimeSprinting(isSprinting);
-    const speed = vehicle ? (vehicle.canMove ? vehicle.speed : 0) : (isSprinting ? SPRINT_SPEED : WALK_SPEED);
+
+    let speed;
+    if (vehicle) {
+      const current = Math.max(0, Number(vehicle.currentKmh) || 0);
+      const maxKmh = Math.max(1, Number(vehicle.maxKmh) || 90);
+      const acceleration = Math.max(1, Number(vehicle.accelerationKmhS) || 15);
+      const braking = Math.max(acceleration, Number(vehicle.brakeKmhS) || acceleration * 1.55);
+      const deltaSeconds = delta / 1000;
+      const targetKmh = wantsMove ? maxKmh : 0;
+      const rate = wantsMove ? acceleration : braking;
+
+      vehicle.currentKmh = targetKmh > current
+        ? Math.min(targetKmh, current + rate * deltaSeconds)
+        : Math.max(targetKmh, current - rate * deltaSeconds);
+
+      // Map scale in the backend: 1 coordinate unit = 0.01 km.
+      // km/h -> coordinate units per 60 Hz frame = km/h / 2160.
+      speed = vehicle.currentKmh / 2160;
+      vehicle.onSpeed?.();
+    } else {
+      speed = isSprinting ? SPRINT_SPEED : WALK_SPEED;
+    }
 
     const targetVelocityX = inputX * speed;
     const targetVelocityY = inputY * speed;
