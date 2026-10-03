@@ -43,7 +43,6 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
   let snapshot = null;
   let busy = false;
   let liveTimer = 0;
-  let typingLock = false;
   let lastBalance = null;
   const consumerDraft = { houseId: '', unitPrice: '10' };
   let withdrawDraft = '1000';
@@ -122,8 +121,8 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
     const openCount = consumers.filter((item) => item.status === 'active' || item.status === 'offered').length;
     const ready = Boolean(s.equipment?.collection && s.equipment?.purification && s.equipment?.transport);
     return `<section class="mn-gas-page"><div class="mn-gas-consumer-heading"><div><h3>Газоснабжение домов и предприятий</h3><p>Подключение стоит фиксированные 1 000 ₴. Тариф задаёт владелец, но не ниже 10 ₴ за единицу.</p></div><span>${openCount}/10 мест</span></div>
-      ${s.isOwner ? `<div class="mn-gas-offer"><input data-gas-house maxlength="120" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома / предприятия"><input data-gas-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за единицу"><button data-gas-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
-      ${s.isOwner ? `<button data-gas-warehouse="${s.supplyRunning?'supply_stop':'supply_start'}" data-value="0">${s.supplyRunning?'Остановить поставку':'Запустить поставку'}</button>` : ''}<div class="mn-gas-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>Объект ${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.gasActive ? '🔥 Газ поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / ед.</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyUnits)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-gas-empty">Абонентов пока нет.</div>'}</div>
+      ${s.isOwner ? `<div class="mn-gas-offer"><input data-gas-house maxlength="120" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома / предприятия"><input data-gas-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за единицу"><button data-gas-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
+      ${s.isOwner ? `<button data-gas-warehouse="${s.supplyRunning?'supply_stop':'supply_start'}" data-value="0">${s.supplyRunning?'Остановить поставку':'Запустить поставку'}</button>` : ''}<div class="mn-gas-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.gasActive ? '🔥 Газ поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / ед.</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyUnits)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-gas-empty">Абонентов пока нет.</div>'}</div>
     </section>`;
   }
 
@@ -190,22 +189,15 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
   modal.querySelector('[data-gas-close]').addEventListener('click', close);
   modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
   modal.querySelectorAll('[data-gas-tab]').forEach((button) => button.addEventListener('click', () => setTab(button.dataset.gasTab)));
-  const isTypingTarget = (event) => event.target?.matches?.('input, textarea, select, [contenteditable="true"]');
   const stopGameKeysWhileTyping = (event) => {
-    if (!isTypingTarget(event)) return;
-    typingLock = true;
-    event.stopPropagation();
-  };
-  const onFocusIn = (event) => { if (isTypingTarget(event)) typingLock = true; };
-  const onFocusOut = (event) => {
-    if (!isTypingTarget(event)) return;
-    setTimeout(() => { typingLock = Boolean(content.contains(document.activeElement) && document.activeElement?.matches?.('input, textarea, select, [contenteditable="true"]')); }, 0);
+    if (!event.target?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+    if (/^(KeyW|KeyA|KeyS|KeyD|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|ShiftLeft|ShiftRight)$/.test(event.code)) {
+      event.stopPropagation();
+    }
   };
   content.addEventListener('keydown', stopGameKeysWhileTyping);
   content.addEventListener('keyup', stopGameKeysWhileTyping);
-  content.addEventListener('focusin', onFocusIn);
-  content.addEventListener('focusout', onFocusOut);
-  const onKey = (event) => { if (event.key === 'Escape' && !modal.hidden && !typingLock) close(); };
+  const onKey = (event) => { if (event.key === 'Escape' && !modal.hidden) close(); };
   window.addEventListener('keydown', onKey);
 
   const onAction = async (event) => {
@@ -229,7 +221,7 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
       await refresh();
       window.clearInterval(liveTimer);
       liveTimer = window.setInterval(() => {
-        if (!modal.hidden && !busy && !typingLock && !content.contains(document.activeElement)) refresh().catch(() => {});
+        if (!modal.hidden && !busy && !content.contains(document.activeElement)) refresh().catch(() => {});
       }, 5000);
     } catch (error) {
       modal.hidden = true;
@@ -242,8 +234,6 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
     window.clearInterval(liveTimer);
     content.removeEventListener('keydown', stopGameKeysWhileTyping);
     content.removeEventListener('keyup', stopGameKeysWhileTyping);
-    content.removeEventListener('focusin', onFocusIn);
-    content.removeEventListener('focusout', onFocusOut);
     window.removeEventListener('keydown', onKey);
     window.removeEventListener('mn:ukrgaz-object-action', onAction);
     modal.remove();
