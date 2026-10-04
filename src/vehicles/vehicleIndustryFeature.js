@@ -5,6 +5,8 @@ import {vehicleRequest,vehicleError} from './vehicleIndustryApi.js';
 import {playCargoTransferMiniGame} from '../logistics/cargoTransferMiniGame.js';
 import {getMapObjects} from '../mapObjects/mapObjectsRepository.js';
 import {renderBusinessUtilityGate} from '../utilities/businessUtilityGate.js';
+import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
+import '../community/statePurchaseBenefit.css';
 export const AUTO_TYPES=['car_factory','car_dealer','auto_service'];
 const labels={car_factory:'Автомобильный завод',car_dealer:'Автосалон',auto_service:'СТО',light:'Легковые',medium:'Средние',heavy:'Тягачи',petrol:'А-95',petrol92:'А-92',diesel:'Дизель',car_frame:'Каркас автомобиля',car_engine:'Двигатель автомобиля',car_body:'Кузов автомобиля',support_beam:'Опорная балка',screws:'Шурупы',rivets:'Заклёпки'};
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
@@ -119,7 +121,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
  if(tab==='business'){
   html+='<div data-business-utility-anchor></div>';
  html=`<h3>${labels[type]||'Предприятие'}</h3><p>ID для коммунальных подключений: <code>${esc(id)}</code></p>`;
- if(!b?.owner_id)html+=`<p>Стоимость: ${money(type==='car_factory'?5000000:type==='car_dealer'?2000000:1000000)}</p>${btn('purchase','Купить предприятие')}`;
+ if(!b?.owner_id)html+=`<p>Стоимость: <span data-auto-state-price>${money(type==='car_factory'?5000000:type==='car_dealer'?2000000:1000000)}</span></p>${btn('purchase','Купить предприятие')}`;
  if(own){html+=`<p>Счёт: ${money(b.cash)}</p>${field('amount',10000)}${btn('deposit','Пополнить')}${btn('withdraw','Снять')}<hr>`;
  if(type==='car_factory')html+=!b.equipment?`<p>Сборочная линия: 1 000 000 ₴</p>${btn('equipment','Установить линию','',Number(b.cash)<1000000)}`:`<p>Склад: ${s.stock.map(t=>`${labels[t.item]||esc(t.item)} × ${t.quantity}`).join(', ')||'пусто'}</p>${assemblyStatus()}${factorySupply()}<h3>Выбор модели для сборки</h3>${s.models.map(m=>`<article><b>${esc(m.label)} · опт ${money(m.wholesale)}</b><p>${Object.entries(m.recipe).map(([k,q])=>`${labels[k]||esc(k)} × ${q}`).join(' + ')}</p>${btn('assemble',b.batch_ready?(b.batch_model===m.id?'Собирается сейчас':'Линия занята'):'Собрать за 60 секунд',`data-model="${m.id}"`,!!b.batch_ready)}</article>`).join('')}${componentSupply()}`;
 
@@ -147,6 +149,10 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
   });
  }
 
+ if(tab==='business'&&!own&&AUTO_TYPES.includes(type)){
+  const base=type==='car_factory'?5000000:type==='car_dealer'?2000000:1000000;
+  void renderStatePurchaseBenefit(dialog,{basePrice:base,priceSelector:'[data-auto-state-price]'});
+ }
  for(const el of dialog.querySelectorAll('[data-field]'))if(drafts.has(el.dataset.field))el.value=drafts.get(el.dataset.field);
  if(componentsOpen&&dialog.querySelector('.mn-auto-components'))dialog.querySelector('.mn-auto-components').open=true;
  tickAssembly();
