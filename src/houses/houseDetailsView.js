@@ -1355,3 +1355,4 @@ export function createHouseDetailsController(root, {
     },
   };
 }
+
