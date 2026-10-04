@@ -61,7 +61,7 @@ function getCityStatValue(cityStats, key, fallback = 0) {
   return value;
 }
 
-function getSectionButtons(houses) {
+function getSectionButtons(houses, cityDirectory = {}) {
   return [
     {
       id: 'city',
@@ -81,17 +81,15 @@ function getSectionButtons(houses) {
       id: 'businesses',
       icon: '💵',
       title: 'Бизнесы',
-      text: 'Скоро',
-      count: 0,
-      disabled: true,
+      text: 'Предприятия города',
+      count: Number(cityDirectory.businessCount || 0),
     },
     {
       id: 'jobs',
       icon: '🤝',
       title: 'Работы',
-      text: 'Скоро',
-      count: 0,
-      disabled: true,
+      text: 'Рабочие точки',
+      count: Number(cityDirectory.jobCount || 0),
     },
   ];
 }
@@ -172,7 +170,81 @@ function renderHousesSummaryCards(houses) {
   `;
 }
 
-export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
+function renderDirectoryList(items = [], { emptyText = 'В этом городе пока ничего нет.' } = {}) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return `
+      <div class="houses-directory-empty">
+        <strong>Пока пусто</strong>
+        <span>${emptyText}</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="houses-directory-list">
+      ${items.map((item) => `
+        <article class="houses-directory-item">
+          <span class="houses-directory-icon">${item.icon || '•'}</span>
+
+          <span class="houses-directory-main">
+            <strong>${item.label || item.type || 'Объект'}</strong>
+            <small>${item.ownerId ? 'Владелец: игрок' : 'Владелец: государство'}</small>
+          </span>
+
+          ${
+            Number.isFinite(Number(item.x)) && Number.isFinite(Number(item.y))
+              ? `<button
+                  type="button"
+                  data-city-directory-focus
+                  data-city-id="${item.cityId || ''}"
+                  data-object-x="${Number(item.x)}"
+                  data-object-y="${Number(item.y)}"
+                >На карте</button>`
+              : ''
+          }
+        </article>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderDirectorySummary(items = [], label = 'Объектов') {
+  const stateCount = items.filter((item) => !item.ownerId).length;
+  const playerCount = items.filter((item) => Boolean(item.ownerId)).length;
+
+  return `
+    <div class="city-stat-grid houses-directory-summary">
+      <article class="city-stat-card">
+        <span class="city-stat-icon">📍</span>
+        <div class="city-stat-body">
+          <small>${label}</small>
+          <strong>${formatNumber(items.length)}</strong>
+          <em>На карте города</em>
+        </div>
+      </article>
+
+      <article class="city-stat-card">
+        <span class="city-stat-icon">🏛️</span>
+        <div class="city-stat-body">
+          <small>Государственных</small>
+          <strong>${formatNumber(stateCount)}</strong>
+          <em>Без игрока-владельца</em>
+        </div>
+      </article>
+
+      <article class="city-stat-card">
+        <span class="city-stat-icon">👤</span>
+        <div class="city-stat-body">
+          <small>Игроков</small>
+          <strong>${formatNumber(playerCount)}</strong>
+          <em>Принадлежат игрокам</em>
+        </div>
+      </article>
+    </div>
+  `;
+}
+
+export function renderHousesFeatureHtml({ city, houses, cityStats = {}, cityDirectory = {} }) {
   const budget = getCityStatValue(cityStats, 'budget', 0);
   const inflation = getCityStatValue(cityStats, 'inflation', 0);
   const registeredPlayers = getCityStatValue(cityStats, 'registeredPlayers', 0);
@@ -194,7 +266,7 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
         </header>
 
         <nav class="houses-section-cards houses-section-tabs" aria-label="Разделы города">
-          ${getSectionButtons(houses)
+          ${getSectionButtons(houses, cityDirectory)
             .map((section) => `
               <button
                 type="button"
@@ -232,19 +304,17 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {} }) {
         </div>
 
         <div class="houses-section-content" data-houses-section-content="businesses" hidden>
-          <div class="houses-placeholder-section">
-            <span>💵</span>
-            <strong>Бизнесы</strong>
-            <p>Раздел подготовлен под будущие доходные объекты. Сейчас активных бизнесов: <b>0</b>.</p>
-          </div>
+          ${renderDirectorySummary(cityDirectory.businesses || [], 'Бизнесов')}
+          ${renderDirectoryList(cityDirectory.businesses || [], {
+            emptyText: 'На карте города пока нет активных бизнесов и предприятий.',
+          })}
         </div>
 
         <div class="houses-section-content" data-houses-section-content="jobs" hidden>
-          <div class="houses-placeholder-section">
-            <span>🤝</span>
-            <strong>Работы</strong>
-            <p>Раздел подготовлен под будущие работы. Сейчас активных работ: <b>0</b>.</p>
-          </div>
+          ${renderDirectorySummary(cityDirectory.jobs || [], 'Рабочих точек')}
+          ${renderDirectoryList(cityDirectory.jobs || [], {
+            emptyText: 'На карте города пока нет доступных рабочих точек.',
+          })}
         </div>
 
         ${renderHouseDetailsModal()}
@@ -356,6 +426,30 @@ export function enableHousesStatsModal(root, {
     setActiveSection(button.dataset.housesSectionTab || 'city');
   }
 
+  function handleDirectoryFocus(event) {
+    const button = event.target?.closest?.('[data-city-directory-focus]');
+    if (!button || !modal?.contains(button)) return;
+
+    const x = Number(button.dataset.objectX);
+    const y = Number(button.dataset.objectY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const cityId = String(button.dataset.cityId || '').trim();
+
+    close();
+    window.dispatchEvent(new CustomEvent('mn:map-camera-focus', {
+      detail: {
+        x,
+        y,
+        cityId: cityId || undefined,
+        source: 'city_directory',
+      },
+    }));
+  }
+
   function handleGlobalHouseAction(event) {
     const house = event.detail?.house;
     if (!house) return;
@@ -401,6 +495,7 @@ export function enableHousesStatsModal(root, {
   openButton?.addEventListener('pointerup', handleOpenButton);
 
   modal?.addEventListener('click', handleSectionClick);
+  modal?.addEventListener('click', handleDirectoryFocus);
 
   document.addEventListener('click', handleDocumentClose, true);
   document.addEventListener('pointerup', handleDocumentClose, true);
@@ -418,6 +513,7 @@ export function enableHousesStatsModal(root, {
     openButton?.removeEventListener('pointerup', handleOpenButton);
 
     modal?.removeEventListener('click', handleSectionClick);
+    modal?.removeEventListener('click', handleDirectoryFocus);
 
     document.removeEventListener('click', handleDocumentClose, true);
     document.removeEventListener('pointerup', handleDocumentClose, true);
