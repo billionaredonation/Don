@@ -1,4 +1,6 @@
 import '../metallurgy/metallurgy.css';
+import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
+import '../community/statePurchaseBenefit.css';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {
   WOOD_PROCESSING_CONFIG,
@@ -60,6 +62,7 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
     q('[data-wood-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
     q('[data-wood-cash]').textContent = snapshot?.isOwner ? formatWoodMoney(business.cash) : 'Скрыто';
     q('[data-wood-buy]').hidden = Boolean(business.ownerId);
+    if(!business.ownerId)void renderStatePurchaseBenefit(modal,{basePrice:WOOD_PROCESSING_CONFIG.purchasePrice,priceSelector:'[data-wood-buy] strong'});
     q('[data-wood-owned]').hidden = !business.ownerId;
     q('[data-wood-owner]').textContent = business.ownerName || 'Государство';
     q('[data-wood-public-id]').textContent = currentPublicId;
