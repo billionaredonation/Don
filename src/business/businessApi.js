@@ -69,6 +69,14 @@ export function getBusinessUserErrorMessage(error) {
     BUSINESS_TRANSFER_EXPIRED: 'Срок предложения истёк.',
     BUSINESS_OWNER_CHANGED: 'Сделка отменена: владелец бизнеса изменился.',
     BUSINESS_ADMIN_REQUIRED: 'Штраф может назначить только администратор.',
+    LOCAL_GANG_NOT_MEMBER: 'Для ограбления магазина нужна местная банда.',
+    LOCAL_GANG_NEEDS_TWO_MEMBERS: 'Для ограбления нужно минимум 2 участника банды.',
+    LOCAL_GANG_PARTNER_TOO_FAR: 'Подойдите к магазину минимум вдвоём с участником вашей банды.',
+    LOCAL_GANG_SHOP_NOT_ROBBABLE: 'Этот объект нельзя ограбить как небольшой магазин.',
+    LOCAL_GANG_OWN_SHOP: 'Нельзя грабить собственный магазин.',
+    LOCAL_GANG_EMPLOYEE_SHOP: 'Работник этого магазина не может участвовать в налёте как банда.',
+    LOCAL_GANG_REGISTER_EMPTY: 'В кассе слишком мало денег для ограбления.',
+    LOCAL_GANG_ROBBERY_COOLDOWN: 'Сейчас повторный налёт недоступен. Подождите окончания КД.',
   };
   const code = Object.keys(messages).find((key) => raw.includes(key));
   return code ? messages[code] : raw;
@@ -98,6 +106,8 @@ async function invokeBusinessFinanceAction(action, payload = {}) {
 
 export const loadBusinessSnapshot = (businessId) => invokeBusinessAction('snapshot', { businessId });
 export const purchaseBusiness = (businessId) => invokeBusinessAction('purchase', { businessId });
+export const previewBusinessRobbery = (businessId) => invokeBusinessAction('shop_robbery_preview', { businessId });
+export const robBusinessCash = (businessId) => invokeBusinessAction('shop_robbery', { businessId });
 export const updateBusinessShelf = (payload) => invokeBusinessAction('set_shelf', payload);
 export const addBusinessCartItem = (payload) => invokeBusinessAction('cart_add', payload);
 export const removeBusinessCartItem = (payload) => invokeBusinessAction('cart_remove', payload);
