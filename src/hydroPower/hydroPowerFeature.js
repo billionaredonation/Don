@@ -1,4 +1,5 @@
 import './hydroPower.css';
+import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import { formatBusinessMoney, getBusinessLegalPayload } from '../business/businessConfig.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import { loadHydroSnapshot, purchaseHydroPlant, purchaseHydroEquipment, startHydroPlant, stopHydroPlant, repairHydroPlant, addHydroBudget, withdrawHydroMoney, createHydroContract, getHydroError } from './hydroPowerApi.js';
@@ -66,6 +67,7 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
     q('[data-hydro-note]').textContent = generating ? 'ГЭС генерирует 1 кВт·ч/сек. Каждый произведённый кВт·ч списывает 0,2 состояния: 720 в час.' : energy >= capacity ? 'Накопитель заполнен. Выработка продолжится после передачи или утилизации энергии.' : 'Для запуска купите три обязательных узла инфраструктуры. Энергия не пропадает: лимит задаёт накопитель.';
     qa('[data-hydro-equipment]').forEach(b => { const done=Boolean(installed[b.dataset.hydroEquipment]); b.disabled=!s.isOwner||done; b.textContent=done?'Куплено':'Купить'; });
     q('[data-hydro-contract-list]').innerHTML=(s.contracts||[]).length ? (s.contracts||[]).map(c=>`<article class="mn-hydro-contract-row"><b>${esc(c.targetId)}</b><span>${Number(c.unitPrice||0)} ₴/кВт·ч · лимит ${formatBusinessMoney(c.contractAmount||0)}</span><small>${c.status==='expired'?'Завершён':c.status==='active'?'Действует':'Ожидает решения'} · до ${contractDate(c.endsAt)}</small></article>`).join('') : '<p class="mn-hydro-note">Контрактов пока нет.</p>';
+    renderBusinessStateSaleControl(modal, { businessId: currentId, isOwner: Boolean(s?.isOwner) });
   }
   const stopLiveUpdates = () => { window.clearInterval(liveTimer); window.clearInterval(resyncTimer); liveTimer=0; resyncTimer=0; modal.classList.remove('is-generating'); };
   const startLiveUpdates = () => {
