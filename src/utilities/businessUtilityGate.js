@@ -2,7 +2,9 @@ import { answerPowerOffer, getSubstationError } from '../energySubstation/energy
 import { answerWaterOffer, getWaterError } from '../waterTreatment/waterTreatmentApi.js';
 import { answerGasOffer, getGasError } from '../ukrGaz/ukrGazApi.js';
 import { loadBusinessUtilityPortal } from './businessUtilitiesApi.js';
+import { previewBusinessStateSale, sellBusinessToState, businessStateSaleError } from '../businessStateSale/businessStateSaleApi.js';
 import './businessUtilityGate.css';
+import '../businessStateSale/businessStateSale.css';
 
 const CACHE_MS = 5000;
 const OFFER_POLL_MS = 5000;
@@ -295,9 +297,70 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
     </div>
     <p data-business-utility-info ${state.operational ? 'hidden' : ''}>Чтобы подключить предприятие: владелец подстанции отправляет предложение на электричество, водоканал — на воду, УкрГаз — на газ. После отправки договор появится ниже в разделе «Входящие коммунальные договоры», где владелец предприятия сможет его принять.</p>
     <div class="mn-business-utility-offers" data-business-utility-offers hidden></div>
+    <div class="mn-business-state-sale">
+      <div>
+        <strong>Продажа государству</strong>
+        <small>Государство выкупает предприятие по базовой госцене. Комиссия: 20%, для участника сообщества — 18%.</small>
+      </div>
+      <button type="button" data-business-state-sale>Продать государству</button>
+    </div>
   `;
   const anchor = container.querySelector('[data-business-utility-anchor]') || container.querySelector('main') || container.querySelector('section') || container.firstElementChild || container;
   anchor.prepend(gate);
+  const saleButton = gate.querySelector('[data-business-state-sale]');
+  if (saleButton) {
+    saleButton.onclick = async () => {
+      const saleId = String(objectId || ids[0] || '').trim();
+      if (!saleId) return;
+
+      saleButton.disabled = true;
+      const previous = saleButton.textContent;
+      saleButton.textContent = 'Расчёт…';
+
+      try {
+        const preview = await previewBusinessStateSale(saleId);
+        const base = Number(preview?.basePrice || 0).toLocaleString('ru-RU',{maximumFractionDigits:2});
+        const payoutPreview = Number(preview?.payout || 0).toLocaleString('ru-RU',{maximumFractionDigits:2});
+        const ratePreview = Number(preview?.commissionRate || 20).toLocaleString('ru-RU',{maximumFractionDigits:2});
+
+        const accepted = window.confirm(
+          `Продать предприятие государству?\n\n` +
+          `Государственная цена: ${base} ₴\n` +
+          `Комиссия: ${ratePreview}%\n` +
+          `Вы получите: ${payoutPreview} ₴\n\n` +
+          'Склад, касса предприятия, сотрудники и активные коммунальные договоры будут сброшены.'
+        );
+
+        if (!accepted) {
+          saleButton.disabled = false;
+          saleButton.textContent = previous;
+          return;
+        }
+
+        saleButton.textContent = 'Продажа…';
+        const result = await sellBusinessToState(saleId);
+        const payout = Number(result?.payout || 0).toLocaleString('ru-RU',{maximumFractionDigits:2});
+        const rate = Number(result?.commissionRate || 20).toLocaleString('ru-RU',{maximumFractionDigits:2});
+        window.dispatchEvent(new CustomEvent('mn:toast',{
+          detail:{
+            type:'success',
+            message:`Предприятие продано государству. Получено ${payout} ₴. Комиссия ${rate}%.`,
+          },
+        }));
+        window.dispatchEvent(new CustomEvent('mn:business-sold-to-state',{
+          detail:{businessId:saleId,result},
+        }));
+        gate.innerHTML = `<div class="mn-business-state-sale-result"><strong>Предприятие продано государству</strong><span>Получено ${payout} ₴ · комиссия ${rate}%</span></div>`;
+      } catch (error) {
+        window.dispatchEvent(new CustomEvent('mn:toast',{
+          detail:{type:'error',message:businessStateSaleError(error)},
+        }));
+        saleButton.disabled = false;
+        saleButton.textContent = previous;
+      }
+    };
+  }
+
 
   const renderOptions = { isOwner, objectId, objectIds: ids };
   const options = { container, renderOptions };
