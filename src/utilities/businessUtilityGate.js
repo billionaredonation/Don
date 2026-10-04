@@ -371,3 +371,4 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   // One read-only business utility portal is refreshed by the existing
   // 5-second offer timer. Accept/Reject forces an immediate refresh.
 }
+
