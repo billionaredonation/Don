@@ -1,8 +1,8 @@
 import './oilIndustry.css';
+import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {vehicleRequest} from '../vehicles/vehicleIndustryApi.js';
 import { oilRequest, oilError } from './oilIndustryApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
-import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 export const OIL_TYPES = { oil_well: ['🛢️', 'Нефтескважина', 'Буровая установка и резервуар'], oil_refinery: ['🏭', 'Нефтеперерабатывающий завод', 'Линия перегонки и резервуары'], fuel_station: ['⛽', 'АЗС', 'Топливные колонки и резервуары'] };
 const names = { crude: 'Нефть', petrol: 'Бензин А-95', petrol92: 'Бензин А-92', diesel: 'Дизель' };
 const esc = v => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
@@ -10,7 +10,7 @@ const num = v => Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits:
 const money = v => `${num(v)} ₴`;
 export function enableOilIndustryFeature({ root, cityId }) {
   const dialog = document.createElement('dialog'); dialog.className = 'mn-oil-dialog'; root.append(dialog);
-  let carriers=[], id='', s=null, utilityStatus=null, tab='overview', busy=false, timer=0, generation=0, destroyed=false, notice='', retry=null;
+  let carriers=[], id='', s=null, tab='overview', busy=false, timer=0, generation=0, destroyed=false, notice='', retry=null;
   const input = key => dialog.querySelector(`[data-input="${CSS.escape(key)}"]`);
   const field = (key, value, min=1, max=1000000000, step=1) => `<input data-input="${esc(key)}" aria-label="${esc(key)}" type="number" min="${min}" max="${max}" step="${step}" value="${value}">`;
   const actionButton = (action, label, disabled=false, data='') => `<button type="button" data-action="${action}" ${data} ${disabled||busy?'disabled':''}>${label}</button>`;
@@ -59,15 +59,15 @@ export function enableOilIndustryFeature({ root, cityId }) {
     dialog.innerHTML=`<header><div><small>НЕФТЯНАЯ ПРОМЫШЛЕННОСТЬ</small><h2>${OIL_TYPES[s.kind][0]} ${OIL_TYPES[s.kind][1]}</h2></div><button type="button" data-close aria-label="Закрыть">×</button></header>
     <nav>${[['overview','Обзор / покупка'],...(s.isOwner?[['management','Управление'],...(s.kind!=='oil_well'?[['supply','Закупки'],['deliveries','Доставки']]:[])]:[])].map(([key,label])=>`<button type="button" data-tab="${key}" class="${tab===key?'active':''}">${label}</button>`).join('')}<button data-refresh type="button">Обновить</button></nav>
     <p role="status" class="mn-oil-notice">${esc(busy?'Выполняется действие…':notice)}</p><main>${tab==='management'?management():tab==='supply'?supply():tab==='deliveries'?deliveries():overview()}</main>`;
+    renderBusinessStateSaleControl(dialog, { businessId: id, isOwner: Boolean(s?.isOwner) });
     for(const el of dialog.querySelectorAll('[data-input]'))if(drafts.has(el.dataset.input))el.value=drafts.get(el.dataset.input);
-    renderBusinessUtilityGate(dialog, utilityStatus, { isOwner:s.isOwner, objectId:s.id });
     if(focused)[...dialog.querySelectorAll('[data-input]')].find(el=>el.dataset.input===focused)?.focus({preventScroll:true});
   }
   async function refresh() {
     const g=generation, key=id, result=await oilRequest(key,cityId);
     if(result.isOwner&&result.kind!=='oil_well'){const fleet=await vehicleRequest(cityId);carriers=fleet.hubs||[];}
     if(g!==generation||destroyed)return;
-    s=result; utilityStatus=s.isOwner?await loadBusinessUtilityStatus([s.id,id]):null; if(!s.isOwner)tab='overview';render();
+    s=result; if(!s.isOwner)tab='overview';render();
   }
   async function act(action,data) {
     if(busy)return;
