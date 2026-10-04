@@ -1,4 +1,5 @@
 import './factory.css';
+import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import './factoryRedesign.css';
 import { FACTORY_CONFIG, FACTORY_PROCUREMENT_ITEMS, FACTORY_RAW_ITEMS, FACTORY_RECIPES, FACTORY_ROLES, formatFactoryMoney } from './factoryConfig.js';
 import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, cookFactoryBatch, finishFactoryBatch, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, getFactoryError } from './factoryApi.js';
@@ -7,7 +8,6 @@ import { procurementControlsMarkup, renderProcurementControls } from '../procure
 import { getProcurementError, loadProcurementSnapshot, setProcurementBudget, setProcurementItem } from '../procurement/procurementApi.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import { getBusinessLegalPayload } from '../business/businessConfig.js';
-import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const objectType = (o) => String(o?.type || o?.payload?.jobType || '');
@@ -51,19 +51,18 @@ function contractsMarkup(contracts = [], actorId = '') {
 export function enableFactoryFeature({ root, cityId }) {
   root.insertAdjacentHTML('beforeend', markup());
   const modal = root.querySelector('[data-factory-modal]');
-  let currentId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, utilityStatus = null, timer = 0, busy = false;
+  let currentId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, timer = 0, busy = false;
   const q = (s) => modal.querySelector(s);
   const qa = (s) => [...modal.querySelectorAll(s)];
   const run = async (task, errorFormatter = getFactoryError) => { if (busy) return; busy = true; modal.classList.add('is-busy'); try { await task(); await refresh(); } catch (e) { const raw=String(e?.message||e||''); notify(raw.includes('PROCUREMENT_')?getProcurementError(e):errorFormatter(e), 'error'); } finally { busy = false; modal.classList.remove('is-busy'); } };
   const refresh = async () => {
     snapshot = await loadFactorySnapshot(currentId, cityId);
     procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food' }) : null;
-    utilityStatus = snapshot?.isOwner ? await loadBusinessUtilityStatus([currentId, currentPublicId]) : null;
     render();
   };
   function render() {
     const s = snapshot || {}, business = s.factory || {}, raw = s.raw || {}, products = s.products || {}, prices = s.wholesalePrices || {}, wages = s.productionWages || {}, batch = s.activeBatch || null;
-    q('[data-factory-state]').textContent = business.ownerName ? (utilityStatus && !utilityStatus.operational ? 'Остановлено · нет коммуналки' : (batch ? 'Линия работает' : 'Готов к работе')) : 'Государственный';
+    q('[data-factory-state]').textContent = business.ownerName ? (batch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
     q('[data-factory-role]').textContent = s.roleLabel || 'Посетитель'; q('[data-factory-cash]').textContent = s.canManage ? formatFactoryMoney(business.cash) : 'Скрыто';
     q('[data-factory-buy]').hidden = Boolean(business.ownerId); q('[data-factory-owned]').hidden = !business.ownerId;
     q('[data-factory-owner]').textContent = business.ownerName || 'Государство'; q('[data-factory-legal-view]').textContent = business.legalForm || '—';
@@ -74,10 +73,10 @@ export function enableFactoryFeature({ root, cityId }) {
     qa('[data-factory-offer]').forEach((b) => { b.disabled = !s.canManage || Number(products[b.dataset.factoryOffer] || 0) < 1; });
     Object.keys(FACTORY_RECIPES).forEach((id) => { const input = q(`[data-factory-wholesale-price="${id}"]`); if (input && prices[id]) input.value = String(prices[id]); const offerPrice = q(`[data-factory-offer-price="${id}"]`); if (offerPrice && prices[id]) offerPrice.value = String(prices[id]); });
     Object.keys(FACTORY_RECIPES).forEach((id) => { const input = q(`[data-factory-production-wage="${id}"]`); if (input && wages[id] !== undefined) input.value = String(wages[id]); });
-    qa('[data-factory-start]').forEach((b) => b.disabled = !business.ownerId || Boolean(batch) || (snapshot?.isOwner && utilityStatus && !utilityStatus.operational));
-    qa('[data-factory-deliver]').forEach((b) => b.disabled = !s.isOwner || (s.isOwner && utilityStatus && !utilityStatus.operational));
+    qa('[data-factory-start]').forEach((b) => b.disabled = !business.ownerId || Boolean(batch));
+    qa('[data-factory-deliver]').forEach((b) => b.disabled = !s.isOwner);
     renderProcurementControls(modal, 'factory', procurement, FACTORY_PROCUREMENT_ITEMS, { canManage:s.isOwner, busy });
-    renderBusinessUtilityGate(modal, utilityStatus, { isOwner:s.isOwner, objectId:currentPublicId });
+    renderBusinessStateSaleControl(modal, { businessId: currentId, isOwner: Boolean(s?.isOwner) });
     const line = q('[data-factory-line]'), cook = q('[data-factory-cook]'), finish = q('[data-factory-finish]');
     cook.hidden = true; finish.hidden = true;
     if (!batch) { line.querySelector('strong').textContent = 'Линия свободна'; line.querySelector('small').textContent = 'Грузчик может подать сырьё по выбранному рецепту'; }
