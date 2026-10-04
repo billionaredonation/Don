@@ -1,4 +1,6 @@
 import '../metallurgy/metallurgy.css';
+import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
+import '../community/statePurchaseBenefit.css';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import { TEXTILE_CONFIG, TEXTILE_RAW_ITEMS, TEXTILE_RECIPES, formatTextileInputs, formatTextileMoney } from './textileConfig.js';
 import { createTextileBatch, depositTextileCash, finishTextileBatch, getTextileError, loadTextileSnapshot, publishTextileOffer, purchaseTextileFactory, setTextileRawBuyPrice, transferTextileRaw, withdrawTextileCash } from './textileApi.js';
@@ -72,6 +74,7 @@ export function enableTextileFeature({ root, cityId } = {}) {
     q('[data-textile-role]').textContent = snapshot?.isOwner ? 'Владелец' : (snapshot?.roleLabel || 'Посетитель');
     q('[data-textile-cash]').textContent = snapshot?.isOwner ? formatTextileMoney(business.cash) : 'Скрыто';
     q('[data-textile-buy]').hidden = ownership.owned;
+    if(!ownership.owned)void renderStatePurchaseBenefit(modal,{basePrice:TEXTILE_CONFIG.purchasePrice,priceSelector:'[data-textile-buy] strong'});
     q('[data-textile-owned]').hidden = !ownership.owned;
     q('[data-textile-owner]').textContent = ownership.ownerName;
     q('[data-textile-public-id]').textContent = currentPublicId;
