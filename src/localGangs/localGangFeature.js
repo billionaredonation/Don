@@ -36,6 +36,16 @@ function dateLabel(value) {
   });
 }
 
+function cooldownLabel(seconds) {
+  const total = Math.max(0, Math.ceil(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.ceil((total % 3600) / 60);
+
+  if (hours > 0 && minutes > 0) return `${hours} ч ${minutes} мин`;
+  if (hours > 0) return `${hours} ч`;
+  return `${Math.max(1, minutes)} мин`;
+}
+
 export function enableLocalGangFeature({ root } = {}) {
   const modal = document.querySelector('[data-player-profile-modal]');
   const overview = modal?.querySelector('[data-profile-page="overview"]');
@@ -161,19 +171,28 @@ export function enableLocalGangFeature({ root } = {}) {
     const membership = data.membership;
     const invites = Array.isArray(data.invites) ? data.invites : [];
     const crimes = Array.isArray(data.crimeRecords) ? data.crimeRecords : [];
+    const createCooldown = data.createCooldown?.active ? data.createCooldown : null;
 
     if (!membership) {
       content.innerHTML = `
         ${lore()}
         ${invitesMarkup(invites)}
+        ${createCooldown ? `
+          <section class="mn-local-gang-status is-waiting">
+            <strong>Создание новой банды на КД</strong>
+            <span>После выхода или удаления банды новую можно создать через ${esc(cooldownLabel(createCooldown.remainingSeconds))}.</span>
+          </section>
+        ` : ''}
         <section class="mn-local-gang-card">
           <header>
             <strong>Создать местную банду</strong>
-            <small>максимум 3 человека</small>
+            <small>${createCooldown ? `КД ${esc(cooldownLabel(createCooldown.remainingSeconds))}` : 'максимум 3 человека'}</small>
           </header>
           <p>Создатель становится главой. Полноценной группой банда считается после вступления второго игрока.</p>
-          <input type="text" maxlength="28" placeholder="Название банды" data-local-gang-name>
-          <button type="button" data-local-gang-create>Создать</button>
+          <input type="text" maxlength="28" placeholder="Название банды" data-local-gang-name ${createCooldown ? 'disabled' : ''}>
+          <button type="button" data-local-gang-create ${createCooldown ? 'disabled' : ''}>
+            ${createCooldown ? `Доступно через ${esc(cooldownLabel(createCooldown.remainingSeconds))}` : 'Создать'}
+          </button>
         </section>
         ${crimeBook(crimes)}
       `;
@@ -331,7 +350,9 @@ export function enableLocalGangFeature({ root } = {}) {
 
       void run(
         () => leaveLocalGang(),
-        deleting ? 'Местная банда удалена.' : 'Вы вышли из местной банды.',
+        deleting
+          ? 'Местная банда удалена. Новую можно создать через 3 часа.'
+          : 'Вы вышли из местной банды. Новую можно создать через 3 часа.',
       );
     }
   }
