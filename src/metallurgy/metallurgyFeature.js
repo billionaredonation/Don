@@ -1,7 +1,4 @@
 import './metallurgy.css';
-import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
-import '../community/statePurchaseBenefit.css';
-import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {
   METALLURGY_CONFIG,
   METALLURGY_DESTINATIONS,
@@ -13,6 +10,7 @@ import {
 import {
   depositMetallurgyCash,
   getMetallurgyError,
+  getMetallurgyUtilityProblem,
   loadMetallurgySnapshot,
   produceMetallurgyBatch,
   purchaseMetallurgyFactory,
@@ -47,7 +45,26 @@ function markup() {
     <header><div><small>ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ</small><h2>${METALLURGY_CONFIG.icon} ${METALLURGY_CONFIG.label}</h2><p>Сырьё шахты → металлургическая деталь → заводы и магазин стройматериалов</p></div><button type="button" data-metallurgy-close aria-label="Закрыть">×</button></header>
     <nav><button type="button" class="is-active" data-metallurgy-tab="production">Рецептура</button><button type="button" data-metallurgy-tab="warehouse">Склады</button><button type="button" data-metallurgy-tab="management">Управление</button></nav>
     <main>
-      <section data-metallurgy-page="production"><div class="mn-metallurgy-status"><span><small>Статус</small><strong data-metallurgy-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-metallurgy-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-metallurgy-cash>Скрыто</strong></span></div><div class="mn-metallurgy-recipes">${recipes}</div></section>
+      <section data-metallurgy-page="production">
+        <div class="mn-metallurgy-status">
+          <span><small>Статус</small><strong data-metallurgy-state>Загрузка…</strong></span>
+          <span><small>Ваша роль</small><strong data-metallurgy-role>Посетитель</strong></span>
+          <span><small>Бюджет</small><strong data-metallurgy-cash>Скрыто</strong></span>
+        </div>
+        <div class="mn-metallurgy-utilities-alert" data-metallurgy-utilities-alert hidden>
+          <div>
+            <strong>Производство остановлено</strong>
+            <small>Предприятию нужны свет, вода и газ. Проверьте договоры и состояние поставки.</small>
+          </div>
+          <div class="mn-metallurgy-utility-list">
+            <span data-metallurgy-utility="electricity">⚡ Электричество</span>
+            <span data-metallurgy-utility="water">💧 Вода</span>
+            <span data-metallurgy-utility="gas">🔥 Газ</span>
+          </div>
+          <p data-metallurgy-utility-hint></p>
+        </div>
+        <div class="mn-metallurgy-recipes">${recipes}</div>
+      </section>
       <section data-metallurgy-page="warehouse" hidden><h3>Сырьевой склад</h3><p class="mn-metallurgy-note">Сюда поступают подтверждённые партии со склада шахты через логистику. Сырьё не создаётся кнопкой в интерфейсе.</p><div class="mn-metallurgy-stock">${raw}</div><h3>Склад готовых компонентов</h3><div class="mn-metallurgy-stock">${products}</div></section>
       <section data-metallurgy-page="management" hidden><div class="mn-metallurgy-buy" data-metallurgy-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatMetallurgyMoney(METALLURGY_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет производством, бюджетом и складами.</p></span><button type="button" data-metallurgy-purchase>Купить завод</button></div><div data-metallurgy-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-metallurgy-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span><span><small>Публичный ID</small><strong data-metallurgy-public-id>—</strong></span></div>${procurementControlsMarkup('metallurgy', METALLURGY_RAW_ITEMS)}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-metallurgy-amount><div><button type="button" data-metallurgy-deposit>Пополнить</button><button type="button" data-metallurgy-withdraw>Снять</button></div></article></div></section>
     </main></section></div>`;
@@ -64,26 +81,55 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
   let snapshot = null;
   let procurement = null;
   let busy = false;
+  let utilityProblem = null;
 
   function render() {
     const business = snapshot?.business || {};
     const raw = snapshot?.raw || {};
     const products = snapshot?.products || {};
-    q('[data-metallurgy-state]').textContent = business.ownerId ? 'Готов к производству' : 'Государственный';
     q('[data-metallurgy-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
     q('[data-metallurgy-cash]').textContent = snapshot?.isOwner ? formatMetallurgyMoney(business.cash) : 'Скрыто';
     q('[data-metallurgy-buy]').hidden = Boolean(business.ownerId);
-    if(!business.ownerId)void renderStatePurchaseBenefit(modal,{basePrice:METALLURGY_CONFIG.purchasePrice,priceSelector:'[data-metallurgy-buy] strong'});
     q('[data-metallurgy-owned]').hidden = !business.ownerId;
     q('[data-metallurgy-owner]').textContent = business.ownerName || 'Государство';
     q('[data-metallurgy-public-id]').textContent = currentPublicId;
+
+    const utilityAlert = q('[data-metallurgy-utilities-alert]');
+    const utilityHint = q('[data-metallurgy-utility-hint]');
+    const missingUtilities = new Set(utilityProblem?.missing || []);
+
+    if (utilityAlert) {
+      utilityAlert.hidden = !utilityProblem;
+    }
+
+    qa('[data-metallurgy-utility]').forEach((node) => {
+      const utility = node.dataset.metallurgyUtility;
+      node.classList.toggle('is-missing', missingUtilities.has(utility));
+      node.classList.toggle('is-ok', Boolean(utilityProblem) && !missingUtilities.has(utility));
+    });
+
+    if (utilityHint) {
+      if (!utilityProblem) {
+        utilityHint.textContent = '';
+      } else {
+        const missingLabels = (utilityProblem.missing || []).map((item) => utilityProblem.labels?.[item] || item);
+
+        utilityHint.textContent = missingLabels.length
+          ? `Не работают: ${missingLabels.join(', ')}. Без всех трёх услуг производство недоступно.`
+          : 'Не удалось определить состояние коммунальных услуг.';
+      }
+    }
+
+    q('[data-metallurgy-state]').textContent = utilityProblem
+      ? 'Нет обязательных коммунальных услуг'
+      : (business.ownerId ? 'Готов к производству' : 'Государственный');
+
     METALLURGY_RAW_ITEMS.forEach((item) => { q(`[data-metallurgy-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
     Object.keys(METALLURGY_RECIPES).forEach((id) => { q(`[data-metallurgy-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
     qa('[data-metallurgy-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     qa('[data-metallurgy-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.metallurgyOffer] || 0) < 1; });
     qa('[data-metallurgy-deposit],[data-metallurgy-withdraw]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     renderProcurementControls(modal, 'metallurgy', procurement, METALLURGY_RAW_ITEMS, { canManage:snapshot?.isOwner, busy });
-    renderBusinessStateSaleControl(modal, { businessId: currentFactoryId, isOwner: Boolean(snapshot?.isOwner) });
   }
 
   async function refresh() {
@@ -100,7 +146,27 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
       await refresh();
       if (success) toast(success, 'success');
     } catch (error) {
-      toast(String(error?.message || error || '').includes('PROCUREMENT_') ? getProcurementError(error) : errorFormatter(error), 'error');
+      const utility = getMetallurgyUtilityProblem(error);
+
+      if (utility) {
+        utilityProblem = utility;
+        render();
+
+        const labels = utility.missing.map((item) => utility.labels[item]).filter(Boolean);
+        toast(
+          labels.length
+            ? `Производство остановлено. Не работают: ${labels.join(', ')}.`
+            : getMetallurgyError(error),
+          'error',
+        );
+      } else {
+        toast(
+          String(error?.message || error || '').includes('PROCUREMENT_')
+            ? getProcurementError(error)
+            : errorFormatter(error),
+          'error',
+        );
+      }
     } finally {
       busy = false; modal.classList.remove('is-busy'); render();
     }
@@ -142,7 +208,11 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
       toast(`Недостаточно сырья: ${item?.label || itemType}. На складе ${available}, нужно ${Number(perBatch) * batches}.`, 'error');
       return;
     }
-    run(() => produceMetallurgyBatch(currentFactoryId, cityId, recipeId, batches), 'Партия произведена и отправлена на склад.');
+    run(async () => {
+      const result = await produceMetallurgyBatch(currentFactoryId, cityId, recipeId, batches);
+      utilityProblem = null;
+      return result;
+    }, 'Партия произведена и отправлена на склад.');
   }; });
   q('[data-metallurgy-purchase]').onclick = () => run(() => purchaseMetallurgyFactory(currentFactoryId, cityId), 'Металлургический завод куплен.');
   q('[data-metallurgy-deposit]').onclick = () => run(() => depositMetallurgyCash(currentFactoryId, cityId, Number(q('[data-metallurgy-amount]').value)), 'Баланс завода пополнен.');
