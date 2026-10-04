@@ -75,7 +75,7 @@ export function getBusinessUserErrorMessage(error) {
     LOCAL_GANG_SHOP_NOT_ROBBABLE: 'Этот объект нельзя ограбить как небольшой магазин.',
     LOCAL_GANG_OWN_SHOP: 'Нельзя грабить собственный магазин.',
     LOCAL_GANG_EMPLOYEE_SHOP: 'Работник этого магазина не может участвовать в налёте как банда.',
-    LOCAL_GANG_COMMUNITY_SHOP: 'Нельзя грабить бизнес участника вашего Сообщества.'
+    LOCAL_GANG_COMMUNITY_SHOP: 'Нельзя грабить бизнес участника вашего Сообщества.',
     LOCAL_GANG_MEMBER_SHOP: 'Нельзя грабить бизнес участника вашей местной банды.',
     LOCAL_GANG_REGISTER_EMPTY: 'В кассе слишком мало денег для ограбления.',
     LOCAL_GANG_ROBBERY_COOLDOWN: 'Сейчас повторный налёт недоступен. Подождите окончания КД.',
