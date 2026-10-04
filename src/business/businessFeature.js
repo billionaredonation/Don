@@ -21,6 +21,8 @@ import {
   loadBusinessSnapshot,
   loadPendingBusinessTransfer,
   purchaseBusiness,
+  previewBusinessRobbery,
+  robBusinessCash,
   payBusinessDebt,
   rejectBusinessTransfer,
   removeBusinessCartItem,
@@ -39,7 +41,6 @@ import {
 } from './businessRepository.js';
 import { getPublicBusinessId } from './publicBusinessId.js';
 import './business.css';
-import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import { loadFactorySuppliers, createStoreRequest as createFactoryStoreRequest, orderFactorySupply, receiveFactorySupply, loadDeliveryCargo, unloadVehicleToStore, getFactoryError } from '../factory/factoryApi.js';
 import { playCargoTransferMiniGame } from '../logistics/cargoTransferMiniGame.js';
 import { getToolAssemblyError, loadToolAssemblyDeliveryCargo, unloadToolAssemblyVehicleToStore } from '../toolAssembly/toolAssemblyApi.js';
@@ -85,6 +86,21 @@ function isGroceryBusiness(value) {
 
 function isConstructionBusiness(value) {
   return businessTypeOf(value) === 'construction_store';
+}
+
+function isRobbableSmallShop(value) {
+  return ['grocery', 'shop', 'construction_store', 'accessory_store'].includes(businessTypeOf(value));
+}
+
+function robberyReadyLabel(value) {
+  const date = new Date(value || 0);
+  if (!Number.isFinite(date.getTime())) return '—';
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function productionExchangeScopeForBusiness(value) {
@@ -506,6 +522,74 @@ function transferDrawer(snapshot, foundPlayer = null) {
     </aside>`;
 }
 
+function robberyDrawer(snapshot, preview) {
+  if (!preview) {
+    return `
+      <aside class="mn-business-drawer mn-business-robbery-drawer" data-business-drawer>
+        <header>
+          <span><small>Местная банда</small><strong>Налёт на кассу</strong></span>
+          <button type="button" data-business-drawer-close>×</button>
+        </header>
+        <div class="mn-business-robbery-loading">Проверяем участников банды и кассу…</div>
+      </aside>
+    `;
+  }
+
+  const allowed = preview.allowed === true;
+  const participantCount = Number(preview.participantCount || 0);
+  const chance = Number(preview.successChance || 0);
+  const estimatedLoot = Number(preview.estimatedLoot || 0);
+
+  let status = '';
+  if (!allowed) {
+    if (preview.reason === 'LOCAL_GANG_REGISTER_EMPTY') {
+      status = 'В кассе сейчас слишком мало денег.';
+    } else if (preview.reason === 'LOCAL_GANG_ROBBERY_COOLDOWN') {
+      status = `Повторный налёт будет доступен после ${escapeHtml(robberyReadyLabel(preview.readyAt))}.`;
+    } else {
+      status = 'Сейчас налёт недоступен.';
+    }
+  }
+
+  return `
+    <aside class="mn-business-drawer mn-business-robbery-drawer" data-business-drawer>
+      <header>
+        <span><small>Местная банда</small><strong>Ограбить кассу</strong></span>
+        <button type="button" data-business-drawer-close>×</button>
+      </header>
+
+      <div class="mn-business-robbery-warning">
+        <i>⚠</i>
+        <span>
+          <strong>Это открытое ограбление</strong>
+          <small>Участники получат запись в уголовную книжку. Заводы и крупные предприятия этой системе недоступны.</small>
+        </span>
+      </div>
+
+      <div class="mn-business-robbery-grid">
+        <article><small>Банда у магазина</small><strong>${participantCount}/3</strong></article>
+        <article><small>Шанс успеха</small><strong>${chance}%</strong></article>
+        <article><small>Доход банды</small><strong>до ${formatBusinessMoney(estimatedLoot)}</strong></article>
+        <article><small>Делёж</small><strong>поровну</strong></article>
+      </div>
+
+      ${status ? `<p class="mn-business-robbery-blocked">${escapeHtml(status)}</p>` : ''}
+
+      <p class="mn-business-drawer-note">
+        Для налёта минимум два участника вашей местной банды должны стоять рядом с магазином.
+        После попытки КД банды — 2 часа, этого магазина — 6 часов.
+      </p>
+
+      <button
+        type="button"
+        class="is-danger mn-business-robbery-confirm"
+        data-business-robbery-confirm
+        ${allowed ? '' : 'disabled'}
+      >Ограбить кассу</button>
+    </aside>
+  `;
+}
+
 function fineDrawer() {
   return `
     <aside class="mn-business-drawer" data-business-drawer>
@@ -533,6 +617,7 @@ function storeMarkup(snapshot, drawerMode = '', drawerData = null) {
   if (drawerMode === 'tax') drawer = taxDrawer(snapshot);
   if (drawerMode === 'transfer') drawer = transferDrawer(snapshot, drawerData);
   if (drawerMode === 'fine') drawer = fineDrawer();
+  if (drawerMode === 'robbery') drawer = robberyDrawer(snapshot, drawerData);
   return `
     <header class="mn-business-store-header">
       <span><small>${escapeHtml(cityName(snapshot.cityId))} · ${presentation.adjective}</small><strong>${presentation.icon} ${escapeHtml(snapshot.name || presentation.fallbackName)}</strong></span>
@@ -555,6 +640,7 @@ function storeMarkup(snapshot, drawerMode = '', drawerData = null) {
       <button type="button" data-business-store-exit>🚪 Выйти</button>
       <span></span>
       ${managementVisible ? '<button type="button" class="is-primary" data-business-open-management>⚙ Управление</button>' : ''}
+      ${role === 'customer' && isRobbableSmallShop(snapshot) ? '<button type="button" class="is-danger" data-business-robbery-open>💰 Ограбить кассу</button>' : ''}
       <button type="button" data-business-refresh>↻</button>
     </footer>
     ${drawer}`;
@@ -570,7 +656,6 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
   const offerModal = document.querySelector('[data-business-transfer-offer]');
   let activeObject = null;
   let snapshot = null;
-  let utilityStatus = null;
   let drawerMode = '';
   let drawerData = null;
   let busy = false;
@@ -649,7 +734,6 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (!storeContent || !snapshot) return;
     storeModal.dataset.businessType = businessTypeOf(snapshot);
     storeContent.innerHTML = storeMarkup(snapshot, drawerMode, drawerData);
-    renderBusinessUtilityGate(storeContent, utilityStatus, { isOwner:snapshot.role === 'owner', objectId:getPublicBusinessId(activeObject) });
   }
 
   async function refreshStore({ preserveDrawer = true } = {}) {
@@ -658,7 +742,6 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (destroyed) return;
     const cargo = await loadStoreDeliveryCargo(activeObject);
     snapshot = { ...next, deliveryCargo: cargo };
-    utilityStatus = snapshot.role === 'owner' ? await loadBusinessUtilityStatus([businessId(activeObject), getPublicBusinessId(activeObject)]) : null;
     if (!preserveDrawer) { drawerMode = ''; drawerData = null; }
     renderStore();
   }
@@ -678,7 +761,6 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       const next = await loadBusinessSnapshot(businessId(activeObject));
       const cargo = await loadStoreDeliveryCargo(activeObject);
       snapshot = { ...next, deliveryCargo: cargo };
-      utilityStatus = snapshot.role === 'owner' ? await loadBusinessUtilityStatus([businessId(activeObject), getPublicBusinessId(activeObject)]) : null;
       drawerMode = '';
       drawerData = null;
       closeDetails();
@@ -813,6 +895,67 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (!(target instanceof Element) || busy) return;
     if (target.closest('[data-business-store-exit]')) { tryCloseStore(); return; }
     if (target.closest('[data-business-refresh]')) { await runStoreAction(() => refreshStore({ preserveDrawer: false }), 'Магазин обновлён.'); return; }
+
+    if (target.closest('[data-business-robbery-open]')) {
+      if (snapshot.role !== 'customer' || !isRobbableSmallShop(snapshot)) return;
+
+      drawerMode = 'robbery';
+      drawerData = null;
+      renderStore();
+
+      busy = true;
+      try {
+        drawerData = await previewBusinessRobbery(snapshot.businessId);
+        renderStore();
+      } catch (error) {
+        drawerMode = '';
+        drawerData = null;
+        renderStore();
+        const message = getBusinessUserErrorMessage(error);
+        setStoreMessage(message, 'error');
+        toast(message, 'error');
+      } finally {
+        busy = false;
+      }
+      return;
+    }
+
+    if (target.closest('[data-business-robbery-confirm]')) {
+      if (snapshot.role !== 'customer' || !isRobbableSmallShop(snapshot)) return;
+
+      const result = await runStoreAction(
+        () => robBusinessCash(snapshot.businessId),
+        '',
+      );
+
+      if (!result) return;
+
+      drawerMode = '';
+      drawerData = null;
+
+      const playerBalance = Number(result.playerBalance);
+      if (Number.isFinite(playerBalance)) {
+        state.player = { ...(state.player || {}), balance: playerBalance };
+        save();
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+          detail: { balance: playerBalance, source: 'local_gang_shop_robbery', result },
+        }));
+      }
+
+      if (result.success) {
+        const message = `Налёт успешен. Банда забрала ${formatBusinessMoney(result.lootTotal)}. Ваша доля: ${formatBusinessMoney(result.actorShare)}.`;
+        setStoreMessage(message, 'success');
+        toast(message, 'success');
+      } else {
+        const message = 'Налёт провалился. В уголовную книжку добавлена попытка ограбления магазина.';
+        setStoreMessage(message, 'error');
+        toast(message, 'error');
+      }
+
+      await refreshStore({ preserveDrawer: false });
+      return;
+    }
+
     if (target.closest('[data-business-drawer-close]')) { drawerMode = ''; drawerData = null; renderStore(); return; }
     if (target.closest('[data-business-open-management]')) {
       drawerMode = 'management';
@@ -1279,5 +1422,4 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     offerModal?.remove();
   };
 }
-
 
