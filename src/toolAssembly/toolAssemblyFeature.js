@@ -1,5 +1,5 @@
-import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import '../metallurgy/metallurgy.css';
+import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {
   TOOL_ASSEMBLY_CONFIG,
   TOOL_ASSEMBLY_DESTINATIONS,
@@ -49,27 +49,26 @@ export function enableToolAssemblyFeature({ root, cityId } = {}) {
   let currentFactoryId = '';
   let currentPublicId = '—';
   let snapshot = null;
-  let utilityStatus = null;
   let busy = false;
 
   function render() {
     const business = snapshot?.business || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
-    q('[data-tool-state]').textContent = business.ownerId ? (utilityStatus && !utilityStatus.operational ? 'Остановлено · нет коммуналки' : 'Готов к производству') : 'Государственный';
+    q('[data-tool-state]').textContent = business.ownerId ? 'Готов к производству' : 'Государственный';
     q('[data-tool-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
     q('[data-tool-cash]').textContent = snapshot?.isOwner ? formatToolMoney(business.cash) : 'Скрыто';
     q('[data-tool-buy]').hidden = Boolean(business.ownerId);
     q('[data-tool-owned]').hidden = !business.ownerId;
     q('[data-tool-owner]').textContent = business.ownerName || 'Государство';
     q('[data-tool-public-id]').textContent = currentPublicId;
-    renderBusinessUtilityGate(modal, utilityStatus, { isOwner:snapshot?.isOwner, objectId:currentPublicId });
     TOOL_ASSEMBLY_INPUT_ITEMS.forEach((item) => { q(`[data-tool-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
     Object.keys(TOOL_ASSEMBLY_RECIPES).forEach((id) => { q(`[data-tool-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
-    qa('[data-tool-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || (utilityStatus && !utilityStatus.operational); });
+    qa('[data-tool-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     qa('[data-tool-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.toolOffer] || 0) < 1; });
     qa('[data-tool-deposit],[data-tool-withdraw]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
+    renderBusinessStateSaleControl(modal, { businessId: currentFactoryId, isOwner: Boolean(snapshot?.isOwner) });
   }
 
-  async function refresh() { snapshot = await loadToolAssemblySnapshot(currentFactoryId, cityId); utilityStatus = snapshot?.isOwner ? await loadBusinessUtilityStatus([currentFactoryId, currentPublicId]) : null; render(); }
+  async function refresh() { snapshot = await loadToolAssemblySnapshot(currentFactoryId, cityId); render(); }
   async function run(task, success = '', errorFormatter = getToolAssemblyError) {
     if (busy) return;
     busy = true; modal.classList.add('is-busy'); render();
