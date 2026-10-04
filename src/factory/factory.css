@@ -5,3 +5,76 @@
 
 /* V12.13: finished food leaves the plant only through the production exchange. */
 .mn-factory-exchange-note{margin:0 0 10px;padding:10px 12px;border:1px solid #74dc9226;border-radius:11px;background:#74dc9209;color:#ffffff84;font-size:10px;line-height:1.45}.mn-factory-products article{grid-template-columns:auto minmax(0,1fr) minmax(220px,auto);align-items:center}.mn-factory-offer-controls{display:grid;grid-template-columns:74px 92px auto;gap:6px;align-items:center}.mn-factory-offer-controls input{width:100%}.mn-factory-offer-controls button{min-height:34px;padding:0 12px;border:0;border-radius:9px;background:#74dc92;color:#071009;font-weight:900;white-space:nowrap}@media(max-width:620px){.mn-factory-products article{grid-template-columns:auto minmax(0,1fr)}.mn-factory-offer-controls{grid-column:1/-1;grid-template-columns:1fr 1fr}.mn-factory-offer-controls button{grid-column:1/-1}}
+
+
+/* === Workplace theft decision === */
+.mn-factory-theft-dialog{
+  position:absolute;
+  inset:0;
+  z-index:40;
+  display:grid;
+  place-items:center;
+  padding:18px;
+  background:rgba(0,0,0,.72);
+  backdrop-filter:blur(5px);
+}
+
+.mn-factory-theft-dialog[hidden]{display:none!important}
+
+.mn-factory-theft-dialog>section{
+  width:min(430px,100%);
+  display:grid;
+  gap:10px;
+  padding:18px;
+  border:1px solid rgba(235,87,87,.28);
+  border-radius:16px;
+  background:linear-gradient(180deg,#17100f,#0d0b0b);
+  box-shadow:0 24px 70px rgba(0,0,0,.65);
+}
+
+.mn-factory-theft-dialog small{
+  color:#dc8f72;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.14em;
+}
+
+.mn-factory-theft-dialog h3{
+  margin:0;
+  color:#fff;
+  font-size:16px;
+}
+
+.mn-factory-theft-dialog p{
+  margin:0;
+  color:rgba(255,255,255,.65);
+  font-size:10px;
+  line-height:1.5;
+}
+
+.mn-factory-theft-dialog>section>div{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:4px;
+}
+
+.mn-factory-theft-dialog button{
+  min-height:40px;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:11px;
+  background:rgba(255,255,255,.06);
+  color:#fff;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.mn-factory-theft-dialog button.is-danger{
+  border-color:rgba(235,87,87,.32);
+  background:rgba(145,28,28,.42);
+  color:#ffd3d3;
+}
+
+@media(max-width:560px){
+  .mn-factory-theft-dialog>section>div{grid-template-columns:1fr}
+}
