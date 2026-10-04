@@ -14,8 +14,8 @@
 .mn-community-hero>b{font-size:20px}
 .mn-community-benefits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .mn-community-benefits article{padding:12px;display:grid;gap:3px}
-.mn-community-benefits strong{font-size:19px}
-.mn-community-benefits span{font-size:12px;color:rgba(255,255,255,.68)}
+.mn-community-benefits strong{font-size:17px;line-height:1.2}
+.mn-community-benefits span{font-size:12px;line-height:1.35;color:rgba(255,255,255,.68)}
 .mn-community-note{margin:0;padding:0 4px;font-size:12px;line-height:1.45}
 .mn-community-card{padding:14px;display:grid;gap:10px}
 .mn-community-card>header{display:flex;justify-content:space-between;align-items:center;gap:8px}
