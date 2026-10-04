@@ -1,4 +1,5 @@
 import './coalPower.css';
+import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import { formatBusinessMoney } from '../business/businessConfig.js';
 import {
   loadCoalPowerSnapshot,
@@ -107,6 +108,7 @@ export function enableCoalPowerFeature({ root, cityId } = {}) {
     qa('[data-coal-power-equipment]').forEach((button) => { const done = Boolean(installed[button.dataset.coalPowerEquipment]); button.disabled = busy || !state.isOwner || done; button.textContent = done ? 'Куплено' : 'Купить'; });
     q('[data-coal-power-contract-create]').disabled = busy || !state.isOwner;
     q('[data-coal-power-contract-list]').innerHTML = (state.contracts || []).length ? state.contracts.map((contract) => `<article><span><strong>${esc(contract.targetId)}</strong><small>${contract.status==='expired'?'Завершён':contract.status==='active'?'Действует':'Ожидает решения'} · до ${contractDate(contract.endsAt)}</small></span><b>${Number(contract.unitPrice || 0).toLocaleString('ru-RU')} ₴/кВт·ч</b><em>${formatBusinessMoney(contract.contractAmount || 0)}</em></article>`).join('') : '<p class="mn-coal-note">Договоров пока нет.</p>';
+    renderBusinessStateSaleControl(modal, { businessId: currentId, isOwner: Boolean(state?.isOwner) });
   }
 
   const stopLive = () => { window.clearInterval(liveTimer); window.clearInterval(resyncTimer); liveTimer = 0; resyncTimer = 0; modal.classList.remove('is-generating'); };
