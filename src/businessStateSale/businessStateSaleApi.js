@@ -37,3 +37,4 @@ export function businessStateSaleError(error){
   const key=Object.keys(messages).find(k=>raw.includes(k));
   return key?messages[key]:raw||'Не удалось продать предприятие государству.';
 }
+
