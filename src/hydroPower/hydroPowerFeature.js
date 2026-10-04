@@ -1,4 +1,6 @@
 import './hydroPower.css';
+import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
+import '../community/statePurchaseBenefit.css';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import { formatBusinessMoney, getBusinessLegalPayload } from '../business/businessConfig.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
@@ -55,6 +57,7 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
     q('[data-hydro-energy]').textContent = `${energy.toLocaleString('ru-RU')} / ${capacity.toLocaleString('ru-RU')} кВт·ч`;
     q('[data-hydro-condition]').textContent = `${condition.toLocaleString('ru-RU')} / ${maxCondition.toLocaleString('ru-RU')}`;
     q('[data-hydro-buy]').hidden=Boolean(plant.ownerId); q('[data-hydro-owned]').hidden=!plant.ownerId;
+    if(!plant.ownerId)void renderStatePurchaseBenefit(modal,{basePrice:25000000,priceSelector:'[data-hydro-buy] strong'});
     q('[data-hydro-owner]').textContent=plant.ownerName||'Государство'; q('[data-hydro-public-id]').textContent=s.publicId||'—';
     q('[data-hydro-start]').disabled=!s.isOwner || Boolean(s.running); q('[data-hydro-stop]').disabled=!s.isOwner || !s.running; q('[data-hydro-repair]').disabled=busy || !s.isOwner || condition>=maxCondition || Number(s.cashBalance||0)<Number(s.repairCost||1000);
     q('[data-hydro-repair]').textContent=repairing ? 'Ремонтируем…' : `Ремонт · ${formatBusinessMoney(s.repairCost||1000)}`;
