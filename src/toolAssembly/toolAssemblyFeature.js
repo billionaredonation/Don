@@ -1,4 +1,6 @@
 import '../metallurgy/metallurgy.css';
+import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
+import '../community/statePurchaseBenefit.css';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {
   TOOL_ASSEMBLY_CONFIG,
@@ -57,6 +59,7 @@ export function enableToolAssemblyFeature({ root, cityId } = {}) {
     q('[data-tool-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
     q('[data-tool-cash]').textContent = snapshot?.isOwner ? formatToolMoney(business.cash) : 'Скрыто';
     q('[data-tool-buy]').hidden = Boolean(business.ownerId);
+    if(!business.ownerId)void renderStatePurchaseBenefit(modal,{basePrice:TOOL_ASSEMBLY_CONFIG.purchasePrice,priceSelector:'[data-tool-buy] strong'});
     q('[data-tool-owned]').hidden = !business.ownerId;
     q('[data-tool-owner]').textContent = business.ownerName || 'Государство';
     q('[data-tool-public-id]').textContent = currentPublicId;
