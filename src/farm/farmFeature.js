@@ -1,6 +1,5 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
-import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import {
   buyFarmBusinessBuckets,
   buyFarmBusinessTool,
@@ -28,6 +27,7 @@ import {
 } from './farmApi.js';
 import { FARM_ITEMS, getFarmPlantType } from './farmConfig.js';
 import {
+import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
   FARM_BUCKET_CAPACITY_LITERS,
   FARM_BUCKET_PURCHASE_PRICE,
   FARM_BUCKET_STOCK_LIMIT,
@@ -367,7 +367,6 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let inventoryState = { items: [] };
   let marketState = { items: [] };
   let businessState = null;
-  let businessUtilityStatus = null;
   let activeFarmObject = null;
   let activeBuyerObjectId = '';
   let activeBusinessPublicId = '—';
@@ -489,7 +488,6 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
     const publicIdEl = modal.querySelector('[data-farm-business-public-id]');
     if (publicIdEl) publicIdEl.textContent = activeBusinessPublicId;
-    renderBusinessUtilityGate(modal, businessUtilityStatus, { isOwner, objectId:activeBusinessPublicId });
 
     const roleEl = modal.querySelector('[data-farm-business-role]');
     if (roleEl) {
@@ -561,6 +559,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     modal.querySelectorAll('[data-farm-owner-only]').forEach((element) => { element.hidden = !isOwner; });
     modal.querySelectorAll('[data-farm-funding-manager]').forEach((element) => { element.hidden = !canFund; });
     renderProcurementControls(modal, 'farm', business?.procurement, [], { canManage: isOwner, busy });
+    renderBusinessStateSaleControl(modal, { businessId: activeBuyerObjectId, isOwner });
     modal.querySelectorAll('[data-farm-take-bucket]').forEach((button) => {
       button.disabled = busy || Number(business?.bucketStock || 0) <= 0 || Number(cargo.bucketCount || 0) >= 1;
     });
@@ -611,8 +610,6 @@ export function enableFarmFeature({ root, cityId } = {}) {
         const result = await loadFarmBusinessSnapshot({ businessId: requestedId, cityId });
         if (requestedId === activeBuyerObjectId) {
           const published = publishBusiness(result);
-          businessUtilityStatus = String(published?.role || '') === 'owner' ? await loadBusinessUtilityStatus([requestedId, activeBusinessPublicId]) : null;
-          renderBusiness();
           return published;
         }
         return result;
