@@ -5442,3 +5442,111 @@ html body .mn-player-interaction[hidden] {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+
+/* === City panel: LIVE businesses + jobs === */
+
+.houses-directory-summary {
+  margin-bottom: 12px;
+}
+
+.houses-directory-list {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.houses-directory-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 9px 10px;
+  border: 1px solid rgba(141, 108, 255, .22);
+  border-radius: 13px;
+  background:
+    linear-gradient(135deg, rgba(113, 68, 192, .14), rgba(12, 17, 27, .86));
+}
+
+.houses-directory-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(131, 80, 226, .34), rgba(72, 47, 119, .28));
+  font-size: 20px;
+}
+
+.houses-directory-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.houses-directory-main strong {
+  overflow: hidden;
+  color: #f4f0ff;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.houses-directory-main small {
+  color: #9690aa;
+  font-size: 9px;
+}
+
+.houses-directory-item button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(148, 108, 255, .34);
+  border-radius: 10px;
+  background: rgba(102, 62, 176, .22);
+  color: #d9c7ff;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.houses-directory-item button:hover {
+  background: rgba(122, 76, 210, .34);
+}
+
+.houses-directory-empty {
+  display: grid;
+  gap: 4px;
+  padding: 18px;
+  border: 1px dashed rgba(255,255,255,.1);
+  border-radius: 13px;
+  background: rgba(255,255,255,.025);
+  text-align: center;
+}
+
+.houses-directory-empty strong {
+  color: #d8d3e7;
+  font-size: 12px;
+}
+
+.houses-directory-empty span {
+  color: #8e899d;
+  font-size: 9px;
+}
+
+@media (max-width: 620px) {
+  .houses-directory-item {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .houses-directory-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+  }
+
+  .houses-directory-item button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
