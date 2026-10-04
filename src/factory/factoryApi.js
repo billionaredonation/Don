@@ -21,6 +21,8 @@ export const transferFruitToFactory = transferFarmRawToFactory;
 export const startFactoryBatch = (factoryId, cityId, recipeId, ingredientType = '') => invoke('start_batch', { factoryId, cityId, recipeId, ingredientType });
 export const cookFactoryBatch = (factoryId, cityId, batchId) => invoke('cook_batch', { factoryId, cityId, batchId });
 export const finishFactoryBatch = (factoryId, cityId, batchId) => invoke('finish_batch', { factoryId, cityId, batchId });
+export const attemptFactoryWorkplaceTheft = (offerId) => invoke('theft_attempt', { offerId });
+export const declineFactoryWorkplaceTheft = (offerId) => invoke('theft_decline', { offerId });
 export const depositFactory = (factoryId, cityId, amount) => invoke('deposit', { factoryId, cityId, amount });
 export const withdrawFactory = (factoryId, cityId, amount) => invoke('withdraw', { factoryId, cityId, amount });
 export const setFactoryStaff = (factoryId, cityId, target, role) => invoke('staff_set', { factoryId, cityId, target, role });
@@ -56,6 +58,13 @@ export function getFactoryError(error) {
     FACTORY_LOADER_REQUIRED: 'Начать цепочку может грузчик.', FACTORY_COOK_REQUIRED: 'Этот этап выполняет повар.',
     FACTORY_PACKER_REQUIRED: 'Этот этап выполняет упаковщик.', FACTORY_BATCH_STAGE_INVALID: 'Для партии сейчас требуется другой этап работы.',
     FACTORY_FRUIT_REQUIRED: 'Выберите фрукт или ягоду для рецепта.',
+    FACTORY_THEFT_OFFER_NOT_FOUND: 'Предложение кражи больше недоступно.',
+    FACTORY_THEFT_OFFER_ALREADY_RESOLVED: 'Эта попытка уже была обработана.',
+    FACTORY_THEFT_OFFER_EXPIRED: 'Вы слишком долго думали. Продукция уже ушла дальше на склад.',
+    FACTORY_THEFT_PRODUCT_NOT_AVAILABLE: 'Эта единица продукции уже недоступна для кражи.',
+    FACTORY_THEFT_BATCH_SCHEMA_UNSUPPORTED: 'Схема партий завода требует обновления интеграции краж.',
+    FACTORY_THEFT_STOCK_SCHEMA_UNSUPPORTED: 'Схема склада завода требует обновления интеграции краж.',
+    FACTORY_THEFT_STAFF_SCHEMA_UNSUPPORTED: 'Схема персонала завода требует обновления интеграции краж.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.', FACTORY_CASH_NOT_ENOUGH: 'В бюджете завода недостаточно денег на зарплату.',
     PROCUREMENT_BUDGET_RESERVED: 'Эта сумма оставлена на закупку сырья. Сначала уменьшите бюджет скупа.',
     FACTORY_INVENTORY_NOT_ENOUGH: 'В инвентаре недостаточно сырья с фермы.', FACTORY_AMOUNT_INVALID: 'Введите корректное количество.',
