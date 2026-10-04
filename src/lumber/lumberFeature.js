@@ -153,6 +153,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
   let realtimeChannel = null;
   let stateTimer = 0;
   let inventoryTimer = 0;
+  let inventoryRevision = 0;
   let scrollTouch = null;
   let scrollClickBlockedUntil = 0;
   window.__MN_LUMBER_TREE_STATES_READY__ = false;
@@ -280,6 +281,11 @@ export function enableLumberFeature({ root, cityId } = {}) {
     return inventoryState;
   }
 
+  function publishInventoryMutation(result) {
+    inventoryRevision += 1;
+    return publishInventory(result);
+  }
+
   function renderInventory() {
     const level = currentLevel();
     const logCount = itemQuantity('lumber_log');
@@ -345,8 +351,20 @@ export function enableLumberFeature({ root, cityId } = {}) {
   }
 
   async function refreshInventory({ silent = true } = {}) {
-    try { publishInventory(await loadLumberInventory()); }
-    catch (error) { if (!silent) setStatus(getLumberUserErrorMessage(error), 'error'); }
+    const startedAtRevision = inventoryRevision;
+
+    try {
+      const result = await loadLumberInventory();
+
+      // A refresh may have started BEFORE a chop/saw/sale completed.
+      // Never let that older response overwrite a newer mutation result.
+      if (startedAtRevision !== inventoryRevision) return inventoryState;
+
+      return publishInventory(result);
+    } catch (error) {
+      if (!silent) setStatus(getLumberUserErrorMessage(error), 'error');
+      return inventoryState;
+    }
   }
 
   function refreshTreeStates() {
@@ -469,11 +487,15 @@ export function enableLumberFeature({ root, cityId } = {}) {
       if (destroyed || game.cancelled) return;
       const result = await chopLumberTree({ cityId, treeObjectId: String(object.id || ''), miniGameScore: game.score });
       if (result?.tree) upsertTreeState(result.tree);
-      if (result?.inventory) publishInventory(result.inventory);
+      if (result?.inventory) publishInventoryMutation(result.inventory);
       if (result?.skills) publishPlayerSkills(result.skills, { levelUps: result.levelUps });
-      emitToast(`🪵 Получено бревно ×1 · 20 кг · точность ${game.score}%`, 'success');
+      const gainedLogs = Math.max(1, Number(result?.item?.quantity) || 1);
+      const totalLogs = itemQuantity('lumber_log');
+      emitToast(
+        `🪵 Получено бревно ×${gainedLogs} · всего ${totalLogs} · ${20 * gainedLogs} кг · точность ${game.score}%`,
+        'success',
+      );
       void refreshTreeStates();
-      void refreshInventory({ silent: true });
     } catch (error) {
       emitToast(getLumberUserErrorMessage(error), 'error');
       void refreshTreeStates();
@@ -492,7 +514,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     renderInventory();
     setStatus('Выдаём постоянный инструмент…');
     try {
-      publishInventory(await takeLumberTool({ cityId, stationObjectId: activeStationObjectId, itemType: button.dataset.lumberTool }));
+      publishInventoryMutation(await takeLumberTool({ cityId, stationObjectId: activeStationObjectId, itemType: button.dataset.lumberTool }));
       setStatus(button.dataset.lumberTool === 'lumber_tool_axe' ? 'Топор получен. Можно рубить 🌳 и 🌲.' : 'Бензопила получена. Распил доступен.', 'success');
     } catch (error) { setStatus(getLumberUserErrorMessage(error), 'error'); }
     finally { busy = false; renderInventory(); }
@@ -508,7 +530,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
       const game = await playLumberSawMiniGame();
       if (destroyed || game.cancelled) return;
       const result = await sawLumberLog({ cityId, stationObjectId: activeStationObjectId, miniGameScore: game.score });
-      if (result?.inventory) publishInventory(result.inventory);
+      if (result?.inventory) publishInventoryMutation(result.inventory);
       if (result?.skills) publishPlayerSkills(result.skills, { levelUps: result.levelUps });
       setStatus(`Распил готов: −1 бревно, +4 бруса по 5 кг · точность ${game.score}%`, 'success');
     } catch (error) { setStatus(getLumberUserErrorMessage(error), 'error'); }
@@ -542,7 +564,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
       }
 
       const result = await sellLumberItem({ cityId, stationObjectId: activeStationObjectId, itemType, quantity: requestedRaw, channel });
-      if (result?.inventory) publishInventory(result.inventory);
+      if (result?.inventory) publishInventoryMutation(result.inventory);
 
       if (reserved) {
         try {
