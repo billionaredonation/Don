@@ -1,4 +1,6 @@
 import './oilIndustry.css';
+import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
+import '../community/statePurchaseBenefit.css';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {vehicleRequest} from '../vehicles/vehicleIndustryApi.js';
 import { oilRequest, oilError } from './oilIndustryApi.js';
@@ -30,7 +32,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
     const total=Number(s.crude)+Number(s.petrol)+Number(s.petrol92||0)+Number(s.diesel);
     return `${setupHelp()}<p>ID для подключения коммунальных услуг: <code>${esc(s.id)}</code></p><div class="mn-oil-grid"><article><small>Владелец</small><strong>${esc(s.ownerName||'Государство')}</strong></article><article><small>Заполнено / ёмкость</small><strong>${num(total)} / ${num(s.capacity)} л</strong></article><article><small>В пути на склад</small><strong>${num(s.reservedIncoming)} л</strong></article></div>
     <div class="mn-oil-grid">${products().map(p=>`<article><small>${names[p]}</small><strong>${num(s[p])} л</strong></article>`).join('')}</div>
-    ${!s.ownerId?`<p>Покупка предприятия: <b>${money(s.purchasePrice)}</b>. Оборудование приобретается отдельно за ${money(s.equipmentPrice)} со счёта предприятия.</p>${actionButton('purchase','Купить предприятие')}`:''}
+    ${!s.ownerId?`<p>Покупка предприятия: <b data-oil-state-price>${money(s.purchasePrice)}</b>. Оборудование приобретается отдельно за ${money(s.equipmentPrice)} со счёта предприятия.</p>${actionButton('purchase','Купить предприятие')}`:''}
     ${s.kind==='oil_well'?`<p>Добыча: 1 л за 2 секунды (1 800 л/час). ${s.maintenanceRequired?'🛠 Требуется обслуживание':s.running?(Number(s.crude)>=Number(s.capacity)?'Резервуар заполнен, добыча приостановлена.':'🟢 Добыча работает.'):'⏸ Добыча остановлена.'}</p>${s.isOwner?actionButton('start','Запустить добычу',s.running||!s.equipment||s.maintenanceRequired)+actionButton('stop','Остановить',!s.running):''}`:''}
     ${s.kind==='oil_refinery'?`<p>Партия: <b>20 л нефти → 18 л выбранного топлива</b>. Технологические потери: 2 л. Перегонка занимает 60 секунд.</p><p>${s.batchReadyAt?`⏳ Партия готовится: осталось ${Math.max(0,Math.ceil((Date.parse(s.batchReadyAt)-Date.now())/1000))} сек. · ${num(s.batchPetrol)} л А-95 · ${num(s.batchPetrol92)} л А-92 · ${num(s.batchDiesel)} л дизеля`:'Линия свободна.'}</p>${s.isOwner?['petrol','petrol92','diesel'].map(p=>actionButton('refine',`20 л нефти → 18 л ${names[p]}`,!s.equipment||s.maintenanceRequired||!!s.batchReadyAt||Number(s.crude)<20,`data-product="${p}"`)).join(''):''}`:''}
     ${s.kind==='fuel_station'?`<button type="button" data-canister-shop>Канистры и товары АЗС</button><p>${s.selling&&s.equipment&&!s.maintenanceRequired?'🟢 АЗС открыта':'⛔ АЗС закрыта или требует обслуживания'}</p><p>Ваш запас: А-95 — ${num(s.playerFuel.petrol)} л, А-92 — ${num(s.playerFuel.petrol92)} л, дизель — ${num(s.playerFuel.diesel)} л. Общая ёмкость — 200 л. Это прежний личный запас топлива. Для перевозки топлива в канистре откройте товары АЗС.</p>${['petrol','petrol92','diesel'].map(p=>`<article class="mn-oil-row"><b>${names[p]} · ${money(s[p+'Price'])}/л</b>${field('retail-'+p,10,1,Math.max(1,Math.min(200,Math.floor((86400-Number(s.workSeconds))/60))))}${actionButton('retail_buy','Купить топливо',!s.selling||!s.equipment||s.maintenanceRequired,`data-product="${p}"`)}</article>`).join('')}`:''}`;
@@ -60,6 +62,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
     <nav>${[['overview','Обзор / покупка'],...(s.isOwner?[['management','Управление'],...(s.kind!=='oil_well'?[['supply','Закупки'],['deliveries','Доставки']]:[])]:[])].map(([key,label])=>`<button type="button" data-tab="${key}" class="${tab===key?'active':''}">${label}</button>`).join('')}<button data-refresh type="button">Обновить</button></nav>
     <p role="status" class="mn-oil-notice">${esc(busy?'Выполняется действие…':notice)}</p><main>${tab==='management'?management():tab==='supply'?supply():tab==='deliveries'?deliveries():overview()}</main>`;
     renderBusinessStateSaleControl(dialog, { businessId: id, isOwner: Boolean(s?.isOwner) });
+    if(!s?.ownerId)void renderStatePurchaseBenefit(dialog,{basePrice:Number(s?.purchasePrice||0),priceSelector:'[data-oil-state-price]'});
     for(const el of dialog.querySelectorAll('[data-input]'))if(drafts.has(el.dataset.input))el.value=drafts.get(el.dataset.input);
     if(focused)[...dialog.querySelectorAll('[data-input]')].find(el=>el.dataset.input===focused)?.focus({preventScroll:true});
   }
