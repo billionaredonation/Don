@@ -1,4 +1,6 @@
 import './coalPower.css';
+import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
+import '../community/statePurchaseBenefit.css';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import { formatBusinessMoney } from '../business/businessConfig.js';
 import {
@@ -84,6 +86,7 @@ export function enableCoalPowerFeature({ root, cityId } = {}) {
     q('[data-coal-power-core-label]').textContent = generating ? 'Идёт выработка электроэнергии' : energy >= capacity ? 'Требуется разгрузка накопителя' : coal < 20 ? 'Загрузите минимум 20 угля' : 'Ожидает запуска';
     q('[data-coal-power-note]').textContent = generating ? 'УЭС вырабатывает 1,5 кВт·ч/сек. и расходует 3 единицы угля в секунду.' : 'Для запуска нужны все три узла инфраструктуры и минимум 20 единиц обыкновенного угля.';
     q('[data-coal-power-buy]').hidden = Boolean(plant.ownerId); q('[data-coal-power-owned]').hidden = !plant.ownerId;
+    if(!plant.ownerId)void renderStatePurchaseBenefit(modal,{basePrice:20000000,priceSelector:'[data-coal-power-buy] strong'});
     q('[data-coal-power-owner]').textContent = plant.ownerName || 'Государство'; q('[data-coal-power-public-id]').textContent = state.publicId || '—';
     q('[data-coal-power-player-coal]').textContent = Number(state.playerCoalQuantity || 0).toLocaleString('ru-RU');
     q('[data-coal-power-warehouse-stock]').textContent = `${Math.floor(coal).toLocaleString('ru-RU')} ед.`;
