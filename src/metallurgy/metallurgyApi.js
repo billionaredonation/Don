@@ -45,9 +45,34 @@ export function getMetallurgyError(error) {
     METALLURGY_CASH_NOT_ENOUGH: 'На балансе завода недостаточно денег.',
     PROCUREMENT_BUDGET_RESERVED: 'Эта сумма оставлена на закупку сырья. Сначала уменьшите бюджет скупа.',
     METALLURGY_AMOUNT_INVALID: 'Введите корректную сумму.',
+    BUSINESS_UTILITIES_REQUIRED: 'Производство остановлено: предприятию не хватает обязательных коммунальных услуг.',
+    BUSINESS_UTILITIES_CHECK_FAILED: 'Не удалось проверить коммунальные услуги предприятия. Обновите окно и попробуйте ещё раз.',
   };
   const code = Object.keys(messages).find((key) => raw.includes(key));
   return code ? messages[code] : raw;
+}
+
+export function getMetallurgyUtilityProblem(error) {
+  const raw = String(error?.message || error || '');
+
+  if (!raw.includes('BUSINESS_UTILITIES_REQUIRED')) return null;
+
+  const missingRaw = raw.split('BUSINESS_UTILITIES_REQUIRED:')[1] || '';
+  const missing = missingRaw
+    .split(/[\s,;]+/)
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  const labels = {
+    electricity: 'Электричество',
+    water: 'Вода',
+    gas: 'Газ',
+  };
+
+  return {
+    missing: [...new Set(missing.filter((item) => labels[item]))],
+    labels,
+  };
 }
 
 export async function invokeMetallurgyAction(action, payload = {}) {
