@@ -1,4 +1,6 @@
 import './metallurgy.css';
+import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
+import '../community/statePurchaseBenefit.css';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {
   METALLURGY_CONFIG,
@@ -71,6 +73,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     q('[data-metallurgy-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
     q('[data-metallurgy-cash]').textContent = snapshot?.isOwner ? formatMetallurgyMoney(business.cash) : 'Скрыто';
     q('[data-metallurgy-buy]').hidden = Boolean(business.ownerId);
+    if(!business.ownerId)void renderStatePurchaseBenefit(modal,{basePrice:METALLURGY_CONFIG.purchasePrice,priceSelector:'[data-metallurgy-buy] strong'});
     q('[data-metallurgy-owned]').hidden = !business.ownerId;
     q('[data-metallurgy-owner]').textContent = business.ownerName || 'Государство';
     q('[data-metallurgy-public-id]').textContent = currentPublicId;
