@@ -23,6 +23,16 @@ function toast(message, type = 'info') {
   window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 }
 
+function formatCooldown(seconds) {
+  const total = Math.max(0, Math.ceil(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.ceil((total % 3600) / 60);
+
+  if (hours > 0 && minutes > 0) return `${hours} ч ${minutes} мин`;
+  if (hours > 0) return `${hours} ч`;
+  return `${Math.max(1, minutes)} мин`;
+}
+
 export function enableCommunityFeature({ root } = {}) {
   const modal = document.querySelector('[data-player-profile-modal]');
   const overview = modal?.querySelector('[data-profile-page="overview"]');
@@ -91,7 +101,7 @@ export function enableCommunityFeature({ root } = {}) {
     `;
   }
 
-  function inviteMarkup(invites = []) {
+  function inviteMarkup(invites = [], cooldown = null) {
     if (!invites.length) return '';
     return `
       <section class="mn-community-card">
@@ -102,7 +112,9 @@ export function enableCommunityFeature({ root } = {}) {
               <span><b>${esc(invite.name)}</b><small>${esc(invite.publicId)} · от ${esc(invite.invitedByNickname)}</small></span>
               <div>
                 <button data-community-answer="${esc(invite.id)}" data-accept="false">Отклонить</button>
-                <button data-community-answer="${esc(invite.id)}" data-accept="true">Принять</button>
+                <button data-community-answer="${esc(invite.id)}" data-accept="true" ${cooldown?.active ? 'disabled' : ''}>
+                  ${cooldown?.active ? `КД ${esc(formatCooldown(cooldown.remainingSeconds))}` : 'Принять'}
+                </button>
               </div>
             </article>
           `).join('')}
@@ -117,17 +129,37 @@ export function enableCommunityFeature({ root } = {}) {
     const membership = data.membership;
     const invites = Array.isArray(data.invites) ? data.invites : [];
     const level = Number(data.playerLevel || 1);
+    const cooldown = data.cooldown?.active ? data.cooldown : null;
+    const cooldownActive = Boolean(cooldown);
 
     if (!membership) {
       content.innerHTML = `
         ${benefits()}
-        ${inviteMarkup(invites)}
+        ${cooldownActive ? `
+          <section class="mn-community-card">
+            <header><strong>Перерыв между сообществами</strong><small>24 часа</small></header>
+            <p>
+              После выхода или удаления сообщества нельзя создавать новое или вступать в другое ещё
+              <b>${esc(formatCooldown(cooldown.remainingSeconds))}</b>.
+            </p>
+          </section>
+        ` : ''}
+        ${inviteMarkup(invites, cooldown)}
         <section class="mn-community-card mn-community-create">
-          <header><strong>Создать сообщество</strong><small>доступно со 2 уровня</small></header>
+          <header>
+            <strong>Создать сообщество</strong>
+            <small>${cooldownActive ? `КД ${esc(formatCooldown(cooldown.remainingSeconds))}` : 'доступно со 2 уровня'}</small>
+          </header>
           <p>Объедините до 10 игроков. Название можно задать сейчас.</p>
-          <input type="text" maxlength="32" placeholder="Название сообщества" data-community-name ${level < 2 ? 'disabled' : ''}>
-          <button type="button" data-community-create ${level < 2 ? 'disabled' : ''}>
-            ${level < 2 ? `Нужен 2 уровень · сейчас ${level}` : 'Создать сообщество'}
+          <input type="text" maxlength="32" placeholder="Название сообщества" data-community-name ${(level < 2 || cooldownActive) ? 'disabled' : ''}>
+          <button type="button" data-community-create ${(level < 2 || cooldownActive) ? 'disabled' : ''}>
+            ${
+              cooldownActive
+                ? `Доступно через ${esc(formatCooldown(cooldown.remainingSeconds))}`
+                : level < 2
+                  ? `Нужен 2 уровень · сейчас ${level}`
+                  : 'Создать сообщество'
+            }
           </button>
         </section>
       `;
@@ -245,7 +277,14 @@ export function enableCommunityFeature({ root } = {}) {
       return;
     }
     if (target.closest('[data-community-leave]')) {
-      void run(() => leaveCommunity(), 'Вы вышли из сообщества.');
+      const deleting = snapshot?.membership?.role === 'owner'
+        && Number(snapshot?.membership?.memberCount || 0) === 1;
+      void run(
+        () => leaveCommunity(),
+        deleting
+          ? 'Сообщество удалено. Новое создание/вступление — через 24 часа.'
+          : 'Вы вышли из сообщества. Новое создание/вступление — через 24 часа.',
+      );
     }
   }
 
