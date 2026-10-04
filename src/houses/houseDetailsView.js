@@ -2,6 +2,7 @@ import { state } from '../state.js';
 import { loadPowerInbox, answerPowerOffer, getSubstationError } from '../energySubstation/energySubstationApi.js';
 import { loadWaterUtility, answerWaterOffer, getWaterError } from '../waterTreatment/waterTreatmentApi.js';
 import { loadGasUtility, answerGasOffer, getGasError } from '../ukrGaz/ukrGazApi.js';
+import { loadCommunity } from '../community/communityApi.js';
 
 function formatMoney(value) {
   const number = Number(value || 0);
@@ -41,35 +42,31 @@ function getHousePrice(house) {
 }
 
 function formatPurchaseSplit(price, result = {}) {
-  const rawPrice = Number(price || result?.price || result?.housePrice || 0);
+  const paidPrice = Number(result?.price ?? result?.purchasePrice ?? price ?? 0);
+  const basePrice = Number(result?.basePrice ?? price ?? paidPrice ?? 0);
+  if (!Number.isFinite(paidPrice) || paidPrice <= 0) return '';
 
-  if (!Number.isFinite(rawPrice) || rawPrice <= 0) {
-    return '';
-  }
+  const discount = Math.max(0, Number(
+    result?.communityDiscount ?? (Number.isFinite(basePrice) ? basePrice - paidPrice : 0)
+  ) || 0);
 
-  const cityIncome = Number.isFinite(Number(result?.cityIncome))
-    ? Number(result.cityIncome)
-    : Math.round(rawPrice * 0.8);
-
-  const taxBurned = Number.isFinite(Number(result?.taxBurned ?? result?.tax_burned))
-    ? Number(result.taxBurned ?? result.tax_burned)
-    : Math.max(0, rawPrice - cityIncome);
-
-  return ` В бюджет города: ${formatMoney(cityIncome)}. Налог 20% сожжён: ${formatMoney(taxBurned)}.`;
+  return discount > 0
+    ? ` Скидка сообщества: −${formatMoney(discount)}. Оплачено ${formatMoney(paidPrice)}.`
+    : '';
 }
 
-function getStateSaleTerms(house, result = {}) {
+function getStateSaleTerms(house, result = {}, commissionRate = 0.20) {
   const grossPrice = Math.max(0, Math.round(Number(
     result.salePrice ?? result.price ?? getHousePrice(house) ?? 0
   )));
   const tax = Math.max(0, Math.round(Number(
-    result.tax ?? result.cityTax ?? grossPrice * 0.2
+    result.tax ?? result.cityTax ?? grossPrice * commissionRate
   )));
   const payout = Math.max(0, Math.round(Number(
     result.payout ?? result.playerPayout ?? grossPrice - tax
   )));
 
-  return { grossPrice, tax, payout };
+  return { grossPrice, tax, payout, commissionRate };
 }
 
 function getHouseOwnerId(house) {
@@ -332,6 +329,7 @@ export function renderHouseDetailsModal() {
           <div>
             <strong data-house-details-price>0 ₴</strong>
             <small data-house-details-status>Свободен</small>
+            <small data-house-community-benefit hidden></small>
           </div>
         </div>
 
@@ -417,7 +415,7 @@ export function renderHouseDetailsModal() {
 
           <div class="house-state-sale-breakdown">
             <p><span>Стоимость дома</span><b data-house-sale-gross>0 ₴</b></p>
-            <p><span>Налог в бюджет города (20%)</span><b data-house-sale-tax>0 ₴</b></p>
+            <p><span data-house-sale-tax-label>Комиссия государству (20%)</span><b data-house-sale-tax>0 ₴</b></p>
             <p class="is-payout"><span>Ты получишь</span><b data-house-sale-payout>0 ₴</b></p>
           </div>
 
@@ -498,6 +496,7 @@ export function createHouseDetailsController(root, {
   const saleConfirmButton = modal?.querySelector('[data-house-sale-confirm]');
   const saleGross = modal?.querySelector('[data-house-sale-gross]');
   const saleTax = modal?.querySelector('[data-house-sale-tax]');
+  const saleTaxLabel = modal?.querySelector('[data-house-sale-tax-label]');
   const salePayout = modal?.querySelector('[data-house-sale-payout]');
   const playerSalePanel = modal?.querySelector('[data-house-player-sale-panel]');
   const tradeNicknameInput = modal?.querySelector('[data-house-trade-nickname]');
@@ -541,6 +540,7 @@ export function createHouseDetailsController(root, {
   const houseNumber = modal?.querySelector('[data-house-details-number]');
   const houseClass = modal?.querySelector('[data-house-details-class]');
   const owner = modal?.querySelector('[data-house-details-owner]');
+  const communityBenefit = modal?.querySelector('[data-house-community-benefit]');
 
   let activeHouse = null;
   let selectedTradePlayer = null;
@@ -552,6 +552,25 @@ export function createHouseDetailsController(root, {
   let activeGasOffer = null;
   let waterRequestId = 0;
   let gasRequestId = 0;
+  let communitySnapshot = null;
+  let communityRequestId = 0;
+
+  const hasCommunity = () => Boolean(communitySnapshot?.membership);
+  const stateSaleRate = () => hasCommunity() ? 0.18 : 0.20;
+  const statePurchaseDiscount = () => hasCommunity() ? 0.03 : 0;
+
+  async function refreshCommunityTerms() {
+    const requestId = ++communityRequestId;
+    try {
+      const result = await loadCommunity();
+      if (requestId !== communityRequestId) return;
+      communitySnapshot = result || null;
+      if (activeHouse) renderActiveHouse();
+    } catch {
+      if (requestId !== communityRequestId) return;
+      communitySnapshot = null;
+    }
+  }
 
   const isTouchTradeKeyboard = Boolean(
     navigator.maxTouchPoints > 0 &&
@@ -867,6 +886,21 @@ export function createHouseDetailsController(root, {
       ? `Владелец: ${String(ownerName || ownerId || 'Игрок')}`
       : getHouseStatus(activeHouse);
 
+    if (communityBenefit) {
+      if (!owned && statePurchaseDiscount() > 0) {
+        const base = Math.max(0, Number(getHousePrice(activeHouse) || 0));
+        const finalPrice = Math.round(base * (1 - statePurchaseDiscount()));
+        communityBenefit.hidden = false;
+        communityBenefit.textContent = `Сообщество: −3% у государства · к оплате ${formatMoney(finalPrice)}`;
+      } else if (owned && ownerIsCurrentPlayer && stateSaleRate() < 0.20) {
+        communityBenefit.hidden = false;
+        communityBenefit.textContent = 'Сообщество: комиссия при продаже государству 18% вместо 20%';
+      } else {
+        communityBenefit.hidden = true;
+        communityBenefit.textContent = '';
+      }
+    }
+
     houseNumber.textContent = houseNumberText;
     houseClass.textContent = classText;
     owner.textContent = owned ? String(ownerName || ownerId || 'Игрок') : 'Государство';
@@ -963,6 +997,7 @@ export function createHouseDetailsController(root, {
     void refreshPowerOffer();
     void refreshWaterOffer();
     void refreshGasOffer();
+    void refreshCommunityTerms();
   }
 
   function close(event) {
@@ -1088,13 +1123,14 @@ export function createHouseDetailsController(root, {
 
     if (!activeHouse || !isCurrentPlayerHouseOwner(activeHouse) || !onSellToState) return;
 
-    const terms = getStateSaleTerms(activeHouse);
+    const terms = getStateSaleTerms(activeHouse, {}, stateSaleRate());
     if (!terms.grossPrice) {
       setMessage('Для этого дома не указана цена продажи.', 'error');
       return;
     }
 
     saleGross.textContent = formatMoney(terms.grossPrice);
+    if (saleTaxLabel) saleTaxLabel.textContent = `Комиссия государству (${Math.round(stateSaleRate() * 100)}%)`;
     saleTax.textContent = `− ${formatMoney(terms.tax)}`;
     salePayout.textContent = formatMoney(terms.payout);
     setMessage('');
@@ -1201,7 +1237,7 @@ export function createHouseDetailsController(root, {
       hideSaleConfirmation();
       renderActiveHouse();
       setMessage(
-        `Дом продан государству. На баланс зачислено ${formatMoney(terms.payout)}. Налог ${formatMoney(terms.tax)} перечислен в бюджет города.`,
+        `Дом продан государству. На баланс зачислено ${formatMoney(terms.payout)}. Комиссия ${Number(result?.taxRate ?? Math.round(stateSaleRate()*100))}%: ${formatMoney(terms.tax)}.`,
         'success'
       );
 
