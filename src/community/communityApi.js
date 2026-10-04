@@ -57,6 +57,7 @@ export function communityError(error) {
     COMMUNITY_NAME_INVALID: 'Название сообщества: от 3 до 32 символов.',
     COMMUNITY_NAME_TAKEN: 'Такое название сообщества уже занято.',
     COMMUNITY_ALREADY_MEMBER: 'Вы уже состоите в сообществе.',
+    COMMUNITY_COOLDOWN_ACTIVE: 'После выхода или удаления сообщества нужно подождать 24 часа перед созданием или вступлением в новое.',
     COMMUNITY_OWNER_REQUIRED: 'Это действие доступно только главе сообщества.',
     COMMUNITY_FULL: 'В сообществе уже 10 участников.',
     COMMUNITY_PLAYER_NOT_FOUND: 'Игрок не найден. Укажите точный ник или Telegram ID.',
