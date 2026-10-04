@@ -20,3 +20,73 @@
 @media(max-width:720px){.mn-metallurgy-panel{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}.mn-metallurgy-panel>header{padding:14px}.mn-metallurgy-panel h2{font-size:20px}.mn-metallurgy-panel>main{padding:11px}.mn-metallurgy-status{grid-template-columns:1fr 1fr}.mn-metallurgy-status span:last-child{grid-column:1/-1}.mn-metallurgy-recipes,.mn-metallurgy-stock{grid-template-columns:1fr}.mn-metallurgy-recipe{grid-template-columns:auto 1fr}.mn-metallurgy-recipe>div{grid-column:1/-1;grid-template-columns:65px 1fr}.mn-metallurgy-buy{align-items:stretch;flex-direction:column}}
 .mn-textile-active-batch{position:sticky;top:57px;z-index:1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;margin-top:14px;padding:13px 15px;border:1px solid #75df9455;border-radius:15px;background:linear-gradient(135deg,#102719f5,#0a130df5);box-shadow:0 10px 28px #0008}.mn-textile-active-batch>i{font-style:normal;font-size:25px}.mn-textile-active-batch>span{display:grid;gap:3px}.mn-textile-active-batch small{color:#ffffff9a;font-size:10px}.mn-textile-active-batch>button{min-height:40px;border:0;border-radius:10px;padding:0 14px;background:#75df94;color:#07150b;font-weight:900}
 @media(max-width:720px){.mn-textile-active-batch{top:55px;grid-template-columns:auto 1fr}.mn-textile-active-batch>button{grid-column:1/-1}}
+
+
+/* === Utility state information === */
+
+.mn-metallurgy-utilities-alert{
+  display:grid;
+  gap:10px;
+  margin:0 24px 14px;
+  padding:12px 14px;
+  border:1px solid rgba(232,154,67,.30);
+  border-radius:13px;
+  background:linear-gradient(135deg,rgba(101,49,16,.24),rgba(41,23,12,.45));
+}
+
+.mn-metallurgy-utilities-alert[hidden]{
+  display:none!important;
+}
+
+.mn-metallurgy-utilities-alert>div:first-child{
+  display:grid;
+  gap:3px;
+}
+
+.mn-metallurgy-utilities-alert strong{
+  color:#ffd08d;
+  font-size:12px;
+}
+
+.mn-metallurgy-utilities-alert small,
+.mn-metallurgy-utilities-alert p{
+  color:rgba(255,255,255,.62);
+  font-size:9px;
+  line-height:1.45;
+}
+
+.mn-metallurgy-utility-list{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+.mn-metallurgy-utility-list span{
+  display:inline-flex;
+  align-items:center;
+  min-height:30px;
+  padding:0 10px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:999px;
+  background:rgba(255,255,255,.04);
+  color:rgba(255,255,255,.72);
+  font-size:9px;
+  font-weight:800;
+}
+
+.mn-metallurgy-utility-list span.is-missing{
+  border-color:rgba(239,92,92,.35);
+  background:rgba(126,25,25,.24);
+  color:#ffb0b0;
+}
+
+.mn-metallurgy-utility-list span.is-ok{
+  border-color:rgba(74,194,121,.28);
+  background:rgba(23,93,51,.20);
+  color:#9ee7b8;
+}
+
+.mn-metallurgy-utilities-alert p{
+  margin:0;
+  color:#d8b88e;
+}
