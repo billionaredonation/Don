@@ -1318,3 +1318,14 @@ body.mn-mobile-game-enabled .mn-business-procurement-preview > span {
     grid-template-columns: 1fr;
   }
 }
+
+
+.mn-business-details footer [data-business-details-robbery] {
+  border: 1px solid rgba(232,81,81,.3);
+  background: rgba(143,31,31,.36);
+  color: #ffd0d0;
+}
+
+.mn-business-details footer [data-business-details-robbery]:hover {
+  background: rgba(166,38,38,.5);
+}
