@@ -70,12 +70,24 @@ export function enableCommunityFeature({ root } = {}) {
   function benefits() {
     return `
       <section class="mn-community-benefits">
-        <article><strong>+10%</strong><span>ресурсов при совместной работе</span></article>
-        <article><strong>18%</strong><span>комиссия при продаже имущества государству</span></article>
-        <article><strong>−3%</strong><span>на покупку имущества у государства</span></article>
-        <article><strong>10</strong><span>максимум участников</span></article>
+        <article>
+          <strong>+10% ресурсов</strong>
+          <span>Если 2+ участника сообщества работают вместе</span>
+        </article>
+        <article>
+          <strong>Комиссия 18%</strong>
+          <span>При продаже дома или бизнеса государству вместо 20%</span>
+        </article>
+        <article>
+          <strong>−3% к цене</strong>
+          <span>При покупке дома или бизнеса у государства</span>
+        </article>
+        <article>
+          <strong>До 10 игроков</strong>
+          <span>Максимальная вместимость одного сообщества</span>
+        </article>
       </section>
-      <p class="mn-community-note">Скидки не действуют на сделки между игроками, налоги и коммунальные услуги.</p>
+      <p class="mn-community-note">Бонусы не действуют на налоги, коммуналку и сделки между игроками.</p>
     `;
   }
 
