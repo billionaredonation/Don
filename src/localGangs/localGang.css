@@ -1,0 +1,255 @@
+.mn-profile-local-gang-button i{
+  color:#e3ad67;
+}
+
+.mn-local-gang-page{
+  min-height:100%;
+}
+
+.mn-local-gang-content{
+  display:grid;
+  gap:12px;
+  padding:0 0 18px;
+}
+
+.mn-local-gang-lore{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+
+.mn-local-gang-lore article,
+.mn-local-gang-card,
+.mn-local-gang-status,
+.mn-local-gang-hero{
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(13,17,14,.82);
+  border-radius:14px;
+}
+
+.mn-local-gang-lore article{
+  display:grid;
+  gap:4px;
+  padding:11px;
+}
+
+.mn-local-gang-lore strong{
+  font-size:11px;
+  color:#f2d3a4;
+}
+
+.mn-local-gang-lore span,
+.mn-local-gang-card p,
+.mn-local-gang-status span{
+  font-size:9px;
+  line-height:1.45;
+  color:#8f9b90;
+}
+
+.mn-local-gang-lore .is-denied{
+  border-color:rgba(255,100,100,.15);
+}
+
+.mn-local-gang-lore .is-denied strong{
+  color:#ef8d8d;
+}
+
+.mn-local-gang-hero{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px;
+}
+
+.mn-local-gang-hero > span{
+  display:grid;
+  gap:2px;
+}
+
+.mn-local-gang-hero small{
+  font-size:7px;
+  letter-spacing:.16em;
+  color:#9d7a4e;
+}
+
+.mn-local-gang-hero strong{
+  font-size:16px;
+  color:#f5f3e9;
+}
+
+.mn-local-gang-hero em{
+  font-size:8px;
+  font-style:normal;
+  color:#788178;
+}
+
+.mn-local-gang-hero > b{
+  font-size:18px;
+  color:#d8ae70;
+}
+
+.mn-local-gang-hero.is-active{
+  border-color:rgba(218,170,100,.28);
+}
+
+.mn-local-gang-status{
+  display:grid;
+  gap:3px;
+  padding:10px 12px;
+}
+
+.mn-local-gang-status strong{
+  font-size:10px;
+}
+
+.mn-local-gang-status.is-active strong{
+  color:#76d69b;
+}
+
+.mn-local-gang-status.is-waiting strong{
+  color:#d8ae70;
+}
+
+.mn-local-gang-card{
+  display:grid;
+  gap:10px;
+  padding:12px;
+}
+
+.mn-local-gang-card > header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.mn-local-gang-card > header strong{
+  font-size:11px;
+}
+
+.mn-local-gang-card > header small{
+  font-size:8px;
+  color:#7c867c;
+}
+
+.mn-local-gang-card input{
+  min-height:38px;
+  width:100%;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;
+  background:#0d120e;
+  color:#f3f4ef;
+  padding:0 10px;
+  outline:none;
+}
+
+.mn-local-gang-card button,
+.mn-local-gang-actions button{
+  min-height:36px;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;
+  background:#182019;
+  color:#e8eee8;
+  padding:0 10px;
+  cursor:pointer;
+}
+
+.mn-local-gang-card button:hover{
+  background:#202b22;
+}
+
+.mn-local-gang-invite-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:8px;
+}
+
+.mn-local-gang-list,
+.mn-local-gang-crimes{
+  display:grid;
+  gap:7px;
+}
+
+.mn-local-gang-list article,
+.mn-local-gang-crimes article{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:9px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:11px;
+  background:rgba(255,255,255,.02);
+}
+
+.mn-local-gang-list article > span,
+.mn-local-gang-crimes article > span{
+  display:grid;
+  gap:2px;
+  min-width:0;
+}
+
+.mn-local-gang-list b,
+.mn-local-gang-crimes b{
+  font-size:10px;
+}
+
+.mn-local-gang-list small,
+.mn-local-gang-crimes small{
+  font-size:8px;
+  color:#7f897f;
+}
+
+.mn-local-gang-list article > div{
+  display:flex;
+  gap:5px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.mn-local-gang-list article > div button{
+  min-height:29px;
+  font-size:7px;
+}
+
+.mn-local-gang-crimes i{
+  font-size:8px;
+  font-style:normal;
+  color:#d89d73;
+  white-space:nowrap;
+}
+
+.mn-local-gang-empty{
+  margin:0;
+}
+
+.mn-local-gang-actions{
+  display:flex;
+  justify-content:flex-end;
+}
+
+.mn-local-gang-actions button{
+  border-color:rgba(255,90,90,.18);
+  color:#e99a9a;
+  background:rgba(110,25,25,.16);
+}
+
+.mn-local-gang-error{
+  padding:14px;
+  border:1px solid rgba(255,80,80,.2);
+  border-radius:12px;
+  background:rgba(80,20,20,.14);
+  color:#e8a2a2;
+  font-size:10px;
+}
+
+@media(max-width:760px){
+  .mn-local-gang-lore{
+    grid-template-columns:1fr;
+  }
+
+  .mn-local-gang-invite-row{
+    grid-template-columns:1fr;
+  }
+}
