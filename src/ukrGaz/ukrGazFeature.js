@@ -1,4 +1,5 @@
 import './ukrGaz.css';
+import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {
   loadUkrGaz,
   payGasMaintenance,
@@ -122,7 +123,7 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
     const ready = Boolean(s.equipment?.collection && s.equipment?.purification && s.equipment?.transport);
     return `<section class="mn-gas-page"><div class="mn-gas-consumer-heading"><div><h3>Газоснабжение домов и предприятий</h3><p>Подключение стоит фиксированные 1 000 ₴. Тариф задаёт владелец, но не ниже 10 ₴ за единицу.</p></div><span>${openCount}/10 мест</span></div>
       ${s.isOwner ? `<div class="mn-gas-offer"><input data-gas-house maxlength="120" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома / предприятия"><input data-gas-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за единицу"><button data-gas-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
-      ${s.isOwner ? `<button data-gas-warehouse="${s.supplyRunning?'supply_stop':'supply_start'}" data-value="0">${s.supplyRunning?'Остановить поставку':'Запустить поставку'}</button>` : ''}<div class="mn-gas-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.gasActive ? '🔥 Газ поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / ед.</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyUnits)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-gas-empty">Абонентов пока нет.</div>'}</div>
+      ${s.isOwner ? `<button data-gas-warehouse="${s.supplyRunning?'supply_stop':'supply_start'}" data-value="0">${s.supplyRunning?'Остановить поставку':'Запустить поставку'}</button>` : ''}<div class="mn-gas-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>Объект ${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.gasActive ? '🔥 Газ поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / ед.</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyUnits)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-gas-empty">Абонентов пока нет.</div>'}</div>
     </section>`;
   }
 
@@ -170,6 +171,7 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
       : null;
     modal.classList.toggle('is-running', Boolean(snapshot?.running));
     content.innerHTML = activeTab === 'warehouse' ? warehouseView() : activeTab === 'equipment' ? equipmentView() : activeTab === 'consumers' ? consumersView() : overview();
+    renderBusinessStateSaleControl(content, { businessId: currentId, isOwner: Boolean(snapshot?.isOwner) });
     if (snapshot?.isOwner && ['overview', 'equipment'].includes(activeTab)) {
       content.insertAdjacentHTML('beforeend', `<section class="mn-gas-page"><h3>Обслуживание матрицы</h3><p>Наработка: ${Number(snapshot.maintenanceHours || 0).toFixed(2)} / ${Number(snapshot.maintenanceIntervalHours || 24)} ч. Стоимость: ${money(snapshot.maintenancePrice ?? 400)}.</p><p>Оплата вручную со счёта предприятия. Автоматического списания нет. После выработки ресурса матрица останавливается; накопленный газ остаётся доступен для поставки.</p>${snapshot.maintenanceRequired ? `<button data-gas-maintenance>Оплатить обслуживание · ${money(snapshot.maintenanceDue)}</button>` : '<p>Обслуживание пока не требуется.</p>'}</section>`);
     }
