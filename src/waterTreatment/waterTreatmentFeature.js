@@ -1,4 +1,5 @@
 import './waterTreatment.css';
+import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {
   loadWaterTreatment,
   buyWaterTreatment,
@@ -120,7 +121,7 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
     const ready = Boolean(s.equipment?.collection && s.equipment?.purification && s.equipment?.transport);
     return `<section class="mn-water-page"><div class="mn-water-consumer-heading"><div><h3>Водоснабжение домов и предприятий</h3><p>Норма: дом — 75 л/сутки, магазин — 300, завод — 450. Подключение стоит 1 000 ₴. Тариф задаёт владелец, но не ниже 10 ₴ за литр.</p></div><span>${openCount}/10 мест</span></div>
       ${s.isOwner ? `<div class="mn-water-offer"><input data-water-house maxlength="120" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома / предприятия"><input data-water-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за литр"><button data-water-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
-      <div class="mn-water-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.waterActive ? '💧 Вода поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / л</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyLiters)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-water-empty">Абонентов пока нет.</div>'}</div>
+      <div class="mn-water-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>Дом ${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.waterActive ? '💧 Вода поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / л</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyLiters)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-water-empty">Абонентов пока нет.</div>'}</div>
     </section>`;
   }
 
@@ -165,6 +166,7 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
       : null;
     modal.classList.toggle('is-running', Boolean(snapshot?.running));
     content.innerHTML = activeTab === 'equipment' ? equipmentView() : activeTab === 'consumers' ? consumersView() : overview();
+    renderBusinessStateSaleControl(content, { businessId: currentId, isOwner: Boolean(snapshot?.isOwner) });
     bind();
     if (focusState) {
       const next = content.querySelector(focusState.selector);
