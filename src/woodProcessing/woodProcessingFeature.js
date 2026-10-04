@@ -1,5 +1,5 @@
-import { loadBusinessUtilityStatus, renderBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import '../metallurgy/metallurgy.css';
+import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import {
   WOOD_PROCESSING_CONFIG,
   WOOD_PROCESSING_DESTINATIONS,
@@ -52,12 +52,11 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
   let currentPublicId = '—';
   let snapshot = null;
   let procurement = null;
-  let utilityStatus = null;
   let busy = false;
 
   function render() {
     const business = snapshot?.business || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
-    q('[data-wood-state]').textContent = business.ownerId ? (utilityStatus && !utilityStatus.operational ? 'Остановлено · нет коммуналки' : 'Готов к производству') : 'Государственный';
+    q('[data-wood-state]').textContent = business.ownerId ? 'Готов к производству' : 'Государственный';
     q('[data-wood-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
     q('[data-wood-cash]').textContent = snapshot?.isOwner ? formatWoodMoney(business.cash) : 'Скрыто';
     q('[data-wood-buy]').hidden = Boolean(business.ownerId);
@@ -66,14 +65,14 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
     q('[data-wood-public-id]').textContent = currentPublicId;
     WOOD_PROCESSING_RAW_ITEMS.forEach((item) => { q(`[data-wood-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
     Object.keys(WOOD_PROCESSING_RECIPES).forEach((id) => { q(`[data-wood-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
-    qa('[data-wood-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || (utilityStatus && !utilityStatus.operational); });
+    qa('[data-wood-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     qa('[data-wood-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.woodOffer] || 0) < 1; });
     qa('[data-wood-deposit],[data-wood-withdraw]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     renderProcurementControls(modal, 'wood', procurement, WOOD_PROCESSING_RAW_ITEMS, { canManage:snapshot?.isOwner, busy });
-    renderBusinessUtilityGate(modal, utilityStatus, { isOwner:snapshot?.isOwner, objectId:currentPublicId });
+    renderBusinessStateSaleControl(modal, { businessId: currentFactoryId, isOwner: Boolean(snapshot?.isOwner) });
   }
 
-  async function refresh() { snapshot = await loadWoodProcessingSnapshot(currentFactoryId, cityId); procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'wood_processing' }) : null; utilityStatus = snapshot?.isOwner ? await loadBusinessUtilityStatus([currentFactoryId, currentPublicId]) : null; render(); }
+  async function refresh() { snapshot = await loadWoodProcessingSnapshot(currentFactoryId, cityId); procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'wood_processing' }) : null; render(); }
   async function run(task, success = '', errorFormatter = getWoodProcessingError) {
     if (busy) return;
     busy = true; modal.classList.add('is-busy'); render();
@@ -132,4 +131,3 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
   window.addEventListener('mn:wood-processing-object-action', onObjectAction);
   return () => { window.removeEventListener('mn:wood-processing-object-action', onObjectAction); modal.remove(); };
 }
-
