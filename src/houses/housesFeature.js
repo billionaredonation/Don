@@ -19,6 +19,7 @@ import {
   findOnlineTradePlayer,
 } from './houseTradeFeature.js';
 import { enableInteriorsFeature } from '../interiors/interiorsFeature.js';
+import { fetchCityDirectory, getEmptyCityDirectory } from '../city/cityDirectory.js';
 
 function getPlayerTgId() {
   return (
@@ -430,11 +431,15 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
     }
 
     const requestId = ++mountRequestId;
-    let houses, cityStats;
+    let houses, cityStats, cityDirectory;
     try {
-      [houses, cityStats] = await Promise.all([
+      [houses, cityStats, cityDirectory] = await Promise.all([
         loadHousesFeature(cityId),
         loadCitySummary(cityId),
+        fetchCityDirectory(cityId).catch((error) => {
+          console.warn('[houses] city directory load failed:', error);
+          return getEmptyCityDirectory();
+        }),
       ]);
     } catch (error) {
       console.warn('[houses] modal refresh failed:', error);
@@ -472,6 +477,7 @@ export function enableHousesFeature(root, { cityId, city } = {}) {
       city: city || { name: cityId || 'Город' },
       houses,
       cityStats,
+      cityDirectory,
     }));
 
     cleanupModal = enableHousesStatsModal(root, {
