@@ -53,3 +53,4 @@ export async function loadBusinessUtilityPortal(objectIds = []) {
 
   return data.result || {};
 }
+
