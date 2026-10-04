@@ -1,4 +1,6 @@
 import './factory.css';
+import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
+import '../community/statePurchaseBenefit.css';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import './factoryRedesign.css';
 import { FACTORY_CONFIG, FACTORY_PROCUREMENT_ITEMS, FACTORY_RAW_ITEMS, FACTORY_RECIPES, FACTORY_ROLES, formatFactoryMoney } from './factoryConfig.js';
@@ -65,6 +67,7 @@ export function enableFactoryFeature({ root, cityId }) {
     q('[data-factory-state]').textContent = business.ownerName ? (batch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
     q('[data-factory-role]').textContent = s.roleLabel || 'Посетитель'; q('[data-factory-cash]').textContent = s.canManage ? formatFactoryMoney(business.cash) : 'Скрыто';
     q('[data-factory-buy]').hidden = Boolean(business.ownerId); q('[data-factory-owned]').hidden = !business.ownerId;
+    if(!business.ownerId)void renderStatePurchaseBenefit(modal,{basePrice:FACTORY_CONFIG.purchasePrice,priceSelector:'[data-factory-buy] strong'});
     q('[data-factory-owner]').textContent = business.ownerName || 'Государство'; q('[data-factory-legal-view]').textContent = business.legalForm || '—';
     q('[data-factory-public-id]').textContent = currentPublicId;
     q('[data-factory-purchase-legal]').textContent = `${currentLegal.legalFormLabel} · ${currentLegal.taxGroupLabel}`;
