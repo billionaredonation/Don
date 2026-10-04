@@ -195,6 +195,7 @@ function modalMarkup() {
         <div class="mn-business-message" data-business-details-message hidden></div>
         <footer>
           <button type="button" data-business-details-close>Назад</button>
+          <button type="button" class="is-danger" data-business-details-robbery hidden>💰 Ограбить кассу</button>
           <button type="button" class="is-primary" data-business-buy>Купить бизнес</button>
           <button type="button" class="is-primary" data-business-enter hidden>Открыть бизнес</button>
         </footer>
@@ -711,6 +712,13 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
         : 'После покупки вы сможете вручную расставлять товар, назначать цены, нанимать сотрудников и сдавать декларации в удобный момент.';
     detailsModal.querySelector('[data-business-buy]').hidden = owned;
     detailsModal.querySelector('[data-business-enter]').hidden = !owned;
+
+    const robberyButton = detailsModal.querySelector('[data-business-details-robbery]');
+    if (robberyButton) {
+      // Visible even on a state-owned shop. Server enforces 2+ gang members,
+      // distance, cooldowns and protected ownership relations.
+      robberyButton.hidden = !isRobbableSmallShop(activeObject) || isOwner(activeObject);
+    }
   }
 
   function openDetails(object) {
@@ -813,6 +821,73 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
       toast(message, 'error');
       return null;
     } finally { busy = false; }
+  }
+
+  async function handleDetailsRobbery() {
+    if (!activeObject || busy || !isRobbableSmallShop(activeObject) || isOwner(activeObject)) return;
+
+    busy = true;
+    setDetailsMessage('Проверяем банду и кассу…');
+
+    try {
+      const preview = await previewBusinessRobbery(businessId(activeObject));
+
+      if (preview?.allowed !== true) {
+        const reason = preview?.reason === 'LOCAL_GANG_REGISTER_EMPTY'
+          ? 'В кассе сейчас слишком мало денег.'
+          : preview?.reason === 'LOCAL_GANG_ROBBERY_COOLDOWN'
+            ? `Повторный налёт будет доступен после ${robberyReadyLabel(preview?.readyAt)}.`
+            : 'Сейчас налёт недоступен.';
+
+        setDetailsMessage(reason, 'error');
+        toast(reason, 'error');
+        return;
+      }
+
+      const participantCount = Number(preview.participantCount || 0);
+      const chance = Number(preview.successChance || 0);
+      const estimatedLoot = Number(preview.estimatedLoot || 0);
+
+      const confirmed = window.confirm(
+        `Ограбить кассу?\n\n`
+        + `Участников рядом: ${participantCount}/3\n`
+        + `Шанс успеха: ${chance}%\n`
+        + `Доход банды: до ${formatBusinessMoney(estimatedLoot)}\n\n`
+        + 'Все участники получат запись в уголовную книжку.'
+      );
+
+      if (!confirmed) {
+        setDetailsMessage('');
+        return;
+      }
+
+      const result = await robBusinessCash(businessId(activeObject));
+
+      const playerBalance = Number(result?.playerBalance);
+      if (Number.isFinite(playerBalance)) {
+        state.player = { ...(state.player || {}), balance: playerBalance };
+        save();
+        window.dispatchEvent(new CustomEvent('mn:player-balance-changed', {
+          detail: { balance: playerBalance, source: 'local_gang_shop_robbery', result },
+        }));
+      }
+
+      if (result?.success) {
+        const message = `Налёт успешен. Банда забрала ${formatBusinessMoney(result.lootTotal)}. Ваша доля: ${formatBusinessMoney(result.actorShare)}.`;
+        setDetailsMessage(message, 'success');
+        toast(message, 'success');
+      } else {
+        const message = 'Налёт провалился. В уголовную книжку добавлена попытка ограбления магазина.';
+        setDetailsMessage(message, 'error');
+        toast(message, 'error');
+      }
+    } catch (error) {
+      const message = getBusinessUserErrorMessage(error);
+      setDetailsMessage(message, 'error');
+      toast(message, 'error');
+    } finally {
+      busy = false;
+    }
   }
 
   async function handleBuy() {
@@ -1390,6 +1465,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
 
   detailsModal?.addEventListener('click', (event) => {
     if (event.target.closest('[data-business-details-close]')) closeDetails();
+    if (event.target.closest('[data-business-details-robbery]')) void handleDetailsRobbery();
     if (event.target.closest('[data-business-buy]')) void handleBuy();
     if (event.target.closest('[data-business-enter]')) void openStore();
   });
