@@ -40,6 +40,7 @@ export function localGangError(error) {
     LOCAL_GANG_NAME_INVALID: 'Название банды должно содержать от 3 до 28 символов.',
     LOCAL_GANG_NAME_TAKEN: 'Банда с таким названием уже существует.',
     LOCAL_GANG_ALREADY_MEMBER: 'Вы уже состоите в местной банде.',
+    LOCAL_GANG_CREATE_COOLDOWN_ACTIVE: 'После выхода или удаления банды новую можно создать только через 3 часа.',
     LOCAL_GANG_NOT_MEMBER: 'Вы не состоите в местной банде.',
     LOCAL_GANG_NOT_FOUND: 'Банда больше не существует.',
     LOCAL_GANG_OWNER_REQUIRED: 'Это действие доступно только главе банды.',
