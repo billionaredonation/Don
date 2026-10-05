@@ -37,6 +37,7 @@ import {
 
 import { enableHousesFeature } from '../../src/houses/housesFeature.js';
 import { enableBankFeature } from '../../src/bank/bankFeature.js';
+import { enableProductionWageFeature } from '../../src/productionWages/productionWageFeature.js';
 import { enableBusinessFeature } from '../../src/business/businessFeature.js';
 import { enableLogisticsFeature } from '../../src/logistics/logisticsFeature.js';
 import { enableInventoryFeature } from '../../src/inventory/inventoryFeature.js';
@@ -1611,6 +1612,7 @@ register('home', async (root) => {
   let cleanupProductionMarket = null;
   let cleanupGameRealtime = null;
   let cleanupBankFeature = null;
+  let cleanupProductionWageFeature = null;
   let cleanupMobileSelfMarker = null;
   let cleanupBalanceDatabaseSync = null;
   let cleanupHouseSpawnPicker = null;
@@ -2290,6 +2292,7 @@ register('home', async (root) => {
   });
 
   cleanupBankFeature = enableBankFeature({ root, cityId });
+  cleanupProductionWageFeature = enableProductionWageFeature({ root, cityId });
 
   const enableOptionalProductionModule = (name, setup) => {
     try {
@@ -2532,6 +2535,7 @@ register('home', async (root) => {
     cleanupAdminPanel?.();
     cleanupEntityInteraction?.();
     cleanupBankFeature?.();
+    cleanupProductionWageFeature?.();
     cleanupFarmFeature?.();
     cleanupMineFeature?.();
     cleanupLumberFeature?.();
