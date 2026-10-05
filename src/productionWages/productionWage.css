@@ -1,0 +1,67 @@
+.mn-production-wage-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 88px;
+  z-index: 2147482500;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(120,255,173,.34);
+  border-radius: 16px;
+  padding: 10px 14px;
+  color: #eafff1;
+  background: rgba(10,27,18,.94);
+  box-shadow: 0 12px 38px rgba(0,0,0,.42);
+  font: 800 13px/1 system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+}
+.mn-production-wage-launcher[hidden]{display:none!important}
+.mn-production-wage-launcher span{
+  display:grid;place-items:center;width:28px;height:28px;border-radius:10px;
+  background:rgba(72,210,125,.18);color:#89f4ae;font-size:17px
+}
+.mn-production-wage-modal{
+  position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:18px
+}
+.mn-production-wage-modal[hidden]{display:none!important}
+.mn-production-wage-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.66);backdrop-filter:blur(8px)}
+.mn-production-wage-card{
+  position:relative;width:min(540px,calc(100vw - 28px));max-height:calc(100dvh - 36px);
+  overflow:auto;border:1px solid rgba(120,255,173,.24);border-radius:24px;padding:20px;
+  color:#edf8f1;background:linear-gradient(180deg,rgba(14,27,21,.99),rgba(8,17,13,.99));
+  box-shadow:0 30px 100px rgba(0,0,0,.72);font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif
+}
+.mn-production-wage-card header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.mn-production-wage-card header small{color:#72db9b;font-weight:900;letter-spacing:.08em}
+.mn-production-wage-card h3{margin:5px 0 5px;font-size:24px}
+.mn-production-wage-card header p{margin:0;opacity:.68;line-height:1.42;font-size:13px}
+.mn-production-wage-card header button{
+  flex:none;width:38px;height:38px;border-radius:12px;border:1px solid rgba(255,255,255,.12);
+  color:#fff;background:rgba(255,255,255,.06);font-size:24px
+}
+.mn-production-wage-status{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}
+.mn-production-wage-status span{padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.035)}
+.mn-production-wage-status small,.mn-production-wage-status strong{display:block}
+.mn-production-wage-status small{opacity:.55;font-size:11px;margin-bottom:5px}
+.mn-production-wage-field{display:block}
+.mn-production-wage-field span{display:block;margin-bottom:7px;font-size:13px;font-weight:800}
+.mn-production-wage-field input{
+  width:100%;box-sizing:border-box;padding:13px 14px;border-radius:14px;
+  border:1px solid rgba(120,255,173,.2);outline:none;color:#fff;background:rgba(0,0,0,.28);
+  font:800 17px/1.2 system-ui
+}
+.mn-production-wage-note{margin-top:10px;padding:11px 12px;border-radius:13px;background:rgba(75,166,108,.08);opacity:.75;font-size:12px;line-height:1.42}
+.mn-production-wage-actions{display:flex;justify-content:flex-end;margin-top:16px}
+.mn-production-wage-actions button{
+  border:1px solid rgba(102,240,151,.32);border-radius:14px;padding:12px 16px;
+  color:#effff5;background:rgba(46,153,85,.22);font-weight:900
+}
+.mn-production-wage-message{min-height:18px;margin-top:10px;font-size:12px;font-weight:800}
+.mn-production-wage-message[data-type="success"]{color:#83eaa8}
+.mn-production-wage-message[data-type="error"]{color:#ff8d98}
+body.mn-production-wage-open{overflow:hidden}
+@media(max-width:720px){
+  .mn-production-wage-launcher{right:10px;bottom:76px;padding:8px 10px}
+  .mn-production-wage-launcher b{display:none}
+  .mn-production-wage-card{padding:16px;border-radius:20px}
+  .mn-production-wage-status{grid-template-columns:1fr}
+}
