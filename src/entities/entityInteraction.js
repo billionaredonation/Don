@@ -34,11 +34,38 @@ function isBankMapObject(object) {
   return ['bank', 'bank_branch', 'mn_bank', 'bank_office'].includes(type) || name === 'банк' || name.includes('банк mn');
 }
 
+function isProductionFactoryObject(object) {
+  const type = String(
+    object?.payload?.jobType ||
+    object?.payload?.type ||
+    object?.type ||
+    object?.category ||
+    ''
+  ).trim().toLowerCase();
+
+  return [
+    'fruit_factory',
+    'metallurgy_factory',
+    'textile_factory',
+    'wood_processing_factory',
+    'tool_assembly_factory',
+  ].includes(type);
+}
+
 function dispatchMapObjectAction(object) {
+  window.dispatchEvent(new CustomEvent('mn:map-object-action', { detail: { object } }));
+
   if (isBankMapObject(object)) {
     window.dispatchEvent(new CustomEvent('mn:bank-object-action', { detail: { object } }));
     return;
   }
+
+  if (isProductionFactoryObject(object)) {
+    window.dispatchEvent(new CustomEvent('mn:production-factory-object-action', {
+      detail: { object },
+    }));
+  }
+
   dispatchEntityAction(object);
 }
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
