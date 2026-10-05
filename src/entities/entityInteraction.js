@@ -21,6 +21,26 @@ const WORK_OBJECT_INTERACTION_RADIUS_PX = 26;
 const MOBILE_WORK_OBJECT_INTERACTION_RADIUS_PX = 30;
 const HOUSE_TAP_TARGET_RADIUS_PX = 52;
 const INTERACTION_HINT_VISIBLE_MS = 2200;
+
+function isBankMapObject(object) {
+  const type = String(
+    object?.payload?.jobType ||
+    object?.payload?.type ||
+    object?.type ||
+    object?.category ||
+    ''
+  ).trim().toLowerCase();
+  const name = String(object?.name || object?.payload?.name || '').trim().toLowerCase();
+  return ['bank', 'bank_branch', 'mn_bank', 'bank_office'].includes(type) || name === 'банк' || name.includes('банк mn');
+}
+
+function dispatchMapObjectAction(object) {
+  if (isBankMapObject(object)) {
+    window.dispatchEvent(new CustomEvent('mn:bank-object-action', { detail: { object } }));
+    return;
+  }
+  dispatchEntityAction(object);
+}
 const MAP_OBJECTS_SNAPSHOT_INTERVAL_MS = isMobileGameplayDevice() ? 75000 : 8500;
 const INTERACTION_SCAN_INTERVAL_MS = isMobileGameplayDevice() ? 170 : 150;
 const FARM_PLANT_OBJECT_TYPES = new Set([
@@ -858,7 +878,7 @@ export function createEntityInteractionPanel(root) {
     const object = selectedObject;
 
     close();
-    dispatchEntityAction(object);
+    dispatchMapObjectAction(object);
   }
 
   function renderPrompt(object) {
@@ -2026,7 +2046,7 @@ export function enableEntityInteraction({
     hideInteractionHint();
 
     if (panel?.shouldSkipPrompt?.(object)) {
-      dispatchEntityAction(object);
+      dispatchMapObjectAction(object);
       return true;
     }
 
