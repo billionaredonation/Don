@@ -1,12 +1,13 @@
 import './factory.css';
 import './factoryRedesign.css';
 import { FACTORY_CONFIG, FACTORY_PROCUREMENT_ITEMS, FACTORY_RAW_ITEMS, FACTORY_RECIPES, FACTORY_ROLES, formatFactoryMoney } from './factoryConfig.js';
-import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, cookFactoryBatch, finishFactoryBatch, attemptFactoryWorkplaceTheft, declineFactoryWorkplaceTheft, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, getFactoryError } from './factoryApi.js';
+import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, cookFactoryBatch, finishFactoryBatch, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, getFactoryError } from './factoryApi.js';
 import { getProductionExchangeError, publishProductionOffer } from '../market/productionExchangeApi.js';
 import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
 import { getProcurementError, loadProcurementSnapshot, setProcurementBudget, setProcurementItem } from '../procurement/procurementApi.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import { getBusinessLegalPayload } from '../business/businessConfig.js';
+import { askWorkplaceTheft } from '../workplaceTheft/workplaceTheftFeature.js';
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 const objectType = (o) => String(o?.type || o?.payload?.jobType || '');
@@ -34,19 +35,7 @@ function markup() {
       <section data-factory-page="production"><div class="mn-factory-status"><span><small>Статус</small><strong data-factory-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-factory-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-factory-cash>—</strong></span></div><div class="mn-factory-workflow">${FACTORY_ROLES.map((role, index) => `<span><i>${role.icon}</i><b>${index + 1}. ${role.label}</b></span>`).join('<em>→</em>')}<em>→</em><span><i>🏬</i><b>Склад</b></span><em>→</em><span><i>📈</i><b>Биржа</b></span><em>→</em><span><i>🚚</i><b>Доставка</b></span></div><div class="mn-factory-line" data-factory-line><i>⚙️</i><span><strong>Линия свободна</strong><small>Выберите рецепт и запустите смену</small></span><button data-factory-cook hidden>Повар: готовить</button><button data-factory-finish hidden>Упаковать на склад</button></div><h3>Технологические карты</h3><div class="mn-factory-recipes">${recipes}</div></section>
       <section data-factory-page="warehouse" hidden><h3>Сырьевой склад</h3><div class="mn-factory-warehouse">${raw}</div><h3>Готовая продукция</h3><p class="mn-factory-exchange-note">Готовый товар не отправляется в магазин напрямую. Владелец выставляет партию на биржу, а продуктовый магазин сам выбирает нужное предложение и оплачивает доставку.</p><div class="mn-factory-products">${Object.values(FACTORY_RECIPES).map((r) => `<article><i>${r.icon}</i><span><small>${r.label}</small><strong data-factory-product="${r.id}">0</strong></span><div class="mn-factory-offer-controls"><input type="number" min="1" value="1" data-factory-offer-qty="${r.id}" aria-label="Количество партии"><input type="number" min="1" value="${Math.max(1, Math.round(r.wage / r.outputQty * 1.8))}" data-factory-offer-price="${r.id}" aria-label="Цена за единицу"><button data-factory-offer="${r.id}">На биржу</button></div></article>`).join('')}</div></section>
       <section data-factory-page="management" hidden><div class="mn-factory-buy" data-factory-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatFactoryMoney(FACTORY_CONFIG.purchasePrice)}</strong><p>Форма и налог заданы администратором: <b data-factory-purchase-legal>—</b></p></span><button data-factory-purchase>Купить завод</button></div><div data-factory-owned hidden><div class="mn-factory-owner"><span><small>Владелец</small><strong data-factory-owner>—</strong></span><span><small>Юр. форма</small><strong data-factory-legal-view>—</strong></span><span><small>Публичный ID</small><strong data-factory-public-id>—</strong></span></div>${procurementControlsMarkup('factory', FACTORY_PROCUREMENT_ITEMS)}<div class="mn-factory-manage-grid"><article><h3>Баланс предприятия</h3><input type="number" min="1" placeholder="Сумма" data-factory-money><div><button data-factory-deposit>Пополнить</button><button data-factory-withdraw>Снять</button></div></article><article><h3>Персонал</h3><input placeholder="Ник игрока" data-factory-staff-target><select data-factory-staff-role>${FACTORY_ROLES.map((role) => `<option value="${role.id}">${role.label}</option>`).join('')}</select><div><button data-factory-staff-save>Назначить</button><button data-factory-staff-remove>Снять</button></div></article><article class="is-wide"><h3>Базовые цены для биржи</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="1" value="${Math.max(1, Math.round(r.wage / r.outputQty * 1.8))}" data-factory-wholesale-price="${r.id}"><button data-factory-wholesale-save="${r.id}">Сохранить</button></label>`).join('')}</div></article><article class="is-wide"><h3>Оплата за изготовление партии</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="0" value="${r.wage}" data-factory-production-wage="${r.id}"><button data-factory-wage-save="${r.id}">Сохранить</button></label>`).join('')}</div></article></div></div></section>
-    </main></section>
-    <div class="mn-factory-theft-dialog" data-factory-theft-dialog hidden>
-      <section>
-        <small>РИСКОВАННОЕ ДЕЙСТВИЕ</small>
-        <h3>Попробовать украсть продукцию?</h3>
-        <p data-factory-theft-copy>Вы только что изготовили товар. Можно попытаться незаметно забрать одну единицу.</p>
-        <div>
-          <button type="button" data-factory-theft-no>Нет, отправить дальше</button>
-          <button type="button" class="is-danger" data-factory-theft-yes>Да, попробовать · 10%</button>
-        </div>
-      </section>
-    </div>
-  </div>`;
+    </main></section></div>`;
 }
 
 function contractsMarkup(contracts = [], actorId = '') {
@@ -62,7 +51,7 @@ function contractsMarkup(contracts = [], actorId = '') {
 export function enableFactoryFeature({ root, cityId }) {
   root.insertAdjacentHTML('beforeend', markup());
   const modal = root.querySelector('[data-factory-modal]');
-  let currentId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, timer = 0, busy = false, pendingTheftOffer = null;
+  let currentId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, timer = 0, busy = false;
   const q = (s) => modal.querySelector(s);
   const qa = (s) => [...modal.querySelectorAll(s)];
   const run = async (task, errorFormatter = getFactoryError) => { if (busy) return; busy = true; modal.classList.add('is-busy'); try { await task(); await refresh(); } catch (e) { const raw=String(e?.message||e||''); notify(raw.includes('PROCUREMENT_')?getProcurementError(e):errorFormatter(e), 'error'); } finally { busy = false; modal.classList.remove('is-busy'); } };
@@ -106,121 +95,30 @@ export function enableFactoryFeature({ root, cityId }) {
     }
     qa('[data-factory-page="management"] input, [data-factory-page="management"] select, [data-factory-page="management"] button').forEach((el) => { if (!el.matches('[data-factory-purchase]')) el.disabled = !s.isOwner; });
   }
-  function closeTheftDialog() {
-    const dialog = q('[data-factory-theft-dialog]');
-    if (dialog) dialog.hidden = true;
-    pendingTheftOffer = null;
-  }
-
-  function openTheftDialog(offer) {
-    pendingTheftOffer = offer || null;
-    const dialog = q('[data-factory-theft-dialog]');
-    if (!dialog || !offer?.id) return;
-
-    const copy = q('[data-factory-theft-copy]');
-    if (copy) {
-      copy.textContent = `Изготовлено: ${offer.label || 'готовая продукция'}. Попытка кражи имеет шанс 10%. При провале — увольнение и запись в уголовную книжку.`;
-    }
-
-    dialog.hidden = false;
-  }
-
-  async function finishBatchWithTheftChoice() {
-    if (busy) return;
-    const batchId = q('[data-factory-finish]').dataset.batchId;
-    if (!batchId) return;
-
-    busy = true;
-    modal.classList.add('is-busy');
-
-    try {
-      const result = await finishFactoryBatch(currentId, cityId, batchId);
-      await refresh();
-
-      if (result?.theftOffer?.id) {
-        openTheftDialog(result.theftOffer);
-      } else {
-        notify('Продукция отправлена на склад.', 'success');
-      }
-    } catch (error) {
-      notify(getFactoryError(error), 'error');
-    } finally {
-      busy = false;
-      modal.classList.remove('is-busy');
-      render();
-    }
-  }
-
-  async function resolveTheft(trySteal) {
-    if (busy || !pendingTheftOffer?.id) return;
-    const offer = pendingTheftOffer;
-
-    busy = true;
-    modal.classList.add('is-busy');
-
-    try {
-      if (!trySteal) {
-        await declineFactoryWorkplaceTheft(offer.id);
-        closeTheftDialog();
-        notify('Продукция ушла дальше на склад предприятия.', 'success');
-        return;
-      }
-
-      const result = await attemptFactoryWorkplaceTheft(offer.id);
-      closeTheftDialog();
-
-      if (result?.success) {
-        notify(
-          `Кража удалась. ${result.itemLabel || 'Предмет'} ×1 добавлен в ваш инвентарь. Всего: ${Number(result.inventoryQuantity || 1)}.`,
-          'success',
-        );
-
-        window.dispatchEvent(new CustomEvent('mn:business-inventory-changed', {
-          detail: {
-            itemType: result.itemType,
-            quantity: result.inventoryQuantity,
-            source: 'factory_workplace_theft',
-          },
-        }));
-        window.dispatchEvent(new CustomEvent('mn:inventory-refresh'));
-      } else {
-        notify(
-          result?.dismissed
-            ? 'Вас поймали. Вы уволены, а в уголовную книжку добавлена попытка кражи.'
-            : 'Кража провалилась. В уголовную книжку добавлена попытка кражи.',
-          'error',
-        );
-      }
-
-      await refresh();
-    } catch (error) {
-      closeTheftDialog();
-      notify(getFactoryError(error), 'error');
-      await refresh().catch(() => {});
-    } finally {
-      busy = false;
-      modal.classList.remove('is-busy');
-      render();
-    }
-  }
-
   function tab(name) { qa('[data-factory-tab]').forEach((b) => b.classList.toggle('is-active', b.dataset.factoryTab === name)); qa('[data-factory-page]').forEach((p) => p.hidden = p.dataset.factoryPage !== name); }
   const action = (selector, fn) => q(selector).addEventListener('click', () => run(fn));
-  q('[data-factory-close]').onclick = () => {
-    if (pendingTheftOffer?.id) {
-      void declineFactoryWorkplaceTheft(pendingTheftOffer.id).catch(() => {});
-      closeTheftDialog();
-    }
-    modal.hidden = true;
-    clearTimeout(timer);
-  };
+  q('[data-factory-close]').onclick = () => { modal.hidden = true; clearTimeout(timer); };
   qa('[data-factory-tab]').forEach((b) => b.onclick = () => tab(b.dataset.factoryTab));
   action('[data-factory-purchase]', () => purchaseFactory(currentId, cityId));
   qa('[data-factory-start]').forEach((b) => b.onclick = () => run(() => startFactoryBatch(currentId, cityId, b.dataset.factoryStart, q(`[data-factory-ingredient="${b.dataset.factoryStart}"]`)?.value || '')));
   action('[data-factory-cook]', () => cookFactoryBatch(currentId, cityId, q('[data-factory-cook]').dataset.batchId));
-  q('[data-factory-finish]').onclick = () => { void finishBatchWithTheftChoice(); };
-  q('[data-factory-theft-no]').onclick = () => { void resolveTheft(false); };
-  q('[data-factory-theft-yes]').onclick = () => { void resolveTheft(true); };
+  q('[data-factory-finish]').onclick = () => {
+    const batch = snapshot?.batch || snapshot?.activeBatch || null;
+    const recipeId = batch?.recipeId || '';
+    const recipe = FACTORY_RECIPES[recipeId];
+
+    void run(async () => {
+      await finishFactoryBatch(currentId, cityId, q('[data-factory-finish]').dataset.batchId);
+      await askWorkplaceTheft({
+        enterpriseKind:'food_factory',
+        enterpriseId:currentId,
+        cityId,
+        itemType:recipeId,
+        itemLabel:recipe?.label || recipeId || 'Готовая продукция',
+        producedQuantity:recipe?.outputQty || 1,
+      });
+    });
+  };
   action('[data-factory-deposit]', () => depositFactory(currentId, cityId, Number(q('[data-factory-money]').value)));
   action('[data-factory-withdraw]', () => withdrawFactory(currentId, cityId, Number(q('[data-factory-money]').value)));
   qa('[data-factory-deliver]').forEach((b) => { b.onclick = () => run(async () => {
