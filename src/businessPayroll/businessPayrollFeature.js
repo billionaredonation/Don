@@ -74,6 +74,7 @@ function getCityId(object = {}, fallback = '') {
 function isBusinessObject(object = {}) {
   const type = getType(object);
   const payload = object?.payload || {};
+
   if (!getOwnerId(object)) return false;
   if (['house','bank','bank_branch','bank_office','mn_bank','power_transformer'].includes(type)) return false;
 
@@ -104,9 +105,22 @@ async function callPayroll(payload) {
   const { data, error } = await supabase.functions.invoke('business-payroll', {
     body: { initData: tg, ...payload },
   });
+
   if (error) throw error;
   if (!data?.ok) throw new Error(data?.error || 'BUSINESS_PAYROLL_REQUEST_FAILED');
   return data.result;
+}
+
+function visibleElement(element) {
+  if (!element) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function normalizeButtonText(button) {
+  return text(button?.textContent).replace(/\s+/g,' ').toLowerCase();
 }
 
 export function enableBusinessPayrollFeature({ root, cityId } = {}) {
@@ -115,12 +129,7 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
   let currentObject = null;
   let snapshot = null;
   let destroyed = false;
-
-  const launcher = document.createElement('button');
-  launcher.type = 'button';
-  launcher.className = 'mn-payroll-launcher';
-  launcher.hidden = true;
-  launcher.innerHTML = '<span>₴</span><b>Оплата труда</b>';
+  let injectTimer = 0;
 
   const modal = document.createElement('div');
   modal.className = 'mn-payroll-modal';
@@ -147,7 +156,7 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
           <div class="mn-payroll-block-title">
             <div>
               <strong>Общая ставка работника</strong>
-              <span>Используется для производства, если сотруднику не задана персональная ставка.</span>
+              <span>Применяется, если сотруднику не назначена персональная ставка.</span>
             </div>
             <b data-payroll-default-current>0 ₴</b>
           </div>
@@ -164,27 +173,31 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
         </div>
 
         <div class="mn-payroll-info">
-          Приоритет выплаты: <b>персональная ставка сотрудника → ставка роли → ставка рецепта/производства → системная ставка.</b>
-          Деньги списываются из кассы предприятия и зачисляются только на зарплатный счёт.
+          <b>Приоритет:</b> персональная ставка сотрудника → ставка роли → ставка рецепта/производства → системная ставка.
+          Выплата идёт из кассы предприятия только на зарплатный счёт.
         </div>
       </section>
 
       <section class="mn-payroll-panel" data-payroll-panel="employees" hidden>
         <div class="mn-payroll-block">
           <strong>Назначить сотрудника</strong>
+
           <div class="mn-payroll-form-grid">
             <label>
               <span>Игрок</span>
               <input type="text" placeholder="Nickname или Telegram ID" data-payroll-target>
             </label>
+
             <label>
               <span>Роль</span>
               <input type="text" value="worker" placeholder="worker" data-payroll-role>
             </label>
+
             <label>
               <span>Ставка</span>
               <input type="number" min="0" max="1000000000" step="1" value="0" data-payroll-wage>
             </label>
+
             <label>
               <span>Тип оплаты</span>
               <select data-payroll-payment-type>
@@ -194,7 +207,10 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
               </select>
             </label>
           </div>
-          <button type="button" class="mn-payroll-primary" data-payroll-add>Назначить / обновить</button>
+
+          <button type="button" class="mn-payroll-primary" data-payroll-add>
+            Назначить / обновить
+          </button>
         </div>
 
         <div class="mn-payroll-employee-list" data-payroll-employees></div>
@@ -204,7 +220,6 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
     </section>
   `;
 
-  root.appendChild(launcher);
   document.body.appendChild(modal);
 
   const title = modal.querySelector('[data-payroll-title]');
@@ -235,6 +250,7 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
     modal.querySelectorAll('[data-payroll-tab]').forEach((button) => {
       button.classList.toggle('is-active', button.dataset.payrollTab === name);
     });
+
     modal.querySelectorAll('[data-payroll-panel]').forEach((panel) => {
       panel.hidden = panel.dataset.payrollPanel !== name;
     });
@@ -259,7 +275,9 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
           <span>${escapeHtml(row.roleKey || 'worker')} · ${escapeHtml(row.paymentType || 'per_action')}</span>
           <small>${escapeHtml(row.tgId)}</small>
         </div>
+
         <b>${formatMoney(row.wage)}</b>
+
         <div class="mn-payroll-employee-actions">
           <button type="button" data-payroll-edit="${escapeHtml(row.tgId)}">Изменить</button>
           <button type="button" data-payroll-pay="${escapeHtml(row.tgId)}">Выплатить</button>
@@ -286,36 +304,43 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
   }
 
   async function refresh() {
-    const { businessId: b, cityId: c } = currentIdentity();
-    snapshot = await callPayroll({ action:'snapshot', businessId:b, cityId:c });
+    const { businessId, cityId: currentCityId } = currentIdentity();
+
+    snapshot = await callPayroll({
+      action:'snapshot',
+      businessId,
+      cityId:currentCityId,
+    });
+
     if (destroyed) return;
     render();
   }
 
   async function bindObject(object) {
     currentObject = object;
-    launcher.hidden = true;
     snapshot = null;
     setMessage('');
+
+    removeInjectedButtons();
 
     if (!isBusinessObject(object)) return;
 
     const ownerId = getOwnerId(object);
     const ownId = String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '');
+
     if (!ownId || ownerId !== ownId) return;
 
     try {
       await refresh();
-      launcher.hidden = false;
-      launcher.title = `Оплата труда · ${snapshot?.businessName || object?.name || 'Предприятие'}`;
+      scheduleInject();
     } catch (error) {
       console.warn('[businessPayroll] snapshot failed:', error);
-      launcher.hidden = true;
     }
   }
 
   function open() {
     if (!snapshot) return;
+
     modal.hidden = false;
     document.body.classList.add('mn-payroll-open');
     showTab('rates');
@@ -327,13 +352,85 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
     document.body.classList.remove('mn-payroll-open');
   }
 
+  function removeInjectedButtons() {
+    document.querySelectorAll('[data-mn-payroll-inline-button]').forEach((node) => node.remove());
+  }
+
+  function findManagementButton() {
+    const buttons = [...document.querySelectorAll('button')];
+
+    return buttons.find((button) => {
+      if (!visibleElement(button)) return false;
+      if (button.closest('.mn-payroll-modal')) return false;
+
+      const label = normalizeButtonText(button);
+
+      return (
+        label === 'управление' ||
+        label === 'сотрудники' ||
+        label === 'персонал' ||
+        label === 'финансы'
+      );
+    }) || null;
+  }
+
+  function injectInlineButton() {
+    if (!snapshot || destroyed) return false;
+    if (document.querySelector('[data-mn-payroll-inline-button]')) return true;
+
+    const managementButton = findManagementButton();
+    if (!managementButton) return false;
+
+    const host = managementButton.parentElement;
+    if (!host) return false;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.mnPayrollInlineButton = '1';
+    button.className = managementButton.className;
+    button.textContent = 'Оплата труда';
+    button.title = 'Ставки и сотрудники';
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      open();
+    });
+
+    host.appendChild(button);
+    return true;
+  }
+
+  function scheduleInject() {
+    window.clearTimeout(injectTimer);
+
+    let attempt = 0;
+
+    const tick = () => {
+      if (destroyed || !snapshot) return;
+      attempt += 1;
+
+      if (injectInlineButton()) return;
+
+      if (attempt < 30) {
+        injectTimer = window.setTimeout(tick, 100);
+      }
+    };
+
+    tick();
+  }
+
   async function saveDefault() {
     const wage = Number(defaultWage.value);
-    if (!Number.isFinite(wage) || wage < 0) return setMessage('Некорректная ставка.', 'error');
+
+    if (!Number.isFinite(wage) || wage < 0) {
+      return setMessage('Некорректная ставка.', 'error');
+    }
 
     const id = currentIdentity();
+
     try {
       setMessage('Сохраняем…');
+
       snapshot = await callPayroll({
         action:'set_role',
         ...id,
@@ -341,6 +438,7 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
         paymentType:defaultType.value,
         wage,
       });
+
       render();
       setMessage('Общая ставка сохранена.', 'success');
     } catch (error) {
@@ -352,12 +450,17 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
     const target = text(targetInput.value);
     const roleKey = text(roleInput.value || 'worker').toLowerCase();
     const wage = Number(wageInput.value);
+
     if (!target) return setMessage('Укажи игрока.', 'error');
-    if (!Number.isFinite(wage) || wage < 0) return setMessage('Некорректная ставка.', 'error');
+    if (!Number.isFinite(wage) || wage < 0) {
+      return setMessage('Некорректная ставка.', 'error');
+    }
 
     const id = currentIdentity();
+
     try {
       setMessage('Назначаем сотрудника…');
+
       snapshot = await callPayroll({
         action:'set_employee',
         ...id,
@@ -367,8 +470,10 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
         wage,
         active:true,
       });
+
       targetInput.value = '';
       render();
+
       setMessage('Сотрудник и ставка сохранены.', 'success');
     } catch (error) {
       setMessage(error?.message || 'Не удалось назначить сотрудника.', 'error');
@@ -377,12 +482,14 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
 
   async function removeEmployee(employeeTgId) {
     const id = currentIdentity();
+
     try {
       snapshot = await callPayroll({
         action:'remove_employee',
         ...id,
         employeeTgId,
       });
+
       render();
       setMessage('Сотрудник убран.', 'success');
     } catch (error) {
@@ -393,10 +500,12 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
   function editEmployee(employeeTgId) {
     const row = (snapshot?.employees || []).find((x) => String(x.tgId) === String(employeeTgId));
     if (!row) return;
+
     targetInput.value = row.tgId;
     roleInput.value = row.roleKey || 'worker';
     wageInput.value = String(row.wage || 0);
     paymentTypeInput.value = row.paymentType || 'per_action';
+
     showTab('employees');
     targetInput.focus();
   }
@@ -405,12 +514,21 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
     const row = (snapshot?.employees || []).find((x) => String(x.tgId) === String(employeeTgId));
     if (!row) return;
 
-    const raw = window.prompt(`Выплата сотруднику ${row.name || row.tgId}`, String(row.wage || 0));
+    const raw = window.prompt(
+      `Выплата сотруднику ${row.name || row.tgId}`,
+      String(row.wage || 0)
+    );
+
     if (raw === null) return;
+
     const amount = Number(raw);
-    if (!Number.isFinite(amount) || amount <= 0) return setMessage('Некорректная сумма выплаты.', 'error');
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return setMessage('Некорректная сумма выплаты.', 'error');
+    }
 
     const id = currentIdentity();
+
     try {
       const result = await callPayroll({
         action:'manual_pay',
@@ -419,9 +537,14 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
         amount,
         description:`Ручная выплата · ${snapshot?.businessName || 'Предприятие'}`,
       });
+
       snapshot = result?.payroll || snapshot;
       render();
-      setMessage(`Выплачено ${formatMoney(amount)} на зарплатную карту.`, 'success');
+
+      setMessage(
+        `Выплачено ${formatMoney(amount)} на зарплатную карту.`,
+        'success'
+      );
     } catch (error) {
       setMessage(error?.message || 'Не удалось выполнить выплату.', 'error');
     }
@@ -431,11 +554,24 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
     bindObject(event?.detail?.object);
   }
 
-  launcher.addEventListener('click', open);
-  modal.querySelectorAll('[data-payroll-close]').forEach((node) => node.addEventListener('click', close));
+  function onAnyClick() {
+    if (snapshot) {
+      window.setTimeout(() => {
+        if (!document.querySelector('[data-mn-payroll-inline-button]')) {
+          scheduleInject();
+        }
+      }, 50);
+    }
+  }
+
+  modal.querySelectorAll('[data-payroll-close]').forEach((node) => {
+    node.addEventListener('click', close);
+  });
+
   modal.querySelectorAll('[data-payroll-tab]').forEach((node) => {
     node.addEventListener('click', () => showTab(node.dataset.payrollTab));
   });
+
   modal.querySelector('[data-payroll-save-default]').addEventListener('click', saveDefault);
   modal.querySelector('[data-payroll-add]').addEventListener('click', addEmployee);
 
@@ -443,18 +579,28 @@ export function enableBusinessPayrollFeature({ root, cityId } = {}) {
     const edit = event.target.closest('[data-payroll-edit]');
     const pay = event.target.closest('[data-payroll-pay]');
     const remove = event.target.closest('[data-payroll-remove]');
+
     if (edit) editEmployee(edit.dataset.payrollEdit);
     if (pay) manualPay(pay.dataset.payrollPay);
-    if (remove && window.confirm('Убрать сотрудника из предприятия?')) removeEmployee(remove.dataset.payrollRemove);
+
+    if (remove && window.confirm('Убрать сотрудника из предприятия?')) {
+      removeEmployee(remove.dataset.payrollRemove);
+    }
   });
 
   window.addEventListener('mn:map-object-action', onObjectAction);
+  document.addEventListener('click', onAnyClick, true);
 
   return () => {
     destroyed = true;
+    window.clearTimeout(injectTimer);
+
     window.removeEventListener('mn:map-object-action', onObjectAction);
-    launcher.remove();
+    document.removeEventListener('click', onAnyClick, true);
+
+    removeInjectedButtons();
     modal.remove();
+
     document.body.classList.remove('mn-payroll-open');
   };
 }
