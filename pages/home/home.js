@@ -36,6 +36,7 @@ import {
 } from '../../src/entities/entityInteraction.js';
 
 import { enableHousesFeature } from '../../src/houses/housesFeature.js';
+import { enableBankFeature } from '../../src/bank/bankFeature.js';
 import { enableBusinessFeature } from '../../src/business/businessFeature.js';
 import { enableLogisticsFeature } from '../../src/logistics/logisticsFeature.js';
 import { enableInventoryFeature } from '../../src/inventory/inventoryFeature.js';
@@ -1609,6 +1610,7 @@ register('home', async (root) => {
   let cleanupTextileFeature = null;
   let cleanupProductionMarket = null;
   let cleanupGameRealtime = null;
+  let cleanupBankFeature = null;
   let cleanupMobileSelfMarker = null;
   let cleanupBalanceDatabaseSync = null;
   let cleanupHouseSpawnPicker = null;
@@ -2287,6 +2289,8 @@ register('home', async (root) => {
     playerPosition,
   });
 
+  cleanupBankFeature = enableBankFeature({ root, cityId });
+
   const enableOptionalProductionModule = (name, setup) => {
     try {
       return setup() || null;
@@ -2527,6 +2531,7 @@ register('home', async (root) => {
     cleanupMobilePrompt?.();
     cleanupAdminPanel?.();
     cleanupEntityInteraction?.();
+    cleanupBankFeature?.();
     cleanupFarmFeature?.();
     cleanupMineFeature?.();
     cleanupLumberFeature?.();
