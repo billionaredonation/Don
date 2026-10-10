@@ -1,3 +1,4 @@
+import { connectionFetch, ConnectionError } from '../network/connection.js';
 import { supabase } from '../supabaseClient.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -21,7 +22,7 @@ async function callPlayerFunction(functionName, payload) {
     throw new Error('VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY is missing');
   }
 
-  const response = await fetch(getFunctionUrl(functionName), {
+  const response = await connectionFetch(getFunctionUrl(functionName), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -52,6 +53,7 @@ export async function getPlayer(tgId) {
       tg_id: cleanTgId,
     });
   } catch (edgeError) {
+    if (edgeError instanceof ConnectionError) throw edgeError;
     console.warn(
       '[playerApi] get-player Edge Function unavailable, trying direct database read:',
       edgeError
