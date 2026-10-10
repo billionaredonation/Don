@@ -1,3 +1,4 @@
+import { loadFarmUtilities } from './farmUtilities.js';
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import {
@@ -141,6 +142,7 @@ function farmModalMarkup() {
           </div>
         </header>
 
+        <div class="mn-farm-utilities" data-farm-utilities role="status" aria-live="polite"></div>
         <div class="mn-farm4-shell">
           <aside class="mn-farm4-sidebar">
             <nav class="mn-farm4-tabs" aria-label="Разделы фермы" role="tablist">
@@ -367,6 +369,9 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let inventoryState = { items: [] };
   let marketState = { items: [] };
   let businessState = null;
+  let utilityState = null;
+  let utilityError = false;
+  let utilityRequest = null;
   let activeFarmObject = null;
   let activeBuyerObjectId = '';
   let activeBusinessPublicId = '—';
@@ -689,6 +694,54 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return marketState;
   }
 
+  function renderUtilities() {
+    const box = modal?.querySelector('[data-farm-utilities]');
+    if (!box) return;
+    box.replaceChildren();
+    const title = document.createElement('strong');
+    title.textContent = utilityState?.operational
+      ? 'Ферма работает · коммунальные услуги активны'
+      : utilityError ? 'Не удалось проверить подключения. Торговля недоступна до проверки.'
+      : utilityState ? 'Ферма остановлена · продажа инструментов и скуп урожая недоступны'
+      : 'Проверяем подключения фермы…';
+    box.appendChild(title);
+    const labels = { electricity: '⚡ Электричество', water: '💧 Вода', gas: '🔥 Газ' };
+    for (const [key, label] of Object.entries(labels)) {
+      const service = utilityState?.services[key];
+      const item = document.createElement('span');
+      item.textContent = `${label}: ${!service ? 'не проверено' : service.active ? 'подача активна' : service.connected ? 'подключено, подача остановлена' : 'не подключено'}`;
+      box.appendChild(item);
+    }
+  }
+
+  async function refreshUtilities() {
+    const id = activeBuyerObjectId;
+    if (!id) return;
+    if (utilityRequest?.id === id) return utilityRequest.promise;
+    const request = { id };
+    request.promise = (async () => {
+      try {
+        const next = await loadFarmUtilities(id);
+        if (destroyed || id !== activeBuyerObjectId) return;
+        utilityState = next;
+        utilityError = false;
+      } catch (error) {
+        if (destroyed || id !== activeBuyerObjectId) return;
+        utilityState = null;
+        utilityError = true;
+        console.warn('[farm] utility status unavailable', error);
+      } finally {
+        if (utilityRequest === request) utilityRequest = null;
+        if (!destroyed && id === activeBuyerObjectId) {
+          renderUtilities();
+          renderInventory();
+        }
+      }
+    })();
+    utilityRequest = request;
+    return request.promise;
+  }
+
   function renderInventory() {
     ['farm_apple', 'farm_orange', 'farm_wheat', 'farm_corn', 'farm_flax', 'farm_cotton'].forEach((itemType) => {
       modal?.querySelectorAll(`[data-farm-sale-count="${itemType}"]`).forEach((element) => {
@@ -697,6 +750,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
       modal?.querySelectorAll(`[data-farm-sale-row="${itemType}"] button`).forEach((button) => {
         const market = marketItem(itemType);
         button.disabled = busy
+          || !utilityState?.operational
           || itemQuantity(itemType) <= 0
           || !activeBuyerObjectId
           || market?.unlocked === false
@@ -721,6 +775,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
         // If tool exists, clicking the card refreshes durability. Warehouse stock is only
         // required for the first purchase, never for repair.
         button.disabled = busy
+          || !utilityState?.operational
           || (ownedTool && !needsMigration && !needsRefresh)
           || (!ownedTool && !needsMigration && businessState?.owned !== false && stock <= 0);
         button.dataset.owned = ownedTool && !needsRefresh ? 'true' : 'false';
@@ -833,7 +888,10 @@ export function enableFarmFeature({ root, cityId } = {}) {
     if (!inventoryRefreshTimer) {
       inventoryRefreshTimer = window.setInterval(() => {
         void refreshInventory({ silent: true });
-        if (modal?.hidden === false && activeBuyerObjectId) void refreshBusiness({ silent: true });
+        if (modal?.hidden === false && activeBuyerObjectId) {
+          void refreshBusiness({ silent: true });
+          void refreshUtilities();
+        }
       }, FARM_INVENTORY_REFRESH_MS);
     }
     if (!wasActive) {
@@ -866,6 +924,10 @@ export function enableFarmFeature({ root, cityId } = {}) {
     startFarmStreamLoading();
     activeFarmObject = object || null;
     activeBuyerObjectId = String(object?.id || '');
+    utilityState = null;
+    utilityError = false;
+    renderUtilities();
+    void refreshUtilities();
     activeBusinessPublicId = getPublicBusinessId(object);
     marketState = { items: [] };
     businessState = null;
@@ -1115,6 +1177,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   async function handleBuy(event) {
     const button = event.target?.closest?.('[data-farm-buy]');
     if (!button || busy || !activeBuyerObjectId || performance.now() < scrollClickBlockedUntil) return;
+    if (!utilityState?.operational) return;
     const itemType = String(button.dataset.farmBuy || '');
     busy = true;
     renderInventory();
@@ -1156,6 +1219,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   async function handleSell(event) {
     const button = event.target?.closest?.('[data-farm-sell]');
     if (!button || busy || performance.now() < scrollClickBlockedUntil) return;
+    if (!utilityState?.operational) return;
     const itemType = String(button.dataset.farmSell || '');
     const quantity = Math.max(0, Math.floor(Number(button.dataset.quantity) || 0));
     busy = true;
