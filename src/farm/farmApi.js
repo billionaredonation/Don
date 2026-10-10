@@ -1,3 +1,4 @@
+import { requireFarmUtilities } from './farmUtilities.js';
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 
@@ -160,6 +161,9 @@ export function getFarmUserErrorMessage(error) {
 async function invokeFunction(functionName, action, payload = {}) {
   const initData = telegramInitData();
   if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
+  if (['buy_tool', 'refresh_tool', 'sell_crop', 'buy', 'sell'].includes(action)) {
+    await requireFarmUtilities(payload.businessId || payload.buyerObjectId);
+  }
   const { data, error } = await supabase.functions.invoke(functionName, {
     body: { initData, action, ...payload },
   });
