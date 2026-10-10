@@ -42,6 +42,17 @@ async function normalizeError(error, fallback = 'FARM_REQUEST_FAILED') {
 
 export function getFarmUserErrorMessage(error) {
   const raw = String(error?.message || error || 'FARM_REQUEST_FAILED');
+  if (raw.includes('BUSINESS_UTILITIES_REQUIRED')) {
+    const labels = { electricity: 'электричество', water: 'вода', gas: 'газ' };
+    const details = raw.split('BUSINESS_UTILITIES_REQUIRED:')[1] || '';
+    const missing = [...new Set(details.split(/[\s,;]+/)
+      .map(value => value.toLowerCase())
+      .filter(value => Object.prototype.hasOwnProperty.call(labels, value)))];
+    const services = missing.length
+      ? `Недоступны обязательные коммунальные услуги: ${missing.map(key => labels[key]).join(', ')}.`
+      : 'Недоступны обязательные коммунальные услуги.';
+    return `Фермерское предприятие не может выполнить операцию. ${services} Владельцу нужно проверить подключение и подачу ресурсов.`;
+  }
   const messages = {
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.',
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела. Перезапустите мини-приложение.',
