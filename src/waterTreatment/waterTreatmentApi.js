@@ -33,7 +33,7 @@ export const payWaterBill = (contractId, amount) => invoke('consumer_pay', { con
 
 export function getWaterError(error) {
   const raw = String(error?.message || error || 'WATER_REQUEST_FAILED');
-  const messages = {UTILITY_CONSUMER_AMBIGUOUS:'Найдено несколько объектов. Укажите полный ID.',UTILITY_CONSUMER_ID_AMBIGUOUS:'Этот ID назначен нескольким объектам. Администратору нужно исправить дубликат.',UTILITY_OWNER_AMBIGUOUS:'Объект связан с несколькими записями предприятия. Требуется проверка администратором.',UTILITY_CONSUMER_NOT_FOUND:'Дом или предприятие не найдены в этом городе.',UTILITY_OWNER_CHANGED:'Владелец объекта изменился. Нужен новый договор.',TRANSFORMER_CAPACITY_EXCEEDED:'Недостаточно мощности трансформатора. Дом: 5 кВт, магазин: 20 кВт, завод: 30 кВт.',
+  const messages = {BUSINESS_CASH_NOT_ENOUGH:'В кассе предприятия недостаточно денег для подключения. Пополните кассу предприятия.',BUSINESS_FINANCE_NOT_FOUND:'Касса предприятия не найдена. Обратитесь к администратору.',BUSINESS_FINANCE_AMBIGUOUS:'Найдено несколько касс предприятия. Требуется проверка администратором.',UTILITY_CONNECTION_AMOUNT_INVALID:'Некорректная сумма подключения. Попросите поставщика выставить новый договор с целой суммой.',UTILITY_CONSUMER_AMBIGUOUS:'Найдено несколько объектов. Укажите полный ID.',UTILITY_CONSUMER_ID_AMBIGUOUS:'Этот ID назначен нескольким объектам. Администратору нужно исправить дубликат.',UTILITY_OWNER_AMBIGUOUS:'Объект связан с несколькими записями предприятия. Требуется проверка администратором.',UTILITY_CONSUMER_NOT_FOUND:'Дом или предприятие не найдены в этом городе.',UTILITY_OWNER_CHANGED:'Владелец объекта изменился. Нужен новый договор.',TRANSFORMER_CAPACITY_EXCEEDED:'Недостаточно мощности трансформатора. Дом: 5 кВт, магазин: 20 кВт, завод: 30 кВт.',
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.',
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела.',
     WATER_PLANT_NOT_FOUND: 'Водоочистное сооружение не найдено.',
@@ -61,4 +61,3 @@ export function getWaterError(error) {
   };
   return Object.entries(messages).find(([code]) => raw.includes(code))?.[1] || raw;
 }
-
