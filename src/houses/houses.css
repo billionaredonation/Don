@@ -5550,3 +5550,22 @@ html body .mn-player-interaction[hidden] {
     width: 100%;
   }
 }
+
+/* City statistics: show full values and labels instead of misleading ellipses. */
+.houses-panel .city-stat-card {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: start !important;
+  height: auto !important;
+}
+.houses-panel .city-stat-body :is(strong, small, em) {
+  white-space: normal !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: clip !important;
+  line-height: 1.25 !important;
+}
+.houses-panel .city-stat-body strong {
+  font-size: clamp(16px, 1.5vw, 22px) !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal !important;
+}
