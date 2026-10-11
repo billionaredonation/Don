@@ -326,7 +326,7 @@ export function enableFactoryFeature({ root, cityId }) {
   };
   function render() {
     const s = snapshot || {}, business = s.factory || {}, raw = s.raw || {}, products = s.products || {}, prices = s.wholesalePrices || {}, wages = s.productionWages || {}, batch = s.activeBatch || null;
-    q('[data-factory-state]').textContent = business.ownerName ? (batch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
+    q('[data-factory-state]').textContent = business.ownerName ? (batch ? 'Линия работает' : 'Линия свободна') : 'Государственный';
     q('[data-factory-role]').textContent = s.roleLabel || 'Посетитель'; q('[data-factory-cash]').textContent = s.canManage ? formatFactoryMoney(business.cash) : 'Скрыто';
     q('[data-factory-buy]').hidden = Boolean(business.ownerId); q('[data-factory-owned]').hidden = !business.ownerId;
     q('[data-factory-owner]').textContent = business.ownerName || 'Государство'; q('[data-factory-legal-view]').textContent = business.legalForm || '—';
