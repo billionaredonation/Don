@@ -1,3 +1,4 @@
+import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import { state, save } from '../state.js';
 import { supabase } from '../supabaseClient.js';
 import { getCityConfig } from '../cities/index.js';
@@ -204,7 +205,7 @@ function modalMarkup() {
 
     <div class="mn-business-store" data-business-store hidden aria-hidden="true">
       <div class="mn-business-store-shell" role="dialog" aria-modal="true">
-        <div data-business-store-content></div>
+        <div data-business-store-content data-business-utility-anchor></div>
       </div>
     </div>
 
@@ -688,6 +689,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
 
   function renderDetails() {
     if (!activeObject || !detailsModal) return;
+    syncBusinessUtilityGate(detailsModal, { isOwner:isOwner(activeObject), objectId:getPublicBusinessId(activeObject), objectIds:[businessId(activeObject)] });
     const ownerId = getBusinessOwnerId(activeObject);
     const ownerName = activeObject.ownerName || activeObject.payload?.ownerName || activeObject.payload?.owner_name;
     const owned = Boolean(ownerId);
@@ -742,6 +744,7 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     if (!storeContent || !snapshot) return;
     storeModal.dataset.businessType = businessTypeOf(snapshot);
     storeContent.innerHTML = storeMarkup(snapshot, drawerMode, drawerData);
+    syncBusinessUtilityGate(storeModal, { isOwner:isOwner(activeObject), objectId:getPublicBusinessId(activeObject), objectIds:[businessId(activeObject)] });
   }
 
   async function refreshStore({ preserveDrawer = true } = {}) {
