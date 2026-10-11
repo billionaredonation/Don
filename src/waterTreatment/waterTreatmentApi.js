@@ -61,3 +61,4 @@ export function getWaterError(error) {
   };
   return Object.entries(messages).find(([code]) => raw.includes(code))?.[1] || raw;
 }
+
