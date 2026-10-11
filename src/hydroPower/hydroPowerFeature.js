@@ -1,4 +1,3 @@
-import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import './hydroPower.css';
 import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
 import '../community/statePurchaseBenefit.css';
@@ -45,7 +44,6 @@ export function enableHydroPowerFeature({ root, cityId } = {}) {
   const refresh = async () => { snapshot = await loadHydroSnapshot(currentId, cityId); snapshotAt = Date.now(); render(); };
   const run = async (task) => { if (busy) return; busy=true; modal.classList.add('is-busy'); try { await task(); await refresh(); } catch(e) { notify(getHydroError(e), 'error'); } finally { busy=false; modal.classList.remove('is-busy'); } };
   function render() {
-    syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentId });
     const s=snapshot||{}, plant=s.plant||{}, installed=s.equipment||{};
     const capacity=Number(s.capacityKwh||10000), maxCondition=Number(s.maxCondition||4000);
     const baseEnergy=Math.max(0,Number(s.energyKwh||0)), baseCondition=Math.max(0,Number(s.condition||0));
