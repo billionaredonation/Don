@@ -45,7 +45,7 @@ import { cancelFarmMiniGame, playFarmMiniGame } from './farmMiniGame.js';
 import { getCropSkillStatus, publishPlayerSkills } from '../player/playerSkillState.js';
 import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
 import { setProcurementBudget } from '../procurement/procurementApi.js';
-import { getPublicBusinessId } from '../business/publicBusinessId.js';
+import { getPublicBusinessId, renderPublicBusinessId } from '../business/publicBusinessId.js';
 import './farm.css';
 
 const FARM_STATE_REFRESH_MS = 5000;
@@ -929,6 +929,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     renderUtilities();
     void refreshUtilities();
     activeBusinessPublicId = getPublicBusinessId(object);
+    renderPublicBusinessId(modal?.querySelector('.mn-farm-panel'), object);
     marketState = { items: [] };
     businessState = null;
     publishMarket(marketState);
@@ -1500,4 +1501,3 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
-
