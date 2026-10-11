@@ -1,3 +1,4 @@
+import { getFactoryError } from '../factory/factoryApi.js';
 import { supabase } from '../supabaseClient.js';
 
 const initData = () => String(window.Telegram?.WebApp?.initData || '').trim();
@@ -24,6 +25,7 @@ export const buyLogisticsVehicle = (businessId, vehicleType) => invoke('logistic
 
 export function logisticsError(error) {
   const raw = String(error?.message || error || 'LOGISTICS_REQUEST_FAILED');
+  if (raw.includes('BUSINESS_UTILITIES_')) return getFactoryError(error);
   const messages = {
     LOGISTICS_OWNER_REQUIRED: 'Действие доступно владельцу логистического центра.',
     LOGISTICS_CONTRACT_INVALID: 'Заявка уже занята или закрыта.',
