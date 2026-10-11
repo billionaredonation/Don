@@ -48,7 +48,16 @@ export const unloadVehicleToStore = (businessId, cityId, productType, quantity) 
 
 export function getFactoryError(error) {
   const raw = String(error?.message || error || 'FACTORY_REQUEST_FAILED');
+  if (raw.includes('BUSINESS_UTILITIES_REQUIRED')) {
+    const labels = { electricity: 'электричество', water: 'вода', gas: 'газ' };
+    const missing = [...new Set((raw.split('BUSINESS_UTILITIES_REQUIRED:')[1] || '').split(/[\s,;]+/).filter(key => labels[key]))];
+    const names = missing.length ? missing.map(key => labels[key]).join(', ') : 'обязательные коммунальные услуги';
+    return `Запуск остановлен: нет активной подачи — ${names}. Проверьте подключение предприятия и состояние поставок ЖКХ. Электричество подключается через подстанцию.`;
+  }
   const messages = {
+    BUSINESS_UTILITIES_CONTEXT_INVALID: 'Не удалось определить предприятие или его владельца для проверки ЖКХ.',
+    BUSINESS_UTILITIES_CHECK_FAILED: 'Не удалось проверить ЖКХ предприятия. Повторите попытку позже.',
+
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.', TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела.',
     FACTORY_DATABASE_MIGRATION_REQUIRED: 'Примените SQL-миграцию завода и задеплойте Edge Function fruit-factory.',
     FACTORY_NOT_FOUND: 'Завод не найден.', FACTORY_ALREADY_OWNED: 'У завода уже есть владелец.',
