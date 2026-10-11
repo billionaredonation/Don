@@ -28,6 +28,7 @@ export const createHydroContract = (plantId, cityId, payload) => invoke('contrac
 export function getHydroError(error) {
   const raw = String(error?.message || error || 'HYDRO_REQUEST_FAILED');
   const messages = {
+    ENERGY_TARGET_MUST_BE_SUBSTATION: 'Предприятия подключаются к электричеству только через подстанции. ГЭС поставляет энергию подстанции, а она — предприятию.',
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.', TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела.',
     HYDRO_DATABASE_MIGRATION_REQUIRED: 'Сначала примените SQL-миграцию ГЭС, затем обновите Edge Function hydro-power.',
     HYDRO_NOT_FOUND: 'ГЭС не найдена.', HYDRO_ALREADY_OWNED: 'У ГЭС уже есть владелец.', HYDRO_OWNER_REQUIRED: 'Действие доступно только владельцу.',
