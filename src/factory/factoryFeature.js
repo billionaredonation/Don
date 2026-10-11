@@ -59,7 +59,7 @@ function __ensureWorkplaceTheftDialog() {
           <p>• «Да» — сервер проводит попытку кражи.</p>
           <p>• Шанс успеха: <b>10%</b>.</p>
           <p>• Успех — 1 единица идёт в личный инвентарь.</p>
-          <p>• Провал — увольнение и запись «Попытка кражи на рабочем месте».</p>
+          <p>• Провал — запись о попытке кражи; сотрудник также теряет работу. Владелец сохраняет предприятие.</p>
         </div>
         <div class="mn-workplace-theft__actions">
           <button type="button" data-workplace-theft-inline-no>Нет, оставить предприятию</button>
@@ -148,7 +148,7 @@ async function __resolveWorkplaceTheft(trySteal) {
 
 async function askWorkplaceTheft(offer, { itemLabel = 'Готовая продукция', producedQuantity = 1 } = {}) {
   // finish_batch already creates the authorized offer in the production transaction.
-  // Owners receive no offer; never create a second one via workplace-theft/prepare.
+  // Owners and workers use the same server-issued offer; never mint a second attempt in the UI.
   if (!offer?.id) return null;
 
   __workplaceTheftOffer = offer;
