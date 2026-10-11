@@ -79,10 +79,9 @@ export function createConnectionFetch(rawFetch, { timeoutMs = 30000 } = {}) {
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
     try {
       const response = await rawFetch(input, { ...init, signal: controller.signal });
-      if (response.status >= 500) {
-        failed('Сервер временно недоступен. Повторите попытку позже.');
-        throw new ConnectionError('SERVER_UNAVAILABLE', 'Сервер временно недоступен.' + uncertain);
-      }
+      // An HTTP error is still a received response, not a lost connection.
+      // Edge Functions may return gameplay errors with status 500. Preserve
+      // the body so each feature can explain the actual reason to the player.
       recovered();
       return response;
     } catch (error) {
