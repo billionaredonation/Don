@@ -33,7 +33,7 @@ import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import { renderProcurementControls } from '../procurement/procurementControls.js';
 import { setProcurementBudget } from '../procurement/procurementApi.js';
-import { getPublicBusinessId } from '../business/publicBusinessId.js';
+import { getPublicBusinessId, renderPublicBusinessId } from '../business/publicBusinessId.js';
 import '../jobs/jobBusiness.css';
 import './mine.css';
 
@@ -576,6 +576,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     marketRequestVersion += 1;
     activeBuyerObjectId = String(object?.id || '');
     activeBusinessPublicId = getPublicBusinessId(object);
+    renderPublicBusinessId(modal?.querySelector('.mn-mine-panel'), object);
     businessState = null;
     marketLoading = false;
     marketLoadFailed = false;
