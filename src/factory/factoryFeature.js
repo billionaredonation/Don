@@ -2,67 +2,12 @@ import { syncBusinessUtilityGate, clearBusinessUtilityGate } from '../utilities/
 import './factory.css';
 import './factoryRedesign.css';
 import { FACTORY_CONFIG, FACTORY_PROCUREMENT_ITEMS, FACTORY_RAW_ITEMS, FACTORY_RECIPES, FACTORY_ROLES, formatFactoryMoney } from './factoryConfig.js';
-import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, cookFactoryBatch, finishFactoryBatch, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, getFactoryError } from './factoryApi.js';
+import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, cookFactoryBatch, finishFactoryBatch, attemptFactoryWorkplaceTheft, declineFactoryWorkplaceTheft, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, getFactoryError } from './factoryApi.js';
 import { getProductionExchangeError, publishProductionOffer } from '../market/productionExchangeApi.js';
 import { procurementControlsMarkup, renderProcurementControls } from '../procurement/procurementControls.js';
 import { getProcurementError, loadProcurementSnapshot, setProcurementBudget, setProcurementItem } from '../procurement/procurementApi.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import { getBusinessLegalPayload } from '../business/businessConfig.js';
-import { supabase as __workplaceTheftSupabase } from '../supabaseClient.js';
-
-const __WORKPLACE_THEFT_FUNCTION = 'workplace-theft';
-
-function __workplaceTheftInitData() {
-  return String(window.Telegram?.WebApp?.initData || '').trim();
-}
-
-async function __workplaceTheftInvoke(action, payload = {}) {
-  const initData = __workplaceTheftInitData();
-  if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
-
-  const { data, error } = await __workplaceTheftSupabase.functions.invoke(__WORKPLACE_THEFT_FUNCTION, {
-    body: { initData, action, ...payload },
-  });
-
-  if (error) {
-    let remote = '';
-    const source = error?.context || error;
-
-    if (typeof source?.clone === 'function') {
-      try {
-        const body = await source.clone().json();
-        remote = [body?.error, body?.message, body?.reason].filter(Boolean).join(' ');
-      } catch {}
-    }
-
-    throw new Error(
-      [remote, error?.message, error?.details, source?.message].filter(Boolean).join(' ')
-      || 'WORKPLACE_THEFT_FAILED',
-    );
-  }
-
-  if (!data?.ok) throw new Error(data?.error || data?.reason || 'WORKPLACE_THEFT_FAILED');
-  return data.result;
-}
-
-function __workplaceTheftError(error) {
-  const raw = String(error?.message || error || 'WORKPLACE_THEFT_FAILED');
-
-  const messages = {
-    TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.',
-    TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела. Перезапустите игру.',
-    WORKPLACE_THEFT_INVALID_REQUEST: 'Не удалось создать попытку кражи для этой продукции.',
-    WORKPLACE_THEFT_ACCESS_DENIED: 'У вас нет доступа к рабочей операции этого предприятия.',
-    WORKPLACE_THEFT_PRODUCT_NOT_FOUND: 'Готовая продукция уже не находится на складе предприятия.',
-    WORKPLACE_THEFT_OFFER_NOT_FOUND: 'Попытка кражи больше недоступна.',
-    WORKPLACE_THEFT_OFFER_ALREADY_RESOLVED: 'Эта попытка уже обработана.',
-    WORKPLACE_THEFT_OFFER_EXPIRED: 'Вы слишком долго думали. Продукция уже ушла дальше.',
-  };
-
-  const code = Object.keys(messages).find((key) => raw.includes(key));
-  return code ? messages[code] : raw;
-}
-
 function __ensureWorkplaceTheftStyles() {
   if (document.getElementById('mn-workplace-theft-inline-style')) return;
 
@@ -106,7 +51,7 @@ function __ensureWorkplaceTheftDialog() {
     <div class="mn-workplace-theft" data-workplace-theft-inline hidden>
       <section class="mn-workplace-theft__panel">
         <small>РИСКОВАННОЕ ДЕЙСТВИЕ</small>
-        <h2>Попробовать украсть изготовленную деталь?</h2>
+        <h2>Попробовать украсть готовую продукцию?</h2>
         <p class="mn-workplace-theft__item" data-workplace-theft-inline-item>Только что изготовлена продукция.</p>
         <div class="mn-workplace-theft__rules">
           <strong>Что произойдёт:</strong>
@@ -125,6 +70,8 @@ function __ensureWorkplaceTheftDialog() {
   `;
 
   __workplaceTheftRoot = host.firstElementChild;
+  // Other enterprise dialogs share these CSS classes; keep this above the factory.
+  __workplaceTheftRoot.style.zIndex = '2147483000';
   document.body.appendChild(__workplaceTheftRoot);
 
   __workplaceTheftRoot.querySelector('[data-workplace-theft-inline-no]').onclick = () => {
@@ -158,13 +105,13 @@ async function __resolveWorkplaceTheft(trySteal) {
 
   try {
     if (!trySteal) {
-      const result = await __workplaceTheftInvoke('decline', { offerId: __workplaceTheftOffer.id });
+      const result = await declineFactoryWorkplaceTheft(__workplaceTheftOffer.id);
       __workplaceTheftToast('Продукция оставлена предприятию.', 'success');
       __closeWorkplaceTheft({ ...result, declined: true });
       return;
     }
 
-    const result = await __workplaceTheftInvoke('attempt', { offerId: __workplaceTheftOffer.id });
+    const result = await attemptFactoryWorkplaceTheft(__workplaceTheftOffer.id);
 
     if (result?.success) {
       __workplaceTheftToast(
@@ -191,7 +138,7 @@ async function __resolveWorkplaceTheft(trySteal) {
 
     __closeWorkplaceTheft(result);
   } catch (error) {
-    __workplaceTheftToast(__workplaceTheftError(error), 'error');
+    __workplaceTheftToast(getFactoryError(error), 'error');
     __closeWorkplaceTheft({ error });
   } finally {
     dialog.classList.remove('is-busy');
@@ -199,40 +146,19 @@ async function __resolveWorkplaceTheft(trySteal) {
   }
 }
 
-async function askWorkplaceTheft({
-  enterpriseKind,
-  enterpriseId,
-  cityId,
-  itemType,
-  itemLabel,
-  producedQuantity = 1,
-} = {}) {
-  try {
-    const offer = await __workplaceTheftInvoke('prepare', {
-      enterpriseKind,
-      enterpriseId,
-      cityId,
-      itemType,
-      itemLabel,
-      producedQuantity,
-    });
+async function askWorkplaceTheft(offer, { itemLabel = 'Готовая продукция', producedQuantity = 1 } = {}) {
+  // finish_batch already creates the authorized offer in the production transaction.
+  // Owners receive no offer; never create a second one via workplace-theft/prepare.
+  if (!offer?.id) return null;
 
-    if (!offer?.id) return null;
-
-    __workplaceTheftOffer = offer;
-
-    const dialog = __ensureWorkplaceTheftDialog();
-    const item = dialog.querySelector('[data-workplace-theft-inline-item]');
-    item.textContent = `Изготовлено: ${offer.itemLabel || itemLabel || itemType} · произведено ${Number(producedQuantity || 1)} ед. Украсть можно 1 единицу.`;
-    dialog.hidden = false;
-
-    return await new Promise((resolve) => {
-      __workplaceTheftResolve = resolve;
-    });
-  } catch (error) {
-    __workplaceTheftToast(__workplaceTheftError(error), 'error');
-    return null;
-  }
+  __workplaceTheftOffer = offer;
+  const dialog = __ensureWorkplaceTheftDialog();
+  const item = dialog.querySelector('[data-workplace-theft-inline-item]');
+  item.textContent = `Изготовлено: ${offer.label || offer.itemLabel || itemLabel} · произведено ${Number(producedQuantity || 1)} ед. Украсть можно 1 единицу.`;
+  dialog.hidden = false;
+  return new Promise((resolve) => {
+    __workplaceTheftResolve = resolve;
+  });
 }
 
 const esc = (v) => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
@@ -374,12 +300,8 @@ export function enableFactoryFeature({ root, cityId }) {
     const recipe = FACTORY_RECIPES[recipeId];
 
     void run(async () => {
-      await finishFactoryBatch(currentId, cityId, q('[data-factory-finish]').dataset.batchId);
-      await askWorkplaceTheft({
-        enterpriseKind:'food_factory',
-        enterpriseId:currentId,
-        cityId,
-        itemType:recipeId,
+      const result = await finishFactoryBatch(currentId, cityId, q('[data-factory-finish]').dataset.batchId);
+      await askWorkplaceTheft(result?.theftOffer, {
         itemLabel:recipe?.label || recipeId || 'Готовая продукция',
         producedQuantity:recipe?.outputQty || 1,
       });
