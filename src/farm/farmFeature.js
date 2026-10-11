@@ -1500,3 +1500,4 @@ export function enableFarmFeature({ root, cityId } = {}) {
     window.__MN_FARM_PLANT_STATES_READY__ = false;
   };
 }
+
