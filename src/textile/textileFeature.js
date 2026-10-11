@@ -1,3 +1,4 @@
+import { syncBusinessUtilityGate, clearBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import '../metallurgy/metallurgy.css';
 import { TEXTILE_CONFIG, TEXTILE_RAW_ITEMS, TEXTILE_RECIPES, formatTextileInputs, formatTextileMoney } from './textileConfig.js';
 import { createTextileBatch, depositTextileCash, finishTextileBatch, getTextileError, loadTextileSnapshot, publishTextileOffer, purchaseTextileFactory, setTextileRawBuyPrice, transferTextileRaw, withdrawTextileCash } from './textileApi.js';
@@ -291,6 +292,7 @@ export function enableTextileFeature({ root, cityId } = {}) {
   const q = (selector) => modal.querySelector(selector), qa = (selector) => [...modal.querySelectorAll(selector)];
   let factoryId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, busy = false;
   function render() {
+    syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentPublicId, objectIds:[factoryId] });
     const business = snapshot?.business || snapshot?.factory || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
     const ownership = textileOwnership(snapshot, business);
     q('[data-textile-state]').textContent = ownership.owned ? (snapshot?.activeBatch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
@@ -357,7 +359,7 @@ export function enableTextileFeature({ root, cityId } = {}) {
     const unitPrice=Number(q(`[data-textile-buy-price="${itemType}"]`)?.value);
     run(() => setProcurementItem({ buyerKind:'factory', buyerId:factoryId, cityId, buyerType:'textile', itemType, enabled, unitPrice }), enabled ? 'Сырьё добавлено в скуп.' : 'Закупка сырья отключена.');
   }; });
-  const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== TEXTILE_CONFIG.type) return; factoryId = objectId(object); currentPublicId = getPublicBusinessId(object); currentLegal = getBusinessLegalPayload({ legalForm:'tov', ...(object?.payload || {}) }); modal.hidden = false; tab('production'); refresh().catch((error) => toast(getTextileError(error), 'error')); };
+  const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== TEXTILE_CONFIG.type) return; factoryId = objectId(object); currentPublicId = getPublicBusinessId(object); currentLegal = getBusinessLegalPayload({ legalForm:'tov', ...(object?.payload || {}) }); clearBusinessUtilityGate(modal); modal.hidden = false; tab('production'); refresh().catch((error) => toast(getTextileError(error), 'error')); };
   window.addEventListener('mn:textile-object-action', onAction);
   return () => { window.removeEventListener('mn:textile-object-action', onAction); modal.remove(); };
 }
