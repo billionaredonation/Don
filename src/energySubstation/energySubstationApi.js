@@ -31,3 +31,4 @@ export function getSubstationError(error){
   const code=Object.keys(map).find(key=>raw.includes(key));return code?map[code]:raw;
 }
 
+
