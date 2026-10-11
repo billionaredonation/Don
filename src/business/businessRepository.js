@@ -1,3 +1,4 @@
+import { ownerOf, businessInfo, isDirectoryBusiness } from './businessDirectoryModel.js';
 import { supabase } from '../supabaseClient.js';
 import { getBusinessLegalPayload } from './businessConfig.js';
 
@@ -18,8 +19,7 @@ export function isBusinessObject(object) {
 }
 
 export function getBusinessOwnerId(object) {
-  const payload = normalizePayload(object?.payload);
-  return object?.owner_id || object?.ownerId || payload.ownerId || payload.owner_id || null;
+  return ownerOf(object);
 }
 
 export function normalizeBusinessForUi(object = {}) {
@@ -44,7 +44,7 @@ export function normalizeBusinessForUi(object = {}) {
     ownerId,
     ownerName: object.ownerName || object.owner_name || payload.ownerName || payload.owner_name || null,
     price: Number(object.price ?? payload.price ?? 0) || 0,
-    businessType: String(payload.businessType || payload.business_type || object.type || 'shop'),
+    businessType: businessInfo(object).type,
     ...legalPayload,
     payload: {
       ...payload,
@@ -68,24 +68,23 @@ export async function fetchPlayerOwnedBusinesses({ playerId, cityId = null } = {
   const rawPlayerId = String(playerId || '').trim();
   if (!rawPlayerId) return [];
 
-  try {
-    const safePlayerId = escapePostgrestFilterValue(rawPlayerId);
-    let query = supabase
-      .from('map_objects')
-      .select('*')
-      .or(`payload->>ownerId.eq.${safePlayerId},payload->>owner_id.eq.${safePlayerId}`)
-      .limit(50);
+  const safePlayerId = escapePostgrestFilterValue(rawPlayerId);
+  const rows = [];
+  const pageSize = 500;
+  for (let offset = 0; ; offset += pageSize) {
+    let query = supabase.from('map_objects').select('*')
+      .or(`payload->>ownerId.eq.${safePlayerId},payload->>owner_id.eq.${safePlayerId},payload->>ownerTgId.eq.${safePlayerId},payload->>owner_tg_id.eq.${safePlayerId}`)
+      .order('id').range(offset, offset + pageSize - 1);
     if (cityId) query = query.eq('city_id', String(cityId));
     const { data, error } = await query;
     if (error) throw error;
-    return (Array.isArray(data) ? data : [])
-      .filter(isBusinessObject)
-      .map(normalizeBusinessForUi)
-      .filter((business) => String(business.ownerId || '') === rawPlayerId);
-  } catch (error) {
-    console.warn('[business] owned businesses load failed:', error);
-    return [];
+    const page = Array.isArray(data) ? data : [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
   }
+  return rows.filter(isDirectoryBusiness).map(normalizeBusinessForUi)
+    .filter(business => String(business.ownerId || '') === rawPlayerId);
+
 }
 
 export function applyBusinessOwner(object, owner = {}) {
