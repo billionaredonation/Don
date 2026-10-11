@@ -1,3 +1,4 @@
+import { renderBusinessUtilityGate, clearBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import { loadFarmUtilities } from './farmUtilities.js';
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
@@ -256,6 +257,7 @@ function farmModalMarkup() {
             </section>
 
             <section class="mn-farm4-page mn-farm4-business-page" data-farm-page="business" hidden>
+              <div data-farm-utility-contracts><div data-business-utility-anchor></div></div>
               <div class="mn-farm4-page-head">
                 <span><small>Фермерское ООО</small><h3>Управление предприятием</h3><p>Ключевые показатели, склад, вода, персонал и финансы — в одном месте.</p></span>
               </div>
@@ -369,6 +371,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   let inventoryState = { items: [] };
   let marketState = { items: [] };
   let businessState = null;
+  let utilityGateKey = '';
   let utilityState = null;
   let utilityError = false;
   let utilityRequest = null;
@@ -583,6 +586,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     });
 
     syncBusinessToolsIntoInventory();
+    renderFarmUtilityContracts();
     renderInventory();
   }
 
@@ -694,6 +698,36 @@ export function enableFarmFeature({ root, cityId } = {}) {
     return marketState;
   }
 
+  function clearFarmUtilityContracts() {
+    clearBusinessUtilityGate(modal?.querySelector('[data-farm-utility-contracts]'));
+    utilityGateKey = '';
+  }
+
+  function renderFarmUtilityContracts() {
+    const host = modal?.querySelector('[data-farm-utility-contracts]');
+    if (!host || modal.hidden || businessState?.role !== 'owner') {
+      clearFarmUtilityContracts();
+      return;
+    }
+    if (!utilityState) return;
+    const key = activeBuyerObjectId;
+    if (utilityGateKey === key && host.querySelector('[data-business-utility-gate]')) return;
+    const status = { operational: utilityState.operational, objectIds: [key] };
+    for (const name of ['electricity', 'water', 'gas']) {
+      status[name] = utilityState.services[name].active;
+      status[`${name}Connected`] = utilityState.services[name].connected;
+    }
+    renderBusinessUtilityGate(host, status, {
+      isOwner: true, objectId: key, objectIds: [key], showStateSale: false,
+    });
+    utilityGateKey = key;
+  }
+
+  function handleFarmUtilityContractChanged(event) {
+    if (!(event.detail?.objectIds || []).includes(activeBuyerObjectId)) return;
+    void refreshUtilities();
+  }
+
   function renderUtilities() {
     const box = modal?.querySelector('[data-farm-utilities]');
     if (!box) return;
@@ -734,6 +768,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
         if (utilityRequest === request) utilityRequest = null;
         if (!destroyed && id === activeBuyerObjectId) {
           renderUtilities();
+          renderFarmUtilityContracts();
           renderInventory();
         }
       }
@@ -922,6 +957,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   function openModal(object) {
     if (!modal || busy) return;
     startFarmStreamLoading();
+    clearFarmUtilityContracts();
     activeFarmObject = object || null;
     activeBuyerObjectId = String(object?.id || '');
     utilityState = null;
@@ -945,6 +981,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
   function closeModal() {
     if (!modal || busy) return;
+    clearFarmUtilityContracts();
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('mn-farm-modal-open');
@@ -1468,6 +1505,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   panel?.addEventListener('click', handleBuy);
   panel?.addEventListener('click', handleSell);
   panel?.addEventListener('click', handleBusinessControls);
+  window.addEventListener('mn:business-utility-contract-changed', handleFarmUtilityContractChanged);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('mn:farm-object-action', handleFarmObjectEvent);
   window.addEventListener('mn:player-skills-changed', renderInventory);
@@ -1482,6 +1520,8 @@ export function enableFarmFeature({ root, cityId } = {}) {
 
   return () => {
     destroyed = true;
+    clearFarmUtilityContracts();
+    window.removeEventListener('mn:business-utility-contract-changed', handleFarmUtilityContractChanged);
     stopFarmStreamLoading();
     window.clearInterval(marketCountdownTimer);
     window.removeEventListener('keydown', handleKeyDown);
