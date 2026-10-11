@@ -26,10 +26,11 @@ function normalizeCityStats(row) {
  * @param {string} slug 'kyiv' | 'lviv' | …
  */
 export async function fetchCityStats(slug) {
-  const [statsResponse, budgetResponse, transferTaxResponse] = await Promise.all([
+  const [statsResponse, budgetResponse, transferTaxResponse, inflationResponse] = await Promise.all([
     supabase.rpc('city_stats', { city_slug: slug }),
     supabase.rpc('get_city_state_sale_tax', { p_city_id: slug }),
     supabase.rpc('get_city_property_transfer_tax', { p_city_id: slug }),
+    supabase.rpc('city_inflation_v1', { p_city_id: slug }),
   ]);
 
   const { data, error } = statsResponse;
@@ -56,5 +57,9 @@ export async function fetchCityStats(slug) {
     );
   }
 
+  const index = inflationResponse.error ? null : inflationResponse.data;
+  normalized.inflation = index?.status === 'ready' && index.inflation != null && Number.isFinite(Number(index.inflation)) ? Number(index.inflation) : null;
+  normalized.inflationStatus = index?.status || 'unavailable';
+  normalized.inflationDetails = index;
   return normalized;
 }
