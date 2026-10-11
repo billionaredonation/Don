@@ -1,3 +1,4 @@
+import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import { publishPlayerSkills, getLumberjackSkillStatus } from '../player/playerSkillState.js';
@@ -178,6 +179,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     const owned = Boolean(business?.owned);
     const role = String(business?.role || 'worker');
     const isOwner = role === 'owner';
+    syncBusinessUtilityGate(modal, { isOwner, objectId:activeBusinessPublicId, objectIds:[activeStationObjectId] });
     const isStaff = isOwner || role === 'assistant';
     const canInspect = isStaff || Boolean(business?.isAdmin);
     const roleLabel = isOwner ? 'Владелец' : role === 'assistant' ? 'Помощник' : business?.isAdmin ? 'Администратор' : 'Работник';
