@@ -1,3 +1,5 @@
+import { businessInfo } from '../business/businessDirectoryModel.js';
+import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import { loadGasUtility, answerGasOffer, payGasBill, getGasError } from '../ukrGaz/ukrGazApi.js';
 import { utilitySupplyReason } from './utilitySupplyReason.js';
 import { state } from '../state.js';
@@ -389,14 +391,15 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     }
     return items.map((item) => {
       const payload = item.payload || {};
-      const id = String(item.mapObjectId || item.id || '').replaceAll('-', '').slice(-6).toUpperCase() || '—';
+      const info = businessInfo(item);
+      const id = type === 'house' ? (String(item.mapObjectId || item.id || '').replaceAll('-', '').slice(-6).toUpperCase() || '—') : getPublicBusinessId(item);
       const name = type === 'house'
         ? `${item.icon || '🏠'} Дом № ${id}`
-        : `${item.icon || '🛒'} ${item.name || payload.businessLabel || 'Продуктовый магазин'}`;
+        : `${info.icon} ${item.name || payload.businessLabel || info.label}`;
       const detail = type === 'house'
         ? (payload.houseClassLabel || payload.houseClass || item.class || 'Стандарт')
-        : 'Продуктовый бизнес';
-      return `<article class="mn-profile-property-card" data-property-type="${type}"><i>${type === 'house' ? '🏠' : '🛒'}</i><span><strong>${escapeHtml(name)}</strong><small>${escapeHtml(propertyCityName(item))} · ${escapeHtml(detail)}</small></span><b>${escapeHtml(id)}</b></article>`;
+        : info.label;
+      return `<article class="mn-profile-property-card" data-property-type="${type}"><i>${type === 'house' ? '🏠' : info.icon}</i><span><strong>${escapeHtml(name)}</strong><small>${escapeHtml(propertyCityName(item))} · ${escapeHtml(detail)}</small></span><b>${escapeHtml(id)}</b></article>`;
     }).join('');
   }
 
@@ -410,8 +413,8 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         <div>${renderPropertyList(houses, 'house')}</div>
       </section>
       <section class="mn-profile-property-section is-business">
-        <header><span><small>Коммерческая собственность</small><strong>Бизнесы</strong></span><b>${businesses.length}</b></header>
-        <div>${renderPropertyList(businesses, 'business')}</div>
+        <header><span><small>Коммерческая собственность</small><strong>Бизнесы</strong></span><b>${propertySnapshot.businessesError ? '—' : businesses.length}</b></header>
+        <div>${propertySnapshot.businessesError ? '<p role="alert">Не удалось загрузить список предприятий. Откройте раздел повторно.</p>' : renderPropertyList(businesses, 'business')}</div>
       </section>`;
   }
 
@@ -428,6 +431,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         propertySnapshot = {
           houses: housesResult.status === 'fulfilled' ? housesResult.value : [],
           businesses: businessesResult.status === 'fulfilled' ? businessesResult.value : [],
+          businessesError: businessesResult.status === 'rejected',
         };
         renderProperty();
       }
