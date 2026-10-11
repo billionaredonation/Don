@@ -1,3 +1,4 @@
+import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import { getAuthPlayer } from '../auth/playerAuth.js';
@@ -392,6 +393,7 @@ function normalizeObject(object = {}) {
 
   return {
     id: String(object.id || createObjectId()),
+    publicBusinessId: getPublicBusinessId(object) === '—' ? '' : getPublicBusinessId(object),
 
     cityId: normalizeCityId(
       object.cityId ||
@@ -487,6 +489,7 @@ function fromDbRow(row = {}) {
   const isJobObject = payload.kind === 'job' && Boolean(String(payload.jobType || '').trim());
 
   return normalizeObject({
+    publicBusinessId: getPublicBusinessId(row) === '—' ? '' : getPublicBusinessId(row),
     id: row.id,
     cityId: row.city_id,
     type: isJobObject ? payload.jobType : row.type,
