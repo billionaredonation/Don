@@ -1,3 +1,4 @@
+import { utilitySupplyReason } from '../player/utilitySupplyReason.js';
 import { answerPowerOffer, getSubstationError } from '../energySubstation/energySubstationApi.js';
 import { answerWaterOffer, getWaterError } from '../waterTreatment/waterTreatmentApi.js';
 import { answerGasOffer, getGasError } from '../ukrGaz/ukrGazApi.js';
@@ -108,6 +109,7 @@ export async function loadBusinessUtilityStatus(
       !gas && 'gas',
     ].filter(Boolean),
 
+    reasons: Object.fromEntries(['electricity','water','gas'].map(key => [key, portal?.[key]?.connected && !portal?.[key]?.active ? utilitySupplyReason(portal[key], key) : ''])),
     checked: true,
     objectIds: Array.isArray(portal?.objectIds)
       ? portal.objectIds
@@ -129,6 +131,7 @@ async function loadIncomingOffers(ids, { force = false } = {}) {
 
 function statusSignature(state = {}) {
   return [
+    state.checked, state.error, state.electricityStatus, state.waterStatus, state.gasStatus,
     Boolean(state.electricity),
     Boolean(state.water),
     Boolean(state.gas),
@@ -142,20 +145,22 @@ function statusSignature(state = {}) {
 function updateGateState(gate, state) {
   if (!gate?.isConnected || !state) return;
 
+  const unknown = state.checked !== true;
   const previous = gate.dataset.utilityStatusSignature || '';
   const next = statusSignature(state);
   gate.dataset.utilityStatusSignature = next;
   gate.classList.toggle('is-online', Boolean(state.operational));
-  gate.classList.toggle('is-offline', !state.operational);
+  gate.classList.toggle('is-offline', !unknown && !state.operational);
+  gate.classList.toggle('is-checking', unknown);
 
   const head = gate.querySelector('.mn-business-utility-gate__head span');
   if (head) {
     const small = head.querySelector('small');
     const strong = head.querySelector('strong');
-    if (small) small.textContent = state.operational ? 'КОММУНАЛЬНЫЕ СЕТИ ПОДКЛЮЧЕНЫ' : 'ПРЕДПРИЯТИЕ НЕ РАБОТАЕТ';
-    if (strong) strong.textContent = state.operational
+    if (small) small.textContent = unknown ? 'СТАТУС ЖКХ' : state.operational ? 'КОММУНАЛЬНЫЕ СЕТИ ПОДКЛЮЧЕНЫ' : 'ПРЕДПРИЯТИЕ НЕ РАБОТАЕТ';
+    if (strong) strong.textContent = unknown ? (state.error ? 'Не удалось проверить подключения. Повторяем проверку автоматически.' : 'Проверяем электричество, воду и газ…') : state.operational
       ? 'Все обязательные подключения активны'
-      : 'Подключите воду, газ и электричество, чтобы предприятие начало работать и функционировать.';
+      : 'Для работы нужна активная подача электричества, воды и газа. Проверьте статусы ниже.';
   }
 
   const services = [
@@ -172,12 +177,16 @@ function updateGateState(gate, state) {
     const connected = Boolean(state[connectedKey]);
 
     article.classList.toggle('is-active', active);
-    article.classList.toggle('is-missing', !active && !connected);
-    article.classList.toggle('is-stopped', !active && connected);
+    article.classList.toggle('is-missing', !unknown && !active && !connected);
+    article.classList.toggle('is-stopped', !unknown && !active && connected);
 
+    let reason = article.querySelector('[data-utility-reason]');
+    if (!reason) { reason = document.createElement('small'); reason.dataset.utilityReason = '1'; article.querySelector('span').append(reason); }
+    reason.textContent = unknown ? '' : (state.reasons?.[key] || '');
+    reason.hidden = !reason.textContent;
     const strong = article.querySelector('strong');
     if (strong) {
-      strong.textContent = active
+      strong.textContent = unknown ? (state.error ? 'Не удалось проверить' : 'Проверяем…') : state[`${key}Status`] === 'offered' && !active ? 'Ожидает принятия договора' : active
         ? activeText
         : connected
           ? stoppedText
@@ -186,7 +195,7 @@ function updateGateState(gate, state) {
   });
 
   const info = gate.querySelector('[data-business-utility-info]');
-  if (info) info.hidden = Boolean(state.operational);
+  if (info) info.hidden = !unknown && Boolean(state.operational);
 
   if (previous && previous !== next) {
     window.dispatchEvent(new CustomEvent('mn:business-utility-status-changed', {
@@ -268,6 +277,7 @@ async function refreshOfferBox(gate, ids, options) {
   } catch (error) {
     console.warn('[businessUtilityGate] incoming offers refresh failed:', error);
     if (gate.isConnected) {
+      updateGateState(gate, { checked:false, error:true, objectIds:ids });
       box.hidden = false;
       box.textContent = 'Не удалось обновить входящие договоры. Повторная проверка выполняется автоматически.';
     }
@@ -291,7 +301,7 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   });
   if (!isOwner) return;
 
-  const state = status || { electricity:false, water:false, gas:false, operational:false, missing:['electricity','water','gas'], objectIds:[] };
+  const state = status ? { ...status, checked:status.checked !== false } : { electricity:false, water:false, gas:false, operational:false, missing:['electricity','water','gas'], objectIds:[] };
   const ids = [...new Set([...(Array.isArray(objectIds) ? objectIds : []), ...(Array.isArray(state.objectIds) ? state.objectIds : []), objectId].map((v) => String(v ?? '').trim()).filter(Boolean))];
   const gate = document.createElement('section');
   gate.dataset.businessUtilityGate = '1';
@@ -319,6 +329,7 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   `;
   const anchor = container.querySelector('[data-business-utility-anchor]') || container.querySelector('main') || container.querySelector('section') || container.firstElementChild || container;
   anchor.prepend(gate);
+  updateGateState(gate, state);
   if (!showStateSale) gate.querySelector('.mn-business-state-sale')?.remove();
   const saleButton = gate.querySelector('[data-business-state-sale]');
   if (saleButton) {
@@ -380,6 +391,7 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   void refreshOfferBox(gate, ids, options);
   const offerTimer = setInterval(() => {
     if (!gate.isConnected) { clearInterval(offerTimer); return; }
+    if (gate.closest('[hidden], [aria-hidden="true"]') || gate.closest('dialog:not([open])')) return;
     void refreshOfferBox(gate, ids, options);
   }, OFFER_POLL_MS);
   offerTimers.set(gate, offerTimer);
@@ -388,3 +400,18 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   // 5-second offer timer. Accept/Reject forces an immediate refresh.
 }
 
+
+// Reuse an existing panel while unrelated production counters are rendered.
+// Rebuild on business switch, ownership change, or replacement of its DOM.
+const mountedGates = new WeakMap();
+export function syncBusinessUtilityGate(container, { isOwner = false, objectId = '', objectIds = [] } = {}) {
+  if (!container) return;
+  const ids = [...new Set([objectId, ...objectIds].map(v => String(v || '').trim()).filter(v => v && v !== '—'))];
+  const key = `${Boolean(isOwner)}:${idsKey(ids)}`;
+  const previous = mountedGates.get(container);
+  if (previous?.key === key && previous.gate?.isConnected) return;
+  clearBusinessUtilityGate(container);
+  if (!isOwner || !ids.length) { mountedGates.delete(container); return; }
+  renderBusinessUtilityGate(container, null, { isOwner:true, objectId, objectIds:ids, showStateSale:false });
+  mountedGates.set(container, { key, gate:container.querySelector('[data-business-utility-gate]') });
+}
