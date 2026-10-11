@@ -130,4 +130,3 @@ export function installConnectionMonitor(url, publicKey) {
 }
 
 export const connectionFetch = createConnectionFetch((...args) => globalThis.fetch(...args));
-
