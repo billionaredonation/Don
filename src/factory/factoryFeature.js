@@ -1,3 +1,4 @@
+import { factoryDiagnostic, mountFactoryDiagnostics } from './factoryDiagnostics.js';
 import './factory.css';
 import './factoryRedesign.css';
 import { FACTORY_CONFIG, FACTORY_PROCUREMENT_ITEMS, FACTORY_RAW_ITEMS, FACTORY_RECIPES, FACTORY_ROLES, formatFactoryMoney } from './factoryConfig.js';
@@ -277,6 +278,7 @@ function contractsMarkup(contracts = [], actorId = '') {
 export function enableFactoryFeature({ root, cityId }) {
   root.insertAdjacentHTML('beforeend', markup());
   const modal = root.querySelector('[data-factory-modal]');
+  const cleanupDiagnostics = mountFactoryDiagnostics(modal);
   let currentId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, timer = 0, busy = false;
   const q = (s) => modal.querySelector(s);
   const qa = (s) => [...modal.querySelectorAll(s)];
@@ -291,7 +293,8 @@ export function enableFactoryFeature({ root, cityId }) {
     return raw.includes('PROCUREMENT_') ? getProcurementError(error) : formatter(error);
   };
   const run = async (task, errorFormatter = getFactoryError, successMessage = 'Действие выполнено.') => {
-    if (busy) return;
+    if (busy) { factoryDiagnostic('Нажатие отклонено', 'Предыдущее действие ещё выполняется'); return; }
+    factoryDiagnostic('Обработчик действия', 'Начало');
     busy = true;
     modal.classList.add('is-busy');
     feedback('Выполняем действие…');
@@ -299,30 +302,37 @@ export function enableFactoryFeature({ root, cityId }) {
       try {
         await task();
       } catch (error) {
+        factoryDiagnostic('Ошибка действия', error?.message || error);
         const message = formatError(error, errorFormatter);
         feedback(message, 'error');
         notify(message, 'error');
         return;
       }
+      factoryDiagnostic('Действие завершено', successMessage);
       feedback(successMessage);
       try {
         await refresh();
       } catch (error) {
+        factoryDiagnostic('Ошибка обновления после успеха', error?.message || error);
         const message = `${successMessage} Не удалось обновить данные: ${formatError(error, errorFormatter)} Закройте и снова откройте окно завода для проверки состояния.`;
         feedback(message, 'error');
         notify(message, 'error');
       }
     } finally {
+      factoryDiagnostic('Обработчик действия', 'Завершён; кнопки разблокированы');
       busy = false;
       modal.classList.remove('is-busy');
     }
   };
   const refresh = async () => {
+    factoryDiagnostic('Обновление панели', 'Загрузка состояния производства');
     snapshot = await loadFactorySnapshot(currentId, cityId);
     procurement = null;
     render();
+    factoryDiagnostic('Обновление панели', 'Загрузка бюджета скупа');
     procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food' }) : null;
     render();
+    factoryDiagnostic('Обновление панели', 'Завершено');
   };
   function render() {
     const s = snapshot || {}, business = s.factory || {}, raw = s.raw || {}, products = s.products || {}, prices = s.wholesalePrices || {}, wages = s.productionWages || {}, batch = s.activeBatch || null;
@@ -433,7 +443,7 @@ export function enableFactoryFeature({ root, cityId }) {
     });
   };
   qa('[data-factory-procurement-item-save]').forEach((button) => { button.onclick = () => saveProcurementItem(button.dataset.factoryProcurementItemSave); });
-  const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== 'fruit_factory') return; currentId = objectId(object); currentPublicId = getPublicBusinessId(object); currentLegal = getBusinessLegalPayload({ legalForm:'tov', ...(object?.payload || {}) }); modal.hidden = false; tab('production'); run(async () => { snapshot = await loadFactorySnapshot(currentId, cityId); render(); }); };
+  const onAction = (event) => { const object = event.detail?.object; if (objectType(object) !== 'fruit_factory') return; currentId = objectId(object); factoryDiagnostic('Открытие завода', `factoryId=${currentId}; cityId=${cityId}`); currentPublicId = getPublicBusinessId(object); currentLegal = getBusinessLegalPayload({ legalForm:'tov', ...(object?.payload || {}) }); modal.hidden = false; tab('production'); run(async () => { snapshot = await loadFactorySnapshot(currentId, cityId); render(); }); };
   window.addEventListener('mn:factory-object-action', onAction);
-  return () => { clearTimeout(timer); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
+  return () => { clearTimeout(timer); cleanupDiagnostics(); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
 }
