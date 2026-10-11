@@ -1,3 +1,4 @@
+import { syncBusinessUtilityGate, clearBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import './metallurgy.css';
 import {
   METALLURGY_CONFIG,
@@ -289,10 +290,11 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
   let busy = false;
 
   function render() {
+    syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentPublicId, objectIds:[currentFactoryId] });
     const business = snapshot?.business || {};
     const raw = snapshot?.raw || {};
     const products = snapshot?.products || {};
-    q('[data-metallurgy-state]').textContent = business.ownerId ? 'Готов к производству' : 'Государственный';
+    q('[data-metallurgy-state]').textContent = business.ownerId ? 'Предприятие приобретено' : 'Государственный';
     q('[data-metallurgy-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
     q('[data-metallurgy-cash]').textContent = snapshot?.isOwner ? formatMetallurgyMoney(business.cash) : 'Скрыто';
     q('[data-metallurgy-buy]').hidden = Boolean(business.ownerId);
@@ -337,7 +339,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     if (objectType(object) !== METALLURGY_CONFIG.type) return;
     currentFactoryId = objectId(object);
     currentPublicId = getPublicBusinessId(object);
-    modal.hidden = false;
+    clearBusinessUtilityGate(modal); modal.hidden = false;
     setTab('production');
     refresh().catch((error) => toast(getMetallurgyError(error), 'error'));
   }
