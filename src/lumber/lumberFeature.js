@@ -28,7 +28,7 @@ import { jobBusinessPageMarkup } from '../jobs/jobBusinessUi.js';
 import { renderBusinessStateSaleControl } from '../businessStateSale/businessStateSaleControl.js';
 import { renderProcurementControls } from '../procurement/procurementControls.js';
 import { setProcurementBudget } from '../procurement/procurementApi.js';
-import { getPublicBusinessId } from '../business/publicBusinessId.js';
+import { getPublicBusinessId, renderPublicBusinessId } from '../business/publicBusinessId.js';
 import '../jobs/jobBusiness.css';
 import './lumber.css';
 
@@ -438,6 +438,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     startLumberStreamLoading();
     activeStationObjectId = String(object?.id || '');
     activeBusinessPublicId = getPublicBusinessId(object);
+    renderPublicBusinessId(modal?.querySelector('.mn-lumber-panel'), object);
     businessState = null;
     setStatus('');
     modal.hidden = false;
