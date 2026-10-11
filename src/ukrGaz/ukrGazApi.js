@@ -43,7 +43,7 @@ export function getGasError(error) {
     GAS_PRICE_REQUIRED: 'Сначала задайте цену скупки.',
     COAL_POWER_PLAYER_COAL_NOT_ENOUGH: 'В инвентаре недостаточно обычного угля.',
     UTILITY_CONSUMER_AMBIGUOUS: 'Короткий ID совпал у нескольких объектов. Введите полный ID.',
-    UTILITY_CONSUMER_NOT_FOUND: 'Дом или предприятие не найдены в этом городе.',
+    UTILITY_CONSUMER_ID_AMBIGUOUS:'Этот ID назначен нескольким объектам. Администратору нужно исправить дубликат.',UTILITY_OWNER_AMBIGUOUS:'Объект связан с несколькими записями предприятия. Требуется проверка администратором.',UTILITY_CONSUMER_NOT_FOUND: 'Дом или предприятие не найдены в этом городе.',
     UTILITY_OWNER_CHANGED: 'Владелец объекта изменился; нужен новый договор.',
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.',
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела.',
