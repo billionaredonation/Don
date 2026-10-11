@@ -621,6 +621,7 @@ function storeMarkup(snapshot, drawerMode = '', drawerData = null) {
   if (drawerMode === 'fine') drawer = fineDrawer();
   if (drawerMode === 'robbery') drawer = robberyDrawer(snapshot, drawerData);
   return `
+    <div data-business-utility-anchor></div>
     <header class="mn-business-store-header">
       <span><small>${escapeHtml(cityName(snapshot.cityId))} · ${presentation.adjective}</small><strong>${presentation.icon} ${escapeHtml(snapshot.name || presentation.fallbackName)}</strong></span>
       <div><b>${escapeHtml(BUSINESS_ROLE_LABELS[role] || 'Покупатель')}</b>${financeVisible ? `<em>Счёт ${formatBusinessMoney(snapshot.cashBalance)}</em>` : ''}</div>
@@ -1501,6 +1502,5 @@ export function enableBusinessFeature(root, { cityId: activeCityId } = {}) {
     offerModal?.remove();
   };
 }
-
 
 
