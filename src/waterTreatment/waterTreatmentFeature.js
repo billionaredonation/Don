@@ -1,4 +1,3 @@
-import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import './waterTreatment.css';
 import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
 import '../community/statePurchaseBenefit.css';
@@ -169,7 +168,6 @@ export function enableWaterTreatmentFeature({ root, cityId } = {}) {
       : null;
     modal.classList.toggle('is-running', Boolean(snapshot?.running));
     content.innerHTML = activeTab === 'equipment' ? equipmentView() : activeTab === 'consumers' ? consumersView() : overview();
-    syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentId });
     if(!snapshot?.plant?.ownerId&&!snapshot?.ownerId)void renderStatePurchaseBenefit(content,{basePrice:10000000,priceSelector:'.mn-water-buy strong'});
     renderBusinessStateSaleControl(content, { businessId: currentId, isOwner: Boolean(snapshot?.isOwner) });
     bind();
