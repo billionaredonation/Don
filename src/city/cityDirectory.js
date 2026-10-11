@@ -1,137 +1,5 @@
 import { supabase } from '../supabaseClient.js';
-
-const BUSINESS_TYPES = new Set([
-  'shop',
-  'construction_store',
-  'cafe',
-  'gas_station',
-  'bank',
-  'warehouse',
-  'office',
-  'market',
-  'accessory_store',
-  'logistics_hub',
-  'farm_station',
-  'mine_station',
-  'lumber_station',
-  'fruit_factory',
-  'textile_factory',
-  'metallurgy_factory',
-  'wood_processing_factory',
-  'tool_assembly_factory',
-  'hydro_power_plant',
-  'coal_power_plant',
-  'energy_substation',
-  'water_treatment_plant',
-  'car_factory',
-  'car_dealer',
-  'auto_service',
-  'oil_well',
-  'oil_refinery',
-  'fuel_station',
-  'ukrgaz_plant',
-]);
-
-const JOB_TYPES = new Set([
-  'hospital',
-  'farm_station',
-  'mine_station',
-  'lumber_station',
-  'fruit_factory',
-  'textile_factory',
-  'metallurgy_factory',
-  'wood_processing_factory',
-  'tool_assembly_factory',
-  'hydro_power_plant',
-  'nuclear_power_plant',
-  'coal_power_plant',
-  'energy_substation',
-  'water_treatment_plant',
-  'car_factory',
-  'car_dealer',
-  'auto_service',
-  'oil_well',
-  'oil_refinery',
-  'fuel_station',
-  'ukrgaz_plant',
-]);
-
-const LABELS = Object.freeze({
-  shop: ['🛒', 'Продуктовый магазин'],
-  construction_store: ['🧰', 'Магазин стройматериалов'],
-  cafe: ['☕', 'Кафе'],
-  gas_station: ['⛽', 'Заправка'],
-  bank: ['🏦', 'Банк'],
-  warehouse: ['📦', 'Склад'],
-  office: ['🏢', 'Офис'],
-  market: ['🏪', 'Рынок'],
-  accessory_store: ['👕', 'Магазин одежды и аксессуаров'],
-  logistics_hub: ['🚚', 'Логистический центр'],
-  hospital: ['🏥', 'Больница'],
-  farm_station: ['🌾', 'Ферма'],
-  mine_station: ['⛏️', 'Шахта'],
-  lumber_station: ['🪓', 'Лесозаготовка'],
-  fruit_factory: ['🏭', 'Пищевой завод'],
-  textile_factory: ['🧵', 'Швейный завод'],
-  metallurgy_factory: ['🔥', 'Металлургический завод'],
-  wood_processing_factory: ['🪵', 'Деревоперерабатывающий завод'],
-  tool_assembly_factory: ['🛠️', 'Завод инструментов'],
-  hydro_power_plant: ['⚡', 'ГЭС'],
-  nuclear_power_plant: ['☢️', 'АЭС'],
-  coal_power_plant: ['🏭', 'УЭС'],
-  energy_substation: ['⚡', 'Электрическая подстанция'],
-  water_treatment_plant: ['💧', 'Водоочистное предприятие'],
-  car_factory: ['🚗', 'Автомобильный завод'],
-  car_dealer: ['🚘', 'Автосалон'],
-  auto_service: ['🔧', 'СТО'],
-  oil_well: ['🛢️', 'Нефтескважина'],
-  oil_refinery: ['🏭', 'НПЗ'],
-  fuel_station: ['⛽', 'АЗС'],
-  ukrgaz_plant: ['🔥', 'УкрГаз'],
-});
-
-function payloadOf(row) {
-  if (row?.payload && typeof row.payload === 'object') return row.payload;
-  try {
-    return JSON.parse(String(row?.payload || '{}')) || {};
-  } catch {
-    return {};
-  }
-}
-
-function typeOf(row) {
-  const payload = payloadOf(row);
-  return String(
-    row?.type ||
-    payload.type ||
-    payload.jobType ||
-    payload.job_type ||
-    payload.businessType ||
-    payload.business_type ||
-    ''
-  ).trim();
-}
-
-function categoryOf(row) {
-  const payload = payloadOf(row);
-  return String(
-    row?.category ||
-    payload.category ||
-    payload.kind ||
-    ''
-  ).trim();
-}
-
-function ownerOf(row) {
-  const payload = payloadOf(row);
-  return String(
-    row?.owner_id ||
-    row?.ownerId ||
-    payload.ownerId ||
-    payload.owner_id ||
-    ''
-  ).trim() || null;
-}
+import { payloadOf, typeOf, categoryOf, ownerOf, businessInfo, isDirectoryBusiness as isBusiness, isDirectoryJob as isJob } from '../business/businessDirectoryModel.js';
 
 function numberOrNull(value) {
   const number = Number(value);
@@ -141,7 +9,7 @@ function numberOrNull(value) {
 function normalizeObject(row) {
   const payload = payloadOf(row);
   const type = typeOf(row);
-  const [icon = '•', defaultLabel = type || 'Объект'] = LABELS[type] || [];
+  const { icon, label: defaultLabel } = businessInfo(row);
   const label = String(
     payload.displayName ||
     payload.name ||
@@ -166,18 +34,6 @@ function normalizeObject(row) {
     ownerId,
     ownerLabel: ownerId ? 'Игрок' : 'Государство',
   };
-}
-
-function isBusiness(row) {
-  const type = typeOf(row);
-  const category = categoryOf(row);
-  return category === 'business' || BUSINESS_TYPES.has(type);
-}
-
-function isJob(row) {
-  const type = typeOf(row);
-  const category = categoryOf(row);
-  return category === 'job' || JOB_TYPES.has(type);
 }
 
 function uniqueById(items) {
@@ -210,15 +66,18 @@ export async function fetchCityDirectory(cityId) {
   const safeCityId = String(cityId || '').trim();
   if (!safeCityId) return getEmptyCityDirectory();
 
-  const { data, error } = await supabase
-    .from('map_objects')
-    .select('id,city_id,type,category,x,y,payload')
-    .eq('city_id', safeCityId)
-    .limit(1000);
+  const rows = [];
+  const pageSize = 500;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.from('map_objects')
+      .select('id,name,city_id,type,category,x,y,payload').eq('city_id', safeCityId)
+      .order('id').range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    const page = Array.isArray(data) ? data : [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
 
-  if (error) throw error;
-
-  const rows = Array.isArray(data) ? data : [];
   const businesses = sortItems(uniqueById(rows.filter(isBusiness).map(normalizeObject)));
   const jobs = sortItems(uniqueById(rows.filter(isJob).map(normalizeObject)));
 
