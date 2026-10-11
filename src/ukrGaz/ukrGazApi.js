@@ -42,7 +42,7 @@ export function getGasError(error) {
     GAS_PROCUREMENT_DISABLED: 'Скупка угля остановлена.',
     GAS_PRICE_REQUIRED: 'Сначала задайте цену скупки.',
     COAL_POWER_PLAYER_COAL_NOT_ENOUGH: 'В инвентаре недостаточно обычного угля.',
-    UTILITY_CONSUMER_AMBIGUOUS: 'Короткий ID совпал у нескольких объектов. Введите полный ID.',
+    BUSINESS_CASH_NOT_ENOUGH:'В кассе предприятия недостаточно денег для подключения. Пополните кассу предприятия.',BUSINESS_FINANCE_NOT_FOUND:'Касса предприятия не найдена. Обратитесь к администратору.',BUSINESS_FINANCE_AMBIGUOUS:'Найдено несколько касс предприятия. Требуется проверка администратором.',UTILITY_CONNECTION_AMOUNT_INVALID:'Некорректная сумма подключения. Попросите поставщика выставить новый договор с целой суммой.',UTILITY_CONSUMER_AMBIGUOUS: 'Короткий ID совпал у нескольких объектов. Введите полный ID.',
     UTILITY_CONSUMER_ID_AMBIGUOUS:'Этот ID назначен нескольким объектам. Администратору нужно исправить дубликат.',UTILITY_OWNER_AMBIGUOUS:'Объект связан с несколькими записями предприятия. Требуется проверка администратором.',UTILITY_CONSUMER_NOT_FOUND: 'Дом или предприятие не найдены в этом городе.',
     UTILITY_OWNER_CHANGED: 'Владелец объекта изменился; нужен новый договор.',
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.',
@@ -76,5 +76,4 @@ export function getGasError(error) {
 export const ukrGazWarehouseAction=(plantId,cityId,action,value=0)=>invoke(action,{plantId,cityId,value});
 
 export const loadUkrGazMarket=()=>invoke('market_snapshot');
-
 
