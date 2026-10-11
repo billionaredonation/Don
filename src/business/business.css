@@ -1329,3 +1329,23 @@ body.mn-mobile-game-enabled .mn-business-procurement-preview > span {
 .mn-business-details footer [data-business-details-robbery]:hover {
   background: rgba(166,38,38,.5);
 }
+
+/* Utility status is an additional row; keep the trading floor flexible. */
+.mn-business-store-shell > div {
+  display: flex;
+  flex-direction: column;
+}
+.mn-business-store-shell > div > .mn-business-store-main {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.mn-business-store-shell > div > .mn-business-store-header,
+.mn-business-store-shell > div > .mn-business-store-footer,
+.mn-business-store-shell > div > .mn-business-store-message {
+  flex: 0 0 auto;
+}
+.mn-business-store-shell > div > [data-business-utility-anchor] {
+  flex: 0 0 auto;
+  max-height: 35dvh;
+  overflow: auto;
+}
