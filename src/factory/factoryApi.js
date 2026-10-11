@@ -1,32 +1,17 @@
-import { factoryDiagnostic } from './factoryDiagnostics.js';
 import { supabase } from '../supabaseClient.js';
 
 function initData() { return String(window.Telegram?.WebApp?.initData || '').trim(); }
 async function invoke(action, payload = {}) {
-  const started = Date.now();
-  const label = `fruit-factory / ${action}`;
-  factoryDiagnostic(label, 'Подготовка запроса');
-  const waiting = setTimeout(() => factoryDiagnostic(label, 'Ответ не получен за 10 секунд. Ожидаем; повторный запрос не отправляется.'), 10000);
-  try {
-    const telegramData = initData();
-    if (!telegramData) throw new Error('TELEGRAM_SESSION_REQUIRED');
-    factoryDiagnostic(label, 'Вызов сервера');
-    const { data, error } = await supabase.functions.invoke('fruit-factory', { body: { initData: telegramData, action, ...payload } });
-    if (error) {
-      let body = null;
-      try { body = await error.context?.clone?.().json(); } catch {}
-      factoryDiagnostic(label, `Отказ: HTTP ${error.context?.status || 'не получен'}; code=${body?.code || error.code || '—'}; rpc=${body?.rpc || '—'}`);
-      throw new Error(body?.error || body?.message || error.message || 'FACTORY_REQUEST_FAILED');
-    }
-    if (!data?.ok) throw new Error(data?.error || 'FACTORY_REQUEST_FAILED');
-    factoryDiagnostic(label, `Сервер подтвердил успех; ${Date.now() - started} мс; activeBatch=${data.result?.activeBatch?.id || data.result?.batchId || '—'}`);
-    return data.result;
-  } catch (error) {
-    factoryDiagnostic(label, `Ошибка: ${error?.message || error}; ${Date.now() - started} мс`);
-    throw error;
-  } finally {
-    clearTimeout(waiting);
+  const telegramData = initData();
+  if (!telegramData) throw new Error('TELEGRAM_SESSION_REQUIRED');
+  const { data, error } = await supabase.functions.invoke('fruit-factory', { body: { initData: telegramData, action, ...payload } });
+  if (error) {
+    let details = '';
+    try { details = (await error.context?.clone?.().json())?.error || ''; } catch {}
+    throw new Error(details || error.message || 'FACTORY_REQUEST_FAILED');
   }
+  if (!data?.ok) throw new Error(data?.error || 'FACTORY_REQUEST_FAILED');
+  return data.result;
 }
 
 export const loadFactorySnapshot = (factoryId, cityId) => invoke('snapshot', { factoryId, cityId });
@@ -94,4 +79,3 @@ export function getFactoryError(error) {
   const key = Object.keys(messages).find((code) => raw.includes(code));
   return key ? messages[key] : raw;
 }
-
