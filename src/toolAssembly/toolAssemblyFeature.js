@@ -1,3 +1,4 @@
+import { syncBusinessUtilityGate, clearBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import '../metallurgy/metallurgy.css';
 import {
   TOOL_ASSEMBLY_CONFIG,
@@ -277,8 +278,9 @@ export function enableToolAssemblyFeature({ root, cityId } = {}) {
   let busy = false;
 
   function render() {
+    syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentPublicId, objectIds:[currentFactoryId] });
     const business = snapshot?.business || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
-    q('[data-tool-state]').textContent = business.ownerId ? 'Готов к производству' : 'Государственный';
+    q('[data-tool-state]').textContent = business.ownerId ? 'Предприятие приобретено' : 'Государственный';
     q('[data-tool-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
     q('[data-tool-cash]').textContent = snapshot?.isOwner ? formatToolMoney(business.cash) : 'Скрыто';
     q('[data-tool-buy]').hidden = Boolean(business.ownerId);
@@ -307,7 +309,7 @@ export function enableToolAssemblyFeature({ root, cityId } = {}) {
   function onObjectAction(event) {
     const object = event.detail?.object;
     if (objectType(object) !== TOOL_ASSEMBLY_CONFIG.type) return;
-    currentFactoryId = objectId(object); modal.hidden = false; setTab('production');
+    currentFactoryId = objectId(object); clearBusinessUtilityGate(modal); modal.hidden = false; setTab('production');
     currentPublicId = getPublicBusinessId(object);
     refresh().catch((error) => toast(getToolAssemblyError(error), 'error'));
   }
