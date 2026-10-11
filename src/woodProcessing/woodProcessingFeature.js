@@ -1,3 +1,4 @@
+import { syncBusinessUtilityGate, clearBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import '../metallurgy/metallurgy.css';
 import {
   WOOD_PROCESSING_CONFIG,
@@ -280,8 +281,9 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
   let busy = false;
 
   function render() {
+    syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentPublicId, objectIds:[currentFactoryId] });
     const business = snapshot?.business || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
-    q('[data-wood-state]').textContent = business.ownerId ? 'Готов к производству' : 'Государственный';
+    q('[data-wood-state]').textContent = business.ownerId ? 'Предприятие приобретено' : 'Государственный';
     q('[data-wood-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
     q('[data-wood-cash]').textContent = snapshot?.isOwner ? formatWoodMoney(business.cash) : 'Скрыто';
     q('[data-wood-buy]').hidden = Boolean(business.ownerId);
@@ -311,7 +313,7 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
   function onObjectAction(event) {
     const object = event.detail?.object;
     if (objectType(object) !== WOOD_PROCESSING_CONFIG.type) return;
-    currentFactoryId = objectId(object); modal.hidden = false; setTab('production');
+    currentFactoryId = objectId(object); clearBusinessUtilityGate(modal); modal.hidden = false; setTab('production');
     currentPublicId = getPublicBusinessId(object);
     refresh().catch((error) => toast(getWoodProcessingError(error), 'error'));
   }
