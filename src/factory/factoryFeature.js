@@ -247,7 +247,7 @@ const objectId = (o) => String(
   o?.id ||
   ''
 ).trim();
-const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:game-toast', { detail: { message, type } }));
+const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 const exchangeProductType = (recipeId) => `grocery_${String(recipeId || '').trim()}`;
 
 function markup() {
@@ -257,6 +257,7 @@ function markup() {
     <header><div><small>ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ</small><h2>Завод по производству питания</h2><p>Ферма → производство → склад завода → биржа → покупка магазином → доставка → склад магазина → полка</p></div><button data-factory-close aria-label="Закрыть">×</button></header>
     <nav><button data-factory-tab="production" class="is-active">Производство</button><button data-factory-tab="warehouse">Склады</button><button data-factory-tab="management">Управление</button></nav>
     <main>
+      <p data-factory-feedback role="status" aria-live="polite" hidden style="padding:12px 16px;border:1px solid currentColor;border-radius:12px;white-space:pre-wrap"></p>
       <section data-factory-page="production"><div class="mn-factory-status"><span><small>Статус</small><strong data-factory-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-factory-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-factory-cash>—</strong></span></div><div class="mn-factory-workflow">${FACTORY_ROLES.map((role, index) => `<span><i>${role.icon}</i><b>${index + 1}. ${role.label}</b></span>`).join('<em>→</em>')}<em>→</em><span><i>🏬</i><b>Склад</b></span><em>→</em><span><i>📈</i><b>Биржа</b></span><em>→</em><span><i>🚚</i><b>Доставка</b></span></div><div class="mn-factory-line" data-factory-line><i>⚙️</i><span><strong>Линия свободна</strong><small>Выберите рецепт и запустите смену</small></span><button data-factory-cook hidden>Повар: готовить</button><button data-factory-finish hidden>Упаковать на склад</button></div><h3>Технологические карты</h3><div class="mn-factory-recipes">${recipes}</div></section>
       <section data-factory-page="warehouse" hidden><h3>Сырьевой склад</h3><div class="mn-factory-warehouse">${raw}</div><h3>Готовая продукция</h3><p class="mn-factory-exchange-note">Готовый товар не отправляется в магазин напрямую. Владелец выставляет партию на биржу, а продуктовый магазин сам выбирает нужное предложение и оплачивает доставку.</p><div class="mn-factory-products">${Object.values(FACTORY_RECIPES).map((r) => `<article><i>${r.icon}</i><span><small>${r.label}</small><strong data-factory-product="${r.id}">0</strong></span><div class="mn-factory-offer-controls"><input type="number" min="1" value="1" data-factory-offer-qty="${r.id}" aria-label="Количество партии"><input type="number" min="1" value="${Math.max(1, Math.round(r.wage / r.outputQty * 1.8))}" data-factory-offer-price="${r.id}" aria-label="Цена за единицу"><button data-factory-offer="${r.id}">На биржу</button></div></article>`).join('')}</div></section>
       <section data-factory-page="management" hidden><div class="mn-factory-buy" data-factory-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatFactoryMoney(FACTORY_CONFIG.purchasePrice)}</strong><p>Форма и налог заданы администратором: <b data-factory-purchase-legal>—</b></p></span><button data-factory-purchase>Купить завод</button></div><div data-factory-owned hidden><div class="mn-factory-owner"><span><small>Владелец</small><strong data-factory-owner>—</strong></span><span><small>Юр. форма</small><strong data-factory-legal-view>—</strong></span><span><small>Публичный ID</small><strong data-factory-public-id>—</strong></span></div>${procurementControlsMarkup('factory', FACTORY_PROCUREMENT_ITEMS)}<div class="mn-factory-manage-grid"><article><h3>Баланс предприятия</h3><input type="number" min="1" placeholder="Сумма" data-factory-money><div><button data-factory-deposit>Пополнить</button><button data-factory-withdraw>Снять</button></div></article><article><h3>Персонал</h3><input placeholder="Ник игрока" data-factory-staff-target><select data-factory-staff-role>${FACTORY_ROLES.map((role) => `<option value="${role.id}">${role.label}</option>`).join('')}</select><div><button data-factory-staff-save>Назначить</button><button data-factory-staff-remove>Снять</button></div></article><article class="is-wide"><h3>Базовые цены для биржи</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="1" value="${Math.max(1, Math.round(r.wage / r.outputQty * 1.8))}" data-factory-wholesale-price="${r.id}"><button data-factory-wholesale-save="${r.id}">Сохранить</button></label>`).join('')}</div></article><article class="is-wide"><h3>Оплата за изготовление партии</h3><div class="mn-factory-price-list">${Object.values(FACTORY_RECIPES).map((r) => `<label><span>${r.icon} ${r.label}</span><input type="number" min="0" value="${r.wage}" data-factory-production-wage="${r.id}"><button data-factory-wage-save="${r.id}">Сохранить</button></label>`).join('')}</div></article></div></div></section>
@@ -279,9 +280,47 @@ export function enableFactoryFeature({ root, cityId }) {
   let currentId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, timer = 0, busy = false;
   const q = (s) => modal.querySelector(s);
   const qa = (s) => [...modal.querySelectorAll(s)];
-  const run = async (task, errorFormatter = getFactoryError) => { if (busy) return; busy = true; modal.classList.add('is-busy'); try { await task(); await refresh(); } catch (e) { const raw=String(e?.message||e||''); notify(raw.includes('PROCUREMENT_')?getProcurementError(e):errorFormatter(e), 'error'); } finally { busy = false; modal.classList.remove('is-busy'); } };
+  const feedback = (message, type = 'info') => {
+    const node = q('[data-factory-feedback]');
+    node.textContent = message;
+    node.hidden = !message;
+    node.style.color = type === 'error' ? '#ffb4ab' : '#b5efc9';
+  };
+  const formatError = (error, formatter) => {
+    const raw = String(error?.message || error || '');
+    return raw.includes('PROCUREMENT_') ? getProcurementError(error) : formatter(error);
+  };
+  const run = async (task, errorFormatter = getFactoryError, successMessage = 'Действие выполнено.') => {
+    if (busy) return;
+    busy = true;
+    modal.classList.add('is-busy');
+    feedback('Выполняем действие…');
+    try {
+      try {
+        await task();
+      } catch (error) {
+        const message = formatError(error, errorFormatter);
+        feedback(message, 'error');
+        notify(message, 'error');
+        return;
+      }
+      feedback(successMessage);
+      try {
+        await refresh();
+      } catch (error) {
+        const message = `${successMessage} Не удалось обновить данные: ${formatError(error, errorFormatter)} Закройте и снова откройте окно завода для проверки состояния.`;
+        feedback(message, 'error');
+        notify(message, 'error');
+      }
+    } finally {
+      busy = false;
+      modal.classList.remove('is-busy');
+    }
+  };
   const refresh = async () => {
     snapshot = await loadFactorySnapshot(currentId, cityId);
+    procurement = null;
+    render();
     procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food' }) : null;
     render();
   };
@@ -325,7 +364,7 @@ export function enableFactoryFeature({ root, cityId }) {
   q('[data-factory-close]').onclick = () => { modal.hidden = true; clearTimeout(timer); };
   qa('[data-factory-tab]').forEach((b) => b.onclick = () => tab(b.dataset.factoryTab));
   action('[data-factory-purchase]', () => purchaseFactory(currentId, cityId));
-  qa('[data-factory-start]').forEach((b) => b.onclick = () => run(() => startFactoryBatch(currentId, cityId, b.dataset.factoryStart, q(`[data-factory-ingredient="${b.dataset.factoryStart}"]`)?.value || '')));
+  qa('[data-factory-start]').forEach((b) => b.onclick = () => run(() => startFactoryBatch(currentId, cityId, b.dataset.factoryStart, q(`[data-factory-ingredient="${b.dataset.factoryStart}"]`)?.value || ''), getFactoryError, 'Сырьё подано на линию. Следующий этап — готовка.'));
   action('[data-factory-cook]', () => cookFactoryBatch(currentId, cityId, q('[data-factory-cook]').dataset.batchId));
   q('[data-factory-finish]').onclick = () => {
     const batch = snapshot?.batch || snapshot?.activeBatch || null;
