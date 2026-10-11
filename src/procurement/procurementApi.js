@@ -32,6 +32,22 @@ async function normalizeError(error) {
 export function getProcurementError(error) {
   const raw = String(error?.message || error || 'PROCUREMENT_REQUEST_FAILED');
   const messages = {
+    METALLURGY_DATABASE_MIGRATION_REQUIRED: 'Сначала примените SQL-миграцию металлургии.',
+    METALLURGY_FACTORY_NOT_FOUND: 'Металлургический завод не найден.',
+    METALLURGY_FACTORY_NOT_OWNED: 'Государственный металлургический завод пока не закупает сырьё.',
+    METALLURGY_FACTORY_ALREADY_OWNED: 'У этого завода уже есть владелец.',
+    METALLURGY_OWNER_REQUIRED: 'Производством может управлять только владелец завода.',
+    METALLURGY_RECIPE_INVALID: 'Такой технологической карты нет.',
+    METALLURGY_PRODUCT_INVALID: 'Такого компонента на складе нет.',
+    METALLURGY_DESTINATION_INVALID: 'Этот компонент нельзя отправить в выбранное место.',
+    METALLURGY_PRODUCT_NOT_ENOUGH: 'На складе недостаточно готовых компонентов.',
+    METALLURGY_MINE_ITEM_NOT_ENOUGH: 'В инвентаре недостаточно выбранного шахтного сырья.',
+    METALLURGY_RAW_WAREHOUSE_FULL: 'Сырьевой склад завода не вместит эту партию.',
+    METALLURGY_MINE_INVENTORY_ADAPTER_REQUIRED: 'Обновите SQL-интеграцию шахтного склада с металлургией.',
+    METALLURGY_CARGO_INVALID: 'Металлургический завод не принимает этот вид сырья.',
+    METALLURGY_RAW_NOT_ENOUGH: 'На сырьевом складе недостаточно ресурсов для этой партии.',
+    METALLURGY_CASH_NOT_ENOUGH: 'На балансе завода недостаточно денег.',
+    METALLURGY_AMOUNT_INVALID: 'Введите корректную сумму.',
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.',
     TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела. Перезапустите игру.',
     PROCUREMENT_DATABASE_MIGRATION_REQUIRED: 'Сначала примените SQL-миграцию единого скупа и разверните функцию procurement-market.',
