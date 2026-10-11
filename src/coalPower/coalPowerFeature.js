@@ -1,4 +1,3 @@
-import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import './coalPower.css';
 import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
 import '../community/statePurchaseBenefit.css';
@@ -72,7 +71,6 @@ export function enableCoalPowerFeature({ root, cityId } = {}) {
   }
 
   function render() {
-    syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentId });
     const state = snapshot || {}, plant = state.plant || {}, installed = state.equipment || {}, warehouse = state.warehouse || {};
     const { capacity, energy, coal } = liveValues();
     const condition = Math.max(0, Number(state.condition || 0)), maxCondition = Math.max(1, Number(state.maxCondition || 5000));
