@@ -1,3 +1,4 @@
+import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import './oilIndustry.css';
 import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
 import '../community/statePurchaseBenefit.css';
@@ -61,6 +62,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
     dialog.innerHTML=`<header><div><small>НЕФТЯНАЯ ПРОМЫШЛЕННОСТЬ</small><h2>${OIL_TYPES[s.kind][0]} ${OIL_TYPES[s.kind][1]}</h2></div><button type="button" data-close aria-label="Закрыть">×</button></header>
     <nav>${[['overview','Обзор / покупка'],...(s.isOwner?[['management','Управление'],...(s.kind!=='oil_well'?[['supply','Закупки'],['deliveries','Доставки']]:[])]:[])].map(([key,label])=>`<button type="button" data-tab="${key}" class="${tab===key?'active':''}">${label}</button>`).join('')}<button data-refresh type="button">Обновить</button></nav>
     <p role="status" class="mn-oil-notice">${esc(busy?'Выполняется действие…':notice)}</p><main>${tab==='management'?management():tab==='supply'?supply():tab==='deliveries'?deliveries():overview()}</main>`;
+    syncBusinessUtilityGate(dialog, { isOwner:Boolean(s?.isOwner), objectId:id });
     renderBusinessStateSaleControl(dialog, { businessId: id, isOwner: Boolean(s?.isOwner) });
     if(!s?.ownerId)void renderStatePurchaseBenefit(dialog,{basePrice:Number(s?.purchasePrice||0),priceSelector:'[data-oil-state-price]'});
     for(const el of dialog.querySelectorAll('[data-input]'))if(drafts.has(el.dataset.input))el.value=drafts.get(el.dataset.input);
