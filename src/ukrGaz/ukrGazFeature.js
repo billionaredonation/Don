@@ -1,4 +1,3 @@
-import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import './ukrGaz.css';
 import { renderStatePurchaseBenefit } from '../community/statePurchaseBenefit.js';
 import '../community/statePurchaseBenefit.css';
@@ -174,7 +173,6 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
       : null;
     modal.classList.toggle('is-running', Boolean(snapshot?.running));
     content.innerHTML = activeTab === 'warehouse' ? warehouseView() : activeTab === 'equipment' ? equipmentView() : activeTab === 'consumers' ? consumersView() : overview();
-    syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentId });
     if(!snapshot?.plant?.ownerId&&!snapshot?.ownerId)void renderStatePurchaseBenefit(content,{basePrice:3000000,priceSelector:'.mn-gas-buy strong'});
     renderBusinessStateSaleControl(content, { businessId: currentId, isOwner: Boolean(snapshot?.isOwner) });
     if (snapshot?.isOwner && ['overview', 'equipment'].includes(activeTab)) {
