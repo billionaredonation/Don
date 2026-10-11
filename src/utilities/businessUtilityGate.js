@@ -267,10 +267,22 @@ async function refreshOfferBox(gate, ids, options) {
     });
   } catch (error) {
     console.warn('[businessUtilityGate] incoming offers refresh failed:', error);
+    if (gate.isConnected) {
+      box.hidden = false;
+      box.textContent = 'Не удалось обновить входящие договоры. Повторная проверка выполняется автоматически.';
+    }
   }
 }
 
-export function renderBusinessUtilityGate(container, status, { isOwner = false, objectId = '', objectIds = null } = {}) {
+export function clearBusinessUtilityGate(container) {
+  container?.querySelectorAll('[data-business-utility-gate]').forEach(node => {
+    clearInterval(offerTimers.get(node));
+    offerTimers.delete(node);
+    node.remove();
+  });
+}
+
+export function renderBusinessUtilityGate(container, status, { isOwner = false, objectId = '', objectIds = null, showStateSale = true } = {}) {
   if (!container) return;
   container.querySelectorAll('[data-business-utility-gate]').forEach((node) => {
     const offerTimer = offerTimers.get(node);
@@ -307,6 +319,7 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   `;
   const anchor = container.querySelector('[data-business-utility-anchor]') || container.querySelector('main') || container.querySelector('section') || container.firstElementChild || container;
   anchor.prepend(gate);
+  if (!showStateSale) gate.querySelector('.mn-business-state-sale')?.remove();
   const saleButton = gate.querySelector('[data-business-state-sale]');
   if (saleButton) {
     saleButton.onclick = async () => {
@@ -362,10 +375,13 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
   }
 
 
-  const renderOptions = { isOwner, objectId, objectIds: ids };
+  const renderOptions = { isOwner, objectId, objectIds: ids, showStateSale };
   const options = { container, renderOptions };
   void refreshOfferBox(gate, ids, options);
-  const offerTimer = setInterval(() => void refreshOfferBox(gate, ids, options), OFFER_POLL_MS);
+  const offerTimer = setInterval(() => {
+    if (!gate.isConnected) { clearInterval(offerTimer); return; }
+    void refreshOfferBox(gate, ids, options);
+  }, OFFER_POLL_MS);
   offerTimers.set(gate, offerTimer);
 
   // One read-only business utility portal is refreshed by the existing
