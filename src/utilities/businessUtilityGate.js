@@ -211,18 +211,18 @@ function updateGateState(gate, state) {
 function offerMarkup(kind, offer) {
   if (kind === 'power') {
     return `<article class="mn-business-utility-offer" data-utility-offer="power" data-contract-id="${esc(offer.id)}">
-      <div><b>⚡ Электроснабжение</b><span>Подстанция: ${esc(offer.substationName || offer.substationId || '—')}</span><small>${money(offer.retailPrice)} / кВт·ч · подключение ${money(offer.connectionFee)}</small></div>
+      <div><b>⚡ Электроснабжение</b><span>Подстанция: ${esc(offer.substationName || offer.substationId || '—')}</span><small>${money(offer.retailPrice)} / кВт·ч · подключение ${money(offer.connectionFee)} из кассы предприятия</small></div>
       <div class="mn-business-utility-offer__actions"><button type="button" data-utility-answer="accept">Принять</button><button type="button" class="is-reject" data-utility-answer="reject">Отказаться</button></div>
     </article>`;
   }
   if (kind === 'water') {
     return `<article class="mn-business-utility-offer" data-utility-offer="water" data-contract-id="${esc(offer.id)}">
-      <div><b>💧 Водоснабжение</b><span>Поставщик: ${esc(offer.plantName || offer.plantId || '—')}</span><small>${money(offer.unitPrice)} / л · подключение ${money(offer.connectionFee)}</small></div>
+      <div><b>💧 Водоснабжение</b><span>Поставщик: ${esc(offer.plantName || offer.plantId || '—')}</span><small>${money(offer.unitPrice)} / л · подключение ${money(offer.connectionFee)} из кассы предприятия</small></div>
       <div class="mn-business-utility-offer__actions"><button type="button" data-utility-answer="accept">Принять</button><button type="button" class="is-reject" data-utility-answer="reject">Отказаться</button></div>
     </article>`;
   }
   return `<article class="mn-business-utility-offer" data-utility-offer="gas" data-contract-id="${esc(offer.id)}">
-    <div><b>🔥 Газоснабжение</b><span>Поставщик: ${esc(offer.plantName || offer.plantId || '—')}</span><small>${money(offer.unitPrice)} / ед. · подключение ${money(offer.connectionFee)}</small></div>
+    <div><b>🔥 Газоснабжение</b><span>Поставщик: ${esc(offer.plantName || offer.plantId || '—')}</span><small>${money(offer.unitPrice)} / ед. · подключение ${money(offer.connectionFee)} из кассы предприятия</small></div>
     <div class="mn-business-utility-offer__actions"><button type="button" data-utility-answer="accept">Принять</button><button type="button" class="is-reject" data-utility-answer="reject">Отказаться</button></div>
   </article>`;
 }
