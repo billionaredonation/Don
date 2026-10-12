@@ -1,3 +1,4 @@
+import { lumberOffersAction } from './lumberOffersApi.js';
 import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
@@ -82,7 +83,7 @@ function modalMarkup() {
           <button type="button" data-lumber-tab="tools" data-active="true">Инструменты</button>
           <button type="button" data-lumber-tab="saw">Распил</button>
           <button type="button" data-lumber-tab="sell">Продажа</button>
-          <button type="button" data-lumber-tab="business">Управление</button>
+          <button type="button" data-lumber-tab="offers">Предложения</button><button type="button" data-lumber-tab="business">Управление</button>
         </nav>
         <div class="mn-lumber-roadmap">
           ${Object.values(LUMBER_LEVELS).map((level) => `<span data-lumber-roadmap-level="${level.level}"><b>${level.level}</b><small>${level.label}</small></span>`).join('<i>→</i>')}
@@ -114,9 +115,21 @@ function modalMarkup() {
           <div class="mn-lumber-profit"><span>Продать бревно целиком</span><b>200 ₴</b><i>или распилить</i><span>4 бруса</span><strong>220 ₴</strong></div>
           <section class="mn-lumber-industry" data-lumber-industry>
             <span><i>🏭</i><b>Поставка производствам</b><small data-lumber-industry-status>Откроется на 3 уровне</small></span>
-            <button type="button" data-lumber-sell="lumber_beam" data-quantity="0" data-channel="industry">Отправить все брусья</button>
+            <button type="button" data-lumber-offers-open>Предложить древесину заводу</button>
           </section>
         </div>
+        <section class="mn-lumber-page" data-lumber-page="offers" hidden>
+          <h3>Предложения заводам</h3>
+          <label>Материал <select data-lumber-offer-item><option value="lumber_log">Брёвна</option><option value="lumber_beam">Брус</option></select></label>
+          <label>Завод <select data-lumber-offer-factory><option value="">Загрузка…</option></select></label>
+          <label>Количество <input data-lumber-offer-qty type="number" min="1" max="100000" value="1" inputmode="numeric"></label>
+          <label>Цена за единицу, ₴ <input data-lumber-offer-price type="number" min="1" max="1000000000" value="200" inputmode="numeric"></label>
+          <p data-lumber-offer-total>Итого: 200 ₴</p>
+          <button type="button" data-lumber-offer-submit>Отправить предложение</button>
+          <h3>Мои предложения</h3><div data-lumber-offers-list></div>
+          <button type="button" data-lumber-offers-refresh>Обновить</button>
+          <button type="button" data-lumber-offers-back>Назад к продаже</button>
+        </section>
         ${jobBusinessPageMarkup({
           prefix: 'lumber',
           config: LUMBER_BUSINESS_CONFIG,
@@ -322,8 +335,8 @@ export function enableLumberFeature({ root, cityId } = {}) {
     if (industry) industry.dataset.unlocked = level >= 3 ? 'true' : 'false';
     const industryStatus = modal?.querySelector('[data-lumber-industry-status]');
     if (industryStatus) industryStatus.textContent = level >= 3 ? 'Открыто: брус подходит для производств' : 'Откроется на 3 уровне';
-    const industryButton = modal?.querySelector('[data-channel="industry"]');
-    if (industryButton) industryButton.disabled = busy || level < 3 || beamCount < 1;
+    const industryButton = modal?.querySelector('[data-lumber-offers-open]');
+    if (industryButton) industryButton.disabled = busy || level < 3 || (beamCount < 1 && logCount < 1);
     renderBusiness();
   }
 
@@ -539,6 +552,58 @@ export function enableLumberFeature({ root, cityId } = {}) {
     } catch (error) { setStatus(getLumberUserErrorMessage(error), 'error'); }
     finally { window.__MN_PLAYER_CONTROLS_LOCKED__ = false; busy = false; renderInventory(); }
   }
+
+  const offerQ = (selector) => modal?.querySelector(selector);
+  let offerTargets = [];
+  const offerEscape = (value) => String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+  const offerTotal = () => {
+    const qty = Number(offerQ('[data-lumber-offer-qty]')?.value || 0);
+    const price = Number(offerQ('[data-lumber-offer-price]')?.value || 0);
+    offerQ('[data-lumber-offer-total]').textContent = `Итого: ${Number.isSafeInteger(qty * price) ? (qty * price).toLocaleString('ru-RU') : '—'} ₴`;
+  };
+  async function refreshOffers() {
+    const itemType = offerQ('[data-lumber-offer-item]').value;
+    const [targets, offers] = await Promise.all([
+      lumberOffersAction('targets', { cityId, itemType }),
+      lumberOffersAction('snapshot'),
+    ]);
+    offerTargets = Array.isArray(targets) ? targets : [];
+    const select = offerQ('[data-lumber-offer-factory]');
+    select.innerHTML = `<option value="">Выберите завод</option>` + offerTargets.map((v,i) => `<option value="${i}">${offerEscape(v.name || 'Деревообрабатывающий завод')} · ${offerEscape(v.factoryId)}</option>`).join('');
+    const list = offerQ('[data-lumber-offers-list]');
+    list.innerHTML = (Array.isArray(offers) && offers.length ? offers : []).map((o) => `<article class="mn-lumber-offer-row"><strong>${offerEscape(o.itemType)} · ${Number(o.quantity)} шт. · ${Number(o.totalPrice).toLocaleString('ru-RU')} ₴</strong><small>${offerEscape(o.status)} · ${offerEscape(o.factoryId)}</small>${o.status === 'pending' ? `<button data-lumber-offer-cancel="${offerEscape(o.id)}">Отменить</button>` : ''}</article>`).join('') || '<p>Предложений пока нет.</p>';
+    offerTotal();
+  }
+  async function offerRequest(task, success) {
+    if (busy) return;
+    busy = true;
+    try { await task(); await refreshOffers(); setStatus(success, 'success'); }
+    catch (error) { setStatus(getLumberUserErrorMessage(error), 'error'); }
+    finally { busy = false; renderInventory(); }
+  }
+  offerQ('[data-lumber-offers-open]')?.addEventListener('click', () => {
+    offerQ('[data-lumber-tab="offers"]')?.click();
+    void refreshOffers().catch(e => setStatus(getLumberUserErrorMessage(e),'error'));
+  });
+  offerQ('[data-lumber-offers-back]')?.addEventListener('click', () => offerQ('[data-lumber-tab="sell"]')?.click());
+  offerQ('[data-lumber-offer-item]')?.addEventListener('change', () => void refreshOffers().catch(e => setStatus(getLumberUserErrorMessage(e),'error')));
+  offerQ('[data-lumber-offer-qty]')?.addEventListener('input', offerTotal);
+  offerQ('[data-lumber-offer-price]')?.addEventListener('input', offerTotal);
+  offerQ('[data-lumber-offers-refresh]')?.addEventListener('click', () => void refreshOffers().catch(e => setStatus(getLumberUserErrorMessage(e),'error')));
+  offerQ('[data-lumber-offer-submit]')?.addEventListener('click', () => {
+    const target = offerTargets[Number(offerQ('[data-lumber-offer-factory]').value)];
+    const itemType = offerQ('[data-lumber-offer-item]').value;
+    const quantity = Number(offerQ('[data-lumber-offer-qty]').value);
+    const unitPrice = Number(offerQ('[data-lumber-offer-price]').value);
+    if (!target || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > itemQuantity(itemType) || !Number.isSafeInteger(unitPrice) || unitPrice < 1) {
+      setStatus('Выберите завод, укажите корректное количество в пределах запасов и цену.', 'error'); return;
+    }
+    void offerRequest(() => lumberOffersAction('create', { factoryId:target.factoryId, cityId, itemType, quantity, unitPrice }), 'Предложение отправлено владельцу завода.');
+  });
+  offerQ('[data-lumber-offers-list]')?.addEventListener('click', (event) => {
+    const id = event.target.closest('[data-lumber-offer-cancel]')?.dataset.lumberOfferCancel;
+    if (id) void offerRequest(() => lumberOffersAction('cancel', { offerId:id }), 'Предложение отменено.');
+  });
 
   async function handleSell(event) {
     const button = event.target?.closest?.('[data-lumber-sell]');
