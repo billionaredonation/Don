@@ -40,6 +40,11 @@ export function getWoodProcessingError(error) {
     WOOD_AMOUNT_INVALID: 'Введите корректное количество.',
     PLAYER_BALANCE_NOT_ENOUGH: 'Недостаточно денег.',
     PLAYER_NOT_FOUND: 'Игрок не найден.',
+    LOGISTICS_HUB_UNAVAILABLE: 'В городе нет доступного логистического центра.',
+    LUMBER_FACTORY_OWNER_REQUIRED: 'Только владелец завода может принять предложение.',
+    LUMBER_OFFER_NOT_PENDING: 'Предложение уже обработано.',
+    LUMBER_OFFER_NOT_PENDING_OR_OWNER: 'Это предложение нельзя отклонить.',
+    LUMBER_ITEM_NOT_ENOUGH: 'У продавца недостаточно древесины.',
   };
   const code = Object.keys(messages).find((key) => raw.includes(key));
   return code ? messages[code] : raw;
