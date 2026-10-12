@@ -1,3 +1,4 @@
+import { lumberOffersAction } from '../lumber/lumberOffersApi.js';
 import { syncBusinessUtilityGate, clearBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import '../metallurgy/metallurgy.css';
 import {
@@ -39,7 +40,7 @@ function markup() {
   return `<div class="mn-metallurgy-backdrop" data-wood-modal hidden><section class="mn-metallurgy-panel"><header><div><small>ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ</small><h2>${WOOD_PROCESSING_CONFIG.icon} ${WOOD_PROCESSING_CONFIG.label}</h2><p>Древесина лесоруба → деревянные детали → завод инструментов</p></div><button type="button" data-wood-close aria-label="Закрыть">×</button></header><nav><button type="button" class="is-active" data-wood-tab="production">Рецептура</button><button type="button" data-wood-tab="warehouse">Склады</button><button type="button" data-wood-tab="management">Управление</button></nav><main>
     <section data-wood-page="production"><div class="mn-metallurgy-status"><span><small>Статус</small><strong data-wood-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-wood-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-wood-cash>Скрыто</strong></span></div><div class="mn-metallurgy-recipes">${recipes}</div></section>
     <section data-wood-page="warehouse" hidden><h3>Сырьевой склад</h3><p class="mn-metallurgy-note">Брёвна и брус поступают от лесорубов через рынок сырья.</p><div class="mn-metallurgy-stock">${raw}</div><h3>Склад готовых деталей</h3><div class="mn-metallurgy-stock">${products}</div></section>
-    <section data-wood-page="management" hidden><div class="mn-metallurgy-buy" data-wood-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatWoodMoney(WOOD_PROCESSING_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет бюджетом, сырьём и выпуском деталей.</p></span><button type="button" data-wood-purchase>Купить завод</button></div><div data-wood-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-wood-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span><span><small>Публичный ID</small><strong data-wood-public-id>—</strong></span></div>${procurementControlsMarkup('wood', WOOD_PROCESSING_RAW_ITEMS)}<article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-wood-amount><div><button type="button" data-wood-deposit>Пополнить</button><button type="button" data-wood-withdraw>Снять</button></div></article></div></section>
+    <section data-wood-page="management" hidden><div class="mn-metallurgy-buy" data-wood-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatWoodMoney(WOOD_PROCESSING_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет бюджетом, сырьём и выпуском деталей.</p></span><button type="button" data-wood-purchase>Купить завод</button></div><div data-wood-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-wood-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span><span><small>Публичный ID</small><strong data-wood-public-id>—</strong></span></div>${procurementControlsMarkup('wood', WOOD_PROCESSING_RAW_ITEMS)}<article class="mn-metallurgy-money"><h3>Предложения лесорубов</h3><button type="button" data-wood-incoming-refresh>Обновить предложения</button><div data-wood-incoming></div></article><article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-wood-amount><div><button type="button" data-wood-deposit>Пополнить</button><button type="button" data-wood-withdraw>Снять</button></div></article></div></section>
   </main></section></div>`;
 }
 
@@ -73,7 +74,20 @@ export function enableWoodProcessingFeature({ root, cityId } = {}) {
     renderProcurementControls(modal, 'wood', procurement, WOOD_PROCESSING_RAW_ITEMS, { canManage:snapshot?.isOwner, busy });
   }
 
-  async function refresh() { snapshot = await loadWoodProcessingSnapshot(currentFactoryId, cityId); procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'wood_processing' }) : null; render(); }
+  async function refreshIncoming() {
+    if (!snapshot?.isOwner) { q('[data-wood-incoming]').textContent = ''; return; }
+    const offers = await lumberOffersAction('snapshot');
+    const relevant = (Array.isArray(offers) ? offers : []).filter(o => o.factoryId === currentFactoryId && o.cityId === cityId);
+    q('[data-wood-incoming]').innerHTML = relevant.map(o => `<article class="mn-lumber-offer-row"><strong>${esc(o.itemType)} · ${Number(o.quantity)} шт. · ${Number(o.totalPrice).toLocaleString('ru-RU')} ₴</strong><small>${esc(o.status)} · продавец ${esc(o.sellerId)}</small>${o.status === 'pending' ? `<button type="button" data-wood-offer-accept="${esc(o.id)}">Принять</button> <button type="button" data-wood-offer-reject="${esc(o.id)}">Отклонить</button>` : ''}</article>`).join('') || '<p>Новых предложений нет.</p>';
+  }
+  q('[data-wood-incoming-refresh]').onclick = () => void refreshIncoming().catch(error => toast(getWoodProcessingError(error),'error'));
+  q('[data-wood-incoming]').addEventListener('click', (event) => {
+    const accept = event.target.closest('[data-wood-offer-accept]')?.dataset.woodOfferAccept;
+    const reject = event.target.closest('[data-wood-offer-reject]')?.dataset.woodOfferReject;
+    if (!accept && !reject) return;
+    run(async () => { await lumberOffersAction(accept ? 'accept' : 'reject', { offerId:accept || reject }); }, accept ? 'Предложение принято. Создана заявка на логистику.' : 'Предложение отклонено.');
+  });
+  async function refresh() { snapshot = await loadWoodProcessingSnapshot(currentFactoryId, cityId); procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'wood_processing' }) : null; render(); if (snapshot?.isOwner) { try { await refreshIncoming(); } catch (error) { toast(getWoodProcessingError(error), 'error'); } } }
   async function run(task, success = '', errorFormatter = getWoodProcessingError) {
     if (busy) return;
     busy = true; modal.classList.add('is-busy'); render();
