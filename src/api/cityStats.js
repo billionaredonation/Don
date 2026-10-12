@@ -63,3 +63,4 @@ export async function fetchCityStats(slug) {
   normalized.inflationDetails = index;
   return normalized;
 }
+
