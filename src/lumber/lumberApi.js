@@ -47,6 +47,7 @@ export function getLumberUserErrorMessage(error) {
     LUMBER_OFFER_NOT_PENDING: 'Предложение уже обработано или отменено.',
     LUMBER_OFFER_NOT_PENDING_OR_SELLER: 'Предложение нельзя отменить.',
     LOGISTICS_HUB_UNAVAILABLE: 'В городе нет доступного логистического центра с бюджетом на доставку.',
+    PROCUREMENT_BUDGET_NOT_ENOUGH: 'Недостаточно средств в бюджете закупок предприятия. Владелец должен пополнить бюджет скупа.',
     WOOD_CASH_NOT_ENOUGH: 'У завода недостаточно денег для этой закупки.',
     WOOD_RAW_WAREHOUSE_FULL: 'Склад завода переполнен с учётом поставок в пути.',
     LUMBER_OFFERS_UNAVAILABLE: 'Сервер предложений не отвечает. Проверьте развертывание Edge Function.',
