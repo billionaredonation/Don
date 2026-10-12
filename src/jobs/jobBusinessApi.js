@@ -35,7 +35,7 @@ export function getJobBusinessUserErrorMessage(error) {
     JOB_BUSINESS_AMOUNT_INVALID: 'Введите корректную сумму.',
     JOB_BUSINESS_CASH_NOT_ENOUGH: 'На балансе предприятия недостаточно денег для этой выплаты.',
     PROCUREMENT_BUDGET_RESERVED: 'Эта сумма оставлена на выкуп сырья. Сначала уменьшите бюджет скупа.',
-    PROCUREMENT_BUDGET_NOT_ENOUGH: 'У предприятия закончился выделенный бюджет скупа.',
+    PROCUREMENT_BUDGET_NOT_ENOUGH: 'Для выкупа сырья не хватает выделенного бюджета скупки, даже если на общем балансе предприятия есть деньги. Владелец должен открыть «Управление» → «Бюджет скупки», указать сумму и нажать «Сохранить бюджет».',
     PROCUREMENT_BUDGET_ABOVE_CASH: 'Нельзя выделить на скуп больше денег, чем есть на счёте предприятия.',
     PROCUREMENT_DATABASE_MIGRATION_REQUIRED: 'Примените SQL-миграцию единого скупа и обновите серверные функции.',
     JOB_BUSINESS_WAREHOUSE_FULL: 'Склад предприятия заполнен. Владелец должен освободить место.',
