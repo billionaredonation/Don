@@ -196,3 +196,9 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   :is(html, body).mn-force-rotate-landscape .mn-lumber-page,
   :is(html, body).mn-force-rotate-landscape .mn-lumber-panel > .mn-jobbiz-page { touch-action: pan-y !important; overflow-y: auto !important; }
 }
+
+.mn-lumber-page[data-lumber-page="offers"] { overflow-y:auto; padding:12px; display:grid; gap:10px; }
+.mn-lumber-page[data-lumber-page="offers"][hidden] { display:none; }
+.mn-lumber-page[data-lumber-page="offers"] label {display:grid;gap:5px;}
+.mn-lumber-page[data-lumber-page="offers"] input,.mn-lumber-page[data-lumber-page="offers"] select {width:100%;min-width:0;padding:10px;background:#172335;color:#fff;border:1px solid #53637b;border-radius:8px;}
+.mn-lumber-offer-row {display:grid;gap:6px;margin:8px 0;padding:10px;border:1px solid #53637b;border-radius:8px;}
