@@ -32,13 +32,9 @@ function formatCardMoney(value) {
 }
 
 function formatPercent(value) {
-  const number = Number(value || 0);
-
-  if (!Number.isFinite(number)) {
-    return '0%';
-  }
-
-  return `${Math.max(0, Math.round(number))}%`;
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+  const number = Number(value);
+  return `${number > 0 ? '+' : ''}${number.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%`;
 }
 
 function formatNumber(value) {
@@ -97,6 +93,7 @@ function getSectionButtons(houses, cityDirectory = {}) {
 function renderCityStatCards({
   budget,
   inflation,
+  inflationStatus,
   registeredPlayers,
 }) {
   return `
@@ -115,9 +112,9 @@ function renderCityStatCards({
         <span class="city-stat-icon">📈</span>
 
         <div class="city-stat-body">
-          <small>Инфляция</small>
+          <small>Инфляция · розница</small>
           <strong>${formatPercent(inflation)}</strong>
-          <em>Игровой индекс</em>
+          <em>${inflationStatus === 'ready' ? '7 дней к предыдущим 7' : inflationStatus === 'collecting' ? 'Накапливаем историю продаж' : inflationStatus === 'insufficient_data' ? 'Недостаточно данных' : 'Расчёт недоступен'}</em>
         </div>
       </article>
 
@@ -246,7 +243,8 @@ function renderDirectorySummary(items = [], label = 'Объектов') {
 
 export function renderHousesFeatureHtml({ city, houses, cityStats = {}, cityDirectory = {} }) {
   const budget = getCityStatValue(cityStats, 'budget', 0);
-  const inflation = getCityStatValue(cityStats, 'inflation', 0);
+  const inflation = getCityStatValue(cityStats, 'inflation', null);
+  const inflationStatus = cityStats.inflationStatus || 'unavailable';
   const registeredPlayers = getCityStatValue(cityStats, 'registeredPlayers', 0);
 
   return `
@@ -291,6 +289,7 @@ export function renderHousesFeatureHtml({ city, houses, cityStats = {}, cityDire
           ${renderCityStatCards({
             budget,
             inflation,
+            inflationStatus,
             registeredPlayers,
           })}
         </div>
