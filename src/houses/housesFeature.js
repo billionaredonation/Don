@@ -126,10 +126,8 @@ async function loadCitySummary(cityId) {
       economy.cityBudget ??
       economy.moneySupply?.value ??
       0,
-    inflation:
-      economy.inflation ??
-      economy.inflationPercent ??
-      0,
+    inflation: null,
+    inflationStatus: 'unavailable',
     registeredPlayers: 0,
     onlinePlayers: 0,
     taxBurned:
@@ -143,6 +141,8 @@ async function loadCitySummary(cityId) {
     const remoteStats = await fetchCityStats(cityId);
 
     if (remoteStats) {
+      summary.inflation = remoteStats.inflation ?? null;
+      summary.inflationStatus = remoteStats.inflationStatus || 'unavailable';
       summary.budget = Number(remoteStats.budget ?? summary.budget ?? 0);
       summary.taxBurned = Number(remoteStats.taxBurned ?? summary.taxBurned ?? 0);
     }
