@@ -42,6 +42,14 @@ export function getLumberUserErrorMessage(error) {
     LUMBER_ITEM_NOT_ENOUGH: 'В инвентаре недостаточно древесины.',
     LUMBER_ITEM_INVALID: 'Этот предмет нельзя обработать или продать здесь.',
     LUMBER_QUANTITY_INVALID: 'Неверно указано количество.',
+    LUMBER_OFFER_INVALID: 'Проверьте материал, количество и цену предложения.',
+    LUMBER_FACTORY_UNAVAILABLE: 'Этот завод сейчас не принимает выбранную древесину.',
+    LUMBER_OFFER_NOT_PENDING: 'Предложение уже обработано или отменено.',
+    LUMBER_OFFER_NOT_PENDING_OR_SELLER: 'Предложение нельзя отменить.',
+    LOGISTICS_HUB_UNAVAILABLE: 'В городе нет доступного логистического центра с бюджетом на доставку.',
+    WOOD_CASH_NOT_ENOUGH: 'У завода недостаточно денег для этой закупки.',
+    WOOD_RAW_WAREHOUSE_FULL: 'Склад завода переполнен с учётом поставок в пути.',
+    LUMBER_OFFERS_UNAVAILABLE: 'Сервер предложений не отвечает. Проверьте развертывание Edge Function.',
   };
 
   const waitMatch = raw.match(/LUMBER_TREE_NOT_READY:(\d+)/i);
