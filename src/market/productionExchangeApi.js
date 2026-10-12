@@ -29,6 +29,7 @@ async function invoke(action, payload = {}) {
 export function getProductionExchangeError(error) {
   const raw = String(error?.message || error || 'PRODUCTION_EXCHANGE_REQUEST_FAILED');
   const messages = {
+    PRODUCTION_ENTERPRISE_REMOVED: 'Предприятие удалено с карты или находится в другом городе. Обновите список биржи.',
     PRODUCTION_EXCHANGE_MIGRATION_REQUIRED: 'Сначала примените SQL-миграцию биржи V12.',
     INDUSTRY_FACTORY_NOT_FOUND: 'Производственное предприятие не найдено.',
     INDUSTRY_OWNER_REQUIRED: 'У вас нет права управлять этим производством.',
