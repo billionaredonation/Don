@@ -566,12 +566,12 @@ export function enableLumberFeature({ root, cityId } = {}) {
   async function refreshOffers() {
     const itemType = offerQ('[data-lumber-offer-item]').value;
     const [targets, offers] = await Promise.all([
-      lumberOffersAction('targets', { cityId, itemType }),
+      lumberOffersAction('targets', { itemType }),
       lumberOffersAction('snapshot'),
     ]);
     offerTargets = Array.isArray(targets) ? targets : [];
     const select = offerQ('[data-lumber-offer-factory]');
-    select.innerHTML = `<option value="">Выберите завод</option>` + offerTargets.map((v,i) => `<option value="${i}">${offerEscape(v.name || 'Деревообрабатывающий завод')} · ${offerEscape(v.factoryId)}</option>`).join('');
+    select.innerHTML = `<option value="">Выберите завод</option>` + offerTargets.map((v,i) => `<option value="${i}">${offerEscape(v.cityId)} · ${offerEscape(v.name || 'Деревообрабатывающий завод')} · ${offerEscape(v.factoryId)}</option>`).join('');
     const list = offerQ('[data-lumber-offers-list]');
     list.innerHTML = (Array.isArray(offers) && offers.length ? offers : []).map((o) => `<article class="mn-lumber-offer-row"><strong>${offerEscape(o.itemType)} · ${Number(o.quantity)} шт. · ${Number(o.totalPrice).toLocaleString('ru-RU')} ₴</strong><small>${offerEscape(o.status)} · ${offerEscape(o.factoryId)}</small>${o.status === 'pending' ? `<button data-lumber-offer-cancel="${offerEscape(o.id)}">Отменить</button>` : ''}</article>`).join('') || '<p>Предложений пока нет.</p>';
     offerTotal();
@@ -600,7 +600,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     if (!target || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > itemQuantity(itemType) || !Number.isSafeInteger(unitPrice) || unitPrice < 1) {
       setStatus('Выберите завод, укажите корректное количество в пределах запасов и цену.', 'error'); return;
     }
-    void offerRequest(() => lumberOffersAction('create', { factoryId:target.factoryId, cityId, itemType, quantity, unitPrice }), 'Предложение отправлено владельцу завода.');
+    void offerRequest(() => lumberOffersAction('create', { factoryId:target.factoryId, cityId:target.cityId, itemType, quantity, unitPrice }), 'Предложение отправлено владельцу завода.');
   });
   offerQ('[data-lumber-offers-list]')?.addEventListener('click', (event) => {
     const id = event.target.closest('[data-lumber-offer-cancel]')?.dataset.lumberOfferCancel;
