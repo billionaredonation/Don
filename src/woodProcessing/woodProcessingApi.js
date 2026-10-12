@@ -34,6 +34,7 @@ export function getWoodProcessingError(error) {
     TOOL_FACTORY_DESTINATION_NOT_FOUND: 'В этом городе пока нет купленного завода по сборке инструментов.',
     WOOD_CASH_NOT_ENOUGH: 'На балансе завода недостаточно денег.',
     PROCUREMENT_BUDGET_RESERVED: 'Эта сумма оставлена на закупку древесины. Сначала уменьшите бюджет скупа.',
+    PROCUREMENT_BUDGET_NOT_ENOUGH: 'Недостаточно средств в бюджете закупок предприятия. Владелец должен пополнить бюджет скупа.',
     WOOD_RAW_WAREHOUSE_FULL: 'Сырьевой склад завода не вместит эту партию.',
     WOOD_LUMBER_ITEM_NOT_ENOUGH: 'В инвентаре недостаточно выбранной древесины.',
     WOOD_LUMBER_INVENTORY_ADAPTER_REQUIRED: 'Обновите SQL-интеграцию лесоруба с заводом.',
