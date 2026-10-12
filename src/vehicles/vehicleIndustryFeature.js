@@ -1,3 +1,4 @@
+import { askWorkplaceTheft } from '../workplaceTheft/workplaceTheftDialog.js';
 import {registerCanisterInventory,publishCanisters,planCanisterPour} from './canisterInventory.js';
 import './vehicleIndustry.css';
 import {state,save} from '../state.js';
@@ -24,6 +25,18 @@ const fallbackDriveProfile=(vehicleClass='medium',loaded=false)=>{
 
 export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker}) {
  const actor=String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id||'');
+ const shownTheftOffers = new Set();
+ let theftPromptOpen = false;
+ async function maybeShowVehicleTheft() {
+  const offer = s?.theftOffer;
+  if (!dialog.open || theftPromptOpen || !offer?.id || shownTheftOffers.has(offer.id)) return;
+  shownTheftOffers.add(offer.id); theftPromptOpen = true;
+  try {
+   await askWorkplaceTheft({ offer, enterpriseKind:'car_factory', enterpriseId:id, cityId, itemLabel:offer.itemLabel, producedQuantity:1 });
+   if (!destroyed) await refresh();
+  } finally { theftPromptOpen = false; }
+ }
+
  const dialog=document.createElement('dialog');dialog.className='mn-auto-dialog';root.append(dialog);
  const launch=document.createElement('button');launch.className='mn-auto-launch';launch.textContent='🚘 Мои машины';root.append(launch);
  const hud=document.createElement('div');hud.className='mn-auto-status';root.append(hud);
@@ -110,7 +123,8 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
   clock.textContent=left?`Осталось: ${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`:'Время сборки истекло. Ожидаем подтверждение сервера…';
   bar.value=Math.max(0,Math.min(60,60-left));
  }
- function render(){if(!s||destroyed)return;
+ function render(){
+ queueMicrotask(() => { if (!destroyed) void maybeShowVehicleTheft(); });if(!s||destroyed)return;
  const componentsOpen=dialog.querySelector('.mn-auto-components')?.open;
  const scrollTop=dialog.scrollTop,scrollLeft=dialog.scrollLeft;
  const focused=document.activeElement?.dataset?.field;
