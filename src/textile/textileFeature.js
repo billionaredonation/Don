@@ -139,3 +139,4 @@ export function enableTextileFeature({ root, cityId } = {}) {
   window.addEventListener('mn:textile-object-action', onAction);
   return () => { window.removeEventListener('mn:textile-object-action', onAction); modal.remove(); };
 }
+
