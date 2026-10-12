@@ -473,6 +473,8 @@ export function enableLumberFeature({ root, cityId } = {}) {
   }
 
   function setTab(tab) {
+    // Status belongs to the previous action/page; never carry an old failure into another tab.
+    setStatus('');
     tabs.forEach((button) => { button.dataset.active = button.dataset.lumberTab === tab ? 'true' : 'false'; });
     pages.forEach((page) => { page.hidden = page.dataset.lumberPage !== tab; });
     if (tab === 'business') void refreshBusiness({ silent: false });
@@ -785,4 +787,3 @@ export function enableLumberFeature({ root, cityId } = {}) {
     window.__MN_LUMBER_TREE_STATES_READY__ = false;
   };
 }
-
