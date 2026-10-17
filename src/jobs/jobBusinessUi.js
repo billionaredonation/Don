@@ -72,6 +72,7 @@ export function jobBusinessPageMarkup({ prefix, config, items = [] }) {
             ${config.warehouseItemCapacity ? `<p class="mn-lumber-capacity-description">Вместимость: ${config.warehouseItemCapacity} брёвен + ${config.warehouseItemCapacity} брусов. Места учитываются отдельно.</p><strong data-${p}-business-capacity-summary>Занято: 0 / ${config.warehouseCapacity} шт.</strong>` : ''}
             <div class="mn-jobbiz-progress"><i data-${p}-business-warehouse-meter></i></div>
             <div class="mn-jobbiz-warehouse">${rows}</div>
+            ${p === 'lumber' ? '<div class="mn-jobbiz-inline"><button type="button" data-lumber-business-stock-open hidden>Продать со склада заводам</button></div>' : ''}
           </section>
         </div>
       </div>
