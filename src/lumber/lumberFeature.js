@@ -83,6 +83,7 @@ function modalMarkup() {
         <nav class="mn-lumber-tabs" aria-label="Разделы лесоруба">
           <button type="button" data-lumber-tab="tools" data-active="true">Инструменты</button>
           <button type="button" data-lumber-tab="saw">Распил</button>
+          <button type="button" data-lumber-tab="warehouse">Склад</button>
           <button type="button" data-lumber-tab="sell">Продажа</button>
           <button type="button" data-lumber-tab="offers">Предложения</button><button type="button" data-lumber-tab="business">Управление</button>
         </nav>
@@ -106,6 +107,25 @@ function modalMarkup() {
           <button class="mn-lumber-primary" type="button" data-lumber-saw>Распилить одно бревно</button>
           <p class="mn-lumber-hint">На 1 уровне распил закрыт. Со 2 уровня одна партия превращает 1 бревно в 4 бруса без потери общего веса.</p>
         </div>
+        <section class="mn-lumber-page" data-lumber-page="warehouse" hidden>
+          <div class="mn-lumber-stock-heading"><div><h3>Склад лесоруба</h3><p class="mn-lumber-hint">Ваши запасы древесины для распила и продажи.</p></div><button type="button" data-lumber-stock-refresh>Обновить</button></div>
+          <div class="mn-lumber-stock-summary" data-lumber-stock-summary aria-live="polite">Загружаем остатки…</div>
+          <div class="mn-lumber-stock-grid">
+            ${['lumber_log', 'lumber_beam'].map(itemType => {
+              const item = LUMBER_ITEMS[itemType];
+              return `<article class="mn-lumber-stock-card" data-lumber-stock-card="${itemType}">
+                <header><i>${itemType === 'lumber_log' ? '🪵' : `<img src="${base}brus.png" alt="">`}</i><h3>${itemType === 'lumber_log' ? 'Брёвна' : 'Брус'}</h3></header>
+                <strong class="mn-lumber-stock-count" data-lumber-stock-count>—</strong>
+                <p data-lumber-stock-weight>—</p>
+                <label>Количество для предложения<input type="number" min="1" max="100000" step="1" value="1" inputmode="numeric" data-lumber-stock-qty></label>
+                <div class="mn-lumber-stock-actions"><button type="button" data-lumber-stock-offer="${itemType}">Предложить заводу</button><button type="button" data-lumber-stock-offer="${itemType}" data-stock-all>Весь запас</button></div>
+              </article>`;
+            }).join('')}
+          </div>
+          <p class="mn-lumber-hint" data-lumber-stock-hint></p>
+          <p class="mn-lumber-hint">Выберите завод и цену в форме предложения. Древесина списывается после принятия предложения владельцем завода, затем оформляется доставка.</p>
+          <button type="button" data-lumber-stock-orders>Мои предложения и поставки</button>
+        </section>
         <div class="mn-lumber-page" data-lumber-page="sell" hidden>
           <div class="mn-lumber-sale-row" data-lumber-sale-row="lumber_log">
             <i>🪵</i><span><b>Целое бревно</b><small><em data-lumber-log-count>0</em> шт. · 20 кг/шт. · 200 ₴/шт.</small></span><div><button type="button" data-lumber-sell="lumber_log" data-quantity="1">1 шт.</button><button type="button" data-lumber-sell="lumber_log" data-quantity="0">Всё</button></div>
@@ -130,7 +150,7 @@ function modalMarkup() {
           <button type="button" data-lumber-offer-submit>Отправить предложение</button>
           <h3>Мои предложения</h3><div data-lumber-offers-list></div>
           <button type="button" data-lumber-offers-refresh>Обновить</button>
-          <button type="button" data-lumber-offers-back>Назад к продаже</button>
+          <button type="button" data-lumber-offers-back>Назад на склад</button>
         </section>
         ${jobBusinessPageMarkup({
           prefix: 'lumber',
@@ -303,7 +323,28 @@ export function enableLumberFeature({ root, cityId } = {}) {
     return publishInventory(result);
   }
 
+  function renderWarehouse() {
+    const logs = itemQuantity('lumber_log');
+    const beams = itemQuantity('lumber_beam');
+    const format = value => Number(value).toLocaleString('ru-RU');
+    const summary = modal?.querySelector('[data-lumber-stock-summary]');
+    if (summary) summary.textContent = `${format(logs + beams)} шт. на складе · ${format(logs * 20 + beams * 5)} кг`;
+    modal?.querySelectorAll('[data-lumber-stock-card]').forEach(card => {
+      const type = card.dataset.lumberStockCard;
+      const quantity = itemQuantity(type);
+      card.querySelector('[data-lumber-stock-count]').textContent = `${format(quantity)} шт.`;
+      card.querySelector('[data-lumber-stock-weight]').textContent = `${format(quantity * LUMBER_ITEMS[type].unitWeightKg)} кг · ${LUMBER_ITEMS[type].unitWeightKg} кг/шт.`;
+      const input = card.querySelector('[data-lumber-stock-qty]');
+      input.max = String(Math.max(1, Math.min(100000, quantity)));
+      input.disabled = busy || quantity < 1 || currentLevel() < 3;
+      card.querySelectorAll('button').forEach(button => { button.disabled = busy || quantity < 1 || currentLevel() < 3; });
+    });
+    const hint = modal?.querySelector('[data-lumber-stock-hint]');
+    if (hint) hint.textContent = currentLevel() < 3 ? 'Предложения заводам откроются на 3 уровне лесоруба.' : !logs && !beams ? 'Склад пуст. Заготовьте брёвна или распилите их на брус.' : 'Укажите количество или предложите весь доступный запас (до 100 000 шт. за одно предложение).';
+  }
+
   function renderInventory() {
+    renderWarehouse();
     const level = currentLevel();
     const logCount = itemQuantity('lumber_log');
     const beamCount = itemQuantity('lumber_beam');
@@ -481,6 +522,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     pages.forEach((page) => { page.hidden = page.dataset.lumberPage !== tab; });
     if (tab === 'business') void refreshBusiness({ silent: false });
     if (tab === 'offers') void refreshOffers();
+    if (tab === 'warehouse') { renderWarehouse(); void refreshInventory({ silent: false }); }
   }
 
   async function workWithTree(object) {
@@ -619,7 +661,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
       try {
         const offers = await lumberOffersAction('snapshot');
         if (destroyed || version !== offerRefreshVersion) return;
-        list.innerHTML = (Array.isArray(offers) ? offers : []).map((o) => `<article class="mn-lumber-offer-row"><strong>${offerEscape(o.itemType === 'lumber_log' ? 'Брёвна' : o.itemType === 'lumber_beam' ? 'Брус' : o.itemType)} · ${Number(o.quantity)} шт. · ${Number(o.totalPrice).toLocaleString('ru-RU')} ₴</strong><small>${offerEscape(o.status)} · ${offerEscape(o.factoryId)}</small>${o.status === 'pending' ? `<button data-lumber-offer-cancel="${offerEscape(o.id)}">Отменить</button>` : ''}</article>`).join('') || '<p>Предложений пока нет.</p>';
+        list.innerHTML = (Array.isArray(offers) ? offers : []).map((o) => `<article class="mn-lumber-offer-row"><strong>${offerEscape(o.itemType === 'lumber_log' ? 'Брёвна' : o.itemType === 'lumber_beam' ? 'Брус' : o.itemType)} · ${Number(o.quantity)} шт. · ${Number(o.totalPrice).toLocaleString('ru-RU')} ₴</strong><small>${offerEscape(({pending:'Ожидает решения',in_transit:'В доставке',completed:'Доставлено',delivered:'Доставлено',cancelled:'Отменено',rejected:'Отклонено'})[o.status] || o.status)} · ${offerEscape(o.factoryId)}</small>${o.status === 'pending' ? `<button data-lumber-offer-cancel="${offerEscape(o.id)}">Отменить</button>` : ''}</article>`).join('') || '<p>Предложений пока нет.</p>';
       } catch (error) {
         if (!destroyed && version === offerRefreshVersion) list.textContent = getLumberUserErrorMessage(error);
       }
@@ -634,10 +676,33 @@ export function enableLumberFeature({ root, cityId } = {}) {
     catch (error) { setStatus(getLumberUserErrorMessage(error), 'error'); }
     finally { busy = false; renderInventory(); updateOfferSubmit(); }
   }
+  modal?.querySelector('[data-lumber-stock-refresh]')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try { await refreshInventory({ silent: false }); }
+    finally { if (!destroyed) button.disabled = false; }
+  });
+  modal?.querySelector('[data-lumber-stock-orders]')?.addEventListener('click', () => setTab('offers'));
+  modal?.querySelector('[data-lumber-page="warehouse"]')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-lumber-stock-offer]');
+    if (!button || busy) return;
+    const type = button.dataset.lumberStockOffer;
+    const available = itemQuantity(type);
+    const quantity = button.hasAttribute('data-stock-all') ? Math.min(100000, available) : Number(button.closest('[data-lumber-stock-card]').querySelector('[data-lumber-stock-qty]').value);
+    if (currentLevel() < 3 || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > Math.min(100000, available)) {
+      setStatus('Укажите целое количество в пределах запасов. Поставки доступны с 3 уровня.', 'error');
+      return;
+    }
+    offerQ('[data-lumber-offer-item]').value = type;
+    offerQ('[data-lumber-offer-qty]').value = String(quantity);
+    offerQ('[data-lumber-offer-price]').value = String(LUMBER_ITEMS[type].sellPrice);
+    offerTotal();
+    setTab('offers');
+  });
   offerQ('[data-lumber-offers-open]')?.addEventListener('click', () => {
     offerQ('[data-lumber-tab="offers"]')?.click();
   });
-  offerQ('[data-lumber-offers-back]')?.addEventListener('click', () => offerQ('[data-lumber-tab="sell"]')?.click());
+  offerQ('[data-lumber-offers-back]')?.addEventListener('click', () => setTab('warehouse'));
   offerQ('[data-lumber-offer-item]')?.addEventListener('change', () => void refreshOffers().catch(e => setStatus(getLumberUserErrorMessage(e),'error')));
   offerQ('[data-lumber-offer-factory]')?.addEventListener('change', updateOfferSubmit);
   offerQ('[data-lumber-offer-qty]')?.addEventListener('input', offerTotal);
