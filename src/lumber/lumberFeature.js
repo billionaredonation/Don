@@ -254,17 +254,29 @@ export function enableLumberFeature({ root, cityId } = {}) {
     const payout = modal?.querySelector('[data-lumber-business-payout]');
     if (payout) payout.textContent = formatJobBusinessMoney(business?.totalPayout || 0);
 
-    const warehouse = business?.warehouse || { capacity: LUMBER_BUSINESS_CONFIG.warehouseCapacity, used: 0, free: LUMBER_BUSINESS_CONFIG.warehouseCapacity, items: {} };
-    modal?.querySelectorAll('[data-lumber-business-warehouse-used]').forEach((element) => { element.textContent = Number(warehouse.used || 0).toLocaleString('ru-RU'); });
+    const warehouse = business?.warehouse || { items: {} };
+    const itemCapacity = LUMBER_BUSINESS_CONFIG.warehouseItemCapacity;
+    const quantityFor = type => Math.max(0, Number(warehouse.items?.[type]) || 0);
+    const types = ['lumber_log', 'lumber_beam'];
+    const used = types.reduce((sum, type) => sum + quantityFor(type), 0);
+    const freePlaces = types.reduce((sum, type) => sum + Math.max(0, itemCapacity - quantityFor(type)), 0);
+    const format = number => number.toLocaleString('ru-RU');
+    modal?.querySelectorAll('[data-lumber-business-warehouse-used]').forEach(element => { element.textContent = format(used); });
     const free = modal?.querySelector('[data-lumber-business-warehouse-free]');
-    if (free) free.textContent = Number(warehouse.free ?? LUMBER_BUSINESS_CONFIG.warehouseCapacity).toLocaleString('ru-RU');
-    const capacity = Math.max(1, Number(warehouse.capacity || LUMBER_BUSINESS_CONFIG.warehouseCapacity));
-    const percent = Math.min(100, Math.max(0, Number(warehouse.used || 0) / capacity * 100));
-    modal?.querySelectorAll('[data-lumber-business-warehouse-meter]').forEach((element) => element.style.setProperty('--mn-jobbiz-progress', `${percent}%`));
-    ['lumber_log', 'lumber_beam'].forEach((itemType) => {
-      modal?.querySelectorAll(`[data-lumber-business-warehouse-item="${itemType}"]`).forEach((element) => {
-        element.textContent = Number(warehouse?.items?.[itemType] || 0).toLocaleString('ru-RU');
+    if (free) free.textContent = `${format(freePlaces)} шт.`;
+    const summary = modal?.querySelector('[data-lumber-business-capacity-summary]');
+    if (summary) summary.textContent = `Занято: ${format(used)} / ${format(itemCapacity * 2)} шт. · Свободно: ${format(freePlaces)} шт.`;
+    const filled = types.reduce((sum, type) => sum + Math.min(itemCapacity, quantityFor(type)), 0);
+    modal?.querySelectorAll('[data-lumber-business-warehouse-meter]').forEach(element => element.style.setProperty('--mn-jobbiz-progress', `${filled / (itemCapacity * 2) * 100}%`));
+    types.forEach(itemType => {
+      const quantity = quantityFor(itemType);
+      modal?.querySelectorAll(`[data-lumber-business-warehouse-item="${itemType}"]`).forEach(element => {
+        element.textContent = `${format(quantity)} / ${itemCapacity} шт.`;
       });
+      const detail = modal?.querySelector(`[data-lumber-business-item-free="${itemType}"]`);
+      if (detail) detail.textContent = quantity > itemCapacity ? `Сверх вместимости: ${format(quantity - itemCapacity)} шт.` : quantity === itemCapacity ? 'Секция заполнена' : `Свободно: ${format(itemCapacity - quantity)} шт.`;
+      const progress = modal?.querySelector(`[data-lumber-business-item-progress="${itemType}"]`);
+      if (progress) { progress.value = Math.min(itemCapacity, quantity); progress.max = itemCapacity; }
     });
     modal?.querySelectorAll('[data-lumber-business-purchase], [data-lumber-business-deposit], [data-lumber-business-withdraw], [data-lumber-business-withdraw-all], [data-lumber-business-assistant-save], [data-lumber-business-assistant-clear]')
       .forEach((button) => { button.disabled = busy; });
