@@ -6,7 +6,8 @@ export const JOB_BUSINESS_TYPES = Object.freeze({
     shortLabel: 'Лесозаготовка',
     icon: '🪵',
     purchasePrice: 1_000_000,
-    warehouseCapacity: 400,
+    warehouseCapacity: 500,
+    warehouseItemCapacity: 250,
     unitLabel: 'ед.',
   }),
   mine: Object.freeze({
