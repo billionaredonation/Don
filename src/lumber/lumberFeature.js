@@ -1,3 +1,4 @@
+import { cities, normalizeCityId } from '../cities/index.js';
 import { lumberOffersAction } from './lumberOffersApi.js';
 import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import { supabase } from '../supabaseClient.js';
@@ -122,6 +123,7 @@ function modalMarkup() {
           <h3>Предложения заводам</h3>
           <label>Материал <select data-lumber-offer-item><option value="lumber_log">Брёвна</option><option value="lumber_beam">Брус</option></select></label>
           <label>Завод <select data-lumber-offer-factory><option value="">Загрузка…</option></select></label>
+          <p class="mn-lumber-hint" data-lumber-targets-status role="status"></p>
           <label>Количество <input data-lumber-offer-qty type="number" min="1" max="100000" value="1" inputmode="numeric"></label>
           <label>Цена за единицу, ₴ <input data-lumber-offer-price type="number" min="1" max="1000000000" value="200" inputmode="numeric"></label>
           <p data-lumber-offer-total>Итого: 200 ₴</p>
@@ -478,6 +480,7 @@ export function enableLumberFeature({ root, cityId } = {}) {
     tabs.forEach((button) => { button.dataset.active = button.dataset.lumberTab === tab ? 'true' : 'false'; });
     pages.forEach((page) => { page.hidden = page.dataset.lumberPage !== tab; });
     if (tab === 'business') void refreshBusiness({ silent: false });
+    if (tab === 'offers') void refreshOffers();
   }
 
   async function workWithTree(object) {
@@ -563,41 +566,90 @@ export function enableLumberFeature({ root, cityId } = {}) {
     const price = Number(offerQ('[data-lumber-offer-price]')?.value || 0);
     offerQ('[data-lumber-offer-total]').textContent = `Итого: ${Number.isSafeInteger(qty * price) ? (qty * price).toLocaleString('ru-RU') : '—'} ₴`;
   };
+  let offerRefreshVersion = 0;
+  let offerTargetsLoading = false;
+  const targetKey = (target) => JSON.stringify([target.cityId, target.factoryId]);
+  const targetCity = (target) => cities[normalizeCityId(target.cityId)]?.name || target.cityId || 'Город не указан';
+  function updateOfferSubmit() {
+    const value = offerQ('[data-lumber-offer-factory]')?.value;
+    const target = value === '' ? null : offerTargets[Number(value)];
+    offerQ('[data-lumber-offer-submit]').disabled = busy || offerTargetsLoading || !target || target.canOffer === false;
+  }
   async function refreshOffers() {
+    const version = ++offerRefreshVersion;
     const itemType = offerQ('[data-lumber-offer-item]').value;
-    const [targets, offers] = await Promise.all([
-      lumberOffersAction('targets', { itemType }),
-      lumberOffersAction('snapshot'),
-    ]);
-    offerTargets = Array.isArray(targets) ? targets : [];
     const select = offerQ('[data-lumber-offer-factory]');
-    select.innerHTML = `<option value="">Выберите завод</option>` + offerTargets.map((v,i) => `<option value="${i}">${offerEscape(v.cityId)} · ${offerEscape(v.name || 'Деревообрабатывающий завод')} · ${offerEscape(v.factoryId)}</option>`).join('');
-    const list = offerQ('[data-lumber-offers-list]');
-    list.innerHTML = (Array.isArray(offers) && offers.length ? offers : []).map((o) => `<article class="mn-lumber-offer-row"><strong>${offerEscape(o.itemType)} · ${Number(o.quantity)} шт. · ${Number(o.totalPrice).toLocaleString('ru-RU')} ₴</strong><small>${offerEscape(o.status)} · ${offerEscape(o.factoryId)}</small>${o.status === 'pending' ? `<button data-lumber-offer-cancel="${offerEscape(o.id)}">Отменить</button>` : ''}</article>`).join('') || '<p>Предложений пока нет.</p>';
-    offerTotal();
+    const previous = select.value === '' ? null : offerTargets[Number(select.value)];
+    offerTargets = [];
+    offerTargetsLoading = true;
+    select.disabled = true;
+    select.innerHTML = '<option value="">Загрузка заводов…</option>';
+    const hint = offerQ('[data-lumber-targets-status]');
+    hint.textContent = 'Ищем заводы во всех городах…';
+    updateOfferSubmit();
+    const targetsTask = (async () => {
+      try {
+        const targets = await lumberOffersAction('targets', { itemType });
+        if (destroyed || version !== offerRefreshVersion) return;
+        if (!Array.isArray(targets)) throw new Error('Некорректный ответ списка заводов. Обновите список.');
+        offerTargets = targets.filter(v => v?.factoryId && v?.cityId);
+        const available = offerTargets.filter(v => v.canOffer !== false);
+        select.innerHTML = '<option value="">' + (available.length ? 'Выберите завод' : 'Нет доступных получателей') + '</option>' + offerTargets.map((v,i) =>
+          `<option value="${i}" ${v.canOffer === false ? 'disabled' : ''}>${offerEscape(v.name || 'Деревообрабатывающий завод')} · ${offerEscape(targetCity(v))} · ${offerEscape(v.publicId || v.factoryId)}${v.isOwn ? ' · Ваш завод (предложение себе недоступно)' : v.canOffer === false ? ' · Нет владельца' : ''}</option>`).join('');
+        const index = previous ? offerTargets.findIndex(v => targetKey(v) === targetKey(previous) && v.canOffer !== false) : -1;
+        select.value = index >= 0 ? String(index) : '';
+        hint.textContent = offerTargets.length
+          ? `Найдено заводов: ${offerTargets.length}. Доступно для предложения: ${available.length}.` + (offerTargets.some(v => v.isOwn) ? ' Свой завод виден в списке, но предложение самому себе недоступно.' : '')
+          : 'Деревообрабатывающие заводы не найдены. Попробуйте обновить список.';
+      } catch (error) {
+        if (destroyed || version !== offerRefreshVersion) return;
+        select.innerHTML = '<option value="">Не удалось загрузить заводы</option>';
+        hint.textContent = getLumberUserErrorMessage(error);
+      } finally {
+        if (!destroyed && version === offerRefreshVersion) {
+          offerTargetsLoading = false;
+          select.disabled = !offerTargets.length;
+          updateOfferSubmit();
+        }
+      }
+    })();
+    const offersTask = (async () => {
+      const list = offerQ('[data-lumber-offers-list]');
+      list.textContent = 'Загрузка предложений…';
+      try {
+        const offers = await lumberOffersAction('snapshot');
+        if (destroyed || version !== offerRefreshVersion) return;
+        list.innerHTML = (Array.isArray(offers) ? offers : []).map((o) => `<article class="mn-lumber-offer-row"><strong>${offerEscape(o.itemType === 'lumber_log' ? 'Брёвна' : o.itemType === 'lumber_beam' ? 'Брус' : o.itemType)} · ${Number(o.quantity)} шт. · ${Number(o.totalPrice).toLocaleString('ru-RU')} ₴</strong><small>${offerEscape(o.status)} · ${offerEscape(o.factoryId)}</small>${o.status === 'pending' ? `<button data-lumber-offer-cancel="${offerEscape(o.id)}">Отменить</button>` : ''}</article>`).join('') || '<p>Предложений пока нет.</p>';
+      } catch (error) {
+        if (!destroyed && version === offerRefreshVersion) list.textContent = getLumberUserErrorMessage(error);
+      }
+    })();
+    await Promise.all([targetsTask, offersTask]);
+    if (!destroyed && version === offerRefreshVersion) offerTotal();
   }
   async function offerRequest(task, success) {
     if (busy) return;
     busy = true;
     try { await task(); await refreshOffers(); setStatus(success, 'success'); }
     catch (error) { setStatus(getLumberUserErrorMessage(error), 'error'); }
-    finally { busy = false; renderInventory(); }
+    finally { busy = false; renderInventory(); updateOfferSubmit(); }
   }
   offerQ('[data-lumber-offers-open]')?.addEventListener('click', () => {
     offerQ('[data-lumber-tab="offers"]')?.click();
-    void refreshOffers().catch(e => setStatus(getLumberUserErrorMessage(e),'error'));
   });
   offerQ('[data-lumber-offers-back]')?.addEventListener('click', () => offerQ('[data-lumber-tab="sell"]')?.click());
   offerQ('[data-lumber-offer-item]')?.addEventListener('change', () => void refreshOffers().catch(e => setStatus(getLumberUserErrorMessage(e),'error')));
+  offerQ('[data-lumber-offer-factory]')?.addEventListener('change', updateOfferSubmit);
   offerQ('[data-lumber-offer-qty]')?.addEventListener('input', offerTotal);
   offerQ('[data-lumber-offer-price]')?.addEventListener('input', offerTotal);
   offerQ('[data-lumber-offers-refresh]')?.addEventListener('click', () => void refreshOffers().catch(e => setStatus(getLumberUserErrorMessage(e),'error')));
   offerQ('[data-lumber-offer-submit]')?.addEventListener('click', () => {
-    const target = offerTargets[Number(offerQ('[data-lumber-offer-factory]').value)];
+    const selected = offerQ('[data-lumber-offer-factory]').value;
+    const target = selected === '' ? null : offerTargets[Number(selected)];
     const itemType = offerQ('[data-lumber-offer-item]').value;
     const quantity = Number(offerQ('[data-lumber-offer-qty]').value);
     const unitPrice = Number(offerQ('[data-lumber-offer-price]').value);
-    if (!target || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > itemQuantity(itemType) || !Number.isSafeInteger(unitPrice) || unitPrice < 1) {
+    if (offerTargetsLoading || !target || target.canOffer === false || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > itemQuantity(itemType) || !Number.isSafeInteger(unitPrice) || unitPrice < 1) {
       setStatus('Выберите завод, укажите корректное количество в пределах запасов и цену.', 'error'); return;
     }
     void offerRequest(() => lumberOffersAction('create', { factoryId:target.factoryId, cityId:target.cityId, itemType, quantity, unitPrice }), 'Предложение отправлено владельцу завода.');
