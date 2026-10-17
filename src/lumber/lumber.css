@@ -221,3 +221,22 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
   white-space: normal;
   overflow-wrap: anywhere;
 }
+
+/* Lumber warehouse */
+.mn-lumber-stock-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.mn-lumber-stock-heading h3 { margin:0; }
+.mn-lumber-stock-summary { padding:16px; margin:12px 0; border:1px solid #446c39; border-radius:14px; background:#1b2c1b; font-weight:800; }
+.mn-lumber-stock-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.mn-lumber-stock-card { padding:16px; border:1px solid #344a30; border-radius:16px; background:#101c13; min-width:0; }
+.mn-lumber-stock-card header { display:flex; align-items:center; gap:10px; }
+.mn-lumber-stock-card header i { font-style:normal; font-size:30px; }
+.mn-lumber-stock-card header img { width:36px; height:36px; object-fit:contain; }
+.mn-lumber-stock-card h3 { margin:0; }
+.mn-lumber-stock-count { display:block; margin-top:16px; font-size:28px; color:#a8e88b; }
+.mn-lumber-stock-card p { color:#b5c8ad; }
+.mn-lumber-stock-card label { display:grid; gap:8px; font-size:13px; }
+.mn-lumber-stock-card input { width:100%; padding:12px; border-radius:10px; border:1px solid #48653c; background:#0b150e; color:#f5fff1; font:inherit; }
+.mn-lumber-stock-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.mn-lumber-page[data-lumber-page="warehouse"] button { padding:10px 12px; border:1px solid #4d733e; border-radius:10px; background:#233b20; color:#e4f9da; cursor:pointer; }
+.mn-lumber-page[data-lumber-page="warehouse"] button:disabled { opacity:.4; cursor:default; }
+@media(max-width:540px) { .mn-lumber-stock-grid { grid-template-columns:1fr; } }
