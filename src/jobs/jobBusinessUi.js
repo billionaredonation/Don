@@ -17,6 +17,7 @@ export function jobBusinessPageMarkup({ prefix, config, items = [] }) {
       <i>${esc(item.icon || '📦')}</i>
       <small>${esc(item.label || item.itemType)}</small>
       <b data-${p}-business-warehouse-item="${esc(item.itemType)}">0</b>
+      ${config.warehouseItemCapacity ? `<small class="mn-lumber-capacity-free" data-${p}-business-item-free="${esc(item.itemType)}">Свободно: ${config.warehouseItemCapacity} шт.</small><progress class="mn-lumber-capacity-progress" data-${p}-business-item-progress="${esc(item.itemType)}" value="0" max="${config.warehouseItemCapacity}" aria-label="Заполнение: ${esc(item.label || item.itemType)}"></progress>` : ''}
     </span>`).join('');
 
   return `
@@ -68,6 +69,7 @@ export function jobBusinessPageMarkup({ prefix, config, items = [] }) {
 
           <section class="mn-jobbiz-card is-wide">
             <header><i>📦</i><span><h4>Склад предприятия</h4><small>Сюда автоматически поступает сырьё, которое предприятие выкупило у игроков.</small></span></header>
+            ${config.warehouseItemCapacity ? `<p class="mn-lumber-capacity-description">Вместимость: ${config.warehouseItemCapacity} брёвен + ${config.warehouseItemCapacity} брусов. Места учитываются отдельно.</p><strong data-${p}-business-capacity-summary>Занято: 0 / ${config.warehouseCapacity} шт.</strong>` : ''}
             <div class="mn-jobbiz-progress"><i data-${p}-business-warehouse-meter></i></div>
             <div class="mn-jobbiz-warehouse">${rows}</div>
           </section>
