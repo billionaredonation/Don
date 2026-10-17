@@ -248,3 +248,4 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 .mn-lumber-capacity-progress::-webkit-progress-value { background:#8cdb70; border-radius:8px; }
 .mn-lumber-capacity-progress::-moz-progress-bar { background:#8cdb70; border-radius:8px; }
 .mn-lumber-capacity-description { margin:0; color:#c5d8bc; font-size:12px; line-height:1.5; }
+
