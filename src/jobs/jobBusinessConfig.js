@@ -29,3 +29,4 @@ export function getJobBusinessConfig(jobType) {
 export function formatJobBusinessMoney(value) {
   return `${Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ru-RU')} ₴`;
 }
+
