@@ -240,3 +240,11 @@ body .home :is(.map-objects-layer, .map-objects-layer-public, .map-objects-layer
 .mn-lumber-page[data-lumber-page="warehouse"] button { padding:10px 12px; border:1px solid #4d733e; border-radius:10px; background:#233b20; color:#e4f9da; cursor:pointer; }
 .mn-lumber-page[data-lumber-page="warehouse"] button:disabled { opacity:.4; cursor:default; }
 @media(max-width:540px) { .mn-lumber-stock-grid { grid-template-columns:1fr; } }
+
+.mn-lumber-modal .mn-jobbiz-warehouse { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.mn-lumber-modal .mn-jobbiz-warehouse .mn-lumber-capacity-free { grid-column:1/-1; white-space:normal; margin-top:6px; font-size:12px; }
+.mn-lumber-capacity-progress { grid-column:1/-1; width:100%; height:8px; margin-top:8px; border:0; border-radius:8px; overflow:hidden; accent-color:#8cdb70; background:#293329; }
+.mn-lumber-capacity-progress::-webkit-progress-bar { background:#293329; border-radius:8px; }
+.mn-lumber-capacity-progress::-webkit-progress-value { background:#8cdb70; border-radius:8px; }
+.mn-lumber-capacity-progress::-moz-progress-bar { background:#8cdb70; border-radius:8px; }
+.mn-lumber-capacity-description { margin:0; color:#c5d8bc; font-size:12px; line-height:1.5; }
