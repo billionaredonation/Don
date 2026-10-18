@@ -27,6 +27,13 @@ export function logisticsError(error) {
   const raw = String(error?.message || error || 'LOGISTICS_REQUEST_FAILED');
   if (raw.includes('BUSINESS_UTILITIES_')) return getFactoryError(error);
   const messages = {
+    LUMBER_DELIVERY_INVALID: 'Не удалось зачислить древесину: проверьте состояние связанной поставки.',
+    LUMBER_DELIVERY_CONTRACT_NOT_FOUND: 'Заявка на перевозку не найдена. Обновите диспетчерскую.',
+    LUMBER_DELIVERY_KIND_INVALID: 'У заявки указан неверный вид доставки.',
+    LUMBER_DELIVERY_OFFER_NOT_FOUND: 'У перевозки отсутствует связанное предложение лесозаготовки.',
+    LUMBER_DELIVERY_DATA_MISMATCH: 'Груз или завод в перевозке не совпадает с предложением лесозаготовки.',
+    LUMBER_DELIVERY_OFFER_STATUS_INVALID: 'Предложение лесозаготовки не находится в статусе доставки.',
+    LUMBER_DELIVERY_CONTRACT_NOT_READY: 'Сначала примите заявку на перевозку.',
     LOGISTICS_OWNER_REQUIRED: 'Действие доступно владельцу логистического центра.',
     LOGISTICS_CONTRACT_INVALID: 'Заявка уже занята или закрыта.',
     LOGISTICS_CONTRACT_LIMIT: 'Сначала завершите активную заявку.',
