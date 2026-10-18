@@ -25,3 +25,4 @@ export function autoProcurementMarkup(s,btn){
  ${!p.hubId?'<p>Выберите и сохраните перевозчика, чтобы поставщики увидели закупки.</p>':''}
  <h3>Цены закупки</h3><p>Цена 0 отключает закупку материала. Заявки видны владельцам металлургических заводов в разделе управления.</p>${assemblyItems(s).map(item=>{const price=Number((p.items||[]).find(i=>i.item===item)?.price||0);const max=price>0?Math.max(0,Math.floor((budget-reward)/price)):0;return `<article><strong>${esc(componentNames[item]||item)}</strong><p>На складе: ${stockQuantity(s,item)} ед. · ${price>0?`Закупка по ${money(price)} · бюджет на ${max} ед. с одной доставкой`:'Закупка отключена'}</p><label>Цена за единицу ${input('proc-price-'+item,price)}</label>${btn('procurement_item','Сохранить цену',`data-item="${esc(item)}"`)}</article>`;}).join('')}`;
 }
+
