@@ -31,3 +31,4 @@ export function mountAutoMaterialMarket(host,{getContext,onChange}){
  host.addEventListener('click',click);sync();
  return {sync,refresh,destroy(){destroyed=true;generation++;host.removeEventListener('click',click);host.innerHTML='';}};
 }
+
