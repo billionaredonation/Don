@@ -7,6 +7,9 @@ async function invoke(action,payload={}){
   const {data,error}=await supabase.functions.invoke('energy-substation',{body:{initData:telegramData,action,...payload}});
   if(error){let remote='';try{remote=(await error.context?.clone?.().json())?.error||'';}catch{}throw new Error(remote||error.message||'SUBSTATION_REQUEST_FAILED');}
   if(!data?.ok)throw new Error(data?.error||'SUBSTATION_REQUEST_FAILED');
+  if (action === 'consumer_pay' && !(Number.isFinite(Number(data.result?.paidAmount)) && Number(data.result.paidAmount) > 0)) {
+    throw new Error('Сервер не подтвердил сумму оплаты. Проверьте баланс и обновите счёт; автоматический повтор платежа не выполнялся.');
+  }
   return data.result;
 }
 
