@@ -16,6 +16,9 @@ async function invoke(action, payload = {}) {
     throw new Error(remote || error.message || 'GAS_REQUEST_FAILED');
   }
   if (!data?.ok) throw new Error(data?.error || 'GAS_REQUEST_FAILED');
+  if (action === 'consumer_pay' && !(Number.isFinite(Number(data.result?.paidAmount)) && Number(data.result.paidAmount) > 0)) {
+    throw new Error('Сервер не подтвердил сумму оплаты. Проверьте баланс и обновите счёт; автоматический повтор платежа не выполнялся.');
+  }
   return data.result;
 }
 
