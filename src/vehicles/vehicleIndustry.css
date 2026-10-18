@@ -108,3 +108,5 @@
   height:48px!important;
 }
 
+
+.mn-auto-stock-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.mn-auto-stock-grid article{margin:0}.mn-auto-stock-grid strong{display:block;margin-top:8px}.mn-auto-dialog nav button[aria-pressed="true"]{border-color:#efc96d;background:#3c4638}
