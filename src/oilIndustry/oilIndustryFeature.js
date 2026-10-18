@@ -61,7 +61,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
     const focused=document.activeElement?.dataset?.input;
     dialog.innerHTML=`<header><div><small>НЕФТЯНАЯ ПРОМЫШЛЕННОСТЬ</small><h2>${OIL_TYPES[s.kind][0]} ${OIL_TYPES[s.kind][1]}</h2></div><button type="button" data-close aria-label="Закрыть">×</button></header>
     <nav>${[['overview','Обзор / покупка'],...(s.isOwner?[['management','Управление'],...(s.kind!=='oil_well'?[['supply','Закупки'],['deliveries','Доставки']]:[])]:[])].map(([key,label])=>`<button type="button" data-tab="${key}" class="${tab===key?'active':''}">${label}</button>`).join('')}<button data-refresh type="button">Обновить</button></nav>
-    <p role="status" class="mn-oil-notice">${esc(busy?'Выполняется действие…':notice)}</p><main>${tab==='management'?management():tab==='supply'?supply():tab==='deliveries'?deliveries():overview()}</main>`;
+    <p role="status" class="mn-oil-notice" style="height:24px;min-height:24px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${esc(busy?'Выполняется действие…':notice)}</p><main>${tab==='management'?management():tab==='supply'?supply():tab==='deliveries'?deliveries():overview()}</main>`;
     syncBusinessUtilityGate(dialog, { isOwner:Boolean(s?.isOwner), objectId:id });
     renderBusinessStateSaleControl(dialog, { businessId: id, isOwner: Boolean(s?.isOwner) });
     if(!s?.ownerId)void renderStatePurchaseBenefit(dialog,{basePrice:Number(s?.purchasePrice||0),priceSelector:'[data-oil-state-price]'});
@@ -73,6 +73,21 @@ export function enableOilIndustryFeature({ root, cityId }) {
     if(result.isOwner&&result.kind!=='oil_well'){const fleet=await vehicleRequest(cityId);carriers=fleet.hubs||[];}
     if(g!==generation||destroyed)return;
     s=result; if(!s.isOwner)tab='overview';render();
+  }
+  let backgroundBusy=false;
+  async function checkBackground(){
+    if(backgroundBusy||busy||destroyed||!dialog.open||document.hidden||!s)return;
+    backgroundBusy=true;
+    const g=generation,key=id,previous=s;
+    try{
+      const next=await oilRequest(key,cityId);
+      if(g!==generation||destroyed||busy||!dialog.open||s!==previous)return;
+      const fields=['crude','petrol','petrol92','diesel','cash','shipments','batchReadyAt','batchPetrol','batchDiesel','reservedIncoming','running','maintenanceRequired','equipment','selling'];
+      const changed=fields.some(field=>JSON.stringify(previous[field])!==JSON.stringify(next[field]));
+      const node=dialog.querySelector('.mn-oil-notice');
+      if(changed&&node){const message='Данные предприятия изменились. Нажмите «Обновить».';if(node.textContent!==message)node.textContent=message;node.title=message;}
+    }catch{ /* Keep the form and drafts unchanged; manual refresh reports errors. */ }
+    finally{backgroundBusy=false;}
   }
   async function act(action,data) {
     if(busy)return;
@@ -130,7 +145,7 @@ export function enableOilIndustryFeature({ root, cityId }) {
     if(!OIL_TYPES[type]||busy)return;
     generation++;const openGeneration=generation;id=String(o.id);s=null;tab='overview';notice='';retry=null;dialog.innerHTML='<p>Загрузка предприятия…</p>';
     if(!dialog.open)dialog.showModal();clearInterval(timer);
-    try {await refresh();if(openGeneration!==generation||destroyed)return;timer=setInterval(()=>{if(dialog.open&&!busy)refresh().catch(()=>{});},5000);}
+    try {await refresh();if(openGeneration!==generation||destroyed)return;timer=setInterval(checkBackground,10000);}
     catch(err){if(openGeneration!==generation||destroyed)return;dialog.innerHTML=`<p>${esc(oilError(err))}</p><button data-close>Закрыть</button>`;}
   };
   window.addEventListener('mn:oil-industry-object-action',onOpen);
