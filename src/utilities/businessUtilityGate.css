@@ -9,3 +9,16 @@
 @media(max-width:700px){.mn-business-utility-offer,.mn-business-utility-offers__title{align-items:stretch;flex-direction:column}.mn-business-utility-offer__actions button{flex:1}}
 
 .mn-business-utility-gate.is-checking{border-color:#8b969f;background:#151b21}.mn-business-utility-gate.is-checking .mn-business-utility-gate__head small{color:#b9c0c5}.mn-business-utility-gate__services .is-stopped strong{color:#ffd47d}.mn-business-utility-gate [data-utility-reason]{font-size:11px;line-height:1.4;color:#d2d8dc;margin-top:5px}
+
+/* Background checks must never resize the enterprise form. */
+.mn-utility-notification{display:flex;align-items:center;gap:10px;height:42px;min-height:42px;max-height:42px;overflow:hidden;margin-top:10px}
+.mn-utility-notification [data-utility-notice]{display:block;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:#b9c0c5}
+.mn-utility-notification button{flex:none;border:1px solid #456255;border-radius:8px;background:#203c30;color:#e6f9ef;padding:7px 10px;cursor:pointer}
+.mn-business-utility-gate__head>span{min-width:0;flex:1}
+.mn-business-utility-gate__head strong{display:block;height:36px;overflow:hidden}
+.mn-business-utility-gate__services article strong{display:block;height:28px;overflow:hidden}
+.mn-business-utility-gate [data-utility-reason]{display:block;height:32px;overflow:hidden}
+.mn-business-utility-gate [data-utility-reason][hidden]{display:block!important;visibility:hidden}
+.mn-business-utility-gate>[data-business-utility-info]{height:40px;overflow:auto}
+.mn-business-utility-gate>[data-business-utility-info][hidden]{display:block!important;visibility:hidden}
+.mn-business-utility-offers{max-height:260px;overflow:auto;overscroll-behavior:contain}
