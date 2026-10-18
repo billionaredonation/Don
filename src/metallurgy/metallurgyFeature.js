@@ -1,3 +1,4 @@
+import {mountAutoMaterialMarket} from '../vehicles/autoMaterialMarket.js';
 import { mountMineFactoryTrade } from '../mine/mineFactoryTrade.js';
 import { syncBusinessUtilityGate, clearBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import './metallurgy.css';
@@ -49,7 +50,7 @@ function markup() {
     <main>
       <section data-metallurgy-page="production"><div class="mn-metallurgy-status"><span><small>Статус</small><strong data-metallurgy-state>Загрузка…</strong></span><span><small>Ваша роль</small><strong data-metallurgy-role>Посетитель</strong></span><span><small>Бюджет</small><strong data-metallurgy-cash>Скрыто</strong></span></div><div class="mn-metallurgy-recipes">${recipes}</div></section>
       <section data-metallurgy-page="warehouse" hidden><h3>Сырьевой склад</h3><p class="mn-metallurgy-note">Сюда поступают подтверждённые партии со склада шахты через логистику. Сырьё не создаётся кнопкой в интерфейсе.</p><div class="mn-metallurgy-stock">${raw}</div><h3>Склад готовых компонентов</h3><div class="mn-metallurgy-stock">${products}</div></section>
-      <section data-metallurgy-page="management" hidden><div class="mn-metallurgy-buy" data-metallurgy-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatMetallurgyMoney(METALLURGY_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет производством, бюджетом и складами.</p></span><button type="button" data-metallurgy-purchase>Купить завод</button></div><div data-metallurgy-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-metallurgy-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span><span><small>Публичный ID</small><strong data-metallurgy-public-id>—</strong></span></div>${procurementControlsMarkup('metallurgy', METALLURGY_RAW_ITEMS)}<div data-metallurgy-mine-trade></div><article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-metallurgy-amount><div><button type="button" data-metallurgy-deposit>Пополнить</button><button type="button" data-metallurgy-withdraw>Снять</button></div></article></div></section>
+      <section data-metallurgy-page="management" hidden><div class="mn-metallurgy-buy" data-metallurgy-buy><span><small>ГОСУДАРСТВЕННЫЙ ЗАВОД</small><strong>${formatMetallurgyMoney(METALLURGY_CONFIG.purchasePrice)}</strong><p>После покупки владелец управляет производством, бюджетом и складами.</p></span><button type="button" data-metallurgy-purchase>Купить завод</button></div><div data-metallurgy-owned hidden><div class="mn-metallurgy-owner"><span><small>Владелец</small><strong data-metallurgy-owner>—</strong></span><span><small>Форма</small><strong>ТОВ</strong></span><span><small>Публичный ID</small><strong data-metallurgy-public-id>—</strong></span></div>${procurementControlsMarkup('metallurgy', METALLURGY_RAW_ITEMS)}<div data-metallurgy-mine-trade></div><section data-metallurgy-auto-market></section><article class="mn-metallurgy-money"><h3>Баланс предприятия</h3><input type="number" min="1" inputmode="numeric" placeholder="Сумма" data-metallurgy-amount><div><button type="button" data-metallurgy-deposit>Пополнить</button><button type="button" data-metallurgy-withdraw>Снять</button></div></article></div></section>
     </main></section></div>`;
 }
 
@@ -66,6 +67,10 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
   let busy = false;
   const mineTrade=mountMineFactoryTrade(q('[data-metallurgy-mine-trade]'),{
     incoming:true,getContext:()=>({id:currentFactoryId,cityId,isOwner:Boolean(snapshot?.isOwner)}),onChange:()=>refresh(),
+  });
+
+  const autoMarket=mountAutoMaterialMarket(q('[data-metallurgy-auto-market]'),{
+    getContext:()=>({id:currentFactoryId,cityId,isOwner:Boolean(snapshot?.isOwner)}),onChange:()=>refresh(),
   });
 
   function render() {
@@ -87,6 +92,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     qa('[data-metallurgy-deposit],[data-metallurgy-withdraw]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     renderProcurementControls(modal, 'metallurgy', procurement, METALLURGY_RAW_ITEMS, { canManage:snapshot?.isOwner, busy });
     mineTrade.sync();
+    autoMarket.sync();
   }
 
   async function refresh() {
@@ -94,6 +100,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentFactoryId, cityId, buyerType:'metallurgy' }) : null;
     render();
     await mineTrade.refresh();
+    await autoMarket.refresh();
   }
 
   async function run(task, success = '', errorFormatter = getMetallurgyError) {
@@ -176,9 +183,8 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
   };
   qa('[data-metallurgy-procurement-item-save]').forEach((button) => { button.onclick = () => saveProcurementItem(button.dataset.metallurgyProcurementItemSave); });
   window.addEventListener('mn:metallurgy-object-action', onObjectAction);
-  return () => { mineTrade.destroy();
+  return () => { mineTrade.destroy(); autoMarket.destroy();
     window.removeEventListener('mn:metallurgy-object-action', onObjectAction);
     modal.remove();
   };
 }
-
