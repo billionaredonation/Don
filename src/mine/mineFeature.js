@@ -1,3 +1,4 @@
+import { mountMineFactoryTrade } from './mineFactoryTrade.js';
 import { syncBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
@@ -296,6 +297,13 @@ export function enableMineFeature({ root, cityId } = {}) {
     return marketState.items?.find?.((item) => String(item.subtypeCode || '') === subtypeCode) || null;
   }
 
+  const tradeHost=document.createElement('div');
+  modal.querySelector('[data-mine-page="business"]').append(tradeHost);
+  const mineTrade=mountMineFactoryTrade(tradeHost,{
+    getContext:()=>({id:activeBuyerObjectId,cityId,isOwner:businessState?.role==='owner',items:businessState?.warehouse?.items||{}}),
+    onChange:()=>refreshBusiness({silent:false}),
+  });
+
   function renderBusiness() {
     const business = businessState;
     const owned = Boolean(business?.owned);
@@ -356,6 +364,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     modal?.querySelectorAll('[data-mine-business-purchase], [data-mine-business-deposit], [data-mine-business-withdraw], [data-mine-business-withdraw-all], [data-mine-business-assistant-save], [data-mine-business-assistant-clear]')
       .forEach((button) => { button.disabled = busy; });
     renderProcurementControls(modal, 'mine', business?.procurement, [], { canManage:isOwner, busy });
+    mineTrade.sync();
   }
 
   function publishBusiness(result) {
@@ -580,6 +589,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     activeBusinessPublicId = getPublicBusinessId(object);
     renderPublicBusinessId(modal?.querySelector('.mn-mine-panel'), object);
     businessState = null;
+    mineTrade.sync();
     marketLoading = false;
     marketLoadFailed = false;
     marketState = { items: [] };
@@ -606,7 +616,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     tabButtons.forEach((button) => { button.dataset.active = button.dataset.mineTab === tab ? 'true' : 'false'; });
     tabPages.forEach((page) => { page.hidden = page.dataset.minePage !== tab; });
     if (tab === 'sell') void refreshMarket({ silent: false });
-    if (tab === 'business') void refreshBusiness({ silent: false });
+    if (tab === 'business') { void refreshBusiness({ silent: false }); void mineTrade.refresh(); }
   }
 
   async function workWithNode(object) {
@@ -873,6 +883,7 @@ export function enableMineFeature({ root, cityId } = {}) {
   });
 
   return () => {
+    mineTrade.destroy();
     destroyed = true;
     stopMineStreamLoading();
     window.clearInterval(marketTimer);
