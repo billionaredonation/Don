@@ -181,3 +181,4 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     modal.remove();
   };
 }
+
