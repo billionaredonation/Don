@@ -7,11 +7,13 @@ import { previewBusinessStateSale, sellBusinessToState, businessStateSaleError }
 import './businessUtilityGate.css';
 import '../businessStateSale/businessStateSale.css';
 
-const CACHE_MS = 5000;
-const OFFER_POLL_MS = 5000;
+const CACHE_MS = 10000;
+const OFFER_POLL_MS = 10000;
 const cache = new Map();
 const statusInFlight = new Map();
 const offerTimers = new WeakMap();
+const gateRecords = new WeakMap();
+const offerState = new WeakMap();
 
 const norm = (value) => String(value ?? '').trim().toLowerCase().replace(/^mn-/, '');
 const esc = (value) => String(value ?? '')
@@ -183,6 +185,7 @@ function updateGateState(gate, state) {
     let reason = article.querySelector('[data-utility-reason]');
     if (!reason) { reason = document.createElement('small'); reason.dataset.utilityReason = '1'; article.querySelector('span').append(reason); }
     reason.textContent = unknown ? '' : (state.reasons?.[key] || '');
+    reason.title = reason.textContent;
     reason.hidden = !reason.textContent;
     const strong = article.querySelector('strong');
     if (strong) {
@@ -227,82 +230,101 @@ function offerMarkup(kind, offer) {
   </article>`;
 }
 
-async function refreshOfferBox(gate, ids, options) {
-  if (!gate?.isConnected) return;
-  const box = gate.querySelector('[data-business-utility-offers]');
-  if (!box) return;
-  try {
-    const offers = await loadIncomingOffers(ids, { force: true });
-    if (!gate.isConnected) return;
-
-    const liveStatus = await loadBusinessUtilityStatus(ids);
-    if (gate.isConnected) updateGateState(gate, liveStatus);
-
-    const all = [
-      ...offers.power.map((offer) => ['power', offer]),
-      ...offers.water.map((offer) => ['water', offer]),
-      ...offers.gas.map((offer) => ['gas', offer]),
-    ];
-    box.hidden = false;
-    box.innerHTML = all.length
-      ? `<div class="mn-business-utility-offers__title"><strong>Входящие коммунальные договоры</strong><small>Решение принимает владелец этого предприятия.</small></div>${all.map(([kind, offer]) => offerMarkup(kind, offer)).join('')}`
-      : `<div class="mn-business-utility-offers__title"><strong>Входящие коммунальные договоры</strong><small>Сейчас новых предложений нет. Поставщик должен отправить договор на ID этого предприятия.</small></div>`;
-
-    box.querySelectorAll('[data-utility-answer]').forEach((button) => {
-      button.onclick = async () => {
-        const row = button.closest('[data-utility-offer]');
-        const kind = row?.dataset.utilityOffer;
-        const contractId = row?.dataset.contractId;
-        const accept = button.dataset.utilityAnswer === 'accept';
-        if (!kind || !contractId) return;
-        row.querySelectorAll('button').forEach((el) => { el.disabled = true; });
-        try {
-          if (kind === 'power') await answerPowerOffer(contractId, accept);
-          else if (kind === 'water') await answerWaterOffer(contractId, accept);
-          else await answerGasOffer(contractId, accept);
-
-          portalCache.clear();
-          window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: accept ? 'Коммунальный договор принят.' : 'Коммунальный договор отклонён.', type: 'success' } }));
-          window.dispatchEvent(new CustomEvent('mn:business-utility-contract-changed', { detail: { kind, contractId, accepted: accept, objectIds: ids } }));
-
-          const fresh = await loadBusinessUtilityStatus(ids, { force: true });
-          renderBusinessUtilityGate(options.container, fresh, options.renderOptions);
-        } catch (error) {
-          const message = kind === 'power' ? getSubstationError(error) : kind === 'water' ? getWaterError(error) : getGasError(error);
-          window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type: 'error' } }));
-          row.querySelectorAll('button').forEach((el) => { el.disabled = false; });
-        }
-      };
-    });
-  } catch (error) {
-    console.warn('[businessUtilityGate] incoming offers refresh failed:', error);
-    if (gate.isConnected) {
-      updateGateState(gate, { checked:false, error:true, objectIds:ids });
-      box.hidden = false;
-      box.textContent = 'Не удалось обновить входящие договоры. Повторная проверка выполняется автоматически.';
+function setNotice(gate, text) {
+  const node=gate.querySelector('[data-utility-notice]');
+  if(node && node.textContent!==text){node.textContent=text;node.title=text;}
+}
+function offersList(offers){
+  return [...offers.power.map(o=>['power',o]),...offers.water.map(o=>['water',o]),...offers.gas.map(o=>['gas',o])];
+}
+function showOffers(gate, ids, options) {
+  const live=offerState.get(gate);
+  if(!live?.offers || live.answering || !gate.isConnected)return;
+  const box=gate.querySelector('[data-business-utility-offers]');
+  if(!box)return;
+  if(live.status)updateGateState(gate,live.status);
+  live.shownStatus=live.status ? statusSignature(live.status) : '';
+  const all=offersList(live.offers);
+  box.hidden=false;
+  box.innerHTML=all.length ? all.map(([kind,o])=>offerMarkup(kind,o)).join('') : '<p>Новых предложений на подключение нет.</p>';
+  box.onclick=async event=>{
+    const button=event.target.closest('[data-utility-answer]');
+    if(!button||live.answering)return;
+    const row=button.closest('[data-utility-offer]');
+    const kind=row?.dataset.utilityOffer, contractId=row?.dataset.contractId;
+    if(!kind||!contractId)return;
+    const accept=button.dataset.utilityAnswer==='accept';
+    live.answering=true;
+    box.querySelectorAll('button').forEach(el=>{el.disabled=true;});
+    try{
+      if(kind==='power')await answerPowerOffer(contractId,accept);
+      else if(kind==='water')await answerWaterOffer(contractId,accept);
+      else await answerGasOffer(contractId,accept);
+      portalCache.clear();
+      window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message:accept?'Коммунальный договор принят.':'Коммунальный договор отклонён.',type:'success'}}));
+      window.dispatchEvent(new CustomEvent('mn:business-utility-contract-changed',{detail:{kind,contractId,accepted:accept,objectIds:ids}}));
+      live.answering=false;
+      await refreshOfferBox(gate,ids,options);
+      if(gate.isConnected)showOffers(gate,ids,options);
+    }catch(error){
+      const message=kind==='power'?getSubstationError(error):kind==='water'?getWaterError(error):getGasError(error);
+      window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message,type:'error'}}));
+    }finally{
+      live.answering=false;
+      box.querySelectorAll('button').forEach(el=>{el.disabled=false;});
     }
-  }
+  };
+}
+async function refreshOfferBox(gate, ids, options) {
+  if(!gate?.isConnected)return;
+  let live=offerState.get(gate);
+  if(!live){live={loading:false,answering:false,offers:null,status:null,shownStatus:gate.dataset.utilityStatusSignature||''};offerState.set(gate,live);}
+  if(live.loading||live.answering)return;
+  live.loading=true;
+  try{
+    const offers=await loadIncomingOffers(ids,{force:true});
+    if(!gate.isConnected || offerState.get(gate)!==live)return;
+    const status=await loadBusinessUtilityStatus(ids);
+    if(!gate.isConnected || offerState.get(gate)!==live)return;
+    const first=!live.offers;
+    live.offers=offers;live.status=status;
+    // Hydrate once; subsequent polls only replace one fixed-height text line.
+    if(first){updateGateState(gate,status);live.shownStatus=statusSignature(status);}
+    const labels=[['power','свет'],['water','вода'],['gas','газ']].filter(([key])=>offers[key].length).map(([key,label])=>`${label}: ${offers[key].length}`);
+    const changed=statusSignature(status)!==live.shownStatus;
+    setNotice(gate,labels.length?`Предложения — ${labels.join(', ')}. Нажмите «Посмотреть».`:changed?'Статус ЖКХ изменился. Нажмите «Посмотреть».':'Новых предложений нет. Проверка каждые 10 секунд.');
+  }catch(error){
+    if(gate.isConnected)setNotice(gate,'Не удалось проверить ЖКХ. Повторим через 10 секунд.');
+  }finally{live.loading=false;}
 }
 
 export function clearBusinessUtilityGate(container) {
+  const record=container && gateRecords.get(container);
+  if(record){clearInterval(offerTimers.get(record.gate));offerState.delete(record.gate);gateRecords.delete(container);}
   container?.querySelectorAll('[data-business-utility-gate]').forEach(node => {
     clearInterval(offerTimers.get(node));
     offerTimers.delete(node);
+    offerState.delete(node);
     node.remove();
   });
 }
 
 export function renderBusinessUtilityGate(container, status, { isOwner = false, objectId = '', objectIds = null, showStateSale = true } = {}) {
   if (!container) return;
-  container.querySelectorAll('[data-business-utility-gate]').forEach((node) => {
-    const offerTimer = offerTimers.get(node);
-    if (offerTimer) clearInterval(offerTimer);
-    node.remove();
-  });
-  if (!isOwner) return;
-
   const state = status ? { ...status, checked:status.checked !== false } : { electricity:false, water:false, gas:false, operational:false, missing:['electricity','water','gas'], objectIds:[] };
-  const ids = [...new Set([...(Array.isArray(objectIds) ? objectIds : []), ...(Array.isArray(state.objectIds) ? state.objectIds : []), objectId].map((v) => String(v ?? '').trim()).filter(Boolean))];
+  const ids = [...new Set([...(Array.isArray(objectIds) ? objectIds : []), ...(Array.isArray(state.objectIds) ? state.objectIds : []), objectId].map(v=>String(v??'').trim()).filter(Boolean))];
+  const key=JSON.stringify([isOwner,idsKey(ids),objectId,showStateSale]);
+  const previous=gateRecords.get(container);
+  if(isOwner && previous?.key===key){
+    if(!container.contains(previous.gate)){
+      const anchor=container.querySelector('[data-business-utility-anchor]')||container.querySelector('main')||container.querySelector('section')||container.firstElementChild||container;
+      anchor.prepend(previous.gate);
+    }
+    // Reuse the same panel when production counters replace the host DOM.
+    return;
+  }
+  clearBusinessUtilityGate(container);
+  if(!isOwner)return;
   const gate = document.createElement('section');
   gate.dataset.businessUtilityGate = '1';
   gate.className = `mn-business-utility-gate ${state.operational ? 'is-online' : 'is-offline'}`;
@@ -318,6 +340,7 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
       <article class="${state.gas ? 'is-active' : state.gasConnected ? 'is-stopped' : 'is-missing'}"><i>🔥</i><span><small>Газ</small><strong>${state.gas ? 'Подключён' : state.gasConnected ? 'Подача остановлена' : 'Не подключён'}</strong></span></article>
     </div>
     <p data-business-utility-info ${state.operational ? 'hidden' : ''}>Чтобы подключить предприятие: владелец подстанции отправляет предложение на электричество, водоканал — на воду, УкрГаз — на газ. После отправки договор появится ниже в разделе «Входящие коммунальные договоры», где владелец предприятия сможет его принять.</p>
+    <div class="mn-utility-notification"><span data-utility-notice role="status" aria-live="polite">Проверяем предложения на подключение…</span><button type="button" data-utility-view>Посмотреть</button></div>
     <div class="mn-business-utility-offers" data-business-utility-offers hidden></div>
     <div class="mn-business-state-sale">
       <div>
@@ -388,30 +411,26 @@ export function renderBusinessUtilityGate(container, status, { isOwner = false, 
 
   const renderOptions = { isOwner, objectId, objectIds: ids, showStateSale };
   const options = { container, renderOptions };
+  gateRecords.set(container,{key,gate});
+  gate.querySelector('[data-utility-view]').onclick=()=>{const box=gate.querySelector('[data-business-utility-offers]');if(!box.hidden){box.hidden=true;return;}showOffers(gate,ids,options);};
   void refreshOfferBox(gate, ids, options);
   const offerTimer = setInterval(() => {
     if (!gate.isConnected) { clearInterval(offerTimer); return; }
-    if (gate.closest('[hidden], [aria-hidden="true"]') || gate.closest('dialog:not([open])')) return;
+    if (document.hidden || gate.closest('[hidden], [aria-hidden="true"]') || gate.closest('dialog:not([open])')) return;
     void refreshOfferBox(gate, ids, options);
   }, OFFER_POLL_MS);
   offerTimers.set(gate, offerTimer);
 
   // One read-only business utility portal is refreshed by the existing
-  // 5-second offer timer. Accept/Reject forces an immediate refresh.
+  // 10-second offer timer. Accept/Reject forces an immediate refresh.
 }
 
 
 // Reuse an existing panel while unrelated production counters are rendered.
 // Rebuild on business switch, ownership change, or replacement of its DOM.
-const mountedGates = new WeakMap();
 export function syncBusinessUtilityGate(container, { isOwner = false, objectId = '', objectIds = [] } = {}) {
-  if (!container) return;
-  const ids = [...new Set([objectId, ...objectIds].map(v => String(v || '').trim()).filter(v => v && v !== '—'))];
-  const key = `${Boolean(isOwner)}:${idsKey(ids)}`;
-  const previous = mountedGates.get(container);
-  if (previous?.key === key && previous.gate?.isConnected) return;
-  clearBusinessUtilityGate(container);
-  if (!isOwner || !ids.length) { mountedGates.delete(container); return; }
-  renderBusinessUtilityGate(container, null, { isOwner:true, objectId, objectIds:ids, showStateSale:false });
-  mountedGates.set(container, { key, gate:container.querySelector('[data-business-utility-gate]') });
+  if(!container)return;
+  const ids=[...new Set([objectId,...objectIds].map(v=>String(v||'').trim()).filter(v=>v&&v!=='—'))];
+  if(!isOwner||!ids.length){clearBusinessUtilityGate(container);return;}
+  renderBusinessUtilityGate(container,null,{isOwner:true,objectId,objectIds:ids,showStateSale:false});
 }
