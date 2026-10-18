@@ -1,0 +1,10 @@
+.mn-auto-parts-o{margin-bottom:24px;padding:18px;border:1px solid #39566a;border-radius:16px;background:#142735;color:#edf6fc}
+.mn-auto-parts-o summary{cursor:pointer;font-size:18px}
+.mn-auto-parts-o p{line-height:1.5;color:#c4d5e2}
+.mn-auto-parts-o label{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
+.mn-auto-parts-o select,.mn-auto-parts-o input{max-width:100%;min-width:0;padding:10px;border:1px solid #526d80;border-radius:8px;background:#223e50;color:#fff}
+.mn-auto-parts-o select{flex:1 1 220px}
+.mn-auto-parts-o input{width:110px}
+.mn-auto-parts-o button{padding:10px 14px;border:1px solid #577c94;border-radius:9px;background:#284d65;color:#fff;cursor:pointer;white-space:normal}
+.mn-auto-parts-o button:disabled{opacity:.5;cursor:default}
+.mn-auto-parts-o article{display:block!important;padding:16px;margin:12px 0;border:1px solid #39566a;border-radius:12px}
