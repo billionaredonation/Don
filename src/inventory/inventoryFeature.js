@@ -455,6 +455,32 @@ function renderMedicalItems(slotItems = []) {
   }).join('');
 }
 
+// Clothing shares the body's SVG coordinates; inventory icons stay in the grid.
+function characterGarmentMarkup(slot, item, meta = {}) {
+  if (!item) return '';
+  const color = /^#[0-9a-f]{6}$/i.test(String(item.color || '')) ? item.color : '#374151';
+  const label = String(meta.label || item.itemType || '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  const type = `${item.itemType || ''} ${meta.label || ''}`.toLowerCase();
+  let shape = '';
+  if (slot === 'upper') {
+    const jacket = /jacket|coat|куртк|пальто/.test(type);
+    const longSleeve = jacket || /sweater|hoodie|свитер|толстов|худи/.test(type);
+    shape = `<path d="${longSleeve ? 'M53 86 Q64 79 70 80 Q80 92 90 80 Q99 81 107 86 L122 145 L109 150 L99 116 L99 153 L61 153 L61 116 L51 150 L38 145 Z' : 'M53 86 Q64 79 70 80 Q80 92 90 80 Q99 81 107 86 L115 113 L102 118 L99 108 L99 153 L61 153 L61 108 L58 118 L45 113 Z'}" fill="${color}" stroke="#111827" stroke-opacity=".45" stroke-width="1.2"/>
+      <path d="M70 80 Q80 92 90 80 M62 148 H98" fill="none" stroke="#ffffff" stroke-opacity=".25" stroke-width="2"/>
+      <path d="M64 100 V144 M96 100 V144" fill="none" stroke="#000000" stroke-opacity=".12" stroke-width="2"/>
+      ${jacket ? '<path d="M80 88 V152 M65 125 H74 M86 125 H95" fill="none" stroke="#111827" stroke-opacity=".65" stroke-width="1.5"/>' : ''}`;
+  } else if (slot === 'lower') {
+    const shorts = /shorts|шорт/.test(type);
+    shape = `<path d="${shorts ? 'M61 146 H99 V181 H82 L80 157 L78 181 H61 Z' : 'M61 146 H99 V211 H84 L80 160 L76 211 H61 Z'}" fill="${color}" stroke="#111827" stroke-opacity=".45" stroke-width="1.2"/>
+      <path d="M62 151 H98 M80 151 V160 M65 156 Q69 163 75 163 M95 156 Q91 163 85 163" fill="none" stroke="#ffffff" stroke-opacity=".25" stroke-width="1.2"/>`;
+  } else if (slot === 'shoes') {
+    shape = `<path d="M60 202 H76 V216 H53 Q52 211 60 208 Z M84 202 H100 V208 Q108 211 107 216 H84 Z" fill="${color}" stroke="#111827" stroke-opacity=".65" stroke-width="1.2"/>
+      <path d="M54 216 H76 M84 216 H106" stroke="#d1d5db" stroke-width="2.5"/>
+      <path d="M64 207 H72 M64 210 H72 M88 207 H96 M88 210 H96" stroke="#e5e7eb" stroke-opacity=".7" stroke-width="1.3"/>`;
+  }
+  return `<title>${label}</title>${shape}`;
+}
+
 function characterMarkup(vitals) {
   const health = Math.round(vitals.health);
   const food = Math.round(vitals.food);
@@ -469,7 +495,8 @@ function characterMarkup(vitals) {
           class="mn-inventory-character-silhouette"
           viewBox="0 0 160 240"
           role="img"
-          aria-label="Нейтральный силуэт игрового персонажа"
+          aria-label="Игровой персонаж в надетой одежде"
+          preserveAspectRatio="xMidYMid meet"
         >
           <defs>
             <linearGradient id="mn-character-body-gradient" x1="0" y1="0" x2="1" y2="1">
@@ -483,10 +510,10 @@ function characterMarkup(vitals) {
             d="M53 86 Q80 70 107 86 L124 148 L107 154 L99 124 L99 211 L84 211 L80 154 L76 211 L61 211 L61 124 L53 154 L36 148 Z"
           />
           <path class="mn-character-detail" d="M61 106 H99 M80 82 V154" />
+          <g data-character-garment="lower" style="display:none"></g>
+          <g data-character-garment="upper" style="display:none"></g>
+          <g data-character-garment="shoes" style="display:none"></g>
         </svg>
-        <span class="mn-character-garment is-upper" data-character-garment="upper" hidden></span>
-        <span class="mn-character-garment is-lower" data-character-garment="lower" hidden></span>
-        <span class="mn-character-garment is-shoes" data-character-garment="shoes" hidden></span>
 
         <span class="mn-inventory-character-state" data-character-state>Состояние</span>
       </div>
@@ -812,12 +839,10 @@ export function enableInventoryFeature() {
     const equippedBySlot = new Map(medicalItems.filter((item) => item.equipped && isTextileProduct(item.itemType)).map((item) => [TEXTILE_PRODUCT_BY_TYPE[item.itemType]?.slot, item]));
     overlay.querySelectorAll('[data-character-garment]').forEach((element) => {
       const item = equippedBySlot.get(element.dataset.characterGarment);
-      element.hidden = !item;
-      if (item) {
-        element.textContent = TEXTILE_PRODUCT_BY_TYPE[item.itemType]?.icon || '●';
-        element.style.setProperty('--mn-garment-color', item.color || '#374151');
-        element.title = TEXTILE_PRODUCT_BY_TYPE[item.itemType]?.label || item.itemType;
-      }
+      const meta = item ? TEXTILE_PRODUCT_BY_TYPE[item.itemType] || {} : {};
+      const markup = characterGarmentMarkup(element.dataset.characterGarment, item, meta);
+      element.style.display = item ? '' : 'none';
+      if (element.innerHTML !== markup) element.innerHTML = markup;
     });
     if (capacity) capacity.textContent = String(occupied);
     inventoryGrid.dataset.busy = inventoryBusy ? 'true' : 'false';
