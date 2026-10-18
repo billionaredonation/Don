@@ -18,3 +18,4 @@ export function mountAutoPartsOMarket(host){
  const retry=e=>{if(e.target.closest('[data-auto-parts-retry]'))void load();};host.addEventListener('click',retry);void load();
  return {destroy(){destroyed=true;market?.destroy();picker.removeEventListener('change',select);host.removeEventListener('click',retry);host.innerHTML='';}};
 }
+
