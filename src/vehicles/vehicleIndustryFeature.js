@@ -335,3 +335,4 @@ if(e.code==='KeyH'&&current()){e.preventDefault();honk();objects=await getMapObj
  refresh().then(()=>{const c=current();if(c?.city_id===cityId)window.dispatchEvent(new CustomEvent('mn:player-teleported',{detail:{x:c.x,y:c.y}}));}).catch(()=>{});
  return()=>{destroyed=true;renderBusinessUtilityGate(dialog,null,{isOwner:false});unregisterCanisters();clearInterval(timer);clearInterval(poll);clearInterval(assemblyTimer);window.__MN_VEHICLE_RUNTIME__=null;window.removeEventListener('keydown',key);window.removeEventListener('mn:auto-object-action',onOpen);window.removeEventListener('mn:auto-routes-open',onRoutes);window.removeEventListener('mn:auto-station-open',onStation);dialog.remove();launch.remove();hud.remove();speedometer.remove();layer.remove();playerMarker?.classList.remove('mn-auto-driving');};
 }
+
