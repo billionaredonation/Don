@@ -15,6 +15,7 @@ async function normalizeError(error) {
 export function getTextileError(error) {
   const raw = String(error?.message || error || 'TEXTILE_REQUEST_FAILED');
   const messages = {
+    BUSINESS_UTILITIES_BUSY_RETRY_LATER: 'Проверка коммунальных услуг занята. Подождите несколько секунд и повторите действие.',
     TELEGRAM_SESSION_REQUIRED: 'Откройте игру через Telegram.', TELEGRAM_SESSION_INVALID: 'Сессия Telegram устарела.',
     TEXTILE_DATABASE_MIGRATION_REQUIRED: 'Примените SQL-миграцию текстильной цепочки.',
     INDUSTRY_FACTORY_NOT_FOUND: 'Швейный завод не найден.', INDUSTRY_OWNER_REQUIRED: 'Действие доступно владельцу завода.',
