@@ -11,7 +11,7 @@ export function mountAutoMaterialMarket(host,{getContext,onChange}){
  async function refresh(){if(destroyed||busy||loading)return;sync();const c={...getContext()},version=generation;if(!c.isOwner||!c.id)return;loading=true;render();
  try{const r=await vehicleRequest(c.cityId,c.id,'procurement_market');if(destroyed||version!==generation||contextKey(getContext())!==key)return;orders=r.orders||[];message='';}
  catch(e){if(!destroyed&&version===generation)message=vehicleError(e);}
- finally{loading=false;if(!destroyed)render();}
+ finally{loading=false;if(!destroyed){render();if(version!==generation)void refresh();}}
  }
  async function click(e){const button=e.target.closest('button');if(!button||button.disabled||busy)return;
  if(button.hasAttribute('data-auto-market-refresh')){await refresh();return;}
@@ -26,7 +26,7 @@ export function mountAutoMaterialMarket(host,{getContext,onChange}){
   if(destroyed||version!==generation||contextKey(getContext())!==key)return;
   message='Детали проданы. Заказ передан перевозчику.';orders=[];await onChange?.();
  }catch(error){if(!destroyed&&version===generation)message=vehicleError(error);}
- finally{busy=false;if(!destroyed)render();}
+ finally{busy=false;if(!destroyed){render();if(version!==generation)void refresh();}}
  }
  host.addEventListener('click',click);sync();
  return {sync,refresh,destroy(){destroyed=true;generation++;host.removeEventListener('click',click);host.innerHTML='';}};
