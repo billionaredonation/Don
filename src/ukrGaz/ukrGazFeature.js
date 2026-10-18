@@ -22,6 +22,16 @@ const litersLive = (value) => `${Math.max(0, Number(value) || 0).toLocaleString(
 const notify = (message, type = 'info') => window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message, type } }));
 const plantIdOf = (object) => String(object?.payload?.ukrGazPlantId || object?.payload?.ukrgaz_plant_id || object?.id || '').trim();
 
+function gasStopReason(item, snapshot) {
+  const reason = item.suspendedReason;
+  if (reason === 'equipment_missing') return '⛔ Не установлены системы поставки';
+  if (reason === 'plant_stopped') return '⛔ Поставка выключена';
+  if (reason === 'storage_empty') return snapshot.maintenanceRequired
+    ? '⛔ Газ закончился — матрице нужно обслуживание'
+    : '⛔ Запас газа пуст';
+  return '⛔ Подача остановлена';
+}
+
 const equipment = [
   ['purification','⚙️','Матрица переработки угля',1_000_000,'Производит газ для отопления из угля'],
   ['transport','🔥','Система поставки',250_000,'Доставка газа в дома и предприятия'],
@@ -93,14 +103,16 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
     }
 
     const ready = Boolean(s.equipment?.collection && s.equipment?.purification && s.equipment?.transport);
-    const running = Boolean(s.running);
+    const maintenanceRequired = Boolean(s.maintenanceRequired);
+    const running = Boolean(s.running) && !maintenanceRequired;
     const clean = Math.max(0, Number(s.gasUnits) || 0);
     const capacity = Math.max(1, Number(s.gasCapacity) || 25_000);
-    const status = running ? (clean >= capacity ? 'Резервуар заполнен' : 'Переработка работает') : ready ? 'Готово к запуску' : 'Нужны обязательные системы';
+    const status = maintenanceRequired ? 'Нужно обслуживание матрицы' : running ? (clean >= capacity ? 'Резервуар заполнен' : 'Переработка работает') : ready ? 'Готово к запуску' : 'Нужны обязательные системы';
     return `<section class="mn-gas-page">
       <div class="mn-gas-stats"><article><small>Статус</small><strong>${esc(status)}</strong></article><article><small>Уголь</small><strong>${liters(s.coalQuantity)}</strong></article><article><small>Запас газа</small><strong>${liters(clean)} / ${liters(capacity)}</strong></article><article><small>Абоненты</small><strong>${Number(s.subscriberCount || 0)} / 10</strong></article></div>
+      ${maintenanceRequired ? `<p class="mn-gas-note">Матрица выработала ресурс: производство газа остановлено. Обслуживание стоит ${money(s.maintenancePrice ?? 400)} и оплачивается из кассы УкрГаза в блоке «Обслуживание матрицы» ниже. После оплаты нажмите «Запустить».</p>` : ''}
       <div class="mn-gas-ledger"><article><small>Угля переработано</small><b>${liters(s.totalCoalUsed)}</b></article><article><small>Газа произведено</small><b>${liters(s.totalGasProduced)}</b></article><article><small>Поставлено абонентам</small><b>${litersLive(s.totalGasDelivered)}</b></article>${s.isOwner ? `<article><small>Счёт предприятия</small><b>${money(s.cashBalance)}</b></article>` : ''}</div>
-      <div class="mn-gas-actions"><button data-gas-start ${!s.isOwner || running || !ready ? 'disabled' : ''}>Запустить</button><button data-gas-stop ${!s.isOwner || !running ? 'disabled' : ''}>Остановить</button><input data-gas-withdraw type="number" min="1" value="${esc(withdrawDraft)}" placeholder="Сумма"><button data-gas-withdraw-button ${s.isOwner ? '' : 'disabled'}>Снять прибыль</button></div>
+      <div class="mn-gas-actions"><button data-gas-start ${!s.isOwner || running || !ready || maintenanceRequired ? 'disabled' : ''}>Запустить</button><button data-gas-stop ${!s.isOwner || !running ? 'disabled' : ''}>Остановить</button><input data-gas-withdraw type="number" min="1" value="${esc(withdrawDraft)}" placeholder="Сумма"><button data-gas-withdraw-button ${s.isOwner ? '' : 'disabled'}>Снять прибыль</button></div>
       <div class="mn-gas-public-id"><span><small>Публичный ID предприятия</small><code>${esc(s.publicId || plant.id || '—')}</code></span><button data-gas-copy>Копировать</button></div>
       <p class="mn-gas-note">Расход угля: ${liters(s.coalPerHour || 20)}/ч · производство газа: ${liters(s.gasPerHour || 100)}/ч. Для запуска нужен уголь. Управление поставкой — в разделе «Абоненты».</p>
     </section>`;
@@ -125,7 +137,7 @@ export function enableUkrGazFeature({ root, cityId } = {}) {
     const ready = Boolean(s.equipment?.collection && s.equipment?.purification && s.equipment?.transport);
     return `<section class="mn-gas-page"><div class="mn-gas-consumer-heading"><div><h3>Газоснабжение домов и предприятий</h3><p>Подключение стоит фиксированные 1 000 ₴. Тариф задаёт владелец, но не ниже 10 ₴ за единицу.</p></div><span>${openCount}/10 мест</span></div>
       ${s.isOwner ? `<div class="mn-gas-offer"><input data-gas-house maxlength="120" value="${esc(consumerDraft.houseId)}" placeholder="Публичный ID дома / предприятия"><input data-gas-price type="number" min="10" step="0.01" value="${esc(consumerDraft.unitPrice)}" placeholder="₴ за единицу"><button data-gas-offer ${openCount >= 10 || !ready ? 'disabled' : ''}>${ready ? 'Предложить договор' : 'Сначала установите все системы'}</button></div>` : ''}
-      ${s.isOwner ? `<button data-gas-warehouse="${s.supplyRunning?'supply_stop':'supply_start'}" data-value="0">${s.supplyRunning?'Остановить поставку':'Запустить поставку'}</button>` : ''}<div class="mn-gas-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>Объект ${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.gasActive ? '🔥 Газ поступает' : '⛔ Подача остановлена' : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / ед.</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyUnits)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-gas-empty">Абонентов пока нет.</div>'}</div>
+      ${s.isOwner ? `<button data-gas-warehouse="${s.supplyRunning?'supply_stop':'supply_start'}" data-value="0">${s.supplyRunning?'Остановить поставку':'Запустить поставку'}</button>` : ''}<div class="mn-gas-consumers">${consumers.length ? consumers.map((item) => `<article><span><small>Объект ${esc(item.houseName || item.houseId)} · ${esc(item.consumerName || 'владелец')}</small><strong>${item.status === 'active' ? item.gasActive ? '🔥 Газ поступает' : esc(gasStopReason(item, s)) : item.status === 'offered' ? '⏳ Ожидает решения' : 'Отказ'}</strong></span><span><small>Тариф</small><b>${money(item.unitPrice)} / ед.</b></span><span><small>Расход объекта</small><b>${item.status === 'active' ? `${liters(item.dailyUnits)} / сутки` : 'Определится при подключении'}</b></span><span><small>Долг</small><b>${money(item.amountDue)}</b></span></article>`).join('') : '<div class="mn-gas-empty">Абонентов пока нет.</div>'}</div>
     </section>`;
   }
 
