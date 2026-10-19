@@ -1,3 +1,4 @@
+import { renderUtilityBillColumns } from './utilityBillColumns.js';
 import { businessInfo } from '../business/businessDirectoryModel.js';
 import { getPublicBusinessId } from '../business/publicBusinessId.js';
 import { loadGasUtility, answerGasOffer, payGasBill, getGasError } from '../ukrGaz/ukrGazApi.js';
@@ -176,6 +177,13 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   }
 
   function renderUtility() {
+    if (!utilityContent || destroyed) return;
+    const staging = document.createElement('div');
+    buildUtilityMarkup(staging);
+    renderUtilityBillColumns(utilityContent, staging);
+  }
+
+  function buildUtilityMarkup(utilityContent) {
     if (!utilityContent) return;
     const electricity = utilitySnapshot.electricity || { bills: [], totalDue: 0 };
     const water = utilitySnapshot.water || { offers: [], bills: [], totalDue: 0 };
@@ -227,17 +235,17 @@ export function enablePlayerSkillsFeature({ root } = {}) {
           }).join('') : '<div class="mn-profile-property-empty"><i>💧</i><span><strong>Счетов за воду пока нет</strong><small>Примите предложение предприятия, чтобы подключить дом.</small></span></div>'}
         </div>
       </section>`;
-    renderGasUtility();
+    renderGasUtility(utilityContent);
   }
 
-  function renderGasUtility(){
+  function renderGasUtility(utilityContent){
     if(!utilityContent)return;
     const offers=gasUtility.offers||[],bills=gasUtility.bills||[];
-    utilityContent.insertAdjacentHTML('beforeend',`<section class="mn-profile-utility-section"><header><strong>🔥 УкрГаз · отопление домов и предприятий</strong></header>${gasUtilityError?`<p>${escapeHtml(gasUtilityError)}</p>`:''}<div class="mn-profile-utility-list">${offers.map(o=>`<article><header><strong>${escapeHtml(o.houseName||o.houseId)}</strong><span>${escapeHtml(o.plantName||'УкрГаз')}</span></header><p>Тариф: ${utilityMoney(o.unitPrice)} / ед. · подключение: ${utilityMoney(o.connectionFee)}</p><button data-gas-answer="${escapeHtml(o.id)}" data-accept="true">Принять</button><button data-gas-answer="${escapeHtml(o.id)}" data-accept="false">Отказаться</button></article>`).join('')}${bills.map(b=>`<article><header><strong>${escapeHtml(b.houseName||b.houseId)}</strong><span>${b.gasActive?'Газ поступает':'Поставка остановлена'}</span></header>${!b.gasActive?`<p class="mn-profile-utility-note">Причина: ${escapeHtml(utilitySupplyReason(b,'gas'))}</p>`:''}<p>${Number(b.dailyUnits||0)} ед./сутки · поставлено ${Number(b.totalUnits||0).toFixed(2)} ед. · ${utilityMoney(b.unitPrice)} / ед.</p><button data-gas-pay="${escapeHtml(b.id)}" ${Number(b.amountDue)<10?'disabled':''}>Оплатить ${utilityMoney(b.amountDue)}</button></article>`).join('')}${!offers.length&&!bills.length?'<p>Договоров на газ пока нет.</p>':''}</div></section>`);
+    utilityContent.insertAdjacentHTML('beforeend',`<section class="mn-profile-utility-section"><header><strong>🔥 УкрГаз · отопление домов и предприятий</strong></header>${gasUtilityError?`<p class="mn-profile-utility-service-error">${escapeHtml(gasUtilityError)}</p>`:''}<div class="mn-profile-utility-list">${offers.map(o=>`<article><header><strong>${escapeHtml(o.houseName||o.houseId)}</strong><span>${escapeHtml(o.plantName||'УкрГаз')}</span></header><p>Тариф: ${utilityMoney(o.unitPrice)} / ед. · подключение: ${utilityMoney(o.connectionFee)}</p><button data-gas-answer="${escapeHtml(o.id)}" data-accept="true">Принять</button><button data-gas-answer="${escapeHtml(o.id)}" data-accept="false">Отказаться</button></article>`).join('')}${bills.map(b=>`<article><header><strong>${escapeHtml(b.houseName||b.houseId)}</strong><span>${b.gasActive?'Газ поступает':'Поставка остановлена'}</span></header>${!b.gasActive?`<p class="mn-profile-utility-note">Причина: ${escapeHtml(utilitySupplyReason(b,'gas'))}</p>`:''}<p>${Number(b.dailyUnits||0)} ед./сутки · поставлено ${Number(b.totalUnits||0).toFixed(2)} ед. · ${utilityMoney(b.unitPrice)} / ед.</p><button data-gas-pay="${escapeHtml(b.id)}" ${Math.round(Math.max(0,Number(b.amountDue)||0)*100)<MIN_UTILITY_PAYMENT*100?'disabled':''}>Оплатить ${utilityMoney(b.amountDue)}</button></article>`).join('')}${!offers.length&&!bills.length?'<p>Договоров на газ пока нет.</p>':''}</div></section>`);
     if(powerUtilityOffers.length)utilityContent.insertAdjacentHTML('beforeend',`<section class="mn-profile-utility-section"><header><strong>⚡ Предложения подключения</strong></header><div class="mn-profile-utility-list">${powerUtilityOffers.map(o=>`<article><strong>${escapeHtml(o.houseName||o.houseId)}</strong><p>${Number(o.consumptionKwhPerHour||5)} кВт · тариф ${utilityMoney(o.retailPrice)} / кВт·ч · подключение ${utilityMoney(o.connectionFee)}</p><button data-gas-power-answer="${escapeHtml(o.id)}" data-accept="true">Принять</button><button data-gas-power-answer="${escapeHtml(o.id)}" data-accept="false">Отказаться</button></article>`).join('')}</div></section>`);
   }
   utilityContent?.addEventListener('click',async event=>{
-    const b=event.target.closest('[data-gas-answer],[data-gas-pay],[data-gas-power-answer]');if(!b||gasBusy)return;
+    const b=event.target.closest('[data-gas-answer],[data-gas-pay],[data-gas-power-answer]');if(!b||gasBusy||utilityLoading)return;
     gasBusy=true;b.disabled=true;
     try{let result;
       if(b.dataset.gasAnswer)result=await answerGasOffer(b.dataset.gasAnswer,b.dataset.accept==='true');
@@ -261,12 +269,12 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         result=await payGasBill(contractId,freshAmount);
       }
       if(Number.isFinite(Number(result?.playerBalance)))window.dispatchEvent(new CustomEvent('mn:player-balance-changed',{detail:{balance:Number(result.playerBalance),source:'utility_payment'}}));
-      await refreshUtility();
+      await refreshUtility({ afterAction: true });
     }catch(e){window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message:b.dataset.gasPowerAnswer?getSubstationError(e):getGasError(e),type:'error'}}));}
-    finally{gasBusy=false;b.disabled=false;}
+    finally{gasBusy=false;renderUtility();}
   });
-  async function refreshUtility() {
-    if (utilityLoading || destroyed || utilityPage?.hidden !== false) return;
+  async function refreshUtility({ afterAction = false } = {}) {
+    if (utilityLoading || (gasBusy && !afterAction) || destroyed || utilityPage?.hidden !== false) return;
     utilityLoading = true;
     try {
       const [electricityResult, waterResult, gasResult, powerOffersResult] = await Promise.allSettled([
@@ -274,17 +282,29 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         loadWaterUtility(), loadGasUtility(), loadPowerInbox(),
       ]);
       if (electricityResult.status === 'rejected' && waterResult.status === 'rejected' && gasResult.status === 'rejected') throw electricityResult.reason;
-      gasUtility=gasResult.status==='fulfilled'?gasResult.value:{offers:[],bills:[],totalDue:0};
+      gasUtility=gasResult.status==='fulfilled'?gasResult.value:gasUtility;
       gasUtilityError=gasResult.status==='rejected'?getGasError(gasResult.reason):'';
-      powerUtilityOffers=powerOffersResult.status==='fulfilled'?(powerOffersResult.value.offers||[]):[];
+      powerUtilityOffers=powerOffersResult.status==='fulfilled'?(powerOffersResult.value.offers||[]):powerUtilityOffers;
       utilitySnapshot = {
-        electricity: electricityResult.status === 'fulfilled' ? electricityResult.value : { bills: [], totalDue: 0 },
-        water: waterResult.status === 'fulfilled' ? waterResult.value : { offers: [], bills: [], totalDue: 0 },
+        electricity: electricityResult.status === 'fulfilled' ? electricityResult.value : utilitySnapshot.electricity,
+        water: waterResult.status === 'fulfilled' ? waterResult.value : utilitySnapshot.water,
         waterError: waterResult.status === 'rejected' ? getWaterError(waterResult.reason) : '',
       };
-      if (!destroyed) renderUtility();
+      if (!destroyed) {
+        renderUtility();
+        if (electricityResult.status === 'rejected') {
+          const error = utilityContent.querySelector('[data-bill-error]');
+          error.textContent += ` Электричество: ${getSubstationError(electricityResult.reason)}`;
+          error.hidden = false;
+        }
+      }
     } catch (error) {
-      if (utilityContent) utilityContent.innerHTML = `<div class="mn-skills-loading is-error">${escapeHtml(getSubstationError(error))}</div>`;
+      if (!destroyed && utilityContent) {
+        if (!utilityContent.querySelector('[data-bill-columns]')) renderUtility();
+        const notice = utilityContent.querySelector('[data-bill-error]');
+        notice.textContent = `Не удалось обновить счета. Показаны последние данные. ${getSubstationError(error)}`;
+        notice.hidden = false;
+      }
     } finally {
       utilityLoading = false;
     }
@@ -294,7 +314,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     const waterAnswerButton = event.target?.closest?.('[data-profile-water-answer]');
     const waterPayButton = event.target?.closest?.('[data-profile-water-pay]');
     const button = waterAnswerButton || waterPayButton || event.target?.closest?.('[data-profile-utility-pay]');
-    if (!button || utilityLoading) return;
+    if (!button || utilityLoading || gasBusy) return;
     event.preventDefault();
 
     if (waterAnswerButton) {
@@ -316,6 +336,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: getWaterError(error), type: 'error' } }));
       } finally {
         utilityLoading = false;
+        renderUtility();
         void refreshUtility();
       }
       return;
@@ -346,6 +367,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: getWaterError(error), type: 'error' } }));
       } finally {
         utilityLoading = false;
+        renderUtility();
         void refreshUtility();
       }
       return;
@@ -375,6 +397,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
       window.dispatchEvent(new CustomEvent('mn:toast', { detail: { message: getSubstationError(error), type: 'error' } }));
     } finally {
       utilityLoading = false;
+      renderUtility();
       void refreshUtility();
     }
   }
@@ -656,9 +679,9 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     }
     if (page === 'utility') {
       if (utilityPage) utilityPage.scrollTop = 0;
-      if (utilityContent) utilityContent.innerHTML = '<div class="mn-skills-loading">Загружаем коммунальные счета…</div>';
+      renderUtility();
       void refreshUtility();
-      utilityTimer = window.setInterval(refreshUtility, 5000);
+      utilityTimer = window.setInterval(refreshUtility, 10000);
     }
   }
 
