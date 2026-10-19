@@ -414,6 +414,21 @@ function setupHouseSpawnPicker({
     document.body?.classList.toggle('mn-house-spawn-open', isOpen);
     document.documentElement?.classList.toggle('mn-house-spawn-open', isOpen);
 
+    // Desktop balance is detached from the HUD and positioned with inline !important rules.
+    // Explicitly gate it for the whole spawn selection, then restore its normal styling.
+    const spawnBalanceCard = root.querySelector('[data-player-balance-card]');
+    if (spawnBalanceCard) {
+      if (isOpen) {
+        spawnBalanceCard.style.setProperty('visibility', 'hidden', 'important');
+        spawnBalanceCard.style.setProperty('opacity', '0', 'important');
+        spawnBalanceCard.style.setProperty('pointer-events', 'none', 'important');
+      } else {
+        spawnBalanceCard.style.removeProperty('visibility');
+        spawnBalanceCard.style.removeProperty('opacity');
+        spawnBalanceCard.style.removeProperty('pointer-events');
+      }
+    }
+
     window.dispatchEvent(new CustomEvent(
       isOpen ? 'mn:house-spawn-picker-opened' : 'mn:house-spawn-picker-closed',
       { detail: { cityId, source: 'house_spawn_picker' } }
