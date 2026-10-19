@@ -414,20 +414,19 @@ function setupHouseSpawnPicker({
     document.body?.classList.toggle('mn-house-spawn-open', isOpen);
     document.documentElement?.classList.toggle('mn-house-spawn-open', isOpen);
 
-    // Desktop balance is detached from the HUD and positioned with inline !important rules.
-    // Explicitly gate it for the whole spawn selection, then restore its normal styling.
-    const spawnBalanceCard = root.querySelector('[data-player-balance-card]');
-    if (spawnBalanceCard) {
+    // Balance is detached from the HUD on desktop. Hide every instance while
+    // choosing spawn, including portals or stale copies from previous renders.
+    document.querySelectorAll('[data-player-balance-card], .player-balance-card').forEach((card) => {
       if (isOpen) {
-        spawnBalanceCard.style.setProperty('visibility', 'hidden', 'important');
-        spawnBalanceCard.style.setProperty('opacity', '0', 'important');
-        spawnBalanceCard.style.setProperty('pointer-events', 'none', 'important');
+        card.style.setProperty('display', 'none', 'important');
+        card.style.setProperty('visibility', 'hidden', 'important');
+        card.style.setProperty('pointer-events', 'none', 'important');
       } else {
-        spawnBalanceCard.style.removeProperty('visibility');
-        spawnBalanceCard.style.removeProperty('opacity');
-        spawnBalanceCard.style.removeProperty('pointer-events');
+        card.style.removeProperty('display');
+        card.style.removeProperty('visibility');
+        card.style.removeProperty('pointer-events');
       }
-    }
+    });
 
     window.dispatchEvent(new CustomEvent(
       isOpen ? 'mn:house-spawn-picker-opened' : 'mn:house-spawn-picker-closed',
@@ -1521,6 +1520,9 @@ register('home', async (root) => {
 
     if (desktopBalanceCard) {
       root.append(desktopBalanceCard);
+      if (document.documentElement.classList.contains('mn-house-spawn-open')) {
+        desktopBalanceCard.style.setProperty('display', 'none', 'important');
+      }
 
       /*
         Telegram Desktop keeps several legacy HUD rules with !important.
