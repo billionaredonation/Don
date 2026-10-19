@@ -5588,3 +5588,13 @@ body.mn-house-spawn-open [data-player-balance-card] {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+/* Spawn balance: display:none beats detached desktop positioning and HUD portals. */
+html.mn-house-spawn-open body .player-balance-card,
+html.mn-house-spawn-open body [data-player-balance-card],
+body.mn-house-spawn-open .player-balance-card,
+body.mn-house-spawn-open [data-player-balance-card] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
