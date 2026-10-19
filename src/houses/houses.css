@@ -5569,3 +5569,14 @@ html body .mn-player-interaction[hidden] {
   font-variant-numeric: tabular-nums;
   letter-spacing: normal !important;
 }
+
+/* Spawn selection: highlighted default + hide all gameplay HUD until entered. */
+.house-spawn-option.mn-spawn-selected,
+.house-spawn-actions button.mn-spawn-selected {
+  border: 2px solid rgba(97, 240, 156, .9) !important;
+  box-shadow: 0 0 0 2px rgba(67, 210, 126, .16), 0 0 20px rgba(67, 210, 126, .14) !important;
+}
+html.mn-house-spawn-open .home :is([class*="hud"], [class*="HUD"], [data-hud], [class*="stamina"], [class*="joystick"]):not(.house-spawn-picker):not(.house-spawn-picker *),
+body.mn-house-spawn-open .home :is([class*="hud"], [class*="HUD"], [data-hud], [class*="stamina"], [class*="joystick"]):not(.house-spawn-picker):not(.house-spawn-picker *) {
+  opacity: 0 !important; visibility: hidden !important; pointer-events: none !important;
+}
