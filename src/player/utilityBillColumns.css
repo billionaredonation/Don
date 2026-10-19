@@ -1,0 +1,18 @@
+.mn-bill-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.mn-bill-columns > section { min-width: 0; align-content: start; }
+.mn-bill-scroll { height: clamp(240px, 46dvh, 480px); overflow-y: auto; scrollbar-gutter: stable; overflow-anchor: none; overscroll-behavior: contain; padding-right: 4px; }
+.mn-bill-scroll .mn-profile-utility-list { align-content: start; }
+.mn-bill-scroll .mn-profile-utility-list > article > header { flex-direction: column; align-items: flex-start; }
+.mn-bill-scroll .mn-profile-utility-list > article > header strong { white-space: normal; overflow-wrap: anywhere; }
+.mn-bill-service { display: block; margin-bottom: 8px; color: #8ce2ff; font-weight: 700; }
+.mn-bill-columns [data-bill-empty] { color: #81918a; font-size: 12px; }
+.mn-bill-columns [data-bill-list="paid"] > article { border-color: rgba(69, 213, 130, .2); }
+.mn-bill-columns [data-bill-list="unpaid"] > article { border-color: rgba(240, 183, 76, .25); }
+.mn-bill-columns button, .mn-bill-columns b { font-variant-numeric: tabular-nums; }
+[data-bill-offers] { display: grid; gap: 12px; }
+@media (max-width: 520px) {
+ .mn-bill-columns { gap: 6px; }
+ .mn-bill-scroll .mn-profile-utility-list > article { padding: 8px; }
+ .mn-bill-scroll .mn-profile-utility-list > article > div { grid-template-columns: 1fr; }
+ .mn-bill-columns > section > header { flex-wrap: wrap; }
+}
