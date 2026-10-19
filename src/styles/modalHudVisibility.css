@@ -1,0 +1,28 @@
+/* Hide only gameplay chrome, never controls or balances within business forms. */
+html:root body.mn-modal-hud-hidden.mn-modal-hud-hidden.mn-modal-hud-hidden :is(
+  .player-glass-hud, [data-player-balance-card], .mn-interior-hud,
+  .pc-stamina, .mobile-stamina, .mobile-controls-layer, .mobile-joystick,
+  .mobile-control-toggle, .mobile-inventory-toggle,
+  .admin-status-dot, .entity-interaction-hint, .entity-interaction-notice,
+  .mn-player-interaction-hint, .mn-interior-door-action, .mn-interior-controls,
+  .mn-mobile-action-dock, .mn-mobile-notice-lane, .mn-vital-notice,
+  .mn-hospital-management-hint, .mn-auto-launch, .mn-auto-status,
+  .mn-auto-speedometer, .mn-production-shortcuts, .mn-procurement-toggle,
+  .mn-balance-diagnostics-launch
+) { visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
+.mn-modal-money {
+  position: fixed !important; inset: auto !important;
+  top: max(12px, env(safe-area-inset-top)) !important;
+  right: max(64px, env(safe-area-inset-right)) !important;
+  margin: 0 !important; padding: 9px 14px !important;
+  width: max-content; max-width: calc(100vw - 96px); box-sizing: border-box;
+  border: 1px solid #294c3d; border-radius: 14px; background: #101b19;
+  color: #eaf8ee; font: 800 14px/1.2 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 4px 20px #0006; z-index: 2147483647;
+  pointer-events: none !important; user-select: none;
+}
+.mn-modal-money[hidden] { display: none !important; }
+.mn-modal-money::backdrop { background: transparent; pointer-events: none; }
+@media(max-width:600px) { .mn-modal-money { font-size: 12px; padding: 7px 10px !important; } }
