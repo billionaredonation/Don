@@ -2,6 +2,7 @@
 export function enableBalanceDiagnostics({ root, getTrace }) {
   const button = document.createElement('button');
   button.type = 'button';
+  button.className = 'mn-balance-diagnostics-launch';
   button.textContent = 'Журнал баланса';
   button.style.cssText = 'position:fixed;left:12px;bottom:150px;z-index:10000;padding:8px 12px;border:1px solid #36bcea;border-radius:10px;background:#102331;color:white;font:13px sans-serif;pointer-events:auto';
   const dialog = document.createElement('dialog');
