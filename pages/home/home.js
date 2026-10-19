@@ -330,7 +330,7 @@ function renderHouseSpawnPickerHtml({ houses, cityName }) {
     const spawn = getHouseSpawnPoint(house);
 
     return `
-      <button type="button" class="house-spawn-option" data-house-spawn-index="${index}">
+      <button type="button" class="house-spawn-option ${index === 0 ? 'mn-spawn-selected' : ''}" data-house-spawn-index="${index}">
         <span class="house-spawn-slot-badge">Слот ${index + 1}</span>
         <span class="house-spawn-option-icon">🏠</span>
         <span class="house-spawn-option-main">
@@ -349,7 +349,7 @@ function renderHouseSpawnPickerHtml({ houses, cityName }) {
         <div class="house-spawn-hero">
           <span class="house-spawn-kicker">CEF · недвижимость</span>
           <h3>Выбор точки входа</h3>
-          <p>Найдено ${occupiedCount}/${PLAYER_HOUSE_SLOT_LIMIT} слота домов в городе ${cityLabel}. Выбери дом — появление сразу откроет его интерьер.</p>
+          <p>Точка появления выбрана автоматически. Измени её в течение <b data-house-spawn-countdown>10</b> секунд, иначе игра начнётся в выбранном месте.</p>
           <div class="house-spawn-stats" aria-label="Статус недвижимости">
             <span><b>${occupiedCount}</b><small>домов</small></span>
             <span><b>${PLAYER_HOUSE_SLOT_LIMIT - occupiedCount}</b><small>свободно</small></span>
@@ -363,7 +363,7 @@ function renderHouseSpawnPickerHtml({ houses, cityName }) {
           ${slotCards}
         </div>
         <div class="house-spawn-actions">
-          <button type="button" data-house-spawn-stay>Остаться в городе</button>
+          <button type="button" class="${occupiedCount === 0 ? 'mn-spawn-selected' : ''}" data-house-spawn-stay>Появиться в городе ${cityLabel}</button>
         </div>
       </section>
     </div>
@@ -389,9 +389,21 @@ function setupHouseSpawnPicker({
   let overlay = null;
   let ownedHouses = [];
   let pendingHouseEntry = false;
+  let spawnTimer = null;
+  let spawnInterval = null;
+  let spawnFinalized = false;
+
+  function stopCountdown() {
+    if (spawnTimer !== null) clearTimeout(spawnTimer);
+    if (spawnInterval !== null) clearInterval(spawnInterval);
+    spawnTimer = null;
+    spawnInterval = null;
+  }
 
   function completeGameplayEntry(source) {
     if (disposed) return;
+    stopCountdown();
+    setPickerGate(false);
     onGameplayEntered?.(source);
   }
 
@@ -414,14 +426,29 @@ function setupHouseSpawnPicker({
   }
 
   function close() {
+    stopCountdown();
     overlay?.remove();
     overlay = null;
-    setPickerGate(false);
+    window.removeEventListener('keydown', handleKeyDown, true);
+  }
+
+  function spawnCity(source = 'city_spawn') {
+    if (spawnFinalized) return;
+    spawnFinalized = true;
+    close();
+    completeGameplayEntry(source);
+  }
+
+  function spawnSelectedAutomatically() {
+    if (spawnFinalized || disposed) return;
+    if (ownedHouses[0]) enterHouseFromPicker(ownedHouses[0]);
+    else spawnCity('city_spawn_auto');
   }
 
   function enterHouseFromPicker(house) {
-    if (!house) return;
+    if (!house || spawnFinalized) return;
 
+    spawnFinalized = true;
     pendingHouseEntry = true;
     close();
 
@@ -456,8 +483,7 @@ function setupHouseSpawnPicker({
     if (event.target?.closest?.('[data-house-spawn-stay]')) {
       event.preventDefault();
       event.stopPropagation();
-      close();
-      completeGameplayEntry('city_spawn');
+      spawnCity('city_spawn_manual');
     }
   }
 
@@ -469,15 +495,14 @@ function setupHouseSpawnPicker({
     if (event.code === 'Escape' || event.code === 'KeyN' || key === 'n' || key === 'т') {
       event.preventDefault();
       event.stopPropagation();
-      close();
-      completeGameplayEntry('city_spawn');
+      spawnCity('city_spawn_manual');
       return;
     }
 
     if (event.code === 'Enter' || event.code === 'KeyY' || key === 'y' || key === 'н') {
       event.preventDefault();
       event.stopPropagation();
-      enterHouseFromPicker(ownedHouses[0]);
+      spawnSelectedAutomatically();
     }
   }
 
@@ -511,11 +536,6 @@ function setupHouseSpawnPicker({
 
       ownedHouses = Array.isArray(houses) ? houses.slice(0, PLAYER_HOUSE_SLOT_LIMIT) : [];
 
-      if (!ownedHouses.length) {
-        completeGameplayEntry('city_spawn_no_houses');
-        return;
-      }
-
       root.insertAdjacentHTML('beforeend', renderHouseSpawnPickerHtml({
         houses: ownedHouses,
         cityName: city?.name || cityId,
@@ -529,8 +549,18 @@ function setupHouseSpawnPicker({
       overlay?.addEventListener('click', handleClick);
       window.addEventListener('keydown', handleKeyDown, true);
       setPickerGate(true);
+      const deadline = Date.now() + 10000;
+      const updateCountdown = () => {
+        const counter = overlay?.querySelector('[data-house-spawn-countdown]');
+        if (counter) counter.textContent = String(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+      };
+      updateCountdown();
+      spawnInterval = setInterval(updateCountdown, 200);
+      spawnTimer = setTimeout(spawnSelectedAutomatically, 10000);
   }
 
+  // Hide HUD immediately, including while the house request and medical check load.
+  setPickerGate(true);
   openSpawnDestination().catch((error) => {
       console.warn('[home] house spawn picker failed:', error);
       completeGameplayEntry('city_spawn_picker_failed');
@@ -540,10 +570,12 @@ function setupHouseSpawnPicker({
 
   return () => {
     disposed = true;
+    stopCountdown();
     overlay?.removeEventListener('click', handleClick);
     window.removeEventListener('keydown', handleKeyDown, true);
     window.removeEventListener('mn:interior-entered', handleInteriorEntered);
     close();
+    setPickerGate(false);
   };
 }
 
