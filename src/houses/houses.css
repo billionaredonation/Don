@@ -5580,3 +5580,11 @@ html.mn-house-spawn-open .home :is([class*="hud"], [class*="HUD"], [data-hud], [
 body.mn-house-spawn-open .home :is([class*="hud"], [class*="HUD"], [data-hud], [class*="stamina"], [class*="joystick"]):not(.house-spawn-picker):not(.house-spawn-picker *) {
   opacity: 0 !important; visibility: hidden !important; pointer-events: none !important;
 }
+
+/* Desktop detached balance and mobile balance: never reveal until spawn confirmed. */
+html.mn-house-spawn-open [data-player-balance-card],
+body.mn-house-spawn-open [data-player-balance-card] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
