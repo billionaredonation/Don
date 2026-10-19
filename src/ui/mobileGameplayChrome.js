@@ -1,3 +1,4 @@
+import { enableModalHudVisibility } from './modalHudVisibility.js';
 const MOBILE_MEDIA_QUERY = '(hover: none) and (pointer: coarse)';
 
 const ACTION_SELECTORS = Object.freeze([
@@ -51,6 +52,7 @@ function isMobileGameplay(mediaQuery) {
 }
 
 export function enableMobileGameplayChrome() {
+  const cleanupModalHud = enableModalHudVisibility();
   document.querySelectorAll(
     '.mn-mobile-action-dock, .mn-mobile-notice-lane, .mn-mobile-feedback-lane, .mn-interior-inventory-toggle'
   ).forEach((element) => element.remove());
@@ -171,6 +173,7 @@ export function enableMobileGameplayChrome() {
 
   return () => {
     destroyed = true;
+    cleanupModalHud();
     observer.disconnect();
     mediaQuery.removeEventListener?.('change', scheduleSync);
     inventoryButton.removeEventListener('click', openInteriorInventory);
