@@ -14,6 +14,9 @@ export const PRODUCTION_CHAINS = {
     id: 'metallurgy', factoryType: 'metallurgy_factory', factoryLabel: 'Металлургический завод', factoryIcon: '🔥',
     storeType: '', storeLabel: 'Совместимое предприятие',
     products: Object.freeze([
+      { id: 'weapon_knife', label: 'Нож', icon: '🔪', buyerTypes: ['weapon_store'] },
+      { id: 'weapon_pistol', label: 'Пистолет', icon: '🔫', buyerTypes: ['weapon_store'] },
+      { id: 'weapon_rifle', label: 'Автомат', icon: '🔫', buyerTypes: ['weapon_store'] },
       { id: 'scissors_metal_part', label: 'Металлическая часть ножниц', icon: '✂️', buyerTypes: ['tool_assembly_factory'] },
       { id: 'chainsaw_chain', label: 'Цепь бензопилы', icon: '⛓️', buyerTypes: ['tool_assembly_factory'] },
       { id: 'chainsaw_engine', label: 'Двигатель бензопилы', icon: '⚙️', buyerTypes: ['tool_assembly_factory'] },
@@ -30,9 +33,6 @@ export const PRODUCTION_CHAINS = {
       { id: 'glasses_insert', label: 'Вставки для очков', icon: '👓', buyerTypes: ['tool_assembly_factory'] },
       { id: 'earrings_pair', label: 'Пара серёжек', icon: '💎', buyerTypes: ['accessory_factory'] },
       { id: 'watch_metal_part', label: 'Металлическая часть часов', icon: '⌚', buyerTypes: ['accessory_factory'] },
-      { id: 'weapon_knife', label: 'Нож', icon: '🔪', buyerTypes: ['weapon_store'] },
-      { id: 'weapon_pistol', label: 'Пистолет', icon: '🔫', buyerTypes: ['weapon_store'] },
-      { id: 'weapon_rifle', label: 'Автомат', icon: '🔫', buyerTypes: ['weapon_store'] },
       { id: 'car_frame', label: 'Каркас автомобиля', icon: '🚘', buyerTypes: ['car_factory'] },
       { id: 'car_engine', label: 'Двигатель автомобиля', icon: '🏎️', buyerTypes: ['car_factory'] },
       { id: 'car_body', label: 'Кузов автомобиля', icon: '🚗', buyerTypes: ['car_factory'] },
@@ -100,10 +100,10 @@ const PRODUCT_CHAIN_OVERRIDES = Object.freeze({
   textile_jacket_spring: 'textile', textile_jacket_summer: 'textile', textile_jacket_autumn: 'textile', textile_jacket_winter: 'textile',
   textile_tshirt: 'textile', textile_pants_spring: 'textile', textile_pants_summer: 'textile', textile_pants_autumn: 'textile', textile_pants_winter: 'textile',
   textile_shorts: 'textile', textile_sneakers: 'textile', textile_dress_shoes: 'textile',
+  weapon_knife: 'metallurgy', weapon_pistol: 'metallurgy', weapon_rifle: 'metallurgy',
   scissors_metal_part: 'metallurgy', chainsaw_chain: 'metallurgy', chainsaw_engine: 'metallurgy', axe_head: 'metallurgy', rake_head: 'metallurgy',
   hand_saw_metal_part: 'metallurgy', pickaxe_metal_part: 'metallurgy', support_beam: 'metallurgy', rebar: 'metallurgy', nails: 'metallurgy', screws: 'metallurgy',
   rivets: 'metallurgy', jewelry_chain: 'metallurgy', glasses_insert: 'metallurgy', earrings_pair: 'metallurgy', watch_metal_part: 'metallurgy',
-  weapon_knife: 'metallurgy', weapon_pistol: 'metallurgy', weapon_rifle: 'metallurgy',
   car_frame: 'metallurgy', car_engine: 'metallurgy', car_body: 'metallurgy',
   pickaxe_handle: 'wood_processing', rake_handle: 'wood_processing', scissors_handles: 'wood_processing', hand_saw_handle: 'wood_processing', axe_handle: 'wood_processing',
   farm_rake: 'tool_assembly', mine_tool_pickaxe: 'tool_assembly', farm_scissors: 'tool_assembly', construction_hand_saw: 'tool_assembly', lumber_tool_axe: 'tool_assembly', lumber_tool_chainsaw: 'tool_assembly',
@@ -113,4 +113,3 @@ export function canonicalProductionChainForProduct(productId, fallbackChainId = 
   const product = String(productId || '').trim();
   return PRODUCT_CHAIN_OVERRIDES[product] || String(fallbackChainId || '').trim();
 }
-
