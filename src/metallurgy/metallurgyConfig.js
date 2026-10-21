@@ -77,3 +77,4 @@ export function formatMetallurgyInputs(inputs = {}) {
 export function formatMetallurgyMoney(value) {
   return `${Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ru-RU')} ₴`;
 }
+
