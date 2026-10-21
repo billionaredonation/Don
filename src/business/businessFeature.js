@@ -71,6 +71,7 @@ function businessTypeOf(value) {
 function businessPresentation(value) {
   const type = businessTypeOf(value);
   if (type === 'grocery' || type === 'shop') return { icon: '🛒', format: 'Продуктовый магазин', adjective: 'продуктовый магазин', fallbackName: 'Продуктовый магазин' };
+  if (type === 'weapon_store') return { icon: '🛡️', format: 'Магазин оружия', adjective: 'оружейный магазин', fallbackName: 'Магазин оружия' };
   if (type === 'construction_store') return { icon: '🧰', format: 'Стройматериалы и инструменты', adjective: 'магазин стройматериалов', fallbackName: 'Магазин стройматериалов' };
   if (type === 'accessory_store') return { icon: '👕', format: 'Одежда и аксессуары', adjective: 'магазин одежды и аксессуаров', fallbackName: 'Магазин одежды и аксессуаров' };
   if (type === 'logistics_hub') return { icon: '🚚', format: 'Логистический центр', adjective: 'логистический центр', fallbackName: 'Логистический центр' };
@@ -108,6 +109,7 @@ function productionExchangeScopeForBusiness(value) {
   const type = businessTypeOf(value) === 'shop' ? 'grocery' : businessTypeOf(value);
   if (type === 'grocery') return { businessType: 'grocery', chainIds: ['fruit'] };
   if (type === 'construction_store') return { businessType: 'construction_store', chainIds: ['metallurgy', 'tool_assembly'] };
+  if (type === 'weapon_store') return { businessType: 'weapon_store', chainIds: ['metallurgy'] };
   if (type === 'accessory_store') return { businessType: 'accessory_store', chainIds: ['textile'] };
   return null;
 }
