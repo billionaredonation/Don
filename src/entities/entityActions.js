@@ -13,6 +13,7 @@ const BUSINESS_ENTITY_TYPES = new Set([
   'market',
   'logistics_hub',
   'construction_store',
+  'weapon_store',
   'accessory_store',
 ]);
 
