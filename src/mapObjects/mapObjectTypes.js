@@ -141,6 +141,17 @@ export const MAP_OBJECT_TYPES = {
     defaultAsset: 'business_shop_01',
   },
 
+  weapon_store: {
+    type: 'weapon_store',
+    category: MAP_OBJECT_CATEGORIES.BUSINESS,
+    label: 'Магазин оружия',
+    icon: '🛡️',
+    defaultPrice: 1_500_000,
+    defaultScale: 1.14,
+    defaultRotation: 0,
+    defaultAsset: 'business_shop_01',
+  },
+
   construction_store: {
     type: 'construction_store',
     category: MAP_OBJECT_CATEGORIES.BUSINESS,
