@@ -135,8 +135,14 @@ function getAdminObjectSectionForCategory(category) {
 
 function createObjectOptionsHtml(sectionKey = 'property') {
   const section = ADMIN_OBJECT_SECTIONS[sectionKey] || ADMIN_OBJECT_SECTIONS.property;
-  return getMapObjectTypesList()
-    .filter((type) => section.categories.includes(type.category))
+  const types = getMapObjectTypesList()
+    .filter((type) => section.categories.includes(type.category));
+  // Explicit admin registration: the weapon shop must be available in the
+  // property editor even when another catalogue is loaded by an older build.
+  if (sectionKey === 'property' && !types.some((type) => type.type === 'weapon_store')) {
+    types.push({ type: 'weapon_store', category: 'business', icon: '🛡️', label: 'Магазин оружия' });
+  }
+  return types
     .map((type) => `<option value="${type.type}">${type.icon} ${type.label}</option>`)
     .join('');
 }
