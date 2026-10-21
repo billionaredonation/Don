@@ -209,6 +209,7 @@ const DESTINATION_PRESENTATION=Object.freeze({
   grocery:{label:'Продуктовый магазин',icon:'🛒'},
   accessory_store:{label:'Магазин одежды и аксессуаров',icon:'👕'},
   construction_store:{label:'Магазин стройматериалов',icon:'🏪'},
+  weapon_store:{label:'Магазин оружия',icon:'🛡️'},
   fruit_factory:{label:'Завод по производству питания',icon:'🏭'},
   textile_factory:{label:'Швейный завод',icon:'🧵'},
   metallurgy_factory:{label:'Металлургический завод',icon:'🔥'},
