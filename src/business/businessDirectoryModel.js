@@ -1,6 +1,7 @@
 const BUSINESS_TYPES = new Set([
   'shop',
   'construction_store',
+  'weapon_store',
   'cafe',
   'gas_station',
   'bank',
@@ -58,6 +59,7 @@ const JOB_TYPES = new Set([
 const LABELS = Object.freeze({
   shop: ['🛒', 'Продуктовый магазин'],
   construction_store: ['🧰', 'Магазин стройматериалов'],
+  weapon_store: ['🛡️', 'Магазин оружия'],
   cafe: ['☕', 'Кафе'],
   gas_station: ['⛽', 'Заправка'],
   bank: ['🏦', 'Банк'],
