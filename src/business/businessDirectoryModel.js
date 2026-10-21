@@ -137,3 +137,4 @@ export function isDirectoryBusiness(row) {
 export function isDirectoryJob(row) {
   return JOB_TYPES.has(typeOf(row)) || categoryOf(row) === 'job';
 }
+
