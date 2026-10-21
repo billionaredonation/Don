@@ -43,6 +43,9 @@ export const METALLURGY_RECIPES = Object.freeze({
   watch_metal_part: recipe('watch_metal_part', 'Металлическая часть часов', '⌚', 1, { mine_metal_raw: 3, mine_coal_common: 4, mine_copper_raw: 2 }, ['accessory_factory']),
   car_frame: recipe('car_frame', 'Каркас автомобиля', '🚘', 1, { mine_metal_technical: 5, mine_coal_technical: 10, mine_copper_conductive: 10 }, ['car_factory']),
   car_engine: recipe('car_engine', 'Двигатель автомобиля', '🏎️', 1, { mine_metal_technical: 10, mine_coal_technical: 10, mine_copper_raw: 11 }, ['car_factory']),
+  weapon_knife: recipe('weapon_knife', 'Нож', '🔪', 1, { mine_metal_raw: 3, mine_coal_common: 2 }, ['weapon_store']),
+  weapon_pistol: recipe('weapon_pistol', 'Пистолет', '🔫', 1, { mine_metal_technical: 8, mine_coal_technical: 5, mine_copper_raw: 3 }, ['weapon_store']),
+  weapon_rifle: recipe('weapon_rifle', 'Автомат', '🔫', 1, { mine_metal_technical: 15, mine_coal_technical: 10, mine_copper_conductive: 5 }, ['weapon_store']),
   car_body: recipe('car_body', 'Кузов автомобиля', '🚗', 1, { mine_metal_technical: 15, mine_coal_technical: 20, mine_copper_conductive: 20 }, ['car_factory']),
 });
 
@@ -51,6 +54,7 @@ export const METALLURGY_DESTINATIONS = Object.freeze({
   accessory_factory: 'Завод аксессуаров',
   car_factory: 'Автомобильный завод',
   construction_store: 'Магазин стройматериалов',
+  weapon_store: 'Магазин оружия',
 });
 
 export const METALLURGY_RAW_BY_TYPE = Object.freeze(
