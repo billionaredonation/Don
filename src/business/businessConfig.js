@@ -3,6 +3,7 @@ import { TEXTILE_PRODUCTS } from '../textile/textileConfig.js';
 export const BUSINESS_TYPE_GROCERY = 'grocery';
 export const BUSINESS_TYPE_CONSTRUCTION = 'construction_store';
 export const BUSINESS_TYPE_ACCESSORY = 'accessory_store';
+export const BUSINESS_TYPE_WEAPON = 'weapon_store';
 
 export const BUSINESS_LEGAL_FORMS = Object.freeze({
   fop: Object.freeze({
@@ -121,15 +122,22 @@ export const CONSTRUCTION_STORE_PRODUCTS = Object.freeze([
   { itemType: 'lumber_tool_chainsaw', label: 'Готовая бензопила', icon: '🪚', suggestedPrice: 1800, kind: 'tool', permanent: true },
 ]);
 
+export const WEAPON_STORE_PRODUCTS = Object.freeze([
+  { itemType: 'weapon_knife', label: 'Нож', icon: '🔪', suggestedPrice: 800, kind: 'weapon' },
+  { itemType: 'weapon_pistol', label: 'Пистолет', icon: '🔫', suggestedPrice: 2500, kind: 'weapon' },
+  { itemType: 'weapon_rifle', label: 'Автомат', icon: '🔫', suggestedPrice: 6000, kind: 'weapon' },
+]);
+
 export const BUSINESS_PRODUCTS_BY_TYPE = Object.freeze({
   [BUSINESS_TYPE_GROCERY]: BUSINESS_PRODUCTS,
   shop: BUSINESS_PRODUCTS,
   [BUSINESS_TYPE_CONSTRUCTION]: CONSTRUCTION_STORE_PRODUCTS,
   [BUSINESS_TYPE_ACCESSORY]: TEXTILE_PRODUCTS,
+  [BUSINESS_TYPE_WEAPON]: WEAPON_STORE_PRODUCTS,
 });
 
 export const BUSINESS_PRODUCT_BY_TYPE = Object.freeze(
-  Object.fromEntries([...BUSINESS_PRODUCTS, ...CONSTRUCTION_STORE_PRODUCTS, ...TEXTILE_PRODUCTS].map((product) => [product.itemType, product])),
+  Object.fromEntries([...BUSINESS_PRODUCTS, ...CONSTRUCTION_STORE_PRODUCTS, ...TEXTILE_PRODUCTS, ...WEAPON_STORE_PRODUCTS].map((product) => [product.itemType, product])),
 );
 
 export function getBusinessProducts(businessType = BUSINESS_TYPE_GROCERY) {
