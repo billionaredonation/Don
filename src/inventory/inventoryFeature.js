@@ -1,3 +1,4 @@
+import { WEAPON_TYPES, weaponAction } from './weaponApi.js';
 import {loadCanisterInventory,useInventoryCanister} from '../vehicles/canisterInventory.js';
 // Hospital batch refresh 2026-07-20: inventory medical items deploy marker.
 import './inventory.css';
@@ -1248,6 +1249,19 @@ export function enableInventoryFeature() {
     const itemType = String(item?.itemType || '');
     const consumptionEffect = getConsumptionEffectType(itemType);
     if (!itemType || inventoryBusy) return;
+    if (WEAPON_TYPES.includes(itemType)) {
+      inventoryBusy = true;
+      try {
+        const result = await weaponAction('equip', itemType);
+        window.__MN_EQUIPPED_WEAPON__ = result.equipped;
+        setItemMenuNotice('Оружие экипировано. K — атаковать ближайшего игрока (только для местной шайки).', 'success');
+        window.dispatchEvent(new CustomEvent('mn:toast', {detail:{type:'success',message:'Оружие экипировано. Нажмите K рядом с другим игроком.'}}));
+        closeItemMenu();
+      } catch (error) {
+        setItemMenuNotice(String(error.message||error), 'error');
+      } finally {inventoryBusy=false;}
+      return;
+    }
     if (itemType === 'fuel_canister') {
       inventoryBusy = true;
       try {
@@ -1707,7 +1721,35 @@ export function enableInventoryFeature() {
 
   publishState(false);
 
+  const weaponKeydown = async (event) => {
+    if (event.code !== 'KeyK' || event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
+    if (event.target?.closest?.('input,textarea,select,[contenteditable="true"]')) return;
+    if (!window.__MN_EQUIPPED_WEAPON__ || document.body.classList.contains(INVENTORY_OPEN_CLASS)) return;
+    const markers = [...document.querySelectorAll('.gta-player-marker-other[data-player-id],.mn-interior-remote-player[data-player-id]')];
+    const local = document.querySelector('.gta-player-marker:not(.gta-player-marker-other),.mn-interior-player[data-interior-player]');
+    const ownBox = local?.getBoundingClientRect();
+    if (!ownBox) return;
+    const closest = markers.map(marker => {
+      const rect=marker.getBoundingClientRect();
+      return {marker,distance:Math.hypot(rect.left-ownBox.left,rect.top-ownBox.top)};
+    }).sort((a,b)=>a.distance-b.distance)[0];
+    if (!closest || closest.distance>350) return;
+    const marker=closest.marker;
+    const target=String(marker.dataset.tgId||marker.dataset.playerId?.replace(/^tg_/, '')||marker.dataset.nickname||'');
+    if (!target) return;
+    try {
+      const result=await weaponAction('attack','',target);
+      window.dispatchEvent(new CustomEvent('mn:toast',{detail:{type:'success',message:`Попадание: -${result.damage} HP. Здоровье цели: ${result.health}.`}}));
+    } catch (error) {
+      const key=String(error.message||error);
+      const labels={WEAPON_GANG_REQUIRED:'Для нападения нужно состоять в местной шайке.',WEAPON_OUT_OF_RANGE:'Цель слишком далеко.',WEAPON_COOLDOWN:'Оружие перезаряжается.',WEAPON_FRIENDLY_FIRE:'Нельзя атаковать участника своей шайки.',WEAPON_NOT_OWNED:'Оружия больше нет в инвентаре.',WEAPON_TARGET_NOT_NEAR:'Цель не находится рядом или не в сети.'};
+      window.dispatchEvent(new CustomEvent('mn:toast',{detail:{type:'error',message:Object.entries(labels).find(([k])=>key.includes(k))?.[1]||key}}));
+    }
+  };
+  window.addEventListener('keydown',weaponKeydown);
+  weaponAction('status').then(r=>{window.__MN_EQUIPPED_WEAPON__=r?.equipped||null}).catch(()=>{});
   return () => {
+    window.removeEventListener('keydown',weaponKeydown);
     bodyClassObserver.disconnect();
     closeTargets.forEach((target) => target.removeEventListener('click', handleCloseClick));
     inventoryGrid?.removeEventListener('click', handleGridClick);
