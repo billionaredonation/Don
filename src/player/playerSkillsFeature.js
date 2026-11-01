@@ -14,6 +14,8 @@ import { getSubstationError, loadElectricityBills, payElectricityBill, loadPower
 import { answerWaterOffer, getWaterError, loadWaterUtility, payWaterBill } from '../waterTreatment/waterTreatmentApi.js';
 import { getPlayerSkillsSnapshot, publishPlayerSkills } from './playerSkillState.js';
 import './playerSkills.css';
+import { progressionView } from './progressionView.js';
+import './progression.css';
 
 const RUNNING_XP_BATCH = 10;
 const RUNNING_XP_FLUSH_MS = 8000;
@@ -87,7 +89,9 @@ function profileMarkup() {
             <article><i>₴</i><span><small>На руках</small><strong data-profile-balance>0 ₴</strong></span></article>
             <article><i>★</i><span><small>Уровень игрока</small><strong data-profile-level>1</strong></span></article>
           </div>
-          <p class="mn-profile-level-note">Общий уровень уже подключён к профилю. Полную систему прогресса добавим следующим этапом.</p>
+          <section class="mn-progression" data-profile-progression aria-live="polite">
+            <p>Загружаем прогресс персонажа…</p>
+          </section>
           <button class="mn-profile-skills-button" type="button" data-profile-open-skills>
             <span><i>✦</i><b>Навыки</b><small>Профессии, ресурсы и физическая форма</small></span><strong>Открыть ›</strong>
           </button>
@@ -171,6 +175,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   let gasBusy=false;
   let utilityLoading = false;
   let utilityTimer = 0;
+  let progressionTimer = 0;
 
   function utilityMoney(value) {
     return `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₴`;
@@ -521,7 +526,22 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     const balance = modal?.querySelector('[data-profile-balance]');
     if (balance) balance.textContent = money(state.player?.balance);
     const level = modal?.querySelector('[data-profile-level]');
-    if (level) level.textContent = String(snapshot.overallLevel || state.player?.level || 1);
+    const progress = progressionView(snapshot.progression);
+    if (level) level.textContent = progress ? `${progress.level} / 78` : String(snapshot.overallLevel || state.player?.level || 1);
+    const progressPanel = modal?.querySelector('[data-profile-progression]');
+    if (progressPanel) {
+      progressPanel.innerHTML = progress ? `
+        <header><strong>Развитие персонажа</strong><span>${progress.xp.toLocaleString('ru-RU')} XP</span></header>
+        <div class="mn-progression-bar" role="progressbar" aria-label="Опыт до следующего уровня" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress.percent)}"><i style="width:${progress.percent}%"></i></div>
+        <p>${progress.level === 78 ? 'Достигнут максимальный уровень' : `До уровня ${progress.level + 1}: ${progress.remaining.toLocaleString('ru-RU')} XP`}</p>
+        <div class="mn-progression-facts">
+          <span><small>Опыт за сегодня</small><strong>${progress.earnedToday} / ${progress.dailyCap}</strong></span>
+          <span><small>Личный автомобиль</small><strong>${progress.canOwnCar ? 'Покупка доступна' : 'Доступен с 4-го уровня'}</strong></span>
+        </div>
+        <small>Общий опыт: ${escapeHtml(progress.sources.join(', '))}. Лимит обновляется в полночь по Киеву; опыт профессий продолжает расти.</small>
+        <small>Рабочая машина для рейса доступна независимо от общего уровня. Возрастные эффекты пока не включены.</small>
+      ` : '<p>Общий прогресс недоступен. Проверьте загрузку навыков и установку SQL-обновления.</p>';
+    }
   }
 
   function renderSkills() {
@@ -762,6 +782,10 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-player-profile-open');
     void refreshSkills({ silent: false });
+    window.clearInterval(progressionTimer);
+    progressionTimer = window.setInterval(() => {
+      if (!document.hidden) void refreshSkills({ silent: true });
+    }, 10000);
   }
 
   function closeProfile() {
@@ -771,6 +795,8 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     document.body.classList.remove('mn-player-profile-open');
     window.clearInterval(utilityTimer);
     utilityTimer = 0;
+    window.clearInterval(progressionTimer);
+    progressionTimer = 0;
   }
 
   function handleSkillsChanged() {
@@ -823,6 +849,7 @@ export function enablePlayerSkillsFeature({ root } = {}) {
     destroyed = true;
     window.clearTimeout(flushTimer);
     window.clearInterval(utilityTimer);
+    window.clearInterval(progressionTimer);
     profileButton?.removeEventListener('click', openProfile);
     skillsPage?.removeEventListener('touchstart', handleSkillsTouchStart);
     skillsPage?.removeEventListener('touchmove', handleSkillsTouchMove);
