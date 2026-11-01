@@ -108,7 +108,8 @@ function normalizeSnapshot(payload = {}) {
   const hasLumberPayload = Boolean(payload?.skills?.lumberjack);
 
   return {
-    overallLevel: Math.max(1, Math.floor(Number(payload.overallLevel ?? previous.overallLevel) || 1)),
+    progression: payload.progression ?? previous.progression ?? null,
+    overallLevel: Math.max(1, Math.floor(Number(payload.progression?.level ?? previous.progression?.level ?? payload.overallLevel ?? previous.overallLevel) || 1)),
     skills: { farmer, running, miner, lumberjack },
     crops,
     mineResources,
