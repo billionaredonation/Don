@@ -6,6 +6,7 @@ export async function vehicleRequest(cityId,id='',action='snapshot',data={},requ
  if(!r?.ok)throw Error(r?.error||'Не удалось выполнить действие.');return r.result;
 }
 const messages={
+PROGRESSION_CAR_LEVEL_REQUIRED:'Личный автомобиль можно приобрести с 4-го уровня персонажа. Рабочая машина для рейса доступна и раньше.',
 AUTO_PROCUREMENT_RESERVED:'Эти деньги выделены на закупку материалов. Сначала уменьшите бюджет закупок.',
 AUTO_PROCUREMENT_ABOVE_CASH:'Бюджет закупок не может превышать кассу автозавода.',
 AUTO_PROCUREMENT_BUDGET:'У автозавода недостаточно бюджета на детали и доставку.',
