@@ -1,0 +1,14 @@
+/* Overall character progression UI */
+.mn-progression{display:grid;gap:10px;padding:14px;margin:12px 0;border:1px solid rgba(160,174,192,.2);border-radius:12px;background:rgba(120,135,160,.08);color:inherit}
+.mn-progression>header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mn-progression>header strong{font-size:14px}
+.mn-progression>header span{font-size:13px;font-weight:700}
+.mn-progression>p{margin:0;font-size:13px}
+.mn-progression>small{font-size:11px;line-height:1.5;opacity:.7}
+.mn-progression-bar{width:100%;height:9px;overflow:hidden;border-radius:99px;background:rgba(125,140,160,.22)}
+.mn-progression-bar>i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#22c55e,#06b6d4);transition:width .2s ease}
+.mn-progression-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.mn-progression-facts>span{display:flex;flex-direction:column;gap:5px;padding:9px 10px;border:1px solid rgba(160,174,192,.15);border-radius:8px;background:rgba(120,135,160,.08)}
+.mn-progression-facts small{font-size:11px;opacity:.75}
+.mn-progression-facts strong{font-size:12px;overflow-wrap:anywhere}
+@media(max-width:380px){.mn-progression-facts{grid-template-columns:1fr}}
