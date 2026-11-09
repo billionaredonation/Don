@@ -63,6 +63,7 @@ import { enablePlayerInteractionFeature } from '../../src/player/playerInteracti
 import { enablePlayerStatusEffects } from '../../src/player/playerStatusEffects.js';
 import { enablePlayerSurvivalFeature } from '../../src/player/playerSurvivalFeature.js';
 import { enablePlayerSkillsFeature } from '../../src/player/playerSkillsFeature.js';
+import { enableIntroGuide } from '../../src/onboarding/introGuide.js';
 import { enableCommunityFeature } from '../../src/community/communityFeature.js';
 import { enableLocalGangFeature } from '../../src/localGangs/localGangFeature.js';
 import {
@@ -1581,6 +1582,7 @@ register('home', async (root) => {
   const cleanupPlayerInteraction = enablePlayerInteractionFeature({ playerPosition });
   const cleanupPlayerStatusEffects = enablePlayerStatusEffects();
   const cleanupPlayerSkills = enablePlayerSkillsFeature({ root });
+  const cleanupIntroGuide = enableIntroGuide({ root });
   const cleanupCommunity = enableCommunityFeature({ root });
   const cleanupLocalGang = enableLocalGangFeature({ root });
   const cleanupPlayerSurvival = enablePlayerSurvivalFeature();
@@ -2570,6 +2572,7 @@ register('home', async (root) => {
     cleanupPlayerInteraction?.();
     cleanupPlayerStatusEffects?.();
     cleanupPlayerSkills?.();
+    cleanupIntroGuide?.();
     cleanupCommunity?.();
     cleanupLocalGang?.();
     cleanupPlayerSurvival?.();
