@@ -12,3 +12,4 @@
 .mn-progression-facts small{font-size:11px;opacity:.75}
 .mn-progression-facts strong{font-size:12px;overflow-wrap:anywhere}
 @media(max-width:380px){.mn-progression-facts{grid-template-columns:1fr}}
+
