@@ -395,3 +395,21 @@ body.mn-player-profile-open .mn-hospital-management-hint {
     transform: translate(-50%, -50%) rotate(90deg) translateY(-42vw);
   }
 }
+
+
+/* Stage 6: visual read-only professional progress; does not modify mine styling */
+.mn-profession-skills{display:grid;gap:12px;margin:18px 0 0;padding:14px;border:1px solid rgba(128,220,173,.2);border-radius:16px;background:rgba(50,90,75,.1)}
+.mn-profession-skills>header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.mn-profession-skills>header strong{font-size:15px}
+.mn-profession-skills>header small,.mn-profession-state{color:#a4b4ae;font-size:12px}
+.mn-profession-state.is-error{color:#ffb5a4}
+.mn-profession-skills-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.mn-profession-skill-card{display:grid;gap:8px;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.035);min-width:0}
+.mn-profession-skill-card>div:first-child{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.mn-profession-skill-card strong{font-size:12px;overflow-wrap:anywhere}
+.mn-profession-skill-card b{font-size:12px;white-space:nowrap;color:#8be6ae}
+.mn-profession-skill-card>small{color:#9daea5;font-size:11px;line-height:1.35}
+.mn-profession-skill-bar{height:6px;border-radius:10px;overflow:hidden;background:rgba(255,255,255,.1)}
+.mn-profession-skill-bar i{display:block;height:100%;background:#62d795;border-radius:inherit}
+.mn-profession-skill-card footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px;font-size:10px;color:#9daea5}
+@media(max-width:490px){.mn-profession-skills-grid{grid-template-columns:1fr}}
