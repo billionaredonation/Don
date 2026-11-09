@@ -15,6 +15,7 @@ import { answerWaterOffer, getWaterError, loadWaterUtility, payWaterBill } from 
 import { getPlayerSkillsSnapshot, publishPlayerSkills } from './playerSkillState.js';
 import './playerSkills.css';
 import { progressionView } from './progressionView.js';
+import { loadProfessionSkills } from './professionSkillsApi.js';
 import './progression.css';
 
 const RUNNING_XP_BATCH = 10;
@@ -176,6 +177,9 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   let utilityLoading = false;
   let utilityTimer = 0;
   let progressionTimer = 0;
+  let professionSkills = [];
+  let professionsLoading = false;
+  let professionsError = ''; 
 
   function utilityMoney(value) {
     return `${Math.max(0, Number(value) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₴`;
@@ -673,7 +677,28 @@ export function enablePlayerSkillsFeature({ root } = {}) {
         <div class="mn-skill-profession-body">
           ${skillCard(running, `<b>−${Number(running.bonusPercent) || 0}% к расходу</b>`)}
         </div>
-      </details>`;
+      </details>
+
+      <section class="mn-profession-skills" aria-label="Профессиональные навыки">
+        <header><strong>Профессии и производство</strong><small>Опыт за подтверждённые действия</small></header>
+        ${professionsLoading && !professionSkills.length ? '<p class="mn-profession-state">Загрузка профессиональных навыков…</p>' : ''}
+        ${professionsError ? `<p class="mn-profession-state is-error">${escapeHtml(professionsError)}</p>` : ''}
+        ${!professionsLoading && !professionsError && !professionSkills.length ? '<p class="mn-profession-state">Профессиональные навыки пока недоступны.</p>' : ''}
+        <div class="mn-profession-skills-grid">${professionSkills.map((skill) => {
+          const level = Math.max(1, Math.min(5, Number(skill.level) || 1));
+          const xp = Math.max(0, Number(skill.xp) || 0);
+          const thresholds = [0, 300, 1200, 3600, 9000];
+          const start = thresholds[level - 1];
+          const next = level >= 5 ? null : thresholds[level];
+          const percent = next == null ? 100 : Math.max(0, Math.min(100, 100 * (xp - start) / (next - start)));
+          return `<article class="mn-profession-skill-card">
+            <div><strong>${escapeHtml(skill.label || skill.key)}</strong><b>${level}/5</b></div>
+            <small>${escapeHtml(skill.description || '')}</small>
+            <div class="mn-profession-skill-bar"><i style="width:${percent.toFixed(1)}%"></i></div>
+            <footer><span>${xp.toLocaleString('ru-RU')} XP</span><span>${next == null ? 'Максимум' : `До следующего: ${(next - xp > 0 ? next - xp : 0).toLocaleString('ru-RU')} XP`}</span></footer>
+          </article>`;
+        }).join('')}</div>
+      </section>`;
 
     content.querySelectorAll('details[data-skill-details]').forEach((element) => {
       element.open = openedDetails.has(element.dataset.skillDetails);
@@ -708,11 +733,24 @@ export function enablePlayerSkillsFeature({ root } = {}) {
   async function refreshSkills({ silent = true } = {}) {
     if (loadPromise) return loadPromise;
     loadPromise = (async () => {
-      const [farmResult, mineResult, lumberResult] = await Promise.allSettled([
+      professionsLoading = true;
+      const [farmResult, mineResult, lumberResult, professionsResult] = await Promise.allSettled([
         loadPlayerSkills(),
         loadMineSkills(),
         loadLumberSkills(),
+        loadProfessionSkills(),
       ]);
+      professionsLoading = false;
+      if (!destroyed) {
+        if (professionsResult.status === 'fulfilled') {
+          professionSkills = professionsResult.value;
+          professionsError = '';
+        } else {
+          professionsError = 'Не удалось загрузить профессии. Проверьте Edge Function profession-snapshot.';
+          console.warn('[playerSkills] professions load failed:', professionsResult.reason);
+        }
+        if (!skillsPage?.hidden) renderSkills();
+      }
 
       if (!destroyed && farmResult.status === 'fulfilled') publishPlayerSkills(farmResult.value);
       if (!destroyed && mineResult.status === 'fulfilled') publishPlayerSkills(mineResult.value);
