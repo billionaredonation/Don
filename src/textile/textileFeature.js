@@ -71,7 +71,7 @@ export function enableTextileFeature({ root, cityId } = {}) {
     const business = snapshot?.business || snapshot?.factory || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
     const ownership = textileOwnership(snapshot, business);
     q('[data-textile-state]').textContent = ownership.owned ? (snapshot?.activeBatch ? 'Линия работает' : 'Готов к работе') : 'Государственный';
-    q('[data-textile-role]').textContent = snapshot?.isOwner ? 'Владелец' : (snapshot?.roleLabel || 'Посетитель');
+    q('[data-textile-role]').textContent = snapshot?.isOwner ? 'Владелец' : (snapshot?.canProduce ? 'Рабочий' : snapshot?.roleLabel || 'Посетитель');
     q('[data-textile-cash]').textContent = snapshot?.isOwner ? formatTextileMoney(business.cash) : 'Скрыто';
     q('[data-textile-buy]').hidden = ownership.owned;
     q('[data-textile-owned]').hidden = !ownership.owned;
@@ -86,8 +86,8 @@ export function enableTextileFeature({ root, cityId } = {}) {
       if (currentPrice > 0 && document.activeElement !== priceInput) priceInput.value = String(currentPrice);
     });
     Object.keys(TEXTILE_RECIPES).forEach((id) => { q(`[data-textile-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
-    const batch = snapshot?.activeBatch || snapshot?.batch || null; q('[data-textile-batch]').hidden = !batch; q('[data-textile-finish]').dataset.batchId = batch?.id || ''; q('[data-textile-batch-title]').textContent = TEXTILE_RECIPES[batch?.recipeId]?.label || 'Активная партия';
-    qa('[data-textile-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Boolean(batch); });
+    const batch = snapshot?.activeBatch || snapshot?.batch || null; q('[data-textile-batch]').hidden = !batch; q('[data-textile-finish]').disabled = busy || !(snapshot?.isOwner || snapshot?.canProduce); q('[data-textile-finish]').dataset.batchId = batch?.id || ''; q('[data-textile-batch-title]').textContent = TEXTILE_RECIPES[batch?.recipeId]?.label || 'Активная партия';
+    qa('[data-textile-produce]').forEach((button) => { button.disabled = busy || !(snapshot?.isOwner || snapshot?.canProduce) || Boolean(batch); });
     qa('[data-textile-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.textileOffer] || 0) < 1; });
     qa('[data-textile-buy-price-save],[data-textile-raw-transfer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     renderProcurementControls(modal, 'textile', procurement, TEXTILE_RAW_ITEMS, { canManage:snapshot?.isOwner, busy });
@@ -139,4 +139,3 @@ export function enableTextileFeature({ root, cityId } = {}) {
   window.addEventListener('mn:textile-object-action', onAction);
   return () => { window.removeEventListener('mn:textile-object-action', onAction); modal.remove(); };
 }
-
