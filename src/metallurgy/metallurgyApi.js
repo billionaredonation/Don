@@ -28,6 +28,7 @@ export function getMetallurgyError(error) {
     METALLURGY_FACTORY_NOT_FOUND: 'Металлургический завод не найден.',
     METALLURGY_FACTORY_NOT_OWNED: 'Государственный металлургический завод пока не закупает сырьё.',
     METALLURGY_FACTORY_ALREADY_OWNED: 'У этого завода уже есть владелец.',
+    METALLURGY_WORKER_REQUIRED: 'Для выпуска партии нужен действующий найм рабочим на этом заводе.',
     METALLURGY_OWNER_REQUIRED: 'Производством может управлять только владелец завода.',
     METALLURGY_RECIPE_INVALID: 'Такой технологической карты нет.',
     METALLURGY_PRODUCT_INVALID: 'Такого компонента на складе нет.',
