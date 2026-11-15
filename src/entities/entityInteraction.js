@@ -861,6 +861,7 @@ export function createEntityInteractionPanel(root) {
   }
 
   function shouldSkipPrompt(object) {
+    if (object?.type === 'station_kiosk' || object?.payload?.serviceType === 'station_kiosk') return true;
     if (isHospitalObject(object) || isJobObject(object)) return true;
     if (isMobileGameplayDevice()) return false;
     if (!isHouseObject(object)) return false;
@@ -1883,6 +1884,7 @@ export function enableEntityInteraction({
     const keyEl = hint.querySelector('[data-interaction-hint-key]');
     const textEl = hint.querySelector('[data-interaction-hint-text]');
 
+
     const hospital = panel?.isHospitalObject?.(object);
     const farmHint = farmPlant ? getFarmPlantHintState(object) : null;
     const mineHint = mineNode ? getMineNodeHintState(object) : null;
@@ -1943,6 +1945,10 @@ export function enableEntityInteraction({
       }
     }
 
+    if (objectType === 'station_kiosk' || object?.payload?.serviceType === 'station_kiosk') {
+      if (keyEl) keyEl.textContent = isMobileGameplayDevice() ? '🥐' : 'E/У';
+      if (textEl) textEl.textContent = isMobileGameplayDevice() ? 'Нажмите на ларёк рядом с Сашей' : 'Поговорить с Сашей у ларька';
+    }
     if (farmPlant) {
       updateFarmPlantHintContent(object);
     } else if (mineNode) {
