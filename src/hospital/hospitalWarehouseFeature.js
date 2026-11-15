@@ -104,6 +104,7 @@ function userErrorMessage(error) {
     ADMIN_REQUIRED_FOR_SENIOR_RANK: 'Назначать или снимать старший состав может только администрация.',
     CANNOT_CHANGE_OWN_RANK: 'Нельзя изменить собственную должность.',
     SERVER_NOT_CONFIGURED: 'Серверная функция больницы не настроена.',
+    TREATMENT_OFFERS_UNAVAILABLE: 'Предложения лечения временно недоступны. Попробуйте позже.',
     UNKNOWN_ACTION: 'Edge Function hospital-warehouse старая: задеплойте свежий supabase/functions/hospital-warehouse/index.ts.',
     NOT_FOUND: 'Edge Function hospital-warehouse не задеплоена в Supabase.',
   };
@@ -147,8 +148,12 @@ async function invokePlayerInteractionAction(action, payload = {}) {
     },
   });
 
-  if (error) throw await normalizeError(error, 'PLAYER_INTERACTION_REQUEST_FAILED');
-  if (!data?.ok) throw new Error(data?.error || data?.reason || 'PLAYER_INTERACTION_REQUEST_FAILED');
+  if (error || !data?.ok) {
+    const failure = error ? await normalizeError(error, 'PLAYER_INTERACTION_REQUEST_FAILED')
+      : new Error(data?.error || data?.reason || 'PLAYER_INTERACTION_REQUEST_FAILED');
+    if (isLegacyEdgeFunctionError(failure)) throw new Error('TREATMENT_OFFERS_UNAVAILABLE');
+    throw failure;
+  }
   return data.result;
 }
 
