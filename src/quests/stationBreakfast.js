@@ -25,7 +25,7 @@ function emit(event,detail){window.dispatchEvent(new CustomEvent(event,{detail})
 export async function stationArrivalHint(){
   try{
     const {quest,level}=await call('status');
-    if(!quest?.completed && level<=3) emit('mn:toast',{type:'info',message:quest?step(quest):'На вокзале вас ждёт Саша. Подойдите к ларьку 🥐 и выберите «Поговорить с Сашей».'});
+    if(!quest?.completed && level<=3) emit('mn:toast',{type:'info',message:quest?step(quest):'На вокзале вас ждёт Саша 🧑. Подойдите и выберите «Поговорить с Сашей».'});
   }catch{/* Game entry must not depend on the quest server. */}
 }
 function syncMoney(r){state.player={...state.player,balance:r.balance};emit('mn:player-balance-changed',{balance:r.balance,source:'station_breakfast'});}
@@ -48,6 +48,7 @@ export async function useStationItem(item){
   emit('mn:toast',{message,type:'success'});return message;
 }
 export async function openStation(object){
+  const npc=[object?.type,object?.payload?.serviceType].includes('station_sasha');
   if(document.querySelector('.mn-station'))return;
   const d=document.createElement('dialog'); d.className='mn-station';
   d.innerHTML='<small>ВОКЗАЛ · ГЛАВА 1</small><h2>Первый завтрак</h2><p data-story></p><p data-step aria-live="polite">Загружаем…</p><div data-actions></div><button data-close>Закрыть</button>';
@@ -62,9 +63,12 @@ export async function openStation(object){
     if(!d.isConnected)return;
     actions.replaceChildren();const q=r.quest;
     if(r.level>3){story.textContent=messages.STATION_LEVEL;desc.textContent=q && !q.completed && q.purchases?'Купленный завтрак всё ещё можно применить в инвентаре.':'';return;}
+    if(!q && !npc){story.textContent='Сначала поговорите с Сашей 🧑 у вокзала — он даст талон на завтрак.';desc.textContent='';return;}
     if(!q){story.textContent='Саша: «Здорово! Давно не виделись. Долго добирался? Ну ещё бы — такой город выбрал: '+(state.cityName||object.city_id||state.cityId||'наш город')+'! Вон у вокзала мой знакомый торгует. Держи талон на три завтрака».';
       desc.textContent='Талон даёт скидку 10%. Награда за съеденную булочку и выпитый напиток: 50 ₴ и 10 опыта.';
       button('Взять талон',async()=>render(await call('meet',{blip:object.id})));return;}
+    if(npc){story.textContent=q.completed?'Саша: «Ну вот, теперь другое дело!»':'Саша: «Загляни в ларёк 🥐, он рядом».';
+      desc.textContent=step(q);return;}
     const price=q.coupons?45:50;
     story.textContent='Завтрак: булочка с творогом + напиток. '+price+' ₴ за комплект. '+(q.coupons?'Талон −10% · осталось '+q.coupons+' из 3.':'Без скидки.')+
       (!q.purchases && r.balance<price?' На первый чек Саша добавит '+(price-r.balance)+' ₴.':'');
