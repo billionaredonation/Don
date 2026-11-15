@@ -255,7 +255,7 @@ export function enableFactoryFeature({ root, cityId }) {
     syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentPublicId, objectIds:[currentId] });
     const s = snapshot || {}, business = s.factory || {}, raw = s.raw || {}, products = s.products || {}, prices = s.wholesalePrices || {}, wages = s.productionWages || {}, batch = s.activeBatch || null;
     q('[data-factory-state]').textContent = business.ownerName ? (batch ? 'Линия работает' : 'Линия свободна') : 'Государственный';
-    q('[data-factory-role]').textContent = s.roleLabel || 'Посетитель'; q('[data-factory-cash]').textContent = s.canManage ? formatFactoryMoney(business.cash) : 'Скрыто';
+    q('[data-factory-role]').textContent = s.canProduce && !s.isOwner ? 'Рабочий' : s.roleLabel || 'Посетитель'; q('[data-factory-cash]').textContent = s.canManage ? formatFactoryMoney(business.cash) : 'Скрыто';
     q('[data-factory-buy]').hidden = Boolean(business.ownerId); q('[data-factory-owned]').hidden = !business.ownerId;
     q('[data-factory-owner]').textContent = business.ownerName || 'Государство'; q('[data-factory-legal-view]').textContent = business.legalForm || '—';
     q('[data-factory-public-id]').textContent = currentPublicId;
@@ -265,7 +265,7 @@ export function enableFactoryFeature({ root, cityId }) {
     qa('[data-factory-offer]').forEach((b) => { b.disabled = !s.canManage || Number(products[b.dataset.factoryOffer] || 0) < 1; });
     Object.keys(FACTORY_RECIPES).forEach((id) => { const input = q(`[data-factory-wholesale-price="${id}"]`); if (input && prices[id]) input.value = String(prices[id]); const offerPrice = q(`[data-factory-offer-price="${id}"]`); if (offerPrice && prices[id]) offerPrice.value = String(prices[id]); });
     Object.keys(FACTORY_RECIPES).forEach((id) => { const input = q(`[data-factory-production-wage="${id}"]`); if (input && wages[id] !== undefined) input.value = String(wages[id]); });
-    qa('[data-factory-start]').forEach((b) => b.disabled = !business.ownerId || Boolean(batch));
+    qa('[data-factory-start]').forEach((b) => b.disabled = !(s.canLoad || s.canProduce) || Boolean(batch));
     qa('[data-factory-deliver]').forEach((b) => b.disabled = !s.isOwner);
     renderProcurementControls(modal, 'factory', procurement, FACTORY_PROCUREMENT_ITEMS, { canManage:s.isOwner, busy });
     const line = q('[data-factory-line]'), cook = q('[data-factory-cook]'), finish = q('[data-factory-finish]');
@@ -277,11 +277,11 @@ export function enableFactoryFeature({ root, cityId }) {
       if (batch.stage === 'loaded') {
         line.querySelector('strong').textContent = `${recipe?.label || 'Партия'} · сырьё подано`;
         line.querySelector('small').textContent = 'Теперь повар должен разложить ингредиенты и начать готовку';
-        cook.hidden = false; cook.disabled = !s.canCook; cook.dataset.batchId = batch.id;
+        cook.hidden = false; cook.disabled = !(s.canCook || s.canProduce); cook.dataset.batchId = batch.id;
       } else {
         line.querySelector('strong').textContent = `${recipe?.label || 'Партия'} · ${left ? `готовится ${left} сек.` : 'готово к упаковке'}`;
         line.querySelector('small').textContent = left ? 'Повар готовит блюдо' : 'Упаковщик может передать продукт на склад';
-        finish.hidden = left > 0; finish.disabled = !s.canPack; finish.dataset.batchId = batch.id;
+        finish.hidden = left > 0; finish.disabled = !(s.canPack || s.canProduce); finish.dataset.batchId = batch.id;
         clearTimeout(timer); if (left > 0) timer = setTimeout(render, 1000);
       }
     }
@@ -361,4 +361,3 @@ export function enableFactoryFeature({ root, cityId }) {
   window.addEventListener('mn:factory-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
 }
-
