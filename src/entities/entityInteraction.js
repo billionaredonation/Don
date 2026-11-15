@@ -861,6 +861,7 @@ export function createEntityInteractionPanel(root) {
   }
 
   function shouldSkipPrompt(object) {
+    if (object?.type==='lumber_vitya' || object?.payload?.type==='lumber_vitya') return true;
     if ([object?.type,object?.payload?.serviceType].some(t=>['station_kiosk','station_sasha'].includes(t))) return true;
     if (isHospitalObject(object) || isJobObject(object)) return true;
     if (isMobileGameplayDevice()) return false;
@@ -1949,6 +1950,10 @@ export function enableEntityInteraction({
       const sasha=[objectType,object?.payload?.serviceType].includes('station_sasha');
       if (keyEl) keyEl.textContent = isMobileGameplayDevice() ? (sasha?'🧑':'🥐') : 'E/У';
       if (textEl) textEl.textContent = sasha?'Поговорить с Сашей':'Купить завтрак';
+    }
+    if (objectType==='lumber_vitya' || object?.payload?.type==='lumber_vitya') {
+      if (keyEl) keyEl.textContent=isMobileGameplayDevice()?'🧔':'E/У';
+      if (textEl) textEl.textContent='Поговорить с дядей Витей';
     }
     if (farmPlant) {
       updateFarmPlantHintContent(object);
