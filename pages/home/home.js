@@ -63,7 +63,6 @@ import { enablePlayerInteractionFeature } from '../../src/player/playerInteracti
 import { enablePlayerStatusEffects } from '../../src/player/playerStatusEffects.js';
 import { enablePlayerSurvivalFeature } from '../../src/player/playerSurvivalFeature.js';
 import { enablePlayerSkillsFeature } from '../../src/player/playerSkillsFeature.js';
-import { enableIntroGuide } from '../../src/onboarding/introGuide.js';
 import { enableCommunityFeature } from '../../src/community/communityFeature.js';
 import { enableLocalGangFeature } from '../../src/localGangs/localGangFeature.js';
 import {
@@ -545,6 +544,10 @@ function setupHouseSpawnPicker({
       }
     }
 
+    if (playerPosition?.firstStationArrival) {
+      completeGameplayEntry('station_arrival');
+      return;
+    }
     const houses = await fetchPlayerOwnedHouses({ playerId: playerTgId, cityId });
 
       if (disposed || root.dataset.destroyed === 'true') return;
@@ -1221,7 +1224,7 @@ register('home', async (root) => {
 
   const [weatherResult, playerPositionResult, cityPlayersResult] = await Promise.allSettled([
     withHomeTimeout(getCityWeather(cityId), 5200, 'weather'),
-    withHomeTimeout(getOrCreatePlayerPosition(cityId, nickname), 5200, 'player_position'),
+    withHomeTimeout(getOrCreatePlayerPosition(cityId, nickname), 15000, 'player_position'),
     withHomeTimeout(getCityPlayers(cityId), 5200, 'city_players'),
   ]);
 
@@ -1256,26 +1259,13 @@ register('home', async (root) => {
   } else {
     console.warn('[home] player position loading failed:', playerPositionResult.reason);
 
-    playerPosition = {
-      playerId: localPlayerId,
-      x: 50,
-      y: 50,
-      nickname,
-      is_admin: false,
-      isAdmin: false,
-    };
-
-    state.player = {
-      ...(state.player || {}),
-      ...playerPosition,
-      is_admin: false,
-      isAdmin: false,
-    };
-
-    state.is_admin = false;
-    state.isAdmin = false;
-
-    save();
+    const msg=playerPositionResult.reason?.message==='STATION_CONFIG'
+      ? 'В этом городе ещё не настроено прибытие. Администратору нужно поставить одного Сашу у вокзала.'
+      : 'Не удалось загрузить позицию. Проверьте соединение и повторите вход.';
+    root.innerHTML='<main style="padding:2rem"><p></p><button type="button">Повторить вход</button></main>';
+    root.querySelector('p').textContent=msg;
+    root.querySelector('button').onclick=()=>window.location.reload();
+    return;
   }
 
   const cityPlayers = cityPlayersResult.status === 'fulfilled' && Array.isArray(cityPlayersResult.value)
@@ -1582,7 +1572,6 @@ register('home', async (root) => {
   const cleanupPlayerInteraction = enablePlayerInteractionFeature({ playerPosition });
   const cleanupPlayerStatusEffects = enablePlayerStatusEffects();
   const cleanupPlayerSkills = enablePlayerSkillsFeature({ root });
-  const cleanupIntroGuide = enableIntroGuide({ root });
   const cleanupCommunity = enableCommunityFeature({ root });
   const cleanupLocalGang = enableLocalGangFeature({ root });
   const cleanupPlayerSurvival = enablePlayerSurvivalFeature();
@@ -2572,7 +2561,6 @@ register('home', async (root) => {
     cleanupPlayerInteraction?.();
     cleanupPlayerStatusEffects?.();
     cleanupPlayerSkills?.();
-    cleanupIntroGuide?.();
     cleanupCommunity?.();
     cleanupLocalGang?.();
     cleanupPlayerSurvival?.();
