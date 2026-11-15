@@ -79,7 +79,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     const raw = snapshot?.raw || {};
     const products = snapshot?.products || {};
     q('[data-metallurgy-state]').textContent = business.ownerId ? 'Предприятие приобретено' : 'Государственный';
-    q('[data-metallurgy-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
+    q('[data-metallurgy-role]').textContent = snapshot?.isOwner ? 'Владелец' : snapshot?.canProduce ? 'Рабочий' : 'Посетитель';
     q('[data-metallurgy-cash]').textContent = snapshot?.isOwner ? formatMetallurgyMoney(business.cash) : 'Скрыто';
     q('[data-metallurgy-buy]').hidden = Boolean(business.ownerId);
     q('[data-metallurgy-owned]').hidden = !business.ownerId;
@@ -87,7 +87,7 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     q('[data-metallurgy-public-id]').textContent = currentPublicId;
     METALLURGY_RAW_ITEMS.forEach((item) => { q(`[data-metallurgy-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
     Object.keys(METALLURGY_RECIPES).forEach((id) => { q(`[data-metallurgy-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
-    qa('[data-metallurgy-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
+    qa('[data-metallurgy-produce]').forEach((button) => { button.disabled = busy || !(snapshot?.canProduce || snapshot?.isOwner); });
     qa('[data-metallurgy-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.metallurgyOffer] || 0) < 1; });
     qa('[data-metallurgy-deposit],[data-metallurgy-withdraw]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
     renderProcurementControls(modal, 'metallurgy', procurement, METALLURGY_RAW_ITEMS, { canManage:snapshot?.isOwner, busy });
@@ -188,4 +188,3 @@ export function enableMetallurgyFeature({ root, cityId } = {}) {
     modal.remove();
   };
 }
-
