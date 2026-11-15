@@ -1,3 +1,4 @@
+import { salaryAccountHint } from '../ui/salaryAccountHint.js';
 const GAME_TOAST_SELECTOR = '[data-game-toast="true"]';
 
 function getToastDuration(value) {
@@ -45,14 +46,15 @@ export function enableGameToastFeature() {
     if (!message) return;
 
     const notice = document.querySelector(GAME_TOAST_SELECTOR) || createToast();
-    notice.textContent = message;
+    const hint = salaryAccountHint(message);
+    notice.textContent = hint ?? message;
     notice.dataset.type = String(event?.detail?.type || 'info');
 
     window.clearTimeout(hideTimer);
     hideTimer = window.setTimeout(() => {
       notice.remove();
       hideTimer = 0;
-    }, getToastDuration(event?.detail?.durationMs));
+    }, getToastDuration(event?.detail?.durationMs ?? (hint ? 6500 : undefined)));
   }
 
   window.addEventListener('mn:toast', handleToast);
