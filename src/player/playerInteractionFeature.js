@@ -80,12 +80,14 @@ function errorText(error) {
     TREATMENT_OFFER_EXPIRED: 'Время предложения лечения истекло.',
     TREATMENT_CONFIRMATION_REQUIRED: 'Пациент должен подтвердить лечение.',
     PATIENT_BALANCE_NOT_ENOUGH: 'Недостаточно денег для лечения.',
+    PATIENT_WATER_TOO_LOW: 'Для лечения не хватает воды. Попейте и попробуйте снова.',
+    PATIENT_FOOD_TOO_LOW: 'Для лечения не хватает еды. Поешьте и попробуйте снова.',
     PERSONAL_MEDICINE_NOT_ENOUGH: 'У врача больше нет выбранного препарата.',
     PATIENT_ALREADY_TREATED: 'На вас уже действует препарат.',
     NOT_FOUND: 'Edge Function player-interaction не задеплоена.',
   };
   if (raw.toLowerCase().includes('requested function was not found')) return messages.NOT_FOUND;
-  const code = Object.keys(messages).find((key) => raw.includes(key));
+  const code = raw.match(/[A-Z][A-Z0-9_]*/g)?.find((key) => Object.hasOwn(messages, key));
   return code ? messages[code] : raw;
 }
 
