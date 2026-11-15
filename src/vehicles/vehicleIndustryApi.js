@@ -1,3 +1,4 @@
+import { salaryAccountHint } from '../ui/salaryAccountHint.js';
 import { supabase } from '../supabaseClient.js';
 export async function vehicleRequest(cityId,id='',action='snapshot',data={},requestId=crypto.randomUUID()) {
  const initData=window.Telegram?.WebApp?.initData;if(!initData)throw Error('Откройте игру через Telegram.');
@@ -18,6 +19,7 @@ BUSINESS_UTILITIES_CHECK_FAILED:'Не удалось проверить комм
 BUSINESS_UTILITIES_CONTEXT_INVALID:'Не удалось определить предприятие для проверки коммунальных сетей.',AUTO_CANISTER:'Канистра или машина недоступна.',AUTO_FUEL_TYPE:'Топливо не подходит машине или смешивается с другой маркой в канистре.',AUTO_CANISTER_CAPACITY:'Проверьте количество: канистра вмещает 20 л, а бак нельзя переполнить.',AUTO_TANK_FULL:'Бак уже полный.',AUTO_BUYER:'Укажите существующий Telegram ID или уникальный точный ник покупателя.',AUTO_FACTORY_NEAR:'Для получения машины подойдите к заводу.',AUTO_NOT_LISTED:'Машина ещё не выставлена на витрину или уже продана.',AUTO_SUPPLY_FACTORY:'Поставку машины создаёт владелец автозавода. Откройте предложения поставок в автосалоне.',AUTO_SUPPLY_RESERVED:'Машина уже предложена автосалону. Сначала отмените прежнее предложение.',AUTO_DEALER:'Выберите купленный автосалон.',AUTO_RESERVE_EMPTY:'В личном запасе не хватает подходящего топлива. Купите его на АЗС.',AUTO_TRANSIT:'Машина ещё в пути. Дождитесь времени прибытия.',AUTO_BORDER:'Для выезда подъедьте к краю карты на исправной машине.',AUTO_PRICE_CHANGED:'Тариф изменился. Обновите окно и подтвердите новую цену.',AUTO_FUNDS:'Недостаточно денег на оплачивающем счёте.',AUTO_OWNER:'Нужны права владельца.',AUTO_BATCH:'Текущая сборка ещё не завершена. Откройте предприятие после окончания таймера.',AUTO_STOCK:'На складе не хватает материалов или топлива.',AUTO_NEAR:'Вы слишком далеко: для посадки подойдите к машине, для обслуживания подъедьте к предприятию.',AUTO_EQUIPMENT:'Сначала установите сборочную линию.',AUTO_KITS:'Нет подходящего ремкомплекта.',AUTO_NEED_SERVICE:'Достигнут предел аварийного ремонта. Нужен ремонт на СТО.',AUTO_STOPPED:'Двигатель заглох: проверьте топливо и состояние.',AUTO_DRIVER:'Устройтесь водителем в выбранный логистический центр.',AUTO_HUB:'Выберите купленный логистический центр.',AUTO_TANK:'Укажите объём от 1 л, не превышающий свободное место в баке.',AUTO_ROUTE_ACTIVE:'Сначала завершите текущий рейс.',AUTO_OFFER:'Предложение уже недоступно.',AUTO_STATION:'АЗС закрыта, требует обслуживания или находится слишком далеко.',AUTO_DRIVING:'Сначала сядьте в автомобиль.',AUTO_CITY:'Автомобиль находится в другом городе.',AUTO_SPEED:'Позиция машины не прошла проверку. Повторите движение.',AUTO_PRICE:'Цена ниже минимальной.',AUTO_FULL:'Автомобиль уже полностью исправен.',AUTO_INVALID:'Проверьте введённые значения.',AUTO_DRIVER_DELIVERY_REQUIRED:'Эта партия передана выбранной транспортной компании.'};
 export const vehicleError=e=>{
  const raw=String(e?.message||e||'');
+ const hint=salaryAccountHint(raw); if(hint)return hint;
  if(raw.includes('BUSINESS_UTILITIES_REQUIRED')){
   const suffix=(raw.split('BUSINESS_UTILITIES_REQUIRED:')[1]||'').split(/[\\s;]/)[0];
   const missing=[...new Set(suffix.split(',').map(v=>v.trim()).filter(Boolean))];
@@ -29,4 +31,3 @@ export const vehicleError=e=>{
  }
  return Object.entries(messages).find(([k])=>raw.includes(k))?.[1]||raw;
 };
-
