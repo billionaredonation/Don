@@ -497,7 +497,18 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     return normalizePosition(nextPosition);
   }
 
-  const spawn = getRandomSpawnPoint(cityId);
+  if (selectError) throw selectError;
+  const first = !currentPosition;
+  let spawn;
+  if (first) {
+    const {data: points,error} = await supabase.from('map_objects').select('x,y')
+      .eq('city_id',cityId).or('type.eq.station_sasha,and(type.eq.marker,payload->>serviceType.eq.station_sasha)').limit(2);
+    if (error) throw error;
+    if (points?.length !== 1) throw new Error('STATION_CONFIG');
+    const {x,y}=points[0];
+    if ([x,y].some(v=>v==null || !Number.isFinite(Number(v)) || Number(v)<0 || Number(v)>100)) throw new Error('STATION_CONFIG');
+    spawn={x:Number(x)+(Number(x)>99?-0.7:0.7),y:Number(y)};
+  } else spawn = getRandomSpawnPoint(cityId);
 
   const nextPosition = {
     player_id: playerId,
@@ -512,15 +523,20 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     updated_at: new Date().toISOString(),
   };
 
-  const { data: savedPosition, error: upsertError } = await supabase
-    .from('player_positions')
-    .upsert(nextPosition, {
-      onConflict: 'player_id',
-    })
+  const positionTable = supabase.from('player_positions');
+  const { data: savedPosition, error: upsertError } = await (first
+    ? positionTable.insert(nextPosition)
+    : positionTable.upsert(nextPosition,{onConflict:'player_id'}))
     .select('*')
     .single();
 
   if (upsertError) {
+    if (first && upsertError.code==='23505') {
+      const {data,error}=await supabase.from('player_positions').select('*').eq('player_id',playerId).single();
+      if (error || data?.city_id!==cityId) throw new Error('STATION_RETRY');
+      return normalizePosition(data);
+    }
+    if (first) throw upsertError;
     console.warn('[playerPosition] upsert failed:', upsertError);
 
     return {
@@ -538,7 +554,7 @@ export async function getOrCreatePlayerPosition(cityId, nickname) {
     };
   }
 
-  return normalizePosition(savedPosition);
+  return {...normalizePosition(savedPosition), firstStationArrival:first};
 }
 
 export async function updatePlayerPosition({ cityId, nickname, x, y, angle = 0 }) {
