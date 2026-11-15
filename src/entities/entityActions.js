@@ -103,6 +103,7 @@ export function getEntityKindLabel(object) {
 export function getEntityPrimaryActionLabel(object) {
   const kind = getEntityKind(object);
   const type = getEntityType(object);
+  if (type === 'lumber_vitya') return 'Поговорить с дядей Витей';
   if (type === 'station_sasha') return 'Поговорить с Сашей';
   if (type === 'station_kiosk') return 'Купить завтрак';
 
@@ -213,6 +214,10 @@ export function getEntityMetaText(object) {
 export function dispatchEntityAction(object) {
   const kind = getEntityKind(object);
   const type = getEntityType(object);
+  if (type === 'lumber_vitya') {
+    void import('../quests/vityaDialog.js').then(m=>m.openVitya(object));
+    return;
+  }
   if (type === 'station_kiosk' || type === 'station_sasha') {
     void import('../quests/stationBreakfast.js').then(m => m.openStation(object));
     return;
