@@ -140,6 +140,7 @@ export function enableVehicleIndustry({root,cityId,playerPosition,playerMarker})
   html+='<div data-business-utility-anchor></div>';
  html=`<h3>${labels[type]||'Предприятие'}</h3><p>ID для коммунальных подключений: <code>${esc(id)}</code></p>`;
  if(!b?.owner_id)html+=`<p>Стоимость: <span data-auto-state-price>${money(type==='car_factory'?5000000:type==='car_dealer'?2000000:1000000)}</span></p>${btn('purchase','Купить предприятие')}`;
+ if(!own && type==='car_factory' && s.canProduce){html+=assemblyStatus()+(!b.equipment?'<p>Владелец ещё не установил линию.</p>':s.models.map(m=>btn('assemble','Собрать: '+esc(m.label),`data-model="${esc(m.id)}"`,!!b.batch_ready)).join(''));}
  if(own){html+=`<p>Счёт: ${money(b.cash)}</p>${field('amount',10000)}${btn('deposit','Пополнить')}${btn('withdraw','Снять')}<hr>`;
  if(type==='car_factory')html+=!b.equipment?`<p>Сборочная линия: 1 000 000 ₴</p>${btn('equipment','Установить линию','',Number(b.cash)<1000000)}`:`${assemblyStatus()}<h3>Выбор модели для сборки</h3>${s.models.map(m=>`<article><b>${esc(m.label)} · опт ${money(m.wholesale)}</b><p>${Object.entries(m.recipe).map(([k,q])=>`${labels[k]||esc(k)} × ${q}`).join(' + ')}</p>${btn('assemble',b.batch_ready?(b.batch_model===m.id?'Собирается сейчас':'Линия занята'):'Собрать за 60 секунд',`data-model="${m.id}"`,!!b.batch_ready)}</article>`).join('')}`;
 
@@ -338,4 +339,3 @@ if(e.code==='KeyH'&&current()){e.preventDefault();honk();const route=activeRoute
  refresh().then(()=>{const c=current();if(c?.city_id===cityId)window.dispatchEvent(new CustomEvent('mn:player-teleported',{detail:{x:c.x,y:c.y}}));}).catch(()=>{});
  return()=>{destroyed=true;renderBusinessUtilityGate(dialog,null,{isOwner:false});unregisterCanisters();clearInterval(timer);clearInterval(poll);clearInterval(assemblyTimer);window.__MN_VEHICLE_RUNTIME__=null;window.removeEventListener('keydown',key);window.removeEventListener('mn:auto-object-action',onOpen);window.removeEventListener('mn:auto-routes-open',onRoutes);window.removeEventListener('mn:auto-station-open',onStation);dialog.remove();launch.remove();hud.remove();speedometer.remove();layer.remove();playerMarker?.classList.remove('mn-auto-driving');};
 }
-
