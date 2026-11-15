@@ -69,6 +69,10 @@ export const HOUSE_CLASSES = {
 };
 
 export const MAP_OBJECT_TYPES = {
+  lumber_vitya: {
+    type:'lumber_vitya',category:MAP_OBJECT_CATEGORIES.NPC,label:'Дядя Витя · лесоруб',
+    icon:'🧔',defaultScale:1,defaultRotation:0,defaultAsset:'',
+  },
   station_sasha: {
     type: 'station_sasha', category: MAP_OBJECT_CATEGORIES.SERVICE, label: 'Саша · прибытие на вокзал',
     icon: '🧑', defaultScale: 1, defaultRotation: 0, defaultAsset: '',
