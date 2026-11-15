@@ -1,0 +1,4 @@
+.mn-station{box-sizing:border-box;width:min(26rem,94vw);max-height:85dvh;overflow:auto;border:1px solid #52766f;border-radius:16px;background:#112322;color:#f2faf8;padding:22px;font:16px/1.45 system-ui}
+.mn-station::backdrop{background:#081310bc}
+.mn-station small{letter-spacing:.09em;color:#9bdcc7}.mn-station h2{margin:.3rem 0}
+.mn-station button{font:inherit;padding:9px 13px;margin:4px;border-radius:8px;border:1px solid #6b958c;background:#20493f;color:white;cursor:pointer}.mn-station button:disabled{opacity:.6}
