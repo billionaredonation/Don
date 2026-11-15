@@ -69,6 +69,10 @@ export const HOUSE_CLASSES = {
 };
 
 export const MAP_OBJECT_TYPES = {
+  station_kiosk: {
+    type: 'station_kiosk', category: MAP_OBJECT_CATEGORIES.SERVICE, label: 'Вокзальный ларёк · Саша',
+    icon: '🥐', defaultScale: 1, defaultRotation: 0, defaultAsset: '',
+  },
   tree: {
     type: 'tree',
     category: MAP_OBJECT_CATEGORIES.DECOR,
