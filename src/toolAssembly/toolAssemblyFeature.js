@@ -56,7 +56,7 @@ export function enableToolAssemblyFeature({ root, cityId } = {}) {
     syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentPublicId, objectIds:[currentFactoryId] });
     const business = snapshot?.business || {}, raw = snapshot?.raw || {}, products = snapshot?.products || {};
     q('[data-tool-state]').textContent = business.ownerId ? 'Предприятие приобретено' : 'Государственный';
-    q('[data-tool-role]').textContent = snapshot?.isOwner ? 'Владелец' : 'Посетитель';
+    q('[data-tool-role]').textContent = snapshot?.isOwner ? 'Владелец' : snapshot?.canProduce ? 'Рабочий' : 'Посетитель';
     q('[data-tool-cash]').textContent = snapshot?.isOwner ? formatToolMoney(business.cash) : 'Скрыто';
     q('[data-tool-buy]').hidden = Boolean(business.ownerId);
     q('[data-tool-owned]').hidden = !business.ownerId;
@@ -64,7 +64,7 @@ export function enableToolAssemblyFeature({ root, cityId } = {}) {
     q('[data-tool-public-id]').textContent = currentPublicId;
     TOOL_ASSEMBLY_INPUT_ITEMS.forEach((item) => { q(`[data-tool-raw="${item.itemType}"]`).textContent = `${Number(raw[item.itemType] || 0)} ед.`; });
     Object.keys(TOOL_ASSEMBLY_RECIPES).forEach((id) => { q(`[data-tool-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
-    qa('[data-tool-produce]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
+    qa('[data-tool-produce]').forEach((button) => { button.disabled = busy || !(snapshot?.isOwner || snapshot?.canProduce); });
     qa('[data-tool-offer]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner || Number(products[button.dataset.toolOffer] || 0) < 1; });
     qa('[data-tool-deposit],[data-tool-withdraw]').forEach((button) => { button.disabled = busy || !snapshot?.isOwner; });
   }
