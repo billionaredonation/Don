@@ -103,6 +103,7 @@ export function getEntityKindLabel(object) {
 export function getEntityPrimaryActionLabel(object) {
   const kind = getEntityKind(object);
   const type = getEntityType(object);
+  if (type === 'station_kiosk') return 'Поговорить с Сашей';
 
   if (kind === 'house') {
     if (object?.payload?.ownerId) return 'Информация';
@@ -211,6 +212,10 @@ export function getEntityMetaText(object) {
 export function dispatchEntityAction(object) {
   const kind = getEntityKind(object);
   const type = getEntityType(object);
+  if (type === 'station_kiosk') {
+    void import('../quests/stationBreakfast.js').then(m => m.openStation(object));
+    return;
+  }
 
   window.dispatchEvent(new CustomEvent('mn:entity-action', {
     detail: {
