@@ -44,7 +44,7 @@ export async function useStationItem(item){
   syncMoney(r);
   const vitals={food:r.food,water:r.water}; Object.assign(state.player,vitals);
   emit('mn:player-vitals-changed',{vitals,source:'station_breakfast'});
-  const message=r.reward?'Первый завтрак завершён! +50 ₴ и +10 общего опыта.':(r.quest.completed?'Готово.':step(r.quest));
+  const message=r.reward?'Первый завтрак завершён! +50 ₴ и +10 опыта. Саша: «Иди на лесорубку, дядя Витя тебя ждёт».':(r.quest.completed?'Готово.':step(r.quest));
   emit('mn:toast',{message,type:'success'});return message;
 }
 export async function openStation(object){
@@ -62,6 +62,8 @@ export async function openStation(object){
   function render(r,notice=''){
     if(!d.isConnected)return;
     actions.replaceChildren();const q=r.quest;
+    if(npc && q?.completed){story.textContent='Саша: «На лесорубке спроси дядю Витю. Я ему уже сказал, что ты ищешь работу».';
+      desc.textContent='Ищи 🧔 рядом с лесорубкой.';return;}
     if(r.level>3){story.textContent=messages.STATION_LEVEL;desc.textContent=q && !q.completed && q.purchases?'Купленный завтрак всё ещё можно применить в инвентаре.':'';return;}
     if(!q && !npc){story.textContent='Сначала поговорите с Сашей 🧑 у вокзала — он даст талон на завтрак.';desc.textContent='';return;}
     if(!q){story.textContent='Саша: «Здорово! Давно не виделись. Долго добирался? Ну ещё бы — такой город выбрал: '+(state.cityName||object.city_id||state.cityId||'наш город')+'! Вон у вокзала мой знакомый торгует. Держи талон на три завтрака».';
