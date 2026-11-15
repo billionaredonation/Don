@@ -29,7 +29,14 @@ export async function openVitya(npc){
   async function load(){
     const q=await invokeLumberAction('vitya_status');if(!d.open)return;
     p.textContent=lines[q.step]||'Неизвестный этап задания.';
-    if(['breakfast','done'].includes(q.step))return;
+    if(q.step==='done'){
+      const t=await invokeLumberAction('first_trade_status');if(!d.open)return;
+      p.textContent=t.done?'Первую самостоятельную продажу ты уже сделал. С выручкой!':
+        'Теперь попробуй другую работу: собери урожай на ферме или добудь сырьё в доступной тебе шахте. Продай хотя бы одну единицу такого же товара местному скупщику. Награда одна на обе профессии: 50 ₴ и до 10 общего опыта.'+
+        (t.crops?.length||t.ores?.length?' Добыча уже засчитана — осталось продать.':'');
+      return;
+    }
+    if(q.step==='breakfast')return;
     const objects=await getMapObjects(cityId,{centerX:npc.x,centerY:npc.y,radiusPercent:3});
     if(!d.open)return;
     const stations=objects.filter(o=>(o.payload?.jobType||o.payload?.type||o.type)==='lumber_station' && o.cityId===cityId &&
@@ -42,6 +49,7 @@ export async function openVitya(npc){
     if(q.step==='sell')button('Продать 4 бревна за 120 ₴',async()=>{
       const r=await invokeLumberAction('vitya_sell_four',payload);if(!d.open)return;
       p.textContent=r.sold===4?'Получено 120 ₴ за брёвна. Награда за смену: 500 ₴ и 250 опыта.':lines[r.step]||'Проверь свой этап задания.';
+      if(r.step==='done')button('Что дальше?',load);
     });
   }
   await run(load);
