@@ -1,3 +1,4 @@
+import { stationInventory, stationArrivalHint, useStationItem } from '../quests/stationBreakfast.js';
 import { WEAPON_TYPES, weaponAction } from './weaponApi.js';
 import {loadCanisterInventory,useInventoryCanister} from '../vehicles/canisterInventory.js';
 // Hospital batch refresh 2026-07-20: inventory medical items deploy marker.
@@ -871,6 +872,7 @@ export function enableInventoryFeature() {
   }
 
   function getItemInfoText(item = {}) {
+    if (item.stationInfo) return item.stationInfo;
     const itemType = String(item.itemType || '');
     const quantity = Number(item.quantity || 0);
     const sourceLabel = getItemSourceLabel(item);
@@ -1027,7 +1029,7 @@ export function enableInventoryFeature() {
       const mineNonUsable = itemType.startsWith('mine_');
       const lumberNonUsable = itemType.startsWith('lumber_') || itemType.startsWith('construction_');
       const clothing = isTextileProduct(itemType);
-      const hidden = !clothing && (medicineOnly || farmNonUsable || mineNonUsable || lumberNonUsable);
+      const hidden = itemType === 'station_coupon' || (!clothing && (medicineOnly || farmNonUsable || mineNonUsable || lumberNonUsable));
       itemMenuApply.hidden = hidden;
       itemMenuApply.disabled = hidden;
       itemMenuApply.style.display = hidden ? 'none' : '';
@@ -1185,7 +1187,7 @@ export function enableInventoryFeature() {
   }
 
   async function refreshMedicalInventory() {
-    const [medicalResult, farmResult, mineResult, lumberResult, businessResult, wardrobeResult, canisterResult] = await Promise.allSettled([
+    const [medicalResult, farmResult, mineResult, lumberResult, businessResult, wardrobeResult, canisterResult, stationResult] = await Promise.allSettled([
       loadMyMedicalInventory(),
       loadFarmInventory(),
       loadMineInventory(),
@@ -1193,6 +1195,7 @@ export function enableInventoryFeature() {
       loadBusinessInventory(),
       loadTextileWardrobe(),
       loadCanisterInventory(),
+      stationInventory(),
     ]);
 
     const medical = medicalResult.status === 'fulfilled' && Array.isArray(medicalResult.value?.items)
@@ -1239,7 +1242,8 @@ export function enableInventoryFeature() {
 
     window.__MN_BUSINESS_INVENTORY_ITEMS__ = business;
     const canisters = canisterResult.status === 'fulfilled' ? canisterResult.value : medicalItems.filter(item => item.itemType === 'fuel_canister');
-    medicalItems = mergeVisibleInventoryItems(medical, farm, mine, lumber, business, canisters);
+    medicalItems = mergeVisibleInventoryItems(medical, farm, mine, lumber, business, canisters,
+      stationResult.status === 'fulfilled' ? stationResult.value : medicalItems.filter(i=>i.itemType?.startsWith('station_')));
     publishInventorySnapshot(medicalItems);
     renderMedicalInventory();
   }
@@ -1249,6 +1253,14 @@ export function enableInventoryFeature() {
     const itemType = String(item?.itemType || '');
     const consumptionEffect = getConsumptionEffectType(itemType);
     if (!itemType || inventoryBusy) return;
+    if (itemType.startsWith('station_')) {
+      if (itemType === 'station_coupon') return;
+      inventoryBusy = true;
+      try { await useStationItem(item); closeItemMenu(); }
+      catch (error) { setItemMenuNotice(error.message,'error'); }
+      finally { inventoryBusy = false; await refreshMedicalInventory(); }
+      return;
+    }
     if (WEAPON_TYPES.includes(itemType)) {
       inventoryBusy = true;
       try {
@@ -1504,6 +1516,7 @@ export function enableInventoryFeature() {
   function handleGameplayEntered() {
     gameplayReady = true;
     dismissVitalNotice();
+    void stationArrivalHint();
 
     // Значения из localStorage/первичного position snapshot могут быть
     // промежуточными. На входе в сам геймплей просто принимаем уже
