@@ -555,6 +555,9 @@ export function enableMineFeature({ root, cityId } = {}) {
       try {
         const result = await loadMineMarket({ cityId, buyerObjectId: buyerId });
         if (requestVersion !== marketRequestVersion || buyerId !== activeBuyerObjectId) return result;
+        if (!Array.isArray(result?.items) || !result.items.length || !Number.isFinite(Date.parse(result.refreshAt))) {
+          throw new Error('Сервер не вернул цены и лимиты шахты. Откройте вкладку «Скупщик» ещё раз.');
+        }
         marketLoading = false;
         return publishMarket(result);
       } catch (error) {
@@ -598,6 +601,10 @@ export function enableMineFeature({ root, cityId } = {}) {
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('mn-mine-modal-open');
+    // The active tab survives close/open, but its prices are reset for each station.
+    if (modal.querySelector('[data-mine-page="sell"]')?.hidden === false) {
+      void refreshMarket({ silent: false });
+    }
     void refreshInventory({ silent: false });
     void refreshBusiness({ silent: true });
   }
