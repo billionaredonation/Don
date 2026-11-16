@@ -104,5 +104,5 @@ export function loadMineMarket({ cityId, buyerObjectId }) {
 }
 
 export function sellMineSubtype({ cityId, buyerObjectId, subtypeCode, quantity = 1 }) {
-  return invokeMineAction('sell', { cityId, buyerObjectId, subtypeCode, quantity });
+  return invokeMineAction('station_sale', { cityId, buyerObjectId, subtypeCode, quantity });
 }
