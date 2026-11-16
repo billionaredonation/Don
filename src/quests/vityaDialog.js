@@ -1,6 +1,7 @@
 import {getMapObjects} from '../mapObjects/mapObjectsRepository.js';
 import {invokeLumberAction,getLumberUserErrorMessage} from '../lumber/lumberApi.js';
 import './stationBreakfast.css';
+import {openFactoryFinale} from './factoryFinale.js';
 
 const lines={
   breakfast:'Саша тебя ещё на вокзале ждёт. Поешь, выпей чай или кофе и возвращайся.',
@@ -31,6 +32,7 @@ export async function openVitya(npc){
     p.textContent=lines[q.step]||'Неизвестный этап задания.';
     if(q.step==='done'){
       const t=await invokeLumberAction('first_trade_status');if(!d.open)return;
+      if(t.done){d.close();d.remove();await openFactoryFinale(npc);return;}
       p.textContent=t.done?'Первую самостоятельную продажу ты уже сделал. С выручкой!':
         'Теперь попробуй другую работу: собери урожай на ферме или добудь сырьё в доступной тебе шахте. Продай хотя бы одну единицу такого же товара местному скупщику. Награда одна на обе профессии: 50 ₴ и до 10 общего опыта.'+
         (t.crops?.length||t.ores?.length?' Добыча уже засчитана — осталось продать.':'');
