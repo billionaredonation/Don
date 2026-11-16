@@ -161,7 +161,7 @@ export function getFarmUserErrorMessage(error) {
 async function invokeFunction(functionName, action, payload = {}) {
   const initData = telegramInitData();
   if (!initData) throw new Error('TELEGRAM_SESSION_REQUIRED');
-  if (['buy_tool', 'refresh_tool', 'sell_crop', 'buy', 'sell'].includes(action)) {
+  if (['buy_tool', 'refresh_tool', 'buy', 'sell'].includes(action)) {
     await requireFarmUtilities(payload.businessId || payload.buyerObjectId);
   }
   const { data, error } = await supabase.functions.invoke(functionName, {
