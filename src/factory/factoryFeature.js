@@ -307,8 +307,8 @@ export function enableFactoryFeature({ root, cityId }) {
   action('[data-factory-cook]', () => gov?.state ? shift('cook','',q('[data-factory-cook]').dataset.batchId) : cookFactoryBatch(currentId, cityId, q('[data-factory-cook]').dataset.batchId));
   q('[data-factory-finish]').onclick = () => {
     if(gov?.state){
-      void run(async()=>{const result=await shift('pack','',q('[data-factory-finish]').dataset.batchId);
-        if(result.tour){modal.hidden=true;await resumeFactoryLesson();}
+      void run(async()=>{await shift('pack','',q('[data-factory-finish]').dataset.batchId);
+        void resumeFactoryLesson().catch(()=>{});
       },getFactoryError,'Партия на складе. Зарплата зачислена на счёт.');return;
     }
     const batch = snapshot?.batch || snapshot?.activeBatch || null;
@@ -377,4 +377,3 @@ export function enableFactoryFeature({ root, cityId }) {
   window.addEventListener('mn:factory-object-action', onAction);
   return () => { clearTimeout(timer); window.removeEventListener('mn:factory-object-action', onAction); modal.remove(); };
 }
-
