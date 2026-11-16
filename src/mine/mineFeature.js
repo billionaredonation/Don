@@ -716,26 +716,7 @@ export function enableMineFeature({ root, cityId } = {}) {
     busy = true;
     renderInventory();
     setStatus('Взвешиваем и продаём сырьё…');
-    let reservationId = '';
-    let reserved = false;
     try {
-      const business = businessState || await refreshBusiness({ silent: false });
-      if (!business) return;
-      if (business.owned) {
-        if (!market || market.unlocked === false) throw new Error('MINE_MARKET_UNAVAILABLE');
-        const expectedAmount = requestedQuantity * Math.max(0, Number(market.unitPrice || 0));
-        const reservation = await reserveJobBusinessPayout({
-          businessId: activeBuyerObjectId,
-          cityId,
-          jobType: 'mine',
-          itemType: subtypeCode,
-          quantity: requestedQuantity,
-          amount: expectedAmount,
-        });
-        if (reservation?.business) publishBusiness(reservation.business);
-        reservationId = String(reservation?.reservationId || '');
-        reserved = Boolean(reservationId);
-      }
 
       const result = await sellMineSubtype({
         cityId,
@@ -746,31 +727,11 @@ export function enableMineFeature({ root, cityId } = {}) {
       if (result.inventory) publishInventory(result.inventory);
       if (result.market) publishMarket(result.market);
 
-      if (reserved) {
-        try {
-          const committed = await commitJobBusinessPayout({
-            businessId: activeBuyerObjectId,
-            cityId,
-            jobType: 'mine',
-            reservationId,
-            quantity: Math.max(1, Number(result.soldQuantity) || requestedQuantity),
-            amount: Math.max(0, Number(result.totalPrice) || 0),
-          });
-          if (committed?.business) publishBusiness(committed.business);
-        } catch (commitError) {
-          console.warn('[mine] business payout commit failed:', commitError);
-          void refreshBusiness({ silent: true });
-        }
-      }
+      void refreshBusiness({silent:true});
 
       setStatus(`Продано ${Number(result.soldQuantity) || 0} кг · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴`, 'success');
     } catch (error) {
-      if (reserved && reservationId) {
-        try {
-          const refunded = await refundJobBusinessPayout({ businessId: activeBuyerObjectId, cityId, jobType: 'mine', reservationId });
-          if (refunded?.business) publishBusiness(refunded.business);
-        } catch (refundError) { console.warn('[mine] payout refund failed:', refundError); }
-      }
+
       const raw = String(error?.message || error || '');
       setStatus(raw.includes('JOB_BUSINESS_') ? getJobBusinessUserErrorMessage(error) : getMineUserErrorMessage(error), 'error');
     } finally {
