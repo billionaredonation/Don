@@ -1,5 +1,7 @@
 import { syncBusinessUtilityGate, clearBusinessUtilityGate } from '../utilities/businessUtilityGate.js';
 import './factory.css';
+import {invokeLumberAction} from '../lumber/lumberApi.js';
+import {resumeFactoryLesson} from '../quests/factoryFinale.js';
 import './factoryRedesign.css';
 import { FACTORY_CONFIG, FACTORY_PROCUREMENT_ITEMS, FACTORY_RAW_ITEMS, FACTORY_RECIPES, FACTORY_ROLES, formatFactoryMoney } from './factoryConfig.js';
 import { loadFactorySnapshot, purchaseFactory, transferFruitToFactory, startFactoryBatch, cookFactoryBatch, finishFactoryBatch, attemptFactoryWorkplaceTheft, declineFactoryWorkplaceTheft, depositFactory, withdrawFactory, setFactoryStaff, removeFactoryStaff, setFactoryWholesalePrice, setFactoryProductionWage, getFactoryError } from './factoryApi.js';
@@ -206,6 +208,8 @@ export function enableFactoryFeature({ root, cityId }) {
   const modal = root.querySelector('[data-factory-modal]');
   let currentId = '', currentPublicId = '—', currentLegal = getBusinessLegalPayload({ legalForm:'tov' }), snapshot = null, procurement = null, timer = 0, busy = false;
   const q = (s) => modal.querySelector(s);
+  let gov=null;
+  const shift=(op,recipe='',batch='')=>invokeLumberAction('state_food',{op,recipe,batch,objectId:currentId,cityId});
   const qa = (s) => [...modal.querySelectorAll(s)];
   const feedback = (message, type = 'info') => {
     const node = q('[data-factory-feedback]');
@@ -246,14 +250,15 @@ export function enableFactoryFeature({ root, cityId }) {
   };
   const refresh = async () => {
     snapshot = await loadFactorySnapshot(currentId, cityId);
+    gov=snapshot?.factory && !snapshot.factory.ownerId ? await shift('status') : null;
     procurement = null;
     render();
     procurement = snapshot?.isOwner ? await loadProcurementSnapshot({ buyerKind:'factory', buyerId:currentId, cityId, buyerType:'food' }) : null;
     render();
   };
   function render() {
-    syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentPublicId, objectIds:[currentId] });
-    const s = snapshot || {}, business = s.factory || {}, raw = s.raw || {}, products = s.products || {}, prices = s.wholesalePrices || {}, wages = s.productionWages || {}, batch = s.activeBatch || null;
+    if(gov?.state) clearBusinessUtilityGate(modal); else syncBusinessUtilityGate(modal, { isOwner:Boolean(snapshot?.isOwner), objectId:currentPublicId, objectIds:[currentId] });
+    const s = snapshot || {}, business = s.factory || {}, raw = s.raw || {}, products = s.products || {}, prices = s.wholesalePrices || {}, wages = s.productionWages || {}, batch = gov?.state ? gov.batch : s.activeBatch;
     q('[data-factory-state]').textContent = business.ownerName ? (batch ? 'Линия работает' : 'Линия свободна') : 'Государственный';
     q('[data-factory-role]').textContent = s.canProduce && !s.isOwner ? 'Рабочий' : s.roleLabel || 'Посетитель'; q('[data-factory-cash]').textContent = s.canManage ? formatFactoryMoney(business.cash) : 'Скрыто';
     q('[data-factory-buy]').hidden = Boolean(business.ownerId); q('[data-factory-owned]').hidden = !business.ownerId;
@@ -262,10 +267,16 @@ export function enableFactoryFeature({ root, cityId }) {
     q('[data-factory-purchase-legal]').textContent = `${currentLegal.legalFormLabel} · ${currentLegal.taxGroupLabel}`;
     FACTORY_RAW_ITEMS.forEach((i) => { q(`[data-factory-raw="${i.itemType}"]`).textContent = `${Number(raw[i.itemType] || 0)} ед.`; });
     Object.keys(FACTORY_RECIPES).forEach((id) => { q(`[data-factory-product="${id}"]`).textContent = `${Number(products[id] || 0)} ед.`; });
-    qa('[data-factory-offer]').forEach((b) => { b.disabled = !s.canManage || Number(products[b.dataset.factoryOffer] || 0) < 1; });
+    qa('[data-factory-offer]').forEach((b) => { b.disabled = !(gov?.state ? gov.admin : s.canManage) || Number(products[b.dataset.factoryOffer] || 0) < 1; });
     Object.keys(FACTORY_RECIPES).forEach((id) => { const input = q(`[data-factory-wholesale-price="${id}"]`); if (input && prices[id]) input.value = String(prices[id]); const offerPrice = q(`[data-factory-offer-price="${id}"]`); if (offerPrice && prices[id]) offerPrice.value = String(prices[id]); });
     Object.keys(FACTORY_RECIPES).forEach((id) => { const input = q(`[data-factory-production-wage="${id}"]`); if (input && wages[id] !== undefined) input.value = String(wages[id]); });
-    qa('[data-factory-start]').forEach((b) => b.disabled = !(s.canLoad || s.canProduce) || Boolean(batch));
+    qa('[data-factory-start]').forEach((b) => b.disabled = !(gov?.state || s.canLoad || s.canProduce) || Boolean(batch));
+    if(gov?.state) {
+      q('[data-factory-role]').textContent='Свободная смена · без найма';
+      q('[data-factory-cash]').textContent='Платит государство';
+      qa('[data-factory-raw]').forEach(el=>el.textContent='Без лимита');
+      q('.mn-factory-exchange-note').textContent='Партии остаются на складе. Только администратор выставляет их на биржу.';
+    } else q('.mn-factory-exchange-note').textContent='Владелец выставляет готовые партии на биржу для закупки магазинами.';
     qa('[data-factory-deliver]').forEach((b) => b.disabled = !s.isOwner);
     renderProcurementControls(modal, 'factory', procurement, FACTORY_PROCUREMENT_ITEMS, { canManage:s.isOwner, busy });
     const line = q('[data-factory-line]'), cook = q('[data-factory-cook]'), finish = q('[data-factory-finish]');
@@ -277,11 +288,11 @@ export function enableFactoryFeature({ root, cityId }) {
       if (batch.stage === 'loaded') {
         line.querySelector('strong').textContent = `${recipe?.label || 'Партия'} · сырьё подано`;
         line.querySelector('small').textContent = 'Теперь повар должен разложить ингредиенты и начать готовку';
-        cook.hidden = false; cook.disabled = !(s.canCook || s.canProduce); cook.dataset.batchId = batch.id;
+        cook.hidden = false; cook.disabled = !(gov?.state || s.canCook || s.canProduce); cook.dataset.batchId = batch.id;
       } else {
         line.querySelector('strong').textContent = `${recipe?.label || 'Партия'} · ${left ? `готовится ${left} сек.` : 'готово к упаковке'}`;
         line.querySelector('small').textContent = left ? 'Повар готовит блюдо' : 'Упаковщик может передать продукт на склад';
-        finish.hidden = left > 0; finish.disabled = !(s.canPack || s.canProduce); finish.dataset.batchId = batch.id;
+        finish.hidden = left > 0; finish.disabled = !(gov?.state || s.canPack || s.canProduce); finish.dataset.batchId = batch.id;
         clearTimeout(timer); if (left > 0) timer = setTimeout(render, 1000);
       }
     }
@@ -292,9 +303,14 @@ export function enableFactoryFeature({ root, cityId }) {
   q('[data-factory-close]').onclick = () => { modal.hidden = true; clearTimeout(timer); };
   qa('[data-factory-tab]').forEach((b) => b.onclick = () => tab(b.dataset.factoryTab));
   action('[data-factory-purchase]', () => purchaseFactory(currentId, cityId));
-  qa('[data-factory-start]').forEach((b) => b.onclick = () => run(() => startFactoryBatch(currentId, cityId, b.dataset.factoryStart, q(`[data-factory-ingredient="${b.dataset.factoryStart}"]`)?.value || ''), getFactoryError, 'Сырьё подано на линию. Следующий этап — готовка.'));
-  action('[data-factory-cook]', () => cookFactoryBatch(currentId, cityId, q('[data-factory-cook]').dataset.batchId));
+  qa('[data-factory-start]').forEach((b) => b.onclick = () => run(() => gov?.state ? shift('load',b.dataset.factoryStart) : startFactoryBatch(currentId, cityId, b.dataset.factoryStart, q(`[data-factory-ingredient="${b.dataset.factoryStart}"]`)?.value || ''), getFactoryError, 'Сырьё подано на линию. Следующий этап — готовка.'));
+  action('[data-factory-cook]', () => gov?.state ? shift('cook','',q('[data-factory-cook]').dataset.batchId) : cookFactoryBatch(currentId, cityId, q('[data-factory-cook]').dataset.batchId));
   q('[data-factory-finish]').onclick = () => {
+    if(gov?.state){
+      void run(async()=>{const result=await shift('pack','',q('[data-factory-finish]').dataset.batchId);
+        if(result.tour){modal.hidden=true;await resumeFactoryLesson();}
+      },getFactoryError,'Партия на складе. Зарплата зачислена на счёт.');return;
+    }
     const batch = snapshot?.batch || snapshot?.activeBatch || null;
     const recipeId = batch?.recipeId || '';
     const recipe = FACTORY_RECIPES[recipeId];
