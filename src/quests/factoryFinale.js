@@ -1,6 +1,10 @@
 import {invokeLumberAction} from '../lumber/lumberApi.js';
 import {state} from '../state.js';
+import {cities} from '../cities/index.js';
 import './factoryFinale.css';
+const maps=import.meta.glob('../../*.{png,webp,avif}',{eager:true,query:'?url',import:'default'});
+function remoteMap(city){const file=cities[city]?.map?.split('/').pop();if(!file)return null;
+ const stem=file.replace(/\.[^.]+$/,'');return maps['../../'+stem+'.avif']||maps['../../'+stem+'.webp']||maps['../../'+file];}
 const roles=o=>[o?.type,o?.payload?.type,o?.payload?.serviceType,o?.payload?.jobType];
 export const questNpc=o=>roles(o).find(t=>t==='lumber_vitya'||t==='station_sasha');
 // No quest-specific factory routing. Every blip opens its native production panel.
@@ -34,7 +38,7 @@ export async function resumeFactoryLesson(){
 export async function openFactoryFinale(o){
  if(document.querySelector('dialog.mn-finale'))return;
  const d=document.createElement('dialog');d.className='mn-finale';
- d.innerHTML='<section><small></small><h2></h2><p aria-live="polite"></p><footer></footer></section>';
+ d.innerHTML='<div class="mn-tour-atlas" hidden><div><img alt=""><b>📍</b></div></div><section><small></small><h2></h2><p aria-live="polite"></p><footer></footer></section>';
  document.body.append(d);d.showModal();
  const $=s=>d.querySelector(s),footer=$('footer');
  let timer=0,q={},busy=false,cameraCity=null;
@@ -53,12 +57,17 @@ export async function openFactoryFinale(o){
   catch(e){stop();$('p').textContent=String(e?.message||e);footer.replaceChildren();btn('Повторить',()=>go('status'));btn('Закрыть',()=>d.close());}
   finally{busy=false;footer.inert=false;}
  }
- function render(){footer.replaceChildren();d.classList.toggle('tour',q.step==='tour');$('small').textContent='ОСВОЕНИЕ ГОРОДА';$('h2').textContent=questNpc(o)==='station_sasha'?'Саша':'Виталий';
+ function render(){footer.replaceChildren();$('.mn-tour-atlas').hidden=true;d.classList.remove('regional');d.classList.toggle('tour',q.step==='tour');$('small').textContent='ОСВОЕНИЕ ГОРОДА';$('h2').textContent=questNpc(o)==='station_sasha'?'Саша':'Виталий';
   if(q.step==='tour'){
    const s=q.route[q.page];if(!s){$('p').textContent='Маршрут завершён.';btn('В город',()=>go('skip'));return;}
-   cameraCity=q.city;camera({city:q.city,x:Number(s.x),y:Number(s.y)});
+   if(s.remote){stop();d.classList.add('regional');const map=remoteMap(s.city);
+    if(map){const atlas=$('.mn-tour-atlas');atlas.hidden=false;const img=atlas.querySelector('img');img.src=map;img.alt='Карта: '+(cities[s.city]?.name||s.city);
+     const pin=atlas.querySelector('b');pin.style.left=s.x+'%';pin.style.top=s.y+'%';pin.title=lines[s.kind]?.[0]||s.kind;}}
+   else{cameraCity=q.city;camera({city:q.city,x:Number(s.x),y:Number(s.y)});}
    const [title,text]=lines[s.kind]||['Город','Посмотри на отмеченный объект.'];
    $('small').textContent='ВИТАЛИЙ · '+(q.page+1)+' / '+q.route.length+' · 10 сек.';$('h2').textContent=title;$('p').textContent=text;
+   if(s.remote){const town=cities[s.city]?.name||s.city;$('h2').textContent=town+' · '+title;
+    $('p').textContent='У нас такого места пока нет. Ближайший город, где оно есть, — '+town+'. Туда можно добраться пешком или на машине. '+text;}
    btn(q.page+1===q.route.length?'В свободную игру':'Далее',()=>go('next'));btn('Пропустить экскурсию',()=>go('skip'));
    timer=setTimeout(()=>go('next'),10000);return;
   }
