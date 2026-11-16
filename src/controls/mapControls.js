@@ -814,7 +814,21 @@ export function enableMapControls(stage, viewport, options = {}) {
     }, wait);
   }
 
-  function focusOnPlayer(playerX, playerY) {
+  let tourPoint=null, backPoint=null;
+  function tourCamera(e){
+    const p=e.detail;
+    if(!p || String(p.city)!==String(cityId))return;
+    if(p.end){if(!tourPoint)return;tourPoint=null;const back=backPoint;backPoint=null;if(back)focusOnPlayer(...back);return;}
+    if(!Number.isFinite(p.x)||!Number.isFinite(p.y))return;
+    if(!tourPoint)backPoint=[lastFocusX,lastFocusY];
+    tourPoint=[p.x,p.y];paintFocus(...tourPoint);
+  }
+  window.addEventListener('mn:quest-camera',tourCamera);
+  function focusOnPlayer(playerX,playerY){
+    if(tourPoint)return;
+    paintFocus(playerX,playerY);
+  }
+  function paintFocus(playerX, playerY) {
     const target = computeTargetMapPosition(playerX, playerY);
 
     if (!target) return;
@@ -886,6 +900,7 @@ export function enableMapControls(stage, viewport, options = {}) {
 
   return {
     cleanup() {
+      window.removeEventListener('mn:quest-camera',tourCamera);
       clearTimeout(resizeRefreshTimer);
       window.clearTimeout(tileCleanupTimer);
 
