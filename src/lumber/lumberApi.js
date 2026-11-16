@@ -86,5 +86,5 @@ export const sawLumberLog = ({ cityId, stationObjectId, miniGameScore = 0 }) => 
   invokeLumberAction('saw', { cityId, stationObjectId, miniGameScore })
 );
 export const sellLumberItem = ({ cityId, stationObjectId, itemType, quantity = 1, channel = 'station' }) => (
-  invokeLumberAction('sell', { cityId, stationObjectId, itemType, quantity, channel })
+  invokeLumberAction('station_sale', { cityId, stationObjectId, itemType, quantity, channel })
 );
