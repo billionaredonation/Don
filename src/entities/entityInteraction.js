@@ -1,4 +1,5 @@
 import { getMapObjects } from '../mapObjects/mapObjectsRepository.js';
+import { questNpc, isLessonFactory, openFactoryFinale } from '../quests/factoryFinale.js';
 
 import {
   createMapObjectsLayer,
@@ -1613,6 +1614,7 @@ export function enableEntityInteraction({
   }
 
   function getNearestInteractableObject() {
+    let guide=null, guideDistance=Infinity;
     let bestObject = null;
     let bestDistance = Number.POSITIVE_INFINITY;
     let nearestFarmPlant = null;
@@ -1683,6 +1685,9 @@ export function enableEntityInteraction({
 
       const candidateRadius = getObjectInteractionRadius(object);
       if (distance > candidateRadius) return;
+      if (questNpc(object) && distance<=WORK_OBJECT_INTERACTION_RADIUS_PX && distance<guideDistance) {
+        guide=object; guideDistance=distance;
+      }
 
       if (isFarmPlantType(candidateType) && distance < nearestFarmPlantDistance) {
         nearestFarmPlant = object;
@@ -1706,6 +1711,7 @@ export function enableEntityInteraction({
     });
 
     // Если растение и лавка стоят рядом, действие должно относиться к растению.
+    if (guide && (bestObject===guide || isLumberStationObject(bestObject))) return guide;
     if (isFarmStationObject(bestObject) && nearestFarmPlant) return nearestFarmPlant;
     if (isMineStationObject(bestObject) && nearestMineNode) return nearestMineNode;
     if (isLumberStationObject(bestObject) && nearestLumberTree) return nearestLumberTree;
@@ -2084,6 +2090,19 @@ export function enableEntityInteraction({
 
     hideInteractionHint();
 
+    const npc=questNpc(object);
+    if (!npc && isLessonFactory(object)) {
+      window.dispatchEvent(new CustomEvent('mn:factory-object-action',{detail:{object}}));
+      return true;
+    }
+    if (npc) {
+      if(document.querySelector('dialog[open]')) return true;
+      const start=npc==='lumber_vitya' ? import('../quests/vityaDialog.js').then(m=>m.openVitya(object))
+        : npc==='station_sasha' ? import('../quests/stationBreakfast.js').then(m=>m.openStation(object))
+        : openFactoryFinale(object);
+      Promise.resolve(start).catch(e=>showInteractionNotice(root,String(e?.message||e)));
+      return true;
+    }
     if (panel?.shouldSkipPrompt?.(object)) {
       dispatchMapObjectAction(object);
       return true;
@@ -2146,7 +2165,7 @@ export function enableEntityInteraction({
     if (!isMobileGameplayDevice() || hint.hidden || window.__MN_PLAYER_CONTROLS_LOCKED__ === true) return;
 
     const object = getNearestInteractableObject();
-    if (!object || !isWorkObject(object)) return;
+    if (!object || (!isWorkObject(object) && !questNpc(object))) return;
 
     event.preventDefault();
     event.stopPropagation();
