@@ -1,6 +1,7 @@
 import { supabase } from '../supabaseClient.js';
 import { state } from '../state.js';
 import './stationBreakfast.css';
+import {openFactoryFinale,questNpc,resumeFactoryLesson} from './factoryFinale.js';
 
 const names = { bun:'Булочка с творогом', tea:'Чай', coffee:'Кофе' };
 const messages = { STATION_NEAR:'Подойдите ближе к ларьку и повторите.',
@@ -23,6 +24,7 @@ function step(q) {
 }
 function emit(event,detail){window.dispatchEvent(new CustomEvent(event,{detail}));}
 export async function stationArrivalHint(){
+  void resumeFactoryLesson().catch(()=>{});
   try{
     const {quest,level}=await call('status');
     if(!quest?.completed && level<=3) emit('mn:toast',{type:'info',message:quest?step(quest):'На вокзале вас ждёт Саша 🧑. Подойдите и выберите «Поговорить с Сашей».'});
@@ -48,7 +50,7 @@ export async function useStationItem(item){
   emit('mn:toast',{message,type:'success'});return message;
 }
 export async function openStation(object){
-  const npc=[object?.type,object?.payload?.serviceType].includes('station_sasha');
+  const npc=questNpc(object)==='station_sasha';
   if(document.querySelector('.mn-station'))return;
   const d=document.createElement('dialog'); d.className='mn-station';
   d.innerHTML='<small>ВОКЗАЛ · ГЛАВА 1</small><h2>Первый завтрак</h2><p data-story></p><p data-step aria-live="polite">Загружаем…</p><div data-actions></div><button data-close>Закрыть</button>';
@@ -81,6 +83,14 @@ export async function openStation(object){
     });
     if(q.purchases)button('Открыть инвентарь',()=>{d.close();if(!window.__MN_INVENTORY_OPEN__)emit('mn:inventory-toggle-request',{});});
   }
-  async function load(){render(await call('status'));}
+  async function load(){const r=await call('status');
+    if(!d.open)return;
+    if(npc && r.quest?.completed){
+      const {invokeLumberAction}=await import('../lumber/lumberApi.js');
+      const t=await invokeLumberAction('first_trade_status');
+      if(!d.open)return;
+      if(t.done){d.close();d.remove();await openFactoryFinale(object);return;}
+    }
+    render(r);}
   try{await load();}catch(e){desc.textContent=e.message;button('Повторить',load);}
 }
