@@ -785,12 +785,12 @@ export function enableFarmFeature({ root, cityId } = {}) {
       modal?.querySelectorAll(`[data-farm-sale-row="${itemType}"] button`).forEach((button) => {
         const market = marketItem(itemType);
         button.disabled = busy
-          || !utilityState?.operational
+          || (businessState?.owned !== false && !utilityState?.operational)
           || itemQuantity(itemType) <= 0
           || !activeBuyerObjectId
           || market?.unlocked === false
           || Number(market?.remainingQuantity ?? 0) <= 0
-          || Number(businessState?.warehouse?.free ?? FARM_WAREHOUSE_CAPACITY) <= 0;
+          || (businessState?.owned !== false && Number(businessState?.warehouse?.free ?? FARM_WAREHOUSE_CAPACITY) <= 0);
       });
     });
 
@@ -1257,7 +1257,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   async function handleSell(event) {
     const button = event.target?.closest?.('[data-farm-sell]');
     if (!button || busy || performance.now() < scrollClickBlockedUntil) return;
-    if (!utilityState?.operational) return;
+    if (businessState?.owned !== false && !utilityState?.operational) return;
     const itemType = String(button.dataset.farmSell || '');
     const quantity = Math.max(0, Math.floor(Number(button.dataset.quantity) || 0));
     busy = true;
@@ -1283,7 +1283,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
         refreshBusiness({ silent: true, force: true }),
       ]);
       setStatus(
-        `Продано ${result.soldQuantity || 0} шт. по ${Number(result.unitPrice || 0)} ₴ · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴. Выплата списана с баланса фермы.`,
+        `Продано ${result.soldQuantity || 0} шт. по ${Number(result.unitPrice || 0)} ₴ · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴. ${result.stateOwned ? 'Государственная скупка.' : 'Оплата за счёт владельца.'}`,
         'success',
       );
     } catch (error) {
