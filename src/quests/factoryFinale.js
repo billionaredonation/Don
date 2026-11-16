@@ -1,76 +1,76 @@
 import {invokeLumberAction} from '../lumber/lumberApi.js';
-import {getMapObjects} from '../mapObjects/mapObjectsRepository.js';
 import {state} from '../state.js';
 import './factoryFinale.css';
-const types=o=>[o?.type,o?.payload?.type,o?.payload?.serviceType,o?.payload?.jobType,o?.category];
-export const questNpc=o=>types(o).find(t=>['lumber_vitya','station_sasha'].includes(t));
-const key=()=>'mn-factory-lesson:'+String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id||state.telegramId||state.playerId);
-function mark(id){
- document.getElementById('mn-lesson-pin')?.remove();
- if(!id)return;
- const style=document.createElement('style'); style.id='mn-lesson-pin';
- style.textContent='[data-map-object-id="'+CSS.escape(String(id))+'"]{outline:3px solid #ffd363!important;outline-offset:3px;border-radius:50%}';
- document.head.append(style);
+const roles=o=>[o?.type,o?.payload?.type,o?.payload?.serviceType,o?.payload?.jobType];
+export const questNpc=o=>roles(o).find(t=>t==='lumber_vitya'||t==='station_sasha');
+// No quest-specific factory routing. Every blip opens its native production panel.
+export const isLessonFactory=()=>false;
+const labels={fruit_factory:'пищевой',wood_processing_factory:'деревообрабатывающий',metallurgy_factory:'металлургический',tool_assembly_factory:'сборка инструментов',textile_factory:'швейный',construction_factory:'производство стройматериалов',car_factory:'автозавод',oil_refinery:'НПЗ'};
+const lines={
+ oil_well:['Нефтяная скважина','Здесь добывают сырую нефть. Чтобы получить топливо, нефть везут на завод.'],
+ oil_refinery:['Нефтеперерабатывающий завод','Вот НПЗ. Здесь из нефти получают А-92, А-95 и дизель, а потом поставляют топливо на заправки.'],
+ fuel_station:['АЗС','Здесь заправляешь машину. Цену устанавливает владелец заправки.'],
+ car_dealer:['Автосалон','Хочешь свою машину — сюда. Заводы поставляют автомобили, а ты выбираешь из тех, что салон выставил на продажу.'],
+ auto_service:['СТО','Если машина износилась, приезжай сюда на ремонт. Дорожный ремкомплект полноценный ремонт не заменяет.'],
+ bank:['Банк','Здесь открываешь счета. Первую заводскую зарплату ищи на зарплатном счёте, а не в наличных.'],
+ hospital:['Больница','Здесь можно получить лечение. В игре врачом может работать другой игрок.'],
+ logistics_center:['Логистический центр','Хочешь работать водителем? Здесь берут заявки на перевозку между предприятиями.'],
+ house:['Жильё','Дома в городе можно покупать и продавать. Владельцу нужно следить за коммунальными услугами.'],
+ lumber_vitya:['Лесорубка','А это место ты уже знаешь. Дальше сам решаешь: освоить профессию, купить своё дело или найти сообщество. Удачи!']
+};
+const rpc=(op,o={},i=-1)=>invokeLumberAction('factory_finale',{op,cityId:o.cityId||o.city_id||state.cityId,objectId:o.id||'',page:i});
+const tell=message=>window.dispatchEvent(new CustomEvent('mn:toast',{detail:{message,type:'info'}}));
+let pending=0,notified=false;
+function observe(q){
+ clearTimeout(pending);
+ if(q.step==='return'&&!notified){notified=true;tell('Смена оплачена. Вернись к Виталию на лесорубку и поговори с ним.');}
+ if(q.step==='work')pending=setTimeout(()=>{if(document.hidden){observe(q);return;}resumeFactoryLesson().catch(()=>observe(q));},15000);
 }
-export const isLessonFactory=o=>types(o).includes('fruit_factory') && String(o.id)===localStorage.getItem(key());
 export async function resumeFactoryLesson(){
- const q=await invokeLumberAction('factory_finale',{op:'status'});
- if(q.factory && q.step!=='done')localStorage.setItem(key(),q.factory);else localStorage.removeItem(key());
- mark(q.step==='done'?null:q.factory);
- if(q.step==='tour' && !document.querySelector('dialog[open]')){
-   await openFactoryFinale({id:q.factory,cityId:q.city,...q.position});
- }
+ const q=await rpc('status');observe(q);
+ if(q.step==='tour' && !document.querySelector('dialog[open]') && String(state.cityId||q.city)===String(q.city))
+   await openFactoryFinale({cityId:q.city});
 }
-const slides=[
- ['🚘 Личный автомобиль','В автосалоне выбираешь машину, которую поставил завод. Она станет твоей после покупки. За ней придётся следить: топливо на АЗС, ремонт на СТО.',['car_dealer','auto_service']],
- ['⛽ От скважины до бака','Скважина даёт нефть, НПЗ выпускает бензин и дизель. На АЗС выбирай топливо под свой двигатель.',['oil_well','oil_refinery','fuel_station']],
- ['🏦 Деньги и контракты','Зарплатный счёт нужен для выплат за работу. Владельцы выбирают партнёров, договариваются о поставках и заказывают перевозку.',['bank','logistics_center']],
- ['🏠 Дом и дело','Дома и предприятия можно покупать и продавать. Частному бизнесу нужны коммунальные услуги и деньги на работу.',['house','fruit_factory']],
- ['🏥 Здоровье','Еда и вода расходуются. В больнице есть лекарства, а игрок-медик может предложить лечение.',['hospital']],
- ['🤝 Люди города','Сообщества объединяют игроков и дают бонусы. Есть и мелкие банды. Кем стать, где работать и с кем играть — теперь решаешь ты.',['community','station_sasha','lumber_vitya']]
-];
 export async function openFactoryFinale(o){
  if(document.querySelector('dialog.mn-finale'))return;
- const city=o.cityId||o.city_id||state.cityId;
- const rpc=(op,page=-1)=>invokeLumberAction('factory_finale',{op,cityId:city,objectId:o.id,page});
- const d=document.createElement('dialog');d.className='mn-finale';d.innerHTML='<div class="mn-flight" hidden><div></div><b></b></div><section><small></small><h2></h2><p aria-live="polite"></p><footer></footer></section>';
- const $=s=>d.querySelector(s),p=$('p'),footer=$('footer'),flight=$('.mn-flight'),plane=flight.firstElementChild;
- let q={},objects=[],busy=false,watch=0;
- const pos=(v)=>Math.min(100,Math.max(0,Number(v)||0));
- function camera(x,y){plane.style.left=(50-pos(x)*2.5)+'%';plane.style.top=(50-pos(y)*2.5)+'%';}
- const map=document.querySelector('.gta-map-image:not(.gta-map-glow)'),url=document.querySelector('.gta-map-viewport')?.dataset.mapSrc||map?.dataset.mapSrc||map?.currentSrc||map?.src;
- if(url)plane.style.backgroundImage='url('+JSON.stringify(url)+')';
- camera(o.x,o.y);
- function act(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=()=>run(fn);footer.append(b);}
- async function run(fn){if(busy)return;busy=true;footer.inert=true;try{await fn();}
- catch(e){if(!d.open)return;p.textContent=String(e?.message||e);footer.replaceChildren();act('Проверить ещё раз',()=>go('status'));act('Закрыть',()=>d.close());}
- finally{busy=false;footer.inert=false;}}
- async function go(op){q=await rpc(op,q.page);if(!d.open)return;render();
- if(op==='pack' && q.step==='tour')window.dispatchEvent(new CustomEvent('mn:player-inventory-changed'));}
- function render(){
- clearTimeout(watch);footer.replaceChildren();flight.hidden=true;d.classList.toggle('tour',q.step==='tour');
- $('small').textContent='ОСВОЕНИЕ ГОРОДА · ЗАВОД';$('h2').textContent=questNpc(o)==='station_sasha'?'Саша':questNpc(o)?'Дядя Витя':'Мастер смены';
- if(q.factory && q.step!=='done')localStorage.setItem(key(),q.factory);
- mark(q.step==='done'?null:q.factory);
- if(q.step==='offer'){p.textContent='С первой продажей! Теперь посмотрим, как из сырья делают товар. Пойдёшь на смену?';act('Взять направление на завод',()=>go('accept'));}
- else if(q.step==='tour'){
-   const [title,line,targets]=slides[q.page];$('small').textContent='ЭКСКУРСИЯ · '+(q.page+1)+' / 6';$('h2').textContent=title;p.textContent=line;flight.hidden=false;
-   const spot=targets.map(t=>objects.find(v=>types(v).includes(t))).find(Boolean);
-   const point=spot||q.position||o;camera(point.x,point.y);flight.lastElementChild.textContent=spot?title:'Обзор города';
-   act(q.page===5?'Начать свободную игру':'Далее',()=>go('next'));act('Пропустить экскурсию',()=>go('skip'));return;
- }else if(q.step==='done'){localStorage.removeItem(key());$('h2').textContent='Добро пожаловать в город!';p.textContent='Обучение завершено. Удачной смены — уже на твоих условиях.';act('В город',()=>d.close());return;}
- else if(q.step==='trade'){p.textContent='Сначала добудь и продай ресурс по заданию Вити.';}
- else if(String(o.id)!==q.factory){
-   const point=q.position;if(point){flight.hidden=false;camera(point.x,point.y);flight.lastElementChild.textContent='📍 Пищевой завод';}
-   p.textContent='Тебя ждут на пищевом заводе ('+q.city+'). Нужен зарплатный счёт. На отмеченном заводе открой производство, выбери рецепт, приготовь и упакуй партию. Сырьё государственное, зарплата придёт после упаковки.';
-   act('Проверить направление',()=>go('accept'));
- }else if(q.step==='arrive'){p.textContent='Заказ на один хлеб. Мастер выделил 3 порции пшеницы для этой партии. Загрузи их на линию.';act('Загрузить 3 пшеницы',()=>go('load'));}
- else if(q.step==='loaded'){p.textContent='Сырьё загружено. Теперь запусти печь.';act('Начать выпечку',()=>go('cook'));}
- else if(q.step==='baking'){const ms=Date.parse(q.ready_at)-Date.now();p.textContent=ms>0?'Партия в печи. Через несколько секунд хлеб можно упаковать.':'Хлеб готов. Упакуй его, чтобы закончить смену.';if(ms>0)watch=setTimeout(()=>{if(d.open)render();},Math.min(ms+80,4000));else act('Упаковать хлеб и закончить смену',()=>go('pack'));}
- act('Закрыть',()=>d.close());
+ const d=document.createElement('dialog');d.className='mn-finale';
+ d.innerHTML='<section><small></small><h2></h2><p aria-live="polite"></p><footer></footer></section>';
+ document.body.append(d);d.showModal();
+ const $=s=>d.querySelector(s),footer=$('footer');
+ let timer=0,q={},busy=false,cameraCity=null;
+ const camera=detail=>window.dispatchEvent(new CustomEvent('mn:quest-camera',{detail}));
+ function stop(){clearTimeout(timer);if(cameraCity!==null)camera({city:cameraCity,end:true});cameraCity=null;}
+ d.onclose=()=>{stop();window.removeEventListener('keydown',keys,true);d.remove();};
+ d.oncancel=e=>{if(q.step==='tour')e.preventDefault();};
+ function keys(e){if(q.step==='tour'&&['KeyW','KeyA','KeyS','KeyD','KeyE','KeyF','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();e.stopImmediatePropagation();}}
+ window.addEventListener('keydown',keys,true);
+ function btn(label,fn){const b=document.createElement('button');b.textContent=label;b.onclick=fn;footer.append(b);}
+ async function go(op){
+  if(busy||!d.open)return;busy=true;clearTimeout(timer);footer.inert=true;
+  try{q=await rpc(op,o,q.page??-1);if(!d.open)return;
+   if(q.step==='return'&&op==='status'&&questNpc(o)==='lumber_vitya')q=await rpc('visit',o);
+   if(d.open){observe(q);render();}}
+  catch(e){stop();$('p').textContent=String(e?.message||e);footer.replaceChildren();btn('Повторить',()=>go('status'));btn('Закрыть',()=>d.close());}
+  finally{busy=false;footer.inert=false;}
  }
- const stopKeys=e=>{if(d.open && ['KeyW','KeyA','KeyS','KeyD','KeyE','KeyF','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();e.stopImmediatePropagation();}};
- document.body.append(d);d.onclose=()=>{window.removeEventListener('keydown',stopKeys,true);clearTimeout(watch);d.remove();};d.oncancel=e=>{if(q.step==='tour')e.preventDefault();};d.showModal();window.addEventListener('keydown',stopKeys,true);p.textContent='Проверяем задание…';
- void getMapObjects(city).then(rows=>{objects=rows||[];if(d.open && q.step==='tour')render();}).catch(()=>{});
- await run(()=>go('status'));
+ function render(){footer.replaceChildren();d.classList.toggle('tour',q.step==='tour');$('small').textContent='ОСВОЕНИЕ ГОРОДА';$('h2').textContent=questNpc(o)==='station_sasha'?'Саша':'Виталий';
+  if(q.step==='tour'){
+   const s=q.route[q.page];if(!s){$('p').textContent='Маршрут завершён.';btn('В город',()=>go('skip'));return;}
+   cameraCity=q.city;camera({city:q.city,x:Number(s.x),y:Number(s.y)});
+   const [title,text]=lines[s.kind]||['Город','Посмотри на отмеченный объект.'];
+   $('small').textContent='ВИТАЛИЙ · '+(q.page+1)+' / '+q.route.length+' · 10 сек.';$('h2').textContent=title;$('p').textContent=text;
+   btn(q.page+1===q.route.length?'В свободную игру':'Далее',()=>go('next'));btn('Пропустить экскурсию',()=>go('skip'));
+   timer=setTimeout(()=>go('next'),10000);return;
+  }
+  stop();
+  if(q.step==='offer'){
+   $('p').textContent=questNpc(o)==='lumber_vitya'?'Первую продажу освоил. Теперь выбери любой завод, отработай одну смену и получи зарплату на счёт. Потом возвращайся ко мне.':'Поговори с Виталием на лесорубке — он расскажет, где заработать на первой смене.';
+   if(questNpc(o)==='lumber_vitya')btn('Взять задание',()=>go('accept'));
+  }else if(q.step==='work')$('p').textContent='Нужна одна завершённая и оплаченная смена. Нужен зарплатный счёт. Госзавод питания принимает без найма; на частных заводах действуют условия владельца.'+(q.options?.length?' В городе есть: '+q.options.map(k=>labels[k]||k).join(', ')+'.':'');
+  else if(q.step==='return')$('p').textContent='Первые деньги заработаны. Вернись к Виталию на лесорубку.';
+  else if(q.step==='done'){tell('Обучение завершено. Добро пожаловать в открытый мир!');d.close();return;}
+  else $('p').textContent='Сначала добудь и продай ресурс по заданию Виталия.';
+  btn('Закрыть',()=>d.close());
+ }
+ await go('status');
 }
