@@ -213,7 +213,7 @@ function farmModalMarkup() {
 
             <section class="mn-farm4-page" data-farm-page="sell" hidden>
               <div class="mn-farm4-page-head is-market">
-                <span><small>Рынок предприятия</small><h3>Продажа урожая</h3><p>Выплата идёт с баланса бизнеса. Цена и лимит обновляются каждые 3 часа.</p></span>
+                <span><small>Рынок предприятия</small><h3>Продажа урожая</h3><p>На госферме платит государство, на частной — предприятие. Цена и лимит обновляются каждые 3 часа.</p></span>
                 <strong class="mn-farm4-countdown"><small>До обновления</small><b data-farm-market-reset>Загрузка…</b></strong>
               </div>
 
@@ -569,7 +569,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     renderProcurementControls(modal, 'farm', business?.procurement, [], { canManage: isOwner, busy });
     renderBusinessStateSaleControl(modal, { businessId: activeBuyerObjectId, isOwner });
     modal.querySelectorAll('[data-farm-take-bucket]').forEach((button) => {
-      button.disabled = busy || Number(business?.bucketStock || 0) <= 0 || Number(cargo.bucketCount || 0) >= 1;
+      button.disabled = busy || (business?.owned !== false && Number(business?.bucketStock || 0) <= 0) || Number(cargo.bucketCount || 0) >= 1;
     });
     modal.querySelectorAll('[data-farm-buy-buckets]').forEach((button) => {
       button.disabled = busy || !canFund || Number(business?.bucketStock || 0) >= FARM_BUCKET_STOCK_LIMIT;
@@ -586,6 +586,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
     });
 
     syncBusinessToolsIntoInventory();
+    renderUtilities();
     renderFarmUtilityContracts();
     renderInventory();
   }
@@ -733,6 +734,10 @@ export function enableFarmFeature({ root, cityId } = {}) {
     if (!box) return;
     box.replaceChildren();
     const title = document.createElement('strong');
+    if(businessState?.owned===false){
+      title.textContent='Государственная ферма работает без ЖКХ и кассы. Ведро и вода для полива доступны, скупка — по уровню и лимиту.';
+      box.appendChild(title);return;
+    }
     title.textContent = utilityState?.operational
       ? 'Ферма работает · коммунальные услуги активны'
       : utilityError ? 'Не удалось проверить подключения. Торговля недоступна до проверки.'
@@ -810,7 +815,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
         // If tool exists, clicking the card refreshes durability. Warehouse stock is only
         // required for the first purchase, never for repair.
         button.disabled = busy
-          || !utilityState?.operational
+          || (businessState?.owned !== false && !utilityState?.operational)
           || (ownedTool && !needsMigration && !needsRefresh)
           || (!ownedTool && !needsMigration && businessState?.owned !== false && stock <= 0);
         button.dataset.owned = ownedTool && !needsRefresh ? 'true' : 'false';
@@ -1215,7 +1220,7 @@ export function enableFarmFeature({ root, cityId } = {}) {
   async function handleBuy(event) {
     const button = event.target?.closest?.('[data-farm-buy]');
     if (!button || busy || !activeBuyerObjectId || performance.now() < scrollClickBlockedUntil) return;
-    if (!utilityState?.operational) return;
+    if (businessState?.owned !== false && !utilityState?.operational) return;
     const itemType = String(button.dataset.farmBuy || '');
     busy = true;
     renderInventory();
