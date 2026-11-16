@@ -757,39 +757,15 @@ export function enableLumberFeature({ root, cityId } = {}) {
     renderInventory();
     const channel = String(button.dataset.channel || 'station');
     setStatus(channel === 'industry' ? 'Оформляем поставку производству…' : 'Взвешиваем древесину…');
-    let reservationId = '';
-    let reserved = false;
     try {
-      const business = businessState || await refreshBusiness({ silent: false });
-      if (!business) return;
-      if (business.owned) {
-        const expectedAmount = requestedQuantity * Math.max(0, Number(LUMBER_ITEMS[itemType]?.sellPrice || 0));
-        const reservation = await reserveJobBusinessPayout({ businessId: activeStationObjectId, cityId, jobType: 'lumber', itemType, quantity: requestedQuantity, amount: expectedAmount });
-        if (reservation?.business) publishBusiness(reservation.business);
-        reservationId = String(reservation?.reservationId || '');
-        reserved = Boolean(reservationId);
-      }
 
       const result = await sellLumberItem({ cityId, stationObjectId: activeStationObjectId, itemType, quantity: requestedRaw, channel });
       if (result?.inventory) publishInventoryMutation(result.inventory);
 
-      if (reserved) {
-        try {
-          const committed = await commitJobBusinessPayout({ businessId: activeStationObjectId, cityId, jobType: 'lumber', reservationId, quantity: Math.max(1, Number(result.soldQuantity) || requestedQuantity), amount: Math.max(0, Number(result.totalPrice) || 0) });
-          if (committed?.business) publishBusiness(committed.business);
-        } catch (commitError) {
-          console.warn('[lumber] business payout commit failed:', commitError);
-          void refreshBusiness({ silent: true });
-        }
-      }
+      void refreshBusiness({silent:true});
       setStatus(`Продано ${Number(result.soldQuantity) || 0} шт. · +${Number(result.totalPrice || 0).toLocaleString('ru-RU')} ₴${channel === 'industry' ? ' · производство' : ''}`, 'success');
     } catch (error) {
-      if (reserved && reservationId) {
-        try {
-          const refunded = await refundJobBusinessPayout({ businessId: activeStationObjectId, cityId, jobType: 'lumber', reservationId });
-          if (refunded?.business) publishBusiness(refunded.business);
-        } catch (refundError) { console.warn('[lumber] payout refund failed:', refundError); }
-      }
+
       const raw = String(error?.message || error || '');
       setStatus(raw.includes('JOB_BUSINESS_') ? getJobBusinessUserErrorMessage(error) : getLumberUserErrorMessage(error), 'error');
     } finally {
