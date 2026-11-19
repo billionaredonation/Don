@@ -1,0 +1,26 @@
+/* MN-Game: true image colors in every time/weather state.
+   Loaded last via pages/home/home.css. */
+.home .gta-map-viewport > .gta-map-image:not(.gta-map-glow),
+.home[data-time] .gta-map-viewport > .gta-map-image:not(.gta-map-glow),
+.home[data-weather] .gta-map-viewport > .gta-map-image:not(.gta-map-glow),
+.home[data-time][data-weather] .gta-map-viewport > .gta-map-image:not(.gta-map-glow),
+.home .gta-map-mobile-placeholder,
+.home .gta-map-mobile-image {
+  filter: none !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+  background-color: transparent !important;
+}
+
+/* Remove the doubled, overexposed image. */
+.home .gta-map-glow {
+  display: none !important;
+}
+
+/* Do not wash out the image with foreground lighting masks. */
+.home .gta-map-viewport::before,
+.home .gta-map-viewport::after {
+  display: none !important;
+}
