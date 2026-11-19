@@ -202,12 +202,7 @@ function getVitalFillStyle(value, key = 'health') {
   return `--mn-vital-fill: ${Math.round(fill)}%`;
 }
 
-const MAP_FILES = import.meta.glob([
-  '../../*.{png,jpg,jpeg,webp,avif,gif}',
-  '../../assets/**/*.{png,jpg,jpeg,webp,avif,gif}',
-  '../../maps/**/*.{png,jpg,jpeg,webp,avif,gif}',
-  '../../src/assets/**/*.{png,jpg,jpeg,webp,avif,gif}',
-], {
+const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif,gif,svg,bmp}', {
   eager: true,
   query: '?url',
   import: 'default',
@@ -746,7 +741,7 @@ function setupInteriorExitReturn({
 }
 
 // Vite imports packaged map images. Public/Storage URLs are resolved separately.
-const SUPPORTED_MAP_EXTENSIONS = ['webp', 'png', 'jpg', 'jpeg', 'avif', 'gif'];
+const SUPPORTED_MAP_EXTENSIONS = ['webp', 'avif', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp'];
 
 function getMapByFileName(fileName) {
   const target = String(fileName || '').toLowerCase();
@@ -768,84 +763,33 @@ function getOptimizedMapByFileName(fileName) {
   return null;
 }
 
-function getCityMapCandidates(city) {
-  const configured = String(city?.map || '').trim();
-  const clean = configured.split(/[?#]/, 1)[0];
-  const fileName = clean.split('/').pop() || '';
-  const cityName = String(city?.id || city?.slug || '').trim();
-  const candidates = [];
-  const add = (src) => {
-    if (typeof src === 'string' && src.trim() && !candidates.includes(src)) candidates.push(src);
-  };
-  const assetBase = String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
-  const publicUrl = (path) => assetBase + String(path || '').replace(/^\/+/, '').replace(/^\.\//, '');
-
-  if (/^(https?:\/\/|blob:)/i.test(configured)) {
-    add(configured);
-  } else if (configured) {
-    // A leading slash can be a public path; relative paths can also be Vite assets.
-    const bundled = getMapByFileName(fileName) || getOptimizedMapByFileName(fileName);
-    add(bundled);
-    add(configured.startsWith('/') ? configured : publicUrl(configured));
-  }
-
-  const names = [fileName, cityName, cityName && `${cityName}Map`, 'UkraineMap']
-    .filter(Boolean);
-  const formats = SUPPORTED_MAP_EXTENSIONS;
-  for (const name of names) {
-    const stem = name.replace(/\.(png|jpe?g|webp|avif|gif)$/i, '');
-    for (const ext of formats) {
-      const filename = `${stem}.${ext}`;
-      add(getMapByFileName(filename));
-      add(publicUrl(filename));
-      add(publicUrl(`maps/${filename}`));
-    }
-  }
-  return candidates;
-}
-
 function getCityMap(city) {
-  return getCityMapCandidates(city)[0] || null;
-}
+  const configured = String(city?.map || '').trim();
+  const cleanPath = configured.split(/[?#]/, 1)[0];
+  const fileName = cleanPath.split('/').pop();
 
-function setupCityMapFallback(viewport, stage, candidates, cityId) {
-  const images = [...(viewport?.querySelectorAll('img.gta-map-image') || [])];
-  const status = document.createElement('div');
-  status.className = 'mn-map-load-error';
-  status.style.cssText = 'display:none;position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);z-index:30;padding:12px 18px;background:rgba(25,8,8,.90);color:#fff;border:1px solid #b84d4d;border-radius:10px;font:13px system-ui;pointer-events:none;text-align:center;max-width:80%;';
-  stage?.appendChild(status);
-  if (!images.length) {
-    console.warn('[MN map] No image elements to load', { cityId, candidates });
-    return;
+  // Explicit remote URLs (including Supabase Storage), Blob URLs and public paths.
+  // Do not reduce them to a filename: the path and query may authorize access.
+  if (/^(https?:\/\/|blob:)/i.test(configured) || configured.startsWith('/')) {
+    return configured;
   }
-  let index = 0;
-  const primary = images.find((img) => !img.classList.contains('gta-map-glow')) || images[0];
-  const setSource = (src) => {
-    viewport.dataset.mapSrc = src;
-    images.forEach((img) => { img.src = src; });
-  };
-  primary.addEventListener('load', () => {
-    status.style.display = 'none';
-    console.info('[MN map] Loaded:', { cityId, src: primary.currentSrc, width: primary.naturalWidth, height: primary.naturalHeight });
-  });
-  primary.addEventListener('error', () => {
-    const failed = candidates[index];
-    index++;
-    if (index < candidates.length) {
-      console.warn('[MN map] Image failed; trying next candidate', { cityId, failed, next: candidates[index] });
-      setSource(candidates[index]);
-    } else {
-      status.textContent = 'Карта города не загрузилась. Проверь путь к изображению и файлы сборки.';
-      status.style.display = 'block';
-      console.error('[MN map] All image candidates failed', { cityId, candidates });
-    }
-  });
-  if (!candidates.length) {
-    status.textContent = 'Изображение карты города не найдено в конфигурации.';
-    status.style.display = 'block';
-  } else {
-    setSource(candidates[0]);
+
+  // Packaged assets: respect the file selected in city configuration first.
+  const bundled = getMapByFileName(fileName) || getOptimizedMapByFileName(fileName);
+  if (bundled) return bundled;
+
+  // Vite public directory: e.g. city.map = 'maps/zaporizhzhia.webp'.
+  if (configured && cleanPath.includes('/') && !cleanPath.startsWith('../')) {
+    return `${import.meta.env.BASE_URL || '/'}${configured.replace(/^\.\//, '')}`;
   }
+
+  // Preserve the existing default-map behavior for cities without an asset.
+  return (
+    getMapByFileName('UkraineMap.webp') ||
+    getMapByFileName('UkraineMap.png') ||
+    getOptimizedMapByFileName('UkraineMap.png') ||
+    null
+  );
 }
 
 function getCityMapRatio(cityId) {
@@ -1369,8 +1313,7 @@ register('home', async (root) => {
     save();
   }
 
-  const mapCandidates = getCityMapCandidates(city);
-  const mapSrc = mapCandidates[0] || null;
+  const mapSrc = getCityMap(city);
   const isMobileGameplay = isMobileGameplayDevice();
   const cityMapRatio = getCityMapRatio(cityId);
 
@@ -1381,11 +1324,16 @@ register('home', async (root) => {
 
   const mapLayerHtml = isMobileGameplay
     ? `
-          <div
+          <img
             class="gta-map-image gta-map-mobile-placeholder"
+            src="${escapeHtml(mapSrc || '')}"
             data-map-src="${escapeHtml(mapSrc || '')}"
-            aria-hidden="true"
-          ></div>
+            alt="${escapeHtml(city.name)}"
+            loading="eager"
+            decoding="async"
+            fetchpriority="high"
+            draggable="false"
+          />
         `
     : `
           <img
@@ -1628,8 +1576,6 @@ register('home', async (root) => {
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
   const mobileControlsLayer = root.querySelector('.mobile-controls-layer');
-
-  if (!isMobileGameplay) setupCityMapFallback(viewport, stage, mapCandidates, cityId);
 
   /*
     Rain must not live inside the moving multi-thousand-pixel map. Keeping it
