@@ -202,7 +202,7 @@ function getVitalFillStyle(value, key = 'health') {
   return `--mn-vital-fill: ${Math.round(fill)}%`;
 }
 
-const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif}', {
+const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif,gif}', {
   eager: true,
   query: '?url',
   import: 'default',
@@ -740,36 +740,55 @@ function setupInteriorExitReturn({
   };
 }
 
+// Vite imports packaged map images. Public/Storage URLs are resolved separately.
+const SUPPORTED_MAP_EXTENSIONS = ['webp', 'png', 'jpg', 'jpeg', 'avif', 'gif'];
+
 function getMapByFileName(fileName) {
-  const entry = Object.entries(MAP_FILES).find(([path]) => path.endsWith(`/${fileName}`));
-  return entry?.[1] || null;
+  const target = String(fileName || '').toLowerCase();
+  if (!target) return null;
+  const match = Object.entries(MAP_FILES).find(([path]) =>
+    path.toLowerCase().endsWith(`/${target}`)
+  );
+  return match?.[1] || null;
 }
 
 function getOptimizedMapByFileName(fileName) {
-  const cleanName = String(fileName || '').trim();
-  const dotIndex = cleanName.lastIndexOf('.');
-  const baseName = dotIndex > 0 ? cleanName.slice(0, dotIndex) : cleanName;
-
-  for (const extension of ['avif', 'webp']) {
-    const optimized = getMapByFileName(`${baseName}.${extension}`);
-
-    if (optimized) {
-      return optimized;
-    }
+  const name = String(fileName || '').trim();
+  const base = name.replace(/\.[^.]+$/, '');
+  // Prefer WebP across modern Telegram WebViews; fall back to other bundled formats.
+  for (const extension of SUPPORTED_MAP_EXTENSIONS) {
+    const asset = getMapByFileName(`${base}.${extension}`);
+    if (asset) return asset;
   }
-
   return null;
 }
 
 function getCityMap(city) {
-  const mapPath = String(city.map || '').replace(/^\.?\//, '');
-  const mapFileName = mapPath.split('/').pop();
+  const configured = String(city?.map || '').trim();
+  const cleanPath = configured.split(/[?#]/, 1)[0];
+  const fileName = cleanPath.split('/').pop();
 
+  // Explicit remote URLs (including Supabase Storage), Blob URLs and public paths.
+  // Do not reduce them to a filename: the path and query may authorize access.
+  if (/^(https?:\/\/|blob:)/i.test(configured) || configured.startsWith('/')) {
+    return configured;
+  }
+
+  // Packaged assets: respect the file selected in city configuration first.
+  const bundled = getMapByFileName(fileName) || getOptimizedMapByFileName(fileName);
+  if (bundled) return bundled;
+
+  // Vite public directory: e.g. city.map = 'maps/zaporizhzhia.webp'.
+  if (configured && cleanPath.includes('/') && !cleanPath.startsWith('../')) {
+    return `${import.meta.env.BASE_URL || '/'}${configured.replace(/^\.\//, '')}`;
+  }
+
+  // Preserve the existing default-map behavior for cities without an asset.
   return (
-    getOptimizedMapByFileName(mapFileName) ||
-    getMapByFileName(mapFileName) ||
+    getMapByFileName('UkraineMap.webp') ||
+    getMapByFileName('UkraineMap.png') ||
     getOptimizedMapByFileName('UkraineMap.png') ||
-    getMapByFileName('UkraineMap.png')
+    null
   );
 }
 
@@ -1307,14 +1326,14 @@ register('home', async (root) => {
     ? `
           <div
             class="gta-map-image gta-map-mobile-placeholder"
-            data-map-src="${mapSrc}"
+            data-map-src="${escapeHtml(mapSrc || '')}"
             aria-hidden="true"
           ></div>
         `
     : `
           <img
             class="gta-map-image gta-map-glow"
-            src="${mapSrc}"
+            src="${escapeHtml(mapSrc || '')}"
             alt=""
             aria-hidden="true"
             loading="eager"
@@ -1323,8 +1342,8 @@ register('home', async (root) => {
 
           <img
             class="gta-map-image"
-            src="${mapSrc}"
-            alt="${city.name}"
+            src="${escapeHtml(mapSrc || '')}"
+            alt="${escapeHtml(city.name)}"
             loading="eager"
             decoding="async"
             fetchpriority="high"
@@ -1398,7 +1417,7 @@ register('home', async (root) => {
           <div class="gta-water-soft"></div>
         </div>
 
-        <div class="gta-map-viewport" data-city-id="${cityId}" data-map-src="${mapSrc}" data-map-ratio="${cityMapRatio}">
+        <div class="gta-map-viewport" data-city-id="${cityId}" data-map-src="${escapeHtml(mapSrc || '')}" data-map-ratio="${cityMapRatio}">
           <div class="gta-map-weather">
             <div class="gta-weather-sun"></div>
             <div class="gta-weather-clouds"></div>
