@@ -10,44 +10,4 @@
 @import '../../src/styles/home/admin.css';
 @import '../../src/styles/home/objects.css';
 @import '../../src/styles/home/modals.css';
-
-
-/* MN-Game: natural color city maps (desktop + Telegram mobile).
-   Override the old monochrome / neon styling from base-map-time.css. */
-.home .gta-map-viewport .gta-map-image,
-.home[data-time="day"] .gta-map-viewport .gta-map-image,
-.home[data-time="night"] .gta-map-viewport .gta-map-image {
-  filter: none !important;
-  -webkit-filter: none !important;
-  opacity: 1 !important;
-  mix-blend-mode: normal !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
-  image-rendering: auto !important;
-}
-
-/* The duplicate bloom image was washing out the original RGB colors. */
-.home .gta-map-viewport .gta-map-glow,
-.home[data-time="day"] .gta-map-viewport .gta-map-glow,
-.home[data-time="night"] .gta-map-viewport .gta-map-glow {
-  display: none !important;
-}
-
-/* Remove simulated dark/neon borders around the map; preserve map position. */
-.home .gta-map-viewport::before,
-.home .gta-map-viewport::after,
-.home[data-time="day"] .gta-map-viewport::before,
-.home[data-time="day"] .gta-map-viewport::after,
-.home[data-time="night"] .gta-map-viewport::before,
-.home[data-time="night"] .gta-map-viewport::after {
-  display: none !important;
-}
-
-/* Keep the image natural even with mobile orientation overrides enabled. */
-.home[data-mobile-controls="enabled"] .gta-map-viewport .gta-map-image {
-  filter: none !important;
-  opacity: 1 !important;
-  mix-blend-mode: normal !important;
-  -webkit-mask-image: none !important;
-  mask-image: none !important;
-}
+@import '../../src/styles/home/map-natural-colors.css';
