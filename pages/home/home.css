@@ -12,3 +12,5 @@
 @import '../../src/styles/home/modals.css';
 @import '../../src/styles/home/map-natural-colors.css';
 @import '../../src/styles/home/map-roads.css';
+
+@import '../../src/styles/home/map-animated-water.css';
