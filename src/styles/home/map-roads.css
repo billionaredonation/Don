@@ -20,3 +20,12 @@
 .home .gta-map-viewport > .gta-map-layer-roads { z-index: 4 !important; }
 .home .gta-map-viewport > .gta-map-layer-buildings { z-index: 5 !important; }
 .home .gta-map-viewport > .gta-map-entities { z-index: 9 !important; }
+
+/* All road pixels refer to the original map's own coordinate system. */
+.home .gta-map-viewport > .gta-map-layer-roads {
+  z-index: 4 !important;
+  image-rendering: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+}
+.home .gta-map-viewport > .gta-map-entities { z-index: 9 !important; }
