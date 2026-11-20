@@ -13,7 +13,7 @@ export function enableNaturalRiverWater(viewport) {
   const mobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // The physical map is ~1671 x 941; ~0.5x is sufficient for this subtle water.
-  const width = mobile ? 620 : 940;
+  const width = mobile ? 680 : 1024;
   const height = Math.round(width * (941 / 1671));
   canvas.width = width;
   canvas.height = height;
@@ -47,7 +47,7 @@ export function enableNaturalRiverWater(viewport) {
   }
   bgCtx.putImageData(image, 0, 0);
 
-  const ripples = Array.from({ length: mobile ? 200 : 390 }, (_, i) => ({
+  const ripples = Array.from({ length: mobile ? 330 : 680 }, (_, i) => ({
     x: rand() * width, y: rand() * height,
     len: (3 + rand() * 15) * (i % 7 === 0 ? 1.6 : 1),
     bend: (rand() * 2 - 1) * 5,
@@ -57,16 +57,36 @@ export function enableNaturalRiverWater(viewport) {
     opacity: .055 + rand() * .17,
     pale: rand() > .18,
   }));
-  const pools = Array.from({ length: mobile ? 14 : 24 }, () => ({
+  const pools = Array.from({ length: mobile ? 20 : 38 }, () => ({
     x: rand() * width, y: rand() * height,
     rad: 22 + rand() * 60, phase: rand() * TAU,
     opacity: .025 + rand() * .035,
   }));
 
+  // Flow cells: translucent curling waves that form short-lived eddies.
+  // Curves are local and never use repeating linear gradients.
+  const eddies = Array.from({ length: mobile ? 20 : 42 }, () => ({
+    x: rand() * width, y: rand() * height,
+    radius: 9 + rand() * 27,
+    turn: rand() > .5 ? 1 : -1,
+    rotation: rand() * TAU,
+    speed: .05 + rand() * .11,
+    strength: .022 + rand() * .052,
+    phase: rand() * TAU,
+  }));
+
+  // Small irregular sunlight flecks, with independently breathing intensities.
+  const glints = Array.from({ length: mobile ? 90 : 205 }, () => ({
+    x: rand() * width, y: rand() * height,
+    size: .7 + rand() * 2.8,
+    phase: rand() * TAU,
+    rate: .23 + rand() * .75,
+    alpha: .025 + rand() * .12,
+  }));
   let frameId = 0;
   let stopped = false;
   let last = -1000;
-  const targetInterval = mobile ? 1000 / 18 : 1000 / 25;
+  const targetInterval = mobile ? 1000 / 20 : 1000 / 28;
   const paint = (milliseconds) => {
     if (stopped) return;
     if (!reduced) frameId = requestAnimationFrame(paint);
@@ -103,6 +123,32 @@ export function enableNaturalRiverWater(viewport) {
       ctx.moveTo(px - p.len * .5, py + p.bend * .4);
       ctx.quadraticCurveTo(px + p.bend * .65, py - p.bend, px + p.len * .5, py + p.bend * .2);
       ctx.stroke();
+    }
+    // Each spiral is a small independent partial arc. The arcs are intentionally
+    // broken, faint, and curved so they never read as parallel route lines.
+    for (const e of eddies) {
+      const x = e.x + Math.sin(t * e.speed + e.phase) * 9;
+      const y = e.y + Math.cos(t * e.speed * .7 + e.phase) * 7;
+      const angle = e.rotation + t * e.speed * e.turn;
+      ctx.strokeStyle = `rgba(145,217,207,${e.strength * (.65 + .35 * Math.sin(t * .36 + e.phase))})`;
+      ctx.lineWidth = .55;
+      ctx.beginPath();
+      ctx.ellipse(x, y, e.radius, e.radius * .45, angle,
+        e.phase, e.phase + (1.15 + .3 * Math.sin(t * .21 + e.phase)), e.turn < 0);
+      ctx.stroke();
+    }
+
+    // Soft light sparkles drift with the current instead of blinking in place.
+    for (const g of glints) {
+      const shimmer = Math.max(0, Math.sin(t * g.rate + g.phase));
+      if (shimmer < .45) continue;
+      const x = (g.x + t * 1.5) % width;
+      const y = (g.y + Math.sin(t * .21 + g.phase) * 2 + height) % height;
+      ctx.fillStyle = `rgba(213,250,230,${g.alpha * shimmer})`;
+      ctx.beginPath();
+      ctx.ellipse(x, y, g.size * 1.6, Math.max(.35, g.size * .35),
+        Math.sin(g.phase) * .6, 0, TAU);
+      ctx.fill();
     }
     ctx.globalCompositeOperation = 'source-over';
   };
