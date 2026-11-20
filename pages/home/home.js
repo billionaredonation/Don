@@ -54,6 +54,7 @@ import { enableNuclearPowerFeature } from '../../src/nuclearPower/nuclearPowerFe
 import { enableCoalPowerFeature } from '../../src/coalPower/coalPowerFeature.js';
 import { enableEnergySubstationFeature } from '../../src/energySubstation/energySubstationFeature.js';
 import { enableWaterTreatmentFeature } from '../../src/waterTreatment/waterTreatmentFeature.js';
+import { enableNaturalRiverWater } from '../../src/map/naturalRiverWater.js';
 import { enableVehicleIndustry } from '../../src/vehicles/vehicleIndustryFeature.js';
 import { enableOilIndustryFeature } from '../../src/oilIndustry/oilIndustryFeature.js';
 import { enableUkrGazFeature } from '../../src/ukrGaz/ukrGazFeature.js';
@@ -1477,7 +1478,7 @@ register('home', async (root) => {
           ${mapLayerHtml}
 
           <!-- All transparent layers share the exact terrain coordinate system. -->
-          ${animatedWaterMaskSrc ? `<div class="gta-map-animated-water" style="--mn-water-mask:url('${escapeHtml(animatedWaterMaskSrc)}')" aria-hidden="true"><div class="gta-water-flow"></div><div class="gta-water-sheen"></div></div>` : (waterMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-water" src="${escapeHtml(waterMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : '')}
+          ${animatedWaterMaskSrc ? `<div class="gta-map-animated-water" style="--mn-water-mask:url('${escapeHtml(animatedWaterMaskSrc)}')" aria-hidden="true"><canvas class="gta-water-surface"></canvas></div>` : (waterMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-water" src="${escapeHtml(waterMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : '')}
           ${roadMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-roads" src="${escapeHtml(roadMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
           ${buildingsMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-buildings" src="${escapeHtml(buildingsMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
         </div>
@@ -1617,6 +1618,7 @@ register('home', async (root) => {
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
+  const cleanupNaturalRiverWater = enableNaturalRiverWater(viewport);
   const weatherLayer = root.querySelector('.gta-map-weather');
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
@@ -2624,6 +2626,7 @@ register('home', async (root) => {
     clearInterval(balanceSyncTimer);
     cleanupBalanceDatabaseSync?.();
     cleanupRenderPerformanceGuards?.();
+    cleanupNaturalRiverWater?.();
 
     cleanupInventoryFeature?.();
     cleanupHospitalManagement?.();
