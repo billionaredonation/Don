@@ -5,6 +5,8 @@ export const city = createCityConfig({
   name: 'Запорожье',
   region: 'Индустриальный регион',
   map: './Zaporozya.png',
+    roadsMap: './Zaporozya-roads.png',
+    roadMap: './Zaporozya-roads.png',
   tagline: 'Металлургия, заводы и мощный старт.',
   economyType: 'industrial',
   startMoney: 1300,
