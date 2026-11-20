@@ -1,60 +1,32 @@
-/* Masked, moving river water; exact terrain-relative coordinates. */
+/* Natural river surface: canvas clips to original river PNG mask.
+   No repeating linear gradients or grid patterns. */
 .home .gta-map-viewport > .gta-map-animated-water {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  z-index: 3 !important; /* terrain z=2, roads z=4, buildings z=5 */
-  overflow: hidden;
+  z-index: 3 !important;
   pointer-events: none !important;
-  background: linear-gradient(145deg, #0d6078, #0c526b 58%, #094759);
+  overflow: hidden !important;
+  opacity: 1 !important;
+  isolation: isolate;
+  background: #0c5266;
   -webkit-mask-image: var(--mn-water-mask);
   mask-image: var(--mn-water-mask);
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
   -webkit-mask-position: center;
   mask-position: center;
-  opacity: 1;
-  isolation: isolate;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
-.home .gta-map-animated-water > .gta-water-flow {
-  position: absolute;
-  inset: -17%;
-  background-image:
-    repeating-linear-gradient(113deg, transparent 0 13px, rgba(142,216,227,.12) 14px 15px, transparent 17px 31px),
-    repeating-linear-gradient(66deg, transparent 0 33px, rgba(2,40,65,.20) 35px 37px, transparent 39px 68px),
-    radial-gradient(ellipse at 32% 28%, rgba(80,172,189,.28), transparent 45%);
-  background-size: 190px 230px, 280px 290px, 100% 100%;
-  opacity: .8;
-  will-change: transform;
-  animation: mn-river-flow 18s linear infinite alternate;
-}
-.home .gta-map-animated-water > .gta-water-sheen {
-  position: absolute;
-  inset: -16%;
-  background-image:
-    repeating-linear-gradient(162deg, transparent 0 61px, rgba(223,248,244,.14) 62px 63px, transparent 65px 126px),
-    radial-gradient(ellipse at 63% 45%, rgba(156,230,228,.12), transparent 60%);
-  background-size: 320px 290px, 100% 100%;
-  mix-blend-mode: screen;
-  opacity: .5;
-  will-change: transform;
-  animation: mn-river-sheen 24s ease-in-out infinite alternate;
-}
-@keyframes mn-river-flow {
-  from { transform: translate3d(-2%, 2%, 0); }
-  to   { transform: translate3d(7%, -5%, 0); }
-}
-@keyframes mn-river-sheen {
-  from { transform: translate3d(3%, 0%, 0); opacity:.35; }
-  to   { transform: translate3d(-5%, 4%, 0); opacity:.65; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .home .gta-map-animated-water > * { animation: none !important; }
-}
-@media (hover: none) and (pointer: coarse) {
-  .home .gta-map-animated-water > .gta-water-sheen { display: none; }
-  .home .gta-map-animated-water > .gta-water-flow { opacity: .55; animation-duration: 30s; }
+.home .gta-map-animated-water > .gta-water-surface {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  pointer-events: none !important;
 }
