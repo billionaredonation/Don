@@ -1,0 +1,22 @@
+/* Optional PNG overlays: same pixel canvas as terrain. */
+.home .gta-map-viewport > .gta-map-custom-layer {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+.home .gta-map-viewport > .gta-map-custom-layer[hidden] { display: none !important; }
+.home .gta-map-viewport > .gta-map-layer-water { z-index: 3 !important; }
+.home .gta-map-viewport > .gta-map-layer-roads { z-index: 4 !important; }
+.home .gta-map-viewport > .gta-map-layer-buildings { z-index: 5 !important; }
+.home .gta-map-viewport > .gta-map-entities { z-index: 9 !important; }
