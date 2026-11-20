@@ -202,7 +202,7 @@ function getVitalFillStyle(value, key = 'health') {
   return `--mn-vital-fill: ${Math.round(fill)}%`;
 }
 
-const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif,gif,svg,bmp}', {
+const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif,gif}', {
   eager: true,
   query: '?url',
   import: 'default',
@@ -741,7 +741,7 @@ function setupInteriorExitReturn({
 }
 
 // Vite imports packaged map images. Public/Storage URLs are resolved separately.
-const SUPPORTED_MAP_EXTENSIONS = ['webp', 'avif', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'bmp'];
+const SUPPORTED_MAP_EXTENSIONS = ['webp', 'png', 'jpg', 'jpeg', 'avif', 'gif'];
 
 function getMapByFileName(fileName) {
   const target = String(fileName || '').toLowerCase();
@@ -791,6 +791,47 @@ function getCityMap(city) {
     null
   );
 }
+
+// Optional transparent layers live next to the main city map in the project root.
+// Example: ZaporizhzhiaMap.png + ZaporizhzhiaMap-roads.png.
+// Vite bundles only explicitly matched files; no extra public/maps subfolders.
+function getCityLayerMap(city, cityId, layer) {
+  const mapValue = String(city?.map || '').trim();
+  const fileName = mapValue.split(/[?#]/, 1)[0].split('/').pop() || '';
+  const baseName = fileName.replace(/\.[^.]+$/, '');
+  const citySlug = normalizeCityId(cityId);
+  const configured = city?.layers?.[layer] || city?.[layer + 'Map'] ||
+    (layer === 'roads' ? city?.roadMap || city?.roadsMap : '');
+  if (configured) {
+    const value = String(configured).trim();
+    if (/^(https?:\/\/|blob:)/i.test(value) || value.startsWith('/')) return value;
+    const bundled = getMapByFileName(value.split(/[?#]/, 1)[0].split('/').pop());
+    if (bundled) return bundled;
+    return `${import.meta.env.BASE_URL || '/'}${value.replace(/^\.\//, '')}`;
+  }
+
+  const names = [
+    baseName ? `${baseName}-${layer}` : null,
+    baseName ? `${baseName}_${layer}` : null,
+    `${citySlug}-${layer}`,
+    `${citySlug}_${layer}`,
+  ].filter(Boolean);
+  for (const name of names) {
+    for (const ext of SUPPORTED_MAP_EXTENSIONS) {
+      const matched = getMapByFileName(`${name}.${ext}`);
+      if (matched) return matched;
+    }
+  }
+
+  // If the main map is loaded from public/... rather than bundled in the root,
+  // use a sibling layer path. Missing layers are hidden by onerror.
+  if (mapValue && (mapValue.startsWith('/') || mapValue.includes('/'))) {
+    const parent = mapValue.split(/[?#]/, 1)[0].replace(/[^/]*$/, '');
+    return `${parent}${baseName}-${layer}.png`;
+  }
+  return '';
+}
+
 
 function getCityMapRatio(cityId) {
   return CITY_MAP_RATIOS[normalizeCityId(cityId)] || 0.6697;
@@ -1314,6 +1355,9 @@ register('home', async (root) => {
   }
 
   const mapSrc = getCityMap(city);
+  const roadMapSrc = getCityLayerMap(city, cityId, 'roads');
+  const waterMapSrc = getCityLayerMap(city, cityId, 'water');
+  const buildingsMapSrc = getCityLayerMap(city, cityId, 'buildings');
   const isMobileGameplay = isMobileGameplayDevice();
   const cityMapRatio = getCityMapRatio(cityId);
 
@@ -1324,16 +1368,11 @@ register('home', async (root) => {
 
   const mapLayerHtml = isMobileGameplay
     ? `
-          <img
+          <div
             class="gta-map-image gta-map-mobile-placeholder"
-            src="${escapeHtml(mapSrc || '')}"
             data-map-src="${escapeHtml(mapSrc || '')}"
-            alt="${escapeHtml(city.name)}"
-            loading="eager"
-            decoding="async"
-            fetchpriority="high"
-            draggable="false"
-          />
+            aria-hidden="true"
+          ></div>
         `
     : `
           <img
@@ -1435,6 +1474,11 @@ register('home', async (root) => {
           </div>
 
           ${mapLayerHtml}
+
+          <!-- All transparent layers share the exact terrain coordinate system. -->
+          ${waterMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-water" src="${escapeHtml(waterMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
+          ${roadMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-roads" src="${escapeHtml(roadMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
+          ${buildingsMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-buildings" src="${escapeHtml(buildingsMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
         </div>
 
 
