@@ -1357,6 +1357,7 @@ register('home', async (root) => {
   const mapSrc = getCityMap(city);
   const roadMapSrc = getCityLayerMap(city, cityId, 'roads');
   const waterMapSrc = getCityLayerMap(city, cityId, 'water');
+  const animatedWaterMaskSrc = getCityLayerMap(city, cityId, 'water-mask');
   const buildingsMapSrc = getCityLayerMap(city, cityId, 'buildings');
   const isMobileGameplay = isMobileGameplayDevice();
   const cityMapRatio = getCityMapRatio(cityId);
@@ -1476,7 +1477,7 @@ register('home', async (root) => {
           ${mapLayerHtml}
 
           <!-- All transparent layers share the exact terrain coordinate system. -->
-          ${waterMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-water" src="${escapeHtml(waterMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
+          ${animatedWaterMaskSrc ? `<div class="gta-map-animated-water" style="--mn-water-mask:url('${escapeHtml(animatedWaterMaskSrc)}')" aria-hidden="true"><div class="gta-water-flow"></div><div class="gta-water-sheen"></div></div>` : (waterMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-water" src="${escapeHtml(waterMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : '')}
           ${roadMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-roads" src="${escapeHtml(roadMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
           ${buildingsMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-buildings" src="${escapeHtml(buildingsMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
         </div>
