@@ -85,6 +85,103 @@ import '../../src/styles/modal-responsive-final.css';
 import '../../src/player/playerInteractionRadial.css';
 import '../../src/styles/mobileGameplayChrome.css';
 
+// Water cutout: for maps with a continuous pale/cream background connected to an
+// image border, make ONLY that connected area transparent. For arbitrary maps,
+// supply an alpha PNG or an explicit water mask instead: color is not geography.
+function enableAutomaticMapWaterCutout(viewport, source) {
+  if (!viewport || !source) return () => {};
+  let disposed = false;
+  let blobUrl = null;
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+  image.decoding = 'async';
+  image.onload = () => {
+    if (disposed) return;
+    const w = image.naturalWidth;
+    const h = image.naturalHeight;
+    if (!w || !h || w * h > 16000000) {
+      console.warn('[MN water] Image size unsupported for auto cutout', { w, h });
+      return;
+    }
+    try {
+      const buffer = document.createElement('canvas');
+      buffer.width = w;
+      buffer.height = h;
+      const ctx = buffer.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(image, 0, 0);
+      const pixels = ctx.getImageData(0, 0, w, h);
+      const data = pixels.data;
+      const n = w * h;
+      let transparent = 0;
+      for (let k = 3; k < data.length; k += 4) if (data[k] < 245) transparent++;
+      if (transparent > n * 0.002) {
+        console.info('[MN water] Map already contains transparency', { transparent, pixels: n });
+        viewport.dataset.waterMask = 'alpha';
+        return;
+      }
+      const eligible = (idx) => {
+        const p = idx * 4;
+        const r = data[p], g = data[p + 1], b = data[p + 2];
+        return data[p + 3] > 245 && r >= 243 && g >= 232 && b >= 220 &&
+          r >= g && g >= b && r - g <= 23 && g - b <= 28;
+      };
+      // Only process pale backgrounds (as on the illustrated Cherkasy map).
+      // Stop rather than erase parts of a different city's map.
+      const seen = new Uint8Array(n);
+      const queue = new Int32Array(n);
+      let head = 0, tail = 0;
+      const add = (p) => {
+        if (seen[p] || !eligible(p)) return;
+        seen[p] = 1;
+        queue[tail++] = p;
+      };
+      for (let x = 0; x < w; x++) { add(x); add((h - 1) * w + x); }
+      for (let y = 0; y < h; y++) { add(y * w); add(y * w + w - 1); }
+      if (tail < n * .004) {
+        console.info('[MN water] No connected pale water detected. Use a PNG with transparency / water mask.');
+        viewport.dataset.waterMask = 'none';
+        return;
+      }
+      while (head < tail) {
+        const p = queue[head++];
+        const x = p % w;
+        if (x > 0) add(p - 1);
+        if (x + 1 < w) add(p + 1);
+        if (p >= w) add(p - w);
+        if (p + w < n) add(p + w);
+      }
+      if (tail < n * .012 || tail > n * .7) {
+        console.warn('[MN water] Auto-cutout rejected: ambiguous coverage', { coverage: (tail / n).toFixed(3) });
+        viewport.dataset.waterMask = 'ambiguous';
+        return;
+      }
+      for (let i = 0; i < tail; i++) data[queue[i] * 4 + 3] = 0;
+      ctx.putImageData(pixels, 0, 0);
+      buffer.toBlob((blob) => {
+        if (!blob || disposed) return;
+        blobUrl = URL.createObjectURL(blob);
+        viewport.querySelectorAll('img.gta-map-image').forEach((node) => { node.src = blobUrl; });
+        viewport.querySelectorAll('.gta-map-mobile-placeholder').forEach((node) => {
+          node.style.setProperty('background-image', `url("${blobUrl}")`, 'important');
+          node.dataset.mapSrc = blobUrl;
+        });
+        viewport.dataset.waterMask = 'auto';
+        console.info('[MN water] Auto-cutout applied', { city: viewport.dataset.cityId, pixels: tail, coverage: (tail / n).toFixed(3) });
+      }, 'image/png');
+    } catch (error) {
+      // A cross-origin map without CORS cannot be read from Canvas.
+      console.warn('[MN water] Cannot inspect map pixels. Use a transparent PNG in storage, and enable CORS if cross-origin.', error);
+      viewport.dataset.waterMask = 'cors-or-canvas-error';
+    }
+  };
+  image.onerror = () => {
+    console.warn('[MN water] Cannot load map to inspect transparency. Check map URL/CORS.', source);
+    viewport.dataset.waterMask = 'load-error';
+  };
+  image.src = source;
+  return () => { disposed = true; image.onload = null; image.onerror = null; if (blobUrl) URL.revokeObjectURL(blobUrl); };
+}
+
 // Shared world-space water renderer: every city uses one identical effect.
 // Map images MUST have transparent pixels at rivers/lakes for water to show.
 function startSharedCityWater(viewport) {
@@ -1658,6 +1755,7 @@ register('home', async (root) => {
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
   const cleanupSharedCityWater = startSharedCityWater(viewport);
+  const cleanupMapWaterCutout = enableAutomaticMapWaterCutout(viewport, mapSrc);
   const weatherLayer = root.querySelector('.gta-map-weather');
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
@@ -2645,6 +2743,7 @@ register('home', async (root) => {
   });
 
   root._cleanupHome = () => {
+    cleanupMapWaterCutout();
     cleanupSharedCityWater();
     cleanupBalanceDiagnostics();
     root.dataset.destroyed = 'true';
