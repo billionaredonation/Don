@@ -1,0 +1,21 @@
+/* Shared water for all cities; the moving canvas and map live in the same viewport. */
+.gta-map-viewport { isolation: isolate; }
+.gta-map-viewport > .mn-water-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+/* Map images are always above water; transparent pixels expose the canvas. */
+.gta-map-viewport > .gta-map-image,
+.gta-map-viewport > .gta-map-mobile-placeholder {
+  z-index: 2 !important;
+}
+/* Weather and game entities must remain above the terrain. */
+.gta-map-viewport > .gta-map-weather { z-index: 4 !important; }
+.gta-map-viewport > .gta-map-entities { z-index: 5 !important; }
+/* Prevent earlier stage-wide water from bleeding outside the city map. */
+.gta-map-stage > .gta-water { display: none !important; }
