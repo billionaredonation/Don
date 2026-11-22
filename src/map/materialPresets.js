@@ -9,4 +9,3 @@ export function resolveMaterialPreset(value = 'water') {
   const name = typeof value === 'string' ? value : 'water';
   return MATERIAL_PRESETS[name] || MATERIAL_PRESETS.water;
 }
-
