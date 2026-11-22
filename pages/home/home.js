@@ -9,7 +9,6 @@ import { getCityWeather } from '../../src/weather/weather.js';
 import { setupSessionGuard } from '../../src/network/sessionGuard.js';
 import { setupGameRealtime } from '../../src/realtime/gameRealtime.js';
 
-
 import {
   getLocalPlayerId,
   getOrCreatePlayerPosition,
@@ -181,6 +180,7 @@ function startSharedCityWater(viewport) {
   }
   resize();
   paint(0);
+  console.info("[MN water] shared water canvas active", { city: viewport.dataset.cityId, width, height });
   const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
   observer?.observe(viewport);
   window.addEventListener('resize', resize);
