@@ -1,158 +1,170 @@
+import { resolveMaterialPreset } from './materialPresets.js';
+
 /**
- * Procedural river water for the in-game terrain layer.
- * Produces broad smooth eddies and hundreds of short CURVED highlights, NOT stripes.
- * Uses a low-resolution off-screen surface that is scaled together with the map;
- * PNG mask stays attached to the world map, never the screen/camera.
+ * GPU water surface in world/map coordinates. The enclosing DOM element owns
+ * the shoreline mask, so the shader never tries to infer geography or roads.
+ * GPU failure (including context loss) falls back to Canvas 2D.
  */
-export function enableNaturalRiverWater(viewport) {
+const VERTEX = `
+attribute vec2 a_position;
+varying vec2 v_uv;
+void main() {
+  v_uv = 0.5 * (a_position + 1.0);
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+const FRAGMENT = `
+precision mediump float;
+varying vec2 v_uv;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec3 u_color;
+uniform float u_speed;
+uniform float u_strength;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),
+             mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);
+}
+void main() {
+  vec2 p = v_uv * (u_resolution / max(u_resolution.x, u_resolution.y)) * 7.0;
+  float t = u_time * u_speed;
+  vec2 q = p + vec2(noise(p*1.1+vec2(t*0.12,-t*0.07)), noise(p*1.3-vec2(t*0.09,t*0.14)))*0.55;
+  float a = noise(q*2.7 + vec2(t*0.18,-t*0.12));
+  float b = noise(q*6.1 - vec2(t*0.11,t*0.17));
+  float caustic = pow(max(0.0, sin((a+b*0.5)*13.0+t*0.3)), 14.0);
+  float shimmer = (a - 0.5)*0.19 + (b - 0.5)*0.10 + caustic*0.19*u_strength;
+  vec3 col = clamp(u_color + vec3(shimmer*0.5,shimmer,shimmer*1.12),0.0,1.0);
+  gl_FragColor = vec4(col,1.0);
+}`;
+
+function compile(gl, type, source) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source); gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const message = gl.getShaderInfoLog(shader);
+    gl.deleteShader(shader); throw new Error(message || 'Shader compilation failed');
+  }
+  return shader;
+}
+
+function initWebGL(canvas, preset) {
+  const gl = canvas.getContext('webgl', { alpha: false, antialias: false, depth: false, stencil: false, preserveDrawingBuffer: false });
+  if (!gl) return null;
+  const vs = compile(gl, gl.VERTEX_SHADER, VERTEX);
+  const fs = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT);
+  const program = gl.createProgram();
+  gl.attachShader(program,vs); gl.attachShader(program,fs); gl.linkProgram(program);
+  gl.deleteShader(vs); gl.deleteShader(fs);
+  if (!gl.getProgramParameter(program,gl.LINK_STATUS)) {
+    const m = gl.getProgramInfoLog(program); gl.deleteProgram(program);
+    throw new Error(m || 'Shader linking failed');
+  }
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  gl.useProgram(program);
+  const position = gl.getAttribLocation(program,'a_position');
+  gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
+  const uTime = gl.getUniformLocation(program,'u_time');
+  const uResolution = gl.getUniformLocation(program,'u_resolution');
+  gl.uniform3fv(gl.getUniformLocation(program,'u_color'),preset.color);
+  gl.uniform1f(gl.getUniformLocation(program,'u_speed'),preset.waveSpeed);
+  gl.uniform1f(gl.getUniformLocation(program,'u_strength'),preset.rippleStrength);
+  return {
+    draw(t) {
+      gl.viewport(0,0,canvas.width,canvas.height);
+      gl.uniform1f(uTime,t);
+      gl.uniform2f(uResolution,canvas.width,canvas.height);
+      gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    },
+    dispose() { gl.deleteBuffer(buffer); gl.deleteProgram(program); },
+  };
+}
+
+function init2D(canvas,preset) {
+  const ctx = canvas.getContext('2d', { alpha:false });
+  if (!ctx) return null;
+  const rgb = preset.color.map(v=>Math.round(v*255));
+  // Cached noise shapes; no per-frame ImageData allocations.
+  const flecks = Array.from({length:90},(_,i)=>({
+    x: ((i*137.508)%100)/100, y: ((i*73.71)%100)/100,
+    phase:i*1.72, radius:1+(i%5), speed:0.1+(i%7)*0.025,
+  }));
+  return {
+    draw(t) {
+      const w=canvas.width,h=canvas.height;
+      ctx.fillStyle=`rgb(${rgb.join(',')})`; ctx.fillRect(0,0,w,h);
+      for(const f of flecks) {
+        const x=((f.x+t*f.speed*0.012)%1)*w;
+        const y=(f.y+Math.sin(t*0.37+f.phase)*0.012)*h;
+        const alpha=0.04+0.09*(0.5+0.5*Math.sin(t*0.9+f.phase));
+        ctx.fillStyle=`rgba(195,235,221,${alpha})`;
+        ctx.beginPath();ctx.ellipse(x,y,f.radius*3,f.radius*0.8,Math.sin(f.phase)*0.8,0,Math.PI*2);ctx.fill();
+      }
+    },
+    dispose() {},
+  };
+}
+
+export function enableNaturalRiverWater(viewport, options = {}) {
   const canvas = viewport?.querySelector('.gta-map-animated-water .gta-water-surface');
   if (!canvas) return () => {};
-  const ctx = canvas.getContext('2d', { alpha: false });
-  if (!ctx) return () => {};
-
-  const mobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // The physical map is ~1671 x 941; ~0.5x is sufficient for this subtle water.
-  const width = mobile ? 680 : 1024;
-  const height = Math.round(width * (941 / 1671));
-  canvas.width = width;
-  canvas.height = height;
-
-  const TAU = Math.PI * 2;
-  let seed = 0x2ce47d5;
-  const rand = () => {
-    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
-    return (seed >>> 0) / 4294967296;
+  const preset = resolveMaterialPreset(options.material || viewport.dataset.waterMaterial || 'water');
+  const coarse = window.matchMedia?.('(hover: none) and (pointer: coarse)').matches || false;
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false;
+  const ratioValue = Number(viewport?.dataset?.mapRatio);
+  const mapRatio = Number.isFinite(ratioValue)&&ratioValue>0.2&&ratioValue<3 ? ratioValue : .75;
+  const targetWidth = coarse ? 512 : 896;
+  canvas.width=targetWidth; canvas.height=Math.round(targetWidth*mapRatio);
+  let renderer, mode='none', frame=0, previous=0, closed=false, start=null;
+  try { renderer=initWebGL(canvas,preset); if(renderer) mode='webgl'; }
+  catch (err) { console.warn('[MN materials] WebGL unavailable:',err); }
+  if(!renderer) {
+    // WebGL context occupies a canvas even if compilation fails: swap it for a new Canvas 2D.
+    const replacement = document.createElement('canvas');
+    replacement.className=canvas.className;
+    replacement.width=canvas.width; replacement.height=canvas.height;
+    canvas.replaceWith(replacement);
+    renderer=init2D(replacement,preset);
+    if(renderer) mode='canvas2d';
+  }
+  viewport.dataset.materialRenderer=mode;
+  if(!renderer) return () => {};
+  const interval=1000/(coarse?24:35);
+  const draw=(now)=>{
+    if(closed) return;
+    frame=requestAnimationFrame(draw);
+    if(document.hidden || (now-previous<interval)) return;
+    previous=now;
+    if(start===null) start=now;
+    renderer.draw(reduced?0:(now-start)/1000);
   };
-  const background = document.createElement('canvas');
-  background.width = width;
-  background.height = height;
-  const bgCtx = background.getContext('2d', { alpha: false });
-  if (!bgCtx) return () => {};
-  const image = bgCtx.createImageData(width, height);
-  // Fine organic noise plus large turbulent swirls; precomputed ONCE, not per frame.
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const xx = x / width, yy = y / height;
-      const warp = Math.sin(xx * 29 + Math.sin(yy * 18) * 1.2) * 0.06;
-      const v = Math.sin(xx * 24 + yy * 15 + warp * 24) * 5
-        + Math.sin(xx * 57 - yy * 37 + Math.cos(xx * 11) * 1.7) * 3
-        + Math.sin(xx * 9 + yy * 17) * 4 + (rand() - .5) * 2.3;
-      const i = (y * width + x) * 4;
-      image.data[i] = Math.max(0, 10 + v * .6);
-      image.data[i + 1] = Math.max(0, 78 + v * 1.2);
-      image.data[i + 2] = Math.max(0, 100 + v * 1.5);
-      image.data[i + 3] = 255;
+  let activeCanvas = viewport.querySelector('.gta-map-animated-water .gta-water-surface');
+  function lost(event) {
+    event.preventDefault();
+    if (closed) return;
+    cancelAnimationFrame(frame);
+    activeCanvas.removeEventListener('webglcontextlost', lost);
+    const fallbackCanvas = document.createElement('canvas');
+    fallbackCanvas.className = activeCanvas.className;
+    fallbackCanvas.width = activeCanvas.width;
+    fallbackCanvas.height = activeCanvas.height;
+    activeCanvas.replaceWith(fallbackCanvas);
+    activeCanvas = fallbackCanvas;
+    renderer = init2D(fallbackCanvas, preset);
+    viewport.dataset.materialRenderer = renderer ? 'canvas2d' : 'unavailable';
+    if (renderer) {
+      previous=0;
+      if (reduced) renderer.draw(0);
+      else frame=requestAnimationFrame(draw);
     }
   }
-  bgCtx.putImageData(image, 0, 0);
-
-  const ripples = Array.from({ length: mobile ? 330 : 680 }, (_, i) => ({
-    x: rand() * width, y: rand() * height,
-    len: (3 + rand() * 15) * (i % 7 === 0 ? 1.6 : 1),
-    bend: (rand() * 2 - 1) * 5,
-    speed: .09 + rand() * .36,
-    phase: rand() * TAU,
-    width: .35 + rand() * 1.15,
-    opacity: .055 + rand() * .17,
-    pale: rand() > .18,
-  }));
-  const pools = Array.from({ length: mobile ? 20 : 38 }, () => ({
-    x: rand() * width, y: rand() * height,
-    rad: 22 + rand() * 60, phase: rand() * TAU,
-    opacity: .025 + rand() * .035,
-  }));
-
-  // Flow cells: translucent curling waves that form short-lived eddies.
-  // Curves are local and never use repeating linear gradients.
-  const eddies = Array.from({ length: mobile ? 20 : 42 }, () => ({
-    x: rand() * width, y: rand() * height,
-    radius: 9 + rand() * 27,
-    turn: rand() > .5 ? 1 : -1,
-    rotation: rand() * TAU,
-    speed: .05 + rand() * .11,
-    strength: .022 + rand() * .052,
-    phase: rand() * TAU,
-  }));
-
-  // Small irregular sunlight flecks, with independently breathing intensities.
-  const glints = Array.from({ length: mobile ? 90 : 205 }, () => ({
-    x: rand() * width, y: rand() * height,
-    size: .7 + rand() * 2.8,
-    phase: rand() * TAU,
-    rate: .23 + rand() * .75,
-    alpha: .025 + rand() * .12,
-  }));
-  let frameId = 0;
-  let stopped = false;
-  let last = -1000;
-  const targetInterval = mobile ? 1000 / 20 : 1000 / 28;
-  const paint = (milliseconds) => {
-    if (stopped) return;
-    if (!reduced) frameId = requestAnimationFrame(paint);
-    if (document.hidden || (milliseconds - last) < targetInterval) return;
-    last = milliseconds;
-    const t = reduced ? 0 : milliseconds / 1000;
-    ctx.drawImage(background, 0, 0);
-
-    // Slowly moving soft pools, like rolling gradients beneath the surface.
-    ctx.globalCompositeOperation = 'screen';
-    for (const p of pools) {
-      const px = p.x + Math.sin(t * .1 + p.phase) * 16;
-      const py = p.y + Math.cos(t * .13 + p.phase) * 10;
-      const grad = ctx.createRadialGradient(px, py, 0, px, py, p.rad);
-      grad.addColorStop(0, `rgba(65,155,162,${p.opacity})`);
-      grad.addColorStop(1, 'rgba(65,155,162,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();ctx.arc(px, py, p.rad, 0, TAU);ctx.fill();
-    }
-
-    // Curved mini-ripples with independent directions and speeds.
-    // Each fades gently as it travels; nothing repeats in parallel rows.
-    ctx.lineCap = 'round';
-    for (const p of ripples) {
-      const drift = t * p.speed;
-      const px = (p.x + drift * 8 + Math.sin(p.phase + t * .18) * 2) % width;
-      const py = (p.y + drift * 3 + Math.cos(p.phase + t * .24) * 2) % height;
-      const pulse = .55 + .45 * Math.sin(t * (.33 + p.speed) + p.phase);
-      ctx.strokeStyle = p.pale
-        ? `rgba(190,241,226,${p.opacity * pulse})`
-        : `rgba(5,40,61,${p.opacity * pulse})`;
-      ctx.lineWidth = p.width;
-      ctx.beginPath();
-      ctx.moveTo(px - p.len * .5, py + p.bend * .4);
-      ctx.quadraticCurveTo(px + p.bend * .65, py - p.bend, px + p.len * .5, py + p.bend * .2);
-      ctx.stroke();
-    }
-    // Each spiral is a small independent partial arc. The arcs are intentionally
-    // broken, faint, and curved so they never read as parallel route lines.
-    for (const e of eddies) {
-      const x = e.x + Math.sin(t * e.speed + e.phase) * 9;
-      const y = e.y + Math.cos(t * e.speed * .7 + e.phase) * 7;
-      const angle = e.rotation + t * e.speed * e.turn;
-      ctx.strokeStyle = `rgba(145,217,207,${e.strength * (.65 + .35 * Math.sin(t * .36 + e.phase))})`;
-      ctx.lineWidth = .55;
-      ctx.beginPath();
-      ctx.ellipse(x, y, e.radius, e.radius * .45, angle,
-        e.phase, e.phase + (1.15 + .3 * Math.sin(t * .21 + e.phase)), e.turn < 0);
-      ctx.stroke();
-    }
-
-    // Soft light sparkles drift with the current instead of blinking in place.
-    for (const g of glints) {
-      const shimmer = Math.max(0, Math.sin(t * g.rate + g.phase));
-      if (shimmer < .45) continue;
-      const x = (g.x + t * 1.5) % width;
-      const y = (g.y + Math.sin(t * .21 + g.phase) * 2 + height) % height;
-      ctx.fillStyle = `rgba(213,250,230,${g.alpha * shimmer})`;
-      ctx.beginPath();
-      ctx.ellipse(x, y, g.size * 1.6, Math.max(.35, g.size * .35),
-        Math.sin(g.phase) * .6, 0, TAU);
-      ctx.fill();
-    }
-    ctx.globalCompositeOperation = 'source-over';
+  activeCanvas.addEventListener('webglcontextlost', lost);
+  if(reduced) renderer.draw(0);
+  else frame=requestAnimationFrame(draw);
+  return ()=>{
+    closed=true;cancelAnimationFrame(frame);activeCanvas.removeEventListener('webglcontextlost',lost);
+    renderer.dispose();viewport.removeAttribute('data-material-renderer');
   };
-  if (reduced) paint(0);
-  else frameId = requestAnimationFrame(paint);
-  return () => { stopped = true; cancelAnimationFrame(frameId); canvas.width = 0; canvas.height = 0; };
 }
