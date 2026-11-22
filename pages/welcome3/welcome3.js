@@ -1,3 +1,4 @@
+import { getCityMapUrl, resolveLegacyMapName, isMapAssetUrl } from '../../src/map/cityMapAssets.js';
 import { register, show } from '../../src/router.js';
 import { state, save, getState, createAndSavePlayer } from '../../src/state.js';
 import { citiesBase } from '../../src/data/citiesBase.js';
@@ -10,6 +11,9 @@ const ROOT_ASSETS = import.meta.glob('../../*.{png,svg,jpg,jpeg,webp,gif,ico,avi
 });
 
 function rootAsset(src) {
+  if (isMapAssetUrl(src)) return src;
+  const migrated = resolveLegacyMapName(src);
+  if (migrated) return migrated;
   const cleanSrc = String(src || '')
     .replace(/^\.\//, '')
     .replace(/^\//, '')
@@ -65,52 +69,6 @@ const REGION_DATA = {
   UA71: { cityId: 'cherkasy', cityName: 'Черкассы' },
   UA74: { cityId: 'chernihiv', cityName: 'Чернигов' },
   UA77: { cityId: 'chernivtsi', cityName: 'Черновцы' }
-};
-
-const CITY_MAPS = {
-  vinnytsia: './VinitsaMap.png',
-  lutsk: './LutskMap.png',
-  luhansk: './LuganskMap.png',
-  dnipro: './DneprMap.png',
-  donetsk: './DonetskMap.png',
-  zhytomyr: './ZutomyrMap.png',
-  uzhhorod: './UzgorodMap.png',
-  zaporizhzhia: './Zaporozya.png',
-  'ivano-frankivsk': './IvanoFrankovsk.png',
-  kyiv: './KiyvMap.png',
-  kropyvnytskyi: './Kropivnitskyi.png',
-  crimea: './KrymMap.png',
-  lviv: './Lviv.png',
-  mykolaiv: './Nikolaev.png',
-  odesa: './Odessa.png',
-  poltava: './Poltava.png',
-  rivne: './Rovno.png',
-  sumy: './Sumy.png',
-  ternopil: './Ternopil.png',
-  kharkiv: './Kharkiv.png',
-  kherson: './Kherson.png',
-  khmelnytskyi: './Khmelnitskiy.png',
-  cherkasy: './CherkasyMap.png',
-  chernihiv: './ChernigovMap.png',
-  chernivtsi: './ChernivtsiMap.png'
-};
-
-const CITY_MAP_FALLBACKS = {
-  cherkasy: [
-    './CherkasyMap.png',
-    './Cherkasy.png',
-    './CherkassyMap.png',
-    './Cherkassy.png',
-    './CherkasiMap.png',
-    './Cherkasi.png',
-    './cherkasymap.png',
-    './cherkasy.png',
-    './cherkassyMap.png',
-    './cherkassy.png',
-    './cherkasiMap.png',
-    './cherkasi.png',
-    './UkraineMap.png'
-  ]
 };
 
 const CITY_ID_ALIASES = {
@@ -177,22 +135,11 @@ function versionedAsset(src) {
 
 
 function cityMapCandidates(cityId) {
-  const normalizedCityId = normalizeCityId(cityId);
-  const fallbackList = CITY_MAP_FALLBACKS[normalizedCityId];
-
-  if (fallbackList && fallbackList.length) {
-    return fallbackList;
-  }
-
-  return [
-    CITY_MAPS[normalizedCityId] || FALLBACK_MAP_SRC,
-    FALLBACK_MAP_SRC
-  ];
+  return [getCityMapUrl(normalizeCityId(cityId)), getCityMapUrl('ukraine')].filter(Boolean);
 }
 
 function cityMapSrc(cityId) {
-  const candidates = cityMapCandidates(cityId);
-  return versionedAsset(candidates[0]);
+  return cityMapCandidates(cityId)[0] || rootAsset(FALLBACK_MAP_SRC);
 }
 
 function setFallbackImage(img, cityId) {
