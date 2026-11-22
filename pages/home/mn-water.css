@@ -19,3 +19,7 @@
 .gta-map-viewport > .gta-map-entities { z-index: 5 !important; }
 /* Prevent earlier stage-wide water from bleeding outside the city map. */
 .gta-map-stage > .gta-water { display: none !important; }
+
+/* Avoid old pseudo layers or glow filling the transparent water area. */
+.gta-map-viewport > .mn-water-canvas { opacity: 1 !important; visibility: visible !important; }
+.gta-map-viewport > .gta-map-glow { pointer-events: none !important; }
