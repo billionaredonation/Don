@@ -1,4 +1,5 @@
 import './mn-water.css';
+import { enableCityWater } from '../../src/map/universalCityWater.js';
 import { enableBalanceDiagnostics } from '../../src/diagnostics/balanceDiagnostics.js';
 import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
@@ -84,224 +85,6 @@ import '../../src/houses/houses.css';
 import '../../src/styles/modal-responsive-final.css';
 import '../../src/player/playerInteractionRadial.css';
 import '../../src/styles/mobileGameplayChrome.css';
-
-// MN universal water: draw ONLY over detected water pixels, above an opaque map.
-// No city-name condition, no change to map URLs or game coordinates.
-// Optional city.waterMaskUrl: white/opaque pixels in the mask identify water.
-function enableUniversalWaterOverlay(viewport, mapSource, explicitMaskUrl = null) {
-  if (!viewport || !mapSource) return () => {};
-  const canvas = viewport.querySelector('.mn-water-overlay');
-  if (!canvas) return () => {};
-  const ctx = canvas.getContext('2d', { alpha: true });
-  if (!ctx) return () => {};
-  let dead = false;
-  let frameId = 0;
-  let lastTime = -Infinity;
-  const image = new Image();
-  image.crossOrigin = 'anonymous';
-  image.decoding = 'async';
-  const sourceWidthLimit = 2600;
-  const sourcePixelsLimit = 2800000;
-  let waterMask = null;
-  let textureWidth = 0;
-  let textureHeight = 0;
-  const lowMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-  const mobile = window.matchMedia?.('(max-width: 750px)');
-
-  function setStatus(status, note) {
-    viewport.dataset.waterStatus = status;
-    if (status === 'active') console.info('[MN water] active', note);
-    else console.warn('[MN water]', status, note || '');
-  }
-
-  function makeMaskFromSource(img) {
-    const w = img.naturalWidth;
-    const h = img.naturalHeight;
-    if (!w || !h) throw new Error('Empty map image');
-    const scale = Math.min(1, sourceWidthLimit / Math.max(w, h), Math.sqrt(sourcePixelsLimit / (w * h)));
-    const mw = Math.max(1, Math.round(w * scale));
-    const mh = Math.max(1, Math.round(h * scale));
-    const readCanvas = document.createElement('canvas');
-    readCanvas.width = mw;
-    readCanvas.height = mh;
-    const read = readCanvas.getContext('2d', { willReadFrequently: true });
-    read.drawImage(img, 0, 0, mw, mh);
-    const pixels = read.getImageData(0, 0, mw, mh).data;
-    const n = mw * mh;
-    const matte = new Uint8Array(n);
-    let alphaPixels = 0;
-    for (let i = 0; i < n; i++) {
-      const p = i * 4;
-      if (pixels[p + 3] < 240) { matte[i] = 255; alphaPixels++; }
-    }
-    if (alphaPixels > n * 0.002) {
-      return { matte, w: mw, h: mh, count: alphaPixels, mode: 'alpha' };
-    }
-
-    // Detect only pale, warm, continuous water blanks touching an image edge.
-    // Incompatible map styles must use an alpha PNG or explicit water mask.
-    const eligible = (i) => {
-      const p = i * 4;
-      const r = pixels[p], g = pixels[p + 1], b = pixels[p + 2];
-      return r >= 242 && g >= 233 && b >= 221 &&
-        r >= g && g >= b && r - g <= 27 && g - b <= 26;
-    };
-    const visited = new Uint8Array(n);
-    const queue = new Int32Array(n);
-    let head = 0, tail = 0;
-    const push = (i) => {
-      if (!visited[i] && eligible(i)) { visited[i] = 1; queue[tail++] = i; }
-    };
-    for (let x = 0; x < mw; x++) { push(x); push((mh - 1) * mw + x); }
-    for (let y = 0; y < mh; y++) { push(y * mw); push(y * mw + mw - 1); }
-    while (head < tail) {
-      const p = queue[head++];
-      const x = p % mw;
-      if (x > 0) push(p - 1);
-      if (x < mw - 1) push(p + 1);
-      if (p >= mw) push(p - mw);
-      if (p < n - mw) push(p + mw);
-    }
-    if (tail < n * 0.008 || tail > n * 0.76) {
-      return { matte, w: mw, h: mh, count: 0, mode: 'no-water-detected' };
-    }
-    for (let i = 0; i < tail; i++) matte[queue[i]] = 255;
-    return { matte, w: mw, h: mh, count: tail, mode: 'connected-blank' };
-  }
-
-  function installMask(result) {
-    const { matte, w, h, count, mode } = result;
-    if (!count || dead) {
-      setStatus('requires-alpha-map-or-mask', { city: viewport.dataset.cityId, mode });
-      return;
-    }
-    const maskCanvas = document.createElement('canvas');
-    maskCanvas.width = w;
-    maskCanvas.height = h;
-    const maskCtx = maskCanvas.getContext('2d');
-    const maskImage = maskCtx.createImageData(w, h);
-    for (let i = 0; i < w * h; i++) {
-      const p = i * 4;
-      maskImage.data[p] = 255;
-      maskImage.data[p + 1] = 255;
-      maskImage.data[p + 2] = 255;
-      maskImage.data[p + 3] = matte[i];
-    }
-    maskCtx.putImageData(maskImage, 0, 0);
-    waterMask = maskCanvas;
-    textureWidth = w;
-    textureHeight = h;
-    canvas.width = w;
-    canvas.height = h;
-    canvas.style.visibility = 'visible';
-    setStatus('active', { city: viewport.dataset.cityId, mode, coverage: (count / (w * h)).toFixed(3) });
-    draw(0);
-    if (!lowMotion?.matches && !document.hidden) frameId = requestAnimationFrame(tick);
-  }
-
-  function draw(now) {
-    if (!waterMask || dead) return;
-    const w = textureWidth, h = textureHeight;
-    const t = now * .001;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.clearRect(0, 0, w, h);
-    const water = ctx.createLinearGradient(0, 0, w, h);
-    water.addColorStop(0, '#13567a');
-    water.addColorStop(.45, '#2187a8');
-    water.addColorStop(1, '#125675');
-    ctx.fillStyle = water;
-    ctx.fillRect(0, 0, w, h);
-    // Irregular translucent wave arcs, not continuously scrolling bars.
-    const count = mobile?.matches ? 26 : 45;
-    for (let i = 0; i < count; i++) {
-      const hash = (v) => { const z = Math.sin(v * 81.34 + 12.23) * 14526.2; return z - Math.floor(z); };
-      const ax = hash(i * 7 + 8) * w;
-      const ay = hash(i * 11 + 2) * h;
-      const phase = t * (0.31 + hash(i + 71) * .21) + i;
-      const length = 55 + hash(i + 12) * w * .24;
-      ctx.beginPath();
-      for (let j = 0; j <= 28; j++) {
-        const q = j / 28;
-        const x = ax + (q - .5) * length + Math.sin(phase * .4) * 8;
-        const y = ay + Math.sin(q * 5 + phase) * (3 + hash(i + 26) * 7) + Math.sin(phase * .41 + i) * 7;
-        if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.lineWidth = 3 + hash(i + 60) * 12;
-      ctx.strokeStyle = `rgba(155,226,232,${(.03 + hash(i + 90) * .045).toFixed(3)})`;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-    }
-    // Mask OVER the opaque map: no assumption about the map's DOM opacity.
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.drawImage(waterMask, 0, 0);
-    ctx.globalCompositeOperation = 'source-over';
-  }
-
-  function tick(now) {
-    frameId = 0;
-    if (dead || !canvas.isConnected || document.hidden) return;
-    if (now - lastTime > (mobile?.matches ? 55 : 36)) {
-      draw(now);
-      lastTime = now;
-    }
-    frameId = requestAnimationFrame(tick);
-  }
-
-  function loadExplicitMask(url) {
-    const maskImage = new Image();
-    maskImage.crossOrigin = 'anonymous';
-    maskImage.onload = () => {
-      if (dead) return;
-      try {
-        const w = maskImage.naturalWidth, h = maskImage.naturalHeight;
-        const temp = document.createElement('canvas');
-        temp.width = w; temp.height = h;
-        const g = temp.getContext('2d', { willReadFrequently: true });
-        g.drawImage(maskImage, 0, 0);
-        const arr = g.getImageData(0, 0, w, h).data;
-        const matte = new Uint8Array(w * h);
-        let count = 0;
-        for (let i = 0; i < matte.length; i++) {
-          const p = i * 4;
-          const strength = Math.round((arr[p] + arr[p + 1] + arr[p + 2]) / 3 * arr[p + 3] / 255);
-          matte[i] = strength > 128 ? 255 : 0;
-          if (matte[i]) count++;
-        }
-        installMask({ matte, w, h, count, mode: 'explicit-mask' });
-      } catch (e) { setStatus('mask-cors-error', e.message); }
-    };
-    maskImage.onerror = () => setStatus('mask-load-error', url);
-    maskImage.src = url;
-  }
-
-  if (explicitMaskUrl) loadExplicitMask(explicitMaskUrl);
-  else {
-    image.onload = () => {
-      if (dead) return;
-      try { installMask(makeMaskFromSource(image)); }
-      catch (e) {
-        setStatus('map-cors-error', e.message);
-        // Cross-origin maps without CORS cannot have their pixels analyzed.
-        // Publish a transparent PNG or provide city.waterMaskUrl.
-      }
-    };
-    image.onerror = () => setStatus('map-load-error', mapSource);
-    image.src = mapSource;
-  }
-  const onVisibility = () => {
-    if (!document.hidden && waterMask && !frameId && !lowMotion?.matches) frameId = requestAnimationFrame(tick);
-    else if (document.hidden && frameId) { cancelAnimationFrame(frameId); frameId = 0; }
-  };
-  document.addEventListener('visibilitychange', onVisibility);
-  return () => {
-    dead = true;
-    image.onload = null;
-    image.onerror = null;
-    cancelAnimationFrame(frameId);
-    document.removeEventListener('visibilitychange', onVisibility);
-    waterMask = null;
-  };
-}
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 
@@ -1629,7 +1412,7 @@ register('home', async (root) => {
           </div>
 
           ${mapLayerHtml}
-          <canvas class="mn-water-overlay" aria-hidden="true"></canvas>
+          <div class="gta-map-animated-water" aria-hidden="true"><canvas class="gta-water-surface"></canvas></div>
         </div>
 
 
@@ -1767,9 +1550,7 @@ register('home', async (root) => {
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
-  const cleanupUniversalWater = enableUniversalWaterOverlay(
-    viewport, mapSrc, city?.waterMaskUrl || city?.water_mask_url || null
-  );
+  const cleanupUniversalWater = enableCityWater(viewport, { city, mapSrc });
   const weatherLayer = root.querySelector('.gta-map-weather');
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
