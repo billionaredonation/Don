@@ -1,0 +1,11 @@
+Готовые
+
+Запорожье
+Черкасы 
+
+
+
+UPDATE public.players
+SET city = 'cherkasy'
+WHERE city = 'zaporizhzhia'
+  AND tg_id = '5055324088';
