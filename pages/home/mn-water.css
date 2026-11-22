@@ -1,20 +1,44 @@
-/* MN Game: water overlay V4, universal per-city map coordinate system. */
-.gta-map-viewport { isolation: isolate !important; }
-.gta-map-viewport > .mn-water-overlay {
+/* One world-coordinate water layer across all city maps. */
+.home .gta-map-viewport { isolation: isolate !important; }
+.home .gta-map-viewport > .gta-map-animated-water {
   position: absolute !important;
   inset: 0 !important;
-  display: block !important;
-  visibility: hidden;
   width: 100% !important;
   height: 100% !important;
-  z-index: 20 !important;
+  z-index: 3 !important;
   pointer-events: none !important;
-  opacity: 1 !important;
-  object-fit: fill !important;
+  overflow: hidden !important;
+  background: #0c5266 !important;
+  opacity: 0;
+  visibility: hidden;
+  -webkit-mask-image: var(--mn-water-mask, none);
+  mask-image: var(--mn-water-mask, none);
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
 }
-.gta-map-viewport > .gta-map-image,
-.gta-map-viewport > .gta-map-mobile-placeholder { z-index: 2 !important; }
-.gta-map-viewport > .gta-map-glow { z-index: 1 !important; }
-.gta-map-viewport > .gta-map-entities { z-index: 30 !important; }
-.gta-map-viewport > .gta-map-weather { z-index: 31 !important; }
-.gta-map-stage > .gta-water { display: none !important; }
+.home .gta-map-viewport > .gta-map-animated-water.is-ready {
+  visibility: visible !important; opacity: 1 !important;
+}
+.home .gta-map-animated-water > .gta-water-surface {
+  position: absolute !important; inset: 0 !important;
+  display: block !important;
+  width: 100% !important; height: 100% !important;
+  pointer-events: none !important;
+  filter: none !important;
+}
+/* Optional terrain road overlay wins over blue water, so bridges stay dry. */
+.home .gta-map-viewport > .gta-map-custom-layer.gta-map-layer-roads {
+  z-index: 4 !important;
+  visibility: visible !important;
+}
+.home .gta-map-viewport > .gta-map-image:not(.gta-map-glow) { z-index: 2 !important; }
+.home .gta-map-viewport > .gta-map-entities { z-index: 9 !important; }
+.home .gta-map-viewport > .gta-map-weather { z-index: 10 !important; }
+/* mapControls promotes mobile map tiles to z-index 5; water must follow tiles. */
+.home[data-map-render-mode="tiles"] .gta-map-viewport > .gta-map-animated-water {
+  z-index: 6 !important;
+}
+.home[data-map-render-mode="tiles"] .gta-map-viewport > .gta-map-custom-layer.gta-map-layer-roads {
+  z-index: 7 !important;
+}
