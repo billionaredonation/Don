@@ -182,3 +182,4 @@ export function enableNaturalRiverWater(viewport, options = {}) {
     renderer.dispose();viewport.removeAttribute('data-material-renderer');
   };
 }
+
