@@ -1,3 +1,4 @@
+import { getCityMapUrl, resolveLegacyMapName, isMapAssetUrl } from '../../src/map/cityMapAssets.js';
 // pages/preload/preload.js
 import { register, show } from '../../src/router.js';
 import { getState } from '../../src/state.js';
@@ -15,6 +16,9 @@ const ROOT_ASSETS = import.meta.glob('../../*.{png,svg,jpg,jpeg,webp,gif,ico,avi
 const BUNDLED_ASSET_URLS = new Set(Object.values(ROOT_ASSETS));
 
 function rootAsset(src) {
+  if (isMapAssetUrl(src)) return src;
+  const migrated = resolveLegacyMapName(src);
+  if (migrated) return migrated;
   const cleanSrc = String(src || '')
     .replace(/^\.\//, '')
     .replace(/^\//, '')
@@ -65,34 +69,6 @@ const ALL_CITY_IDS = [
   'chernivtsi',
 ];
 
-const CITY_MAP_FILES = {
-  vinnytsia: 'Vinnytsia.png',
-  lutsk: 'Lutsk.png',
-  luhansk: 'Luhansk.png',
-  dnipro: 'Dnipro.png',
-  donetsk: 'Donetsk.png',
-  zhytomyr: 'Zhytomyr.png',
-  uzhhorod: 'Uzhhorod.png',
-  zaporizhzhia: 'Zaporizhzhia.png',
-  'ivano-frankivsk': 'IvanoFrankovsk.png',
-  kyiv: 'Kyiv.png',
-  kropyvnytskyi: 'Kropivnitsky.png',
-  crimea: 'Crimea.png',
-  lviv: 'Lviv.png',
-  mykolaiv: 'Nikolaev.png',
-  odesa: 'Odessa.png',
-  poltava: 'Poltava.png',
-  rivne: 'Rovno.png',
-  sumy: 'Sumy.png',
-  ternopil: 'Ternopil.png',
-  kharkiv: 'Kharkiv.png',
-  kherson: 'Kherson.png',
-  khmelnytskyi: 'Khmelnitskiy.png',
-  cherkasy: 'Cherkasy.png',
-  chernihiv: 'Chernihiv.png',
-  chernivtsi: 'Chernivtsi.png',
-};
-
 const DEFAULT_LOADING_IMAGES = [
   'loading-1.png',
   'loading-2.png',
@@ -134,7 +110,8 @@ function assetUrl(src) {
     src.startsWith('http') ||
     src.startsWith('data:') ||
     src.startsWith('blob:') ||
-    BUNDLED_ASSET_URLS.has(src)
+    BUNDLED_ASSET_URLS.has(src) ||
+    isMapAssetUrl(src)
   ) {
     return src;
   }
@@ -148,16 +125,8 @@ function withVersion(src) {
   return assetUrl(src);
 }
 
-function getCityMapSrc(cityId, city) {
-  const normalizedCityId = normalizeCityId(cityId);
-
-  return (
-    city?.map ||
-    city?.image ||
-    city?.background ||
-    CITY_MAP_FILES[normalizedCityId] ||
-    'UkraineMap.png'
-  );
+function getCityMapSrc(cityId) {
+  return getCityMapUrl(normalizeCityId(cityId));
 }
 
 function makeCityLoadingCandidates(cityId) {
