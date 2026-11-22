@@ -352,6 +352,11 @@ export function enableMapControls(stage, viewport, options = {}) {
   }
 
   function setupMobileTileLayer() {
+    // SVG maps must never be replaced by stale PNG mobile tiles.
+    if (options.forceSingleImage) {
+      setupFallbackSingleImage();
+      return;
+    }
     if (!mobile) {
       setupFallbackSingleImage();
       return;
