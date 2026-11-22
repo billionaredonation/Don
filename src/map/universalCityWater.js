@@ -1,158 +1,137 @@
 import { enableNaturalRiverWater } from './naturalRiverWater.js';
 
-// The same mask convention works for every city, including future ones:
-// <city-image-filename-without-extension>-water-mask.png next to the map PNG.
-// Masks are alpha PNGs: opaque/white = water; transparent = land.
-const MASK_ASSETS = import.meta.glob('../../*-water-mask.png', {
-  eager: true, query: '?url', import: 'default',
-});
-const BRIDGE_ASSETS = import.meta.glob('../../*-water-bridges.png', {
-  eager: true, query: '?url', import: 'default',
-});
+// No external masks. The mask exists only in memory, calculated from the actual
+// map image or rasterized from world-space material-zone polygons.
+const cached = new Map();
+const CACHE_LIMIT = 4;
+function remember(key, promise) {
+  cached.set(key, promise);
+  if (cached.size > CACHE_LIMIT) cached.delete(cached.keys().next().value);
+  return promise;
+}
+function createCanvas(w,h) {const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
+async function loadImage(url) {
+  const im = new Image(); im.crossOrigin = 'anonymous'; im.decoding='async';
+  await new Promise((resolve,reject)=>{im.onload=resolve; im.onerror=()=>reject(new Error('Map cannot be sampled (CORS or source error)'));im.src=url;});
+  return im;
+}
+function makeBlob(canvas) {return new Promise(resolve=>canvas.toBlob(resolve,'image/png'));}
 
-function lookupAsset(assets, fileName) {
-  return Object.entries(assets).find(([key]) => key.split('/').pop().toLowerCase() === fileName.toLowerCase())?.[1] || null;
-}
-function mapFileName(city) {
-  return String(city?.map || '').split(/[\\/]/).pop().split('?')[0];
-}
-function assetForCity(city) {
-  const file = mapFileName(city);
-  const name = file.replace(/\.[^.]+$/, '');
-  return lookupAsset(MASK_ASSETS, `${name}-water-mask.png`) ||
-    lookupAsset(MASK_ASSETS, `${city?.id || ''}-water-mask.png`) || null;
-}
-
-// Fallback for incoming maps that have a transparent river or a very light,
-// edge-connected blank reservoir. Unlike blanket color-keying, this never
-// floods arbitrary pale buildings or paints dark road pixels.
-async function inferMaskImage(mapSource) {
-  const image = new Image();
-  image.crossOrigin = 'anonymous';
-  image.decoding = 'async';
-  await new Promise((resolve, reject) => {
-    image.onload = resolve;
-    image.onerror = () => reject(new Error('Map image not readable'));
-    image.src = mapSource;
-  });
-  const w = image.naturalWidth, h = image.naturalHeight;
-  if (!w || !h) throw new Error('No map pixels');
-  const ratio = Math.min(1, 2200 / Math.max(w, h), Math.sqrt(2800000 / (w * h)));
-  const W = Math.max(1, Math.round(w * ratio)), H = Math.max(1, Math.round(h * ratio));
-  const c = document.createElement('canvas');
-  c.width = W; c.height = H;
-  const g = c.getContext('2d', { willReadFrequently: true });
-  g.drawImage(image, 0, 0, W, H);
-  const data = g.getImageData(0, 0, W, H);
-  const n = W * H;
-  const alpha = new Uint8Array(n);
-  let transparentCount = 0;
-  for (let i = 0; i < n; i++) {
-    const a = data.data[i * 4 + 3];
-    if (a < 225) { alpha[i] = 255 - a; transparentCount++; }
-  }
-  if (transparentCount / n < 0.004) {
-    // Only connected off-white blanks touching the outer edge qualify.
-    const eligible = (i) => {
-      const p = i * 4;
-      const r = data.data[p], gg = data.data[p + 1], b = data.data[p + 2];
-      return r >= 242 && gg >= 233 && b >= 221 && r >= gg && gg >= b &&
-        r - gg <= 27 && gg - b <= 26;
-    };
-    const seen = new Uint8Array(n), queue = new Int32Array(n);
-    let first = 0, last = 0;
-    const offer = (i) => {
-      if (!seen[i] && eligible(i)) { seen[i] = 1; queue[last++] = i; }
-    };
-    for (let x = 0; x < W; x++) { offer(x); offer((H - 1) * W + x); }
-    for (let y = 0; y < H; y++) { offer(y * W); offer(y * W + W - 1); }
-    while (first < last) {
-      const i = queue[first++];
-      if (i % W) offer(i - 1);
-      if (i % W < W - 1) offer(i + 1);
-      if (i >= W) offer(i - W);
-      if (i < n - W) offer(i + W);
+function polygonMask(polygons, width, height) {
+  const c=createCanvas(width,height), ctx=c.getContext('2d');
+  ctx.fillStyle='white';
+  let count=0;
+  for(const zone of polygons){
+    const points=zone?.points || zone?.polygon;
+    if(!Array.isArray(points) || points.length<3)continue;
+    ctx.beginPath();
+    for(let i=0;i<points.length;i++){
+      const p=points[i]; const x=Number(Array.isArray(p)?p[0]:p.x), y=Number(Array.isArray(p)?p[1]:p.y);
+      if(!Number.isFinite(x)||!Number.isFinite(y))continue;
+      // Geometries use normalized 0..1 coordinates by default.
+      const px=zone.pixelCoordinates?x:x*width, py=zone.pixelCoordinates?y:y*height;
+      if(i===0)ctx.moveTo(px,py); else ctx.lineTo(px,py);
     }
-    if (last / n < 0.01 || last / n > 0.7) return null;
-    for (let i = 0; i < last; i++) alpha[queue[i]] = 255;
-  } else if (transparentCount / n > 0.7) return null;
-
-  const output = g.createImageData(W, H);
-  for (let i = 0; i < n; i++) {
-    const p = i * 4;
-    output.data[p] = output.data[p + 1] = output.data[p + 2] = 255;
-    output.data[p + 3] = alpha[i];
+    ctx.closePath(); ctx.fill(); count++;
   }
-  g.putImageData(output, 0, 0);
-  return await new Promise((resolve) => c.toBlob(resolve, 'image/png'));
+  return count ? c : null;
 }
 
-export function enableCityWater(viewport, { city, mapSrc } = {}) {
-  const layer = viewport?.querySelector('.gta-map-animated-water');
-  if (!layer || !mapSrc) return () => {};
-  let closed = false;
-  let teardownAnimation = () => {};
-  let temporaryUrl = null;
-  let roadImage = null;
-  const source = city?.waterMaskUrl || city?.water_mask_url || city?.waterMask ||
-    assetForCity(city);
-
-  function applyMask(src, mode) {
-    if (closed || !src) return;
-    // Quoting the URI protects URL query hashes generated by Vite.
-    const val = `url(${JSON.stringify(src)})`;
-    layer.style.setProperty('--mn-water-mask', val);
+function detectPixels(im) {
+  const scale=Math.min(1, 1600/Math.max(im.naturalWidth,im.naturalHeight));
+  const W=Math.round(im.naturalWidth*scale), H=Math.round(im.naturalHeight*scale);
+  const canvas=createCanvas(W,H),ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(im,0,0,W,H);
+  const image=ctx.getImageData(0,0,W,H), rgba=image.data, n=W*H;
+  const eligible=new Uint8Array(n);
+  let whites=0, transparent=0, blues=0;
+  for(let i=0;i<n;i++){
+    const o=i*4,r=rgba[o],g=rgba[o+1],b=rgba[o+2],a=rgba[o+3];
+    if(a<24){eligible[i]=1;transparent++;continue;}
+    // Precise near-white reservoir, not pale peach residential blocks or sand.
+    // Cherkasy maps use #fef8ef; beige housing has a substantially lower G/B.
+    const pale = r>=251 && g>=242 && b>=232 && Math.abs(r-g)<=13 && r-b<=24;
+    // Other standard basemaps can use a clearly blue reservoir.
+    const blue = b>=65 && b>r*1.13 && (g>r*1.05 || b>g*1.12) && b-r>22;
+    if(pale){eligible[i]=2;whites++;}
+    else if(blue){eligible[i]=3;blues++;}
+  }
+  // Transparent cut-outs are ideal; otherwise select only one water palette.
+  let type=0;
+  if(transparent/n>0.015)type=1;
+  else if(whites/n>0.04)type=2;
+  else if(blues/n>0.025)type=3;
+  if(!type)return null;
+  const seen=new Uint8Array(n),queue=new Int32Array(n), out=new Uint8Array(n);
+  let filled=0;
+  function flood(seed){
+    if(seen[seed] || eligible[seed]!==type)return;
+    let head=0,tail=0; queue[tail++]=seed;seen[seed]=1;
+    while(head<tail){
+      const p=queue[head++];const x=p%W;
+      if(x>0){const q=p-1;if(!seen[q]&&eligible[q]===type){seen[q]=1;queue[tail++]=q;}}
+      if(x<W-1){const q=p+1;if(!seen[q]&&eligible[q]===type){seen[q]=1;queue[tail++]=q;}}
+      if(p>=W){const q=p-W;if(!seen[q]&&eligible[q]===type){seen[q]=1;queue[tail++]=q;}}
+      if(p<n-W){const q=p+W;if(!seen[q]&&eligible[q]===type){seen[q]=1;queue[tail++]=q;}}
+    }
+    // Filter tiny isolated spots and remove short pixel-level artifacts.
+    if(tail>=Math.max(90,n*0.0003)){
+      filled+=tail; for(let j=0;j<tail;j++)out[queue[j]]=255;
+    }
+  }
+  for(let x=0;x<W;x++){flood(x);flood((H-1)*W+x);}
+  for(let y=0;y<H;y++){flood(y*W);flood(y*W+W-1);}
+  // For pale cartographic backgrounds, isolated off-white spaces may be
+  // buildings or courtyards. Never flood them as water. For blue/transparent
+  // maps, isolated lakes may be added if their component is sufficiently large.
+  if(type!==2)for(let i=0;i<n;i++)if(eligible[i]===type && !seen[i])flood(i);
+  if(filled/n<0.008 || filled/n>0.68)return null;
+  // Erode 1px inward (strictly never extend onto map's dark shoreline).
+  const alpha=new Uint8ClampedArray(n);
+  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
+    const p=y*W+x;
+    if(out[p] && out[p-1] && out[p+1] && out[p-W] && out[p+W])alpha[p]=255;
+  }
+  const result=ctx.createImageData(W,H);
+  for(let i=0;i<n;i++){result.data[4*i]=255;result.data[4*i+1]=255;result.data[4*i+2]=255;result.data[4*i+3]=alpha[i];}
+  ctx.putImageData(result,0,0);
+  return canvas;
+}
+async function generate(mapSrc, zones) {
+  const image=await loadImage(mapSrc);
+  const polygons=Array.isArray(zones)?zones:[];
+  const target=polygonMask(polygons,image.naturalWidth,image.naturalHeight) || detectPixels(image);
+  if(!target)return null;
+  const blob=await makeBlob(target);
+  return blob;
+}
+export function enableCityWater(viewport,{city,mapSrc}={}) {
+  const layer=viewport?.querySelector('.gta-map-animated-water');
+  if(!layer||!mapSrc)return ()=>{};
+  let disposed=false, stop=()=>{}, url=null;
+  const zones=city?.materialZones || city?.material_zones || city?.waterZones || city?.water_zones || [];
+  const key=mapSrc+'|'+JSON.stringify(zones);
+  viewport.dataset.waterStatus='detecting';
+  const promise=cached.get(key) || remember(key,generate(mapSrc,zones).catch(e=>{cached.delete(key);throw e;}));
+  promise.then(blob=>{
+    if(disposed||!blob){if(!disposed)viewport.dataset.waterStatus='not-detected';return;}
+    url=URL.createObjectURL(blob);
+    layer.style.setProperty('--mn-water-mask',`url(${JSON.stringify(url)})`);
     layer.classList.add('is-ready');
-    viewport.dataset.waterStatus = 'active';
-    viewport.dataset.waterMode = mode;
-    // The material name is a presentation preset, not a gameplay restriction.
-    const material = city?.waterMaterial || city?.water_material || 'water';
-    viewport.dataset.waterMaterial = material;
-    teardownAnimation = enableNaturalRiverWater(viewport, { material });
-
-    // If a city ships a transparent bridge-restoration overlay, place it
-    // above the river without redrawing all its residential roads.
-    const stem = mapFileName(city).replace(/\.[^.]+$/, '');
-    const roadSrc = lookupAsset(BRIDGE_ASSETS, `${stem}-water-bridges.png`);
-    if (roadSrc) {
-      roadImage = document.createElement('img');
-      roadImage.className = 'gta-map-custom-layer gta-map-layer-roads';
-      roadImage.src = roadSrc;
-      roadImage.alt = '';
-      roadImage.setAttribute('aria-hidden', 'true');
-      roadImage.decoding = 'async';
-      layer.insertAdjacentElement('afterend', roadImage);
-    }
-  }
-
-  if (source) {
-    // Mask asset is published with the front-end (no cross-origin pixel scan).
-    applyMask(source, 'asset-mask');
-  } else {
-    viewport.dataset.waterStatus = 'checking';
-    inferMaskImage(mapSrc).then(blob => {
-      if (!blob || closed) {
-        if (!closed) viewport.dataset.waterStatus = 'no-mask';
-        return;
-      }
-      temporaryUrl = URL.createObjectURL(blob);
-      applyMask(temporaryUrl, 'auto-image-mask');
-    }).catch(error => {
-      if (!closed) {
-        viewport.dataset.waterStatus = 'requires-mask';
-        console.warn('[MN water] Provide <map-name>-water-mask.png for this city.', error?.message || error);
-      }
-    });
-  }
-
-  return () => {
-    closed = true;
-    teardownAnimation();
-    roadImage?.remove();
-    layer.classList.remove('is-ready');
+    viewport.dataset.waterStatus='active';
+    viewport.dataset.waterMode=zones.length?'geometry':'map-pixels';
+    const material=city?.waterMaterial||city?.water_material||'water';
+    viewport.dataset.waterMaterial=material;
+    stop=enableNaturalRiverWater(viewport,{material});
+  }).catch(e=>{
+    if(disposed)return;
+    viewport.dataset.waterStatus='read-failed';
+    console.warn('[MN water] Could not read this map image; use same-origin map or specify materialZones.',e);
+  });
+  return ()=>{
+    disposed=true;stop();layer.classList.remove('is-ready');
     layer.style.removeProperty('--mn-water-mask');
+    if(url)URL.revokeObjectURL(url);
     delete viewport.dataset.waterMaterial;
-    if (temporaryUrl) URL.revokeObjectURL(temporaryUrl);
   };
 }
-
