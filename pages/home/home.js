@@ -1,3 +1,4 @@
+import './mn-water.css';
 import { enableBalanceDiagnostics } from '../../src/diagnostics/balanceDiagnostics.js';
 import { register } from '../../src/router.js';
 import { state, save } from '../../src/state.js';
@@ -54,7 +55,6 @@ import { enableNuclearPowerFeature } from '../../src/nuclearPower/nuclearPowerFe
 import { enableCoalPowerFeature } from '../../src/coalPower/coalPowerFeature.js';
 import { enableEnergySubstationFeature } from '../../src/energySubstation/energySubstationFeature.js';
 import { enableWaterTreatmentFeature } from '../../src/waterTreatment/waterTreatmentFeature.js';
-import { enableNaturalRiverWater } from '../../src/map/naturalRiverWater.js';
 import { enableVehicleIndustry } from '../../src/vehicles/vehicleIndustryFeature.js';
 import { enableOilIndustryFeature } from '../../src/oilIndustry/oilIndustryFeature.js';
 import { enableUkrGazFeature } from '../../src/ukrGaz/ukrGazFeature.js';
@@ -84,6 +84,114 @@ import '../../src/houses/houses.css';
 import '../../src/styles/modal-responsive-final.css';
 import '../../src/player/playerInteractionRadial.css';
 import '../../src/styles/mobileGameplayChrome.css';
+
+// Shared world-space water renderer: every city uses one identical effect.
+// Map images MUST have transparent pixels at rivers/lakes for water to show.
+function startSharedCityWater(viewport) {
+  const canvas = viewport?.querySelector('.mn-water-canvas');
+  if (!canvas) return () => {};
+  const context = canvas.getContext('2d', { alpha: false });
+  if (!context) return () => {};
+
+  let raf = 0;
+  let lastFrame = 0;
+  let width = 1;
+  let height = 1;
+  let visible = true;
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  const lowPower = window.matchMedia?.('(max-width: 750px)');
+  const random = (n) => {
+    const value = Math.sin(n * 127.1 + 24.7) * 43758.5453;
+    return value - Math.floor(value);
+  };
+
+  function resize() {
+    const rect = viewport.getBoundingClientRect();
+    // CSS transform may scale rect; offset dimensions remain in map coordinates.
+    width = Math.max(1, Math.round(viewport.offsetWidth || rect.width));
+    height = Math.max(1, Math.round(viewport.offsetHeight || rect.height));
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+    canvas.width = Math.round(width * pixelRatio);
+    canvas.height = Math.round(height * pixelRatio);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  }
+
+  function paint(time) {
+    const t = time * 0.001;
+    const w = width;
+    const h = height;
+    const bg = context.createLinearGradient(0, 0, w * .6, h);
+    bg.addColorStop(0, '#17618b');
+    bg.addColorStop(.5, '#1b789d');
+    bg.addColorStop(1, '#15567f');
+    context.fillStyle = bg;
+    context.fillRect(0, 0, w, h);
+
+    // Broad, soft currents: curving bands rather than scrolling horizontal stripes.
+    const count = lowPower?.matches ? 13 : 20;
+    for (let i = 0; i < count; i++) {
+      const anchorX = random(i + 17) * w;
+      const anchorY = random(i + 43) * h;
+      const len = Math.min(w * .33, 110 + random(i + 70) * 230);
+      const phase = t * (.25 + random(i + 18) * .28) + i;
+      context.beginPath();
+      for (let j = 0; j <= 24; j++) {
+        const q = j / 24;
+        const x = anchorX + (q - .5) * len;
+        const y = anchorY + Math.sin(q * 5.2 + phase) * (5 + random(i + 23) * 7)
+          + Math.cos(q * 2.1 + phase * .43) * 9;
+        if (j === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      }
+      context.lineWidth = 8 + random(i + 27) * 16;
+      context.strokeStyle = `rgba(110, 201, 220, ${.025 + random(i + 33) * .025})`;
+      context.lineCap = 'round';
+      context.stroke();
+    }
+
+    // Small, sparse moving glints; no repetitive line texture.
+    const glints = lowPower?.matches ? 90 : 220;
+    for (let i = 0; i < glints; i++) {
+      const drift = t * (3 + random(i + 700) * 7);
+      const x = (random(i + 100) * w + drift) % w;
+      const y = (random(i + 300) * h + Math.sin(t * .4 + i) * 3 + h) % h;
+      const pulse = Math.sin(t * (0.6 + random(i + 500)) + i * 4.7);
+      const alpha = Math.max(0, pulse) * .14;
+      context.beginPath();
+      context.ellipse(x, y, 1.5 + random(i + 850) * 4, .55, random(i + 200) * 3, 0, Math.PI * 2);
+      context.fillStyle = `rgba(212, 246, 248, ${alpha})`;
+      context.fill();
+    }
+  }
+
+  function frame(now) {
+    if (!visible || !canvas.isConnected) { raf = 0; return; }
+    if (now - lastFrame >= (lowPower?.matches ? 40 : 30)) {
+      paint(now);
+      lastFrame = now;
+    }
+    if (!reducedMotion?.matches) raf = requestAnimationFrame(frame);
+    else raf = 0;
+  }
+
+  function onVisibility() {
+    visible = !document.hidden;
+    if (visible && !raf) raf = requestAnimationFrame(frame);
+  }
+  resize();
+  paint(0);
+  const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
+  observer?.observe(viewport);
+  window.addEventListener('resize', resize);
+  document.addEventListener('visibilitychange', onVisibility);
+  if (!reducedMotion?.matches) raf = requestAnimationFrame(frame);
+  return () => {
+    cancelAnimationFrame(raf);
+    observer?.disconnect();
+    window.removeEventListener('resize', resize);
+    document.removeEventListener('visibilitychange', onVisibility);
+  };
+}
 
 const MOBILE_CONTROLS_KEY = 'mn-mobile-controls-enabled';
 
@@ -203,7 +311,7 @@ function getVitalFillStyle(value, key = 'health') {
   return `--mn-vital-fill: ${Math.round(fill)}%`;
 }
 
-const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif,gif}', {
+const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif}', {
   eager: true,
   query: '?url',
   import: 'default',
@@ -741,98 +849,38 @@ function setupInteriorExitReturn({
   };
 }
 
-// Vite imports packaged map images. Public/Storage URLs are resolved separately.
-const SUPPORTED_MAP_EXTENSIONS = ['webp', 'png', 'jpg', 'jpeg', 'avif', 'gif'];
-
 function getMapByFileName(fileName) {
-  const target = String(fileName || '').toLowerCase();
-  if (!target) return null;
-  const match = Object.entries(MAP_FILES).find(([path]) =>
-    path.toLowerCase().endsWith(`/${target}`)
-  );
-  return match?.[1] || null;
+  const entry = Object.entries(MAP_FILES).find(([path]) => path.endsWith(`/${fileName}`));
+  return entry?.[1] || null;
 }
 
 function getOptimizedMapByFileName(fileName) {
-  const name = String(fileName || '').trim();
-  const base = name.replace(/\.[^.]+$/, '');
-  // Prefer WebP across modern Telegram WebViews; fall back to other bundled formats.
-  for (const extension of SUPPORTED_MAP_EXTENSIONS) {
-    const asset = getMapByFileName(`${base}.${extension}`);
-    if (asset) return asset;
+  const cleanName = String(fileName || '').trim();
+  const dotIndex = cleanName.lastIndexOf('.');
+  const baseName = dotIndex > 0 ? cleanName.slice(0, dotIndex) : cleanName;
+
+  for (const extension of ['avif', 'webp']) {
+    const optimized = getMapByFileName(`${baseName}.${extension}`);
+
+    if (optimized) {
+      return optimized;
+    }
   }
+
   return null;
 }
 
 function getCityMap(city) {
-  const configured = String(city?.map || '').trim();
-  const cleanPath = configured.split(/[?#]/, 1)[0];
-  const fileName = cleanPath.split('/').pop();
+  const mapPath = String(city.map || '').replace(/^\.?\//, '');
+  const mapFileName = mapPath.split('/').pop();
 
-  // Explicit remote URLs (including Supabase Storage), Blob URLs and public paths.
-  // Do not reduce them to a filename: the path and query may authorize access.
-  if (/^(https?:\/\/|blob:)/i.test(configured) || configured.startsWith('/')) {
-    return configured;
-  }
-
-  // Packaged assets: respect the file selected in city configuration first.
-  const bundled = getMapByFileName(fileName) || getOptimizedMapByFileName(fileName);
-  if (bundled) return bundled;
-
-  // Vite public directory: e.g. city.map = 'maps/zaporizhzhia.webp'.
-  if (configured && cleanPath.includes('/') && !cleanPath.startsWith('../')) {
-    return `${import.meta.env.BASE_URL || '/'}${configured.replace(/^\.\//, '')}`;
-  }
-
-  // Preserve the existing default-map behavior for cities without an asset.
   return (
-    getMapByFileName('UkraineMap.webp') ||
-    getMapByFileName('UkraineMap.png') ||
+    getOptimizedMapByFileName(mapFileName) ||
+    getMapByFileName(mapFileName) ||
     getOptimizedMapByFileName('UkraineMap.png') ||
-    null
+    getMapByFileName('UkraineMap.png')
   );
 }
-
-// Optional transparent layers live next to the main city map in the project root.
-// Example: ZaporizhzhiaMap.png + ZaporizhzhiaMap-roads.png.
-// Vite bundles only explicitly matched files; no extra public/maps subfolders.
-function getCityLayerMap(city, cityId, layer) {
-  const mapValue = String(city?.map || '').trim();
-  const fileName = mapValue.split(/[?#]/, 1)[0].split('/').pop() || '';
-  const baseName = fileName.replace(/\.[^.]+$/, '');
-  const citySlug = normalizeCityId(cityId);
-  const configured = city?.layers?.[layer] || city?.[layer + 'Map'] ||
-    (layer === 'roads' ? city?.roadMap || city?.roadsMap : '');
-  if (configured) {
-    const value = String(configured).trim();
-    if (/^(https?:\/\/|blob:)/i.test(value) || value.startsWith('/')) return value;
-    const bundled = getMapByFileName(value.split(/[?#]/, 1)[0].split('/').pop());
-    if (bundled) return bundled;
-    return `${import.meta.env.BASE_URL || '/'}${value.replace(/^\.\//, '')}`;
-  }
-
-  const names = [
-    baseName ? `${baseName}-${layer}` : null,
-    baseName ? `${baseName}_${layer}` : null,
-    `${citySlug}-${layer}`,
-    `${citySlug}_${layer}`,
-  ].filter(Boolean);
-  for (const name of names) {
-    for (const ext of SUPPORTED_MAP_EXTENSIONS) {
-      const matched = getMapByFileName(`${name}.${ext}`);
-      if (matched) return matched;
-    }
-  }
-
-  // If the main map is loaded from public/... rather than bundled in the root,
-  // use a sibling layer path. Missing layers are hidden by onerror.
-  if (mapValue && (mapValue.startsWith('/') || mapValue.includes('/'))) {
-    const parent = mapValue.split(/[?#]/, 1)[0].replace(/[^/]*$/, '');
-    return `${parent}${baseName}-${layer}.png`;
-  }
-  return '';
-}
-
 
 function getCityMapRatio(cityId) {
   return CITY_MAP_RATIOS[normalizeCityId(cityId)] || 0.6697;
@@ -1356,10 +1404,6 @@ register('home', async (root) => {
   }
 
   const mapSrc = getCityMap(city);
-  const roadMapSrc = getCityLayerMap(city, cityId, 'roads');
-  const waterMapSrc = getCityLayerMap(city, cityId, 'water');
-  const animatedWaterMaskSrc = getCityLayerMap(city, cityId, 'water-mask');
-  const buildingsMapSrc = getCityLayerMap(city, cityId, 'buildings');
   const isMobileGameplay = isMobileGameplayDevice();
   const cityMapRatio = getCityMapRatio(cityId);
 
@@ -1372,14 +1416,14 @@ register('home', async (root) => {
     ? `
           <div
             class="gta-map-image gta-map-mobile-placeholder"
-            data-map-src="${escapeHtml(mapSrc || '')}"
+            data-map-src="${mapSrc}"
             aria-hidden="true"
           ></div>
         `
     : `
           <img
             class="gta-map-image gta-map-glow"
-            src="${escapeHtml(mapSrc || '')}"
+            src="${mapSrc}"
             alt=""
             aria-hidden="true"
             loading="eager"
@@ -1388,8 +1432,8 @@ register('home', async (root) => {
 
           <img
             class="gta-map-image"
-            src="${escapeHtml(mapSrc || '')}"
-            alt="${escapeHtml(city.name)}"
+            src="${mapSrc}"
+            alt="${city.name}"
             loading="eager"
             decoding="async"
             fetchpriority="high"
@@ -1459,11 +1503,10 @@ register('home', async (root) => {
         <div class="gta-stars"></div>
         <div class="gta-sky-light"></div>
 
-        <div class="gta-water">
-          <div class="gta-water-soft"></div>
-        </div>
 
-        <div class="gta-map-viewport" data-city-id="${cityId}" data-map-src="${escapeHtml(mapSrc || '')}" data-map-ratio="${cityMapRatio}">
+
+        <div class="gta-map-viewport" data-city-id="${cityId}" data-map-src="${mapSrc}" data-map-ratio="${cityMapRatio}">
+          <canvas class="mn-water-canvas" aria-hidden="true"></canvas>
           <div class="gta-map-weather">
             <div class="gta-weather-sun"></div>
             <div class="gta-weather-clouds"></div>
@@ -1476,11 +1519,6 @@ register('home', async (root) => {
           </div>
 
           ${mapLayerHtml}
-
-          <!-- All transparent layers share the exact terrain coordinate system. -->
-          ${animatedWaterMaskSrc ? `<div class="gta-map-animated-water" style="--mn-water-mask:url('${escapeHtml(animatedWaterMaskSrc)}')" aria-hidden="true"><canvas class="gta-water-surface"></canvas></div>` : (waterMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-water" src="${escapeHtml(waterMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : '')}
-          ${roadMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-roads" src="${escapeHtml(roadMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
-          ${buildingsMapSrc ? `<img class="gta-map-custom-layer gta-map-layer-buildings" src="${escapeHtml(buildingsMapSrc)}" alt="" aria-hidden="true" draggable="false" onerror="this.hidden=true" />` : ''}
         </div>
 
 
@@ -1618,7 +1656,7 @@ register('home', async (root) => {
 
   const stage = root.querySelector('.gta-map-stage');
   const viewport = root.querySelector('.gta-map-viewport');
-  const cleanupNaturalRiverWater = enableNaturalRiverWater(viewport);
+  const cleanupSharedCityWater = startSharedCityWater(viewport);
   const weatherLayer = root.querySelector('.gta-map-weather');
   const entities = root.querySelector('.gta-map-entities');
   const playerMarker = root.querySelector(`[data-player-id="${CSS.escape(String(localPlayerId))}"]`);
@@ -2606,6 +2644,7 @@ register('home', async (root) => {
   });
 
   root._cleanupHome = () => {
+    cleanupSharedCityWater();
     cleanupBalanceDiagnostics();
     root.dataset.destroyed = 'true';
     window.__MN_GAMEPLAY_ENTERED__ = false;
@@ -2626,7 +2665,6 @@ register('home', async (root) => {
     clearInterval(balanceSyncTimer);
     cleanupBalanceDatabaseSync?.();
     cleanupRenderPerformanceGuards?.();
-    cleanupNaturalRiverWater?.();
 
     cleanupInventoryFeature?.();
     cleanupHospitalManagement?.();
@@ -2699,4 +2737,3 @@ register('home', async (root) => {
     root.classList.remove(PLAYER_HEALTH_LOW_CLASS, PLAYER_HEALTH_HIT_CLASS);
   };
 });
-
