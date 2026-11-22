@@ -13,29 +13,43 @@ void main() {
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 const FRAGMENT = `
-precision mediump float;
+precision highp float;
 varying vec2 v_uv;
 uniform float u_time;
 uniform vec2 u_resolution;
 uniform vec3 u_color;
 uniform float u_speed;
 uniform float u_strength;
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float noise(vec2 p) {
-  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
-  return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),
-             mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.,1.)),f.x),f.y);
+// Surface normals from several SHORT, slowly travelling ripples. No large
+// cellular noise or concentric bands: these were producing a cloth effect.
+float wave(vec2 p, vec2 direction, float frequency, float velocity, float t) {
+  return sin(dot(p,normalize(direction))*frequency + t*velocity);
+}
+float heightField(vec2 p,float t) {
+  float h = 0.0;
+  h += 0.42*wave(p,vec2(1.0,0.31),0.92,0.85,t);
+  h += 0.27*wave(p,vec2(-0.27,1.0),1.37,-0.72,t);
+  h += 0.17*wave(p,vec2(0.8,-0.65),2.28,1.16,t);
+  h += 0.08*wave(p,vec2(-0.7,-0.42),3.61,-0.93,t);
+  return h;
 }
 void main() {
-  vec2 p = v_uv * (u_resolution / max(u_resolution.x, u_resolution.y)) * 7.0;
-  float t = u_time * u_speed;
-  vec2 q = p + vec2(noise(p*1.1+vec2(t*0.12,-t*0.07)), noise(p*1.3-vec2(t*0.09,t*0.14)))*0.55;
-  float a = noise(q*2.7 + vec2(t*0.18,-t*0.12));
-  float b = noise(q*6.1 - vec2(t*0.11,t*0.17));
-  float caustic = pow(max(0.0, sin((a+b*0.5)*13.0+t*0.3)), 14.0);
-  float shimmer = (a - 0.5)*0.19 + (b - 0.5)*0.10 + caustic*0.19*u_strength;
-  vec3 col = clamp(u_color + vec3(shimmer*0.5,shimmer,shimmer*1.12),0.0,1.0);
-  gl_FragColor = vec4(col,1.0);
+  // Map pixels, not canvas UV, determine ripple scale at every aspect ratio.
+  // Very small displacement keeps the water flat and prevents fabric folds.
+  vec2 p = v_uv*u_resolution/28.0;
+  float t = u_time*u_speed;
+  float stepSize=0.085;
+  float h=heightField(p,t);
+  vec2 slope=vec2(heightField(p+vec2(stepSize,0.0),t)-heightField(p-vec2(stepSize,0.0),t),
+                   heightField(p+vec2(0.0,stepSize),t)-heightField(p-vec2(0.0,stepSize),t))/(2.0*stepSize);
+  vec3 n=normalize(vec3(-slope*0.22, 1.0));
+  vec3 light=normalize(vec3(-0.40,0.35,0.85));
+  float diffuse=clamp(dot(n,light),0.0,1.0);
+  float glint=pow(max(0.0,dot(reflect(-light,n),vec3(0.0,0.0,1.0))), 38.0);
+  float micro=sin(p.x*5.2+t*1.15)*sin(p.y*3.9-t*0.74);
+  float brightness=0.95+0.055*diffuse+0.018*h+0.015*micro;
+  vec3 col=clamp(u_color*brightness+vec3(0.055,0.105,0.125)*glint*u_strength,0.0,1.0);
+  gl_FragColor=vec4(col,1.0);
 }`;
 
 function compile(gl, type, source) {
@@ -89,7 +103,7 @@ function init2D(canvas,preset) {
   // Cached noise shapes; no per-frame ImageData allocations.
   const flecks = Array.from({length:90},(_,i)=>({
     x: ((i*137.508)%100)/100, y: ((i*73.71)%100)/100,
-    phase:i*1.72, radius:1+(i%5), speed:0.1+(i%7)*0.025,
+    phase:i*1.72, radius:1+(i%3), speed:0.1+(i%7)*0.025,
   }));
   return {
     draw(t) {
@@ -98,9 +112,9 @@ function init2D(canvas,preset) {
       for(const f of flecks) {
         const x=((f.x+t*f.speed*0.012)%1)*w;
         const y=(f.y+Math.sin(t*0.37+f.phase)*0.012)*h;
-        const alpha=0.04+0.09*(0.5+0.5*Math.sin(t*0.9+f.phase));
+        const alpha=0.025+0.045*(0.5+0.5*Math.sin(t*0.9+f.phase));
         ctx.fillStyle=`rgba(195,235,221,${alpha})`;
-        ctx.beginPath();ctx.ellipse(x,y,f.radius*3,f.radius*0.8,Math.sin(f.phase)*0.8,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.ellipse(x,y,f.radius*2.2,Math.max(0.35,f.radius*0.22),Math.sin(f.phase)*0.25,0,Math.PI*2);ctx.fill();
       }
     },
     dispose() {},
