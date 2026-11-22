@@ -1,32 +1,20 @@
-/* Shared water for all cities; the moving canvas and map live in the same viewport. */
-.gta-map-viewport { isolation: isolate; }
-.gta-map-viewport > .mn-water-canvas {
+/* MN Game: water overlay V4, universal per-city map coordinate system. */
+.gta-map-viewport { isolation: isolate !important; }
+.gta-map-viewport > .mn-water-overlay {
   position: absolute !important;
   inset: 0 !important;
   display: block !important;
+  visibility: hidden;
   width: 100% !important;
   height: 100% !important;
-  z-index: 0 !important;
+  z-index: 20 !important;
   pointer-events: none !important;
+  opacity: 1 !important;
+  object-fit: fill !important;
 }
-/* Map images are always above water; transparent pixels expose the canvas. */
 .gta-map-viewport > .gta-map-image,
-.gta-map-viewport > .gta-map-mobile-placeholder {
-  z-index: 2 !important;
-}
-/* Weather and game entities must remain above the terrain. */
-.gta-map-viewport > .gta-map-weather { z-index: 4 !important; }
-.gta-map-viewport > .gta-map-entities { z-index: 5 !important; }
-/* Prevent earlier stage-wide water from bleeding outside the city map. */
+.gta-map-viewport > .gta-map-mobile-placeholder { z-index: 2 !important; }
+.gta-map-viewport > .gta-map-glow { z-index: 1 !important; }
+.gta-map-viewport > .gta-map-entities { z-index: 30 !important; }
+.gta-map-viewport > .gta-map-weather { z-index: 31 !important; }
 .gta-map-stage > .gta-water { display: none !important; }
-
-/* Avoid old pseudo layers or glow filling the transparent water area. */
-.gta-map-viewport > .mn-water-canvas { opacity: 1 !important; visibility: visible !important; }
-.gta-map-viewport > .gta-map-glow { pointer-events: none !important; }
-
-/* Keep mobile CSS background transparent if the cutout was applied. */
-.gta-map-viewport > .gta-map-mobile-placeholder {
-  background-color: transparent !important;
-  background-repeat: no-repeat !important;
-  background-size: 100% 100% !important;
-}
