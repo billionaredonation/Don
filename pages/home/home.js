@@ -1,3 +1,4 @@
+import { getCityMapUrl } from '../../src/map/cityMapAssets.js';
 import './mn-water.css';
 import { enableCityWater } from '../../src/map/universalCityWater.js';
 import { enableBalanceDiagnostics } from '../../src/diagnostics/balanceDiagnostics.js';
@@ -204,11 +205,6 @@ function getVitalFillStyle(value, key = 'health') {
   return `--mn-vital-fill: ${Math.round(fill)}%`;
 }
 
-const MAP_FILES = import.meta.glob('../../*.{png,jpg,jpeg,webp,avif}', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
 
 const CITY_MAP_RATIOS = {
   vinnytsia: 1,
@@ -742,37 +738,8 @@ function setupInteriorExitReturn({
   };
 }
 
-function getMapByFileName(fileName) {
-  const entry = Object.entries(MAP_FILES).find(([path]) => path.endsWith(`/${fileName}`));
-  return entry?.[1] || null;
-}
-
-function getOptimizedMapByFileName(fileName) {
-  const cleanName = String(fileName || '').trim();
-  const dotIndex = cleanName.lastIndexOf('.');
-  const baseName = dotIndex > 0 ? cleanName.slice(0, dotIndex) : cleanName;
-
-  for (const extension of ['avif', 'webp']) {
-    const optimized = getMapByFileName(`${baseName}.${extension}`);
-
-    if (optimized) {
-      return optimized;
-    }
-  }
-
-  return null;
-}
-
 function getCityMap(city) {
-  const mapPath = String(city.map || '').replace(/^\.?\//, '');
-  const mapFileName = mapPath.split('/').pop();
-
-  return (
-    getOptimizedMapByFileName(mapFileName) ||
-    getMapByFileName(mapFileName) ||
-    getOptimizedMapByFileName('UkraineMap.png') ||
-    getMapByFileName('UkraineMap.png')
-  );
+  return getCityMapUrl(city?.id);
 }
 
 function getCityMapRatio(cityId) {
