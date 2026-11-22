@@ -23,3 +23,10 @@
 /* Avoid old pseudo layers or glow filling the transparent water area. */
 .gta-map-viewport > .mn-water-canvas { opacity: 1 !important; visibility: visible !important; }
 .gta-map-viewport > .gta-map-glow { pointer-events: none !important; }
+
+/* Keep mobile CSS background transparent if the cutout was applied. */
+.gta-map-viewport > .gta-map-mobile-placeholder {
+  background-color: transparent !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
