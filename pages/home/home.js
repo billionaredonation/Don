@@ -9,6 +9,7 @@ import { getCityWeather } from '../../src/weather/weather.js';
 import { setupSessionGuard } from '../../src/network/sessionGuard.js';
 import { setupGameRealtime } from '../../src/realtime/gameRealtime.js';
 
+
 import {
   getLocalPlayerId,
   getOrCreatePlayerPosition,
