@@ -155,3 +155,4 @@ export function enableCityWater(viewport, { city, mapSrc } = {}) {
     if (temporaryUrl) URL.revokeObjectURL(temporaryUrl);
   };
 }
+
