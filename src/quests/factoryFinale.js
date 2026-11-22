@@ -1,10 +1,9 @@
+import { getCityMapUrl } from '../map/cityMapAssets.js';
 import {invokeLumberAction} from '../lumber/lumberApi.js';
 import {state} from '../state.js';
 import {cities} from '../cities/index.js';
 import './factoryFinale.css';
-const maps=import.meta.glob('../../*.{png,webp,avif}',{eager:true,query:'?url',import:'default'});
-function remoteMap(city){const file=cities[city]?.map?.split('/').pop();if(!file)return null;
- const stem=file.replace(/\.[^.]+$/,'');return maps['../../'+stem+'.avif']||maps['../../'+stem+'.webp']||maps['../../'+file];}
+function remoteMap(city) { return getCityMapUrl(city); }
 const roles=o=>[o?.type,o?.payload?.type,o?.payload?.serviceType,o?.payload?.jobType];
 export const questNpc=o=>roles(o).find(t=>t==='lumber_vitya'||t==='station_sasha');
 // No quest-specific factory routing. Every blip opens its native production panel.
