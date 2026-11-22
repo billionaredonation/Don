@@ -8,7 +8,7 @@
   z-index: 3 !important;
   pointer-events: none !important;
   overflow: hidden !important;
-  background: #0c5266 !important;
+  background: transparent !important;
   opacity: 0;
   visibility: hidden;
   -webkit-mask-image: var(--mn-water-mask, none);
