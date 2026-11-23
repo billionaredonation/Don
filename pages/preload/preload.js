@@ -1,4 +1,5 @@
-import { getCityMapUrl, resolveLegacyMapName, isMapAssetUrl } from '../../src/map/cityMapAssets.js';
+import { getCityMapUrl } from '../../src/map/cityMapAssets.js';
+import { getCityLoadingImages, getDefaultLoadingImages } from '../../src/assets/loading/loadingAssets.js';
 // pages/preload/preload.js
 import { register, show } from '../../src/router.js';
 import { getState } from '../../src/state.js';
@@ -6,36 +7,6 @@ import { getCityConfig, normalizeCityId } from '../../src/cities/index.js';
 
 const PRELOAD_VERSION = '13';
 const CITY_MAP_VERSION = '36';
-
-const ROOT_ASSETS = import.meta.glob('../../*.{png,svg,jpg,jpeg,webp,gif,ico,avif}', {
-  eager: true,
-  query: '?url',
-  import: 'default'
-});
-
-const BUNDLED_ASSET_URLS = new Set(Object.values(ROOT_ASSETS));
-
-function rootAsset(src) {
-  if (isMapAssetUrl(src)) return src;
-  const migrated = resolveLegacyMapName(src);
-  if (migrated) return migrated;
-  const cleanSrc = String(src || '')
-    .replace(/^\.\//, '')
-    .replace(/^\//, '')
-    .split('?')[0];
-
-  const key = `../../${cleanSrc}`;
-  const bundled = ROOT_ASSETS[key];
-
-  if (bundled) {
-    return bundled;
-  }
-
-  const base = String(import.meta.env.BASE_URL || './');
-  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
-
-  return `${normalizedBase}${encodeURI(cleanSrc)}`;
-}
 
 const MIN_LOADING_TIME = 9000;
 const SLIDE_TIME = 3000;
@@ -69,59 +40,14 @@ const ALL_CITY_IDS = [
   'chernivtsi',
 ];
 
-const DEFAULT_LOADING_IMAGES = [
-  'loading-1.png',
-  'loading-2.png',
-  'loading-3.png',
-  'UkraineMap.png',
-];
-
-const CITY_LOADING_FILE_ALIASES = {
-  vinnytsia: ['vinnytsia', 'vinnitsa', 'vinitsa'],
-  lutsk: ['lutsk'],
-  luhansk: ['luhansk', 'lugansk'],
-  dnipro: ['dnipro', 'dnepr'],
-  donetsk: ['donetsk'],
-  zhytomyr: ['zhytomyr', 'zutomyr', 'zhitomir'],
-  uzhhorod: ['uzhhorod', 'uzgorod'],
-  zaporizhzhia: ['zaporizhzhia', 'zaporizhia', 'zaporozya'],
-  'ivano-frankivsk': ['ivano-frankivsk', 'ivanoFrankovsk', 'ivanofrankovsk'],
-  kyiv: ['kyiv', 'kiev', 'kiyv'],
-  kropyvnytskyi: ['kropyvnytskyi', 'kropivnitsky', 'kropivnitskyi'],
-  crimea: ['crimea', 'krym', 'cream'],
-  lviv: ['lviv'],
-  mykolaiv: ['mykolaiv', 'nikolaev'],
-  odesa: ['odesa', 'odessa'],
-  poltava: ['poltava'],
-  rivne: ['rivne', 'rovno'],
-  sumy: ['sumy'],
-  ternopil: ['ternopil'],
-  kharkiv: ['kharkiv'],
-  kherson: ['kherson'],
-  khmelnytskyi: ['khmelnytskyi', 'khmelnitskiy'],
-  cherkasy: ['cherkasy', 'cherkassy', 'cherkasi'],
-  chernihiv: ['chernihiv', 'chernigov'],
-  chernivtsi: ['chernivtsi', 'chernovtsy'],
-};
-
+// All loading artwork comes from src/assets/loading, never the repository root.
 function assetUrl(src) {
   if (!src) return '';
-  if (
-    src.startsWith('http') ||
-    src.startsWith('data:') ||
-    src.startsWith('blob:') ||
-    BUNDLED_ASSET_URLS.has(src) ||
-    isMapAssetUrl(src)
-  ) {
-    return src;
-  }
-
-  return rootAsset(src);
+  if (typeof src === 'string' && /^(https?:|data:|blob:|\/)/.test(src)) return src;
+  return src; // Vite-generated URL
 }
 
 function withVersion(src) {
-  if (!src) return '';
-
   return assetUrl(src);
 }
 
@@ -129,41 +55,12 @@ function getCityMapSrc(cityId) {
   return getCityMapUrl(normalizeCityId(cityId));
 }
 
-function makeCityLoadingCandidates(cityId) {
-  const normalizedCityId = normalizeCityId(cityId);
-  const aliases = CITY_LOADING_FILE_ALIASES[normalizedCityId] || [normalizedCityId];
-
-  return aliases.flatMap((name) => [
-    `loading-${name}-1.png`,
-    `loading-${name}-2.png`,
-    `loading-${name}-3.png`,
-  ]);
-}
-
-function getBundledLoadingImage(src) {
-  const cleanSrc = String(src || '')
-    .replace(/^\.\//, '')
-    .replace(/^\//, '')
-    .split('?')[0];
-
-  return ROOT_ASSETS[`../../${cleanSrc}`] || null;
-}
-
 function getBundledCityLoadingImages(cityId) {
-  const unique = new Set();
-
-  makeCityLoadingCandidates(cityId).forEach((src) => {
-    const bundled = getBundledLoadingImage(src);
-    if (bundled) unique.add(bundled);
-  });
-
-  return Array.from(unique).slice(0, 3);
+  return getCityLoadingImages(normalizeCityId(cityId));
 }
 
 function getBundledDefaultLoadingImages() {
-  return DEFAULT_LOADING_IMAGES
-    .map(getBundledLoadingImage)
-    .filter(Boolean);
+  return getDefaultLoadingImages();
 }
 
 const DEFAULT_PRELOAD_TEXTS = [
@@ -754,8 +651,8 @@ async function collectExistingImages(candidates) {
 async function resolveLoadingImages(cityId, city) {
   const normalizedCityId = normalizeCityId(cityId);
 
-  const cityMap = withVersion(city.map || getCityMapSrc(normalizedCityId, city), CITY_MAP_VERSION);
-  const ukraineMap = withVersion('UkraineMap.png', CITY_MAP_VERSION);
+  const cityMap = withVersion(getCityMapSrc(normalizedCityId), CITY_MAP_VERSION);
+  const ukraineMap = withVersion(getCityMapUrl('ukraine'));
   const preparedImages = getBundledCityLoadingImages(normalizedCityId);
   const fallbackPreparedImages = getBundledDefaultLoadingImages();
   const exactCandidates = preparedImages.length
@@ -800,8 +697,8 @@ async function resolveLoadingImages(cityId, city) {
 }
 
 function makeSlides(cityId, city, images) {
-  const cityMap = withVersion(getCityMapSrc(cityId, city), CITY_MAP_VERSION);
-  const ukraineMap = withVersion('UkraineMap.png', CITY_MAP_VERSION);
+  const cityMap = withVersion(getCityMapSrc(cityId), CITY_MAP_VERSION);
+  const ukraineMap = withVersion(getCityMapUrl('ukraine'));
   const texts = getCityTexts(cityId, city);
 
   return images.map((src, index) => {
@@ -818,7 +715,7 @@ function makeSlides(cityId, city, images) {
 }
 
 function setImageWithFallback(img, primarySrc, fallbackSrc) {
-  const safeFallback = fallbackSrc || withVersion('UkraineMap.png', CITY_MAP_VERSION);
+  const safeFallback = fallbackSrc || withVersion(getCityMapUrl('ukraine'));
   const nextSrc = primarySrc || safeFallback;
 
   if (img.dataset.currentSrc === nextSrc && img.classList.contains('is-active')) {
@@ -984,7 +881,7 @@ register('preload', async (root, props = {}) => {
     setProgress(visualProgress);
   }, 80);
 
-  const firstImage = withVersion(getCityMapSrc(cityId, city), CITY_MAP_VERSION);
+  const firstImage = withVersion(getCityMapSrc(cityId), CITY_MAP_VERSION);
   const initialImages = getBundledCityLoadingImages(cityId);
 
   if (!initialImages.length) {
