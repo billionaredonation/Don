@@ -1,46 +1,39 @@
-// Central asset loader. Preferred: src/assets/loading/cities/<city>/1.webp.
-// Compatibility: old loading-<city>-1.png files in repository root.
-const IMAGES = import.meta.glob('./**/*.{webp,avif,png,jpg,jpeg,svg}', {
+// MN-Game loading assets: Vite compiles URLs for bundled files.
+// New directory structure takes priority; legacy root images remain a fallback.
+const NEW_IMAGES = import.meta.glob('./**/*.{png,webp,avif,jpg,jpeg,svg}', {
   eager: true,
   query: '?url',
   import: 'default',
 });
-const LEGACY = import.meta.glob('../../../loading-*.{webp,avif,png,jpg,jpeg,svg}', {
-  eager: true,
-  query: '?url',
-  import: 'default',
-});
-const EXTENSIONS = ['avif', 'webp', 'png', 'jpg', 'jpeg', 'svg'];
 
-function getFrame(folder, frame) {
+const OLD_IMAGES = import.meta.glob('../../../loading-*.{png,webp,avif,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+
+const EXTENSIONS = ['webp', 'avif', 'svg', 'png', 'jpg', 'jpeg'];
+
+function findImage(city, number) {
+  const base = city ? `cities/${city}/${number}` : `default/${number}`;
   for (const ext of EXTENSIONS) {
-    const found = IMAGES[`./${folder}/${frame}.${ext}`];
+    const found = NEW_IMAGES[`./${base}.${ext}`];
     if (found) return found;
   }
-  const prefix = folder === 'default' ? 'loading' : `loading-${folder.slice(7)}`;
+  const oldBase = city ? `loading-${city}-${number}` : `loading-${number}`;
   for (const ext of EXTENSIONS) {
-    const found = LEGACY[`../../../${prefix}-${frame}.${ext}`];
+    const found = OLD_IMAGES[`../../../${oldBase}.${ext}`];
     if (found) return found;
   }
   return null;
 }
 
-function listFrames(folder, count) {
-  const frames = [];
-  const max = Math.min(99, Math.max(0, Math.floor(Number(count) || 0)));
-  for (let index = 1; index <= max; index++) {
-    const url = getFrame(folder, index);
-    if (url) frames.push(url);
-  }
-  return frames;
+export function getDefaultLoadingImages() {
+  return [1, 2].map(number => findImage(null, number)).filter(Boolean);
 }
 
-export function getCityLoadingImages(cityId, count = 3) {
-  const id = String(cityId || '').trim().toLowerCase();
-  if (!/^[a-z0-9-]+$/.test(id)) return [];
-  return listFrames(`cities/${id}`, count);
-}
-
-export function getDefaultLoadingImages(count = 3) {
-  return listFrames('default', count);
+export function getCityLoadingImages(cityId) {
+  const city = String(cityId || '').trim().toLowerCase();
+  if (!/^[a-z0-9-]+$/.test(city)) return [];
+  return [1, 2].map(number => findImage(city, number)).filter(Boolean);
 }
