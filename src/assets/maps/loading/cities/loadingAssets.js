@@ -1,30 +1,38 @@
-// Centralised Vite loader for MN-Game preloading artwork.
-// Add src/assets/loading/cities/<city-id>/1.webp etc. No JS changes needed.
+// Central asset loader. Preferred: src/assets/loading/cities/<city>/1.webp.
+// Compatibility: old loading-<city>-1.png files in repository root.
 const IMAGES = import.meta.glob('./**/*.{webp,avif,png,jpg,jpeg,svg}', {
   eager: true,
   query: '?url',
   import: 'default',
 });
+const LEGACY = import.meta.glob('../../../loading-*.{webp,avif,png,jpg,jpeg,svg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+const EXTENSIONS = ['avif', 'webp', 'png', 'jpg', 'jpeg', 'svg'];
 
-const FORMAT_PRIORITY = ['avif', 'webp', 'png', 'jpg', 'jpeg', 'svg'];
-
-function resolveFrame(folder, frame) {
-  if (!/^(?:default|cities\/[a-z0-9-]+)$/.test(folder)) return null;
-  if (!Number.isInteger(frame) || frame < 1 || frame > 99) return null;
-  for (const ext of FORMAT_PRIORITY) {
-    const url = IMAGES[`./${folder}/${frame}.${ext}`];
-    if (url) return url;
+function getFrame(folder, frame) {
+  for (const ext of EXTENSIONS) {
+    const found = IMAGES[`./${folder}/${frame}.${ext}`];
+    if (found) return found;
+  }
+  const prefix = folder === 'default' ? 'loading' : `loading-${folder.slice(7)}`;
+  for (const ext of EXTENSIONS) {
+    const found = LEGACY[`../../../${prefix}-${frame}.${ext}`];
+    if (found) return found;
   }
   return null;
 }
 
-function listFrames(folder, count = 3) {
-  const result = [];
-  for (let i = 1; i <= count; i += 1) {
-    const url = resolveFrame(folder, i);
-    if (url) result.push(url);
+function listFrames(folder, count) {
+  const frames = [];
+  const max = Math.min(99, Math.max(0, Math.floor(Number(count) || 0)));
+  for (let index = 1; index <= max; index++) {
+    const url = getFrame(folder, index);
+    if (url) frames.push(url);
   }
-  return result;
+  return frames;
 }
 
 export function getCityLoadingImages(cityId, count = 3) {
